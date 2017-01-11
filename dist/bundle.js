@@ -106,7 +106,7 @@
 	        this.stats = new _stats2.default(this);
 
 	        //add general css for our page
-	        this.utils.addCSS('html { height: 100%; }' + 'body { min-height: 100%; margin: 0; padding: 0; position: relative; overflow: hidden;  font-family: Arial;}');
+	        this.utils.addCSS('html { height: 100%; }' + 'body { min-height: 100%; margin: 0; padding: 0; position: relative; overflow: hidden; font-family: Consolas, monaco, monospace;}');
 	    }
 
 	    //main entry point
@@ -270,7 +270,7 @@
 	            s.fps = s.fpscounter;
 	            s.fpscounter = 0;
 	            document.getElementById('stat-fps').innerHTML = 'FPS : ' + s.fps;
-	            document.getElementById('stat-msframe').innerHTML = 'FT : ' + s.frametime.toPrecision(10);
+	            document.getElementById('stat-msframe').innerHTML = 'FTM : ' + s.frametime.toPrecision(10);
 	        }, 1000);
 	    }
 

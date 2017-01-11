@@ -22,7 +22,7 @@ class Stats {
       s.fps = s.fpscounter;
       s.fpscounter = 0;
       document.getElementById('stat-fps').innerHTML = 'FPS : ' + s.fps;
-      document.getElementById('stat-msframe').innerHTML = 'FT : ' + s.frametime.toPrecision(10);
+      document.getElementById('stat-msframe').innerHTML = 'FTM : '  + s.frametime.toPrecision(10);
     }, 1000);
 
   }
