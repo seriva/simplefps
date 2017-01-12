@@ -12,11 +12,7 @@
     "lint": "eslint src",
     "cordova": "cd app && cordova",
     "android": "npm run build && copyfiles -u 1 \"dist/**/*.*\" \"app/www\" && npm run cordova -- run android",
-    "android-debug": "npm run build && copyfiles -u 1 \"dist/**/*.*\" \"app/www\" && npm run cordova -- build android --debug",
-
-    "copy": "copyfiles -u 1 \"dist/**/*.*\" \"app/www\"",
-
-    "copy2": "copyfiles \"xwalk-command-line\" \"app/platforms/android/assets/\""
+    "android-debug": "npm run build && copyfiles -u 1 \"dist/**/*.*\" \"app/www\" && npm run cordova -- build android --debug"
   },
   "author": "Luuk van Venrooij",
   "license": "ISC",
