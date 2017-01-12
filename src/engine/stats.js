@@ -5,7 +5,7 @@ class Stats {
 
     this.fps = 0;
     this.fpscounter = 0;
-    this.frametime = 0;
+    this.frametime = 0; 
 
     //add general css for our page
     e.utils.addCSS(

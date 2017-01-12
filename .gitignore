@@ -1,2 +1,5 @@
 node_modules
 build
+app/www
+app/platforms
+app/plugins

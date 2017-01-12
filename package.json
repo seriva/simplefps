@@ -6,12 +6,17 @@
     "build": "src/**/*.js"
   },
   "scripts": {
-    "start": "npm run build && parallelshell \"npm run server\" \"npm-watch\"",
-    "server": "cd dist && reload -b -v",
-    "build": "npm run transpile && npm run bundle",
-    "bundle": "webpack",
-    "transpile": "babel -d build src",
-    "lint": "eslint src"
+    "start": "npm run build && parallelshell \"cd dist && reload -b -v\" \"npm-watch\"",
+    "postinstall": "npm run build && npm run cordova -- prepare && copyfiles \"xwalk-command-line\" \"app/platforms/android/assets/\" ",
+    "build": "babel -d build src && webpack",
+    "lint": "eslint src",
+    "cordova": "cd app && cordova",
+    "android": "npm run build && copyfiles -u 1 \"dist/**/*.*\" \"app/www\" && npm run cordova -- run android",
+    "android-debug": "npm run build && copyfiles -u 1 \"dist/**/*.*\" \"app/www\" && npm run cordova -- build android --debug",
+
+    "copy": "copyfiles -u 1 \"dist/**/*.*\" \"app/www\"",
+
+    "copy2": "copyfiles \"xwalk-command-line\" \"app/platforms/android/assets/\""
   },
   "author": "Luuk van Venrooij",
   "license": "ISC",
@@ -25,7 +30,9 @@
     "npm-watch": "^0.1.6",
     "parallelshell": "^2.0.0",
     "reload": "^1.0.2",
-    "webpack": "^1.14.0"
+    "webpack": "^1.14.0",
+    "cordova": "^6.4.0",
+    "copyfiles": "^1.0.0"
   },
   "dependencies": {
     "core-js": "^2.4.1",
