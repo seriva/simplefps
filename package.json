@@ -6,8 +6,9 @@
     "build": "src/**/*.js"
   },
   "scripts": {
-    "start": "npm run build && parallelshell \"cd dist && reload -b -v\" \"npm-watch\"",
+    "start": "npm run build && parallelshell \"npm run server\" \"npm-watch\"",
     "postinstall": "npm run build && npm run cordova -- prepare && copyfiles \"xwalk-command-line\" \"app/platforms/android/assets/\" ",
+    "server": "cd dist && reload -b -v",
     "build": "babel -d build src && webpack && copyfiles -u 1 \"dist/**/*.*\" \"app/www\"",
     "lint": "eslint src",
     "cordova": "cd app && cordova",
