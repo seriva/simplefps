@@ -342,16 +342,15 @@
 	    gl.clearDepth(1.0);
 	    gl.enable(gl.DEPTH_TEST);
 	    gl.depthFunc(gl.LEQUAL);
-
 	    r.resize();
 
 	    e.console.log('Initialized renderer');
 
 	    //TEMP demo code for testing.
 	    //init shaders
-	    var vertexShaderText = ['precision mediump float;', '', 'attribute vec3 vertPosition;', 'attribute vec2 vertTexCoord;', 'varying vec2 fragTexCoord;', 'uniform mat4 mWorld;', 'uniform mat4 mView;', 'uniform mat4 mProj;', '', 'void main()', '{', '  fragTexCoord = vertTexCoord;', '  gl_Position = mProj * mView * mWorld * vec4(vertPosition, 1.0);', '}'].join('\n');
+	    var vertexShaderText = ['precision mediump float;', '', 'attribute vec3 vertPosition;', 'attribute vec2 vertTexCoord;', 'attribute vec3 vertNormal;', '', 'varying vec2 fragTexCoord;', 'varying vec3 fragNormal;', '', 'uniform mat4 mWorld;', 'uniform mat4 mView;', 'uniform mat4 mProj;', '', 'void main()', '{', '  fragTexCoord = vertTexCoord;', '  fragNormal = (mWorld * vec4(vertNormal, 0.0)).xyz;', '  gl_Position = mProj * mView * mWorld * vec4(vertPosition, 1.0);', '}'].join('\n');
 
-	    var fragmentShaderText = ['precision mediump float;', '', 'varying vec2 fragTexCoord;', 'uniform sampler2D sampler;', '', 'void main()', '{', '  gl_FragColor = texture2D(sampler, fragTexCoord);', '}'].join('\n');
+	    var fragmentShaderText = ['precision mediump float;', 'struct DirectionalLight', '{', ' vec3 direction;', '	vec3 color;', '};', '', 'varying vec2 fragTexCoord;', 'varying vec3 fragNormal;', '', 'uniform vec3 ambientLightIntensity;', 'uniform DirectionalLight sun;', 'uniform sampler2D sampler;', '', 'void main()', '{', ' vec3 surfaceNormal = normalize(fragNormal);', ' vec3 normSunDir = normalize(sun.direction);', ' vec4 texel = texture2D(sampler, fragTexCoord);', ' vec3 lightIntensity = ambientLightIntensity + sun.color * max(dot(fragNormal, normSunDir), 0.0);', ' gl_FragColor = vec4(texel.rgb * lightIntensity, texel.a);', '}'].join('\n');
 
 	    var vertexShader = gl.createShader(gl.VERTEX_SHADER);
 	    var fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
@@ -387,6 +386,7 @@
 
 	    var positionAttribLocation = gl.getAttribLocation(program, 'vertPosition');
 	    var texCoordAttribLocation = gl.getAttribLocation(program, 'vertTexCoord');
+	    var normalAttribLocation = gl.getAttribLocation(program, 'vertNormal');
 
 	    //mesh
 	    r.mesh = undefined;
@@ -402,11 +402,12 @@
 	      gl.bindBuffer(gl.ARRAY_BUFFER, r.mesh.textureBuffer);
 	      gl.vertexAttribPointer(texCoordAttribLocation, r.mesh.textureBuffer.itemSize, gl.FLOAT, false, 0, 0);
 
-	      //gl.bindBuffer(gl.ARRAY_BUFFER, mesh.normalBuffer);
-	      //gl.vertexAttribPointer(shaderProgram.vertexNormalAttribute, r.mesh.normalBuffer.itemSize, gl.FLOAT, false, 0, 0);
+	      gl.bindBuffer(gl.ARRAY_BUFFER, r.mesh.normalBuffer);
+	      gl.vertexAttribPointer(normalAttribLocation, r.mesh.normalBuffer.itemSize, gl.FLOAT, false, 0, 0);
 
 	      gl.enableVertexAttribArray(positionAttribLocation);
 	      gl.enableVertexAttribArray(texCoordAttribLocation);
+	      gl.enableVertexAttribArray(normalAttribLocation);
 
 	      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, r.mesh.indexBuffer);
 	    });
@@ -430,16 +431,23 @@
 	    r.matWorldUniformLocation = gl.getUniformLocation(program, 'mWorld');
 	    r.matViewUniformLocation = gl.getUniformLocation(program, 'mView');
 	    r.matProjUniformLocation = gl.getUniformLocation(program, 'mProj');
+	    r.ambientUniformLocation = gl.getUniformLocation(program, 'ambientLightIntensity');
+	    r.sunlightDirUniformLocation = gl.getUniformLocation(program, 'sun.direction');
+	    r.sunlightIntUniformLocation = gl.getUniformLocation(program, 'sun.color');
+
 	    r.worldMatrix = new Float32Array(16);
 	    r.viewMatrix = new Float32Array(16);
 	    r.projMatrix = new Float32Array(16);
-
 	    _glMatrix.mat4.identity(r.worldMatrix);
-	    _glMatrix.mat4.lookAt(r.viewMatrix, [0, 2, -5], [0, 0, 0], [0, 1, 0]);
+	    _glMatrix.mat4.lookAt(r.viewMatrix, [0, 1, -3.2], [0, 1, 0], [0, 1, 0]);
 	    _glMatrix.mat4.perspective(this.projMatrix, _glMatrix.glMatrix.toRadian(45), r.canvas.width / r.canvas.height, 0.1, 1000.0);
+
 	    gl.uniformMatrix4fv(r.matWorldUniformLocation, gl.FALSE, r.worldMatrix);
 	    gl.uniformMatrix4fv(r.matViewUniformLocation, gl.FALSE, r.viewMatrix);
 	    gl.uniformMatrix4fv(r.matProjUniformLocation, gl.FALSE, r.projMatrix);
+	    gl.uniform3f(r.ambientUniformLocation, 0.2, 0.2, 0.2);
+	    gl.uniform3f(r.sunlightDirUniformLocation, 3.0, 4.0, -2.0);
+	    gl.uniform3f(r.sunlightIntUniformLocation, 0.9, 0.9, 0.9);
 
 	    r.xRotationMatrix = new Float32Array(16);
 	    r.yRotationMatrix = new Float32Array(16);
@@ -466,7 +474,7 @@
 	    key: 'update',
 	    value: function update(frametime) {
 	      var gl = this.gl;
-	      this.angle = this.angle + frametime / 1500;
+	      this.angle = this.angle + frametime / 1000;
 
 	      _glMatrix.mat4.rotate(this.yRotationMatrix, this.identityMatrix, this.angle, [0, 1, 0]);
 	      _glMatrix.mat4.rotate(this.xRotationMatrix, this.identityMatrix, 0, [1, 0, 0]);
@@ -7109,7 +7117,7 @@
 
 	(function (undefined) {
 	  'use strict';
-	``
+
 	  var OBJ = {};
 
 	  if (true) {
@@ -7208,18 +7216,18 @@
 	    unpacked.index = 0;
 	    // array of lines separated by the newline
 	    var lines = objectData.split('\n');
-
+	    
 	    var VERTEX_RE = /^v\s/;
 	    var NORMAL_RE = /^vn\s/;
 	    var TEXTURE_RE = /^vt\s/;
 	    var FACE_RE = /^f\s/;
 	    var WHITESPACE_RE = /\s+/;
-
+	    
 	    for (var i = 0; i < lines.length; i++) {
 	      var line = lines[i].trim();
 	      var elements = line.split(WHITESPACE_RE);
 	      elements.shift();
-
+	      
 	      if (VERTEX_RE.test(line)) {
 	        // if this is a vertex
 	        verts.push.apply(verts, elements);
@@ -7482,6 +7490,7 @@
 	    gl.deleteBuffer(mesh.indexBuffer);
 	  }
 	})();
+
 
 
 /***/ }
