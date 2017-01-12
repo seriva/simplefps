@@ -150,7 +150,7 @@
 	'use strict';
 
 	Object.defineProperty(exports, "__esModule", {
-	  value: true
+	    value: true
 	});
 
 	var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
@@ -158,33 +158,33 @@
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
 	var Utils = function () {
-	  function Utils(engine) {
-	    _classCallCheck(this, Utils);
+	    function Utils(engine) {
+	        _classCallCheck(this, Utils);
 
-	    var e = this.e = engine;
-	  }
-
-	  _createClass(Utils, [{
-	    key: 'addCSS',
-	    value: function addCSS(styling) {
-	      var css = document.createElement('style');
-	      css.type = 'text/css';
-	      css.appendChild(document.createTextNode(styling));
-	      document.head.appendChild(css);
+	        var e = this.e = engine;
 	    }
-	  }, {
-	    key: 'addElement',
-	    value: function addElement(type, id) {
-	      var el = document.createElement(type);
-	      document.body.appendChild(el);
-	      if (id) {
-	        el.setAttribute('id', id);
-	      }
-	      return el;
-	    }
-	  }]);
 
-	  return Utils;
+	    _createClass(Utils, [{
+	        key: 'addCSS',
+	        value: function addCSS(styling) {
+	            var css = document.createElement('style');
+	            css.type = 'text/css';
+	            css.appendChild(document.createTextNode(styling));
+	            document.head.appendChild(css);
+	        }
+	    }, {
+	        key: 'addElement',
+	        value: function addElement(type, id) {
+	            var el = document.createElement(type);
+	            document.body.appendChild(el);
+	            if (id) {
+	                el.setAttribute('id', id);
+	            }
+	            return el;
+	        }
+	    }]);
+
+	    return Utils;
 	}();
 
 	exports.default = Utils;
