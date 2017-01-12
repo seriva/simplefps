@@ -5,7 +5,7 @@ class Stats {
 
     this.fps = 0;
     this.fpscounter = 0;
-    this.frametime = 0; 
+    this.frametime = 0;
 
     //add general css for our page
     e.utils.addCSS(
@@ -14,15 +14,15 @@ class Stats {
     );
 
     //add canvas
-    e.utils.addElement('span', 'stat-fps');
+    e.utils.addElement('span', 'stat-fps'); 
     e.utils.addElement('span', 'stat-msframe');
 
     //stats update event
     window.setInterval(function (){
       s.fps = s.fpscounter;
       s.fpscounter = 0;
-      document.getElementById('stat-fps').innerHTML = 'FPS : ' + s.fps;
-      document.getElementById('stat-msframe').innerHTML = 'FTM : '  + s.frametime.toPrecision(10);
+      document.getElementById('stat-fps').innerHTML = 'FPS : ' + s.fps.toPrecision(5);
+      document.getElementById('stat-msframe').innerHTML = 'FTM : '  + s.frametime.toPrecision(5);
     }, 1000);
 
   }

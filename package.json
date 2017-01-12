@@ -1,5 +1,5 @@
 {
-  "name": "gdjs",
+  "name": "genesisdevicejs",
   "version": "0.0.1",
   "description": "Genesis Device JS",
   "watch": {
@@ -8,11 +8,11 @@
   "scripts": {
     "start": "npm run build && parallelshell \"cd dist && reload -b -v\" \"npm-watch\"",
     "postinstall": "npm run build && npm run cordova -- prepare && copyfiles \"xwalk-command-line\" \"app/platforms/android/assets/\" ",
-    "build": "babel -d build src && webpack",
+    "build": "babel -d build src && webpack && copyfiles -u 1 \"dist/**/*.*\" \"app/www\"",
     "lint": "eslint src",
     "cordova": "cd app && cordova",
-    "android": "npm run build && copyfiles -u 1 \"dist/**/*.*\" \"app/www\" && npm run cordova -- run android",
-    "android-debug": "npm run build && copyfiles -u 1 \"dist/**/*.*\" \"app/www\" && npm run cordova -- build android --debug"
+    "android": "npm run build && npm run cordova -- run android",
+    "android-debug": "npm run build && npm run cordova -- build android --debug"
   },
   "author": "Luuk van Venrooij",
   "license": "ISC",
@@ -32,6 +32,7 @@
   },
   "dependencies": {
     "core-js": "^2.4.1",
-    "gl-matrix": "^2.3.2"
+    "gl-matrix": "^2.3.2",
+    "webgl-obj-loader": "^0.1.1"
   }
 }
