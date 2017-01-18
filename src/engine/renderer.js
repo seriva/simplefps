@@ -38,9 +38,9 @@ class Renderer {
 
         e.console.log('Initialized renderer');
         e.console.log('Renderer: ' + gl.getParameter(gl.RENDERER));
-    	e.console.log('Vendor: ' + gl.getParameter(gl.VENDOR));
-    	e.console.log('WebGL version: ' + gl.getParameter(gl.VERSION));
-    	e.console.log('GLSL version: ' + gl.getParameter(gl.SHADING_LANGUAGE_VERSION));
+      	e.console.log('Vendor: ' + gl.getParameter(gl.VENDOR));
+      	e.console.log('WebGL version: ' + gl.getParameter(gl.VERSION));
+      	e.console.log('GLSL version: ' + gl.getParameter(gl.SHADING_LANGUAGE_VERSION));
 
 
 
@@ -50,10 +50,8 @@ class Renderer {
             'precision mediump float;',
             '',
             'attribute vec3 vertPosition;',
-            'attribute vec2 vertTexCoord;',
             'attribute vec3 vertNormal;',
             '',
-            'varying vec2 fragTexCoord;',
             'varying vec3 fragNormal;',
             '',
             'uniform mat4 mWorld;',
@@ -62,7 +60,6 @@ class Renderer {
             '',
             'void main()',
             '{',
-            '  fragTexCoord = vertTexCoord;',
             '  fragNormal = (mWorld * vec4(vertNormal, 0.0)).xyz;',
             '  gl_Position = mProj * mView * mWorld * vec4(vertPosition, 1.0);',
             '}'
@@ -77,22 +74,20 @@ class Renderer {
             '	vec3 color;',
             '};',
             '',
-            'varying vec2 fragTexCoord;',
             'varying vec3 fragNormal;',
             '',
             'uniform vec3 ambientLightIntensity;',
             'uniform DirectionalLight sun;',
-            'uniform sampler2D sampler;',
             '',
             'void main()',
             '{',
             ' vec3 surfaceNormal = normalize(fragNormal);',
             ' vec3 normSunDir = normalize(sun.direction);',
-            ' vec4 texel = texture2D(sampler, fragTexCoord);',
             ' vec3 lightIntensity = ambientLightIntensity + sun.color * max(dot(fragNormal, normSunDir), 0.0);',
-            ' gl_FragColor = vec4(texel.rgb * lightIntensity, texel.a);',
+            ' gl_FragColor = vec4(vec3(1.0, 1.0, 1.0) * lightIntensity, 1.0);',
             '}'
         ].join('\n');
+
 
         var vertexShader = gl.createShader(gl.VERTEX_SHADER);
         var fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
@@ -127,13 +122,12 @@ class Renderer {
         }
 
         var positionAttribLocation = gl.getAttribLocation(program, 'vertPosition');
-        var texCoordAttribLocation = gl.getAttribLocation(program, 'vertTexCoord');
         var normalAttribLocation = gl.getAttribLocation(program, 'vertNormal');
 
         //mesh
         r.mesh = undefined;
         OBJ.downloadMeshes({
-            'statue': 'resources/statue.obj'
+            'statue': 'resources/transformer.obj'
         }, function (meshes) {
             r.mesh = meshes.statue;
             OBJ.initMeshBuffers(gl, meshes.statue);
@@ -141,36 +135,14 @@ class Renderer {
             gl.bindBuffer(gl.ARRAY_BUFFER, r.mesh.vertexBuffer);
             gl.vertexAttribPointer(positionAttribLocation, r.mesh.vertexBuffer.itemSize, gl.FLOAT, false, 0, 0);
 
-            gl.bindBuffer(gl.ARRAY_BUFFER, r.mesh.textureBuffer);
-            gl.vertexAttribPointer(texCoordAttribLocation, r.mesh.textureBuffer.itemSize, gl.FLOAT, false, 0, 0);
-
             gl.bindBuffer(gl.ARRAY_BUFFER, r.mesh.normalBuffer);
             gl.vertexAttribPointer(normalAttribLocation, r.mesh.normalBuffer.itemSize, gl.FLOAT, false, 0, 0);
 
             gl.enableVertexAttribArray(positionAttribLocation);
-            gl.enableVertexAttribArray(texCoordAttribLocation);
             gl.enableVertexAttribArray(normalAttribLocation);
 
             gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, r.mesh.indexBuffer);
         });
-
-        //texture
-        var image = new Image();
-        image.onload = function () {
-            r.boxTexture = gl.createTexture();
-            gl.bindTexture(gl.TEXTURE_2D, r.boxTexture);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-            gl.texImage2D(
-                gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA,
-                gl.UNSIGNED_BYTE,
-                image
-            );
-            gl.bindTexture(gl.TEXTURE_2D, null);
-        };
-        image.src = 'resources/statue.jpg';
 
         //setup shader
         gl.useProgram(program);
@@ -185,7 +157,7 @@ class Renderer {
         r.viewMatrix = new Float32Array(16);
         r.projMatrix = new Float32Array(16);
         mat4.identity(r.worldMatrix);
-        mat4.lookAt(r.viewMatrix, [0, 1, -3.2], [0, 1, 0], [0, 1, 0]);
+        mat4.lookAt(r.viewMatrix, [0, 15, -100], [0, 15, 0], [0, 1, 0]);
         mat4.perspective(this.projMatrix, glMatrix.toRadian(45), r.canvas.width / r.canvas.height, 0.1, 1000.0);
 
         gl.uniformMatrix4fv(r.matWorldUniformLocation, gl.FALSE, r.worldMatrix);
