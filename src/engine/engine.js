@@ -14,7 +14,7 @@ class Engine {
       //add general css for our page
       this.utils.addCSS(
           'html { height: 100%; }' +
-          'body { min-height: 100%; margin: 0; padding: 0; position: relative; overflow: hidden; font-family: Consolas, monaco, monospace;}'
+          'body { min-height: 100%; margin: 0; padding: 0; position: relative; overflow: hidden; font-family: Consolas, monaco, monospace; font-weight: bold;}'
       );
   }
 
