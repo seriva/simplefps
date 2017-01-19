@@ -7,11 +7,13 @@
   },
   "scripts": {
     "start": "npm run build && parallelshell \"npm run server\" \"npm-watch\"",
-    "postinstall": "npm run build && npm run cordova -- prepare && copyfiles \"xwalk-command-line\" \"app/platforms/android/assets/\" ",
+    "postinstall": "npm run build && npm run cordova -- prepare && copyfiles \"app/xwalk-command-line\" \"app/platforms/android/assets/\" && npm run nw install 0.19.5",
     "server": "cd dist && reload -b -v",
     "build": "babel -d build src && webpack && copyfiles -u 1 \"dist/**/*.*\" \"app/www\"",
-    "lint": "eslint src",
     "cordova": "cd app && cordova",
+    "nw": "cd desktop && nw",
+    "lint": "eslint src",
+    "desktop": "npm run nw .",
     "android": "npm run build && npm run cordova -- run android",
     "android-debug": "npm run build && npm run cordova -- build android --debug"
   },
@@ -29,7 +31,8 @@
     "reload": "^1.0.2",
     "webpack": "^1.14.0",
     "cordova": "^6.4.0",
-    "copyfiles": "^1.0.0"
+    "copyfiles": "^1.0.0",
+    "nwjs": "^1.4.3"
   },
   "dependencies": {
     "core-js": "^2.4.1",
