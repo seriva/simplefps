@@ -1,5 +1,5 @@
 {
   "name": "Demo",
-  "main": "index.html",
+  "main": "www/index.html",
   "chromium-args" : "--enable-unsafe-es3-apis"
 }
