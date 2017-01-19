@@ -1,5 +1,6 @@
 node_modules
 build
-app/www
-app/platforms
-app/plugins
+mobile/www
+mobile/platforms
+mobile/plugins
+desktop/www
