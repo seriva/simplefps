@@ -19,8 +19,6 @@ class Console {
     c.console = e.utils.addElement('div', 'console');
     c.inputfield = e.utils.addElement('input', 'console-input');
     c.inputfield.disabled = true;
-    c.togglebutton = e.utils.addElement('button', 'console-toggle');
-    c.togglebutton.innerHTML = 'console';
 
     //add console control
     var control = function (event) {
@@ -34,9 +32,15 @@ class Console {
       }
     };
     window.addEventListener('keydown', control, false);
-    c.togglebutton.addEventListener('click', function () {
-        c.toggle();
-    });
+
+    //Add a button to toggle to console on mobile.
+    if(e.utils.isMobile()){
+        c.togglebutton = e.utils.addElement('button', 'console-toggle');
+        c.togglebutton.innerHTML = 'console';
+        c.togglebutton.addEventListener('click', function () {
+            c.toggle();
+        });
+    }
   }
 
   execute () {

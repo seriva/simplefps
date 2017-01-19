@@ -36,11 +36,11 @@ class Renderer {
         gl.depthFunc(gl.LEQUAL);
         r.resize();
 
-        e.console.log('Initialized renderer');
         e.console.log('Renderer: ' + gl.getParameter(gl.RENDERER));
       	e.console.log('Vendor: ' + gl.getParameter(gl.VENDOR));
       	e.console.log('WebGL version: ' + gl.getParameter(gl.VERSION));
       	e.console.log('GLSL version: ' + gl.getParameter(gl.SHADING_LANGUAGE_VERSION));
+
 
 
 
