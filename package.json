@@ -7,7 +7,7 @@
   },
   "scripts": {
     "start": "npm run build && parallelshell \"npm run server\" \"npm-watch\"",
-    "postinstall": "npm run build && npm run cordova -- prepare && copyfiles \"mobile/xwalk-command-line\" \"mobile/platforms/android/assets/\" && npm run nw install 0.19.5",
+    "postinstall": "npm run build && copyfiles -u 1 \"dist/**/*.*\" \"mobile/www\" && npm run cordova -- prepare && copyfiles \"mobile/xwalk-command-line\" \"mobile/platforms/android/assets/\" && npm run nw install 0.19.5",
     "server": "cd dist && reload -b -v",
     "build": "babel -d build src && webpack",
     "lint": "eslint src",
