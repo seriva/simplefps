@@ -1,4 +1,5 @@
 import Utils from './utils';
+import Input from './input';
 import Console from './console';
 import Stats from './stats';
 import Renderer from './renderer';
@@ -8,6 +9,7 @@ class Engine {
       //construct the engine core systems
       var e = this;
       e.utils = new Utils(e);
+      e.input = new Input(e);
       e.console = new Console(e);
       e.renderer = new Renderer(e);
       e.stats = new Stats(e);

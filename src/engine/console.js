@@ -11,8 +11,7 @@ class Console {
     e.utils.addCSS(
         '#console {display: none; flex-flow: column nowrap; line-height: 95%; border:1px solid #999; border-bottom:1px solid #fff; background-color: #999; opacity: 0.75; z-index : 2; width: 100%; height: 50%; position: absolute; top: 0; left: 0; overflow: scroll; overflow-x: hidden;}' +
         '#console-input {display: none; color: #fff; font-size: 14px; position: absolute; top: 50%; left: 0; width:100%; border:1px solid #999; border-bottom:2px solid #fff; background-color: #999; opacity: 0.75; outline: none;}' +
-        '#console p { margin-top: auto !important; font-size: 12px; color: #fff; margin: 0px; white-space: nowrap;}' +
-        '#console-toggle { right: 15px; bottom:15px; margin: 0; padding: 5px; position: absolute; color: #000; font-size: 20px }'
+        '#console p { margin-top: auto !important; font-size: 12px; color: #fff; margin: 0px; white-space: nowrap;}'
     );
 
     //add console elements
@@ -21,31 +20,14 @@ class Console {
     c.inputfield.disabled = true;
 
     //add console control
-    var control = function (event) {
-      switch (event.keyCode) {
-          case 13:
-              c.execute();
-              break;
-          case 192:
-              c.toggle();
-              break;
-      }
-    };
-    window.addEventListener('keydown', control, false);
-
-    //Add a button to toggle to console on mobile.
-    if(e.utils.isMobile()){
-        c.togglebutton = e.utils.addElement('button', 'console-toggle');
-        c.togglebutton.innerHTML = 'console';
-        c.togglebutton.addEventListener('click', function () {
-            c.toggle();
-        });
-    }
+    e.input.AddKeyDownEvent(192, function() {c.toggle()});
+    e.input.AddKeyDownEvent(13, function() {c.execute()});
   }
 
   execute () {
     //TODO: add actual execution and registration
     var c = this;
+    if(c.inputfield.value === '') return;
     c.warn('Unknown command "' + c.inputfield.value + '"');
     c.inputfield.value = '';
   }
