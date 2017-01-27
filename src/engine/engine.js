@@ -3,6 +3,7 @@ import Input from './input';
 import Console from './console';
 import Stats from './stats';
 import Renderer from './renderer';
+import Resources from './resources';
 
 class Engine {
   constructor () {
@@ -11,8 +12,9 @@ class Engine {
       e.utils = new Utils(e);
       e.input = new Input(e);
       e.console = new Console(e);
-      e.renderer = new Renderer(e);
       e.stats = new Stats(e);
+      e.renderer = new Renderer(e);
+      e.resources = new Resources(e);
 
       //Add cordova specfic events if we are on mobile.
       //TEMP: We should probably move this somewhere else.
@@ -42,7 +44,7 @@ class Engine {
 
       function loop () {
           //timing
-          var now = performance.now();
+          let now = performance.now();
           frameTime = now - (time || now);
           time = now;
 

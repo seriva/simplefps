@@ -1,7 +1,7 @@
 class Console {
   constructor (engine) {
-    var e = this.e = engine;
-    var c = this;
+    let e = this.e = engine;
+    let c = this;
 
     c.visible = false;
     c.logs = [];
@@ -26,14 +26,14 @@ class Console {
 
   execute () {
     //TODO: add actual execution and registration
-    var c = this;
+    let c = this;
     if(c.inputfield.value === '') return;
     c.warn('Unknown command "' + c.inputfield.value + '"');
     c.inputfield.value = '';
   }
 
   toggle () {
-    var c = this;
+    let c = this;
     c.visible = !c.visible;
     if (c.visible) {
         c.console.style.display = 'flex';
@@ -50,10 +50,10 @@ class Console {
   }
 
   update () {
-    var c = this;
-    var text = '<p>';
-    for ( var i = 0; i < c.logs.length; i++) {
-      var log = c.logs[i];
+    let c = this;
+    let text = '<p>';
+    for ( let i = 0; i < c.logs.length; i++) {
+      let log = c.logs[i];
       var color = '#FFF';
       if (log.type === 'warning') {
          color = '#FF0';
