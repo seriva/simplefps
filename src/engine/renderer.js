@@ -36,32 +36,33 @@ class Renderer {
         gl.depthFunc(gl.LEQUAL);
         r.resize();
 
+        e.console.log('Initialized renderer');
         e.console.log('Renderer: ' + gl.getParameter(gl.RENDERER));
-      	e.console.log('Vendor: ' + gl.getParameter(gl.VENDOR));
-      	e.console.log('WebGL version: ' + gl.getParameter(gl.VERSION));
-      	e.console.log('GLSL version: ' + gl.getParameter(gl.SHADING_LANGUAGE_VERSION));
-
-
-
+        e.console.log('Vendor: ' + gl.getParameter(gl.VENDOR));
+        e.console.log('WebGL version: ' + gl.getParameter(gl.VERSION));
+        e.console.log('GLSL version: ' + gl.getParameter(gl.SHADING_LANGUAGE_VERSION));
 
         //TEMP demo code for testing.
         //init shaders
         var vertexShaderText = [
             'precision mediump float;',
-            '',
+
             'attribute vec3 vertPosition;',
+            'attribute vec2 vertTexCoord;',
             'attribute vec3 vertNormal;',
-            '',
+
+            'varying vec2 fragTexCoord;',
             'varying vec3 fragNormal;',
-            '',
+
             'uniform mat4 mWorld;',
             'uniform mat4 mView;',
             'uniform mat4 mProj;',
-            '',
+
             'void main()',
             '{',
-            '  fragNormal = (mWorld * vec4(vertNormal, 0.0)).xyz;',
-            '  gl_Position = mProj * mView * mWorld * vec4(vertPosition, 1.0);',
+                'fragTexCoord = vertTexCoord;',
+                'fragNormal = (mWorld * vec4(vertNormal, 0.0)).xyz;',
+                'gl_Position = mProj * mView * mWorld * vec4(vertPosition, 1.0);',
             '}'
         ].join('\n');
 
@@ -73,21 +74,23 @@ class Renderer {
             ' vec3 direction;',
             '	vec3 color;',
             '};',
-            '',
+
+            'varying vec2 fragTexCoord;',
             'varying vec3 fragNormal;',
-            '',
+
             'uniform vec3 ambientLightIntensity;',
             'uniform DirectionalLight sun;',
-            '',
+            'uniform sampler2D sampler;',
+
             'void main()',
             '{',
-            ' vec3 surfaceNormal = normalize(fragNormal);',
-            ' vec3 normSunDir = normalize(sun.direction);',
-            ' vec3 lightIntensity = ambientLightIntensity + sun.color * max(dot(fragNormal, normSunDir), 0.0);',
-            ' gl_FragColor = vec4(vec3(1.0, 1.0, 1.0) * lightIntensity, 1.0);',
+                'vec3 surfaceNormal = normalize(fragNormal);',
+                'vec3 normSunDir = normalize(sun.direction);',
+                'vec4 texel = texture2D(sampler, fragTexCoord);',
+                'vec3 lightIntensity = ambientLightIntensity + sun.color * max(dot(fragNormal, normSunDir), 0.0);',
+                'gl_FragColor = vec4(texel.rgb * lightIntensity, texel.a);',
             '}'
         ].join('\n');
-
 
         var vertexShader = gl.createShader(gl.VERTEX_SHADER);
         var fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
@@ -122,12 +125,13 @@ class Renderer {
         }
 
         var positionAttribLocation = gl.getAttribLocation(program, 'vertPosition');
+        var texCoordAttribLocation = gl.getAttribLocation(program, 'vertTexCoord');
         var normalAttribLocation = gl.getAttribLocation(program, 'vertNormal');
 
         //mesh
         r.mesh = undefined;
         OBJ.downloadMeshes({
-            'statue': 'resources/transformer.obj'
+            'statue': 'resources/statue.obj'
         }, function (meshes) {
             r.mesh = meshes.statue;
             OBJ.initMeshBuffers(gl, meshes.statue);
@@ -135,10 +139,14 @@ class Renderer {
             gl.bindBuffer(gl.ARRAY_BUFFER, r.mesh.vertexBuffer);
             gl.vertexAttribPointer(positionAttribLocation, r.mesh.vertexBuffer.itemSize, gl.FLOAT, false, 0, 0);
 
+            gl.bindBuffer(gl.ARRAY_BUFFER, r.mesh.textureBuffer);
+            gl.vertexAttribPointer(texCoordAttribLocation, r.mesh.textureBuffer.itemSize, gl.FLOAT, false, 0, 0);
+
             gl.bindBuffer(gl.ARRAY_BUFFER, r.mesh.normalBuffer);
             gl.vertexAttribPointer(normalAttribLocation, r.mesh.normalBuffer.itemSize, gl.FLOAT, false, 0, 0);
 
             gl.enableVertexAttribArray(positionAttribLocation);
+            gl.enableVertexAttribArray(texCoordAttribLocation);
             gl.enableVertexAttribArray(normalAttribLocation);
 
             gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, r.mesh.indexBuffer);
@@ -157,7 +165,7 @@ class Renderer {
         r.viewMatrix = new Float32Array(16);
         r.projMatrix = new Float32Array(16);
         mat4.identity(r.worldMatrix);
-        mat4.lookAt(r.viewMatrix, [0, 15, -100], [0, 15, 0], [0, 1, 0]);
+        mat4.lookAt(r.viewMatrix, [0, 1, -3.2], [0, 1, 0], [0, 1, 0]);
         mat4.perspective(this.projMatrix, glMatrix.toRadian(45), r.canvas.width / r.canvas.height, 0.1, 1000.0);
 
         gl.uniformMatrix4fv(r.matWorldUniformLocation, gl.FALSE, r.worldMatrix);
@@ -187,6 +195,14 @@ class Renderer {
         gl.viewport(0, 0, r.canvas.width, r.canvas.height);
     }
 
+
+    setup () {
+        //TEMP This is for testing
+        this.tex = this.e.resources.get('texture');
+    }
+
+
+
     update (frametime) {
         var gl = this.gl;
         this.angle = this.angle + (frametime / 1000);
@@ -198,8 +214,7 @@ class Renderer {
 
         gl.clear(gl.DEPTH_BUFFER_BIT | gl.COLOR_BUFFER_BIT);
 
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, this.boxTexture);
+        this.tex.bind(gl.TEXTURE0);
 
         if (this.mesh) {
             gl.drawElements(gl.TRIANGLES, this.mesh.indexBuffer.numItems, gl.UNSIGNED_SHORT, 0);

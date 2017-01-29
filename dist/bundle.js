@@ -60,7 +60,13 @@
 	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 	var engine = new _engine2.default();
-	engine.run();
+	engine.resources.load({
+	  'statue': 'resources/statue.obj',
+	  'texture': 'resources/statue.jpg'
+	}, function () {
+	  engine.renderer.setup();
+	  engine.run();
+	});
 
 /***/ },
 /* 2 */
@@ -537,6 +543,7 @@
 	        gl.depthFunc(gl.LEQUAL);
 	        r.resize();
 
+	        e.console.log('Initialized renderer');
 	        e.console.log('Renderer: ' + gl.getParameter(gl.RENDERER));
 	        e.console.log('Vendor: ' + gl.getParameter(gl.VENDOR));
 	        e.console.log('WebGL version: ' + gl.getParameter(gl.VERSION));
@@ -544,9 +551,9 @@
 
 	        //TEMP demo code for testing.
 	        //init shaders
-	        var vertexShaderText = ['precision mediump float;', '', 'attribute vec3 vertPosition;', 'attribute vec3 vertNormal;', '', 'varying vec3 fragNormal;', '', 'uniform mat4 mWorld;', 'uniform mat4 mView;', 'uniform mat4 mProj;', '', 'void main()', '{', '  fragNormal = (mWorld * vec4(vertNormal, 0.0)).xyz;', '  gl_Position = mProj * mView * mWorld * vec4(vertPosition, 1.0);', '}'].join('\n');
+	        var vertexShaderText = ['precision mediump float;', 'attribute vec3 vertPosition;', 'attribute vec2 vertTexCoord;', 'attribute vec3 vertNormal;', 'varying vec2 fragTexCoord;', 'varying vec3 fragNormal;', 'uniform mat4 mWorld;', 'uniform mat4 mView;', 'uniform mat4 mProj;', 'void main()', '{', 'fragTexCoord = vertTexCoord;', 'fragNormal = (mWorld * vec4(vertNormal, 0.0)).xyz;', 'gl_Position = mProj * mView * mWorld * vec4(vertPosition, 1.0);', '}'].join('\n');
 
-	        var fragmentShaderText = ['precision mediump float;', 'struct DirectionalLight', '{', ' vec3 direction;', '	vec3 color;', '};', '', 'varying vec3 fragNormal;', '', 'uniform vec3 ambientLightIntensity;', 'uniform DirectionalLight sun;', '', 'void main()', '{', ' vec3 surfaceNormal = normalize(fragNormal);', ' vec3 normSunDir = normalize(sun.direction);', ' vec3 lightIntensity = ambientLightIntensity + sun.color * max(dot(fragNormal, normSunDir), 0.0);', ' gl_FragColor = vec4(vec3(1.0, 1.0, 1.0) * lightIntensity, 1.0);', '}'].join('\n');
+	        var fragmentShaderText = ['precision mediump float;', 'struct DirectionalLight', '{', ' vec3 direction;', '	vec3 color;', '};', 'varying vec2 fragTexCoord;', 'varying vec3 fragNormal;', 'uniform vec3 ambientLightIntensity;', 'uniform DirectionalLight sun;', 'uniform sampler2D sampler;', 'void main()', '{', 'vec3 surfaceNormal = normalize(fragNormal);', 'vec3 normSunDir = normalize(sun.direction);', 'vec4 texel = texture2D(sampler, fragTexCoord);', 'vec3 lightIntensity = ambientLightIntensity + sun.color * max(dot(fragNormal, normSunDir), 0.0);', 'gl_FragColor = vec4(texel.rgb * lightIntensity, texel.a);', '}'].join('\n');
 
 	        var vertexShader = gl.createShader(gl.VERTEX_SHADER);
 	        var fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
@@ -581,12 +588,13 @@
 	        }
 
 	        var positionAttribLocation = gl.getAttribLocation(program, 'vertPosition');
+	        var texCoordAttribLocation = gl.getAttribLocation(program, 'vertTexCoord');
 	        var normalAttribLocation = gl.getAttribLocation(program, 'vertNormal');
 
 	        //mesh
 	        r.mesh = undefined;
 	        _webglObjLoader2.default.downloadMeshes({
-	            'statue': 'resources/transformer.obj'
+	            'statue': 'resources/statue.obj'
 	        }, function (meshes) {
 	            r.mesh = meshes.statue;
 	            _webglObjLoader2.default.initMeshBuffers(gl, meshes.statue);
@@ -594,10 +602,14 @@
 	            gl.bindBuffer(gl.ARRAY_BUFFER, r.mesh.vertexBuffer);
 	            gl.vertexAttribPointer(positionAttribLocation, r.mesh.vertexBuffer.itemSize, gl.FLOAT, false, 0, 0);
 
+	            gl.bindBuffer(gl.ARRAY_BUFFER, r.mesh.textureBuffer);
+	            gl.vertexAttribPointer(texCoordAttribLocation, r.mesh.textureBuffer.itemSize, gl.FLOAT, false, 0, 0);
+
 	            gl.bindBuffer(gl.ARRAY_BUFFER, r.mesh.normalBuffer);
 	            gl.vertexAttribPointer(normalAttribLocation, r.mesh.normalBuffer.itemSize, gl.FLOAT, false, 0, 0);
 
 	            gl.enableVertexAttribArray(positionAttribLocation);
+	            gl.enableVertexAttribArray(texCoordAttribLocation);
 	            gl.enableVertexAttribArray(normalAttribLocation);
 
 	            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, r.mesh.indexBuffer);
@@ -616,7 +628,7 @@
 	        r.viewMatrix = new Float32Array(16);
 	        r.projMatrix = new Float32Array(16);
 	        _glMatrix.mat4.identity(r.worldMatrix);
-	        _glMatrix.mat4.lookAt(r.viewMatrix, [0, 15, -100], [0, 15, 0], [0, 1, 0]);
+	        _glMatrix.mat4.lookAt(r.viewMatrix, [0, 1, -3.2], [0, 1, 0], [0, 1, 0]);
 	        _glMatrix.mat4.perspective(this.projMatrix, _glMatrix.glMatrix.toRadian(45), r.canvas.width / r.canvas.height, 0.1, 1000.0);
 
 	        gl.uniformMatrix4fv(r.matWorldUniformLocation, gl.FALSE, r.worldMatrix);
@@ -648,6 +660,12 @@
 	            gl.viewport(0, 0, r.canvas.width, r.canvas.height);
 	        }
 	    }, {
+	        key: 'setup',
+	        value: function setup() {
+	            //TEMP This is for testing
+	            this.tex = this.e.resources.get('texture');
+	        }
+	    }, {
 	        key: 'update',
 	        value: function update(frametime) {
 	            var gl = this.gl;
@@ -660,8 +678,7 @@
 
 	            gl.clear(gl.DEPTH_BUFFER_BIT | gl.COLOR_BUFFER_BIT);
 
-	            gl.activeTexture(gl.TEXTURE0);
-	            gl.bindTexture(gl.TEXTURE_2D, this.boxTexture);
+	            this.tex.bind(gl.TEXTURE0);
 
 	            if (this.mesh) {
 	                gl.drawElements(gl.TRIANGLES, this.mesh.indexBuffer.numItems, gl.UNSIGNED_SHORT, 0);
@@ -7672,26 +7689,204 @@
 
 /***/ },
 /* 10 */
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+
+	Object.defineProperty(exports, "__esModule", {
+	    value: true
+	});
+	exports.default = undefined;
+
+	var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+	var _texture = __webpack_require__(11);
+
+	var _texture2 = _interopRequireDefault(_texture);
+
+	var _model = __webpack_require__(12);
+
+	var _model2 = _interopRequireDefault(_model);
+
+	var _shader = __webpack_require__(13);
+
+	var _shader2 = _interopRequireDefault(_shader);
+
+	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+	var Resources = function () {
+	    function Resources(engine) {
+	        _classCallCheck(this, Resources);
+
+	        var e = this.e = engine;
+	        var r = this;
+	        r.resources = {};
+	    }
+
+	    _createClass(Resources, [{
+	        key: 'load',
+	        value: function load(resources, afterLoading) {
+	            var r = this;
+	            var re = /(?:\.([^.]+))?$/;
+	            var count = Object.keys(resources).length;
+	            var counter = 0;
+
+	            function onSuccess(path) {
+	                counter++;
+	                r.e.console.log('Loaded "' + path + '"');
+	                if (counter === count) {
+	                    afterLoading();
+	                }
+	            }
+
+	            function onError(path) {
+	                r.e.console.log('Error loading "' + path + '"');
+	            }
+
+	            for (var key in resources) {
+	                var path = resources[key];
+	                var ext = re.exec(path)[1];
+	                switch (ext) {
+	                    case 'jpg':
+	                        this.resources[key] = new _texture2.default(path, this.e, onSuccess, onError);
+	                        break;
+	                    case 'obj':
+	                        this.resources[key] = new _model2.default(path, this.e, onSuccess, onError);
+	                        break;
+	                    case 'shader':
+	                        this.resources[key] = new _shader2.default(path, this.e, onSuccess, onError);
+	                        break;
+	                    default:
+	                        break;
+	                }
+	            }
+	        }
+	    }, {
+	        key: 'get',
+	        value: function get(key) {
+	            var resource = this.resources[key];
+	            if (resource) {
+	                return resource;
+	            } else {
+	                this.e.console.error('Resource "' + key + '" does not exist');
+	            }
+	        }
+	    }]);
+
+	    return Resources;
+	}();
+
+	exports.default = Resources;
+
+/***/ },
+/* 11 */
 /***/ function(module, exports) {
 
 	"use strict";
 
 	Object.defineProperty(exports, "__esModule", {
-	  value: true
+	    value: true
+	});
+
+	var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+	var Texture = function () {
+	    function Texture(path, engine, onSuccess, onError) {
+	        _classCallCheck(this, Texture);
+
+	        var t = this;
+	        var p = path;
+	        var e = t.e = engine;
+	        var gl = t.gl = e.renderer.gl;
+
+	        t.texture = gl.createTexture();
+
+	        var image = new Image();
+	        image.onload = function () {
+	            gl.bindTexture(gl.TEXTURE_2D, t.texture);
+	            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+	            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+	            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+	            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+	            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
+	            gl.bindTexture(gl.TEXTURE_2D, null);
+	            onSuccess(p);
+	        };
+	        image.onerror = function () {
+	            onError(p);
+	        };
+	        image.src = p;
+	    }
+
+	    _createClass(Texture, [{
+	        key: "bind",
+	        value: function bind(unit) {
+	            var gl = this.gl;
+	            gl.activeTexture(unit);
+	            gl.bindTexture(this.gl.TEXTURE_2D, this.texture);
+	        }
+	    }, {
+	        key: "unbind",
+	        value: function unbind() {
+	            var gl = this.gl;
+	            gl.unbindTexture(gl.TEXTURE_2D, this.texture);
+	        }
+	    }]);
+
+	    return Texture;
+	}();
+
+	exports.default = Texture;
+
+/***/ },
+/* 12 */
+/***/ function(module, exports) {
+
+	"use strict";
+
+	Object.defineProperty(exports, "__esModule", {
+	    value: true
 	});
 
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
-	var Resources = function Resources(engine) {
-	  _classCallCheck(this, Resources);
+	var Model = function Model(path, engine, onSuccess, onError) {
+	    _classCallCheck(this, Model);
 
-	  var e = this.e = engine;
-	  var r = this;
+	    var t = this.e = engine;
+	    var r = this;
 
-	  r.resources = {};
+	    onSuccess(path);
 	};
 
-	exports.default = Resources;
+	exports.default = Model;
+
+/***/ },
+/* 13 */
+/***/ function(module, exports) {
+
+	"use strict";
+
+	Object.defineProperty(exports, "__esModule", {
+	    value: true
+	});
+
+	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+	var Shader = function Shader(path, engine, onSuccess, onError) {
+	    _classCallCheck(this, Shader);
+
+	    var t = this.e = engine;
+	    var r = this;
+
+	    onSuccess(path);
+	};
+
+	exports.default = Shader;
 
 /***/ }
 /******/ ]);
