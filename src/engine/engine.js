@@ -7,9 +7,16 @@ import Resources from './resources';
 
 class Engine {
   constructor () {
-      //construct the engine core systems
       var e = this;
+
+      //utils
       e.utils = new Utils(e);
+      e.utils.addCSS(
+          'html { height: 100%; }' +
+          'body { min-height: 100%; margin: 0; padding: 0; position: relative; overflow: hidden; font-family: Consolas, monaco, monospace; font-weight: bold;}'
+      );
+
+      //construct the engine core systems
       e.input = new Input(e);
       e.console = new Console(e);
       e.stats = new Stats(e);
@@ -28,12 +35,6 @@ class Engine {
               }
           }, false);
       }
-
-      //add general css for our page
-      e.utils.addCSS(
-          'html { height: 100%; }' +
-          'body { min-height: 100%; margin: 0; padding: 0; position: relative; overflow: hidden; font-family: Consolas, monaco, monospace; font-weight: bold;}'
-      );
   }
 
   //main entry point

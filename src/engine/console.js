@@ -82,7 +82,8 @@ class Console {
     console.error(m);
     this.logs.push({ 'type': 'error', 'message': m});
     this.update();
-    //throw new Error();
+    this.toggle();
+    throw new Error();
   }
 }
 

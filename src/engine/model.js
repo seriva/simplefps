@@ -1,9 +1,22 @@
+import OBJ from '../../node_modules/webgl-obj-loader/webgl-obj-loader';
+
 class Model {
     constructor (path, engine, onSuccess, onError) {
-        var t = this.e = engine;
-        var r = this;
+        var e = this.e = engine;
+        var m = this;
+        var p = path;
+        var gl = e.renderer.gl;
 
-        onSuccess(path);
+        e.utils.loadData(p,
+          function (data) {
+            m.mesh = new OBJ.Mesh(data);
+            OBJ.initMeshBuffers(gl, m.mesh);
+            onSuccess(p);
+          },
+          function () {
+            onError(p);
+          }
+        );
     }
 }
 
