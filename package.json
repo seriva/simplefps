@@ -36,7 +36,6 @@
   },
   "dependencies": {
     "core-js": "^2.4.1",
-    "gl-matrix": "^2.3.2",
-    "webgl-obj-loader": "^0.1.1"
+    "gl-matrix": "^2.3.2"
   }
 }

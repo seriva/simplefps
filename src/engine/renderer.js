@@ -1,6 +1,5 @@
 import Utils from './utils';
 import { glMatrix, mat4 } from '../../node_modules/gl-matrix/dist/gl-matrix';
-import OBJ from '../../node_modules/webgl-obj-loader/webgl-obj-loader';
 
 class Renderer {
     constructor (engine) {
@@ -36,6 +35,10 @@ class Renderer {
         gl.depthFunc(gl.LEQUAL);
         r.resize();
 
+        //setup buffers
+
+
+        //print gl detail
         e.console.log('Initialized renderer');
         e.console.log('Renderer: ' + gl.getParameter(gl.RENDERER));
         e.console.log('Vendor: ' + gl.getParameter(gl.VENDOR));
@@ -170,7 +173,7 @@ class Renderer {
         var gl = r.gl;
 
         this.tex = r.e.resources.get('texture');
-        this.mesh = r.e.resources.get('statue').mesh;
+        this.mesh = r.e.resources.get('statue');
 
         var positionAttribLocation = gl.getAttribLocation(r.program, 'vertPosition');
         var texCoordAttribLocation = gl.getAttribLocation(r.program, 'vertTexCoord');
@@ -205,10 +208,7 @@ class Renderer {
         gl.clear(gl.DEPTH_BUFFER_BIT | gl.COLOR_BUFFER_BIT);
 
         this.tex.bind(gl.TEXTURE0);
-
-        if (this.mesh) {
-            gl.drawElements(gl.TRIANGLES, this.mesh.indexBuffer.numItems, gl.UNSIGNED_SHORT, 0);
-        }
+        gl.drawElements(gl.TRIANGLES, this.mesh.indexBuffer.numItems, gl.UNSIGNED_SHORT, 0);
     }
 }
 

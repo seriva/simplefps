@@ -1,5 +1,5 @@
 import Texture from './texture';
-import Model from './model';
+import Mesh from './mesh';
 import Shader from './shader';
 
 class Resources {
@@ -35,7 +35,7 @@ class Resources {
               this.resources[key] = new Texture(path, this.e, onSuccess, onError);
               break;
             case 'obj':
-              this.resources[key] = new Model(path, this.e, onSuccess, onError);
+              this.resources[key] = new Mesh(path, this.e, onSuccess, onError);
               break;
             case 'shader':
               this.resources[key] = new Shader(path, this.e, onSuccess, onError);
