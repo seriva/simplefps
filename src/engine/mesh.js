@@ -3,7 +3,7 @@ class Mesh {
         var e = this.e = engine;
         var m = this;
         var p = path;
-        var gl = m.gl =e.renderer.gl;
+        var gl = m.gl = e.renderer.gl;
 
         m.vertices = [];
         m.vertexNormals = [];
@@ -28,8 +28,6 @@ class Mesh {
             var WHITESPACE_RE = /\s+/;
 
             for (var i = 0; i < lines.length; i++) {
-
-
               var line = lines[i].trim();
               var elements = line.split(WHITESPACE_RE);
               elements.shift();
@@ -117,6 +115,32 @@ class Mesh {
       m.gl.deleteBuffer(m.textureBuffer);
       m.gl.deleteBuffer(m.vertexBuffer);
       m.gl.deleteBuffer(m.indexBuffer);
+    }
+
+    render () {
+        var m = this;
+        var gl = this.gl;
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, m.vertexBuffer);
+        gl.vertexAttribPointer(0, m.vertexBuffer.itemSize, gl.FLOAT, false, 0, 0);
+        gl.enableVertexAttribArray(0);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, m.textureBuffer);
+        gl.vertexAttribPointer(1, m.textureBuffer.itemSize, gl.FLOAT, false, 0, 0);
+        gl.enableVertexAttribArray(1);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, m.normalBuffer);
+        gl.vertexAttribPointer(2, m.normalBuffer.itemSize, gl.FLOAT, false, 0, 0);
+        gl.enableVertexAttribArray(2);
+
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, m.indexBuffer);
+
+        gl.drawElements(gl.TRIANGLES, m.indexBuffer.numItems, gl.UNSIGNED_SHORT, 0);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, null);
+        gl.bindBuffer(gl.ARRAY_BUFFER, null);
+        gl.bindBuffer(gl.ARRAY_BUFFER, null);
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
     }
 }
 

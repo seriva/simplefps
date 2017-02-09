@@ -35,9 +35,6 @@ class Renderer {
         gl.depthFunc(gl.LEQUAL);
         r.resize();
 
-        //setup buffers
-
-
         //print gl detail
         e.console.log('Initialized renderer');
         e.console.log('Renderer: ' + gl.getParameter(gl.RENDERER));
@@ -47,19 +44,19 @@ class Renderer {
 
 
 
-
-
         //TEMP demo code for testing.
         //init shaders
         var vertexShaderText = [
+            '#version 300 es',
+
             'precision mediump float;',
 
-            'attribute vec3 vertPosition;',
-            'attribute vec2 vertTexCoord;',
-            'attribute vec3 vertNormal;',
+            'layout(location=0) in vec3 vertPosition;',
+            'layout(location=1) in vec2 vertTexCoord;',
+            'layout(location=2) in vec3 vertNormal;',
 
-            'varying vec2 fragTexCoord;',
-            'varying vec3 fragNormal;',
+            'out vec2 fragTexCoord;',
+            'out vec3 fragNormal;',
 
             'uniform mat4 mWorld;',
             'uniform mat4 mView;',
@@ -74,16 +71,20 @@ class Renderer {
         ].join('\n');
 
         var fragmentShaderText = [
+            '#version 300 es',
+
             'precision mediump float;',
 
             'struct DirectionalLight',
             '{',
-            ' vec3 direction;',
-            '	vec3 color;',
+            '  vec3 direction;',
+            '  vec3 color;',
             '};',
 
-            'varying vec2 fragTexCoord;',
-            'varying vec3 fragNormal;',
+            'in vec2 fragTexCoord;',
+            'in vec3 fragNormal;',
+
+            'out vec4 fragmentColor;',
 
             'uniform vec3 ambientLightIntensity;',
             'uniform DirectionalLight sun;',
@@ -93,9 +94,9 @@ class Renderer {
             '{',
                 'vec3 surfaceNormal = normalize(fragNormal);',
                 'vec3 normSunDir = normalize(sun.direction);',
-                'vec4 texel = texture2D(sampler, fragTexCoord);',
+                'vec4 texel = texture(sampler, fragTexCoord);',
                 'vec3 lightIntensity = ambientLightIntensity + sun.color * max(dot(fragNormal, normSunDir), 0.0);',
-                'gl_FragColor = vec4(texel.rgb * lightIntensity, texel.a);',
+                'fragmentColor = vec4(texel.rgb * lightIntensity, texel.a);',
             '}'
         ].join('\n');
 
@@ -120,14 +121,15 @@ class Renderer {
         r.program = gl.createProgram();
         gl.attachShader(r.program, vertexShader);
         gl.attachShader(r.program, fragmentShader);
+
         gl.linkProgram(r.program);
         if (!gl.getProgramParameter(r.program, gl.LINK_STATUS)) {
-            e.console.error('Error linking program: ' + gl.getProgramInfoLog(program));
+            e.console.error('Error linking program: ' + gl.getProgramInfoLog(r.program));
             return;
         }
         gl.validateProgram(r.program);
         if (!gl.getProgramParameter(r.program, gl.VALIDATE_STATUS)) {
-            e.console.error('Error validating program: ' +  gl.getProgramInfoLog(program));
+            e.console.error('Error validating program: ' + gl.getProgramInfoLog(r.program));
             return;
         }
          gl.useProgram(r.program);
@@ -154,7 +156,7 @@ class Renderer {
         window.addEventListener('resize', function () {
             r.resize();
             mat4.perspective(r.projMatrix, glMatrix.toRadian(45), r.canvas.width / r.canvas.height, 0.1, 1000.0);
-            gl.uniformMatrix4fv(r.matProjUniformLocation, gl.FALSE, r.projMatrix);
+            gl.uniformMatrix4fv(gl.getUniformLocation(r.program, 'mProj'), gl.FALSE, r.projMatrix);
         }, false);
     }
 
@@ -166,35 +168,11 @@ class Renderer {
         gl.viewport(0, 0, r.canvas.width, r.canvas.height);
     }
 
-
     setup () {
-        //TEMP This is for testing
         var r = this;
-        var gl = r.gl;
-
-        this.tex = r.e.resources.get('texture');
-        this.mesh = r.e.resources.get('statue');
-
-        var positionAttribLocation = gl.getAttribLocation(r.program, 'vertPosition');
-        var texCoordAttribLocation = gl.getAttribLocation(r.program, 'vertTexCoord');
-        var normalAttribLocation = gl.getAttribLocation(r.program, 'vertNormal');
-
-        gl.bindBuffer(gl.ARRAY_BUFFER, r.mesh.vertexBuffer);
-        gl.vertexAttribPointer(positionAttribLocation, r.mesh.vertexBuffer.itemSize, gl.FLOAT, false, 0, 0);
-        gl.enableVertexAttribArray(positionAttribLocation);
-
-        gl.bindBuffer(gl.ARRAY_BUFFER, r.mesh.textureBuffer);
-        gl.vertexAttribPointer(texCoordAttribLocation, r.mesh.textureBuffer.itemSize, gl.FLOAT, false, 0, 0);
-        gl.enableVertexAttribArray(texCoordAttribLocation);
-
-        gl.bindBuffer(gl.ARRAY_BUFFER, r.mesh.normalBuffer);
-        gl.vertexAttribPointer(normalAttribLocation, r.mesh.normalBuffer.itemSize, gl.FLOAT, false, 0, 0);
-        gl.enableVertexAttribArray(normalAttribLocation);
-
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, r.mesh.indexBuffer);
+        r.tex = r.e.resources.get('texture');
+        r.mesh = r.e.resources.get('statue');
     }
-
-
 
     update (frametime) {
         var gl = this.gl;
@@ -208,7 +186,7 @@ class Renderer {
         gl.clear(gl.DEPTH_BUFFER_BIT | gl.COLOR_BUFFER_BIT);
 
         this.tex.bind(gl.TEXTURE0);
-        gl.drawElements(gl.TRIANGLES, this.mesh.indexBuffer.numItems, gl.UNSIGNED_SHORT, 0);
+        this.mesh.render();
     }
 }
 
