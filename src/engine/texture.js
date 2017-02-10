@@ -36,7 +36,7 @@ class Texture {
 
     unbind () {
         var gl = this.gl;
-        gl.unbindTexture(gl.TEXTURE_2D, this.texture);
+        gl.bindTexture(gl.TEXTURE_2D, null);
     }
 }
 

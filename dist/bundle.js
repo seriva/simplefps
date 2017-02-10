@@ -63,7 +63,8 @@
 
 	engine.resources.load({
 	  'statue': 'resources/statue.obj',
-	  'texture': 'resources/statue.jpg'
+	  'texture': 'resources/statue.jpg',
+	  'shader': 'resources/diffuse.shader'
 	}, function () {
 	  engine.renderer.setup();
 	  engine.run();
@@ -564,71 +565,6 @@
 	        e.console.log('Vendor: ' + gl.getParameter(gl.VENDOR));
 	        e.console.log('WebGL version: ' + gl.getParameter(gl.VERSION));
 	        e.console.log('GLSL version: ' + gl.getParameter(gl.SHADING_LANGUAGE_VERSION));
-
-	        //TEMP demo code for testing.
-	        //init shaders
-	        var vertexShaderText = ['#version 300 es', 'precision mediump float;', 'layout(location=0) in vec3 vertPosition;', 'layout(location=1) in vec2 vertTexCoord;', 'layout(location=2) in vec3 vertNormal;', 'out vec2 fragTexCoord;', 'out vec3 fragNormal;', 'uniform mat4 mWorld;', 'uniform mat4 mView;', 'uniform mat4 mProj;', 'void main()', '{', 'fragTexCoord = vertTexCoord;', 'fragNormal = (mWorld * vec4(vertNormal, 0.0)).xyz;', 'gl_Position = mProj * mView * mWorld * vec4(vertPosition, 1.0);', '}'].join('\n');
-
-	        var fragmentShaderText = ['#version 300 es', 'precision mediump float;', 'struct DirectionalLight', '{', '  vec3 direction;', '  vec3 color;', '};', 'in vec2 fragTexCoord;', 'in vec3 fragNormal;', 'out vec4 fragmentColor;', 'uniform vec3 ambientLightIntensity;', 'uniform DirectionalLight sun;', 'uniform sampler2D sampler;', 'void main()', '{', 'vec3 surfaceNormal = normalize(fragNormal);', 'vec3 normSunDir = normalize(sun.direction);', 'vec4 texel = texture(sampler, fragTexCoord);', 'vec3 lightIntensity = ambientLightIntensity + sun.color * max(dot(fragNormal, normSunDir), 0.0);', 'fragmentColor = vec4(texel.rgb * lightIntensity, texel.a);', '}'].join('\n');
-
-	        var vertexShader = gl.createShader(gl.VERTEX_SHADER);
-	        var fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
-
-	        gl.shaderSource(vertexShader, vertexShaderText);
-	        gl.shaderSource(fragmentShader, fragmentShaderText);
-
-	        gl.compileShader(vertexShader);
-	        if (!gl.getShaderParameter(vertexShader, gl.COMPILE_STATUS)) {
-	            e.console.error('Error compiling vertex shader: ' + gl.getShaderInfoLog(vertexShader));
-	            return;
-	        }
-
-	        gl.compileShader(fragmentShader);
-	        if (!gl.getShaderParameter(fragmentShader, gl.COMPILE_STATUS)) {
-	            e.console.error('Error compiling fragment shader: ' + gl.getShaderInfoLog(fragmentShader));
-	            return;
-	        }
-
-	        r.program = gl.createProgram();
-	        gl.attachShader(r.program, vertexShader);
-	        gl.attachShader(r.program, fragmentShader);
-
-	        gl.linkProgram(r.program);
-	        if (!gl.getProgramParameter(r.program, gl.LINK_STATUS)) {
-	            e.console.error('Error linking program: ' + gl.getProgramInfoLog(r.program));
-	            return;
-	        }
-	        gl.validateProgram(r.program);
-	        if (!gl.getProgramParameter(r.program, gl.VALIDATE_STATUS)) {
-	            e.console.error('Error validating program: ' + gl.getProgramInfoLog(r.program));
-	            return;
-	        }
-	        gl.useProgram(r.program);
-
-	        r.worldMatrix = new Float32Array(16);
-	        r.viewMatrix = new Float32Array(16);
-	        r.projMatrix = new Float32Array(16);
-	        _glMatrix.mat4.identity(r.worldMatrix);
-	        _glMatrix.mat4.lookAt(r.viewMatrix, [0, 1, -3.2], [0, 1, 0], [0, 1, 0]);
-	        _glMatrix.mat4.perspective(this.projMatrix, _glMatrix.glMatrix.toRadian(45), r.canvas.width / r.canvas.height, 0.1, 1000.0);
-
-	        gl.uniformMatrix4fv(gl.getUniformLocation(r.program, 'mWorld'), gl.FALSE, r.worldMatrix);
-	        gl.uniformMatrix4fv(gl.getUniformLocation(r.program, 'mView'), gl.FALSE, r.viewMatrix);
-	        gl.uniformMatrix4fv(gl.getUniformLocation(r.program, 'mProj'), gl.FALSE, r.projMatrix);
-	        gl.uniform3f(gl.getUniformLocation(r.program, 'ambientLightIntensity'), 0.2, 0.2, 0.2);
-	        gl.uniform3f(gl.getUniformLocation(r.program, 'sun.direction'), 3.0, 4.0, -2.0);
-	        gl.uniform3f(gl.getUniformLocation(r.program, 'sun.color'), 0.9, 0.9, 0.9);
-
-	        r.xRotationMatrix = new Float32Array(16);
-	        r.yRotationMatrix = new Float32Array(16);
-	        r.identityMatrix = new Float32Array(16);
-	        _glMatrix.mat4.identity(r.identityMatrix);
-	        r.angle = 0;
-	        window.addEventListener('resize', function () {
-	            r.resize();
-	            _glMatrix.mat4.perspective(r.projMatrix, _glMatrix.glMatrix.toRadian(45), r.canvas.width / r.canvas.height, 0.1, 1000.0);
-	            gl.uniformMatrix4fv(gl.getUniformLocation(r.program, 'mProj'), gl.FALSE, r.projMatrix);
-	        }, false);
 	    }
 
 	    _createClass(Renderer, [{
@@ -644,8 +580,35 @@
 	        key: 'setup',
 	        value: function setup() {
 	            var r = this;
-	            r.tex = r.e.resources.get('texture');
+	            var gl = r.gl;
+
+	            r.texture = r.e.resources.get('texture');
 	            r.mesh = r.e.resources.get('statue');
+	            r.shader = r.e.resources.get('shader');
+
+	            r.worldMatrix = new Float32Array(16);
+	            r.viewMatrix = new Float32Array(16);
+	            r.projMatrix = new Float32Array(16);
+	            _glMatrix.mat4.identity(r.worldMatrix);
+	            _glMatrix.mat4.lookAt(r.viewMatrix, [0, 1, -3.2], [0, 1, 0], [0, 1, 0]);
+	            _glMatrix.mat4.perspective(this.projMatrix, _glMatrix.glMatrix.toRadian(45), r.canvas.width / r.canvas.height, 0.1, 1000.0);
+
+	            r.shader.bind();
+	            gl.uniformMatrix4fv(gl.getUniformLocation(r.shader.program, 'mWorld'), gl.FALSE, r.worldMatrix);
+	            gl.uniformMatrix4fv(gl.getUniformLocation(r.shader.program, 'mView'), gl.FALSE, r.viewMatrix);
+	            gl.uniformMatrix4fv(gl.getUniformLocation(r.shader.program, 'mProj'), gl.FALSE, r.projMatrix);
+	            gl.uniform3f(gl.getUniformLocation(r.shader.program, 'ambientLightIntensity'), 0.2, 0.2, 0.2);
+	            gl.uniform3f(gl.getUniformLocation(r.shader.program, 'sun.direction'), 3.0, 4.0, -2.0);
+	            gl.uniform3f(gl.getUniformLocation(r.shader.program, 'sun.color'), 0.9, 0.9, 0.9);
+
+	            r.identityMatrix = new Float32Array(16);
+	            _glMatrix.mat4.identity(r.identityMatrix);
+	            r.angle = 0;
+	            window.addEventListener('resize', function () {
+	                r.resize();
+	                _glMatrix.mat4.perspective(r.projMatrix, _glMatrix.glMatrix.toRadian(45), r.canvas.width / r.canvas.height, 0.1, 1000.0);
+	                gl.uniformMatrix4fv(gl.getUniformLocation(r.shader.program, 'mProj'), gl.FALSE, r.projMatrix);
+	            }, false);
 	        }
 	    }, {
 	        key: 'update',
@@ -653,15 +616,14 @@
 	            var gl = this.gl;
 	            this.angle = this.angle + frametime / 1000;
 
-	            _glMatrix.mat4.rotate(this.yRotationMatrix, this.identityMatrix, this.angle, [0, 1, 0]);
-	            _glMatrix.mat4.rotate(this.xRotationMatrix, this.identityMatrix, 0, [1, 0, 0]);
-	            _glMatrix.mat4.mul(this.worldMatrix, this.yRotationMatrix, this.xRotationMatrix);
-	            gl.uniformMatrix4fv(gl.getUniformLocation(this.program, 'mWorld'), gl.FALSE, this.worldMatrix);
+	            _glMatrix.mat4.rotate(this.worldMatrix, this.identityMatrix, this.angle, [0, 1, 0]);
+	            gl.uniformMatrix4fv(gl.getUniformLocation(this.shader.program, 'mWorld'), gl.FALSE, this.worldMatrix);
 
 	            gl.clear(gl.DEPTH_BUFFER_BIT | gl.COLOR_BUFFER_BIT);
 
-	            this.tex.bind(gl.TEXTURE0);
+	            this.texture.bind(gl.TEXTURE0);
 	            this.mesh.render();
+	            this.texture.unbind();
 	        }
 	    }]);
 
@@ -7430,7 +7392,7 @@
 	        key: "unbind",
 	        value: function unbind() {
 	            var gl = this.gl;
-	            gl.unbindTexture(gl.TEXTURE_2D, this.texture);
+	            gl.bindTexture(gl.TEXTURE_2D, null);
 	        }
 	    }]);
 
@@ -7461,11 +7423,6 @@
 	    var m = this;
 	    var p = path;
 	    var gl = m.gl = e.renderer.gl;
-
-	    m.vertices = [];
-	    m.vertexNormals = [];
-	    m.textures = [];
-	    m.indices = [];
 
 	    e.utils.loadData(p, function (data) {
 	      var verts = [],
@@ -7615,22 +7572,79 @@
 /* 12 */
 /***/ function(module, exports) {
 
-	"use strict";
+	'use strict';
 
 	Object.defineProperty(exports, "__esModule", {
 	    value: true
 	});
 
+	var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
-	var Shader = function Shader(path, engine, onSuccess, onError) {
-	    _classCallCheck(this, Shader);
+	var Shader = function () {
+	    function Shader(path, engine, onSuccess, onError) {
+	        _classCallCheck(this, Shader);
 
-	    var t = this.e = engine;
-	    var r = this;
+	        var s = this;
+	        var e = s.e = engine;
+	        var p = path;
+	        var gl = s.gl = e.renderer.gl;
 
-	    onSuccess(path);
-	};
+	        e.utils.loadData(p, function (data) {
+	            var obj = JSON.parse(data);
+
+	            s.vertexShader = gl.createShader(gl.VERTEX_SHADER);
+	            s.fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
+
+	            gl.shaderSource(s.vertexShader, obj.vertex.join('\n'));
+	            gl.shaderSource(s.fragmentShader, obj.fragment.join('\n'));
+
+	            gl.compileShader(s.vertexShader);
+	            if (!gl.getShaderParameter(s.vertexShader, gl.COMPILE_STATUS)) {
+	                e.console.error('Error compiling vertex shader: ' + gl.getShaderInfoLog(s.vertexShader));
+	            }
+
+	            gl.compileShader(s.fragmentShader);
+	            if (!gl.getShaderParameter(s.fragmentShader, gl.COMPILE_STATUS)) {
+	                e.console.error('Error compiling fragment shader: ' + gl.getShaderInfoLog(s.fragmentShader));
+	            }
+
+	            s.program = gl.createProgram();
+	            gl.attachShader(s.program, s.vertexShader);
+	            gl.attachShader(s.program, s.fragmentShader);
+
+	            gl.linkProgram(s.program);
+	            if (!gl.getProgramParameter(s.program, gl.LINK_STATUS)) {
+	                e.console.error('Error linking program: ' + gl.getProgramInfoLog(s.program));
+	            }
+	            gl.validateProgram(s.program);
+	            if (!gl.getProgramParameter(s.program, gl.VALIDATE_STATUS)) {
+	                e.console.error('Error validating program: ' + gl.getProgramInfoLog(s.program));
+	            }
+
+	            onSuccess(p);
+	        }, function () {
+	            onError(p);
+	        });
+	    }
+
+	    _createClass(Shader, [{
+	        key: 'bind',
+	        value: function bind(unit) {
+	            var gl = this.gl;
+	            gl.useProgram(this.program);
+	        }
+	    }, {
+	        key: 'unbind',
+	        value: function unbind() {
+	            var gl = this.gl;
+	            gl.useProgram(null);
+	        }
+	    }]);
+
+	    return Shader;
+	}();
 
 	exports.default = Shader;
 

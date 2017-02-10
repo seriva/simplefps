@@ -5,11 +5,6 @@ class Mesh {
         var p = path;
         var gl = m.gl = e.renderer.gl;
 
-        m.vertices = [];
-        m.vertexNormals = [];
-        m.textures = [];
-        m.indices = [];
-
         e.utils.loadData(p,
           function (data) {
             var verts = [], vertNormals = [], textures = [], unpacked = {};
