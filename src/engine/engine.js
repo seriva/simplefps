@@ -13,7 +13,7 @@ class Engine {
       e.utils = new Utils(e);
       e.utils.addCSS(
           'html { height: 100%; }' +
-          'body { min-height: 100%; margin: 0; padding: 0; position: relative; overflow: hidden; font-family: Consolas, monaco, monospace; font-weight: bold;}'
+          'body { background: #000; min-height: 100%; margin: 0; padding: 0; position: relative; overflow: hidden; font-family: Consolas, monaco, monospace; font-weight: bold;}'
       );
 
       //construct the engine core systems

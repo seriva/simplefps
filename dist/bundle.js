@@ -119,7 +119,7 @@
 
 	        //utils
 	        e.utils = new _utils2.default(e);
-	        e.utils.addCSS('html { height: 100%; }' + 'body { min-height: 100%; margin: 0; padding: 0; position: relative; overflow: hidden; font-family: Consolas, monaco, monospace; font-weight: bold;}');
+	        e.utils.addCSS('html { height: 100%; }' + 'body { background: #000; min-height: 100%; margin: 0; padding: 0; position: relative; overflow: hidden; font-family: Consolas, monaco, monospace; font-weight: bold;}');
 
 	        //construct the engine core systems
 	        e.input = new _input2.default(e);
@@ -7282,6 +7282,14 @@
 	        var e = this.e = engine;
 	        var r = this;
 	        r.resources = {};
+
+	        //add loading css
+	        e.utils.addCSS('#logo { position: fixed; width: 20%; height:20%; top: 50%; left: 50%; margin-top: -10%; margin-left: -10%; -webkit-animation:spin 3s linear infinite; -moz-animation:spin 3s linear infinite; animation:spin 3s linear infinite;}' + '@-moz-keyframes spin { 100% { -moz-transform: rotate(360deg); } }' + '@-webkit-keyframes spin { 100% { -webkit-transform: rotate(360deg); } }' + '@keyframes spin { 100% { -webkit-transform: rotate(360deg); transform:rotate(360deg); } }');
+
+	        //add loading element
+	        r.loading = e.utils.addElement('img', 'logo');
+	        r.loading.src = 'resources/logo.svg';
+	        r.loading.style.display = 'none';
 	    }
 
 	    _createClass(Resources, [{
@@ -7292,10 +7300,13 @@
 	            var count = Object.keys(resources).length;
 	            var counter = 0;
 
+	            r.loading.style.display = 'inline';
+
 	            function onSuccess(path) {
 	                counter++;
 	                r.e.console.log('Loaded "' + path + '"');
 	                if (counter === count) {
+	                    r.loading.style.display = 'none';
 	                    afterLoading();
 	                }
 	            }
