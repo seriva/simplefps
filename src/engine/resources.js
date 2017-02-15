@@ -10,10 +10,8 @@ class Resources {
 
     //add loading css
     e.utils.addCSS(
-        '#logo { position: fixed; width: 20%; height:20%; top: 50%; left: 50%; margin-top: -10%; margin-left: -10%; -webkit-animation:spin 3s linear infinite; -moz-animation:spin 3s linear infinite; animation:spin 3s linear infinite;}' +
-        '@-moz-keyframes spin { 100% { -moz-transform: rotate(360deg); } }' +
-        '@-webkit-keyframes spin { 100% { -webkit-transform: rotate(360deg); } }' +
-        '@keyframes spin { 100% { -webkit-transform: rotate(360deg); transform:rotate(360deg); } }'
+        '#logo { position: fixed; width: 20%; height:20%; top: 50%; left: 50%; margin-top: -10%; margin-left: -10%; -webkit-animation:spin 3s linear infinite;}' +
+        '@-webkit-keyframes spin { 100% { -webkit-transform: rotate(360deg); } }'
     );
 
     //add loading element

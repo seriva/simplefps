@@ -357,7 +357,7 @@
 	    c.commands = [];
 
 	    //add css
-	    e.utils.addCSS('#console {display: none; flex-flow: column nowrap; line-height: 95%; border:1px solid #999; border-bottom:1px solid #fff; background-color: #999; opacity: 0.75; z-index : 2; width: 100%; height: 50%; position: absolute; top: 0; left: 0; overflow: scroll; overflow-x: hidden;}' + '#console-input {display: none; color: #fff; font-size: 14px; position: absolute; top: 50%; left: 0; width:100%; border:1px solid #999; border-bottom:2px solid #fff; background-color: #999; opacity: 0.75; outline: none;}' + '#console p { margin-top: auto !important; font-size: 12px; color: #fff; margin: 0px; white-space: nowrap;}');
+	    e.utils.addCSS('#console {-webkit-transition: all 0.150s ease-in-out; display: flex; flex-flow: column nowrap; line-height: 95%; border:1px solid #999; border-bottom:1px solid #fff; background-color: #999; opacity: 0.75; z-index : 2; width: 100%; height: 50%; position: absolute; top: -50vh; left: 0 overflow: scroll; overflow-x: hidden;}' + '#console-input {-webkit-transition: all 0.150s ease-in-out; display: inline; color: #fff; font-size: 14px; position: absolute; top: -50vh; left: 0; width:100%; border:1px solid #999; border-bottom:2px solid #fff; background-color: #999; opacity: 0.75; outline: none;}' + '#console p { margin-top: auto !important; font-size: 12px; color: #fff; margin: 0px; white-space: nowrap;}' + '.console-down {-webkit-transform: translate(0,50vh);}' + '.console-input-down {-webkit-transform: translate(0,100vh);}');
 
 	    //add console elements
 	    c.console = e.utils.addElement('div', 'console');
@@ -388,15 +388,16 @@
 	      var c = this;
 	      c.visible = !c.visible;
 	      if (c.visible) {
-	        c.console.style.display = 'flex';
-	        c.inputfield.style.display = 'inline';
+	        c.console.classList.add('console-down');
+	        c.inputfield.classList.add('console-input-down');
 	        c.inputfield.disabled = false;
 	        setTimeout(function () {
 	          c.inputfield.focus();
 	        }, 100);
 	        c.update();
 	      } else {
-	        c.console.style.display = c.inputfield.style.display = 'none';
+	        c.console.classList.remove('console-down');
+	        c.inputfield.classList.remove('console-input-down');
 	        c.inputfield.disabled = true;
 	      }
 	    }
@@ -7284,7 +7285,7 @@
 	        r.resources = {};
 
 	        //add loading css
-	        e.utils.addCSS('#logo { position: fixed; width: 20%; height:20%; top: 50%; left: 50%; margin-top: -10%; margin-left: -10%; -webkit-animation:spin 3s linear infinite; -moz-animation:spin 3s linear infinite; animation:spin 3s linear infinite;}' + '@-moz-keyframes spin { 100% { -moz-transform: rotate(360deg); } }' + '@-webkit-keyframes spin { 100% { -webkit-transform: rotate(360deg); } }' + '@keyframes spin { 100% { -webkit-transform: rotate(360deg); transform:rotate(360deg); } }');
+	        e.utils.addCSS('#logo { position: fixed; width: 20%; height:20%; top: 50%; left: 50%; margin-top: -10%; margin-left: -10%; -webkit-animation:spin 3s linear infinite;}' + '@-webkit-keyframes spin { 100% { -webkit-transform: rotate(360deg); } }');
 
 	        //add loading element
 	        r.loading = e.utils.addElement('img', 'logo');

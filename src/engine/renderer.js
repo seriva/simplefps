@@ -98,7 +98,6 @@ class Renderer {
         this.texture.bind(gl.TEXTURE0);
         this.mesh.render();
         this.texture.unbind();
-
     }
 }
 

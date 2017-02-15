@@ -21,7 +21,7 @@ class Engine {
       e.console = new Console(e);
       e.stats = new Stats(e);
       e.renderer = new Renderer(e);
-      e.resources = new Resources(e);
+      e.resources = new Resources(e); 
 
       //Add cordova specfic events if we are on mobile.
       //TEMP: We should probably move this somewhere else.
