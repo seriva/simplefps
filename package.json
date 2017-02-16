@@ -15,7 +15,8 @@
     "nw": "cd desktop && nw",
     "desktop": "npm run build && copyfiles -u 1 \"dist/**/*.*\" \"desktop/www\" && npm run nw .",
     "android": "npm run build && copyfiles -u 1 \"dist/**/*.*\" \"mobile/www\" && npm run cordova -- run android",
-    "android-debug": "npm run build && npm run cordova -- build android --debug"
+    "android-release": "npm run build && copyfiles -u 1 \"dist/**/*.*\" \"mobile/www\" && npm run cordova -- build android --release",
+    "android-debug": "npm run build && copyfiles -u 1 \"dist/**/*.*\" \"mobile/www\" && npm run cordova -- build android --debug"
   },
   "author": "Luuk van Venrooij",
   "license": "ISC",
@@ -36,6 +37,7 @@
   },
   "dependencies": {
     "core-js": "^2.4.1",
-    "gl-matrix": "^2.3.2"
+    "gl-matrix": "^2.3.2",
+    "hammerjs": "^2.0.8"
   }
 }

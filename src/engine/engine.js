@@ -1,3 +1,5 @@
+import Hammer from '../../node_modules/hammerjs/hammer.js';
+
 import Utils from './utils';
 import Input from './input';
 import Console from './console';
@@ -16,14 +18,11 @@ class Engine {
           'body { background: #000; min-height: 100%; margin: 0; padding: 0; position: relative; overflow: hidden; font-family: Consolas, monaco, monospace; font-weight: bold;}'
       );
 
-      //construct the engine core systems
-      e.input = new Input(e);
-      e.console = new Console(e);
-      e.stats = new Stats(e);
-      e.renderer = new Renderer(e);
-      e.resources = new Resources(e); 
+      //Add hammer for touch events
+      e.touch = new Hammer(document.body);
+      e.touch.get('pan').set({ direction: Hammer.DIRECTION_ALL });      
 
-      //Add cordova specfic events if we are on mobile.
+      //Add cordova specfic events if we are on mobile
       //TEMP: We should probably move this somewhere else.
       if (e.utils.isMobile()){
           document.addEventListener('deviceready', function () {
@@ -34,7 +33,14 @@ class Engine {
                   });
               }
           }, false);
-      }
+      }     
+
+      //construct the engine core systems
+      e.input = new Input(e);
+      e.console = new Console(e);
+      e.stats = new Stats(e);
+      e.renderer = new Renderer(e);
+      e.resources = new Resources(e); 
   }
 
   //main entry point

@@ -9,8 +9,8 @@ class Console {
 
     //add css
     e.utils.addCSS(
-        '#console {-webkit-transition: all 0.150s ease-in-out; display: flex; flex-flow: column nowrap; line-height: 95%; border:1px solid #999; border-bottom:1px solid #fff; background-color: #999; opacity: 0.75; z-index : 2; width: 100%; height: 50%; position: absolute; top: -50vh; left: 0 overflow: scroll; overflow-x: hidden;}' +
-        '#console-input {-webkit-transition: all 0.150s ease-in-out; display: inline; color: #fff; font-size: 14px; position: absolute; top: -50vh; left: 0; width:100%; border:1px solid #999; border-bottom:2px solid #fff; background-color: #999; opacity: 0.75; outline: none;}' +
+        '#console {-webkit-transition: all 0.150s ease-in-out; display: flex; flex-flow: column nowrap; line-height: 95%; border:1px solid #999; border-bottom:1px solid #fff; background-color: #999; opacity: 0.75; z-index : 2; width: 100%; height: 50%; position: absolute; top: -65vh; left: 0; overflow: scroll; overflow-x: hidden;}' +
+        '#console-input {-webkit-transition: all 0.150s ease-in-out; display: inline; color: #fff; font-size: 14px; position: absolute; top: -65vh; left: 0; width:100%; border:1px solid #999; border-bottom:2px solid #fff; background-color: #999; opacity: 0.75; outline: none;}' +
         '#console p { margin-top: auto !important; font-size: 12px; color: #fff; margin: 0px; white-space: nowrap;}' +
         '.console-down {-webkit-transform: translate(0,50vh);}' +
         '.console-input-down {-webkit-transform: translate(0,100vh);}'
@@ -24,6 +24,13 @@ class Console {
     //add console control
     e.input.AddKeyDownEvent(192, function() {c.toggle()});
     e.input.AddKeyDownEvent(13, function() {c.execute()});
+    e.touch.on('panup pandown', function(ev) {
+      if (ev.type === 'panup'){
+          c.toggle(false);
+      } if (ev.type === 'pandown'){
+          c.toggle(true);
+      }
+    });
   }
 
   execute () {
@@ -34,9 +41,13 @@ class Console {
     c.inputfield.value = '';
   }
 
-  toggle () {
+  toggle (show) {
     let c = this;
-    c.visible = !c.visible;
+    if(show === undefined){
+        c.visible = !c.visible;
+    } else {
+        c.visible = show;
+    }
     if (c.visible) {
         c.console.classList.add('console-down');
         c.inputfield.classList.add('console-input-down');
