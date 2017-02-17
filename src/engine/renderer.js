@@ -1,5 +1,8 @@
-import Utils from './utils';
+//external imports
 import { glMatrix, mat4 } from '../../node_modules/gl-matrix/dist/gl-matrix';
+
+//engine imports
+import Utils from './utils';
 
 class Renderer {
     constructor (engine) {

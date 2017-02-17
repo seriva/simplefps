@@ -1,5 +1,7 @@
+//external imports
 import Hammer from '../../node_modules/hammerjs/hammer.js';
 
+//engine imports
 import Utils from './utils';
 import Input from './input';
 import Console from './console';
@@ -40,7 +42,7 @@ class Engine {
       e.console = new Console(e);
       e.stats = new Stats(e);
       e.renderer = new Renderer(e);
-      e.resources = new Resources(e); 
+      e.resources = new Resources(e);
   }
 
   //main entry point
