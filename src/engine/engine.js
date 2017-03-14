@@ -27,7 +27,7 @@ class Engine {
       //Add cordova specfic events if we are on mobile
       //TEMP: We should probably move this somewhere else.
       if (e.utils.isMobile()){
-          document.addEventListener('deviceready', function () {
+          document.addEventListener('deviceready', () => {
               e.console.log('Platform: ' + cordova.platformId);
               if (cordova.platformId === 'android') {
                   window.addEventListener('native.keyboardhide', function (e) {

@@ -6,7 +6,7 @@ class Shader {
         var gl = s.gl = e.renderer.gl;
 
         e.utils.loadData(p,
-          function (data) {
+          (data) => {
             var obj = JSON.parse( data );
 
             s.vertexShader = gl.createShader(gl.VERTEX_SHADER);

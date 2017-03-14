@@ -6,7 +6,7 @@ class Mesh {
         var gl = m.gl = e.renderer.gl;
 
         e.utils.loadData(p,
-          function (data) {
+          (data) => {
             var verts = [], vertNormals = [], textures = [], unpacked = {};
             unpacked.verts = [];
             unpacked.norms = [];

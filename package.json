@@ -7,9 +7,9 @@
   },
   "scripts": {
     "start": "npm run build && parallelshell \"npm run server\" \"npm-watch\"",
-    "postinstall": "npm run build && copyfiles -u 1 \"dist/**/*.*\" \"mobile/www\" && npm run cordova -- prepare && copyfiles -u 1 \"mobile/xwalk-command-line\" \"mobile/platforms/android/assets/\" && npm run nw install 0.19.5",
+    "postinstall": "npm run build && copyfiles -u 1 \"dist/**/*.*\" \"mobile/www\" && npm run cordova -- prepare && copyfiles -u 1 \"mobile/xwalk-command-line\" \"mobile/platforms/android/assets/\" && npm run nw install 0.21.1",
     "server": "cd dist && reload -b -v",
-    "build": "babel -d build src && webpack",
+    "build": "webpack",
     "lint": "eslint src",
     "cordova": "cd mobile && cordova",
     "nw": "cd desktop && nw",
@@ -20,24 +20,26 @@
   },
   "author": "Luuk van Venrooij",
   "license": "ISC",
-  "devDependencies": {
-    "babel-cli": "^6.18.0",
-    "babel-eslint": "^7.1.1",
-    "babel-preset-es2015": "^6.18.0",
-    "babel-preset-stage-0": "^6.16.0",
-    "eslint": "^3.13.1",
-    "eslint-plugin-react": "^6.9.0",
-    "npm-watch": "^0.1.6",
-    "parallelshell": "^2.0.0",
-    "reload": "^1.0.2",
-    "webpack": "^1.14.0",
-    "cordova": "^6.4.0",
-    "copyfiles": "^1.0.0",
-    "nwjs": "^1.4.3"
-  },
   "dependencies": {
     "core-js": "^2.4.1",
     "gl-matrix": "^2.3.2",
     "hammerjs": "^2.0.8"
+  },  
+  "devDependencies": {
+    "babel-cli": "^6.18.0",
+    "babel-eslint": "^7.1.1",
+    "babel-preset-es2017": "^6.18.0",
+    "babel-preset-stage-0": "^6.16.0",
+    "babel-core": "^6.24.0",
+    "babel-loader": "^6.4.0",    
+    "copyfiles": "^1.0.0",
+    "cordova": "^6.4.0",
+    "eslint": "^3.13.1",
+    "eslint-plugin-react" : "^6.10.0",
+    "npm-watch": "^0.1.6",
+    "nwjs": "^1.4.3",
+    "parallelshell": "^2.0.0",
+    "reload": "^1.0.2",
+    "webpack": "^2.2.1"
   }
 }

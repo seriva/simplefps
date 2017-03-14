@@ -22,9 +22,9 @@ class Console {
     c.inputfield.disabled = true;
 
     //add console control
-    e.input.AddKeyDownEvent(192, function () {c.toggle();});
-    e.input.AddKeyDownEvent(13, function () {c.execute();});
-    e.touch.on('panup pandown', function (ev) {
+    e.input.AddKeyDownEvent(192, () => {c.toggle();});
+    e.input.AddKeyDownEvent(13, () => {c.execute();});
+    e.touch.on('panup pandown', (ev) => {
       if (ev.type === 'panup'){
           c.toggle(false);
       } if (ev.type === 'pandown'){
@@ -52,7 +52,7 @@ class Console {
         c.console.classList.add('console-down');
         c.inputfield.classList.add('console-input-down');
         c.inputfield.disabled = false;
-        setTimeout(function () {
+        setTimeout( () => {
             c.inputfield.focus();
         }, 100)
         c.update();

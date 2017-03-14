@@ -60,7 +60,7 @@ class Renderer {
         var r = this;
         var gl = r.gl;
 
-        r.texture = r.e.resources.get('texture');
+        r.texture = r.e.resources.get('texture'); 
         r.mesh = r.e.resources.get('statue');
         r.shader =  r.e.resources.get('shader');
 
@@ -82,7 +82,7 @@ class Renderer {
         r.identityMatrix = new Float32Array(16);
         mat4.identity(r.identityMatrix);
         r.angle = 0;
-        window.addEventListener('resize', function () {
+        window.addEventListener('resize', () => {
             r.resize();
             mat4.perspective(r.projMatrix, glMatrix.toRadian(45), r.canvas.width / r.canvas.height, 0.1, 1000.0);
             gl.uniformMatrix4fv(gl.getUniformLocation(r.shader.program, 'mProj'), gl.FALSE, r.projMatrix);

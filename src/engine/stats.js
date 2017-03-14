@@ -18,7 +18,7 @@ class Stats {
     e.utils.addElement('span', 'stat-ftm');
 
     //stats update event
-    window.setInterval(function (){
+    window.setInterval(() => {
       s.fps = s.fpscounter;
       s.fpscounter = 0;
       document.getElementById('stat-fps').innerHTML = 'FPS : ' + s.fps.toPrecision(5);
@@ -29,7 +29,7 @@ class Stats {
   update (frametime){
       this.fpscounter++;
       this.frametime = frametime;
-  }
+  } 
 }
 
 export { Stats as default};
