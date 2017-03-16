@@ -2,14 +2,11 @@
   "name": "genesisdevicejs",
   "version": "0.0.1",
   "description": "Genesis Device JS",
-  "watch": {
-    "bundle": "src/**/*.js"
-  },
   "scripts": {
-    "start": "npm run bundle && parallelshell \"npm run server\" \"npm-watch\"",
+    "start": "parallelshell \"npm run server\" \"npm run bundle\"",
     "postinstall": "npm run bundle && copyfiles -u 1 \"dist/**/*.*\" \"mobile/www\" && npm run cordova -- prepare && copyfiles -u 1 \"mobile/xwalk-command-line\" \"mobile/platforms/android/assets/\" && npm run nw install 0.21.1",
     "server": "cd dist && reload -b -v",
-    "bundle": "webpack",
+    "bundle": "webpack --watch",
     "lint": "eslint src",
     "cordova": "cd mobile && cordova",
     "nw": "cd desktop && nw",
@@ -36,7 +33,6 @@
     "cordova": "^6.4.0",
     "eslint": "^3.13.1",
     "eslint-plugin-react" : "^6.10.0",
-    "npm-watch": "^0.1.6",
     "nwjs": "^1.4.3",
     "parallelshell": "^2.0.0",
     "reload": "^1.0.2",
