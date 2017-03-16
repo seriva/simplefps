@@ -11,7 +11,7 @@ class Console {
     e.utils.addCSS(
         '#console {-webkit-transition: all 0.150s ease-in-out; display: flex; flex-flow: column nowrap; line-height: 95%; border:1px solid #999; border-bottom:1px solid #fff; background-color: #999; opacity: 0.75; z-index : 2; width: 100%; height: 50%; position: absolute; top: -52vh; left: 0; overflow: scroll; overflow-x: hidden;}' +
         '#console-input {-webkit-transition: all 0.150s ease-in-out; display: inline; color: #fff; font-size: 14px; position: absolute; top: -52vh; left: 0; width:100%; border:1px solid #999; border-bottom:2px solid #fff; background-color: #999; opacity: 0.75; outline: none;}' +
-        '#console p { margin-top: auto !important; font-size: 12px; color: #fff; margin: 0px; white-space: nowrap;}' +
+        '#console p { margin-top: auto !important; font-size: 14px; color: #fff; margin: 0px; white-space: nowrap;}' +
         '.console-down {-webkit-transform: translate(0,52vh);}' +
         '.console-input-down {-webkit-transform: translate(0,102vh);}'
     );
