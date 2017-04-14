@@ -1,13 +1,13 @@
 class Texture {
-    constructor (path, engine, onSuccess, onError) {
-        var t = this;
-        var p = path;
-        var e = t.e = engine;
-        var gl = t.gl = e.renderer.gl;
+    constructor(path, engine, onSuccess, onError) {
+        const t = this;
+        const p = path;
+        const e = t.e = engine;
+        const gl = t.gl = e.renderer.gl;
 
         t.texture = gl.createTexture();
 
-        var image = new Image();
+        const image = new Image();
         image.onload = () => {
             gl.bindTexture(gl.TEXTURE_2D, t.texture);
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
@@ -28,14 +28,14 @@ class Texture {
         image.src = p;
     }
 
-    bind (unit) {
-        var gl = this.gl;
+    bind(unit) {
+        const gl = this.gl;
         gl.activeTexture(unit);
         gl.bindTexture(this.gl.TEXTURE_2D, this.texture);
     }
 
-    unbind () {
-        var gl = this.gl;
+    unbind() {
+        const gl = this.gl;
         gl.bindTexture(gl.TEXTURE_2D, null);
     }
 }

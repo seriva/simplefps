@@ -71,201 +71,159 @@
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
-/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "a", function() { return Utils; });
-class Utils {
-    constructor(engine) {
-        var e = this.e = engine;
-    }
-
-    addCSS(styling) {
-        let css = document.createElement('style');
-        css.type = 'text/css';
-        css.appendChild(document.createTextNode(styling));
-        document.head.appendChild(css);
-    }
-
-    addElement(type, id) {
-        let el = document.createElement(type);
-        document.body.appendChild(el);
-        if (id) {
-            el.setAttribute('id', id);
-        }
-        return el;
-    }
-
-    isMobile() {
-        let check = false;
-        (function (a) {
-            if (/(android|bb\d+|meego).+mobile|avantgo|bada\/|blackberry|blazer|compal|elaine|fennec|hiptop|iemobile|ip(hone|od)|iris|kindle|lge |maemo|midp|mmp|mobile.+firefox|netfront|opera m(ob|in)i|palm( os)?|phone|p(ixi|re)\/|plucker|pocket|psp|series(4|6)0|symbian|treo|up\.(browser|link)|vodafone|wap|windows ce|xda|xiino|android|ipad|playbook|silk/i.test(a) || /1207|6310|6590|3gso|4thp|50[1-6]i|770s|802s|a wa|abac|ac(er|oo|s\-)|ai(ko|rn)|al(av|ca|co)|amoi|an(ex|ny|yw)|aptu|ar(ch|go)|as(te|us)|attw|au(di|\-m|r |s )|avan|be(ck|ll|nq)|bi(lb|rd)|bl(ac|az)|br(e|v)w|bumb|bw\-(n|u)|c55\/|capi|ccwa|cdm\-|cell|chtm|cldc|cmd\-|co(mp|nd)|craw|da(it|ll|ng)|dbte|dc\-s|devi|dica|dmob|do(c|p)o|ds(12|\-d)|el(49|ai)|em(l2|ul)|er(ic|k0)|esl8|ez([4-7]0|os|wa|ze)|fetc|fly(\-|_)|g1 u|g560|gene|gf\-5|g\-mo|go(\.w|od)|gr(ad|un)|haie|hcit|hd\-(m|p|t)|hei\-|hi(pt|ta)|hp( i|ip)|hs\-c|ht(c(\-| |_|a|g|p|s|t)|tp)|hu(aw|tc)|i\-(20|go|ma)|i230|iac( |\-|\/)|ibro|idea|ig01|ikom|im1k|inno|ipaq|iris|ja(t|v)a|jbro|jemu|jigs|kddi|keji|kgt( |\/)|klon|kpt |kwc\-|kyo(c|k)|le(no|xi)|lg( g|\/(k|l|u)|50|54|\-[a-w])|libw|lynx|m1\-w|m3ga|m50\/|ma(te|ui|xo)|mc(01|21|ca)|m\-cr|me(rc|ri)|mi(o8|oa|ts)|mmef|mo(01|02|bi|de|do|t(\-| |o|v)|zz)|mt(50|p1|v )|mwbp|mywa|n10[0-2]|n20[2-3]|n30(0|2)|n50(0|2|5)|n7(0(0|1)|10)|ne((c|m)\-|on|tf|wf|wg|wt)|nok(6|i)|nzph|o2im|op(ti|wv)|oran|owg1|p800|pan(a|d|t)|pdxg|pg(13|\-([1-8]|c))|phil|pire|pl(ay|uc)|pn\-2|po(ck|rt|se)|prox|psio|pt\-g|qa\-a|qc(07|12|21|32|60|\-[2-7]|i\-)|qtek|r380|r600|raks|rim9|ro(ve|zo)|s55\/|sa(ge|ma|mm|ms|ny|va)|sc(01|h\-|oo|p\-)|sdk\/|se(c(\-|0|1)|47|mc|nd|ri)|sgh\-|shar|sie(\-|m)|sk\-0|sl(45|id)|sm(al|ar|b3|it|t5)|so(ft|ny)|sp(01|h\-|v\-|v )|sy(01|mb)|t2(18|50)|t6(00|10|18)|ta(gt|lk)|tcl\-|tdg\-|tel(i|m)|tim\-|t\-mo|to(pl|sh)|ts(70|m\-|m3|m5)|tx\-9|up(\.b|g1|si)|utst|v400|v750|veri|vi(rg|te)|vk(40|5[0-3]|\-v)|vm40|voda|vulc|vx(52|53|60|61|70|80|81|83|85|98)|w3c(\-| )|webc|whit|wi(g |nc|nw)|wmlb|wonu|x700|yas\-|your|zeto|zte\-/i.test(a.substr(0, 4))) check = true;
-        })(navigator.userAgent || navigator.vendor || window.opera);
-        return check;
-    }
-
-    loadData(path, success, error) {
-        var xmlhttp = new XMLHttpRequest();
-        xmlhttp.onreadystatechange = function () {
-            if (xmlhttp.readyState === 4) {
-                if (xmlhttp.status === 200) {
-                    success(xmlhttp.responseText);
-                } else {
-                    error();
-                }
-            }
-        };
-        xmlhttp.open('GET', path, true);
-        xmlhttp.send();
-    }
-}
+Object.defineProperty(__webpack_exports__, "__esModule", { value: true });
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__engine_engine__ = __webpack_require__(2);
 
 
+const engine = new __WEBPACK_IMPORTED_MODULE_0__engine_engine__["a" /* default */]();
+
+engine.resources.load({
+    statue: 'resources/statue.obj',
+    texture: 'resources/statue.jpg',
+    shader: 'resources/diffuse.shader'
+}, () => {
+    engine.renderer.setup();
+    engine.run();
+});
 
 /***/ }),
 /* 1 */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
-Object.defineProperty(__webpack_exports__, "__esModule", { value: true });
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__engine_engine__ = __webpack_require__(3);
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "a", function() { return Console; });
+class Console {
+    constructor(engine) {
+        const e = this.e = engine;
+        const c = this;
+
+        c.visible = false;
+        c.logs = [];
+        c.commands = [];
+
+        // add css
+        e.utils.addCSS('#console {-webkit-transition: all 0.150s ease-in-out; display: flex; flex-flow: column nowrap; line-height: 95%; border:1px solid #999; border-bottom:1px solid #fff; background-color: #999; opacity: 0.75; z-index : 2; width: 100%; height: 50%; position: absolute; top: -52vh; left: 0; overflow: scroll; overflow-x: hidden;}' + '#console-input {-webkit-transition: all 0.150s ease-in-out; display: inline; color: #fff; font-size: 14px; position: absolute; top: -52vh; left: 0; width:100%; border:1px solid #999; border-bottom:2px solid #fff; background-color: #999; opacity: 0.75; outline: none;}' + '#console p { margin-top: auto !important; font-size: 14px; color: #fff; margin: 0px; white-space: nowrap;}' + '.console-down {-webkit-transform: translate(0,52vh);}' + '.console-input-down {-webkit-transform: translate(0,102vh);}');
+
+        // add console elements
+        c.console = e.utils.addElement('div', 'console');
+        c.inputfield = e.utils.addElement('input', 'console-input');
+        c.inputfield.disabled = true;
+
+        // add console control
+        e.input.addKeyDownEvent(192, () => {
+            c.toggle();
+        });
+        e.input.addKeyDownEvent(13, () => {
+            c.execute();
+        });
+        e.touch.on('panup pandown', ev => {
+            if (ev.type === 'panup') {
+                c.toggle(false);
+            }
+            if (ev.type === 'pandown') {
+                c.toggle(true);
+            }
+        });
+    }
+
+    execute() {
+        // TODO: add actual execution and registration
+        const c = this;
+        if (c.inputfield.value === '') return;
+        c.warn('Unknown command "' + c.inputfield.value + '"');
+        c.inputfield.value = '';
+    }
+
+    toggle(show) {
+        const c = this;
+        if (show === undefined) {
+            c.visible = !c.visible;
+        } else {
+            c.visible = show;
+        }
+        if (c.visible) {
+            c.console.classList.add('console-down');
+            c.inputfield.classList.add('console-input-down');
+            c.inputfield.disabled = false;
+            setTimeout(() => {
+                c.inputfield.focus();
+            }, 100);
+            c.update();
+        } else {
+            c.console.classList.remove('console-down');
+            c.inputfield.classList.remove('console-input-down');
+            c.inputfield.disabled = true;
+        }
+    }
+
+    update() {
+        const c = this;
+        let text = '<p>';
+        for (let i = 0; i < c.logs.length; i++) {
+            const log = c.logs[i];
+            let color = '#FFF';
+            if (log.type === 'warning') {
+                color = '#FF0';
+            }
+            if (log.type === 'error') {
+                color = '#F00';
+            }
+            text = text + '<span style="color:' + color + '">' + log.message + '</span></br>';
+        }
+        c.console.innerHTML = text + '</p>';
+        c.console.scrollTop = this.console.scrollHeight;
+    }
+
+    log(m) {
+        console.log(m);
+        this.logs.push({
+            type: 'log',
+            message: m
+        });
+        this.update();
+    }
+
+    warn(m) {
+        console.warn(m);
+        this.logs.push({
+            type: 'warning',
+            message: m
+        });
+        this.update();
+    }
+
+    error(m) {
+        console.error(m);
+        this.logs.push({
+            type: 'error',
+            message: m
+        });
+        this.update();
+        this.toggle();
+        throw new Error();
+    }
+}
 
 
-var engine = new __WEBPACK_IMPORTED_MODULE_0__engine_engine__["a" /* default */]();
-
-engine.resources.load({
-  'statue': 'resources/statue.obj',
-  'texture': 'resources/statue.jpg',
-  'shader': 'resources/diffuse.shader'
-}, () => {
-  engine.renderer.setup();
-  engine.run();
-});
 
 /***/ }),
 /* 2 */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
-/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "a", function() { return Console; });
-class Console {
-  constructor(engine) {
-    let e = this.e = engine;
-    let c = this;
-
-    c.visible = false;
-    c.logs = [];
-    c.commands = [];
-
-    //add css
-    e.utils.addCSS('#console {-webkit-transition: all 0.150s ease-in-out; display: flex; flex-flow: column nowrap; line-height: 95%; border:1px solid #999; border-bottom:1px solid #fff; background-color: #999; opacity: 0.75; z-index : 2; width: 100%; height: 50%; position: absolute; top: -52vh; left: 0; overflow: scroll; overflow-x: hidden;}' + '#console-input {-webkit-transition: all 0.150s ease-in-out; display: inline; color: #fff; font-size: 14px; position: absolute; top: -52vh; left: 0; width:100%; border:1px solid #999; border-bottom:2px solid #fff; background-color: #999; opacity: 0.75; outline: none;}' + '#console p { margin-top: auto !important; font-size: 14px; color: #fff; margin: 0px; white-space: nowrap;}' + '.console-down {-webkit-transform: translate(0,52vh);}' + '.console-input-down {-webkit-transform: translate(0,102vh);}');
-
-    //add console elements
-    c.console = e.utils.addElement('div', 'console');
-    c.inputfield = e.utils.addElement('input', 'console-input');
-    c.inputfield.disabled = true;
-
-    //add console control
-    e.input.AddKeyDownEvent(192, () => {
-      c.toggle();
-    });
-    e.input.AddKeyDownEvent(13, () => {
-      c.execute();
-    });
-    e.touch.on('panup pandown', ev => {
-      if (ev.type === 'panup') {
-        c.toggle(false);
-      }if (ev.type === 'pandown') {
-        c.toggle(true);
-      }
-    });
-  }
-
-  execute() {
-    //TODO: add actual execution and registration
-    let c = this;
-    if (c.inputfield.value === '') return;
-    c.warn('Unknown command "' + c.inputfield.value + '"');
-    c.inputfield.value = '';
-  }
-
-  toggle(show) {
-    let c = this;
-    if (show === undefined) {
-      c.visible = !c.visible;
-    } else {
-      c.visible = show;
-    }
-    if (c.visible) {
-      c.console.classList.add('console-down');
-      c.inputfield.classList.add('console-input-down');
-      c.inputfield.disabled = false;
-      setTimeout(() => {
-        c.inputfield.focus();
-      }, 100);
-      c.update();
-    } else {
-      c.console.classList.remove('console-down');
-      c.inputfield.classList.remove('console-input-down');
-      c.inputfield.disabled = true;
-    }
-  }
-
-  update() {
-    let c = this;
-    let text = '<p>';
-    for (let i = 0; i < c.logs.length; i++) {
-      let log = c.logs[i];
-      var color = '#FFF';
-      if (log.type === 'warning') {
-        color = '#FF0';
-      }if (log.type === 'error') {
-        color = '#F00';
-      }
-      text = text + '<span style="color:' + color + '">' + log.message + '</span></br>';
-    }
-    c.console.innerHTML = text + '</p>';
-    c.console.scrollTop = this.console.scrollHeight;
-  }
-
-  log(m) {
-    console.log(m);
-    this.logs.push({ 'type': 'log', 'message': m });
-    this.update();
-  }
-
-  warn(m) {
-    console.warn(m);
-    this.logs.push({ 'type': 'warning', 'message': m });
-    this.update();
-  }
-
-  error(m) {
-    console.error(m);
-    this.logs.push({ 'type': 'error', 'message': m });
-    this.update();
-    this.toggle();
-    throw new Error();
-  }
-}
-
-
-
-/***/ }),
-/* 3 */
-/***/ (function(module, __webpack_exports__, __webpack_require__) {
-
-"use strict";
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__node_modules_hammerjs_hammer_js__ = __webpack_require__(12);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__node_modules_hammerjs_hammer_js___default = __webpack_require__.n(__WEBPACK_IMPORTED_MODULE_0__node_modules_hammerjs_hammer_js__);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__utils__ = __webpack_require__(0);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_2__input__ = __webpack_require__(4);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_3__console__ = __webpack_require__(2);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_4__stats__ = __webpack_require__(9);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_5__renderer__ = __webpack_require__(6);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_6__resources__ = __webpack_require__(7);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__node_modules_hammerjs_hammer__ = __webpack_require__(12);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__node_modules_hammerjs_hammer___default = __webpack_require__.n(__WEBPACK_IMPORTED_MODULE_0__node_modules_hammerjs_hammer__);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__utils__ = __webpack_require__(10);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_2__input__ = __webpack_require__(3);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_3__console__ = __webpack_require__(1);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_4__stats__ = __webpack_require__(8);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_5__renderer__ = __webpack_require__(5);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_6__resources__ = __webpack_require__(6);
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "a", function() { return Engine; });
-//external imports
+// external imports
 
 
-//engine imports
+// engine imports
 
 
 
@@ -275,58 +233,58 @@ class Console {
 
 class Engine {
     constructor() {
-        var e = this;
+        const e = this;
 
-        //utils
-        e.utils = new __WEBPACK_IMPORTED_MODULE_1__utils__["a" /* default */](e);
+        // utils
+        e.utils = __WEBPACK_IMPORTED_MODULE_1__utils__["a" /* default */];
         e.utils.addCSS('html { height: 100%; }' + 'body { background: #000; min-height: 100%; margin: 0; padding: 0; position: relative; overflow: hidden; font-family: Consolas, monaco, monospace; font-weight: bold;}');
 
-        //Add hammer for touch events
-        e.touch = new __WEBPACK_IMPORTED_MODULE_0__node_modules_hammerjs_hammer_js___default.a(document.body);
-        e.touch.get('pan').set({ direction: __WEBPACK_IMPORTED_MODULE_0__node_modules_hammerjs_hammer_js___default.a.DIRECTION_ALL });
+        // Add hammer for touch events
+        e.touch = new __WEBPACK_IMPORTED_MODULE_0__node_modules_hammerjs_hammer___default.a(document.body);
+        e.touch.get('pan').set({
+            direction: __WEBPACK_IMPORTED_MODULE_0__node_modules_hammerjs_hammer___default.a.DIRECTION_ALL
+        });
 
-        //Add cordova specfic events if we are on mobile
-        //TEMP: We should probably move this somewhere else.
+        // Add cordova specfic events if we are on mobile
+        // TEMP: We should probably move this somewhere else.
         if (e.utils.isMobile()) {
             document.addEventListener('deviceready', () => {
                 e.console.log('Platform: ' + cordova.platformId);
                 if (cordova.platformId === 'android') {
-                    window.addEventListener('native.keyboardhide', function (e) {
+                    window.addEventListener('native.keyboardhide', () => {
                         AndroidFullScreen.immersiveMode();
                     });
                 }
             }, false);
         }
 
-        //construct the engine core systems
+        // construct the engine core systems
         e.input = new __WEBPACK_IMPORTED_MODULE_2__input__["a" /* default */](e);
         e.console = new __WEBPACK_IMPORTED_MODULE_3__console__["a" /* default */](e);
         e.stats = new __WEBPACK_IMPORTED_MODULE_4__stats__["a" /* default */](e);
         e.renderer = new __WEBPACK_IMPORTED_MODULE_5__renderer__["a" /* default */](e);
         e.resources = new __WEBPACK_IMPORTED_MODULE_6__resources__["a" /* default */](e);
-
-        e.Resources;
     }
 
-    //main entry point
+    // main entry point
     run() {
-        var time;
-        var frameTime = 0;
-        var e = this;
+        let time;
+        let frameTime = 0;
+        const e = this;
 
         function loop() {
-            //timing
-            let now = performance.now();
+            // timing
+            const now = performance.now();
             frameTime = now - (time || now);
             time = now;
 
-            //render the frame
+            // render the frame
             e.renderer.update(frameTime);
 
-            //update stats
+            // update stats
             e.stats.update(frameTime);
 
-            //restart the loop
+            // restart the loop
             window.requestAnimationFrame(loop);
         }
         window.requestAnimationFrame(loop);
@@ -336,20 +294,20 @@ class Engine {
 
 
 /***/ }),
-/* 4 */
+/* 3 */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "a", function() { return Input; });
 class Input {
     constructor(engine) {
-        var e = this.e = engine;
-        var i = this;
+        this.e = engine;
+        const i = this;
         i.pressed = {};
         i.upevents = [];
         i.downevents = [];
 
-        window.addEventListener('keyup', function (event) {
+        window.addEventListener('keyup', event => {
             delete i.pressed[event.keyCode];
             for (let l = 0; l < i.upevents.length; l++) {
                 if (i.upevents[l].key === event.keyCode) {
@@ -362,7 +320,7 @@ class Input {
                 }
             }
         }, false);
-        window.addEventListener('keydown', function (event) {
+        window.addEventListener('keydown', event => {
             i.pressed[event.keyCode] = true;
             for (let l = 0; l < i.downevents.length; l++) {
                 if (i.downevents[l].key === event.keyCode && !i.downevents[l].pressed) {
@@ -373,29 +331,182 @@ class Input {
         }, false);
     }
 
-    ClearInputEvents() {
+    clearInputEvents() {
         this.pressed = {};
         this.upevents = [];
         this.downevents = [];
     }
 
-    AddKeyDownEvent(key, event) {
+    addKeyDownEvent(key, event) {
         this.downevents.push({
+            /* eslint-disable */
             key: key,
             event: event,
+            /* eslint-disable */
             pressed: false
         });
     }
 
-    AddKeyUpEvent(key, event) {
+    addKeyUpEvent(key, event) {
         this.upevents.push({
+            /* eslint-disable */
             key: key,
             event: event
+            /* eslint-disable */
         });
     }
 
-    IsDown(keyCode) {
+    isDown(keyCode) {
         return this.pressed[keyCode];
+    }
+}
+
+
+
+/***/ }),
+/* 4 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "a", function() { return Mesh; });
+class Mesh {
+    constructor(path, engine, onSuccess, onError) {
+        const e = this.e = engine;
+        const m = this;
+        const p = path;
+        m.gl = e.renderer.gl;
+
+        e.utils.loadData(p, data => {
+            const verts = [];
+            const vertNormals = [];
+            const textures = [];
+            const unpacked = {};
+            unpacked.verts = [];
+            unpacked.norms = [];
+            unpacked.textures = [];
+            unpacked.hashindices = {};
+            unpacked.indices = [];
+            unpacked.index = 0;
+            const lines = data.split('\n');
+
+            const VERTEX_RE = /^v\s/;
+            const NORMAL_RE = /^vn\s/;
+            const TEXTURE_RE = /^vt\s/;
+            const FACE_RE = /^f\s/;
+            const WHITESPACE_RE = /\s+/;
+
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                const elements = line.split(WHITESPACE_RE);
+                elements.shift();
+
+                if (VERTEX_RE.test(line)) {
+                    verts.push.apply(verts, elements);
+                } else if (NORMAL_RE.test(line)) {
+                    vertNormals.push.apply(vertNormals, elements);
+                } else if (TEXTURE_RE.test(line)) {
+                    textures.push.apply(textures, elements);
+                } else if (FACE_RE.test(line)) {
+                    let quad = false;
+                    for (let j = 0, eleLen = elements.length; j < eleLen; j++) {
+                        if (j === 3 && !quad) {
+                            j = 2;
+                            quad = true;
+                        }
+                        if (elements[j] in unpacked.hashindices) {
+                            unpacked.indices.push(unpacked.hashindices[elements[j]]);
+                        } else {
+                            const vertex = elements[j].split('/');
+                            // vertex position
+                            unpacked.verts.push(+verts[(vertex[0] - 1) * 3 + 0]);
+                            unpacked.verts.push(+verts[(vertex[0] - 1) * 3 + 1]);
+                            unpacked.verts.push(+verts[(vertex[0] - 1) * 3 + 2]);
+                            // vertex textures
+                            if (textures.length) {
+                                unpacked.textures.push(+textures[(vertex[1] - 1) * 2 + 0]);
+                                unpacked.textures.push(+textures[(vertex[1] - 1) * 2 + 1]);
+                            }
+                            // vertex normals
+                            unpacked.norms.push(+vertNormals[(vertex[2] - 1) * 3 + 0]);
+                            unpacked.norms.push(+vertNormals[(vertex[2] - 1) * 3 + 1]);
+                            unpacked.norms.push(+vertNormals[(vertex[2] - 1) * 3 + 2]);
+                            // add the newly created vertex to the list of indices
+                            unpacked.hashindices[elements[j]] = unpacked.index;
+                            unpacked.indices.push(unpacked.index);
+                            // increment the counter
+                            unpacked.index += 1;
+                        }
+                        if (j === 3 && quad) {
+                            // add v0/t0/vn0 onto the second triangle
+                            unpacked.indices.push(unpacked.hashindices[elements[0]]);
+                        }
+                    }
+                }
+            }
+            m.vertices = unpacked.verts;
+            m.vertexNormals = unpacked.norms;
+            m.textures = unpacked.textures;
+            m.indices = unpacked.indices;
+
+            m.initMeshBuffers();
+
+            onSuccess(p);
+        }, () => {
+            onError(p);
+        });
+    }
+
+    buildBuffer(type, data, itemSize) {
+        const m = this;
+        const buffer = m.gl.createBuffer();
+        const arrayView = type === m.gl.ARRAY_BUFFER ? Float32Array : Uint16Array;
+        m.gl.bindBuffer(type, buffer);
+        m.gl.bufferData(type, new arrayView(data), m.gl.STATIC_DRAW);
+        buffer.itemSize = itemSize;
+        buffer.numItems = data.length / itemSize;
+        return buffer;
+    }
+
+    initMeshBuffers() {
+        const m = this;
+        m.normalBuffer = m.buildBuffer(m.gl.ARRAY_BUFFER, m.vertexNormals, 3);
+        m.textureBuffer = m.buildBuffer(m.gl.ARRAY_BUFFER, m.textures, 2);
+        m.vertexBuffer = m.buildBuffer(m.gl.ARRAY_BUFFER, m.vertices, 3);
+        m.indexBuffer = m.buildBuffer(m.gl.ELEMENT_ARRAY_BUFFER, m.indices, 1);
+    }
+
+    deleteMeshBuffers() {
+        const m = this;
+        m.gl.deleteBuffer(m.normalBuffer);
+        m.gl.deleteBuffer(m.textureBuffer);
+        m.gl.deleteBuffer(m.vertexBuffer);
+        m.gl.deleteBuffer(m.indexBuffer);
+    }
+
+    render() {
+        const m = this;
+        const gl = this.gl;
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, m.vertexBuffer);
+        gl.vertexAttribPointer(0, m.vertexBuffer.itemSize, gl.FLOAT, false, 0, 0);
+        gl.enableVertexAttribArray(0);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, m.textureBuffer);
+        gl.vertexAttribPointer(1, m.textureBuffer.itemSize, gl.FLOAT, false, 0, 0);
+        gl.enableVertexAttribArray(1);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, m.normalBuffer);
+        gl.vertexAttribPointer(2, m.normalBuffer.itemSize, gl.FLOAT, false, 0, 0);
+        gl.enableVertexAttribArray(2);
+
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, m.indexBuffer);
+
+        gl.drawElements(gl.TRIANGLES, m.indexBuffer.numItems, gl.UNSIGNED_SHORT, 0);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, null);
+        gl.bindBuffer(gl.ARRAY_BUFFER, null);
+        gl.bindBuffer(gl.ARRAY_BUFFER, null);
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
     }
 }
 
@@ -406,178 +517,25 @@ class Input {
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
-/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "a", function() { return Mesh; });
-class Mesh {
-  constructor(path, engine, onSuccess, onError) {
-    var e = this.e = engine;
-    var m = this;
-    var p = path;
-    var gl = m.gl = e.renderer.gl;
-
-    e.utils.loadData(p, data => {
-      var verts = [],
-          vertNormals = [],
-          textures = [],
-          unpacked = {};
-      unpacked.verts = [];
-      unpacked.norms = [];
-      unpacked.textures = [];
-      unpacked.hashindices = {};
-      unpacked.indices = [];
-      unpacked.index = 0;
-      var lines = data.split('\n');
-
-      var VERTEX_RE = /^v\s/;
-      var NORMAL_RE = /^vn\s/;
-      var TEXTURE_RE = /^vt\s/;
-      var FACE_RE = /^f\s/;
-      var WHITESPACE_RE = /\s+/;
-
-      for (var i = 0; i < lines.length; i++) {
-        var line = lines[i].trim();
-        var elements = line.split(WHITESPACE_RE);
-        elements.shift();
-
-        if (VERTEX_RE.test(line)) {
-          verts.push.apply(verts, elements);
-        } else if (NORMAL_RE.test(line)) {
-          vertNormals.push.apply(vertNormals, elements);
-        } else if (TEXTURE_RE.test(line)) {
-          textures.push.apply(textures, elements);
-        } else if (FACE_RE.test(line)) {
-          var quad = false;
-          for (var j = 0, eleLen = elements.length; j < eleLen; j++) {
-            if (j === 3 && !quad) {
-              j = 2;
-              quad = true;
-            }
-            if (elements[j] in unpacked.hashindices) {
-              unpacked.indices.push(unpacked.hashindices[elements[j]]);
-            } else {
-              var vertex = elements[j].split('/');
-              // vertex position
-              unpacked.verts.push(+verts[(vertex[0] - 1) * 3 + 0]);
-              unpacked.verts.push(+verts[(vertex[0] - 1) * 3 + 1]);
-              unpacked.verts.push(+verts[(vertex[0] - 1) * 3 + 2]);
-              // vertex textures
-              if (textures.length) {
-                unpacked.textures.push(+textures[(vertex[1] - 1) * 2 + 0]);
-                unpacked.textures.push(+textures[(vertex[1] - 1) * 2 + 1]);
-              }
-              // vertex normals
-              unpacked.norms.push(+vertNormals[(vertex[2] - 1) * 3 + 0]);
-              unpacked.norms.push(+vertNormals[(vertex[2] - 1) * 3 + 1]);
-              unpacked.norms.push(+vertNormals[(vertex[2] - 1) * 3 + 2]);
-              // add the newly created vertex to the list of indices
-              unpacked.hashindices[elements[j]] = unpacked.index;
-              unpacked.indices.push(unpacked.index);
-              // increment the counter
-              unpacked.index += 1;
-            }
-            if (j === 3 && quad) {
-              // add v0/t0/vn0 onto the second triangle
-              unpacked.indices.push(unpacked.hashindices[elements[0]]);
-            }
-          }
-        }
-      }
-      m.vertices = unpacked.verts;
-      m.vertexNormals = unpacked.norms;
-      m.textures = unpacked.textures;
-      m.indices = unpacked.indices;
-
-      m.initMeshBuffers();
-
-      onSuccess(p);
-    }, function () {
-      onError(p);
-    });
-  }
-
-  buildBuffer(type, data, itemSize) {
-    var m = this;
-    var buffer = m.gl.createBuffer();
-    var arrayView = type === m.gl.ARRAY_BUFFER ? Float32Array : Uint16Array;
-    m.gl.bindBuffer(type, buffer);
-    m.gl.bufferData(type, new arrayView(data), m.gl.STATIC_DRAW);
-    buffer.itemSize = itemSize;
-    buffer.numItems = data.length / itemSize;
-    return buffer;
-  }
-
-  initMeshBuffers() {
-    var m = this;
-    m.normalBuffer = m.buildBuffer(m.gl.ARRAY_BUFFER, m.vertexNormals, 3);
-    m.textureBuffer = m.buildBuffer(m.gl.ARRAY_BUFFER, m.textures, 2);
-    m.vertexBuffer = m.buildBuffer(m.gl.ARRAY_BUFFER, m.vertices, 3);
-    m.indexBuffer = m.buildBuffer(m.gl.ELEMENT_ARRAY_BUFFER, m.indices, 1);
-  }
-
-  deleteMeshBuffers() {
-    var m = this;
-    m.gl.deleteBuffer(m.normalBuffer);
-    m.gl.deleteBuffer(m.textureBuffer);
-    m.gl.deleteBuffer(m.vertexBuffer);
-    m.gl.deleteBuffer(m.indexBuffer);
-  }
-
-  render() {
-    var m = this;
-    var gl = this.gl;
-
-    gl.bindBuffer(gl.ARRAY_BUFFER, m.vertexBuffer);
-    gl.vertexAttribPointer(0, m.vertexBuffer.itemSize, gl.FLOAT, false, 0, 0);
-    gl.enableVertexAttribArray(0);
-
-    gl.bindBuffer(gl.ARRAY_BUFFER, m.textureBuffer);
-    gl.vertexAttribPointer(1, m.textureBuffer.itemSize, gl.FLOAT, false, 0, 0);
-    gl.enableVertexAttribArray(1);
-
-    gl.bindBuffer(gl.ARRAY_BUFFER, m.normalBuffer);
-    gl.vertexAttribPointer(2, m.normalBuffer.itemSize, gl.FLOAT, false, 0, 0);
-    gl.enableVertexAttribArray(2);
-
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, m.indexBuffer);
-
-    gl.drawElements(gl.TRIANGLES, m.indexBuffer.numItems, gl.UNSIGNED_SHORT, 0);
-
-    gl.bindBuffer(gl.ARRAY_BUFFER, null);
-    gl.bindBuffer(gl.ARRAY_BUFFER, null);
-    gl.bindBuffer(gl.ARRAY_BUFFER, null);
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
-  }
-}
-
-
-
-/***/ }),
-/* 6 */
-/***/ (function(module, __webpack_exports__, __webpack_require__) {
-
-"use strict";
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__node_modules_gl_matrix_dist_gl_matrix__ = __webpack_require__(11);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__node_modules_gl_matrix_dist_gl_matrix___default = __webpack_require__.n(__WEBPACK_IMPORTED_MODULE_0__node_modules_gl_matrix_dist_gl_matrix__);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__utils__ = __webpack_require__(0);
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "a", function() { return Renderer; });
-//external imports
-
-
-//engine imports
+// external imports
 
 
 class Renderer {
     constructor(engine) {
-        var e = this.e = engine;
-        var r = this;
+        const e = this.e = engine;
+        const r = this;
 
-        //add canvas styling
+        // add canvas styling
         e.utils.addCSS('canvas { background: #000; width: 100vw; height: 100vh; display: block; z-index : 1; }');
 
-        //add canvas
+        // add canvas
         r.canvas = e.utils.addElement('canvas');
 
-        //init canvas gl
-        var gl = r.canvas.getContext('webgl2', {
+        // init canvas gl
+        let gl = r.canvas.getContext('webgl2', {
             antialias: true
         });
         if (!gl) {
@@ -590,14 +548,14 @@ class Renderer {
         }
         r.gl = gl;
 
-        //set gl basic settings
+        // set gl basic settings
         gl.clearColor(0.0, 0.0, 0.0, 1.0);
         gl.clearDepth(1.0);
         gl.enable(gl.DEPTH_TEST);
         gl.depthFunc(gl.LEQUAL);
         r.resize();
 
-        //print gl detail
+        // print gl detail
         e.console.log('Initialized renderer');
         e.console.log('Renderer: ' + gl.getParameter(gl.RENDERER));
         e.console.log('Vendor: ' + gl.getParameter(gl.VENDOR));
@@ -606,16 +564,16 @@ class Renderer {
     }
 
     resize() {
-        var r = this;
-        var gl = r.gl;
+        const r = this;
+        const gl = r.gl;
         gl.canvas.width = document.body.clientWidth;
         gl.canvas.height = document.body.clientHeight;
         gl.viewport(0, 0, r.canvas.width, r.canvas.height);
     }
 
     setup() {
-        var r = this;
-        var gl = r.gl;
+        const r = this;
+        const gl = r.gl;
 
         r.texture = r.e.resources.get('texture');
         r.mesh = r.e.resources.get('statue');
@@ -647,13 +605,13 @@ class Renderer {
     }
 
     update(frametime) {
-        var gl = this.gl;
+        const gl = this.gl;
         this.angle = this.angle + frametime / 1000;
 
         __WEBPACK_IMPORTED_MODULE_0__node_modules_gl_matrix_dist_gl_matrix__["mat4"].rotate(this.worldMatrix, this.identityMatrix, this.angle, [0, 1, 0]);
         gl.uniformMatrix4fv(gl.getUniformLocation(this.shader.program, 'mWorld'), gl.FALSE, this.worldMatrix);
 
-        gl.clear(gl.DEPTH_BUFFER_BIT | gl.COLOR_BUFFER_BIT);
+        gl.clear(gl.DEPTH_BUFFER_BIT || gl.COLOR_BUFFER_BIT);
 
         this.texture.bind(gl.TEXTURE0);
         this.mesh.render();
@@ -664,13 +622,13 @@ class Renderer {
 
 
 /***/ }),
-/* 7 */
+/* 6 */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__texture__ = __webpack_require__(10);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__mesh__ = __webpack_require__(5);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_2__shader__ = __webpack_require__(8);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__texture__ = __webpack_require__(9);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__mesh__ = __webpack_require__(4);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_2__shader__ = __webpack_require__(7);
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "a", function() { return Resources; });
 
 
@@ -678,24 +636,24 @@ class Renderer {
 
 class Resources {
     constructor(engine) {
-        var e = this.e = engine;
-        var r = this;
+        const e = this.e = engine;
+        const r = this;
         r.resources = {};
 
-        //add loading css
+        // add loading css
         e.utils.addCSS('#logo { position: fixed; width: 20%; height:20%; top: 50%; left: 50%; margin-top: -10%; margin-left: -10%; -webkit-animation:spin 3s linear infinite;}' + '@-webkit-keyframes spin { 100% { -webkit-transform: rotate(360deg); } }');
 
-        //add loading element
+        // add loading element
         r.loading = e.utils.addElement('img', 'logo');
         r.loading.src = 'resources/logo.svg';
         r.loading.style.display = 'none';
     }
 
     load(resources, afterLoading) {
-        var r = this;
-        var re = /(?:\.([^.]+))?$/;
-        var count = Object.keys(resources).length;
-        var counter = 0;
+        const r = this;
+        const re = /(?:\.([^.]+))?$/;
+        const count = Object.keys(resources).length;
+        let counter = 0;
 
         r.loading.style.display = 'inline';
 
@@ -712,9 +670,9 @@ class Resources {
             r.e.console.log('Error loading "' + path + '"');
         }
 
-        for (var key in resources) {
-            let path = resources[key];
-            let ext = re.exec(path)[1];
+        for (const key in resources) {
+            const path = resources[key];
+            const ext = re.exec(path)[1];
             switch (ext) {
                 case 'jpg':
                     this.resources[key] = new __WEBPACK_IMPORTED_MODULE_0__texture__["a" /* default */](path, this.e, onSuccess, onError);
@@ -732,32 +690,32 @@ class Resources {
     }
 
     get(key) {
-        let resource = this.resources[key];
+        const resource = this.resources[key];
         if (resource) {
             return resource;
-        } else {
-            this.e.console.error('Resource "' + key + '" does not exist');
         }
+        this.e.console.error('Resource "' + key + '" does not exist');
+        return null;
     }
 }
 
 
 
 /***/ }),
-/* 8 */
+/* 7 */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "a", function() { return Shader; });
 class Shader {
     constructor(path, engine, onSuccess, onError) {
-        var s = this;
-        var e = s.e = engine;
-        var p = path;
-        var gl = s.gl = e.renderer.gl;
+        const s = this;
+        const e = s.e = engine;
+        const p = path;
+        const gl = s.gl = e.renderer.gl;
 
         e.utils.loadData(p, data => {
-            var obj = JSON.parse(data);
+            const obj = JSON.parse(data);
 
             s.vertexShader = gl.createShader(gl.VERTEX_SHADER);
             s.fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
@@ -789,18 +747,18 @@ class Shader {
             }
 
             onSuccess(p);
-        }, function () {
+        }, () => {
             onError(p);
         });
     }
 
-    bind(unit) {
-        var gl = this.gl;
+    bind() {
+        const gl = this.gl;
         gl.useProgram(this.program);
     }
 
     unbind() {
-        var gl = this.gl;
+        const gl = this.gl;
         gl.useProgram(null);
     }
 }
@@ -808,28 +766,28 @@ class Shader {
 
 
 /***/ }),
-/* 9 */
+/* 8 */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "a", function() { return Stats; });
 class Stats {
     constructor(engine) {
-        var e = this.e = engine;
-        var s = this;
+        const e = this.e = engine;
+        const s = this;
 
         this.fps = 0;
         this.fpscounter = 0;
         this.frametime = 0;
 
-        //add css for stats
+        // add css for stats
         e.utils.addCSS('#stat-fps { left: 15px; bottom:15px; margin: 0; padding: 0; position: absolute; color: #FFF; font-size: 14px }' + '#stat-ftm { left: 15px; bottom:30px; margin: 0; padding: 0; position: absolute; color: #FFF; font-size: 14px  }');
 
-        //add stats elements
+        // add stats elements
         e.utils.addElement('span', 'stat-fps');
         e.utils.addElement('span', 'stat-ftm');
 
-        //stats update event
+        // stats update event
         window.setInterval(() => {
             s.fps = s.fpscounter;
             s.fpscounter = 0;
@@ -847,21 +805,21 @@ class Stats {
 
 
 /***/ }),
-/* 10 */
+/* 9 */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "a", function() { return Texture; });
 class Texture {
     constructor(path, engine, onSuccess, onError) {
-        var t = this;
-        var p = path;
-        var e = t.e = engine;
-        var gl = t.gl = e.renderer.gl;
+        const t = this;
+        const p = path;
+        const e = t.e = engine;
+        const gl = t.gl = e.renderer.gl;
 
         t.texture = gl.createTexture();
 
-        var image = new Image();
+        const image = new Image();
         image.onload = () => {
             gl.bindTexture(gl.TEXTURE_2D, t.texture);
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
@@ -879,16 +837,67 @@ class Texture {
     }
 
     bind(unit) {
-        var gl = this.gl;
+        const gl = this.gl;
         gl.activeTexture(unit);
         gl.bindTexture(this.gl.TEXTURE_2D, this.texture);
     }
 
     unbind() {
-        var gl = this.gl;
+        const gl = this.gl;
         gl.bindTexture(gl.TEXTURE_2D, null);
     }
 }
+
+
+
+/***/ }),
+/* 10 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "a", function() { return Utils; });
+const Utils = {
+    addCSS: styling => {
+        const css = document.createElement('style');
+        css.type = 'text/css';
+        css.appendChild(document.createTextNode(styling));
+        document.head.appendChild(css);
+    },
+
+    addElement: (type, id) => {
+        const el = document.createElement(type);
+        document.body.appendChild(el);
+        if (id) {
+            el.setAttribute('id', id);
+        }
+        return el;
+    },
+
+    isMobile: () => {
+        /* eslint-disable */
+        const check = false;
+        (function (a) {
+            if (/(android|bb\d+|meego).+mobile|avantgo|bada\/|blackberry|blazer|compal|elaine|fennec|hiptop|iemobile|ip(hone|od)|iris|kindle|lge |maemo|midp|mmp|mobile.+firefox|netfront|opera m(ob|in)i|palm( os)?|phone|p(ixi|re)\/|plucker|pocket|psp|series(4|6)0|symbian|treo|up\.(browser|link)|vodafone|wap|windows ce|xda|xiino|android|ipad|playbook|silk/i.test(a) || /1207|6310|6590|3gso|4thp|50[1-6]i|770s|802s|a wa|abac|ac(er|oo|s\-)|ai(ko|rn)|al(av|ca|co)|amoi|an(ex|ny|yw)|aptu|ar(ch|go)|as(te|us)|attw|au(di|\-m|r |s )|avan|be(ck|ll|nq)|bi(lb|rd)|bl(ac|az)|br(e|v)w|bumb|bw\-(n|u)|c55\/|capi|ccwa|cdm\-|cell|chtm|cldc|cmd\-|co(mp|nd)|craw|da(it|ll|ng)|dbte|dc\-s|devi|dica|dmob|do(c|p)o|ds(12|\-d)|el(49|ai)|em(l2|ul)|er(ic|k0)|esl8|ez([4-7]0|os|wa|ze)|fetc|fly(\-|_)|g1 u|g560|gene|gf\-5|g\-mo|go(\.w|od)|gr(ad|un)|haie|hcit|hd\-(m|p|t)|hei\-|hi(pt|ta)|hp( i|ip)|hs\-c|ht(c(\-| |_|a|g|p|s|t)|tp)|hu(aw|tc)|i\-(20|go|ma)|i230|iac( |\-|\/)|ibro|idea|ig01|ikom|im1k|inno|ipaq|iris|ja(t|v)a|jbro|jemu|jigs|kddi|keji|kgt( |\/)|klon|kpt |kwc\-|kyo(c|k)|le(no|xi)|lg( g|\/(k|l|u)|50|54|\-[a-w])|libw|lynx|m1\-w|m3ga|m50\/|ma(te|ui|xo)|mc(01|21|ca)|m\-cr|me(rc|ri)|mi(o8|oa|ts)|mmef|mo(01|02|bi|de|do|t(\-| |o|v)|zz)|mt(50|p1|v )|mwbp|mywa|n10[0-2]|n20[2-3]|n30(0|2)|n50(0|2|5)|n7(0(0|1)|10)|ne((c|m)\-|on|tf|wf|wg|wt)|nok(6|i)|nzph|o2im|op(ti|wv)|oran|owg1|p800|pan(a|d|t)|pdxg|pg(13|\-([1-8]|c))|phil|pire|pl(ay|uc)|pn\-2|po(ck|rt|se)|prox|psio|pt\-g|qa\-a|qc(07|12|21|32|60|\-[2-7]|i\-)|qtek|r380|r600|raks|rim9|ro(ve|zo)|s55\/|sa(ge|ma|mm|ms|ny|va)|sc(01|h\-|oo|p\-)|sdk\/|se(c(\-|0|1)|47|mc|nd|ri)|sgh\-|shar|sie(\-|m)|sk\-0|sl(45|id)|sm(al|ar|b3|it|t5)|so(ft|ny)|sp(01|h\-|v\-|v )|sy(01|mb)|t2(18|50)|t6(00|10|18)|ta(gt|lk)|tcl\-|tdg\-|tel(i|m)|tim\-|t\-mo|to(pl|sh)|ts(70|m\-|m3|m5)|tx\-9|up(\.b|g1|si)|utst|v400|v750|veri|vi(rg|te)|vk(40|5[0-3]|\-v)|vm40|voda|vulc|vx(52|53|60|61|70|80|81|83|85|98)|w3c(\-| )|webc|whit|wi(g |nc|nw)|wmlb|wonu|x700|yas\-|your|zeto|zte\-/i.test(a.substr(0, 4))) check = true;
+        })(navigator.userAgent || navigator.vendor || window.opera);
+        return check;
+        /* eslint-enable */
+    },
+
+    loadData: (path, success, error) => {
+        const xmlhttp = new XMLHttpRequest();
+        xmlhttp.onreadystatechange = () => {
+            if (xmlhttp.readyState === 4) {
+                if (xmlhttp.status === 200) {
+                    success(xmlhttp.responseText);
+                } else {
+                    error();
+                }
+            }
+        };
+        xmlhttp.open('GET', path, true);
+        xmlhttp.send();
+    }
+};
 
 
 
@@ -10160,7 +10169,7 @@ if (true) {
 /* 13 */
 /***/ (function(module, exports, __webpack_require__) {
 
-module.exports = __webpack_require__(1);
+module.exports = __webpack_require__(0);
 
 
 /***/ })

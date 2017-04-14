@@ -1,12 +1,12 @@
 class Input {
-    constructor (engine) {
-        var e = this.e = engine;
-        var i = this;
+    constructor(engine) {
+        this.e = engine;
+        const i = this;
         i.pressed = {};
         i.upevents = [];
         i.downevents = [];
 
-        window.addEventListener('keyup', function (event ) {
+        window.addEventListener('keyup', (event) => {
             delete i.pressed[event.keyCode];
             for (let l = 0; l < i.upevents.length; l++) {
                 if (i.upevents[l].key === event.keyCode) {
@@ -19,7 +19,7 @@ class Input {
                 }
             }
         }, false);
-        window.addEventListener('keydown', function( event) {
+        window.addEventListener('keydown', (event) => {
             i.pressed[event.keyCode] = true;
             for (let l = 0; l < i.downevents.length; l++) {
                 if (i.downevents[l].key === event.keyCode && (!i.downevents[l].pressed)) {
@@ -30,30 +30,35 @@ class Input {
         }, false);
     }
 
-    ClearInputEvents () {
+    clearInputEvents() {
         this.pressed = {};
         this.upevents = [];
         this.downevents = [];
-    };
+    }
 
-    AddKeyDownEvent (key, event) {
+    addKeyDownEvent(key, event) {
         this.downevents.push({
+            /* eslint-disable */
             key: key,
             event: event,
+            /* eslint-disable */
             pressed: false
         });
-    };
+    }
 
-    AddKeyUpEvent (key, event) {
+    addKeyUpEvent(key, event) {
         this.upevents.push({
+             /* eslint-disable */
             key: key,
             event: event
+             /* eslint-disable */
         });
-    };
+    }
 
-    IsDown (keyCode) {
+    isDown(keyCode) {
         return this.pressed[keyCode];
-    };
+    }
 }
 
-export { Input as default };
+export {Input as default };
+

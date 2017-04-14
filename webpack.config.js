@@ -9,14 +9,20 @@ module.exports = {
     output: {
         path: path.join(__dirname, 'dist'),
         filename: 'bundle.js'
-    },
+    },   
     module: {
-        loaders: [
+        rules: [
             {
-            test: /\.js$/,
-            exclude: /(node_modules)/,
-            loader: 'babel-loader?presets[]=es2017'
-            }
+                enforce: "pre",
+                test: /\.js$/,
+                exclude: /node_modules/,
+                loader: "eslint-loader",
+            },
+            {
+                test: /\.js$/,
+                exclude: /node_modules/,
+                loader: "babel-loader",
+            },
         ]
     }
 };

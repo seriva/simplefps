@@ -1,24 +1,21 @@
-//external imports
+// external imports
 import { glMatrix, mat4 } from '../../node_modules/gl-matrix/dist/gl-matrix';
 
-//engine imports
-import Utils from './utils';
-
 class Renderer {
-    constructor (engine) {
-        var e = this.e = engine;
-        var r = this;
+    constructor(engine) {
+        const e = this.e = engine;
+        const r = this;
 
-        //add canvas styling
+        // add canvas styling
         e.utils.addCSS(
             'canvas { background: #000; width: 100vw; height: 100vh; display: block; z-index : 1; }'
         );
 
-        //add canvas
+        // add canvas
         r.canvas = e.utils.addElement('canvas');
 
-        //init canvas gl
-        var gl = r.canvas.getContext('webgl2', {
+        // init canvas gl
+        let gl = r.canvas.getContext('webgl2', {
             antialias: true
         });
         if (!gl) {
@@ -31,14 +28,14 @@ class Renderer {
         }
         r.gl = gl;
 
-        //set gl basic settings
+        // set gl basic settings
         gl.clearColor(0.0, 0.0, 0.0, 1.0);
         gl.clearDepth(1.0);
         gl.enable(gl.DEPTH_TEST);
         gl.depthFunc(gl.LEQUAL);
         r.resize();
 
-        //print gl detail
+        // print gl detail
         e.console.log('Initialized renderer');
         e.console.log('Renderer: ' + gl.getParameter(gl.RENDERER));
         e.console.log('Vendor: ' + gl.getParameter(gl.VENDOR));
@@ -46,23 +43,21 @@ class Renderer {
         e.console.log('GLSL version: ' + gl.getParameter(gl.SHADING_LANGUAGE_VERSION));
     }
 
-    resize () {
-        var r = this;
-        var gl = r.gl;
+    resize() {
+        const r = this;
+        const gl = r.gl;
         gl.canvas.width = document.body.clientWidth;
         gl.canvas.height = document.body.clientHeight;
         gl.viewport(0, 0, r.canvas.width, r.canvas.height);
     }
 
+    setup() {
+        const r = this;
+        const gl = r.gl;
 
-
-    setup () {
-        var r = this;
-        var gl = r.gl;
-
-        r.texture = r.e.resources.get('texture'); 
+        r.texture = r.e.resources.get('texture');
         r.mesh = r.e.resources.get('statue');
-        r.shader =  r.e.resources.get('shader');
+        r.shader = r.e.resources.get('shader');
 
         r.worldMatrix = new Float32Array(16);
         r.viewMatrix = new Float32Array(16);
@@ -89,14 +84,14 @@ class Renderer {
         }, false);
     }
 
-    update (frametime) {
-        var gl = this.gl;
+    update(frametime) {
+        const gl = this.gl;
         this.angle = this.angle + (frametime / 1000);
 
         mat4.rotate(this.worldMatrix, this.identityMatrix, this.angle, [0, 1, 0]);
         gl.uniformMatrix4fv(gl.getUniformLocation(this.shader.program, 'mWorld'), gl.FALSE, this.worldMatrix);
 
-        gl.clear(gl.DEPTH_BUFFER_BIT | gl.COLOR_BUFFER_BIT);
+        gl.clear(gl.DEPTH_BUFFER_BIT || gl.COLOR_BUFFER_BIT);
 
         this.texture.bind(gl.TEXTURE0);
         this.mesh.render();
@@ -104,4 +99,4 @@ class Renderer {
     }
 }
 
-export {Renderer as default};
+export { Renderer as default };
