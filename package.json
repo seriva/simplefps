@@ -2,6 +2,13 @@
   "name": "genesisdevicejs",
   "version": "0.0.1",
   "description": "Genesis Device JS",
+  "author": "Luuk van Venrooij",
+  "license": "LGPL",
+  "repository" :
+  { 
+    "type" : "git",
+    "url" : "https://github.com/seriva/GenesisDeviceJS.git"
+  },  
   "scripts": {
     "postinstall": "webpack && copyfiles -u 1 \"dist/**/*.*\" \"mobile/www\" && npm run cordova -- prepare && copyfiles -u 1 \"mobile/xwalk-command-line\" \"mobile/platforms/android/assets/\" && npm run nw install 0.21.1",
     "postupdate": "npm run postinstall",
@@ -16,8 +23,6 @@
     "build:desktop": "npm run build && npm run nw .",
     "build:android": "npm run build && npm run cordova -- build android --release"
   },
-  "author": "Luuk van Venrooij",
-  "license": "ISC",
   "dependencies": {
     "core-js": "^2.4.1",
     "eslint-loader": "^1.7.1",
