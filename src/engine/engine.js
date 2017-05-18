@@ -16,8 +16,21 @@ class Engine {
         // utils
         e.utils = Utils;
         e.utils.addCSS(
-            'html { height: 100%; }' +
-            'body { background: #000; min-height: 100%; margin: 0; padding: 0; position: relative; overflow: hidden; font-family: Consolas, monaco, monospace; font-weight: bold;}'
+            `
+            html { 
+                height: 100%; 
+            }
+
+            body { 
+                background: #000; 
+                min-height: 100%; 
+                margin: 0; 
+                padding: 0; 
+                position: relative; 
+                overflow: hidden; 
+                font-family: Consolas, monaco, monospace; font-weight: bold;
+            }
+            `
         );
 
         // Add hammer for touch events

@@ -9,8 +9,27 @@ class Stats {
 
         // add css for stats
         e.utils.addCSS(
-            '#stat-fps { left: 15px; bottom:15px; margin: 0; padding: 0; position: absolute; color: #FFF; font-size: 14px }' +
-            '#stat-ftm { left: 15px; bottom:30px; margin: 0; padding: 0; position: absolute; color: #FFF; font-size: 14px  }'
+            `
+            #stat-fps { 
+                left: 15px; 
+                bottom:15px; 
+                margin: 0; 
+                padding: 0; 
+                position: absolute; 
+                color: #FFF; 
+                font-size: 14px 
+            }
+
+            #stat-ftm { 
+                left: 15px; 
+                bottom:30px; 
+                margin: 0; 
+                padding: 0; 
+                position: absolute; 
+                color: #FFF; 
+                font-size: 14px 
+             }
+            `
         );
 
         // add stats elements

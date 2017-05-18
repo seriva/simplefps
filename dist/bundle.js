@@ -102,7 +102,55 @@ class Console {
         c.commands = [];
 
         // add css
-        e.utils.addCSS('#console {-webkit-transition: all 0.150s ease-in-out; display: flex; flex-flow: column nowrap; line-height: 95%; border:1px solid #999; border-bottom:1px solid #fff; background-color: #999; opacity: 0.75; z-index : 2; width: 100%; height: 50%; position: absolute; top: -52vh; left: 0; overflow: scroll; overflow-x: hidden;}' + '#console-input {-webkit-transition: all 0.150s ease-in-out; display: inline; color: #fff; font-size: 14px; position: absolute; top: -52vh; left: 0; width:100%; border:1px solid #999; border-bottom:2px solid #fff; background-color: #999; opacity: 0.75; outline: none;}' + '#console p { margin-top: auto !important; font-size: 14px; color: #fff; margin: 0px; white-space: nowrap;}' + '.console-down {-webkit-transform: translate(0,52vh);}' + '.console-input-down {-webkit-transform: translate(0,102vh);}');
+        e.utils.addCSS(`
+            #console {
+                -webkit-transition: all 0.150s ease-in-out; 
+                display: flex; flex-flow: 
+                column nowrap; 
+                line-height: 95%; 
+                border:1px solid #999; 
+                border-bottom:1px solid #fff; 
+                background-color: #999; 
+                opacity: 0.75; 
+                z-index : 2; 
+                width: 100%; 
+                height: 50%; 
+                position: absolute; 
+                top: -52vh; 
+                left: 0; 
+                overflow: scroll; 
+                overflow-x: hidden;
+            }
+
+            #console-input {
+                -webkit-transition: all 0.150s ease-in-out; 
+                display: inline; 
+                color: #fff; 
+                font-size: 14px; 
+                position: absolute; 
+                top: -52vh; 
+                left: 0; width:100%; 
+                border:1px solid #999; 
+                border-bottom:2px solid #fff; 
+                background-color: #999; 
+                opacity: 0.75; outline: none;
+            }
+
+            #console p { 
+                margin-top: auto !important; 
+                font-size: 14px; 
+                color: #fff; margin: 0px; 
+                white-space: nowrap;
+            }
+
+            .console-down {
+                -webkit-transform: translate(0,52vh);
+            }
+
+            .console-input-down {
+                -webkit-transform: translate(0,102vh);
+            }
+            `);
 
         // add console elements
         c.console = e.utils.addElement('div', 'console');
@@ -237,7 +285,21 @@ class Engine {
 
         // utils
         e.utils = __WEBPACK_IMPORTED_MODULE_1__utils__["a" /* default */];
-        e.utils.addCSS('html { height: 100%; }' + 'body { background: #000; min-height: 100%; margin: 0; padding: 0; position: relative; overflow: hidden; font-family: Consolas, monaco, monospace; font-weight: bold;}');
+        e.utils.addCSS(`
+            html { 
+                height: 100%; 
+            }
+
+            body { 
+                background: #000; 
+                min-height: 100%; 
+                margin: 0; 
+                padding: 0; 
+                position: relative; 
+                overflow: hidden; 
+                font-family: Consolas, monaco, monospace; font-weight: bold;
+            }
+            `);
 
         // Add hammer for touch events
         e.touch = new __WEBPACK_IMPORTED_MODULE_0__node_modules_hammerjs_hammer___default.a(document.body);
@@ -529,7 +591,14 @@ class Renderer {
         const r = this;
 
         // add canvas styling
-        e.utils.addCSS('canvas { background: #000; width: 100vw; height: 100vh; display: block; z-index : 1; }');
+        e.utils.addCSS(`
+            canvas { 
+                background: #000; 
+                width: 100vw; height: 100vh; 
+                display: block; 
+                z-index : 1; 
+            }
+            `);
 
         // add canvas
         r.canvas = e.utils.addElement('canvas');
@@ -641,7 +710,24 @@ class Resources {
         r.resources = {};
 
         // add loading css
-        e.utils.addCSS('#logo { position: fixed; width: 20%; height:20%; top: 50%; left: 50%; margin-top: -10%; margin-left: -10%; -webkit-animation:spin 3s linear infinite;}' + '@-webkit-keyframes spin { 100% { -webkit-transform: rotate(360deg); } }');
+        e.utils.addCSS(`
+            #logo { 
+                position: fixed; 
+                width: 20%; 
+                height:20%; 
+                top: 50%; 
+                left: 50%; 
+                margin-top: -10%; 
+                margin-left: -10%; 
+                -webkit-animation:spin 3s linear infinite;
+            }
+
+            @-webkit-keyframes spin { 
+                100% { 
+                    -webkit-transform: rotate(360deg); 
+                } 
+            }
+            `);
 
         // add loading element
         r.loading = e.utils.addElement('img', 'logo');
@@ -781,7 +867,27 @@ class Stats {
         this.frametime = 0;
 
         // add css for stats
-        e.utils.addCSS('#stat-fps { left: 15px; bottom:15px; margin: 0; padding: 0; position: absolute; color: #FFF; font-size: 14px }' + '#stat-ftm { left: 15px; bottom:30px; margin: 0; padding: 0; position: absolute; color: #FFF; font-size: 14px  }');
+        e.utils.addCSS(`
+            #stat-fps { 
+                left: 15px; 
+                bottom:15px; 
+                margin: 0; 
+                padding: 0; 
+                position: absolute; 
+                color: #FFF; 
+                font-size: 14px 
+            }
+
+            #stat-ftm { 
+                left: 15px; 
+                bottom:30px; 
+                margin: 0; 
+                padding: 0; 
+                position: absolute; 
+                color: #FFF; 
+                font-size: 14px 
+             }
+            `);
 
         // add stats elements
         e.utils.addElement('span', 'stat-fps');

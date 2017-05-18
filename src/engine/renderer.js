@@ -8,7 +8,14 @@ class Renderer {
 
         // add canvas styling
         e.utils.addCSS(
-            'canvas { background: #000; width: 100vw; height: 100vh; display: block; z-index : 1; }'
+            `
+            canvas { 
+                background: #000; 
+                width: 100vw; height: 100vh; 
+                display: block; 
+                z-index : 1; 
+            }
+            `
         );
 
         // add canvas
