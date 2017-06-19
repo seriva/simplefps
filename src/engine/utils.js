@@ -1,3 +1,5 @@
+// Utils interface
+
 const Utils = {
     addCSS: (styling) => {
         const css = document.createElement('style');

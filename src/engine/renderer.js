@@ -1,13 +1,17 @@
 // external imports
 import { glMatrix, mat4 } from '../../node_modules/gl-matrix/dist/gl-matrix';
 
+// engine imports
+import Utils from './utils';
+import Console from './console';
+
 class Renderer {
     constructor(engine) {
         const e = this.e = engine;
         const r = this;
 
         // add canvas styling
-        e.utils.addCSS(
+        Utils.addCSS(
             `
             canvas { 
                 background: #000; 
@@ -19,7 +23,7 @@ class Renderer {
         );
 
         // add canvas
-        r.canvas = e.utils.addElement('canvas');
+        r.canvas = Utils.addElement('canvas');
 
         // init canvas gl
         let gl = r.canvas.getContext('webgl2', {
@@ -43,11 +47,11 @@ class Renderer {
         r.resize();
 
         // print gl detail
-        e.console.log('Initialized renderer');
-        e.console.log('Renderer: ' + gl.getParameter(gl.RENDERER));
-        e.console.log('Vendor: ' + gl.getParameter(gl.VENDOR));
-        e.console.log('WebGL version: ' + gl.getParameter(gl.VERSION));
-        e.console.log('GLSL version: ' + gl.getParameter(gl.SHADING_LANGUAGE_VERSION));
+        Console.log('Initialized renderer');
+        Console.log('Renderer: ' + gl.getParameter(gl.RENDERER));
+        Console.log('Vendor: ' + gl.getParameter(gl.VENDOR));
+        Console.log('WebGL version: ' + gl.getParameter(gl.VERSION));
+        Console.log('GLSL version: ' + gl.getParameter(gl.SHADING_LANGUAGE_VERSION));
     }
 
     resize() {

@@ -1,3 +1,6 @@
+// engine imports
+import Utils from './utils';
+
 class Mesh {
     constructor(path, engine, onSuccess, onError) {
         const e = this.e = engine;
@@ -5,7 +8,7 @@ class Mesh {
         const p = path;
         m.gl = e.renderer.gl;
 
-        e.utils.loadData(p,
+        Utils.loadData(p,
             (data) => {
                 const verts = [];
                 const vertNormals = [];

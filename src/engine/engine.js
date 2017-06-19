@@ -3,8 +3,6 @@ import Hammer from '../../node_modules/hammerjs/hammer';
 
 // engine imports
 import Utils from './utils';
-import Input from './input';
-import Console from './console';
 import Stats from './stats';
 import Renderer from './renderer';
 import Resources from './resources';
@@ -14,8 +12,7 @@ class Engine {
         const e = this;
 
         // utils
-        e.utils = Utils;
-        e.utils.addCSS(
+        Utils.addCSS(
             `
             html { 
                 height: 100%; 
@@ -41,7 +38,7 @@ class Engine {
 
         // Add cordova specfic events if we are on mobile
         // TEMP: We should probably move this somewhere else.
-        if (e.utils.isMobile()) {
+        if (Utils.isMobile()) {
             document.addEventListener('deviceready', () => {
                 e.console.log('Platform: ' + cordova.platformId);
                 if (cordova.platformId === 'android') {
@@ -53,9 +50,6 @@ class Engine {
         }
 
         // construct the engine core systems
-        e.input = new Input(e);
-        e.console = new Console(e);
-        e.stats = new Stats(e);
         e.renderer = new Renderer(e);
         e.resources = new Resources(e);
     }
@@ -76,7 +70,7 @@ class Engine {
             e.renderer.update(frameTime);
 
             // update stats
-            e.stats.update(frameTime);
+            Stats.update(frameTime);
 
             // restart the loop
             window.requestAnimationFrame(loop);

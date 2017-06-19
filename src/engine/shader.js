@@ -1,3 +1,6 @@
+// engine imports
+import Utils from './utils';
+
 class Shader {
     constructor(path, engine, onSuccess, onError) {
         const s = this;
@@ -5,7 +8,7 @@ class Shader {
         const p = path;
         const gl = s.gl = e.renderer.gl;
 
-        e.utils.loadData(p,
+        Utils.loadData(p,
             (data) => {
                 const obj = JSON.parse(data);
 

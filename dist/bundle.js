@@ -71,8 +71,224 @@
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "a", function() { return Utils; });
+// Utils interface
+
+const Utils = {
+    addCSS: styling => {
+        const css = document.createElement('style');
+        css.type = 'text/css';
+        css.appendChild(document.createTextNode(styling));
+        document.head.appendChild(css);
+    },
+
+    addElement: (type, id) => {
+        const el = document.createElement(type);
+        document.body.appendChild(el);
+        if (id) {
+            el.setAttribute('id', id);
+        }
+        return el;
+    },
+
+    isMobile: () => {
+        /* eslint-disable */
+        let check = false;
+        (function (a) {
+            if (/(android|bb\d+|meego).+mobile|avantgo|bada\/|blackberry|blazer|compal|elaine|fennec|hiptop|iemobile|ip(hone|od)|iris|kindle|lge |maemo|midp|mmp|mobile.+firefox|netfront|opera m(ob|in)i|palm( os)?|phone|p(ixi|re)\/|plucker|pocket|psp|series(4|6)0|symbian|treo|up\.(browser|link)|vodafone|wap|windows ce|xda|xiino|android|ipad|playbook|silk/i.test(a) || /1207|6310|6590|3gso|4thp|50[1-6]i|770s|802s|a wa|abac|ac(er|oo|s\-)|ai(ko|rn)|al(av|ca|co)|amoi|an(ex|ny|yw)|aptu|ar(ch|go)|as(te|us)|attw|au(di|\-m|r |s )|avan|be(ck|ll|nq)|bi(lb|rd)|bl(ac|az)|br(e|v)w|bumb|bw\-(n|u)|c55\/|capi|ccwa|cdm\-|cell|chtm|cldc|cmd\-|co(mp|nd)|craw|da(it|ll|ng)|dbte|dc\-s|devi|dica|dmob|do(c|p)o|ds(12|\-d)|el(49|ai)|em(l2|ul)|er(ic|k0)|esl8|ez([4-7]0|os|wa|ze)|fetc|fly(\-|_)|g1 u|g560|gene|gf\-5|g\-mo|go(\.w|od)|gr(ad|un)|haie|hcit|hd\-(m|p|t)|hei\-|hi(pt|ta)|hp( i|ip)|hs\-c|ht(c(\-| |_|a|g|p|s|t)|tp)|hu(aw|tc)|i\-(20|go|ma)|i230|iac( |\-|\/)|ibro|idea|ig01|ikom|im1k|inno|ipaq|iris|ja(t|v)a|jbro|jemu|jigs|kddi|keji|kgt( |\/)|klon|kpt |kwc\-|kyo(c|k)|le(no|xi)|lg( g|\/(k|l|u)|50|54|\-[a-w])|libw|lynx|m1\-w|m3ga|m50\/|ma(te|ui|xo)|mc(01|21|ca)|m\-cr|me(rc|ri)|mi(o8|oa|ts)|mmef|mo(01|02|bi|de|do|t(\-| |o|v)|zz)|mt(50|p1|v )|mwbp|mywa|n10[0-2]|n20[2-3]|n30(0|2)|n50(0|2|5)|n7(0(0|1)|10)|ne((c|m)\-|on|tf|wf|wg|wt)|nok(6|i)|nzph|o2im|op(ti|wv)|oran|owg1|p800|pan(a|d|t)|pdxg|pg(13|\-([1-8]|c))|phil|pire|pl(ay|uc)|pn\-2|po(ck|rt|se)|prox|psio|pt\-g|qa\-a|qc(07|12|21|32|60|\-[2-7]|i\-)|qtek|r380|r600|raks|rim9|ro(ve|zo)|s55\/|sa(ge|ma|mm|ms|ny|va)|sc(01|h\-|oo|p\-)|sdk\/|se(c(\-|0|1)|47|mc|nd|ri)|sgh\-|shar|sie(\-|m)|sk\-0|sl(45|id)|sm(al|ar|b3|it|t5)|so(ft|ny)|sp(01|h\-|v\-|v )|sy(01|mb)|t2(18|50)|t6(00|10|18)|ta(gt|lk)|tcl\-|tdg\-|tel(i|m)|tim\-|t\-mo|to(pl|sh)|ts(70|m\-|m3|m5)|tx\-9|up(\.b|g1|si)|utst|v400|v750|veri|vi(rg|te)|vk(40|5[0-3]|\-v)|vm40|voda|vulc|vx(52|53|60|61|70|80|81|83|85|98)|w3c(\-| )|webc|whit|wi(g |nc|nw)|wmlb|wonu|x700|yas\-|your|zeto|zte\-/i.test(a.substr(0, 4))) check = true;
+        })(navigator.userAgent || navigator.vendor || window.opera);
+        return check;
+        /* eslint-enable */
+    },
+
+    loadData: (path, success, error) => {
+        const xmlhttp = new XMLHttpRequest();
+        xmlhttp.onreadystatechange = () => {
+            if (xmlhttp.readyState === 4) {
+                if (xmlhttp.status === 200) {
+                    success(xmlhttp.responseText);
+                } else {
+                    error();
+                }
+            }
+        };
+        xmlhttp.open('GET', path, true);
+        xmlhttp.send();
+    }
+};
+
+
+
+/***/ }),
+/* 1 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__utils__ = __webpack_require__(0);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__input__ = __webpack_require__(4);
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "a", function() { return Console; });
+
+
+
+let visible = false;
+const logs = [];
+
+__WEBPACK_IMPORTED_MODULE_0__utils__["a" /* default */].addCSS(`
+    #console {
+        -webkit-transition: all 0.150s ease-in-out; 
+        display: flex; flex-flow: 
+        column nowrap; 
+        line-height: 95%; 
+        border:1px solid #999; 
+        border-bottom:1px solid #fff; 
+        background-color: #999; 
+        opacity: 0.75; 
+        z-index : 2; 
+        width: 100%; 
+        height: 50%; 
+        position: absolute; 
+        top: -52vh; 
+        left: 0; 
+        overflow: scroll; 
+        overflow-x: hidden;
+    }
+
+    #console-input {
+        -webkit-transition: all 0.150s ease-in-out; 
+        display: inline; 
+        color: #fff; 
+        font-size: 14px; 
+        position: absolute; 
+        top: -52vh; 
+        left: 0; width:100%; 
+        border:1px solid #999; 
+        border-bottom:2px solid #fff; 
+        background-color: #999; 
+        opacity: 0.75; outline: none;
+    }
+
+    #console p { 
+        margin-top: auto !important; 
+        font-size: 14px; 
+        color: #fff; margin: 0px; 
+        white-space: nowrap;
+    }
+
+    .console-down {
+        -webkit-transform: translate(0,52vh);
+    }
+
+    .console-input-down {
+        -webkit-transform: translate(0,102vh);
+    }
+    `);
+
+const consolediv = __WEBPACK_IMPORTED_MODULE_0__utils__["a" /* default */].addElement('div', 'console');
+const inputfield = __WEBPACK_IMPORTED_MODULE_0__utils__["a" /* default */].addElement('input', 'console-input');
+inputfield.disabled = true;
+
+__WEBPACK_IMPORTED_MODULE_1__input__["a" /* default */].addKeyDownEvent(192, () => {
+    Console.toggle();
+});
+__WEBPACK_IMPORTED_MODULE_1__input__["a" /* default */].addKeyDownEvent(13, () => {
+    Console.execute();
+});
+/*
+e.touch.on('panup pandown', (ev) => {
+    if (ev.type === 'panup') {
+        Console.toggle(false);
+    }
+    if (ev.type === 'pandown') {
+        Console.toggle(true);
+    }
+});
+*/
+
+const Console = {
+    execute() {
+        // TODO: add actual execution and registration
+        if (inputfield.value === '') return;
+        this.warn('Unknown command "' + inputfield.value + '"');
+        inputfield.value = '';
+    },
+
+    toggle(show) {
+        if (show === undefined) {
+            visible = !visible;
+        } else {
+            visible = show;
+        }
+        if (visible) {
+            consolediv.classList.add('console-down');
+            inputfield.classList.add('console-input-down');
+            inputfield.disabled = false;
+            setTimeout(() => {
+                inputfield.focus();
+            }, 100);
+            this.update();
+        } else {
+            consolediv.classList.remove('console-down');
+            inputfield.classList.remove('console-input-down');
+            inputfield.disabled = true;
+        }
+    },
+
+    update() {
+        let text = '<p>';
+        for (let i = 0; i < logs.length; i++) {
+            const log = logs[i];
+            let color = '#FFF';
+            if (log.type === 'warning') {
+                color = '#FF0';
+            }
+            if (log.type === 'error') {
+                color = '#F00';
+            }
+            text = text + '<span style="color:' + color + '">' + log.message + '</span></br>';
+        }
+        consolediv.innerHTML = text + '</p>';
+        consolediv.scrollTop = consolediv.scrollHeight;
+    },
+
+    log(m) {
+        console.log(m);
+        logs.push({
+            type: 'log',
+            message: m
+        });
+        this.update();
+    },
+
+    warn(m) {
+        console.warn(m);
+        logs.push({
+            type: 'warning',
+            message: m
+        });
+        this.update();
+    },
+
+    error(m) {
+        console.error(m);
+        logs.push({
+            type: 'error',
+            message: m
+        });
+        this.update();
+        this.toggle();
+        throw new Error();
+    }
+};
+
+
+
+/***/ }),
+/* 2 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
 Object.defineProperty(__webpack_exports__, "__esModule", { value: true });
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__engine_engine__ = __webpack_require__(2);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__engine_engine__ = __webpack_require__(3);
 
 
 const engine = new __WEBPACK_IMPORTED_MODULE_0__engine_engine__["a" /* default */]();
@@ -87,186 +303,16 @@ engine.resources.load({
 });
 
 /***/ }),
-/* 1 */
-/***/ (function(module, __webpack_exports__, __webpack_require__) {
-
-"use strict";
-/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "a", function() { return Console; });
-class Console {
-    constructor(engine) {
-        const e = this.e = engine;
-        const c = this;
-
-        c.visible = false;
-        c.logs = [];
-        c.commands = [];
-
-        // add css
-        e.utils.addCSS(`
-            #console {
-                -webkit-transition: all 0.150s ease-in-out; 
-                display: flex; flex-flow: 
-                column nowrap; 
-                line-height: 95%; 
-                border:1px solid #999; 
-                border-bottom:1px solid #fff; 
-                background-color: #999; 
-                opacity: 0.75; 
-                z-index : 2; 
-                width: 100%; 
-                height: 50%; 
-                position: absolute; 
-                top: -52vh; 
-                left: 0; 
-                overflow: scroll; 
-                overflow-x: hidden;
-            }
-
-            #console-input {
-                -webkit-transition: all 0.150s ease-in-out; 
-                display: inline; 
-                color: #fff; 
-                font-size: 14px; 
-                position: absolute; 
-                top: -52vh; 
-                left: 0; width:100%; 
-                border:1px solid #999; 
-                border-bottom:2px solid #fff; 
-                background-color: #999; 
-                opacity: 0.75; outline: none;
-            }
-
-            #console p { 
-                margin-top: auto !important; 
-                font-size: 14px; 
-                color: #fff; margin: 0px; 
-                white-space: nowrap;
-            }
-
-            .console-down {
-                -webkit-transform: translate(0,52vh);
-            }
-
-            .console-input-down {
-                -webkit-transform: translate(0,102vh);
-            }
-            `);
-
-        // add console elements
-        c.console = e.utils.addElement('div', 'console');
-        c.inputfield = e.utils.addElement('input', 'console-input');
-        c.inputfield.disabled = true;
-
-        // add console control
-        e.input.addKeyDownEvent(192, () => {
-            c.toggle();
-        });
-        e.input.addKeyDownEvent(13, () => {
-            c.execute();
-        });
-        e.touch.on('panup pandown', ev => {
-            if (ev.type === 'panup') {
-                c.toggle(false);
-            }
-            if (ev.type === 'pandown') {
-                c.toggle(true);
-            }
-        });
-    }
-
-    execute() {
-        // TODO: add actual execution and registration
-        const c = this;
-        if (c.inputfield.value === '') return;
-        c.warn('Unknown command "' + c.inputfield.value + '"');
-        c.inputfield.value = '';
-    }
-
-    toggle(show) {
-        const c = this;
-        if (show === undefined) {
-            c.visible = !c.visible;
-        } else {
-            c.visible = show;
-        }
-        if (c.visible) {
-            c.console.classList.add('console-down');
-            c.inputfield.classList.add('console-input-down');
-            c.inputfield.disabled = false;
-            setTimeout(() => {
-                c.inputfield.focus();
-            }, 100);
-            c.update();
-        } else {
-            c.console.classList.remove('console-down');
-            c.inputfield.classList.remove('console-input-down');
-            c.inputfield.disabled = true;
-        }
-    }
-
-    update() {
-        const c = this;
-        let text = '<p>';
-        for (let i = 0; i < c.logs.length; i++) {
-            const log = c.logs[i];
-            let color = '#FFF';
-            if (log.type === 'warning') {
-                color = '#FF0';
-            }
-            if (log.type === 'error') {
-                color = '#F00';
-            }
-            text = text + '<span style="color:' + color + '">' + log.message + '</span></br>';
-        }
-        c.console.innerHTML = text + '</p>';
-        c.console.scrollTop = this.console.scrollHeight;
-    }
-
-    log(m) {
-        console.log(m);
-        this.logs.push({
-            type: 'log',
-            message: m
-        });
-        this.update();
-    }
-
-    warn(m) {
-        console.warn(m);
-        this.logs.push({
-            type: 'warning',
-            message: m
-        });
-        this.update();
-    }
-
-    error(m) {
-        console.error(m);
-        this.logs.push({
-            type: 'error',
-            message: m
-        });
-        this.update();
-        this.toggle();
-        throw new Error();
-    }
-}
-
-
-
-/***/ }),
-/* 2 */
+/* 3 */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__node_modules_hammerjs_hammer__ = __webpack_require__(12);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__node_modules_hammerjs_hammer___default = __webpack_require__.n(__WEBPACK_IMPORTED_MODULE_0__node_modules_hammerjs_hammer__);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__utils__ = __webpack_require__(10);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_2__input__ = __webpack_require__(3);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_3__console__ = __webpack_require__(1);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_4__stats__ = __webpack_require__(8);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_5__renderer__ = __webpack_require__(5);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_6__resources__ = __webpack_require__(6);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__utils__ = __webpack_require__(0);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_2__stats__ = __webpack_require__(9);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_3__renderer__ = __webpack_require__(6);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_4__resources__ = __webpack_require__(7);
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "a", function() { return Engine; });
 // external imports
 
@@ -277,15 +323,12 @@ class Console {
 
 
 
-
-
 class Engine {
     constructor() {
         const e = this;
 
         // utils
-        e.utils = __WEBPACK_IMPORTED_MODULE_1__utils__["a" /* default */];
-        e.utils.addCSS(`
+        __WEBPACK_IMPORTED_MODULE_1__utils__["a" /* default */].addCSS(`
             html { 
                 height: 100%; 
             }
@@ -309,7 +352,7 @@ class Engine {
 
         // Add cordova specfic events if we are on mobile
         // TEMP: We should probably move this somewhere else.
-        if (e.utils.isMobile()) {
+        if (__WEBPACK_IMPORTED_MODULE_1__utils__["a" /* default */].isMobile()) {
             document.addEventListener('deviceready', () => {
                 e.console.log('Platform: ' + cordova.platformId);
                 if (cordova.platformId === 'android') {
@@ -321,11 +364,8 @@ class Engine {
         }
 
         // construct the engine core systems
-        e.input = new __WEBPACK_IMPORTED_MODULE_2__input__["a" /* default */](e);
-        e.console = new __WEBPACK_IMPORTED_MODULE_3__console__["a" /* default */](e);
-        e.stats = new __WEBPACK_IMPORTED_MODULE_4__stats__["a" /* default */](e);
-        e.renderer = new __WEBPACK_IMPORTED_MODULE_5__renderer__["a" /* default */](e);
-        e.resources = new __WEBPACK_IMPORTED_MODULE_6__resources__["a" /* default */](e);
+        e.renderer = new __WEBPACK_IMPORTED_MODULE_3__renderer__["a" /* default */](e);
+        e.resources = new __WEBPACK_IMPORTED_MODULE_4__resources__["a" /* default */](e);
     }
 
     // main entry point
@@ -344,7 +384,7 @@ class Engine {
             e.renderer.update(frameTime);
 
             // update stats
-            e.stats.update(frameTime);
+            __WEBPACK_IMPORTED_MODULE_2__stats__["a" /* default */].update(frameTime);
 
             // restart the loop
             window.requestAnimationFrame(loop);
@@ -356,81 +396,82 @@ class Engine {
 
 
 /***/ }),
-/* 3 */
+/* 4 */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "a", function() { return Input; });
-class Input {
-    constructor(engine) {
-        this.e = engine;
-        const i = this;
-        i.pressed = {};
-        i.upevents = [];
-        i.downevents = [];
+let pressed = {};
+let upevents = [];
+let downevents = [];
 
-        window.addEventListener('keyup', event => {
-            delete i.pressed[event.keyCode];
-            for (let l = 0; l < i.upevents.length; l++) {
-                if (i.upevents[l].key === event.keyCode) {
-                    i.upevents[l].event();
-                }
-            }
-            for (let l = 0; l < i.downevents.length; l++) {
-                if (i.downevents[l].pressed) {
-                    i.downevents[l].pressed = false;
-                }
-            }
-        }, false);
-        window.addEventListener('keydown', event => {
-            i.pressed[event.keyCode] = true;
-            for (let l = 0; l < i.downevents.length; l++) {
-                if (i.downevents[l].key === event.keyCode && !i.downevents[l].pressed) {
-                    i.downevents[l].event();
-                    i.downevents[l].pressed = true;
-                }
-            }
-        }, false);
+window.addEventListener('keyup', event => {
+    delete pressed[event.keyCode];
+    for (let l = 0; l < upevents.length; l++) {
+        if (upevents[l].key === event.keyCode) {
+            upevents[l].event();
+        }
     }
+    for (let l = 0; l < downevents.length; l++) {
+        if (downevents[l].pressed) {
+            downevents[l].pressed = false;
+        }
+    }
+}, false);
 
+window.addEventListener('keydown', event => {
+    pressed[event.keyCode] = true;
+    for (let l = 0; l < downevents.length; l++) {
+        if (downevents[l].key === event.keyCode && !downevents[l].pressed) {
+            downevents[l].event();
+            downevents[l].pressed = true;
+        }
+    }
+}, false);
+
+const Input = {
     clearInputEvents() {
-        this.pressed = {};
-        this.upevents = [];
-        this.downevents = [];
-    }
+        pressed = {};
+        upevents = [];
+        downevents = [];
+    },
 
     addKeyDownEvent(key, event) {
-        this.downevents.push({
+        downevents.push({
             /* eslint-disable */
             key: key,
             event: event,
             /* eslint-disable */
             pressed: false
         });
-    }
+    },
 
     addKeyUpEvent(key, event) {
-        this.upevents.push({
+        upevents.push({
             /* eslint-disable */
             key: key,
             event: event
             /* eslint-disable */
         });
-    }
+    },
 
     isDown(keyCode) {
-        return this.pressed[keyCode];
+        return pressed[keyCode];
     }
-}
+};
 
 
 
 /***/ }),
-/* 4 */
+/* 5 */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__utils__ = __webpack_require__(0);
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "a", function() { return Mesh; });
+// engine imports
+
+
 class Mesh {
     constructor(path, engine, onSuccess, onError) {
         const e = this.e = engine;
@@ -438,7 +479,7 @@ class Mesh {
         const p = path;
         m.gl = e.renderer.gl;
 
-        e.utils.loadData(p, data => {
+        __WEBPACK_IMPORTED_MODULE_0__utils__["a" /* default */].loadData(p, data => {
             const verts = [];
             const vertNormals = [];
             const textures = [];
@@ -575,14 +616,20 @@ class Mesh {
 
 
 /***/ }),
-/* 5 */
+/* 6 */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__node_modules_gl_matrix_dist_gl_matrix__ = __webpack_require__(11);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__node_modules_gl_matrix_dist_gl_matrix___default = __webpack_require__.n(__WEBPACK_IMPORTED_MODULE_0__node_modules_gl_matrix_dist_gl_matrix__);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__utils__ = __webpack_require__(0);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_2__console__ = __webpack_require__(1);
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "a", function() { return Renderer; });
 // external imports
+
+
+// engine imports
+
 
 
 class Renderer {
@@ -591,7 +638,7 @@ class Renderer {
         const r = this;
 
         // add canvas styling
-        e.utils.addCSS(`
+        __WEBPACK_IMPORTED_MODULE_1__utils__["a" /* default */].addCSS(`
             canvas { 
                 background: #000; 
                 width: 100vw; height: 100vh; 
@@ -601,7 +648,7 @@ class Renderer {
             `);
 
         // add canvas
-        r.canvas = e.utils.addElement('canvas');
+        r.canvas = __WEBPACK_IMPORTED_MODULE_1__utils__["a" /* default */].addElement('canvas');
 
         // init canvas gl
         let gl = r.canvas.getContext('webgl2', {
@@ -625,11 +672,11 @@ class Renderer {
         r.resize();
 
         // print gl detail
-        e.console.log('Initialized renderer');
-        e.console.log('Renderer: ' + gl.getParameter(gl.RENDERER));
-        e.console.log('Vendor: ' + gl.getParameter(gl.VENDOR));
-        e.console.log('WebGL version: ' + gl.getParameter(gl.VERSION));
-        e.console.log('GLSL version: ' + gl.getParameter(gl.SHADING_LANGUAGE_VERSION));
+        __WEBPACK_IMPORTED_MODULE_2__console__["a" /* default */].log('Initialized renderer');
+        __WEBPACK_IMPORTED_MODULE_2__console__["a" /* default */].log('Renderer: ' + gl.getParameter(gl.RENDERER));
+        __WEBPACK_IMPORTED_MODULE_2__console__["a" /* default */].log('Vendor: ' + gl.getParameter(gl.VENDOR));
+        __WEBPACK_IMPORTED_MODULE_2__console__["a" /* default */].log('WebGL version: ' + gl.getParameter(gl.VERSION));
+        __WEBPACK_IMPORTED_MODULE_2__console__["a" /* default */].log('GLSL version: ' + gl.getParameter(gl.SHADING_LANGUAGE_VERSION));
     }
 
     resize() {
@@ -691,26 +738,31 @@ class Renderer {
 
 
 /***/ }),
-/* 6 */
+/* 7 */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__texture__ = __webpack_require__(9);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__mesh__ = __webpack_require__(4);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_2__shader__ = __webpack_require__(7);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__utils__ = __webpack_require__(0);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__console__ = __webpack_require__(1);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_2__texture__ = __webpack_require__(10);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_3__mesh__ = __webpack_require__(5);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_4__shader__ = __webpack_require__(8);
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "a", function() { return Resources; });
+// engine imports
+
+
 
 
 
 
 class Resources {
     constructor(engine) {
-        const e = this.e = engine;
+        this.e = engine;
         const r = this;
         r.resources = {};
 
         // add loading css
-        e.utils.addCSS(`
+        __WEBPACK_IMPORTED_MODULE_0__utils__["a" /* default */].addCSS(`
             #logo { 
                 position: fixed; 
                 width: 20%; 
@@ -730,7 +782,7 @@ class Resources {
             `);
 
         // add loading element
-        r.loading = e.utils.addElement('img', 'logo');
+        r.loading = __WEBPACK_IMPORTED_MODULE_0__utils__["a" /* default */].addElement('img', 'logo');
         r.loading.src = 'resources/logo.svg';
         r.loading.style.display = 'none';
     }
@@ -745,7 +797,7 @@ class Resources {
 
         function onSuccess(path) {
             counter++;
-            r.e.console.log('Loaded "' + path + '"');
+            __WEBPACK_IMPORTED_MODULE_1__console__["a" /* default */].log('Loaded "' + path + '"');
             if (counter === count) {
                 r.loading.style.display = 'none';
                 afterLoading();
@@ -753,7 +805,7 @@ class Resources {
         }
 
         function onError(path) {
-            r.e.console.log('Error loading "' + path + '"');
+            __WEBPACK_IMPORTED_MODULE_1__console__["a" /* default */].log('Error loading "' + path + '"');
         }
 
         for (const key in resources) {
@@ -761,13 +813,13 @@ class Resources {
             const ext = re.exec(path)[1];
             switch (ext) {
                 case 'jpg':
-                    this.resources[key] = new __WEBPACK_IMPORTED_MODULE_0__texture__["a" /* default */](path, this.e, onSuccess, onError);
+                    this.resources[key] = new __WEBPACK_IMPORTED_MODULE_2__texture__["a" /* default */](path, this.e, onSuccess, onError);
                     break;
                 case 'obj':
-                    this.resources[key] = new __WEBPACK_IMPORTED_MODULE_1__mesh__["a" /* default */](path, this.e, onSuccess, onError);
+                    this.resources[key] = new __WEBPACK_IMPORTED_MODULE_3__mesh__["a" /* default */](path, this.e, onSuccess, onError);
                     break;
                 case 'shader':
-                    this.resources[key] = new __WEBPACK_IMPORTED_MODULE_2__shader__["a" /* default */](path, this.e, onSuccess, onError);
+                    this.resources[key] = new __WEBPACK_IMPORTED_MODULE_4__shader__["a" /* default */](path, this.e, onSuccess, onError);
                     break;
                 default:
                     break;
@@ -780,7 +832,7 @@ class Resources {
         if (resource) {
             return resource;
         }
-        this.e.console.error('Resource "' + key + '" does not exist');
+        __WEBPACK_IMPORTED_MODULE_1__console__["a" /* default */].error('Resource "' + key + '" does not exist');
         return null;
     }
 }
@@ -788,11 +840,15 @@ class Resources {
 
 
 /***/ }),
-/* 7 */
+/* 8 */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__utils__ = __webpack_require__(0);
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "a", function() { return Shader; });
+// engine imports
+
+
 class Shader {
     constructor(path, engine, onSuccess, onError) {
         const s = this;
@@ -800,7 +856,7 @@ class Shader {
         const p = path;
         const gl = s.gl = e.renderer.gl;
 
-        e.utils.loadData(p, data => {
+        __WEBPACK_IMPORTED_MODULE_0__utils__["a" /* default */].loadData(p, data => {
             const obj = JSON.parse(data);
 
             s.vertexShader = gl.createShader(gl.VERTEX_SHADER);
@@ -852,66 +908,62 @@ class Shader {
 
 
 /***/ }),
-/* 8 */
+/* 9 */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__utils__ = __webpack_require__(0);
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "a", function() { return Stats; });
-class Stats {
-    constructor(engine) {
-        const e = this.e = engine;
-        const s = this;
 
-        this.fps = 0;
-        this.fpscounter = 0;
-        this.frametime = 0;
 
-        // add css for stats
-        e.utils.addCSS(`
-            #stat-fps { 
-                left: 15px; 
-                bottom:15px; 
-                margin: 0; 
-                padding: 0; 
-                position: absolute; 
-                color: #FFF; 
-                font-size: 14px 
-            }
+let fps = 0;
+let fpscounter = 0;
+let frametime = 0;
 
-            #stat-ftm { 
-                left: 15px; 
-                bottom:30px; 
-                margin: 0; 
-                padding: 0; 
-                position: absolute; 
-                color: #FFF; 
-                font-size: 14px 
-             }
-            `);
-
-        // add stats elements
-        e.utils.addElement('span', 'stat-fps');
-        e.utils.addElement('span', 'stat-ftm');
-
-        // stats update event
-        window.setInterval(() => {
-            s.fps = s.fpscounter;
-            s.fpscounter = 0;
-            document.getElementById('stat-fps').innerHTML = 'FPS : ' + s.fps.toPrecision(5);
-            document.getElementById('stat-ftm').innerHTML = 'FTM : ' + s.frametime.toPrecision(5);
-        }, 1000);
+// add css for stats
+__WEBPACK_IMPORTED_MODULE_0__utils__["a" /* default */].addCSS(`
+    #stat-fps { 
+        left: 15px; 
+        bottom:15px; 
+        margin: 0; 
+        padding: 0; 
+        position: absolute; 
+        color: #FFF; 
+        font-size: 14px 
     }
 
-    update(frametime) {
-        this.fpscounter++;
-        this.frametime = frametime;
+    #stat-ftm { 
+        left: 15px; 
+        bottom:30px; 
+        margin: 0; 
+        padding: 0; 
+        position: absolute; 
+        color: #FFF; 
+        font-size: 14px 
+        }
+    `);
+
+__WEBPACK_IMPORTED_MODULE_0__utils__["a" /* default */].addElement('span', 'stat-fps');
+__WEBPACK_IMPORTED_MODULE_0__utils__["a" /* default */].addElement('span', 'stat-ftm');
+
+window.setInterval(() => {
+    fps = fpscounter;
+    fpscounter = 0;
+    document.getElementById('stat-fps').innerHTML = 'FPS : ' + fps.toPrecision(5);
+    document.getElementById('stat-ftm').innerHTML = 'FTM : ' + frametime.toPrecision(5);
+}, 1000);
+
+const Stats = {
+    update(ft) {
+        fpscounter++;
+        frametime = ft;
     }
-}
+};
 
 
 
 /***/ }),
-/* 9 */
+/* 10 */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
@@ -953,57 +1005,6 @@ class Texture {
         gl.bindTexture(gl.TEXTURE_2D, null);
     }
 }
-
-
-
-/***/ }),
-/* 10 */
-/***/ (function(module, __webpack_exports__, __webpack_require__) {
-
-"use strict";
-/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "a", function() { return Utils; });
-const Utils = {
-    addCSS: styling => {
-        const css = document.createElement('style');
-        css.type = 'text/css';
-        css.appendChild(document.createTextNode(styling));
-        document.head.appendChild(css);
-    },
-
-    addElement: (type, id) => {
-        const el = document.createElement(type);
-        document.body.appendChild(el);
-        if (id) {
-            el.setAttribute('id', id);
-        }
-        return el;
-    },
-
-    isMobile: () => {
-        /* eslint-disable */
-        let check = false;
-        (function (a) {
-            if (/(android|bb\d+|meego).+mobile|avantgo|bada\/|blackberry|blazer|compal|elaine|fennec|hiptop|iemobile|ip(hone|od)|iris|kindle|lge |maemo|midp|mmp|mobile.+firefox|netfront|opera m(ob|in)i|palm( os)?|phone|p(ixi|re)\/|plucker|pocket|psp|series(4|6)0|symbian|treo|up\.(browser|link)|vodafone|wap|windows ce|xda|xiino|android|ipad|playbook|silk/i.test(a) || /1207|6310|6590|3gso|4thp|50[1-6]i|770s|802s|a wa|abac|ac(er|oo|s\-)|ai(ko|rn)|al(av|ca|co)|amoi|an(ex|ny|yw)|aptu|ar(ch|go)|as(te|us)|attw|au(di|\-m|r |s )|avan|be(ck|ll|nq)|bi(lb|rd)|bl(ac|az)|br(e|v)w|bumb|bw\-(n|u)|c55\/|capi|ccwa|cdm\-|cell|chtm|cldc|cmd\-|co(mp|nd)|craw|da(it|ll|ng)|dbte|dc\-s|devi|dica|dmob|do(c|p)o|ds(12|\-d)|el(49|ai)|em(l2|ul)|er(ic|k0)|esl8|ez([4-7]0|os|wa|ze)|fetc|fly(\-|_)|g1 u|g560|gene|gf\-5|g\-mo|go(\.w|od)|gr(ad|un)|haie|hcit|hd\-(m|p|t)|hei\-|hi(pt|ta)|hp( i|ip)|hs\-c|ht(c(\-| |_|a|g|p|s|t)|tp)|hu(aw|tc)|i\-(20|go|ma)|i230|iac( |\-|\/)|ibro|idea|ig01|ikom|im1k|inno|ipaq|iris|ja(t|v)a|jbro|jemu|jigs|kddi|keji|kgt( |\/)|klon|kpt |kwc\-|kyo(c|k)|le(no|xi)|lg( g|\/(k|l|u)|50|54|\-[a-w])|libw|lynx|m1\-w|m3ga|m50\/|ma(te|ui|xo)|mc(01|21|ca)|m\-cr|me(rc|ri)|mi(o8|oa|ts)|mmef|mo(01|02|bi|de|do|t(\-| |o|v)|zz)|mt(50|p1|v )|mwbp|mywa|n10[0-2]|n20[2-3]|n30(0|2)|n50(0|2|5)|n7(0(0|1)|10)|ne((c|m)\-|on|tf|wf|wg|wt)|nok(6|i)|nzph|o2im|op(ti|wv)|oran|owg1|p800|pan(a|d|t)|pdxg|pg(13|\-([1-8]|c))|phil|pire|pl(ay|uc)|pn\-2|po(ck|rt|se)|prox|psio|pt\-g|qa\-a|qc(07|12|21|32|60|\-[2-7]|i\-)|qtek|r380|r600|raks|rim9|ro(ve|zo)|s55\/|sa(ge|ma|mm|ms|ny|va)|sc(01|h\-|oo|p\-)|sdk\/|se(c(\-|0|1)|47|mc|nd|ri)|sgh\-|shar|sie(\-|m)|sk\-0|sl(45|id)|sm(al|ar|b3|it|t5)|so(ft|ny)|sp(01|h\-|v\-|v )|sy(01|mb)|t2(18|50)|t6(00|10|18)|ta(gt|lk)|tcl\-|tdg\-|tel(i|m)|tim\-|t\-mo|to(pl|sh)|ts(70|m\-|m3|m5)|tx\-9|up(\.b|g1|si)|utst|v400|v750|veri|vi(rg|te)|vk(40|5[0-3]|\-v)|vm40|voda|vulc|vx(52|53|60|61|70|80|81|83|85|98)|w3c(\-| )|webc|whit|wi(g |nc|nw)|wmlb|wonu|x700|yas\-|your|zeto|zte\-/i.test(a.substr(0, 4))) check = true;
-        })(navigator.userAgent || navigator.vendor || window.opera);
-        return check;
-        /* eslint-enable */
-    },
-
-    loadData: (path, success, error) => {
-        const xmlhttp = new XMLHttpRequest();
-        xmlhttp.onreadystatechange = () => {
-            if (xmlhttp.readyState === 4) {
-                if (xmlhttp.status === 200) {
-                    success(xmlhttp.responseText);
-                } else {
-                    error();
-                }
-            }
-        };
-        xmlhttp.open('GET', path, true);
-        xmlhttp.send();
-    }
-};
 
 
 
@@ -10275,7 +10276,7 @@ if (true) {
 /* 13 */
 /***/ (function(module, exports, __webpack_require__) {
 
-module.exports = __webpack_require__(0);
+module.exports = __webpack_require__(2);
 
 
 /***/ })

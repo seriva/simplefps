@@ -1,15 +1,18 @@
+// engine imports
+import Utils from './utils';
+import Console from './console';
 import Texture from './texture';
 import Mesh from './mesh';
 import Shader from './shader';
 
 class Resources {
     constructor(engine) {
-        const e = this.e = engine;
+        this.e = engine;
         const r = this;
         r.resources = {};
 
         // add loading css
-        e.utils.addCSS(
+        Utils.addCSS(
             `
             #logo { 
                 position: fixed; 
@@ -31,7 +34,7 @@ class Resources {
         );
 
         // add loading element
-        r.loading = e.utils.addElement('img', 'logo');
+        r.loading = Utils.addElement('img', 'logo');
         r.loading.src = 'resources/logo.svg';
         r.loading.style.display = 'none';
     }
@@ -46,7 +49,7 @@ class Resources {
 
         function onSuccess(path) {
             counter++;
-            r.e.console.log('Loaded "' + path + '"');
+            Console.log('Loaded "' + path + '"');
             if (counter === count) {
                 r.loading.style.display = 'none';
                 afterLoading();
@@ -54,7 +57,7 @@ class Resources {
         }
 
         function onError(path) {
-            r.e.console.log('Error loading "' + path + '"');
+            Console.log('Error loading "' + path + '"');
         }
 
         for (const key in resources) {
@@ -81,7 +84,7 @@ class Resources {
         if (resource) {
             return resource;
         }
-        this.e.console.error('Resource "' + key + '" does not exist');
+        Console.error('Resource "' + key + '" does not exist');
         return null;
     }
 }
