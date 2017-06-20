@@ -12,7 +12,6 @@
   "scripts": {
     "postinstall": "webpack && copyfiles -u 1 \"dist/**/*.*\" \"mobile/www\" && npm run cordova -- prepare && copyfiles -u 1 \"mobile/xwalk-command-line\" \"mobile/platforms/android/assets/\" && npm run nw install 0.21.1",
     "postupdate": "npm run postinstall",
-    "lint": "eslint src",
     "cordova": "cd mobile && cordova",
     "nw": "cd desktop && nw",
     "server": "cd dist && reload",
