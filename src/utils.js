@@ -1,14 +1,12 @@
-// Utils interface
-
 const Utils = {
-    addCSS: (styling) => {
+    addCSS(styling) {
         const css = document.createElement('style');
         css.type = 'text/css';
         css.appendChild(document.createTextNode(styling));
         document.head.appendChild(css);
     },
 
-    addElement: (type, id) => {
+    addElement(type, id) {
         const el = document.createElement(type);
         document.body.appendChild(el);
         if (id) {
@@ -17,7 +15,7 @@ const Utils = {
         return el;
     },
 
-    isMobile: () => {
+    isMobile() {
         /* eslint-disable */
         let check = false;
         (function (a) {
@@ -27,7 +25,7 @@ const Utils = {
         /* eslint-enable */
     },
 
-    loadData: (path, success, error) => {
+    loadData(path, success, error) {
         const xmlhttp = new XMLHttpRequest();
         xmlhttp.onreadystatechange = () => {
             if (xmlhttp.readyState === 4) {
@@ -40,6 +38,10 @@ const Utils = {
         };
         xmlhttp.open('GET', path, true);
         xmlhttp.send();
+    },
+
+    dispatchEvent(event) {
+        window.dispatchEvent(new Event(event));
     }
 };
 

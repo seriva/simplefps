@@ -1,12 +1,12 @@
-// engine imports
 import Utils from './utils';
+import Renderer from './renderer';
+
+const gl = Renderer.gl;
 
 class Mesh {
-    constructor(path, engine, onSuccess, onError) {
-        const e = this.e = engine;
+    constructor(path, onSuccess, onError) {
         const m = this;
         const p = path;
-        m.gl = e.renderer.gl;
 
         Utils.loadData(p,
             (data) => {
@@ -92,11 +92,10 @@ class Mesh {
     }
 
     buildBuffer(type, data, itemSize) {
-        const m = this;
-        const buffer = m.gl.createBuffer();
-        const arrayView = type === m.gl.ARRAY_BUFFER ? Float32Array : Uint16Array;
-        m.gl.bindBuffer(type, buffer);
-        m.gl.bufferData(type, new arrayView(data), m.gl.STATIC_DRAW);
+        const buffer = gl.createBuffer();
+        const arrayView = type === gl.ARRAY_BUFFER ? Float32Array : Uint16Array;
+        gl.bindBuffer(type, buffer);
+        gl.bufferData(type, new arrayView(data), gl.STATIC_DRAW);
         buffer.itemSize = itemSize;
         buffer.numItems = data.length / itemSize;
         return buffer;
@@ -104,23 +103,22 @@ class Mesh {
 
     initMeshBuffers() {
         const m = this;
-        m.normalBuffer = m.buildBuffer(m.gl.ARRAY_BUFFER, m.vertexNormals, 3);
-        m.textureBuffer = m.buildBuffer(m.gl.ARRAY_BUFFER, m.textures, 2);
-        m.vertexBuffer = m.buildBuffer(m.gl.ARRAY_BUFFER, m.vertices, 3);
-        m.indexBuffer = m.buildBuffer(m.gl.ELEMENT_ARRAY_BUFFER, m.indices, 1);
+        m.normalBuffer = m.buildBuffer(gl.ARRAY_BUFFER, m.vertexNormals, 3);
+        m.textureBuffer = m.buildBuffer(gl.ARRAY_BUFFER, m.textures, 2);
+        m.vertexBuffer = m.buildBuffer(gl.ARRAY_BUFFER, m.vertices, 3);
+        m.indexBuffer = m.buildBuffer(gl.ELEMENT_ARRAY_BUFFER, m.indices, 1);
     }
 
     deleteMeshBuffers() {
         const m = this;
-        m.gl.deleteBuffer(m.normalBuffer);
-        m.gl.deleteBuffer(m.textureBuffer);
-        m.gl.deleteBuffer(m.vertexBuffer);
-        m.gl.deleteBuffer(m.indexBuffer);
+        gl.deleteBuffer(m.normalBuffer);
+        gl.deleteBuffer(m.textureBuffer);
+        gl.deleteBuffer(m.vertexBuffer);
+        gl.deleteBuffer(m.indexBuffer);
     }
 
     render() {
         const m = this;
-        const gl = this.gl;
 
         gl.bindBuffer(gl.ARRAY_BUFFER, m.vertexBuffer);
         gl.vertexAttribPointer(0, m.vertexBuffer.itemSize, gl.FLOAT, false, 0, 0);

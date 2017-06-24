@@ -56,9 +56,9 @@ Utils.addCSS(
     `
 );
 
-const consolediv = Utils.addElement('div', 'console');
-const inputfield = Utils.addElement('input', 'console-input');
-inputfield.disabled = true;
+const consoleDiv = Utils.addElement('div', 'console');
+const inputField = Utils.addElement('input', 'console-input');
+consoleDiv.disabled = true;
 
 Input.addKeyDownEvent(192, () => {
     Console.toggle();
@@ -66,8 +66,7 @@ Input.addKeyDownEvent(192, () => {
 Input.addKeyDownEvent(13, () => {
     Console.execute();
 });
-/*
-e.touch.on('panup pandown', (ev) => {
+Input.touch.on('panup pandown', (ev) => {
     if (ev.type === 'panup') {
         Console.toggle(false);
     }
@@ -75,14 +74,34 @@ e.touch.on('panup pandown', (ev) => {
         Console.toggle(true);
     }
 });
-*/
+
+const update = () => {
+    let text = '<p>';
+    for (let i = 0; i < logs.length; i++) {
+        const log = logs[i];
+        let color = '#FFF';
+        if (log.type === 'warning') {
+            color = '#FF0';
+        }
+        if (log.type === 'error') {
+            color = '#F00';
+        }
+        text = text + '<span style="color:' + color + '">' + log.message + '</span></br>';
+    }
+    consoleDiv.innerHTML = text + '</p>';
+    consoleDiv.scrollTop = consoleDiv.scrollHeight;
+};
 
 const Console = {
+    visible() {
+        return visible;
+    },
+
     execute() {
         // TODO: add actual execution and registration
-        if (inputfield.value === '') return;
-        this.warn('Unknown command "' + inputfield.value + '"');
-        inputfield.value = '';
+        if (inputField.value === '') return;
+        this.warn('Unknown command "' + inputField.value + '"');
+        inputField.value = '';
     },
 
     toggle(show) {
@@ -91,36 +110,20 @@ const Console = {
         } else {
             visible = show;
         }
+        Input.toggleCursor(visible);
         if (visible) {
-            consolediv.classList.add('console-down');
-            inputfield.classList.add('console-input-down');
-            inputfield.disabled = false;
+            consoleDiv.classList.add('console-down');
+            inputField.classList.add('console-input-down');
+            inputField.disabled = false;
             setTimeout(() => {
-                inputfield.focus();
+                inputField.focus();
             }, 100);
-            this.update();
+            update();
         } else {
-            consolediv.classList.remove('console-down');
-            inputfield.classList.remove('console-input-down');
-            inputfield.disabled = true;
+            consoleDiv.classList.remove('console-down');
+            inputField.classList.remove('console-input-down');
+            inputField.disabled = true;
         }
-    },
-
-    update() {
-        let text = '<p>';
-        for (let i = 0; i < logs.length; i++) {
-            const log = logs[i];
-            let color = '#FFF';
-            if (log.type === 'warning') {
-                color = '#FF0';
-            }
-            if (log.type === 'error') {
-                color = '#F00';
-            }
-            text = text + '<span style="color:' + color + '">' + log.message + '</span></br>';
-        }
-        consolediv.innerHTML = text + '</p>';
-        consolediv.scrollTop = consolediv.scrollHeight;
     },
 
     log(m) {
@@ -129,7 +132,7 @@ const Console = {
             type: 'log',
             message: m
         });
-        this.update();
+        update();
     },
 
     warn(m) {
@@ -138,7 +141,7 @@ const Console = {
             type: 'warning',
             message: m
         });
-        this.update();
+        update();
     },
 
     error(m) {
@@ -147,7 +150,7 @@ const Console = {
             type: 'error',
             message: m
         });
-        this.update();
+        update();
         this.toggle();
         throw new Error();
     }

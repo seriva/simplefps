@@ -1,12 +1,13 @@
-// engine imports
 import Utils from './utils';
+import Console from './console';
+import Renderer from './renderer';
+
+const gl = Renderer.gl;
 
 class Shader {
-    constructor(path, engine, onSuccess, onError) {
+    constructor(path, onSuccess, onError) {
         const s = this;
-        const e = s.e = engine;
         const p = path;
-        const gl = s.gl = e.renderer.gl;
 
         Utils.loadData(p,
             (data) => {
@@ -20,12 +21,12 @@ class Shader {
 
                 gl.compileShader(s.vertexShader);
                 if (!gl.getShaderParameter(s.vertexShader, gl.COMPILE_STATUS)) {
-                    e.console.error('Error compiling vertex shader: ' + gl.getShaderInfoLog(s.vertexShader));
+                    Console.error('Error compiling vertex shader: ' + gl.getShaderInfoLog(s.vertexShader));
                 }
 
                 gl.compileShader(s.fragmentShader);
                 if (!gl.getShaderParameter(s.fragmentShader, gl.COMPILE_STATUS)) {
-                    e.console.error('Error compiling fragment shader: ' + gl.getShaderInfoLog(s.fragmentShader));
+                    Console.error('Error compiling fragment shader: ' + gl.getShaderInfoLog(s.fragmentShader));
                 }
 
                 s.program = gl.createProgram();
@@ -34,11 +35,11 @@ class Shader {
 
                 gl.linkProgram(s.program);
                 if (!gl.getProgramParameter(s.program, gl.LINK_STATUS)) {
-                    e.console.error('Error linking program: ' + gl.getProgramInfoLog(s.program));
+                    Console.error('Error linking program: ' + gl.getProgramInfoLog(s.program));
                 }
                 gl.validateProgram(s.program);
                 if (!gl.getProgramParameter(s.program, gl.VALIDATE_STATUS)) {
-                    e.console.error('Error validating program: ' + gl.getProgramInfoLog(s.program));
+                    Console.error('Error validating program: ' + gl.getProgramInfoLog(s.program));
                 }
 
                 onSuccess(p);
@@ -50,13 +51,27 @@ class Shader {
     }
 
     bind() {
-        const gl = this.gl;
         gl.useProgram(this.program);
     }
 
-    unbind() {
-        const gl = this.gl;
+    unBind() {
         gl.useProgram(null);
+    }
+
+    setMat4(id, mat) {
+        gl.uniformMatrix4fv(gl.getUniformLocation(this.program, id), gl.FALSE, mat);
+    }
+
+    setVec2(id, vec) {
+        gl.uniform2f(gl.getUniformLocation(this.program, id), vec[0], vec[1]);
+    }
+
+    setVec3(id, vec) {
+        gl.uniform3f(gl.getUniformLocation(this.program, id), vec[0], vec[1], vec[2]);
+    }
+
+    setVec4(id, vec) {
+        gl.uniform4f(gl.getUniformLocation(this.program, id), vec[0], vec[1], vec[2], vec[3]);
     }
 }
 

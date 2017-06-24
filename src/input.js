@@ -1,3 +1,20 @@
+import Hammer from '../node_modules/hammerjs/hammer';
+import Utils from './utils';
+import Renderer from './renderer';
+
+Utils.addCSS(
+    `
+    .hide-cursor {
+        cursor: none;
+    }
+     `
+);
+
+let showCursor = true;
+let cursorMovement = {
+    x: 0,
+    y: 0
+};
 let pressed = {};
 let upevents = [];
 let downevents = [];
@@ -26,7 +43,40 @@ window.addEventListener('keydown', (event) => {
     }
 }, false);
 
+window.addEventListener('mousemove', (evt) => {
+    cursorMovement = {
+        x: evt.movementX,
+        y: evt.movementY
+    };
+}, false);
+
+const hammer = new Hammer(document.body);
+hammer.get('pan').set({
+    direction: Hammer.DIRECTION_ALL
+});
+
 const Input = {
+    touch: hammer,
+
+    cursorMovement() {
+        return cursorMovement;
+    },
+
+    toggleCursor(show) {
+        if (show === undefined) {
+            showCursor = !showCursor;
+        } else {
+            showCursor = show;
+        }
+        if (showCursor) {
+            document.body.classList.remove('hide-cursor');
+            document.exitPointerLock();
+        } else {
+            document.body.classList.add('hide-cursor');
+            Renderer.canvas.requestPointerLock();
+        }
+    },
+
     clearInputEvents() {
         pressed = {};
         upevents = [];
@@ -54,7 +104,7 @@ const Input = {
 
     isDown(keyCode){
         return pressed[keyCode];
-    },
+    }
 }
 
 export {Input as default };

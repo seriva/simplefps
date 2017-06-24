@@ -11,15 +11,14 @@
       "out vec2 fragTexCoord;",
       "out vec3 fragNormal;",
 
-      "uniform mat4 mWorld;",
-      "uniform mat4 mView;",
-      "uniform mat4 mProj;",
+      "uniform mat4 matWorld;",
+      "uniform mat4 matViewProj;",
 
       "void main()",
       "{",
           "fragTexCoord = vertTexCoord;",
-          "fragNormal = (mWorld * vec4(vertNormal, 0.0)).xyz;",
-          "gl_Position = mProj * mView * mWorld * vec4(vertPosition, 1.0);",
+          "fragNormal = (matWorld * vec4(vertNormal, 0.0)).xyz;",
+          "gl_Position = matViewProj * matWorld * vec4(vertPosition, 1.0);",
       "}"
   ],
  "fragment" : [
@@ -30,7 +29,8 @@
       "struct DirectionalLight",
       "{",
       "  vec3 direction;",
-      "  vec3 color;",
+      "  vec3 diffuse;",
+      "  vec3 ambient;",
       "};",
 
       "in vec2 fragTexCoord;",
@@ -38,7 +38,6 @@
 
       "out vec4 fragmentColor;",
 
-      "uniform vec3 ambientLightIntensity;",
       "uniform DirectionalLight sun;",
       "uniform sampler2D sampler;",
 
@@ -47,7 +46,7 @@
           "vec3 surfaceNormal = normalize(fragNormal);",
           "vec3 normSunDir = normalize(sun.direction);",
           "vec4 texel = texture(sampler, fragTexCoord);",
-          "vec3 lightIntensity = ambientLightIntensity + sun.color * max(dot(fragNormal, normSunDir), 0.0);",
+          "vec3 lightIntensity = sun.ambient + sun.diffuse * max(dot(fragNormal, normSunDir), 0.0);",
           "fragmentColor = vec4(texel.rgb * lightIntensity, texel.a);",
       "}"
   ]

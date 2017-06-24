@@ -1,9 +1,11 @@
+import Renderer from './renderer';
+
+const gl = Renderer.gl;
+
 class Texture {
-    constructor(path, engine, onSuccess, onError) {
+    constructor(path, onSuccess, onError) {
         const t = this;
         const p = path;
-        const e = t.e = engine;
-        const gl = t.gl = e.renderer.gl;
 
         t.texture = gl.createTexture();
 
@@ -29,13 +31,11 @@ class Texture {
     }
 
     bind(unit) {
-        const gl = this.gl;
         gl.activeTexture(unit);
-        gl.bindTexture(this.gl.TEXTURE_2D, this.texture);
+        gl.bindTexture(gl.TEXTURE_2D, this.texture);
     }
 
-    unbind() {
-        const gl = this.gl;
+    unBind() {
         gl.bindTexture(gl.TEXTURE_2D, null);
     }
 }

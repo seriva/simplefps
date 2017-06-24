@@ -1,9 +1,9 @@
-var path = require("path");
+const path = require('path');
 
 module.exports = {
     entry: {
         app: [
-            path.join(__dirname, 'src/app/app.js')
+            path.join(__dirname, 'src/index.js')
         ]
     },
     output: {
@@ -15,7 +15,7 @@ module.exports = {
             {
                 test: /\.js$/,
                 exclude: /node_modules/,
-                loader: ["babel-loader", "eslint-loader"]
+                loader: ['babel-loader', 'eslint-loader']
             }
         ]
     }
