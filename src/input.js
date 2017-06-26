@@ -59,7 +59,12 @@ const Input = {
     touch: hammer,
 
     cursorMovement() {
-        return cursorMovement;
+        const cm = cursorMovement;
+        cursorMovement = {
+            x: 0,
+            y: 0
+        };
+        return cm;
     },
 
     toggleCursor(show) {
