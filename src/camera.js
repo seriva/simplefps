@@ -55,8 +55,8 @@ const Camera = {
 
         // look
         const mpos = Input.cursorMovement();
-        rotation[0] = rotation[0] - (mpos.x/15);
-        rotation[1] = rotation[1] + (mpos.y/15);
+        rotation[0] = rotation[0] - (mpos.x/10);
+        rotation[1] = rotation[1] + (mpos.y/10);
         if (rotation[1]>89) { rotation[1] = 89; }
         if (rotation[1]<-89) { rotation[1] = -89; }
         if (rotation[0]<0) { rotation[0] = 360; }
@@ -64,7 +64,6 @@ const Camera = {
         direction[0] = 0; direction[1] = 0; direction[2] = 1;
         vec3.rotateX(direction, direction, [0, 0, 0], glMatrix.toRadian(rotation[1]));
         vec3.rotateY(direction, direction, [0, 0, 0], glMatrix.toRadian(rotation[0]));
-        console.log(rotation);
 
         // movement
         let move = 0;
@@ -82,6 +81,7 @@ const Camera = {
             move = move - 1;
         }
 
+        // calculate new position and view direction
         const v = vec3.clone(direction);
         v[1] = 0;
         vec3.rotateY(v, v, [0, 0, 0], glMatrix.toRadian(-90));

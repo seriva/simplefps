@@ -425,8 +425,8 @@ const Console = {
 
 "use strict";
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "a", function() { return Input; });
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__node_modules_hammerjs_hammer__ = __webpack_require__(16);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__node_modules_hammerjs_hammer___default = __webpack_require__.n(__WEBPACK_IMPORTED_MODULE_0__node_modules_hammerjs_hammer__);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0_hammerjs__ = __webpack_require__(16);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0_hammerjs___default = __webpack_require__.n(__WEBPACK_IMPORTED_MODULE_0_hammerjs__);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__utils__ = __webpack_require__(1);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_2__renderer__ = __webpack_require__(2);
 
@@ -479,9 +479,9 @@ window.addEventListener('mousemove', evt => {
     };
 }, false);
 
-const hammer = new __WEBPACK_IMPORTED_MODULE_0__node_modules_hammerjs_hammer___default.a(document.body);
+const hammer = new __WEBPACK_IMPORTED_MODULE_0_hammerjs___default.a(document.body);
 hammer.get('pan').set({
-    direction: __WEBPACK_IMPORTED_MODULE_0__node_modules_hammerjs_hammer___default.a.DIRECTION_ALL
+    direction: __WEBPACK_IMPORTED_MODULE_0_hammerjs___default.a.DIRECTION_ALL
 });
 
 const Input = {
@@ -2803,7 +2803,7 @@ __WEBPACK_IMPORTED_MODULE_4__resources__["a" /* default */].load({
 
     const gl = __WEBPACK_IMPORTED_MODULE_1__renderer__["a" /* default */].gl;
     const texture = __WEBPACK_IMPORTED_MODULE_4__resources__["a" /* default */].get('texture');
-    const mesh = __WEBPACK_IMPORTED_MODULE_4__resources__["a" /* default */].get('statue');
+    // const mesh = Resources.get('statue');
     const shader = __WEBPACK_IMPORTED_MODULE_4__resources__["a" /* default */].get('shader');
 
     __WEBPACK_IMPORTED_MODULE_6__camera__["a" /* default */].setProjection(45, 0.1, 1000);
@@ -2812,7 +2812,6 @@ __WEBPACK_IMPORTED_MODULE_4__resources__["a" /* default */].load({
 
     const matModel = __WEBPACK_IMPORTED_MODULE_0_gl_matrix__["mat4"].create();
     const matIdentity = __WEBPACK_IMPORTED_MODULE_0_gl_matrix__["mat4"].create();
-
     // let angle = 0;
 
     __WEBPACK_IMPORTED_MODULE_0_gl_matrix__["mat4"].identity(matIdentity);
@@ -2841,7 +2840,7 @@ __WEBPACK_IMPORTED_MODULE_4__resources__["a" /* default */].load({
         shader.setMat4('matViewProj', __WEBPACK_IMPORTED_MODULE_6__camera__["a" /* default */].viewProjection);
 
         texture.bind(gl.TEXTURE0);
-        mesh.render();
+        // mesh.render();
         texture.unBind();
 
         // update stats
@@ -10155,7 +10154,7 @@ let frametime = 0;
 __WEBPACK_IMPORTED_MODULE_0__utils__["a" /* default */].addCSS(`
     #stat-fps { 
         left: 15px; 
-        bottom:15px; 
+        top: 15px; 
         margin: 0; 
         padding: 0; 
         position: absolute; 
@@ -10165,7 +10164,7 @@ __WEBPACK_IMPORTED_MODULE_0__utils__["a" /* default */].addCSS(`
 
     #stat-ftm { 
         left: 15px; 
-        bottom:30px; 
+        top: 30px; 
         margin: 0; 
         padding: 0; 
         position: absolute; 
@@ -10262,8 +10261,8 @@ const Camera = {
 
         // look
         const mpos = __WEBPACK_IMPORTED_MODULE_3__input__["a" /* default */].cursorMovement();
-        rotation[0] = rotation[0] - mpos.x / 15;
-        rotation[1] = rotation[1] + mpos.y / 15;
+        rotation[0] = rotation[0] - mpos.x / 10;
+        rotation[1] = rotation[1] + mpos.y / 10;
         if (rotation[1] > 89) {
             rotation[1] = 89;
         }
@@ -10279,7 +10278,6 @@ const Camera = {
         direction[0] = 0;direction[1] = 0;direction[2] = 1;
         __WEBPACK_IMPORTED_MODULE_0_gl_matrix__["vec3"].rotateX(direction, direction, [0, 0, 0], __WEBPACK_IMPORTED_MODULE_0_gl_matrix__["glMatrix"].toRadian(rotation[1]));
         __WEBPACK_IMPORTED_MODULE_0_gl_matrix__["vec3"].rotateY(direction, direction, [0, 0, 0], __WEBPACK_IMPORTED_MODULE_0_gl_matrix__["glMatrix"].toRadian(rotation[0]));
-        console.log(rotation);
 
         // movement
         let move = 0;
@@ -10297,6 +10295,7 @@ const Camera = {
             move = move - 1;
         }
 
+        // calculate new position and view direction
         const v = __WEBPACK_IMPORTED_MODULE_0_gl_matrix__["vec3"].clone(direction);
         v[1] = 0;
         __WEBPACK_IMPORTED_MODULE_0_gl_matrix__["vec3"].rotateY(v, v, [0, 0, 0], __WEBPACK_IMPORTED_MODULE_0_gl_matrix__["glMatrix"].toRadian(-90));

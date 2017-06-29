@@ -9,7 +9,7 @@ Utils.addCSS(
     `
     #stat-fps { 
         left: 15px; 
-        bottom:15px; 
+        top: 15px; 
         margin: 0; 
         padding: 0; 
         position: absolute; 
@@ -19,7 +19,7 @@ Utils.addCSS(
 
     #stat-ftm { 
         left: 15px; 
-        bottom:30px; 
+        top: 30px; 
         margin: 0; 
         padding: 0; 
         position: absolute; 

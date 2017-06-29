@@ -1,4 +1,4 @@
-import Hammer from '../node_modules/hammerjs/hammer';
+import Hammer from 'hammerjs';
 import Utils from './utils';
 import Renderer from './renderer';
 

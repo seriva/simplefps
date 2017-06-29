@@ -47,7 +47,7 @@ Resources.load({
 
         const gl = Renderer.gl;
         const texture = Resources.get('texture');
-        const mesh = Resources.get('statue');
+        // const mesh = Resources.get('statue');
         const shader = Resources.get('shader');
 
         Camera.setProjection(45, 0.1, 1000);
@@ -56,7 +56,6 @@ Resources.load({
 
         const matModel = mat4.create();
         const matIdentity = mat4.create();
-
         // let angle = 0;
 
         mat4.identity(matIdentity);
@@ -85,7 +84,7 @@ Resources.load({
             shader.setMat4('matViewProj', Camera.viewProjection);
 
             texture.bind(gl.TEXTURE0);
-            mesh.render();
+            // mesh.render();
             texture.unBind();
 
             // update stats
