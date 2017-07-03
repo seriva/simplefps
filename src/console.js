@@ -16,9 +16,9 @@ Utils.addCSS(
         opacity: 0.75;
         z-index : 200;
         width: 100%;
-        height: 50%;
+        height: 35%;
         position: absolute;
-        top: -52vh;
+        top: -37vh;
         left: 0;
         overflow: scroll;
         overflow-x: hidden;
@@ -31,7 +31,7 @@ Utils.addCSS(
         font-size: 14px;
         position: absolute;
         z-index : 200;
-        top: -52vh;
+        top: -37vh;
         left: 0; width:100%;
         border:1px solid #999;
         border-bottom:2px solid #fff;
@@ -49,11 +49,11 @@ Utils.addCSS(
     }
 
     .console-down {
-        -webkit-transform: translate(0,52vh);
+        -webkit-transform: translate(0,37vh);
     }
 
     .console-input-down {
-        -webkit-transform: translate(0,102vh);
+        -webkit-transform: translate(0,72vh);
     }
     `
 );

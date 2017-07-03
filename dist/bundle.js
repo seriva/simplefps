@@ -60,7 +60,7 @@
 /******/ 	__webpack_require__.p = "";
 /******/
 /******/ 	// Load entry module and return exports
-/******/ 	return __webpack_require__(__webpack_require__.s = 10);
+/******/ 	return __webpack_require__(__webpack_require__.s = 11);
 /******/ })
 /************************************************************************/
 /******/ ([
@@ -277,9 +277,9 @@ __WEBPACK_IMPORTED_MODULE_0__utils__["a" /* default */].addCSS(`
         opacity: 0.75;
         z-index : 200;
         width: 100%;
-        height: 50%;
+        height: 35%;
         position: absolute;
-        top: -52vh;
+        top: -37vh;
         left: 0;
         overflow: scroll;
         overflow-x: hidden;
@@ -292,7 +292,7 @@ __WEBPACK_IMPORTED_MODULE_0__utils__["a" /* default */].addCSS(`
         font-size: 14px;
         position: absolute;
         z-index : 200;
-        top: -52vh;
+        top: -37vh;
         left: 0; width:100%;
         border:1px solid #999;
         border-bottom:2px solid #fff;
@@ -310,11 +310,11 @@ __WEBPACK_IMPORTED_MODULE_0__utils__["a" /* default */].addCSS(`
     }
 
     .console-down {
-        -webkit-transform: translate(0,52vh);
+        -webkit-transform: translate(0,37vh);
     }
 
     .console-input-down {
-        -webkit-transform: translate(0,102vh);
+        -webkit-transform: translate(0,72vh);
     }
     `);
 
@@ -437,12 +437,12 @@ THE SOFTWARE. */
 // END HEADER
 
 exports.glMatrix = __webpack_require__(0);
-exports.mat2 = __webpack_require__(12);
-exports.mat2d = __webpack_require__(13);
+exports.mat2 = __webpack_require__(13);
+exports.mat2d = __webpack_require__(14);
 exports.mat3 = __webpack_require__(5);
-exports.mat4 = __webpack_require__(14);
-exports.quat = __webpack_require__(15);
-exports.vec2 = __webpack_require__(16);
+exports.mat4 = __webpack_require__(15);
+exports.quat = __webpack_require__(16);
+exports.vec2 = __webpack_require__(17);
 exports.vec3 = __webpack_require__(6);
 exports.vec4 = __webpack_require__(7);
 
@@ -2601,6 +2601,79 @@ module.exports = vec4;
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "a", function() { return Stats; });
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__utils__ = __webpack_require__(1);
+
+
+let showStats = true;
+let fps = 0;
+let fpscounter = 0;
+let frametime = 0;
+
+// add css for stats
+__WEBPACK_IMPORTED_MODULE_0__utils__["a" /* default */].addCSS(`
+    #stat-fps { 
+        left: 15px; 
+        top: 15px; 
+        margin: 0; 
+        padding: 0; 
+        position: absolute; 
+        color: #FFF;
+        z-index: 150;
+        font-size: 14px;
+    }
+
+    #stat-ftm { 
+        left: 15px; 
+        top: 30px; 
+        margin: 0; 
+        padding: 0; 
+        position: absolute; 
+        color: #FFF;
+        z-index: 150;
+        font-size: 14px;
+    }
+    `);
+
+const fpsSpan = __WEBPACK_IMPORTED_MODULE_0__utils__["a" /* default */].addElement('span', 'stat-fps');
+const ftmSpan = __WEBPACK_IMPORTED_MODULE_0__utils__["a" /* default */].addElement('span', 'stat-ftm');
+
+window.setInterval(() => {
+    fps = fpscounter;
+    fpscounter = 0;
+    document.getElementById('stat-fps').innerHTML = 'FPS : ' + fps.toPrecision(5);
+    document.getElementById('stat-ftm').innerHTML = 'FTM : ' + frametime.toPrecision(5);
+}, 1000);
+
+const Stats = {
+    toggle(show) {
+        if (show === undefined) {
+            showStats = !showStats;
+        } else {
+            showStats = show;
+        }
+        if (showStats) {
+            fpsSpan.style.display = 'block';
+            ftmSpan.style.display = 'block';
+        } else {
+            fpsSpan.style.display = 'none';
+            ftmSpan.style.display = 'none';
+        }
+    },
+
+    update(ft) {
+        fpscounter++;
+        frametime = ft;
+    }
+};
+
+
+
+/***/ }),
+/* 9 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "a", function() { return Camera; });
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_0_gl_matrix__ = __webpack_require__(4);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_0_gl_matrix___default = __webpack_require__.n(__WEBPACK_IMPORTED_MODULE_0_gl_matrix__);
@@ -2664,7 +2737,7 @@ const Camera = {
 
 
 /***/ }),
-/* 9 */
+/* 10 */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
@@ -2843,14 +2916,14 @@ const Input = {
 
 
 /***/ }),
-/* 10 */
+/* 11 */
 /***/ (function(module, exports, __webpack_require__) {
 
-module.exports = __webpack_require__(11);
+module.exports = __webpack_require__(12);
 
 
 /***/ }),
-/* 11 */
+/* 12 */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
@@ -2858,13 +2931,13 @@ Object.defineProperty(__webpack_exports__, "__esModule", { value: true });
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_0_gl_matrix__ = __webpack_require__(4);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_0_gl_matrix___default = __webpack_require__.n(__WEBPACK_IMPORTED_MODULE_0_gl_matrix__);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__utils__ = __webpack_require__(1);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_2__resources__ = __webpack_require__(17);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_3__stats__ = __webpack_require__(22);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_4__camera__ = __webpack_require__(8);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_2__resources__ = __webpack_require__(18);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_3__stats__ = __webpack_require__(8);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_4__camera__ = __webpack_require__(9);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_5__controls__ = __webpack_require__(23);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_6__renderer__ = __webpack_require__(2);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_7__console__ = __webpack_require__(3);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_8__input__ = __webpack_require__(9);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_8__input__ = __webpack_require__(10);
 
 
 
@@ -2960,7 +3033,7 @@ __WEBPACK_IMPORTED_MODULE_2__resources__["a" /* default */].load({
 });
 
 /***/ }),
-/* 12 */
+/* 13 */
 /***/ (function(module, exports, __webpack_require__) {
 
 /* Copyright (c) 2015, Brandon Jones, Colin MacKenzie IV.
@@ -3402,7 +3475,7 @@ module.exports = mat2;
 
 
 /***/ }),
-/* 13 */
+/* 14 */
 /***/ (function(module, exports, __webpack_require__) {
 
 /* Copyright (c) 2015, Brandon Jones, Colin MacKenzie IV.
@@ -3877,7 +3950,7 @@ module.exports = mat2d;
 
 
 /***/ }),
-/* 14 */
+/* 15 */
 /***/ (function(module, exports, __webpack_require__) {
 
 /* Copyright (c) 2015, Brandon Jones, Colin MacKenzie IV.
@@ -6019,7 +6092,7 @@ module.exports = mat4;
 
 
 /***/ }),
-/* 15 */
+/* 16 */
 /***/ (function(module, exports, __webpack_require__) {
 
 /* Copyright (c) 2015, Brandon Jones, Colin MacKenzie IV.
@@ -6625,7 +6698,7 @@ module.exports = quat;
 
 
 /***/ }),
-/* 16 */
+/* 17 */
 /***/ (function(module, exports, __webpack_require__) {
 
 /* Copyright (c) 2015, Brandon Jones, Colin MacKenzie IV.
@@ -7218,16 +7291,16 @@ module.exports = vec2;
 
 
 /***/ }),
-/* 17 */
+/* 18 */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "a", function() { return Resources; });
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__console__ = __webpack_require__(3);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__texture__ = __webpack_require__(18);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_2__mesh__ = __webpack_require__(19);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_3__shader__ = __webpack_require__(20);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_4__loading__ = __webpack_require__(21);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__texture__ = __webpack_require__(19);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_2__mesh__ = __webpack_require__(20);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_3__shader__ = __webpack_require__(21);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_4__loading__ = __webpack_require__(22);
 
 
 
@@ -7242,13 +7315,13 @@ const Resources = {
         const count = Object.keys(paths).length;
         let counter = 0;
 
-        __WEBPACK_IMPORTED_MODULE_4__loading__["a" /* default */].toggleLoading(true);
+        __WEBPACK_IMPORTED_MODULE_4__loading__["a" /* default */].toggle(true);
 
         const onSuccess = path => {
             counter++;
             __WEBPACK_IMPORTED_MODULE_0__console__["a" /* default */].log('Loaded "' + path + '"');
             if (counter === count) {
-                __WEBPACK_IMPORTED_MODULE_4__loading__["a" /* default */].toggleLoading(false);
+                __WEBPACK_IMPORTED_MODULE_4__loading__["a" /* default */].toggle(false);
                 afterLoading();
             }
         };
@@ -7289,7 +7362,7 @@ const Resources = {
 
 
 /***/ }),
-/* 18 */
+/* 19 */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
@@ -7336,7 +7409,7 @@ class Texture {
 
 
 /***/ }),
-/* 19 */
+/* 20 */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
@@ -7488,7 +7561,7 @@ class Mesh {
 
 
 /***/ }),
-/* 20 */
+/* 21 */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
@@ -7573,7 +7646,7 @@ class Shader {
 
 
 /***/ }),
-/* 21 */
+/* 22 */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
@@ -7621,7 +7694,7 @@ loadingImg.style.display = 'none';
 loadingDiv.style.display = 'none';
 
 const Loading = {
-    toggleLoading(show) {
+    toggle(show) {
         if (show === undefined) {
             showLoading = !showLoading;
         } else {
@@ -7640,63 +7713,6 @@ const Loading = {
 
 
 /***/ }),
-/* 22 */
-/***/ (function(module, __webpack_exports__, __webpack_require__) {
-
-"use strict";
-/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "a", function() { return Stats; });
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__utils__ = __webpack_require__(1);
-
-
-let fps = 0;
-let fpscounter = 0;
-let frametime = 0;
-
-// add css for stats
-__WEBPACK_IMPORTED_MODULE_0__utils__["a" /* default */].addCSS(`
-    #stat-fps { 
-        left: 15px; 
-        top: 15px; 
-        margin: 0; 
-        padding: 0; 
-        position: absolute; 
-        color: #FFF;
-        z-index: 150;
-        font-size: 14px;
-    }
-
-    #stat-ftm { 
-        left: 15px; 
-        top: 30px; 
-        margin: 0; 
-        padding: 0; 
-        position: absolute; 
-        color: #FFF;
-        z-index: 150;
-        font-size: 14px;
-    }
-    `);
-
-__WEBPACK_IMPORTED_MODULE_0__utils__["a" /* default */].addElement('span', 'stat-fps');
-__WEBPACK_IMPORTED_MODULE_0__utils__["a" /* default */].addElement('span', 'stat-ftm');
-
-window.setInterval(() => {
-    fps = fpscounter;
-    fpscounter = 0;
-    document.getElementById('stat-fps').innerHTML = 'FPS : ' + fps.toPrecision(5);
-    document.getElementById('stat-ftm').innerHTML = 'FTM : ' + frametime.toPrecision(5);
-}, 1000);
-
-const Stats = {
-    update(ft) {
-        fpscounter++;
-        frametime = ft;
-    }
-};
-
-
-
-/***/ }),
 /* 23 */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
@@ -7704,9 +7720,11 @@ const Stats = {
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "a", function() { return Controls; });
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_0_gl_matrix__ = __webpack_require__(4);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_0_gl_matrix___default = __webpack_require__.n(__WEBPACK_IMPORTED_MODULE_0_gl_matrix__);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__input__ = __webpack_require__(9);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__input__ = __webpack_require__(10);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_2__console__ = __webpack_require__(3);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_3__camera__ = __webpack_require__(8);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_3__camera__ = __webpack_require__(9);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_4__stats__ = __webpack_require__(8);
+
 
 
 
@@ -7715,20 +7733,23 @@ const Stats = {
 // console
 __WEBPACK_IMPORTED_MODULE_1__input__["a" /* default */].addKeyDownEvent(192, () => {
     __WEBPACK_IMPORTED_MODULE_2__console__["a" /* default */].toggle();
+    __WEBPACK_IMPORTED_MODULE_4__stats__["a" /* default */].toggle();
     __WEBPACK_IMPORTED_MODULE_1__input__["a" /* default */].toggleCursor();
 });
 __WEBPACK_IMPORTED_MODULE_1__input__["a" /* default */].addKeyDownEvent(13, () => {
     __WEBPACK_IMPORTED_MODULE_2__console__["a" /* default */].execute();
 });
 __WEBPACK_IMPORTED_MODULE_1__input__["a" /* default */].touch.on('panup pandown', ev => {
-    if (ev.distance > 100) {
+    if (ev.distance > 175) {
         if (ev.type === 'panup') {
             __WEBPACK_IMPORTED_MODULE_2__console__["a" /* default */].toggle(false);
             __WEBPACK_IMPORTED_MODULE_1__input__["a" /* default */].toggleCursor(false);
+            __WEBPACK_IMPORTED_MODULE_4__stats__["a" /* default */].toggle(true);
         }
         if (ev.type === 'pandown') {
             __WEBPACK_IMPORTED_MODULE_2__console__["a" /* default */].toggle(true);
             __WEBPACK_IMPORTED_MODULE_1__input__["a" /* default */].toggleCursor(true);
+            __WEBPACK_IMPORTED_MODULE_4__stats__["a" /* default */].toggle(false);
         }
     }
 });

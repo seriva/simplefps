@@ -2,24 +2,28 @@ import { glMatrix, vec3 } from 'gl-matrix';
 import Input from './input';
 import Console from './console';
 import Camera from './camera';
+import Stats from './stats';
 
 // console
 Input.addKeyDownEvent(192, () => {
     Console.toggle();
+    Stats.toggle();
     Input.toggleCursor();
 });
 Input.addKeyDownEvent(13, () => {
     Console.execute();
 });
 Input.touch.on('panup pandown', (ev) => {
-    if (ev.distance > 100) {
+    if (ev.distance > 175) {
         if (ev.type === 'panup') {
             Console.toggle(false);
             Input.toggleCursor(false);
+            Stats.toggle(true);
         }
         if (ev.type === 'pandown') {
             Console.toggle(true);
             Input.toggleCursor(true);
+            Stats.toggle(false);
         }
     }
 });

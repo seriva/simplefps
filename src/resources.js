@@ -12,13 +12,13 @@ const Resources = {
         const count = Object.keys(paths).length;
         let counter = 0;
 
-        Loading.toggleLoading(true);
+        Loading.toggle(true);
 
         const onSuccess = (path) => {
             counter++;
             Console.log('Loaded "' + path + '"');
             if (counter === count) {
-                Loading.toggleLoading(false);
+                Loading.toggle(false);
                 afterLoading();
             }
         };

@@ -42,7 +42,7 @@ loadingImg.style.display = 'none';
 loadingDiv.style.display = 'none';
 
 const Loading = {
-    toggleLoading(show) {
+    toggle(show) {
         if (show === undefined) {
             showLoading = !showLoading;
         } else {

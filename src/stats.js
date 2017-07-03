@@ -1,5 +1,6 @@
 import Utils from './utils';
 
+let showStats = true;
 let fps = 0;
 let fpscounter = 0;
 let frametime = 0;
@@ -31,8 +32,8 @@ Utils.addCSS(
     `
 );
 
-Utils.addElement('span', 'stat-fps');
-Utils.addElement('span', 'stat-ftm');
+const fpsSpan = Utils.addElement('span', 'stat-fps');
+const ftmSpan = Utils.addElement('span', 'stat-ftm');
 
 window.setInterval(() => {
     fps = fpscounter;
@@ -42,6 +43,21 @@ window.setInterval(() => {
 }, 1000);
 
 const Stats = {
+    toggle(show) {
+        if (show === undefined) {
+            showStats = !showStats;
+        } else {
+            showStats = show;
+        }
+        if (showStats) {
+            fpsSpan.style.display = 'block';
+            ftmSpan.style.display = 'block';
+        } else {
+            fpsSpan.style.display = 'none';
+            ftmSpan.style.display = 'none';
+        }
+    },
+
     update(ft) {
         fpscounter++;
         frametime = ft;
