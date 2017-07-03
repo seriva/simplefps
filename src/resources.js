@@ -1,34 +1,10 @@
-import Utils from './utils';
 import Console from './console';
 import Texture from './texture';
 import Mesh from './mesh';
 import Shader from './shader';
-
-Utils.addCSS(
-    `
-    #logo { 
-        position: fixed; 
-        width: 20%; 
-        height:20%; 
-        top: 50%; 
-        left: 50%; 
-        margin-top: -10%; 
-        margin-left: -10%; 
-        -webkit-animation:spin 3s linear infinite;
-    }
-
-    @-webkit-keyframes spin { 
-        100% { 
-            -webkit-transform: rotate(360deg); 
-        } 
-    }
-    `
-);
+import Loading from './loading';
 
 const resources = {};
-const loading = Utils.addElement('img', 'logo');
-loading.src = 'resources/logo.svg';
-loading.style.display = 'none';
 
 const Resources = {
     load(paths, afterLoading) {
@@ -36,13 +12,13 @@ const Resources = {
         const count = Object.keys(paths).length;
         let counter = 0;
 
-        loading.style.display = 'inline';
+        Loading.toggleLoading(true);
 
         const onSuccess = (path) => {
             counter++;
             Console.log('Loaded "' + path + '"');
             if (counter === count) {
-                loading.style.display = 'none';
+                Loading.toggleLoading(false);
                 afterLoading();
             }
         };

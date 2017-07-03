@@ -1,10 +1,11 @@
 import { mat4 } from 'gl-matrix';
-import Renderer from './renderer';
 import Utils from './utils';
-import Console from './console';
 import Resources from './resources';
 import Stats from './stats';
 import Camera from './camera';
+import Controls from './controls';
+import Renderer from './renderer';
+import Console from './console';
 import Input from './input';
 
 Utils.addCSS(
@@ -56,7 +57,6 @@ Resources.load({
 
         const matModel = mat4.create();
         const matIdentity = mat4.create();
-        // let angle = 0;
 
         mat4.identity(matIdentity);
         mat4.identity(matModel);
@@ -73,13 +73,12 @@ Resources.load({
             time = now;
 
             // update the camera
-            Camera.update(frameTime);
+            Controls.update(frameTime);
+            Camera.update();
 
             // render the frame
             gl.clear(gl.DEPTH_BUFFER_BIT || gl.COLOR_BUFFER_BIT);
-            // angle = angle + (frameTime / 1000);
 
-            // mat4.rotate(matModel, matIdentity, angle, [0, 1, 0]);
             shader.setMat4('matWorld', matModel);
             shader.setMat4('matViewProj', Camera.viewProjection);
 

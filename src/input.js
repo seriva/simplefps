@@ -1,4 +1,5 @@
 import Hammer from 'hammerjs';
+import nipplejs from 'nipplejs';
 import Utils from './utils';
 import Renderer from './renderer';
 
@@ -7,7 +8,37 @@ Utils.addCSS(
     .hide-cursor {
         cursor: none;
     }
-     `
+
+    #left-half {
+        width: 50%;
+        height: 100%;
+        left: 0px;
+        top: 0px;
+        margin: 0;
+        padding: 0;
+        position: absolute;
+        background-color: red;
+        z-index : 50;
+        visibility :hidden;
+    }
+
+    #right-half {
+        width: 50%;
+        height: 100%;
+        right: 0px;
+        top: 0px;
+        margin: 0;
+        padding: 0;
+        position: absolute;
+        background-color: blue;
+        z-index : 50;
+        visibility :hidden;
+    }
+
+    .show-joystick {
+        visibility: visible;
+    }
+    `
 );
 
 let showCursor = true;
@@ -54,6 +85,28 @@ const hammer = new Hammer(document.body);
 hammer.get('pan').set({
     direction: Hammer.DIRECTION_ALL
 });
+
+const leftDiv = Utils.addElement('div', 'left-half');
+const rightDiv = Utils.addElement('div', 'right-half');
+
+nipplejs.create({
+    zone: leftDiv,
+    mode: 'static',
+    position: { left: '75px', bottom: '75px' },
+    color: 'white'
+});
+
+nipplejs.create({
+    zone: rightDiv,
+    mode: 'static',
+    position: { right: '75px', bottom: '75px' },
+    color: 'white'
+});
+
+if (Utils.isMobile()) {
+    leftDiv.firstChild.classList.add('show-joystick');
+    rightDiv.firstChild.classList.add('show-joystick');
+}
 
 const Input = {
     touch: hammer,

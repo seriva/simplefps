@@ -13,8 +13,9 @@ Utils.addCSS(
         margin: 0; 
         padding: 0; 
         position: absolute; 
-        color: #FFF; 
-        font-size: 14px 
+        color: #FFF;
+        z-index: 150;
+        font-size: 14px;
     }
 
     #stat-ftm { 
@@ -23,9 +24,10 @@ Utils.addCSS(
         margin: 0; 
         padding: 0; 
         position: absolute; 
-        color: #FFF; 
-        font-size: 14px 
-        }
+        color: #FFF;
+        z-index: 150;
+        font-size: 14px;
+    }
     `
 );
 

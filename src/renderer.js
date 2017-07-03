@@ -3,11 +3,11 @@ import Console from './console';
 
 Utils.addCSS(
     `
-    canvas { 
-        background: #000; 
-        width: 100vw; height: 100vh; 
-        display: block; 
-        z-index : 1; 
+    canvas {
+        background: #000;
+        width: 100vw; height: 100vh;
+        display: block;
+        z-index : 100;
     }
     `
 );

@@ -1,5 +1,4 @@
 import Utils from './utils';
-import Input from './input';
 
 let visible = false;
 const logs = [];
@@ -7,42 +6,45 @@ const logs = [];
 Utils.addCSS(
     `
     #console {
-        -webkit-transition: all 0.150s ease-in-out; 
-        display: flex; flex-flow: 
-        column nowrap; 
-        line-height: 95%; 
-        border:1px solid #999; 
-        border-bottom:1px solid #fff; 
-        background-color: #999; 
-        opacity: 0.75; 
-        z-index : 2; 
-        width: 100%; 
-        height: 50%; 
-        position: absolute; 
-        top: -52vh; 
-        left: 0; 
-        overflow: scroll; 
+        -webkit-transition: all 0.150s ease-in-out;
+        display: flex; flex-flow:
+        column nowrap;
+        line-height: 95%;
+        border:1px solid #999;
+        border-bottom:1px solid #fff;
+        background-color: #999;
+        opacity: 0.75;
+        z-index : 200;
+        width: 100%;
+        height: 50%;
+        position: absolute;
+        top: -52vh;
+        left: 0;
+        overflow: scroll;
         overflow-x: hidden;
     }
 
     #console-input {
-        -webkit-transition: all 0.150s ease-in-out; 
-        display: inline; 
-        color: #fff; 
-        font-size: 14px; 
-        position: absolute; 
-        top: -52vh; 
-        left: 0; width:100%; 
-        border:1px solid #999; 
-        border-bottom:2px solid #fff; 
-        background-color: #999; 
-        opacity: 0.75; outline: none;
+        -webkit-transition: all 0.150s ease-in-out;
+        display: inline;
+        color: #fff;
+        font-size: 14px;
+        position: absolute;
+        z-index : 200;
+        top: -52vh;
+        left: 0; width:100%;
+        border:1px solid #999;
+        border-bottom:2px solid #fff;
+        background-color: #999;
+        opacity: 0.75;
+        outline: none;
     }
 
-    #console p { 
-        margin-top: auto !important; 
-        font-size: 14px; 
-        color: #fff; margin: 0px; 
+    #console p {
+        margin-top: auto !important;
+        font-size: 14px;
+        color: #fff; 
+        margin: 0px;
         white-space: nowrap;
     }
 
@@ -59,21 +61,6 @@ Utils.addCSS(
 const consoleDiv = Utils.addElement('div', 'console');
 const inputField = Utils.addElement('input', 'console-input');
 consoleDiv.disabled = true;
-
-Input.addKeyDownEvent(192, () => {
-    Console.toggle();
-});
-Input.addKeyDownEvent(13, () => {
-    Console.execute();
-});
-Input.touch.on('panup pandown', (ev) => {
-    if (ev.type === 'panup') {
-        Console.toggle(false);
-    }
-    if (ev.type === 'pandown') {
-        Console.toggle(true);
-    }
-});
 
 const update = () => {
     let text = '<p>';
@@ -110,7 +97,6 @@ const Console = {
         } else {
             visible = show;
         }
-        Input.toggleCursor(visible);
         if (visible) {
             consoleDiv.classList.add('console-down');
             inputField.classList.add('console-input-down');
