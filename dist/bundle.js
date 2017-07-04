@@ -2760,11 +2760,11 @@ __WEBPACK_IMPORTED_MODULE_2__utils__["a" /* default */].addCSS(`
         cursor: none;
     }
 
-    #left-half {
-        width: 50%;
-        height: 100%;
+    #move-div {
+        width: 200px;
+        height: calc(100% - 100px);
         left: 0px;
-        top: 0px;
+        bottom: 0px;
         margin: 0;
         padding: 0;
         position: absolute;
@@ -2772,16 +2772,28 @@ __WEBPACK_IMPORTED_MODULE_2__utils__["a" /* default */].addCSS(`
         visibility :hidden;
     }
 
-    #right-half {
-        width: 50%;
-        height: 100%;
+    #look-div {
+        width: calc(100% - 200px);
+        height: calc(100% - 100px);
+        right: 0px;
+        bottom: 0px;
+        margin: 0;
+        padding: 0;
+        position: absolute;
+        z-index : 50;
+        opacity: 0.01;
+    }
+
+    #console-div {
+        width: 100%;
+        height: 100px;
         right: 0px;
         top: 0px;
         margin: 0;
         padding: 0;
         position: absolute;
         z-index : 50;
-        visibility :hidden;
+        opacity: 0.01;
     }
 
     .show-joystick {
@@ -2797,6 +2809,8 @@ let cursorMovement = {
 let pressed = {};
 let upevents = [];
 let downevents = [];
+let timeout;
+let consoleTouch;
 
 window.addEventListener('keyup', event => {
     delete pressed[event.keyCode];
@@ -2822,7 +2836,6 @@ window.addEventListener('keydown', event => {
     }
 }, false);
 
-let timeout;
 window.addEventListener('mousemove', evt => {
     cursorMovement = {
         x: evt.movementX,
@@ -2839,107 +2852,88 @@ window.addEventListener('mousemove', evt => {
     }, 50);
 }, false);
 
-// touch input
-const hammer = new __WEBPACK_IMPORTED_MODULE_0_hammerjs___default.a(document.body);
-hammer.get('pan').set({
-    direction: __WEBPACK_IMPORTED_MODULE_0_hammerjs___default.a.DIRECTION_ALL
-});
+if (__WEBPACK_IMPORTED_MODULE_2__utils__["a" /* default */].isMobile()) {
+    // touch mouse input
+    const lookDiv = __WEBPACK_IMPORTED_MODULE_2__utils__["a" /* default */].addElement('div', 'look-div');
+    const look = new __WEBPACK_IMPORTED_MODULE_0_hammerjs___default.a(lookDiv);
+    look.get('pan').set({
+        direction: __WEBPACK_IMPORTED_MODULE_0_hammerjs___default.a.DIRECTION_ALL
+    });
+    look.on('panmove panend', ev => {
+        cursorMovement = {
+            x: 0,
+            y: 0
+        };
+        if (ev.type === 'panmove') {
+            cursorMovement = {
+                x: ev.velocityX * 100,
+                y: ev.velocityY * 100
+            };
+        }
+    });
 
-// WASD input with virtual joystick
-let leftUsed = false;
-const leftDiv = __WEBPACK_IMPORTED_MODULE_2__utils__["a" /* default */].addElement('div', 'left-half');
-const move = __WEBPACK_IMPORTED_MODULE_1_nipplejs___default.a.create({
-    zone: leftDiv,
-    mode: 'static',
-    position: { left: '80px', bottom: '80px' },
-    color: 'white'
-});
-move.on('move', (evt, data) => {
-    leftUsed = true;
-    if (data.angle && data.distance && data.distance > 20) {
+    // WASD input with virtual joystick
+    const moveDiv = __WEBPACK_IMPORTED_MODULE_2__utils__["a" /* default */].addElement('div', 'move-div');
+    const move = __WEBPACK_IMPORTED_MODULE_1_nipplejs___default.a.create({
+        zone: moveDiv,
+        mode: 'static',
+        position: { left: '80px', bottom: '80px' },
+        color: 'white'
+    });
+    move.on('move', (evt, data) => {
+        if (data.angle && data.distance && data.distance > 20) {
+            delete pressed[__WEBPACK_IMPORTED_MODULE_4__settings__["a" /* default */].forward];
+            delete pressed[__WEBPACK_IMPORTED_MODULE_4__settings__["a" /* default */].backwards];
+            delete pressed[__WEBPACK_IMPORTED_MODULE_4__settings__["a" /* default */].left];
+            delete pressed[__WEBPACK_IMPORTED_MODULE_4__settings__["a" /* default */].right];
+            const a = data.angle.degree;
+
+            if (a >= 337.5 && a < 360 || a >= 0 && a < 22.5) {
+                pressed[__WEBPACK_IMPORTED_MODULE_4__settings__["a" /* default */].right] = true;
+            }
+
+            if (a >= 22.5 && a < 67.5) {
+                pressed[__WEBPACK_IMPORTED_MODULE_4__settings__["a" /* default */].right] = true;
+                pressed[__WEBPACK_IMPORTED_MODULE_4__settings__["a" /* default */].forward] = true;
+            }
+
+            if (a >= 67.5 && a < 112.5) {
+                pressed[__WEBPACK_IMPORTED_MODULE_4__settings__["a" /* default */].forward] = true;
+            }
+
+            if (a >= 112.5 && a < 157.5) {
+                pressed[__WEBPACK_IMPORTED_MODULE_4__settings__["a" /* default */].forward] = true;
+                pressed[__WEBPACK_IMPORTED_MODULE_4__settings__["a" /* default */].left] = true;
+            }
+
+            if (a >= 157.5 && a < 202.5) {
+                pressed[__WEBPACK_IMPORTED_MODULE_4__settings__["a" /* default */].left] = true;
+            }
+
+            if (a >= 202.5 && a < 247.5) {
+                pressed[__WEBPACK_IMPORTED_MODULE_4__settings__["a" /* default */].left] = true;
+                pressed[__WEBPACK_IMPORTED_MODULE_4__settings__["a" /* default */].backwards] = true;
+            }
+
+            if (a >= 247.5 && a < 292.5) {
+                pressed[__WEBPACK_IMPORTED_MODULE_4__settings__["a" /* default */].backwards] = true;
+            }
+
+            if (a >= 292.5 && a < 337.5) {
+                pressed[__WEBPACK_IMPORTED_MODULE_4__settings__["a" /* default */].backwards] = true;
+                pressed[__WEBPACK_IMPORTED_MODULE_4__settings__["a" /* default */].right] = true;
+            }
+        }
+    }).on('end', () => {
         delete pressed[__WEBPACK_IMPORTED_MODULE_4__settings__["a" /* default */].forward];
         delete pressed[__WEBPACK_IMPORTED_MODULE_4__settings__["a" /* default */].backwards];
         delete pressed[__WEBPACK_IMPORTED_MODULE_4__settings__["a" /* default */].left];
         delete pressed[__WEBPACK_IMPORTED_MODULE_4__settings__["a" /* default */].right];
-        const a = data.angle.degree;
-
-        if (a >= 337.5 && a < 360 || a >= 0 && a < 22.5) {
-            pressed[__WEBPACK_IMPORTED_MODULE_4__settings__["a" /* default */].right] = true;
-        }
-
-        if (a >= 22.5 && a < 67.5) {
-            pressed[__WEBPACK_IMPORTED_MODULE_4__settings__["a" /* default */].right] = true;
-            pressed[__WEBPACK_IMPORTED_MODULE_4__settings__["a" /* default */].forward] = true;
-        }
-
-        if (a >= 67.5 && a < 112.5) {
-            pressed[__WEBPACK_IMPORTED_MODULE_4__settings__["a" /* default */].forward] = true;
-        }
-
-        if (a >= 112.5 && a < 157.5) {
-            pressed[__WEBPACK_IMPORTED_MODULE_4__settings__["a" /* default */].forward] = true;
-            pressed[__WEBPACK_IMPORTED_MODULE_4__settings__["a" /* default */].left] = true;
-        }
-
-        if (a >= 157.5 && a < 202.5) {
-            pressed[__WEBPACK_IMPORTED_MODULE_4__settings__["a" /* default */].left] = true;
-        }
-
-        if (a >= 202.5 && a < 247.5) {
-            pressed[__WEBPACK_IMPORTED_MODULE_4__settings__["a" /* default */].left] = true;
-            pressed[__WEBPACK_IMPORTED_MODULE_4__settings__["a" /* default */].backwards] = true;
-        }
-
-        if (a >= 247.5 && a < 292.5) {
-            pressed[__WEBPACK_IMPORTED_MODULE_4__settings__["a" /* default */].backwards] = true;
-        }
-
-        if (a >= 292.5 && a < 337.5) {
-            pressed[__WEBPACK_IMPORTED_MODULE_4__settings__["a" /* default */].backwards] = true;
-            pressed[__WEBPACK_IMPORTED_MODULE_4__settings__["a" /* default */].right] = true;
-        }
-    }
-}).on('end', () => {
-    leftUsed = false;
-    delete pressed[__WEBPACK_IMPORTED_MODULE_4__settings__["a" /* default */].forward];
-    delete pressed[__WEBPACK_IMPORTED_MODULE_4__settings__["a" /* default */].backwards];
-    delete pressed[__WEBPACK_IMPORTED_MODULE_4__settings__["a" /* default */].left];
-    delete pressed[__WEBPACK_IMPORTED_MODULE_4__settings__["a" /* default */].right];
-});
-
-// mouse input with virtual joystick
-let rightUsed = false;
-const rightDiv = __WEBPACK_IMPORTED_MODULE_2__utils__["a" /* default */].addElement('div', 'right-half');
-const look = __WEBPACK_IMPORTED_MODULE_1_nipplejs___default.a.create({
-    zone: rightDiv,
-    mode: 'static',
-    position: { right: '80px', bottom: '80px' },
-    color: 'white'
-});
-look.on('move', (evt, data) => {
-    rightUsed = true;
-    if (data.distance && data.distance > 20) {
-        cursorMovement = {
-            x: (data.position.x - data.instance.position.x) / 2.5,
-            y: (data.position.y - data.instance.position.y) / 3.5
-        };
-    }
-}).on('end', () => {
-    rightUsed = false;
-    cursorMovement = {
-        x: 0,
-        y: 0
-    };
-});
-
-if (__WEBPACK_IMPORTED_MODULE_2__utils__["a" /* default */].isMobile()) {
-    leftDiv.firstChild.classList.add('show-joystick');
-    rightDiv.firstChild.classList.add('show-joystick');
+    });
+    moveDiv.firstChild.classList.add('show-joystick');
 }
 
 const Input = {
-    touch: hammer,
-
     cursorMovement() {
         return cursorMovement;
     },
@@ -2957,10 +2951,6 @@ const Input = {
             document.body.classList.add('hide-cursor');
             __WEBPACK_IMPORTED_MODULE_3__renderer__["a" /* default */].canvas.requestPointerLock();
         }
-    },
-
-    joysticksUsed() {
-        return rightUsed || leftUsed;
     },
 
     clearInputEvents() {
@@ -7808,14 +7798,17 @@ const Loading = {
 
 "use strict";
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "a", function() { return Controls; });
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0_gl_matrix__ = __webpack_require__(4);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0_gl_matrix___default = __webpack_require__.n(__WEBPACK_IMPORTED_MODULE_0_gl_matrix__);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__input__ = __webpack_require__(10);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_2__console__ = __webpack_require__(3);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_3__camera__ = __webpack_require__(9);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_4__stats__ = __webpack_require__(8);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_5__settings__ = __webpack_require__(11);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_6__utils__ = __webpack_require__(0);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0_hammerjs__ = __webpack_require__(25);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0_hammerjs___default = __webpack_require__.n(__WEBPACK_IMPORTED_MODULE_0_hammerjs__);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1_gl_matrix__ = __webpack_require__(4);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1_gl_matrix___default = __webpack_require__.n(__WEBPACK_IMPORTED_MODULE_1_gl_matrix__);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_2__input__ = __webpack_require__(10);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_3__console__ = __webpack_require__(3);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_4__camera__ = __webpack_require__(9);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_5__stats__ = __webpack_require__(8);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_6__settings__ = __webpack_require__(11);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_7__utils__ = __webpack_require__(0);
+
 
 
 
@@ -7825,38 +7818,40 @@ const Loading = {
 
 
 // console
-__WEBPACK_IMPORTED_MODULE_1__input__["a" /* default */].addKeyDownEvent(192, () => {
-    __WEBPACK_IMPORTED_MODULE_2__console__["a" /* default */].toggle();
-    __WEBPACK_IMPORTED_MODULE_4__stats__["a" /* default */].toggle();
-    __WEBPACK_IMPORTED_MODULE_1__input__["a" /* default */].toggleCursor();
+__WEBPACK_IMPORTED_MODULE_2__input__["a" /* default */].addKeyDownEvent(192, () => {
+    __WEBPACK_IMPORTED_MODULE_3__console__["a" /* default */].toggle();
+    __WEBPACK_IMPORTED_MODULE_5__stats__["a" /* default */].toggle();
+    __WEBPACK_IMPORTED_MODULE_2__input__["a" /* default */].toggleCursor();
 });
-__WEBPACK_IMPORTED_MODULE_1__input__["a" /* default */].addKeyDownEvent(13, () => {
-    __WEBPACK_IMPORTED_MODULE_2__console__["a" /* default */].execute();
+__WEBPACK_IMPORTED_MODULE_2__input__["a" /* default */].addKeyDownEvent(13, () => {
+    __WEBPACK_IMPORTED_MODULE_3__console__["a" /* default */].execute();
 });
 
-if (__WEBPACK_IMPORTED_MODULE_6__utils__["a" /* default */].isMobile()) {
-    __WEBPACK_IMPORTED_MODULE_1__input__["a" /* default */].touch.on('panup pandown', ev => {
-        if (ev.distance > 150 && !__WEBPACK_IMPORTED_MODULE_1__input__["a" /* default */].joysticksUsed()) {
-            if (ev.type === 'panup') {
-                __WEBPACK_IMPORTED_MODULE_2__console__["a" /* default */].toggle(false);
-                __WEBPACK_IMPORTED_MODULE_1__input__["a" /* default */].toggleCursor(false);
-                __WEBPACK_IMPORTED_MODULE_4__stats__["a" /* default */].toggle(true);
-            }
+if (__WEBPACK_IMPORTED_MODULE_7__utils__["a" /* default */].isMobile()) {
+    // console div
+    const consoleDiv = __WEBPACK_IMPORTED_MODULE_7__utils__["a" /* default */].addElement('div', 'console-div');
+    const consoleTouch = new __WEBPACK_IMPORTED_MODULE_0_hammerjs___default.a(consoleDiv);
+    consoleTouch.get('pan').set({
+        direction: __WEBPACK_IMPORTED_MODULE_0_hammerjs___default.a.DIRECTION_ALL
+    });
+    consoleTouch.on('pandown', ev => {
+        if (ev.distance > 50) {
             if (ev.type === 'pandown') {
-                __WEBPACK_IMPORTED_MODULE_2__console__["a" /* default */].toggle(true);
-                __WEBPACK_IMPORTED_MODULE_1__input__["a" /* default */].toggleCursor(true);
-                __WEBPACK_IMPORTED_MODULE_4__stats__["a" /* default */].toggle(false);
+                __WEBPACK_IMPORTED_MODULE_3__console__["a" /* default */].toggle(true);
+                __WEBPACK_IMPORTED_MODULE_2__input__["a" /* default */].toggleCursor(true);
+                __WEBPACK_IMPORTED_MODULE_5__stats__["a" /* default */].toggle(false);
             }
         }
     });
+
     document.addEventListener('deviceready', () => {
-        __WEBPACK_IMPORTED_MODULE_2__console__["a" /* default */].log('Platform: ' + cordova.platformId);
+        __WEBPACK_IMPORTED_MODULE_3__console__["a" /* default */].log('Platform: ' + cordova.platformId);
         if (cordova.platformId === 'android') {
             window.addEventListener('native.keyboardhide', () => {
                 Fullscreen.on();
-                __WEBPACK_IMPORTED_MODULE_2__console__["a" /* default */].toggle(false);
-                __WEBPACK_IMPORTED_MODULE_1__input__["a" /* default */].toggleCursor(false);
-                __WEBPACK_IMPORTED_MODULE_4__stats__["a" /* default */].toggle(true);
+                __WEBPACK_IMPORTED_MODULE_3__console__["a" /* default */].toggle(false);
+                __WEBPACK_IMPORTED_MODULE_2__input__["a" /* default */].toggleCursor(false);
+                __WEBPACK_IMPORTED_MODULE_5__stats__["a" /* default */].toggle(true);
             });
         }
     }, false);
@@ -7865,55 +7860,57 @@ if (__WEBPACK_IMPORTED_MODULE_6__utils__["a" /* default */].isMobile()) {
 // mouse and keyboard input
 const Controls = {
     update(frametime) {
-        if (__WEBPACK_IMPORTED_MODULE_2__console__["a" /* default */].visible()) return;
+        if (__WEBPACK_IMPORTED_MODULE_3__console__["a" /* default */].visible()) return;
 
         const ft = frametime / 1000;
 
         // look
-        const mpos = __WEBPACK_IMPORTED_MODULE_1__input__["a" /* default */].cursorMovement();
-        __WEBPACK_IMPORTED_MODULE_3__camera__["a" /* default */].rotation[0] = __WEBPACK_IMPORTED_MODULE_3__camera__["a" /* default */].rotation[0] - mpos.x / 10;
-        __WEBPACK_IMPORTED_MODULE_3__camera__["a" /* default */].rotation[1] = __WEBPACK_IMPORTED_MODULE_3__camera__["a" /* default */].rotation[1] + mpos.y / 10;
-        if (__WEBPACK_IMPORTED_MODULE_3__camera__["a" /* default */].rotation[1] > 89) {
-            __WEBPACK_IMPORTED_MODULE_3__camera__["a" /* default */].rotation[1] = 89;
+        const mpos = __WEBPACK_IMPORTED_MODULE_2__input__["a" /* default */].cursorMovement();
+        __WEBPACK_IMPORTED_MODULE_4__camera__["a" /* default */].rotation[0] = __WEBPACK_IMPORTED_MODULE_4__camera__["a" /* default */].rotation[0] - mpos.x / 10;
+        __WEBPACK_IMPORTED_MODULE_4__camera__["a" /* default */].rotation[1] = __WEBPACK_IMPORTED_MODULE_4__camera__["a" /* default */].rotation[1] + mpos.y / 10;
+        if (__WEBPACK_IMPORTED_MODULE_4__camera__["a" /* default */].rotation[1] > 89) {
+            __WEBPACK_IMPORTED_MODULE_4__camera__["a" /* default */].rotation[1] = 89;
         }
-        if (__WEBPACK_IMPORTED_MODULE_3__camera__["a" /* default */].rotation[1] < -89) {
-            __WEBPACK_IMPORTED_MODULE_3__camera__["a" /* default */].rotation[1] = -89;
+        if (__WEBPACK_IMPORTED_MODULE_4__camera__["a" /* default */].rotation[1] < -89) {
+            __WEBPACK_IMPORTED_MODULE_4__camera__["a" /* default */].rotation[1] = -89;
         }
-        if (__WEBPACK_IMPORTED_MODULE_3__camera__["a" /* default */].rotation[0] < 0) {
-            __WEBPACK_IMPORTED_MODULE_3__camera__["a" /* default */].rotation[0] = 360;
+        if (__WEBPACK_IMPORTED_MODULE_4__camera__["a" /* default */].rotation[0] < 0) {
+            __WEBPACK_IMPORTED_MODULE_4__camera__["a" /* default */].rotation[0] = 360;
         }
-        if (__WEBPACK_IMPORTED_MODULE_3__camera__["a" /* default */].rotation[0] > 360) {
-            __WEBPACK_IMPORTED_MODULE_3__camera__["a" /* default */].rotation[0] = 0;
+        if (__WEBPACK_IMPORTED_MODULE_4__camera__["a" /* default */].rotation[0] > 360) {
+            __WEBPACK_IMPORTED_MODULE_4__camera__["a" /* default */].rotation[0] = 0;
         }
-        __WEBPACK_IMPORTED_MODULE_3__camera__["a" /* default */].direction[0] = 0;__WEBPACK_IMPORTED_MODULE_3__camera__["a" /* default */].direction[1] = 0;__WEBPACK_IMPORTED_MODULE_3__camera__["a" /* default */].direction[2] = 1;
-        __WEBPACK_IMPORTED_MODULE_0_gl_matrix__["vec3"].rotateX(__WEBPACK_IMPORTED_MODULE_3__camera__["a" /* default */].direction, __WEBPACK_IMPORTED_MODULE_3__camera__["a" /* default */].direction, [0, 0, 0], __WEBPACK_IMPORTED_MODULE_0_gl_matrix__["glMatrix"].toRadian(__WEBPACK_IMPORTED_MODULE_3__camera__["a" /* default */].rotation[1]));
-        __WEBPACK_IMPORTED_MODULE_0_gl_matrix__["vec3"].rotateY(__WEBPACK_IMPORTED_MODULE_3__camera__["a" /* default */].direction, __WEBPACK_IMPORTED_MODULE_3__camera__["a" /* default */].direction, [0, 0, 0], __WEBPACK_IMPORTED_MODULE_0_gl_matrix__["glMatrix"].toRadian(__WEBPACK_IMPORTED_MODULE_3__camera__["a" /* default */].rotation[0]));
+        __WEBPACK_IMPORTED_MODULE_4__camera__["a" /* default */].direction[0] = 0;__WEBPACK_IMPORTED_MODULE_4__camera__["a" /* default */].direction[1] = 0;__WEBPACK_IMPORTED_MODULE_4__camera__["a" /* default */].direction[2] = 1;
+        __WEBPACK_IMPORTED_MODULE_1_gl_matrix__["vec3"].rotateX(__WEBPACK_IMPORTED_MODULE_4__camera__["a" /* default */].direction, __WEBPACK_IMPORTED_MODULE_4__camera__["a" /* default */].direction, [0, 0, 0], __WEBPACK_IMPORTED_MODULE_1_gl_matrix__["glMatrix"].toRadian(__WEBPACK_IMPORTED_MODULE_4__camera__["a" /* default */].rotation[1]));
+        __WEBPACK_IMPORTED_MODULE_1_gl_matrix__["vec3"].rotateY(__WEBPACK_IMPORTED_MODULE_4__camera__["a" /* default */].direction, __WEBPACK_IMPORTED_MODULE_4__camera__["a" /* default */].direction, [0, 0, 0], __WEBPACK_IMPORTED_MODULE_1_gl_matrix__["glMatrix"].toRadian(__WEBPACK_IMPORTED_MODULE_4__camera__["a" /* default */].rotation[0]));
+        __WEBPACK_IMPORTED_MODULE_1_gl_matrix__["vec3"].normalize(__WEBPACK_IMPORTED_MODULE_4__camera__["a" /* default */].direction, __WEBPACK_IMPORTED_MODULE_4__camera__["a" /* default */].direction);
 
         // movement
         let move = 0;
         let strafe = 0;
-        if (__WEBPACK_IMPORTED_MODULE_1__input__["a" /* default */].isDown(__WEBPACK_IMPORTED_MODULE_5__settings__["a" /* default */].forward)) {
+        if (__WEBPACK_IMPORTED_MODULE_2__input__["a" /* default */].isDown(__WEBPACK_IMPORTED_MODULE_6__settings__["a" /* default */].forward)) {
             move = move + 1;
         }
-        if (__WEBPACK_IMPORTED_MODULE_1__input__["a" /* default */].isDown(__WEBPACK_IMPORTED_MODULE_5__settings__["a" /* default */].backwards)) {
+        if (__WEBPACK_IMPORTED_MODULE_2__input__["a" /* default */].isDown(__WEBPACK_IMPORTED_MODULE_6__settings__["a" /* default */].backwards)) {
             move = move - 1;
         }
-        if (__WEBPACK_IMPORTED_MODULE_1__input__["a" /* default */].isDown(__WEBPACK_IMPORTED_MODULE_5__settings__["a" /* default */].left)) {
+        if (__WEBPACK_IMPORTED_MODULE_2__input__["a" /* default */].isDown(__WEBPACK_IMPORTED_MODULE_6__settings__["a" /* default */].left)) {
             strafe = strafe - 1;
         }
-        if (__WEBPACK_IMPORTED_MODULE_1__input__["a" /* default */].isDown(__WEBPACK_IMPORTED_MODULE_5__settings__["a" /* default */].right)) {
+        if (__WEBPACK_IMPORTED_MODULE_2__input__["a" /* default */].isDown(__WEBPACK_IMPORTED_MODULE_6__settings__["a" /* default */].right)) {
             strafe = strafe + 1;
         }
 
         // calculate new position and view direction
-        const v = __WEBPACK_IMPORTED_MODULE_0_gl_matrix__["vec3"].clone(__WEBPACK_IMPORTED_MODULE_3__camera__["a" /* default */].direction);
+        const v = __WEBPACK_IMPORTED_MODULE_1_gl_matrix__["vec3"].clone(__WEBPACK_IMPORTED_MODULE_4__camera__["a" /* default */].direction);
         v[1] = 0;
-        __WEBPACK_IMPORTED_MODULE_0_gl_matrix__["vec3"].rotateY(v, v, [0, 0, 0], __WEBPACK_IMPORTED_MODULE_0_gl_matrix__["glMatrix"].toRadian(-90));
+        __WEBPACK_IMPORTED_MODULE_1_gl_matrix__["vec3"].rotateY(v, v, [0, 0, 0], __WEBPACK_IMPORTED_MODULE_1_gl_matrix__["glMatrix"].toRadian(-90));
+        __WEBPACK_IMPORTED_MODULE_1_gl_matrix__["vec3"].normalize(v, v);
         move = move * (ft * 5);
         strafe = strafe * (ft * 5);
-        __WEBPACK_IMPORTED_MODULE_3__camera__["a" /* default */].position[0] = __WEBPACK_IMPORTED_MODULE_3__camera__["a" /* default */].position[0] + __WEBPACK_IMPORTED_MODULE_3__camera__["a" /* default */].direction[0] * move + v[0] * strafe;
-        __WEBPACK_IMPORTED_MODULE_3__camera__["a" /* default */].position[1] = __WEBPACK_IMPORTED_MODULE_3__camera__["a" /* default */].position[1] + __WEBPACK_IMPORTED_MODULE_3__camera__["a" /* default */].direction[1] * move + v[1] * strafe;
-        __WEBPACK_IMPORTED_MODULE_3__camera__["a" /* default */].position[2] = __WEBPACK_IMPORTED_MODULE_3__camera__["a" /* default */].position[2] + __WEBPACK_IMPORTED_MODULE_3__camera__["a" /* default */].direction[2] * move + v[2] * strafe;
+        __WEBPACK_IMPORTED_MODULE_4__camera__["a" /* default */].position[0] = __WEBPACK_IMPORTED_MODULE_4__camera__["a" /* default */].position[0] + __WEBPACK_IMPORTED_MODULE_4__camera__["a" /* default */].direction[0] * move + v[0] * strafe;
+        __WEBPACK_IMPORTED_MODULE_4__camera__["a" /* default */].position[1] = __WEBPACK_IMPORTED_MODULE_4__camera__["a" /* default */].position[1] + __WEBPACK_IMPORTED_MODULE_4__camera__["a" /* default */].direction[1] * move + v[1] * strafe;
+        __WEBPACK_IMPORTED_MODULE_4__camera__["a" /* default */].position[2] = __WEBPACK_IMPORTED_MODULE_4__camera__["a" /* default */].position[2] + __WEBPACK_IMPORTED_MODULE_4__camera__["a" /* default */].direction[2] * move + v[2] * strafe;
     }
 };
 

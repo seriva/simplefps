@@ -1,3 +1,4 @@
+import Hammer from 'hammerjs';
 import { glMatrix, vec3 } from 'gl-matrix';
 import Input from './input';
 import Console from './console';
@@ -17,13 +18,14 @@ Input.addKeyDownEvent(13, () => {
 });
 
 if (Utils.isMobile()) {
-    Input.touch.on('panup pandown', (ev) => {
-        if (ev.distance > 150 && !Input.joysticksUsed()) {
-            if (ev.type === 'panup') {
-                Console.toggle(false);
-                Input.toggleCursor(false);
-                Stats.toggle(true);
-            }
+    // console div
+    const consoleDiv = Utils.addElement('div', 'console-div');
+    const consoleTouch = new Hammer(consoleDiv);
+    consoleTouch.get('pan').set({
+        direction: Hammer.DIRECTION_ALL
+    });
+    consoleTouch.on('pandown', (ev) => {
+        if (ev.distance > 50) {
             if (ev.type === 'pandown') {
                 Console.toggle(true);
                 Input.toggleCursor(true);
@@ -31,6 +33,7 @@ if (Utils.isMobile()) {
             }
         }
     });
+
     document.addEventListener('deviceready', () => {
         Console.log('Platform: ' + cordova.platformId);
         if (cordova.platformId === 'android') {
@@ -62,6 +65,7 @@ const Controls = {
         Camera.direction[0] = 0; Camera.direction[1] = 0; Camera.direction[2] = 1;
         vec3.rotateX(Camera.direction, Camera.direction, [0, 0, 0], glMatrix.toRadian(Camera.rotation[1]));
         vec3.rotateY(Camera.direction, Camera.direction, [0, 0, 0], glMatrix.toRadian(Camera.rotation[0]));
+        vec3.normalize(Camera.direction, Camera.direction);
 
         // movement
         let move = 0;
@@ -83,6 +87,7 @@ const Controls = {
         const v = vec3.clone(Camera.direction);
         v[1] = 0;
         vec3.rotateY(v, v, [0, 0, 0], glMatrix.toRadian(-90));
+        vec3.normalize(v, v);
         move = move * (ft * 5);
         strafe = strafe * (ft * 5);
         Camera.position[0] = Camera.position[0] + (Camera.direction[0] * move) + (v[0] * strafe);

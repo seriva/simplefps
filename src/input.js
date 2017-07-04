@@ -10,11 +10,11 @@ Utils.addCSS(
         cursor: none;
     }
 
-    #left-half {
-        width: 50%;
-        height: 100%;
+    #move-div {
+        width: 200px;
+        height: calc(100% - 100px);
         left: 0px;
-        top: 0px;
+        bottom: 0px;
         margin: 0;
         padding: 0;
         position: absolute;
@@ -22,16 +22,28 @@ Utils.addCSS(
         visibility :hidden;
     }
 
-    #right-half {
-        width: 50%;
-        height: 100%;
+    #look-div {
+        width: calc(100% - 200px);
+        height: calc(100% - 100px);
+        right: 0px;
+        bottom: 0px;
+        margin: 0;
+        padding: 0;
+        position: absolute;
+        z-index : 50;
+        opacity: 0.01;
+    }
+
+    #console-div {
+        width: 100%;
+        height: 100px;
         right: 0px;
         top: 0px;
         margin: 0;
         padding: 0;
         position: absolute;
         z-index : 50;
-        visibility :hidden;
+        opacity: 0.01;
     }
 
     .show-joystick {
@@ -48,6 +60,8 @@ let cursorMovement = {
 let pressed = {};
 let upevents = [];
 let downevents = [];
+let timeout;
+let consoleTouch;
 
 window.addEventListener('keyup', (event) => {
     delete pressed[event.keyCode];
@@ -73,7 +87,6 @@ window.addEventListener('keydown', (event) => {
     }
 }, false);
 
-let timeout;
 window.addEventListener('mousemove', (evt) => {
     cursorMovement = {
         x: evt.movementX,
@@ -90,107 +103,88 @@ window.addEventListener('mousemove', (evt) => {
     }, 50);
 }, false);
 
-// touch input
-const hammer = new Hammer(document.body);
-hammer.get('pan').set({
-    direction: Hammer.DIRECTION_ALL
-});
+if (Utils.isMobile()) {
+    // touch mouse input
+    const lookDiv = Utils.addElement('div', 'look-div');
+    const look = new Hammer(lookDiv);
+    look.get('pan').set({
+        direction: Hammer.DIRECTION_ALL
+    });
+    look.on('panmove panend', (ev) => {
+        cursorMovement = {
+            x: 0,
+            y: 0
+        };
+        if (ev.type === 'panmove') {
+            cursorMovement = {
+                x: ev.velocityX * 100,
+                y: ev.velocityY * 100
+            };
+        }
+    });
 
-// WASD input with virtual joystick
-let leftUsed = false;
-const leftDiv = Utils.addElement('div', 'left-half');
-const move = nipplejs.create({
-    zone: leftDiv,
-    mode: 'static',
-    position: { left: '80px', bottom: '80px' },
-    color: 'white'
-});
-move.on('move', (evt, data) => {
-    leftUsed = true;
-    if (data.angle && data.distance && data.distance > 20) {
+    // WASD input with virtual joystick
+    const moveDiv = Utils.addElement('div', 'move-div');
+    const move = nipplejs.create({
+        zone: moveDiv,
+        mode: 'static',
+        position: { left: '80px', bottom: '80px' },
+        color: 'white'
+    });
+    move.on('move', (evt, data) => {
+        if (data.angle && data.distance && data.distance > 20) {
+            delete pressed[Settings.forward];
+            delete pressed[Settings.backwards];
+            delete pressed[Settings.left];
+            delete pressed[Settings.right];
+            const a = data.angle.degree;
+
+            if ((a >= 337.5 && a < 360) || (a >= 0 && a < 22.5)) {
+                pressed[Settings.right] = true;
+            }
+
+            if (a >= 22.5 && a < 67.5) {
+                pressed[Settings.right] = true;
+                pressed[Settings.forward] = true;
+            }
+
+            if (a >= 67.5 && a < 112.5) {
+                pressed[Settings.forward] = true;
+            }
+
+            if (a >= 112.5 && a < 157.5) {
+                pressed[Settings.forward] = true;
+                pressed[Settings.left] = true;
+            }
+
+            if (a >= 157.5 && a < 202.5) {
+                pressed[Settings.left] = true;
+            }
+
+            if (a >= 202.5 && a < 247.5) {
+                pressed[Settings.left] = true;
+                pressed[Settings.backwards] = true;
+            }
+
+            if (a >= 247.5 && a < 292.5) {
+                pressed[Settings.backwards] = true;
+            }
+
+            if (a >= 292.5 && a < 337.5) {
+                pressed[Settings.backwards] = true;
+                pressed[Settings.right] = true;
+            }
+        }
+    }).on('end', () => {
         delete pressed[Settings.forward];
         delete pressed[Settings.backwards];
         delete pressed[Settings.left];
         delete pressed[Settings.right];
-        const a = data.angle.degree;
-
-        if ((a >= 337.5 && a < 360) || (a >= 0 && a < 22.5)) {
-            pressed[Settings.right] = true;
-        }
-
-        if (a >= 22.5 && a < 67.5) {
-            pressed[Settings.right] = true;
-            pressed[Settings.forward] = true;
-        }
-
-        if (a >= 67.5 && a < 112.5) {
-            pressed[Settings.forward] = true;
-        }
-
-        if (a >= 112.5 && a < 157.5) {
-            pressed[Settings.forward] = true;
-            pressed[Settings.left] = true;
-        }
-
-        if (a >= 157.5 && a < 202.5) {
-            pressed[Settings.left] = true;
-        }
-
-        if (a >= 202.5 && a < 247.5) {
-            pressed[Settings.left] = true;
-            pressed[Settings.backwards] = true;
-        }
-
-        if (a >= 247.5 && a < 292.5) {
-            pressed[Settings.backwards] = true;
-        }
-
-        if (a >= 292.5 && a < 337.5) {
-            pressed[Settings.backwards] = true;
-            pressed[Settings.right] = true;
-        }
-    }
-}).on('end', () => {
-    leftUsed = false;
-    delete pressed[Settings.forward];
-    delete pressed[Settings.backwards];
-    delete pressed[Settings.left];
-    delete pressed[Settings.right];
-});
-
-// mouse input with virtual joystick
-let rightUsed = false;
-const rightDiv = Utils.addElement('div', 'right-half');
-const look = nipplejs.create({
-    zone: rightDiv,
-    mode: 'static',
-    position: { right: '80px', bottom: '80px' },
-    color: 'white'
-});
-look.on('move', (evt, data) => {
-    rightUsed = true;
-    if (data.distance && data.distance > 20) {
-        cursorMovement = {
-            x: (data.position.x - data.instance.position.x) / 2.5,
-            y: (data.position.y - data.instance.position.y) / 3.5
-        };
-    }
-}).on('end', () => {
-    rightUsed = false;
-    cursorMovement = {
-        x: 0,
-        y: 0
-    };
-});
-
-if (Utils.isMobile()) {
-    leftDiv.firstChild.classList.add('show-joystick');
-    rightDiv.firstChild.classList.add('show-joystick');
+    });
+    moveDiv.firstChild.classList.add('show-joystick');
 }
 
 const Input = {
-    touch: hammer,
-
     cursorMovement() {
         return cursorMovement;
     },
@@ -208,10 +202,6 @@ const Input = {
             document.body.classList.add('hide-cursor');
             Renderer.canvas.requestPointerLock();
         }
-    },
-
-    joysticksUsed() {
-        return rightUsed || leftUsed;
     },
 
     clearInputEvents() {
