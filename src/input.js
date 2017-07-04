@@ -2,6 +2,7 @@ import Hammer from 'hammerjs';
 import nipplejs from 'nipplejs';
 import Utils from './utils';
 import Renderer from './renderer';
+import Settings from './settings';
 
 Utils.addCSS(
     `
@@ -17,7 +18,6 @@ Utils.addCSS(
         margin: 0;
         padding: 0;
         position: absolute;
-        background-color: red;
         z-index : 50;
         visibility :hidden;
     }
@@ -30,7 +30,6 @@ Utils.addCSS(
         margin: 0;
         padding: 0;
         position: absolute;
-        background-color: blue;
         z-index : 50;
         visibility :hidden;
     }
@@ -74,33 +73,108 @@ window.addEventListener('keydown', (event) => {
     }
 }, false);
 
+let timeout;
 window.addEventListener('mousemove', (evt) => {
     cursorMovement = {
         x: evt.movementX,
         y: evt.movementY
     };
+    if (timeout !== undefined) {
+        window.clearTimeout(timeout);
+    }
+    timeout = window.setTimeout(() => {
+        cursorMovement = {
+            x: 0,
+            y: 0
+        };
+    }, 50);
 }, false);
 
+// touch input
 const hammer = new Hammer(document.body);
 hammer.get('pan').set({
     direction: Hammer.DIRECTION_ALL
 });
 
+// WASD input with virtual joystick
 const leftDiv = Utils.addElement('div', 'left-half');
-const rightDiv = Utils.addElement('div', 'right-half');
-
-nipplejs.create({
+const move = nipplejs.create({
     zone: leftDiv,
     mode: 'static',
-    position: { left: '75px', bottom: '75px' },
+    position: { left: '80px', bottom: '80px' },
     color: 'white'
 });
+move.on('move', (evt, data) => {
+    if (data.angle && data.distance && data.distance > 20) {
+        delete pressed[Settings.forward];
+        delete pressed[Settings.backwards];
+        delete pressed[Settings.left];
+        delete pressed[Settings.right];
+        const a = data.angle.degree;
 
-nipplejs.create({
+        if ((a >= 337.5 && a < 360) || (a >= 0 && a < 22.5)) {
+            pressed[Settings.right] = true;
+        }
+
+        if (a >= 22.5 && a < 67.5) {
+            pressed[Settings.right] = true;
+            pressed[Settings.forward] = true;
+        }
+
+        if (a >= 67.5 && a < 112.5) {
+            pressed[Settings.forward] = true;
+        }
+
+        if (a >= 112.5 && a < 157.5) {
+            pressed[Settings.forward] = true;
+            pressed[Settings.left] = true;
+        }
+
+        if (a >= 157.5 && a < 202.5) {
+            pressed[Settings.left] = true;
+        }
+
+        if (a >= 202.5 && a < 247.5) {
+            pressed[Settings.left] = true;
+            pressed[Settings.backwards] = true;
+        }
+
+        if (a >= 247.5 && a < 292.5) {
+            pressed[Settings.backwards] = true;
+        }
+
+        if (a >= 292.5 && a < 337.5) {
+            pressed[Settings.backwards] = true;
+            pressed[Settings.right] = true;
+        }
+    }
+}).on('end', () => {
+    delete pressed[Settings.forward];
+    delete pressed[Settings.backwards];
+    delete pressed[Settings.left];
+    delete pressed[Settings.right];
+});
+
+// mouse input with virtual joystick
+const rightDiv = Utils.addElement('div', 'right-half');
+const look = nipplejs.create({
     zone: rightDiv,
     mode: 'static',
-    position: { right: '75px', bottom: '75px' },
+    position: { right: '80px', bottom: '80px' },
     color: 'white'
+});
+look.on('move', (evt, data) => {
+    if (data.distance && data.distance > 20) {
+        cursorMovement = {
+            x: (data.position.x - data.instance.position.x) / 2.5,
+            y: (data.position.y - data.instance.position.y) / 3.5
+        };
+    }
+}).on('end', () => {
+    cursorMovement = {
+        x: 0,
+        y: 0
+    };
 });
 
 if (Utils.isMobile()) {
@@ -112,12 +186,7 @@ const Input = {
     touch: hammer,
 
     cursorMovement() {
-        const cm = cursorMovement;
-        cursorMovement = {
-            x: 0,
-            y: 0
-        };
-        return cm;
+        return cursorMovement;
     },
 
     toggleCursor(show) {

@@ -60,7 +60,7 @@
 /******/ 	__webpack_require__.p = "";
 /******/
 /******/ 	// Load entry module and return exports
-/******/ 	return __webpack_require__(__webpack_require__.s = 11);
+/******/ 	return __webpack_require__(__webpack_require__.s = 12);
 /******/ })
 /************************************************************************/
 /******/ ([
@@ -437,12 +437,12 @@ THE SOFTWARE. */
 // END HEADER
 
 exports.glMatrix = __webpack_require__(0);
-exports.mat2 = __webpack_require__(13);
-exports.mat2d = __webpack_require__(14);
+exports.mat2 = __webpack_require__(14);
+exports.mat2d = __webpack_require__(15);
 exports.mat3 = __webpack_require__(5);
-exports.mat4 = __webpack_require__(15);
-exports.quat = __webpack_require__(16);
-exports.vec2 = __webpack_require__(17);
+exports.mat4 = __webpack_require__(16);
+exports.quat = __webpack_require__(17);
+exports.vec2 = __webpack_require__(18);
 exports.vec3 = __webpack_require__(6);
 exports.vec4 = __webpack_require__(7);
 
@@ -2742,12 +2742,14 @@ const Camera = {
 
 "use strict";
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "a", function() { return Input; });
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0_hammerjs__ = __webpack_require__(24);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0_hammerjs__ = __webpack_require__(25);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_0_hammerjs___default = __webpack_require__.n(__WEBPACK_IMPORTED_MODULE_0_hammerjs__);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1_nipplejs__ = __webpack_require__(25);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1_nipplejs__ = __webpack_require__(26);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_1_nipplejs___default = __webpack_require__.n(__WEBPACK_IMPORTED_MODULE_1_nipplejs__);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_2__utils__ = __webpack_require__(1);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_3__renderer__ = __webpack_require__(2);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_4__settings__ = __webpack_require__(11);
+
 
 
 
@@ -2766,7 +2768,6 @@ __WEBPACK_IMPORTED_MODULE_2__utils__["a" /* default */].addCSS(`
         margin: 0;
         padding: 0;
         position: absolute;
-        background-color: red;
         z-index : 50;
         visibility :hidden;
     }
@@ -2779,7 +2780,6 @@ __WEBPACK_IMPORTED_MODULE_2__utils__["a" /* default */].addCSS(`
         margin: 0;
         padding: 0;
         position: absolute;
-        background-color: blue;
         z-index : 50;
         visibility :hidden;
     }
@@ -2822,33 +2822,108 @@ window.addEventListener('keydown', event => {
     }
 }, false);
 
+let timeout;
 window.addEventListener('mousemove', evt => {
     cursorMovement = {
         x: evt.movementX,
         y: evt.movementY
     };
+    if (timeout !== undefined) {
+        window.clearTimeout(timeout);
+    }
+    timeout = window.setTimeout(() => {
+        cursorMovement = {
+            x: 0,
+            y: 0
+        };
+    }, 50);
 }, false);
 
+// touch input
 const hammer = new __WEBPACK_IMPORTED_MODULE_0_hammerjs___default.a(document.body);
 hammer.get('pan').set({
     direction: __WEBPACK_IMPORTED_MODULE_0_hammerjs___default.a.DIRECTION_ALL
 });
 
+// WASD input with virtual joystick
 const leftDiv = __WEBPACK_IMPORTED_MODULE_2__utils__["a" /* default */].addElement('div', 'left-half');
-const rightDiv = __WEBPACK_IMPORTED_MODULE_2__utils__["a" /* default */].addElement('div', 'right-half');
-
-__WEBPACK_IMPORTED_MODULE_1_nipplejs___default.a.create({
+const move = __WEBPACK_IMPORTED_MODULE_1_nipplejs___default.a.create({
     zone: leftDiv,
     mode: 'static',
-    position: { left: '75px', bottom: '75px' },
+    position: { left: '80px', bottom: '80px' },
     color: 'white'
 });
+move.on('move', (evt, data) => {
+    if (data.angle && data.distance && data.distance > 20) {
+        delete pressed[__WEBPACK_IMPORTED_MODULE_4__settings__["a" /* default */].forward];
+        delete pressed[__WEBPACK_IMPORTED_MODULE_4__settings__["a" /* default */].backwards];
+        delete pressed[__WEBPACK_IMPORTED_MODULE_4__settings__["a" /* default */].left];
+        delete pressed[__WEBPACK_IMPORTED_MODULE_4__settings__["a" /* default */].right];
+        const a = data.angle.degree;
 
-__WEBPACK_IMPORTED_MODULE_1_nipplejs___default.a.create({
+        if (a >= 337.5 && a < 360 || a >= 0 && a < 22.5) {
+            pressed[__WEBPACK_IMPORTED_MODULE_4__settings__["a" /* default */].right] = true;
+        }
+
+        if (a >= 22.5 && a < 67.5) {
+            pressed[__WEBPACK_IMPORTED_MODULE_4__settings__["a" /* default */].right] = true;
+            pressed[__WEBPACK_IMPORTED_MODULE_4__settings__["a" /* default */].forward] = true;
+        }
+
+        if (a >= 67.5 && a < 112.5) {
+            pressed[__WEBPACK_IMPORTED_MODULE_4__settings__["a" /* default */].forward] = true;
+        }
+
+        if (a >= 112.5 && a < 157.5) {
+            pressed[__WEBPACK_IMPORTED_MODULE_4__settings__["a" /* default */].forward] = true;
+            pressed[__WEBPACK_IMPORTED_MODULE_4__settings__["a" /* default */].left] = true;
+        }
+
+        if (a >= 157.5 && a < 202.5) {
+            pressed[__WEBPACK_IMPORTED_MODULE_4__settings__["a" /* default */].left] = true;
+        }
+
+        if (a >= 202.5 && a < 247.5) {
+            pressed[__WEBPACK_IMPORTED_MODULE_4__settings__["a" /* default */].left] = true;
+            pressed[__WEBPACK_IMPORTED_MODULE_4__settings__["a" /* default */].backwards] = true;
+        }
+
+        if (a >= 247.5 && a < 292.5) {
+            pressed[__WEBPACK_IMPORTED_MODULE_4__settings__["a" /* default */].backwards] = true;
+        }
+
+        if (a >= 292.5 && a < 337.5) {
+            pressed[__WEBPACK_IMPORTED_MODULE_4__settings__["a" /* default */].backwards] = true;
+            pressed[__WEBPACK_IMPORTED_MODULE_4__settings__["a" /* default */].right] = true;
+        }
+    }
+}).on('end', () => {
+    delete pressed[__WEBPACK_IMPORTED_MODULE_4__settings__["a" /* default */].forward];
+    delete pressed[__WEBPACK_IMPORTED_MODULE_4__settings__["a" /* default */].backwards];
+    delete pressed[__WEBPACK_IMPORTED_MODULE_4__settings__["a" /* default */].left];
+    delete pressed[__WEBPACK_IMPORTED_MODULE_4__settings__["a" /* default */].right];
+});
+
+// mouse input with virtual joystick
+const rightDiv = __WEBPACK_IMPORTED_MODULE_2__utils__["a" /* default */].addElement('div', 'right-half');
+const look = __WEBPACK_IMPORTED_MODULE_1_nipplejs___default.a.create({
     zone: rightDiv,
     mode: 'static',
-    position: { right: '75px', bottom: '75px' },
+    position: { right: '80px', bottom: '80px' },
     color: 'white'
+});
+look.on('move', (evt, data) => {
+    if (data.distance && data.distance > 20) {
+        cursorMovement = {
+            x: (data.position.x - data.instance.position.x) / 2.5,
+            y: (data.position.y - data.instance.position.y) / 3.5
+        };
+    }
+}).on('end', () => {
+    cursorMovement = {
+        x: 0,
+        y: 0
+    };
 });
 
 if (__WEBPACK_IMPORTED_MODULE_2__utils__["a" /* default */].isMobile()) {
@@ -2860,12 +2935,7 @@ const Input = {
     touch: hammer,
 
     cursorMovement() {
-        const cm = cursorMovement;
-        cursorMovement = {
-            x: 0,
-            y: 0
-        };
-        return cm;
+        return cursorMovement;
     },
 
     toggleCursor(show) {
@@ -2917,13 +2987,28 @@ const Input = {
 
 /***/ }),
 /* 11 */
-/***/ (function(module, exports, __webpack_require__) {
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
 
-module.exports = __webpack_require__(12);
+"use strict";
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "a", function() { return Settings; });
+const Settings = {
+    forward: 87,
+    backwards: 83,
+    left: 65,
+    right: 68
+};
+
 
 
 /***/ }),
 /* 12 */
+/***/ (function(module, exports, __webpack_require__) {
+
+module.exports = __webpack_require__(13);
+
+
+/***/ }),
+/* 13 */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
@@ -2931,10 +3016,10 @@ Object.defineProperty(__webpack_exports__, "__esModule", { value: true });
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_0_gl_matrix__ = __webpack_require__(4);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_0_gl_matrix___default = __webpack_require__.n(__WEBPACK_IMPORTED_MODULE_0_gl_matrix__);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__utils__ = __webpack_require__(1);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_2__resources__ = __webpack_require__(18);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_2__resources__ = __webpack_require__(19);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_3__stats__ = __webpack_require__(8);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_4__camera__ = __webpack_require__(9);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_5__controls__ = __webpack_require__(23);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_5__controls__ = __webpack_require__(24);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_6__renderer__ = __webpack_require__(2);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_7__console__ = __webpack_require__(3);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_8__input__ = __webpack_require__(10);
@@ -2976,16 +3061,20 @@ if (__WEBPACK_IMPORTED_MODULE_1__utils__["a" /* default */].isMobile()) {
 }
 
 __WEBPACK_IMPORTED_MODULE_2__resources__["a" /* default */].load({
-    statue: 'resources/statue.obj',
-    texture: 'resources/statue.jpg',
+    statueModel: 'resources/statue.obj',
+    statueTex: 'resources/statue.jpg',
+    floorModel: 'resources/floor.obj',
+    floorTex: 'resources/floor.jpg',
     shader: 'resources/diffuse.shader'
 }, () => {
     let time;
     let frameTime = 0;
 
     const gl = __WEBPACK_IMPORTED_MODULE_6__renderer__["a" /* default */].gl;
-    const texture = __WEBPACK_IMPORTED_MODULE_2__resources__["a" /* default */].get('texture');
-    // const mesh = Resources.get('statue');
+    const statueTex = __WEBPACK_IMPORTED_MODULE_2__resources__["a" /* default */].get('statueTex');
+    const statueModel = __WEBPACK_IMPORTED_MODULE_2__resources__["a" /* default */].get('statueModel');
+    const floorTex = __WEBPACK_IMPORTED_MODULE_2__resources__["a" /* default */].get('floorTex');
+    const floorModel = __WEBPACK_IMPORTED_MODULE_2__resources__["a" /* default */].get('floorModel');
     const shader = __WEBPACK_IMPORTED_MODULE_2__resources__["a" /* default */].get('shader');
 
     __WEBPACK_IMPORTED_MODULE_4__camera__["a" /* default */].setProjection(45, 0.1, 1000);
@@ -2997,6 +3086,7 @@ __WEBPACK_IMPORTED_MODULE_2__resources__["a" /* default */].load({
 
     __WEBPACK_IMPORTED_MODULE_0_gl_matrix__["mat4"].identity(matIdentity);
     __WEBPACK_IMPORTED_MODULE_0_gl_matrix__["mat4"].identity(matModel);
+    __WEBPACK_IMPORTED_MODULE_0_gl_matrix__["mat4"].rotate(matModel, matIdentity, __WEBPACK_IMPORTED_MODULE_0_gl_matrix__["glMatrix"].toRadian(180), [0, 1, 0]);
 
     shader.bind();
     shader.setVec3('sun.direction', [3.0, 4.0, -2.0]);
@@ -3016,12 +3106,15 @@ __WEBPACK_IMPORTED_MODULE_2__resources__["a" /* default */].load({
         // render the frame
         gl.clear(gl.DEPTH_BUFFER_BIT || gl.COLOR_BUFFER_BIT);
 
+        // set shader data
         shader.setMat4('matWorld', matModel);
         shader.setMat4('matViewProj', __WEBPACK_IMPORTED_MODULE_4__camera__["a" /* default */].viewProjection);
 
-        texture.bind(gl.TEXTURE0);
-        // mesh.render();
-        texture.unBind();
+        // render models
+        statueTex.bind(gl.TEXTURE0);
+        statueModel.render();
+        floorTex.bind(gl.TEXTURE0);
+        floorModel.render();
 
         // update stats
         __WEBPACK_IMPORTED_MODULE_3__stats__["a" /* default */].update(frameTime);
@@ -3033,7 +3126,7 @@ __WEBPACK_IMPORTED_MODULE_2__resources__["a" /* default */].load({
 });
 
 /***/ }),
-/* 13 */
+/* 14 */
 /***/ (function(module, exports, __webpack_require__) {
 
 /* Copyright (c) 2015, Brandon Jones, Colin MacKenzie IV.
@@ -3475,7 +3568,7 @@ module.exports = mat2;
 
 
 /***/ }),
-/* 14 */
+/* 15 */
 /***/ (function(module, exports, __webpack_require__) {
 
 /* Copyright (c) 2015, Brandon Jones, Colin MacKenzie IV.
@@ -3950,7 +4043,7 @@ module.exports = mat2d;
 
 
 /***/ }),
-/* 15 */
+/* 16 */
 /***/ (function(module, exports, __webpack_require__) {
 
 /* Copyright (c) 2015, Brandon Jones, Colin MacKenzie IV.
@@ -6092,7 +6185,7 @@ module.exports = mat4;
 
 
 /***/ }),
-/* 16 */
+/* 17 */
 /***/ (function(module, exports, __webpack_require__) {
 
 /* Copyright (c) 2015, Brandon Jones, Colin MacKenzie IV.
@@ -6698,7 +6791,7 @@ module.exports = quat;
 
 
 /***/ }),
-/* 17 */
+/* 18 */
 /***/ (function(module, exports, __webpack_require__) {
 
 /* Copyright (c) 2015, Brandon Jones, Colin MacKenzie IV.
@@ -7291,16 +7384,16 @@ module.exports = vec2;
 
 
 /***/ }),
-/* 18 */
+/* 19 */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "a", function() { return Resources; });
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__console__ = __webpack_require__(3);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__texture__ = __webpack_require__(19);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_2__mesh__ = __webpack_require__(20);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_3__shader__ = __webpack_require__(21);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_4__loading__ = __webpack_require__(22);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__texture__ = __webpack_require__(20);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_2__mesh__ = __webpack_require__(21);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_3__shader__ = __webpack_require__(22);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_4__loading__ = __webpack_require__(23);
 
 
 
@@ -7362,7 +7455,7 @@ const Resources = {
 
 
 /***/ }),
-/* 19 */
+/* 20 */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
@@ -7382,8 +7475,8 @@ class Texture {
         const image = new Image();
         image.onload = () => {
             gl.bindTexture(gl.TEXTURE_2D, t.texture);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT); // gl.CLAMP_TO_EDGE);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT); // gl.CLAMP_TO_EDGE);
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
             gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
@@ -7409,7 +7502,7 @@ class Texture {
 
 
 /***/ }),
-/* 20 */
+/* 21 */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
@@ -7561,7 +7654,7 @@ class Mesh {
 
 
 /***/ }),
-/* 21 */
+/* 22 */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
@@ -7646,7 +7739,7 @@ class Shader {
 
 
 /***/ }),
-/* 22 */
+/* 23 */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
@@ -7713,7 +7806,7 @@ const Loading = {
 
 
 /***/ }),
-/* 23 */
+/* 24 */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
@@ -7724,6 +7817,8 @@ const Loading = {
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_2__console__ = __webpack_require__(3);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_3__camera__ = __webpack_require__(9);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_4__stats__ = __webpack_require__(8);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_5__settings__ = __webpack_require__(11);
+
 
 
 
@@ -7784,25 +7879,25 @@ const Controls = {
         // movement
         let move = 0;
         let strafe = 0;
-        if (__WEBPACK_IMPORTED_MODULE_1__input__["a" /* default */].isDown(87)) {
+        if (__WEBPACK_IMPORTED_MODULE_1__input__["a" /* default */].isDown(__WEBPACK_IMPORTED_MODULE_5__settings__["a" /* default */].forward)) {
             move = move + 1;
         }
-        if (__WEBPACK_IMPORTED_MODULE_1__input__["a" /* default */].isDown(65)) {
+        if (__WEBPACK_IMPORTED_MODULE_1__input__["a" /* default */].isDown(__WEBPACK_IMPORTED_MODULE_5__settings__["a" /* default */].backwards)) {
+            move = move - 1;
+        }
+        if (__WEBPACK_IMPORTED_MODULE_1__input__["a" /* default */].isDown(__WEBPACK_IMPORTED_MODULE_5__settings__["a" /* default */].left)) {
             strafe = strafe - 1;
         }
-        if (__WEBPACK_IMPORTED_MODULE_1__input__["a" /* default */].isDown(68)) {
+        if (__WEBPACK_IMPORTED_MODULE_1__input__["a" /* default */].isDown(__WEBPACK_IMPORTED_MODULE_5__settings__["a" /* default */].right)) {
             strafe = strafe + 1;
-        }
-        if (__WEBPACK_IMPORTED_MODULE_1__input__["a" /* default */].isDown(83)) {
-            move = move - 1;
         }
 
         // calculate new position and view direction
         const v = __WEBPACK_IMPORTED_MODULE_0_gl_matrix__["vec3"].clone(__WEBPACK_IMPORTED_MODULE_3__camera__["a" /* default */].direction);
         v[1] = 0;
         __WEBPACK_IMPORTED_MODULE_0_gl_matrix__["vec3"].rotateY(v, v, [0, 0, 0], __WEBPACK_IMPORTED_MODULE_0_gl_matrix__["glMatrix"].toRadian(-90));
-        move = move * (ft * 7);
-        strafe = strafe * (ft * 7);
+        move = move * (ft * 5);
+        strafe = strafe * (ft * 5);
         __WEBPACK_IMPORTED_MODULE_3__camera__["a" /* default */].position[0] = __WEBPACK_IMPORTED_MODULE_3__camera__["a" /* default */].position[0] + __WEBPACK_IMPORTED_MODULE_3__camera__["a" /* default */].direction[0] * move + v[0] * strafe;
         __WEBPACK_IMPORTED_MODULE_3__camera__["a" /* default */].position[1] = __WEBPACK_IMPORTED_MODULE_3__camera__["a" /* default */].position[1] + __WEBPACK_IMPORTED_MODULE_3__camera__["a" /* default */].direction[1] * move + v[1] * strafe;
         __WEBPACK_IMPORTED_MODULE_3__camera__["a" /* default */].position[2] = __WEBPACK_IMPORTED_MODULE_3__camera__["a" /* default */].position[2] + __WEBPACK_IMPORTED_MODULE_3__camera__["a" /* default */].direction[2] * move + v[2] * strafe;
@@ -7812,7 +7907,7 @@ const Controls = {
 
 
 /***/ }),
-/* 24 */
+/* 25 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var __WEBPACK_AMD_DEFINE_RESULT__;/*! Hammer.JS - v2.0.7 - 2016-04-22
@@ -10462,7 +10557,7 @@ if (true) {
 
 
 /***/ }),
-/* 25 */
+/* 26 */
 /***/ (function(module, exports, __webpack_require__) {
 
 (function(f){if(true){module.exports=f()}else if(typeof define==="function"&&define.amd){define([],f)}else{var g;if(typeof window!=="undefined"){g=window}else if(typeof global!=="undefined"){g=global}else if(typeof self!=="undefined"){g=self}else{g=this}g.nipplejs = f()}})(function(){var define,module,exports;

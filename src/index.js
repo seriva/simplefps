@@ -1,4 +1,4 @@
-import { mat4 } from 'gl-matrix';
+import { glMatrix, mat4 } from 'gl-matrix';
 import Utils from './utils';
 import Resources from './resources';
 import Stats from './stats';
@@ -38,8 +38,10 @@ if (Utils.isMobile()) {
 }
 
 Resources.load({
-    statue: 'resources/statue.obj',
-    texture: 'resources/statue.jpg',
+    statueModel: 'resources/statue.obj',
+    statueTex: 'resources/statue.jpg',
+    floorModel: 'resources/floor.obj',
+    floorTex: 'resources/floor.jpg',
     shader: 'resources/diffuse.shader'
 },
     () => {
@@ -47,8 +49,10 @@ Resources.load({
         let frameTime = 0;
 
         const gl = Renderer.gl;
-        const texture = Resources.get('texture');
-        // const mesh = Resources.get('statue');
+        const statueTex = Resources.get('statueTex');
+        const statueModel = Resources.get('statueModel');
+        const floorTex = Resources.get('floorTex');
+        const floorModel = Resources.get('floorModel');
         const shader = Resources.get('shader');
 
         Camera.setProjection(45, 0.1, 1000);
@@ -60,6 +64,7 @@ Resources.load({
 
         mat4.identity(matIdentity);
         mat4.identity(matModel);
+        mat4.rotate(matModel, matIdentity, glMatrix.toRadian(180), [0, 1, 0]);
 
         shader.bind();
         shader.setVec3('sun.direction', [3.0, 4.0, -2.0]);
@@ -79,12 +84,15 @@ Resources.load({
             // render the frame
             gl.clear(gl.DEPTH_BUFFER_BIT || gl.COLOR_BUFFER_BIT);
 
+            // set shader data
             shader.setMat4('matWorld', matModel);
             shader.setMat4('matViewProj', Camera.viewProjection);
 
-            texture.bind(gl.TEXTURE0);
-            // mesh.render();
-            texture.unBind();
+            // render models
+            statueTex.bind(gl.TEXTURE0);
+            statueModel.render();
+            floorTex.bind(gl.TEXTURE0);
+            floorModel.render();
 
             // update stats
             Stats.update(frameTime);

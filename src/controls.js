@@ -3,6 +3,7 @@ import Input from './input';
 import Console from './console';
 import Camera from './camera';
 import Stats from './stats';
+import Settings from './settings';
 
 // console
 Input.addKeyDownEvent(192, () => {
@@ -50,25 +51,25 @@ const Controls = {
         // movement
         let move = 0;
         let strafe = 0;
-        if (Input.isDown(87)) {
+        if (Input.isDown(Settings.forward)) {
             move = move + 1;
         }
-        if (Input.isDown(65)) {
+        if (Input.isDown(Settings.backwards)) {
+            move = move - 1;
+        }
+        if (Input.isDown(Settings.left)) {
             strafe = strafe - 1;
         }
-        if (Input.isDown(68)) {
+        if (Input.isDown(Settings.right)) {
             strafe = strafe + 1;
-        }
-        if (Input.isDown(83)) {
-            move = move - 1;
         }
 
         // calculate new position and view direction
         const v = vec3.clone(Camera.direction);
         v[1] = 0;
         vec3.rotateY(v, v, [0, 0, 0], glMatrix.toRadian(-90));
-        move = move * (ft * 7);
-        strafe = strafe * (ft * 7);
+        move = move * (ft * 5);
+        strafe = strafe * (ft * 5);
         Camera.position[0] = Camera.position[0] + (Camera.direction[0] * move) + (v[0] * strafe);
         Camera.position[1] = Camera.position[1] + (Camera.direction[1] * move) + (v[1] * strafe);
         Camera.position[2] = Camera.position[2] + (Camera.direction[2] * move) + (v[2] * strafe);
