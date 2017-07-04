@@ -4,6 +4,7 @@ import Console from './console';
 import Camera from './camera';
 import Stats from './stats';
 import Settings from './settings';
+import Utils from './utils';
 
 // console
 Input.addKeyDownEvent(192, () => {
@@ -14,20 +15,34 @@ Input.addKeyDownEvent(192, () => {
 Input.addKeyDownEvent(13, () => {
     Console.execute();
 });
-Input.touch.on('panup pandown', (ev) => {
-    if (ev.distance > 175) {
-        if (ev.type === 'panup') {
-            Console.toggle(false);
-            Input.toggleCursor(false);
-            Stats.toggle(true);
+
+if (Utils.isMobile()) {
+    Input.touch.on('panup pandown', (ev) => {
+        if (ev.distance > 150 && !Input.joysticksUsed()) {
+            if (ev.type === 'panup') {
+                Console.toggle(false);
+                Input.toggleCursor(false);
+                Stats.toggle(true);
+            }
+            if (ev.type === 'pandown') {
+                Console.toggle(true);
+                Input.toggleCursor(true);
+                Stats.toggle(false);
+            }
         }
-        if (ev.type === 'pandown') {
-            Console.toggle(true);
-            Input.toggleCursor(true);
-            Stats.toggle(false);
+    });
+    document.addEventListener('deviceready', () => {
+        Console.log('Platform: ' + cordova.platformId);
+        if (cordova.platformId === 'android') {
+            window.addEventListener('native.keyboardhide', () => {
+                Fullscreen.on();
+                Console.toggle(false);
+                Input.toggleCursor(false);
+                Stats.toggle(true);
+            });
         }
-    }
-});
+    }, false);
+}
 
 // mouse and keyboard input
 const Controls = {

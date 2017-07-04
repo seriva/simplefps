@@ -97,6 +97,7 @@ hammer.get('pan').set({
 });
 
 // WASD input with virtual joystick
+let leftUsed = false;
 const leftDiv = Utils.addElement('div', 'left-half');
 const move = nipplejs.create({
     zone: leftDiv,
@@ -105,6 +106,7 @@ const move = nipplejs.create({
     color: 'white'
 });
 move.on('move', (evt, data) => {
+    leftUsed = true;
     if (data.angle && data.distance && data.distance > 20) {
         delete pressed[Settings.forward];
         delete pressed[Settings.backwards];
@@ -149,6 +151,7 @@ move.on('move', (evt, data) => {
         }
     }
 }).on('end', () => {
+    leftUsed = false;
     delete pressed[Settings.forward];
     delete pressed[Settings.backwards];
     delete pressed[Settings.left];
@@ -156,6 +159,7 @@ move.on('move', (evt, data) => {
 });
 
 // mouse input with virtual joystick
+let rightUsed = false;
 const rightDiv = Utils.addElement('div', 'right-half');
 const look = nipplejs.create({
     zone: rightDiv,
@@ -164,6 +168,7 @@ const look = nipplejs.create({
     color: 'white'
 });
 look.on('move', (evt, data) => {
+    rightUsed = true;
     if (data.distance && data.distance > 20) {
         cursorMovement = {
             x: (data.position.x - data.instance.position.x) / 2.5,
@@ -171,6 +176,7 @@ look.on('move', (evt, data) => {
         };
     }
 }).on('end', () => {
+    rightUsed = false;
     cursorMovement = {
         x: 0,
         y: 0
@@ -202,6 +208,10 @@ const Input = {
             document.body.classList.add('hide-cursor');
             Renderer.canvas.requestPointerLock();
         }
+    },
+
+    joysticksUsed() {
+        return rightUsed || leftUsed;
     },
 
     clearInputEvents() {

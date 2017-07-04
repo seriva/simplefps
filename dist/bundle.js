@@ -65,6 +65,61 @@
 /************************************************************************/
 /******/ ([
 /* 0 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "a", function() { return Utils; });
+const Utils = {
+    addCSS(styling) {
+        const css = document.createElement('style');
+        css.type = 'text/css';
+        css.appendChild(document.createTextNode(styling));
+        document.head.appendChild(css);
+    },
+
+    addElement(type, id) {
+        const el = document.createElement(type);
+        document.body.appendChild(el);
+        if (id) {
+            el.setAttribute('id', id);
+        }
+        return el;
+    },
+
+    isMobile() {
+        /* eslint-disable */
+        let check = false;
+        (function (a) {
+            if (/(android|bb\d+|meego).+mobile|avantgo|bada\/|blackberry|blazer|compal|elaine|fennec|hiptop|iemobile|ip(hone|od)|iris|kindle|lge |maemo|midp|mmp|mobile.+firefox|netfront|opera m(ob|in)i|palm( os)?|phone|p(ixi|re)\/|plucker|pocket|psp|series(4|6)0|symbian|treo|up\.(browser|link)|vodafone|wap|windows ce|xda|xiino|android|ipad|playbook|silk/i.test(a) || /1207|6310|6590|3gso|4thp|50[1-6]i|770s|802s|a wa|abac|ac(er|oo|s\-)|ai(ko|rn)|al(av|ca|co)|amoi|an(ex|ny|yw)|aptu|ar(ch|go)|as(te|us)|attw|au(di|\-m|r |s )|avan|be(ck|ll|nq)|bi(lb|rd)|bl(ac|az)|br(e|v)w|bumb|bw\-(n|u)|c55\/|capi|ccwa|cdm\-|cell|chtm|cldc|cmd\-|co(mp|nd)|craw|da(it|ll|ng)|dbte|dc\-s|devi|dica|dmob|do(c|p)o|ds(12|\-d)|el(49|ai)|em(l2|ul)|er(ic|k0)|esl8|ez([4-7]0|os|wa|ze)|fetc|fly(\-|_)|g1 u|g560|gene|gf\-5|g\-mo|go(\.w|od)|gr(ad|un)|haie|hcit|hd\-(m|p|t)|hei\-|hi(pt|ta)|hp( i|ip)|hs\-c|ht(c(\-| |_|a|g|p|s|t)|tp)|hu(aw|tc)|i\-(20|go|ma)|i230|iac( |\-|\/)|ibro|idea|ig01|ikom|im1k|inno|ipaq|iris|ja(t|v)a|jbro|jemu|jigs|kddi|keji|kgt( |\/)|klon|kpt |kwc\-|kyo(c|k)|le(no|xi)|lg( g|\/(k|l|u)|50|54|\-[a-w])|libw|lynx|m1\-w|m3ga|m50\/|ma(te|ui|xo)|mc(01|21|ca)|m\-cr|me(rc|ri)|mi(o8|oa|ts)|mmef|mo(01|02|bi|de|do|t(\-| |o|v)|zz)|mt(50|p1|v )|mwbp|mywa|n10[0-2]|n20[2-3]|n30(0|2)|n50(0|2|5)|n7(0(0|1)|10)|ne((c|m)\-|on|tf|wf|wg|wt)|nok(6|i)|nzph|o2im|op(ti|wv)|oran|owg1|p800|pan(a|d|t)|pdxg|pg(13|\-([1-8]|c))|phil|pire|pl(ay|uc)|pn\-2|po(ck|rt|se)|prox|psio|pt\-g|qa\-a|qc(07|12|21|32|60|\-[2-7]|i\-)|qtek|r380|r600|raks|rim9|ro(ve|zo)|s55\/|sa(ge|ma|mm|ms|ny|va)|sc(01|h\-|oo|p\-)|sdk\/|se(c(\-|0|1)|47|mc|nd|ri)|sgh\-|shar|sie(\-|m)|sk\-0|sl(45|id)|sm(al|ar|b3|it|t5)|so(ft|ny)|sp(01|h\-|v\-|v )|sy(01|mb)|t2(18|50)|t6(00|10|18)|ta(gt|lk)|tcl\-|tdg\-|tel(i|m)|tim\-|t\-mo|to(pl|sh)|ts(70|m\-|m3|m5)|tx\-9|up(\.b|g1|si)|utst|v400|v750|veri|vi(rg|te)|vk(40|5[0-3]|\-v)|vm40|voda|vulc|vx(52|53|60|61|70|80|81|83|85|98)|w3c(\-| )|webc|whit|wi(g |nc|nw)|wmlb|wonu|x700|yas\-|your|zeto|zte\-/i.test(a.substr(0, 4))) check = true;
+        })(navigator.userAgent || navigator.vendor || window.opera);
+        return check;
+        /* eslint-enable */
+    },
+
+    loadData(path, success, error) {
+        const xmlhttp = new XMLHttpRequest();
+        xmlhttp.onreadystatechange = () => {
+            if (xmlhttp.readyState === 4) {
+                if (xmlhttp.status === 200) {
+                    success(xmlhttp.responseText);
+                } else {
+                    error();
+                }
+            }
+        };
+        xmlhttp.open('GET', path, true);
+        xmlhttp.send();
+    },
+
+    dispatchEvent(event) {
+        window.dispatchEvent(new Event(event));
+    }
+};
+
+
+
+/***/ }),
+/* 1 */
 /***/ (function(module, exports) {
 
 /* Copyright (c) 2015, Brandon Jones, Colin MacKenzie IV.
@@ -140,67 +195,12 @@ module.exports = glMatrix;
 
 
 /***/ }),
-/* 1 */
-/***/ (function(module, __webpack_exports__, __webpack_require__) {
-
-"use strict";
-/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "a", function() { return Utils; });
-const Utils = {
-    addCSS(styling) {
-        const css = document.createElement('style');
-        css.type = 'text/css';
-        css.appendChild(document.createTextNode(styling));
-        document.head.appendChild(css);
-    },
-
-    addElement(type, id) {
-        const el = document.createElement(type);
-        document.body.appendChild(el);
-        if (id) {
-            el.setAttribute('id', id);
-        }
-        return el;
-    },
-
-    isMobile() {
-        /* eslint-disable */
-        let check = false;
-        (function (a) {
-            if (/(android|bb\d+|meego).+mobile|avantgo|bada\/|blackberry|blazer|compal|elaine|fennec|hiptop|iemobile|ip(hone|od)|iris|kindle|lge |maemo|midp|mmp|mobile.+firefox|netfront|opera m(ob|in)i|palm( os)?|phone|p(ixi|re)\/|plucker|pocket|psp|series(4|6)0|symbian|treo|up\.(browser|link)|vodafone|wap|windows ce|xda|xiino|android|ipad|playbook|silk/i.test(a) || /1207|6310|6590|3gso|4thp|50[1-6]i|770s|802s|a wa|abac|ac(er|oo|s\-)|ai(ko|rn)|al(av|ca|co)|amoi|an(ex|ny|yw)|aptu|ar(ch|go)|as(te|us)|attw|au(di|\-m|r |s )|avan|be(ck|ll|nq)|bi(lb|rd)|bl(ac|az)|br(e|v)w|bumb|bw\-(n|u)|c55\/|capi|ccwa|cdm\-|cell|chtm|cldc|cmd\-|co(mp|nd)|craw|da(it|ll|ng)|dbte|dc\-s|devi|dica|dmob|do(c|p)o|ds(12|\-d)|el(49|ai)|em(l2|ul)|er(ic|k0)|esl8|ez([4-7]0|os|wa|ze)|fetc|fly(\-|_)|g1 u|g560|gene|gf\-5|g\-mo|go(\.w|od)|gr(ad|un)|haie|hcit|hd\-(m|p|t)|hei\-|hi(pt|ta)|hp( i|ip)|hs\-c|ht(c(\-| |_|a|g|p|s|t)|tp)|hu(aw|tc)|i\-(20|go|ma)|i230|iac( |\-|\/)|ibro|idea|ig01|ikom|im1k|inno|ipaq|iris|ja(t|v)a|jbro|jemu|jigs|kddi|keji|kgt( |\/)|klon|kpt |kwc\-|kyo(c|k)|le(no|xi)|lg( g|\/(k|l|u)|50|54|\-[a-w])|libw|lynx|m1\-w|m3ga|m50\/|ma(te|ui|xo)|mc(01|21|ca)|m\-cr|me(rc|ri)|mi(o8|oa|ts)|mmef|mo(01|02|bi|de|do|t(\-| |o|v)|zz)|mt(50|p1|v )|mwbp|mywa|n10[0-2]|n20[2-3]|n30(0|2)|n50(0|2|5)|n7(0(0|1)|10)|ne((c|m)\-|on|tf|wf|wg|wt)|nok(6|i)|nzph|o2im|op(ti|wv)|oran|owg1|p800|pan(a|d|t)|pdxg|pg(13|\-([1-8]|c))|phil|pire|pl(ay|uc)|pn\-2|po(ck|rt|se)|prox|psio|pt\-g|qa\-a|qc(07|12|21|32|60|\-[2-7]|i\-)|qtek|r380|r600|raks|rim9|ro(ve|zo)|s55\/|sa(ge|ma|mm|ms|ny|va)|sc(01|h\-|oo|p\-)|sdk\/|se(c(\-|0|1)|47|mc|nd|ri)|sgh\-|shar|sie(\-|m)|sk\-0|sl(45|id)|sm(al|ar|b3|it|t5)|so(ft|ny)|sp(01|h\-|v\-|v )|sy(01|mb)|t2(18|50)|t6(00|10|18)|ta(gt|lk)|tcl\-|tdg\-|tel(i|m)|tim\-|t\-mo|to(pl|sh)|ts(70|m\-|m3|m5)|tx\-9|up(\.b|g1|si)|utst|v400|v750|veri|vi(rg|te)|vk(40|5[0-3]|\-v)|vm40|voda|vulc|vx(52|53|60|61|70|80|81|83|85|98)|w3c(\-| )|webc|whit|wi(g |nc|nw)|wmlb|wonu|x700|yas\-|your|zeto|zte\-/i.test(a.substr(0, 4))) check = true;
-        })(navigator.userAgent || navigator.vendor || window.opera);
-        return check;
-        /* eslint-enable */
-    },
-
-    loadData(path, success, error) {
-        const xmlhttp = new XMLHttpRequest();
-        xmlhttp.onreadystatechange = () => {
-            if (xmlhttp.readyState === 4) {
-                if (xmlhttp.status === 200) {
-                    success(xmlhttp.responseText);
-                } else {
-                    error();
-                }
-            }
-        };
-        xmlhttp.open('GET', path, true);
-        xmlhttp.send();
-    },
-
-    dispatchEvent(event) {
-        window.dispatchEvent(new Event(event));
-    }
-};
-
-
-
-/***/ }),
 /* 2 */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "a", function() { return Renderer; });
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__utils__ = __webpack_require__(1);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__utils__ = __webpack_require__(0);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__console__ = __webpack_require__(3);
 
 
@@ -259,7 +259,7 @@ const Renderer = {
 
 "use strict";
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "a", function() { return Console; });
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__utils__ = __webpack_require__(1);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__utils__ = __webpack_require__(0);
 
 
 let visible = false;
@@ -436,7 +436,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE. */
 // END HEADER
 
-exports.glMatrix = __webpack_require__(0);
+exports.glMatrix = __webpack_require__(1);
 exports.mat2 = __webpack_require__(14);
 exports.mat2d = __webpack_require__(15);
 exports.mat3 = __webpack_require__(5);
@@ -470,7 +470,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE. */
 
-var glMatrix = __webpack_require__(0);
+var glMatrix = __webpack_require__(1);
 
 /**
  * @class 3x3 Matrix
@@ -1222,7 +1222,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE. */
 
-var glMatrix = __webpack_require__(0);
+var glMatrix = __webpack_require__(1);
 
 /**
  * @class 3 Dimensional Vector
@@ -2005,7 +2005,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE. */
 
-var glMatrix = __webpack_require__(0);
+var glMatrix = __webpack_require__(1);
 
 /**
  * @class 4 Dimensional Vector
@@ -2602,7 +2602,7 @@ module.exports = vec4;
 
 "use strict";
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "a", function() { return Stats; });
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__utils__ = __webpack_require__(1);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__utils__ = __webpack_require__(0);
 
 
 let showStats = true;
@@ -2678,7 +2678,7 @@ const Stats = {
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_0_gl_matrix__ = __webpack_require__(4);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_0_gl_matrix___default = __webpack_require__.n(__WEBPACK_IMPORTED_MODULE_0_gl_matrix__);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__renderer__ = __webpack_require__(2);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_2__utils__ = __webpack_require__(1);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_2__utils__ = __webpack_require__(0);
 
 
 
@@ -2746,7 +2746,7 @@ const Camera = {
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_0_hammerjs___default = __webpack_require__.n(__WEBPACK_IMPORTED_MODULE_0_hammerjs__);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_1_nipplejs__ = __webpack_require__(26);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_1_nipplejs___default = __webpack_require__.n(__WEBPACK_IMPORTED_MODULE_1_nipplejs__);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_2__utils__ = __webpack_require__(1);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_2__utils__ = __webpack_require__(0);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_3__renderer__ = __webpack_require__(2);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_4__settings__ = __webpack_require__(11);
 
@@ -2846,6 +2846,7 @@ hammer.get('pan').set({
 });
 
 // WASD input with virtual joystick
+let leftUsed = false;
 const leftDiv = __WEBPACK_IMPORTED_MODULE_2__utils__["a" /* default */].addElement('div', 'left-half');
 const move = __WEBPACK_IMPORTED_MODULE_1_nipplejs___default.a.create({
     zone: leftDiv,
@@ -2854,6 +2855,7 @@ const move = __WEBPACK_IMPORTED_MODULE_1_nipplejs___default.a.create({
     color: 'white'
 });
 move.on('move', (evt, data) => {
+    leftUsed = true;
     if (data.angle && data.distance && data.distance > 20) {
         delete pressed[__WEBPACK_IMPORTED_MODULE_4__settings__["a" /* default */].forward];
         delete pressed[__WEBPACK_IMPORTED_MODULE_4__settings__["a" /* default */].backwards];
@@ -2898,6 +2900,7 @@ move.on('move', (evt, data) => {
         }
     }
 }).on('end', () => {
+    leftUsed = false;
     delete pressed[__WEBPACK_IMPORTED_MODULE_4__settings__["a" /* default */].forward];
     delete pressed[__WEBPACK_IMPORTED_MODULE_4__settings__["a" /* default */].backwards];
     delete pressed[__WEBPACK_IMPORTED_MODULE_4__settings__["a" /* default */].left];
@@ -2905,6 +2908,7 @@ move.on('move', (evt, data) => {
 });
 
 // mouse input with virtual joystick
+let rightUsed = false;
 const rightDiv = __WEBPACK_IMPORTED_MODULE_2__utils__["a" /* default */].addElement('div', 'right-half');
 const look = __WEBPACK_IMPORTED_MODULE_1_nipplejs___default.a.create({
     zone: rightDiv,
@@ -2913,6 +2917,7 @@ const look = __WEBPACK_IMPORTED_MODULE_1_nipplejs___default.a.create({
     color: 'white'
 });
 look.on('move', (evt, data) => {
+    rightUsed = true;
     if (data.distance && data.distance > 20) {
         cursorMovement = {
             x: (data.position.x - data.instance.position.x) / 2.5,
@@ -2920,6 +2925,7 @@ look.on('move', (evt, data) => {
         };
     }
 }).on('end', () => {
+    rightUsed = false;
     cursorMovement = {
         x: 0,
         y: 0
@@ -2951,6 +2957,10 @@ const Input = {
             document.body.classList.add('hide-cursor');
             __WEBPACK_IMPORTED_MODULE_3__renderer__["a" /* default */].canvas.requestPointerLock();
         }
+    },
+
+    joysticksUsed() {
+        return rightUsed || leftUsed;
     },
 
     clearInputEvents() {
@@ -3015,15 +3025,13 @@ module.exports = __webpack_require__(13);
 Object.defineProperty(__webpack_exports__, "__esModule", { value: true });
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_0_gl_matrix__ = __webpack_require__(4);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_0_gl_matrix___default = __webpack_require__.n(__WEBPACK_IMPORTED_MODULE_0_gl_matrix__);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__utils__ = __webpack_require__(1);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__utils__ = __webpack_require__(0);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_2__resources__ = __webpack_require__(19);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_3__stats__ = __webpack_require__(8);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_4__camera__ = __webpack_require__(9);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_5__controls__ = __webpack_require__(24);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_6__renderer__ = __webpack_require__(2);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_7__console__ = __webpack_require__(3);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_8__input__ = __webpack_require__(10);
-
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_7__input__ = __webpack_require__(10);
 
 
 
@@ -3049,17 +3057,6 @@ __WEBPACK_IMPORTED_MODULE_1__utils__["a" /* default */].addCSS(`
     }
     `);
 
-if (__WEBPACK_IMPORTED_MODULE_1__utils__["a" /* default */].isMobile()) {
-    document.addEventListener('deviceready', () => {
-        __WEBPACK_IMPORTED_MODULE_7__console__["a" /* default */].log('Platform: ' + cordova.platformId);
-        if (cordova.platformId === 'android') {
-            window.addEventListener('native.keyboardhide', () => {
-                AndroidFullScreen.immersiveMode();
-            });
-        }
-    }, false);
-}
-
 __WEBPACK_IMPORTED_MODULE_2__resources__["a" /* default */].load({
     statueModel: 'resources/statue.obj',
     statueTex: 'resources/statue.jpg',
@@ -3079,7 +3076,7 @@ __WEBPACK_IMPORTED_MODULE_2__resources__["a" /* default */].load({
 
     __WEBPACK_IMPORTED_MODULE_4__camera__["a" /* default */].setProjection(45, 0.1, 1000);
     __WEBPACK_IMPORTED_MODULE_4__camera__["a" /* default */].setPosition([0, 1, -5]);
-    __WEBPACK_IMPORTED_MODULE_8__input__["a" /* default */].toggleCursor(false);
+    __WEBPACK_IMPORTED_MODULE_7__input__["a" /* default */].toggleCursor(false);
 
     const matModel = __WEBPACK_IMPORTED_MODULE_0_gl_matrix__["mat4"].create();
     const matIdentity = __WEBPACK_IMPORTED_MODULE_0_gl_matrix__["mat4"].create();
@@ -3149,7 +3146,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE. */
 
-var glMatrix = __webpack_require__(0);
+var glMatrix = __webpack_require__(1);
 
 /**
  * @class 2x2 Matrix
@@ -3591,7 +3588,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE. */
 
-var glMatrix = __webpack_require__(0);
+var glMatrix = __webpack_require__(1);
 
 /**
  * @class 2x3 Matrix
@@ -4066,7 +4063,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE. */
 
-var glMatrix = __webpack_require__(0);
+var glMatrix = __webpack_require__(1);
 
 /**
  * @class 4x4 Matrix
@@ -6208,7 +6205,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE. */
 
-var glMatrix = __webpack_require__(0);
+var glMatrix = __webpack_require__(1);
 var mat3 = __webpack_require__(5);
 var vec3 = __webpack_require__(6);
 var vec4 = __webpack_require__(7);
@@ -6814,7 +6811,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE. */
 
-var glMatrix = __webpack_require__(0);
+var glMatrix = __webpack_require__(1);
 
 /**
  * @class 2 Dimensional Vector
@@ -7507,7 +7504,7 @@ class Texture {
 
 "use strict";
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "a", function() { return Mesh; });
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__utils__ = __webpack_require__(1);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__utils__ = __webpack_require__(0);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__renderer__ = __webpack_require__(2);
 
 
@@ -7659,7 +7656,7 @@ class Mesh {
 
 "use strict";
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "a", function() { return Shader; });
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__utils__ = __webpack_require__(1);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__utils__ = __webpack_require__(0);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__console__ = __webpack_require__(3);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_2__renderer__ = __webpack_require__(2);
 
@@ -7744,7 +7741,7 @@ class Shader {
 
 "use strict";
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "a", function() { return Loading; });
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__utils__ = __webpack_require__(1);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__utils__ = __webpack_require__(0);
 
 
 __WEBPACK_IMPORTED_MODULE_0__utils__["a" /* default */].addCSS(`
@@ -7818,6 +7815,8 @@ const Loading = {
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_3__camera__ = __webpack_require__(9);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_4__stats__ = __webpack_require__(8);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_5__settings__ = __webpack_require__(11);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_6__utils__ = __webpack_require__(0);
+
 
 
 
@@ -7834,20 +7833,34 @@ __WEBPACK_IMPORTED_MODULE_1__input__["a" /* default */].addKeyDownEvent(192, () 
 __WEBPACK_IMPORTED_MODULE_1__input__["a" /* default */].addKeyDownEvent(13, () => {
     __WEBPACK_IMPORTED_MODULE_2__console__["a" /* default */].execute();
 });
-__WEBPACK_IMPORTED_MODULE_1__input__["a" /* default */].touch.on('panup pandown', ev => {
-    if (ev.distance > 175) {
-        if (ev.type === 'panup') {
-            __WEBPACK_IMPORTED_MODULE_2__console__["a" /* default */].toggle(false);
-            __WEBPACK_IMPORTED_MODULE_1__input__["a" /* default */].toggleCursor(false);
-            __WEBPACK_IMPORTED_MODULE_4__stats__["a" /* default */].toggle(true);
+
+if (__WEBPACK_IMPORTED_MODULE_6__utils__["a" /* default */].isMobile()) {
+    __WEBPACK_IMPORTED_MODULE_1__input__["a" /* default */].touch.on('panup pandown', ev => {
+        if (ev.distance > 150 && !__WEBPACK_IMPORTED_MODULE_1__input__["a" /* default */].joysticksUsed()) {
+            if (ev.type === 'panup') {
+                __WEBPACK_IMPORTED_MODULE_2__console__["a" /* default */].toggle(false);
+                __WEBPACK_IMPORTED_MODULE_1__input__["a" /* default */].toggleCursor(false);
+                __WEBPACK_IMPORTED_MODULE_4__stats__["a" /* default */].toggle(true);
+            }
+            if (ev.type === 'pandown') {
+                __WEBPACK_IMPORTED_MODULE_2__console__["a" /* default */].toggle(true);
+                __WEBPACK_IMPORTED_MODULE_1__input__["a" /* default */].toggleCursor(true);
+                __WEBPACK_IMPORTED_MODULE_4__stats__["a" /* default */].toggle(false);
+            }
         }
-        if (ev.type === 'pandown') {
-            __WEBPACK_IMPORTED_MODULE_2__console__["a" /* default */].toggle(true);
-            __WEBPACK_IMPORTED_MODULE_1__input__["a" /* default */].toggleCursor(true);
-            __WEBPACK_IMPORTED_MODULE_4__stats__["a" /* default */].toggle(false);
+    });
+    document.addEventListener('deviceready', () => {
+        __WEBPACK_IMPORTED_MODULE_2__console__["a" /* default */].log('Platform: ' + cordova.platformId);
+        if (cordova.platformId === 'android') {
+            window.addEventListener('native.keyboardhide', () => {
+                Fullscreen.on();
+                __WEBPACK_IMPORTED_MODULE_2__console__["a" /* default */].toggle(false);
+                __WEBPACK_IMPORTED_MODULE_1__input__["a" /* default */].toggleCursor(false);
+                __WEBPACK_IMPORTED_MODULE_4__stats__["a" /* default */].toggle(true);
+            });
         }
-    }
-});
+    }, false);
+}
 
 // mouse and keyboard input
 const Controls = {

@@ -18,7 +18,8 @@
     "dev": "npm run build && parallelshell \"npm run server -- -v -b\" \"webpack --watch\"",
     "desktop:deploy": "npm run build && npm run nw .",
     "android:deploy": "npm run build && npm run cordova run android",
-    "android:build": "npm run build && npm run cordova -- build android --release"
+    "android:build-debug": "npm run build && npm run cordova -- build android --debug",
+    "android:build-release": "npm run build && npm run cordova -- build android --release"
   },
   "dependencies": {
     "gl-matrix": "^2.3.2",

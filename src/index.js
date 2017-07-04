@@ -5,7 +5,6 @@ import Stats from './stats';
 import Camera from './camera';
 import Controls from './controls';
 import Renderer from './renderer';
-import Console from './console';
 import Input from './input';
 
 Utils.addCSS(
@@ -25,17 +24,6 @@ Utils.addCSS(
     }
     `
 );
-
-if (Utils.isMobile()) {
-    document.addEventListener('deviceready', () => {
-        Console.log('Platform: ' + cordova.platformId);
-        if (cordova.platformId === 'android') {
-            window.addEventListener('native.keyboardhide', () => {
-                AndroidFullScreen.immersiveMode();
-            });
-        }
-    }, false);
-}
 
 Resources.load({
     statueModel: 'resources/statue.obj',

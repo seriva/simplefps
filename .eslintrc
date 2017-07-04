@@ -32,6 +32,7 @@
     "XMLHttpRequest": true,
     "AndroidFullScreen": true,
     "Event": true,
-    "KeyboardEvent": true
+    "KeyboardEvent": true,
+    "Fullscreen": true
   }
 }
