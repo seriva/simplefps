@@ -61,7 +61,6 @@ let pressed = {};
 let upevents = [];
 let downevents = [];
 let timeout;
-let consoleTouch;
 
 window.addEventListener('keyup', (event) => {
     delete pressed[event.keyCode];
