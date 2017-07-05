@@ -5,6 +5,7 @@ import Stats from './stats';
 import Camera from './camera';
 import Controls from './controls';
 import Renderer from './renderer';
+import Shaders from './shaders';
 import Input from './input';
 
 Utils.addCSS(
@@ -25,69 +26,70 @@ Utils.addCSS(
     `
 );
 
-Resources.load({
-    statueModel: 'resources/statue.obj',
-    statueTex: 'resources/statue.jpg',
-    floorModel: 'resources/floor.obj',
-    floorTex: 'resources/floor.jpg',
-    shader: 'resources/diffuse.shader'
-},
-    () => {
-        let time;
-        let frameTime = 0;
+const main = () => {
+    let time;
+    let frameTime = 0;
 
-        const gl = Renderer.gl;
-        const statueTex = Resources.get('statueTex');
-        const statueModel = Resources.get('statueModel');
-        const floorTex = Resources.get('floorTex');
-        const floorModel = Resources.get('floorModel');
-        const shader = Resources.get('shader');
+    const gl = Renderer.gl;
+    const statueTex = Resources.get('meshes/statue.jpg');
+    const statueModel = Resources.get('meshes/statue.obj');
+    const floorTex = Resources.get('meshes/floor.jpg');
+    const floorModel = Resources.get('meshes/floor.obj');
 
-        Camera.setProjection(45, 0.1, 1000);
-        Camera.setPosition([0, 1, -5]);
-        Input.toggleCursor(false);
+    Camera.setProjection(45, 0.1, 1000);
+    Camera.setPosition([0, 1, -5]);
+    Input.toggleCursor(false);
 
-        const matModel = mat4.create();
-        const matIdentity = mat4.create();
+    const matModel = mat4.create();
+    const matIdentity = mat4.create();
 
-        mat4.identity(matIdentity);
-        mat4.identity(matModel);
-        mat4.rotate(matModel, matIdentity, glMatrix.toRadian(180), [0, 1, 0]);
+    mat4.identity(matIdentity);
+    mat4.identity(matModel);
+    mat4.rotate(matModel, matIdentity, glMatrix.toRadian(180), [0, 1, 0]);
 
-        shader.bind();
-        shader.setVec3('sun.direction', [3.0, 4.0, -2.0]);
-        shader.setVec3('sun.ambient', [0.2, 0.2, 0.2]);
-        shader.setVec3('sun.diffuse', [0.9, 0.9, 0.9]);
+    Shaders.diffuse.bind();
+    Shaders.diffuse.setVec3('sun.direction', [3.0, 4.0, -2.0]);
+    Shaders.diffuse.setVec3('sun.ambient', [0.2, 0.2, 0.2]);
+    Shaders.diffuse.setVec3('sun.diffuse', [0.9, 0.9, 0.9]);
 
-        const loop = () => {
-            // timing
-            const now = performance.now();
-            frameTime = now - (time || now);
-            time = now;
+    const loop = () => {
+        // timing
+        const now = performance.now();
+        frameTime = now - (time || now);
+        time = now;
 
-            // update the camera
-            Controls.update(frameTime);
-            Camera.update();
+        // update the camera
+        Controls.update(frameTime);
+        Camera.update();
 
-            // render the frame
-            gl.clear(gl.DEPTH_BUFFER_BIT || gl.COLOR_BUFFER_BIT);
+        // render the frame
+        gl.clear(gl.DEPTH_BUFFER_BIT || gl.COLOR_BUFFER_BIT);
 
-            // set shader data
-            shader.setMat4('matWorld', matModel);
-            shader.setMat4('matViewProj', Camera.viewProjection);
+        // set shader data
+        Shaders.diffuse.setMat4('matWorld', matModel);
+        Shaders.diffuse.setMat4('matViewProj', Camera.viewProjection);
 
-            // render models
-            statueTex.bind(gl.TEXTURE0);
-            statueModel.render();
-            floorTex.bind(gl.TEXTURE0);
-            floorModel.render();
+        // render models
+        statueTex.bind(gl.TEXTURE0);
+        statueModel.render();
+        floorTex.bind(gl.TEXTURE0);
+        floorModel.render();
 
-            // update stats
-            Stats.update(frameTime);
+        // update stats
+        Stats.update(frameTime);
 
-            // restart the loop
-            window.requestAnimationFrame(loop);
-        };
+        // restart the loop
         window.requestAnimationFrame(loop);
-    }
+    };
+    window.requestAnimationFrame(loop);
+};
+
+Resources.load(
+    [
+        'meshes/statue.obj',
+        'meshes/statue.jpg',
+        'meshes/floor.obj',
+        'meshes/floor.jpg'
+    ],
+    main
 );
