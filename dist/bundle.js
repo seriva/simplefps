@@ -5544,7 +5544,7 @@ if (__WEBPACK_IMPORTED_MODULE_2__utils__["a" /* default */].isMobile()) {
     look.get('pan').set({
         direction: __WEBPACK_IMPORTED_MODULE_0_hammerjs___default.a.DIRECTION_ALL
     });
-    look.on('panmove panend', ev => {
+    look.on('panstart panmove panend', ev => {
         cursorMovement = {
             x: 0,
             y: 0
@@ -5558,18 +5558,18 @@ if (__WEBPACK_IMPORTED_MODULE_2__utils__["a" /* default */].isMobile()) {
                 setPointer(ev.pointers[0].clientX, ev.pointers[0].clientY);
             }
         }
-    });
-    lookDiv.addEventListener('touchstart', ev => {
-        if (ev.touches.length === 1) {
-            setPointer(ev.touches[0].pageX, ev.touches[0].pageY);
+        if (ev.type === 'panstart') {
+            if (ev.pointers && ev.pointers[0]) {
+                setPointer(ev.pointers[0].clientX, ev.pointers[0].clientY);
+            }
             virtualCursor.classList.add('virtual-cursor-fadein');
             virtualCursor.classList.remove('virtual-cursor-fadeout');
         }
-    }, false);
-    lookDiv.addEventListener('touchend', () => {
-        virtualCursor.classList.remove('virtual-cursor-fadein');
-        virtualCursor.classList.add('virtual-cursor-fadeout');
-    }, false);
+        if (ev.type === 'panend') {
+            virtualCursor.classList.remove('virtual-cursor-fadein');
+            virtualCursor.classList.add('virtual-cursor-fadeout');
+        }
+    });
 
     // WASD input with virtual joystick
     const moveDiv = __WEBPACK_IMPORTED_MODULE_2__utils__["a" /* default */].addElement('div', 'move-div');
