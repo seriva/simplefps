@@ -5410,6 +5410,37 @@ __WEBPACK_IMPORTED_MODULE_2__utils__["a" /* default */].addCSS(`
         cursor: none;
     }
 
+    #virtual-cursor {
+        position: absolute;
+        display: block;
+        width: 50px;
+        height: 50px;
+        marginLeft: -25px;
+        marginTop: -25px;
+        background: white;
+        opacity: 0;
+        border-radius: 50%;
+        z-index : 9999;
+    }
+
+    @-webkit-keyframes virtual-cursor-fadein {
+        from { opacity: 0; }
+        to   { opacity: 0.5; }
+    }
+
+    .virtual-cursor-fadein {
+        -webkit-animation: virtual-cursor-fadein .1s ease-in 1 forwards;
+    }
+
+    @-webkit-keyframes virtual-cursor-fadeout {
+        from { opacity: 0.5; }
+        to   { opacity: 0; }
+    }
+
+    .virtual-cursor-fadeout {
+        -webkit-animation: virtual-cursor-fadeout .1s ease-in 1 forwards;
+    }
+
     #move-div {
         width: 200px;
         height: calc(100% - 100px);
@@ -5503,8 +5534,13 @@ window.addEventListener('mousemove', evt => {
 
 if (__WEBPACK_IMPORTED_MODULE_2__utils__["a" /* default */].isMobile()) {
     // touch mouse input
+    const virtualCursor = __WEBPACK_IMPORTED_MODULE_2__utils__["a" /* default */].addElement('div', 'virtual-cursor');
     const lookDiv = __WEBPACK_IMPORTED_MODULE_2__utils__["a" /* default */].addElement('div', 'look-div');
     const look = new __WEBPACK_IMPORTED_MODULE_0_hammerjs___default.a(lookDiv);
+    const setPointer = (x, y) => {
+        virtualCursor.style.left = x - 25 + 'px';
+        virtualCursor.style.top = y - 25 + 'px';
+    };
     look.get('pan').set({
         direction: __WEBPACK_IMPORTED_MODULE_0_hammerjs___default.a.DIRECTION_ALL
     });
@@ -5515,11 +5551,25 @@ if (__WEBPACK_IMPORTED_MODULE_2__utils__["a" /* default */].isMobile()) {
         };
         if (ev.type === 'panmove') {
             cursorMovement = {
-                x: ev.velocityX * 100,
-                y: ev.velocityY * 100
+                x: ev.velocityX * 16 * __WEBPACK_IMPORTED_MODULE_4__settings__["a" /* default */].looksensitivity,
+                y: ev.velocityY * 16 * __WEBPACK_IMPORTED_MODULE_4__settings__["a" /* default */].looksensitivity
             };
+            if (ev.pointers && ev.pointers[0]) {
+                setPointer(ev.pointers[0].clientX, ev.pointers[0].clientY);
+            }
         }
     });
+    lookDiv.addEventListener('touchstart', ev => {
+        if (ev.touches.length === 1) {
+            setPointer(ev.touches[0].pageX, ev.touches[0].pageY);
+            virtualCursor.classList.add('virtual-cursor-fadein');
+            virtualCursor.classList.remove('virtual-cursor-fadeout');
+        }
+    }, false);
+    lookDiv.addEventListener('touchend', () => {
+        virtualCursor.classList.remove('virtual-cursor-fadein');
+        virtualCursor.classList.add('virtual-cursor-fadeout');
+    }, false);
 
     // WASD input with virtual joystick
     const moveDiv = __WEBPACK_IMPORTED_MODULE_2__utils__["a" /* default */].addElement('div', 'move-div');
@@ -5540,34 +5590,27 @@ if (__WEBPACK_IMPORTED_MODULE_2__utils__["a" /* default */].isMobile()) {
             if (a >= 337.5 && a < 360 || a >= 0 && a < 22.5) {
                 pressed[__WEBPACK_IMPORTED_MODULE_4__settings__["a" /* default */].right] = true;
             }
-
             if (a >= 22.5 && a < 67.5) {
                 pressed[__WEBPACK_IMPORTED_MODULE_4__settings__["a" /* default */].right] = true;
                 pressed[__WEBPACK_IMPORTED_MODULE_4__settings__["a" /* default */].forward] = true;
             }
-
             if (a >= 67.5 && a < 112.5) {
                 pressed[__WEBPACK_IMPORTED_MODULE_4__settings__["a" /* default */].forward] = true;
             }
-
             if (a >= 112.5 && a < 157.5) {
                 pressed[__WEBPACK_IMPORTED_MODULE_4__settings__["a" /* default */].forward] = true;
                 pressed[__WEBPACK_IMPORTED_MODULE_4__settings__["a" /* default */].left] = true;
             }
-
             if (a >= 157.5 && a < 202.5) {
                 pressed[__WEBPACK_IMPORTED_MODULE_4__settings__["a" /* default */].left] = true;
             }
-
             if (a >= 202.5 && a < 247.5) {
                 pressed[__WEBPACK_IMPORTED_MODULE_4__settings__["a" /* default */].left] = true;
                 pressed[__WEBPACK_IMPORTED_MODULE_4__settings__["a" /* default */].backwards] = true;
             }
-
             if (a >= 247.5 && a < 292.5) {
                 pressed[__WEBPACK_IMPORTED_MODULE_4__settings__["a" /* default */].backwards] = true;
             }
-
             if (a >= 292.5 && a < 337.5) {
                 pressed[__WEBPACK_IMPORTED_MODULE_4__settings__["a" /* default */].backwards] = true;
                 pressed[__WEBPACK_IMPORTED_MODULE_4__settings__["a" /* default */].right] = true;
@@ -5644,7 +5687,10 @@ const Settings = {
     forward: 87,
     backwards: 83,
     left: 65,
-    right: 68
+    right: 68,
+
+    movespeed: 5,
+    looksensitivity: 5
 };
 
 
@@ -10398,12 +10444,12 @@ __WEBPACK_IMPORTED_MODULE_0__utils__["a" /* default */].addCSS(`
 
     #logo { 
         position: fixed; 
-        width: 20%; 
-        height:20%; 
+        width: 30%; 
+        height:30%; 
         top: 50%; 
         left: 50%; 
         margin-top: -10%; 
-        margin-left: -10%; 
+        margin-left: -15%; 
         -webkit-animation:spin 3s linear infinite;
          z-index : 99999;
     }
@@ -10515,8 +10561,8 @@ const Controls = {
 
         // look
         const mpos = __WEBPACK_IMPORTED_MODULE_2__input__["a" /* default */].cursorMovement();
-        __WEBPACK_IMPORTED_MODULE_4__camera__["a" /* default */].rotation[0] = __WEBPACK_IMPORTED_MODULE_4__camera__["a" /* default */].rotation[0] - mpos.x / 10;
-        __WEBPACK_IMPORTED_MODULE_4__camera__["a" /* default */].rotation[1] = __WEBPACK_IMPORTED_MODULE_4__camera__["a" /* default */].rotation[1] + mpos.y / 10;
+        __WEBPACK_IMPORTED_MODULE_4__camera__["a" /* default */].rotation[0] = __WEBPACK_IMPORTED_MODULE_4__camera__["a" /* default */].rotation[0] - mpos.x / 33.0 * __WEBPACK_IMPORTED_MODULE_6__settings__["a" /* default */].looksensitivity;
+        __WEBPACK_IMPORTED_MODULE_4__camera__["a" /* default */].rotation[1] = __WEBPACK_IMPORTED_MODULE_4__camera__["a" /* default */].rotation[1] + mpos.y / 33.0 * __WEBPACK_IMPORTED_MODULE_6__settings__["a" /* default */].looksensitivity;
         if (__WEBPACK_IMPORTED_MODULE_4__camera__["a" /* default */].rotation[1] > 89) {
             __WEBPACK_IMPORTED_MODULE_4__camera__["a" /* default */].rotation[1] = 89;
         }
@@ -10555,8 +10601,8 @@ const Controls = {
         v[1] = 0;
         __WEBPACK_IMPORTED_MODULE_1_gl_matrix__["vec3"].rotateY(v, v, [0, 0, 0], __WEBPACK_IMPORTED_MODULE_1_gl_matrix__["glMatrix"].toRadian(-90));
         __WEBPACK_IMPORTED_MODULE_1_gl_matrix__["vec3"].normalize(v, v);
-        move = move * (ft * 5);
-        strafe = strafe * (ft * 5);
+        move = move * (ft * __WEBPACK_IMPORTED_MODULE_6__settings__["a" /* default */].movespeed);
+        strafe = strafe * (ft * __WEBPACK_IMPORTED_MODULE_6__settings__["a" /* default */].movespeed);
         __WEBPACK_IMPORTED_MODULE_4__camera__["a" /* default */].position[0] = __WEBPACK_IMPORTED_MODULE_4__camera__["a" /* default */].position[0] + __WEBPACK_IMPORTED_MODULE_4__camera__["a" /* default */].direction[0] * move + v[0] * strafe;
         __WEBPACK_IMPORTED_MODULE_4__camera__["a" /* default */].position[1] = __WEBPACK_IMPORTED_MODULE_4__camera__["a" /* default */].position[1] + __WEBPACK_IMPORTED_MODULE_4__camera__["a" /* default */].direction[1] * move + v[1] * strafe;
         __WEBPACK_IMPORTED_MODULE_4__camera__["a" /* default */].position[2] = __WEBPACK_IMPORTED_MODULE_4__camera__["a" /* default */].position[2] + __WEBPACK_IMPORTED_MODULE_4__camera__["a" /* default */].direction[2] * move + v[2] * strafe;

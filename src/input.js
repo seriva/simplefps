@@ -10,6 +10,37 @@ Utils.addCSS(
         cursor: none;
     }
 
+    #virtual-cursor {
+        position: absolute;
+        display: block;
+        width: 50px;
+        height: 50px;
+        marginLeft: -25px;
+        marginTop: -25px;
+        background: white;
+        opacity: 0;
+        border-radius: 50%;
+        z-index : 9999;
+    }
+
+    @-webkit-keyframes virtual-cursor-fadein {
+        from { opacity: 0; }
+        to   { opacity: 0.5; }
+    }
+
+    .virtual-cursor-fadein {
+        -webkit-animation: virtual-cursor-fadein .1s ease-in 1 forwards;
+    }
+
+    @-webkit-keyframes virtual-cursor-fadeout {
+        from { opacity: 0.5; }
+        to   { opacity: 0; }
+    }
+
+    .virtual-cursor-fadeout {
+        -webkit-animation: virtual-cursor-fadeout .1s ease-in 1 forwards;
+    }
+
     #move-div {
         width: 200px;
         height: calc(100% - 100px);
@@ -104,10 +135,15 @@ window.addEventListener('mousemove', (evt) => {
 
 if (Utils.isMobile()) {
     // touch mouse input
+    const virtualCursor = Utils.addElement('div', 'virtual-cursor');
     const lookDiv = Utils.addElement('div', 'look-div');
     const look = new Hammer(lookDiv);
+    const setPointer = (x, y) => {
+        virtualCursor.style.left = x-25+'px';
+        virtualCursor.style.top = y-25+'px';
+    };
     look.get('pan').set({
-        direction: Hammer.DIRECTION_ALL
+        direction: Hammer.DIRECTION_ALL,
     });
     look.on('panmove panend', (ev) => {
         cursorMovement = {
@@ -116,11 +152,25 @@ if (Utils.isMobile()) {
         };
         if (ev.type === 'panmove') {
             cursorMovement = {
-                x: ev.velocityX * 100,
-                y: ev.velocityY * 100
+                x: ev.velocityX * 16 * Settings.looksensitivity,
+                y: ev.velocityY * 16 * Settings.looksensitivity
             };
+            if (ev.pointers && ev.pointers[0]) {
+                setPointer(ev.pointers[0].clientX, ev.pointers[0].clientY);
+            }
         }
     });
+    lookDiv.addEventListener('touchstart', (ev) => {
+        if (ev.touches.length === 1) {
+            setPointer(ev.touches[0].pageX, ev.touches[0].pageY);
+            virtualCursor.classList.add('virtual-cursor-fadein');
+            virtualCursor.classList.remove('virtual-cursor-fadeout');
+        }
+    }, false);
+    lookDiv.addEventListener('touchend', () => {
+        virtualCursor.classList.remove('virtual-cursor-fadein');
+        virtualCursor.classList.add('virtual-cursor-fadeout');
+    }, false);
 
     // WASD input with virtual joystick
     const moveDiv = Utils.addElement('div', 'move-div');
@@ -141,34 +191,27 @@ if (Utils.isMobile()) {
             if ((a >= 337.5 && a < 360) || (a >= 0 && a < 22.5)) {
                 pressed[Settings.right] = true;
             }
-
             if (a >= 22.5 && a < 67.5) {
                 pressed[Settings.right] = true;
                 pressed[Settings.forward] = true;
             }
-
             if (a >= 67.5 && a < 112.5) {
                 pressed[Settings.forward] = true;
             }
-
             if (a >= 112.5 && a < 157.5) {
                 pressed[Settings.forward] = true;
                 pressed[Settings.left] = true;
             }
-
             if (a >= 157.5 && a < 202.5) {
                 pressed[Settings.left] = true;
             }
-
             if (a >= 202.5 && a < 247.5) {
                 pressed[Settings.left] = true;
                 pressed[Settings.backwards] = true;
             }
-
             if (a >= 247.5 && a < 292.5) {
                 pressed[Settings.backwards] = true;
             }
-
             if (a >= 292.5 && a < 337.5) {
                 pressed[Settings.backwards] = true;
                 pressed[Settings.right] = true;
