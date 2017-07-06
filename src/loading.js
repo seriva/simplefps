@@ -16,12 +16,12 @@ Utils.addCSS(
 
     #logo { 
         position: fixed; 
-        width: 200px; 
-        height:200px; 
+        width: 30%; 
+        height: 30%; 
         top: 50%; 
         left: 50%; 
-        margin-top: -100px; 
-        margin-left: -100px; 
+        margin-top: -15%; 
+        margin-left: -15%; 
         -webkit-animation:spin 3s linear infinite;
          z-index : 99999;
     }

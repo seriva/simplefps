@@ -20,7 +20,7 @@ Utils.addCSS(
         background: white;
         opacity: 0;
         border-radius: 50%;
-        z-index : 9999;
+        z-index : 25;
     }
 
     @-webkit-keyframes virtual-cursor-fadein {
@@ -137,14 +137,8 @@ if (Utils.isMobile()) {
     // touch mouse input
     const virtualCursor = Utils.addElement('div', 'virtual-cursor');
     const lookDiv = Utils.addElement('div', 'look-div');
-    const look = new Hammer(lookDiv);
-    const setPointer = (x, y) => {
-        virtualCursor.style.left = x-25+'px';
-        virtualCursor.style.top = y-25+'px';
-    };
-    look.get('pan').set({
-        direction: Hammer.DIRECTION_ALL,
-    });
+    const look = new Hammer(lookDiv, { touchAction: 'auto' });
+    look.get('pan').set({ direction: Hammer.DIRECTION_ALL });
     look.on('panstart panmove panend', (ev) => {
         cursorMovement = {
             x: 0,
@@ -156,13 +150,11 @@ if (Utils.isMobile()) {
                 y: ev.velocityY * 16 * Settings.looksensitivity
             };
             if (ev.pointers && ev.pointers[0]) {
-                setPointer(ev.pointers[0].clientX, ev.pointers[0].clientY);
+                virtualCursor.style.left = ev.pointers[0].clientX-25+'px';
+                virtualCursor.style.top = ev.pointers[0].clientY-25+'px';
             }
         }
         if (ev.type === 'panstart') {
-            if (ev.pointers && ev.pointers[0]) {
-                setPointer(ev.pointers[0].clientX, ev.pointers[0].clientY);
-            }
             virtualCursor.classList.add('virtual-cursor-fadein');
             virtualCursor.classList.remove('virtual-cursor-fadeout');
         }
@@ -187,7 +179,6 @@ if (Utils.isMobile()) {
             delete pressed[Settings.left];
             delete pressed[Settings.right];
             const a = data.angle.degree;
-
             if ((a >= 337.5 && a < 360) || (a >= 0 && a < 22.5)) {
                 pressed[Settings.right] = true;
             }
