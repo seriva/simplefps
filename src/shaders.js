@@ -111,6 +111,37 @@ const Shaders = {
             vec3 lightIntensity = sun.ambient + sun.diffuse * max(dot(fragNormal, normSunDir), 0.0);
             fragmentColor = vec4(texel.rgb * lightIntensity, texel.a);
         }`
+    ),
+    sky: new Shader(
+    `   #version 300 es
+        precision mediump float;
+
+        layout(location=0) in vec3 vertPosition;
+        layout(location=1) in vec2 vertTexCoord;
+
+        out vec2 fragTexCoord;
+
+        uniform mat4 matWorld;
+        uniform mat4 matViewProj;
+
+        void main()
+        {
+            fragTexCoord = vertTexCoord; 
+            gl_Position = matViewProj * matWorld * vec4(vertPosition, 1.0);
+        }`,
+    `   #version 300 es
+        precision mediump float;
+
+        in vec2 fragTexCoord;
+
+        out vec4 fragmentColor;
+
+        uniform sampler2D sampler;
+
+        void main()
+        {
+            fragmentColor = texture(sampler, fragTexCoord);
+        }`
     )
 };
 

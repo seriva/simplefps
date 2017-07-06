@@ -2,6 +2,7 @@ import Console from './console';
 import Texture from './texture';
 import Mesh from './mesh';
 import Loading from './loading';
+import Utils from './utils';
 
 let paths = [];
 const resources = {};
@@ -12,16 +13,20 @@ const Resources = {
         const re = /(?:\.([^.]+))?$/;
         this.addForLoading(p);
         let counter = 0;
+        let count = paths.length;
 
         Loading.toggle(true);
 
         const onSuccess = (path) => {
-            counter++;
             Console.log('Loaded "' + path + '"');
-            if (counter === paths.length) {
+            counter++;
+            count = paths.length;
+            if (counter === count) {
                 Loading.toggle(false);
                 paths = [];
                 afterLoading();
+            } else {
+                loadNext();
             }
         };
 
@@ -29,10 +34,10 @@ const Resources = {
             Console.log('Error loading "' + path + '"');
         };
 
-        paths.forEach((path) => {
+        const loadNext = () => {
+            const path = paths[counter];
             const fullpath = basepath + path;
             const ext = re.exec(path)[1];
-
             switch (ext) {
             case 'jpg':
                 resources[path] = new Texture(fullpath, onSuccess, onError);
@@ -40,10 +45,21 @@ const Resources = {
             case 'obj':
                 resources[path] = new Mesh(fullpath, onSuccess, onError);
                 break;
+            case 'list':
+                Utils.loadData(fullpath, (data) => {
+                    const obj = JSON.parse(data);
+                    this.addForLoading(obj.resources);
+                    onSuccess(fullpath);
+                }, () => {
+                    onError(fullpath);
+                });
+                break;
             default:
                 break;
             }
-        });
+        };
+
+        loadNext();
     },
 
     addForLoading(p) {

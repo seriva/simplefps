@@ -7,6 +7,7 @@ import Controls from './controls';
 import Renderer from './renderer';
 import Shaders from './shaders';
 import Input from './input';
+import Skybox from './skybox';
 
 Utils.addCSS(
     `
@@ -39,18 +40,20 @@ const main = () => {
     Camera.setProjection(45, 0.1, 1000);
     Camera.setPosition([0, 1, -5]);
     Input.toggleCursor(false);
+    Skybox.initTextures([
+        'skyboxes/1/front.jpg',
+        'skyboxes/1/back.jpg',
+        'skyboxes/1/top.jpg',
+        'skyboxes/1/bottom.jpg',
+        'skyboxes/1/right.jpg',
+        'skyboxes/1/left.jpg'
+    ]);
 
     const matModel = mat4.create();
     const matIdentity = mat4.create();
-
     mat4.identity(matIdentity);
     mat4.identity(matModel);
     mat4.rotate(matModel, matIdentity, glMatrix.toRadian(180), [0, 1, 0]);
-
-    Shaders.diffuse.bind();
-    Shaders.diffuse.setVec3('sun.direction', [3.0, 4.0, -2.0]);
-    Shaders.diffuse.setVec3('sun.ambient', [0.2, 0.2, 0.2]);
-    Shaders.diffuse.setVec3('sun.diffuse', [0.9, 0.9, 0.9]);
 
     const loop = () => {
         // timing
@@ -65,7 +68,14 @@ const main = () => {
         // render the frame
         gl.clear(gl.DEPTH_BUFFER_BIT || gl.COLOR_BUFFER_BIT);
 
-        // set shader data
+        // set diffuse shader
+        Skybox.render();
+
+        // set diffuse shader
+        Shaders.diffuse.bind();
+        Shaders.diffuse.setVec3('sun.direction', [-3.0, 4.0, -2.0]);
+        Shaders.diffuse.setVec3('sun.ambient', [0.2, 0.2, 0.2]);
+        Shaders.diffuse.setVec3('sun.diffuse', [0.9, 0.9, 0.9]);
         Shaders.diffuse.setMat4('matWorld', matModel);
         Shaders.diffuse.setMat4('matViewProj', Camera.viewProjection);
 
@@ -89,7 +99,8 @@ Resources.load(
         'meshes/statue.obj',
         'meshes/statue.jpg',
         'meshes/floor.obj',
-        'meshes/floor.jpg'
+        'meshes/floor.jpg',
+        'skyboxes/1/1.list'
     ],
     main
 );

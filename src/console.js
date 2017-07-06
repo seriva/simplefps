@@ -11,7 +11,6 @@ Utils.addCSS(
         column nowrap;
         line-height: 95%;
         border:1px solid #999;
-        border-bottom:1px solid #fff;
         background-color: #999;
         opacity: 0.75;
         z-index : 200;
@@ -35,6 +34,7 @@ Utils.addCSS(
         left: 0; width:100%;
         border:1px solid #999;
         border-bottom:2px solid #fff;
+        border-top:2px solid #fff;
         background-color: #999;
         opacity: 0.75;
         outline: none;

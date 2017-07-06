@@ -1,0 +1,10 @@
+{
+    "resources": [
+        "skyboxes/1/back.jpg",
+        "skyboxes/1/bottom.jpg",
+        "skyboxes/1/front.jpg",
+        "skyboxes/1/left.jpg",
+        "skyboxes/1/right.jpg",
+        "skyboxes/1/top.jpg"
+    ]
+}
