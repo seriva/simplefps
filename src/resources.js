@@ -40,10 +40,10 @@ const Resources = {
             const ext = re.exec(path)[1];
             switch (ext) {
             case 'jpg':
-                resources[path] = new Texture(fullpath, onSuccess, onError);
+                resources[path] = new Texture(fullpath, onSuccess, onError, this);
                 break;
             case 'obj':
-                resources[path] = new Mesh(fullpath, onSuccess, onError);
+                resources[path] = new Mesh(fullpath, onSuccess, onError, this);
                 break;
             case 'list':
                 Utils.loadData(fullpath, (data) => {

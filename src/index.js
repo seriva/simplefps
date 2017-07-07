@@ -32,15 +32,13 @@ const main = () => {
     let frameTime = 0;
 
     const gl = Renderer.gl;
-    const statueTex = Resources.get('meshes/statue.jpg');
     const statueModel = Resources.get('meshes/statue.obj');
-    const floorTex = Resources.get('meshes/floor.jpg');
     const floorModel = Resources.get('meshes/floor.obj');
 
     Camera.setProjection(45, 0.1, 1000);
     Camera.setPosition([0, 1, -5]);
     Input.toggleCursor(false);
-    Skybox.initTextures([
+    Skybox.setTextures([
         'skyboxes/1/front.jpg',
         'skyboxes/1/back.jpg',
         'skyboxes/1/top.jpg',
@@ -79,11 +77,9 @@ const main = () => {
         Shaders.diffuse.setMat4('matWorld', matModel);
         Shaders.diffuse.setMat4('matViewProj', Camera.viewProjection);
 
-        // render models
-        statueTex.bind(gl.TEXTURE0);
-        statueModel.render();
-        floorTex.bind(gl.TEXTURE0);
+        // render the models
         floorModel.render();
+        statueModel.render();
 
         // update stats
         Stats.update(frameTime);
@@ -96,10 +92,9 @@ const main = () => {
 
 Resources.load(
     [
+        'skyboxes/skybox.obj',
         'meshes/statue.obj',
-        'meshes/statue.jpg',
         'meshes/floor.obj',
-        'meshes/floor.jpg',
         'skyboxes/1/1.list'
     ],
     main

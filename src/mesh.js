@@ -4,28 +4,32 @@ import Renderer from './renderer';
 const gl = Renderer.gl;
 
 class Mesh {
-    constructor(path, onSuccess, onError) {
+    constructor(path, onSuccess, onError, resources) {
         const m = this;
         const p = path;
+        m.resources = resources;
 
         Utils.loadData(p,
             (data) => {
-                const verts = [];
-                const vertNormals = [];
-                const textures = [];
+                const vertices = [];
+                const normals = [];
+                const uvs = [];
                 const unpacked = {};
-                unpacked.verts = [];
-                unpacked.norms = [];
-                unpacked.textures = [];
+                unpacked.vertices = [];
+                unpacked.normals = [];
+                unpacked.uvs = [];
                 unpacked.hashindices = {};
                 unpacked.indices = [];
                 unpacked.index = 0;
                 const lines = data.split('\n');
+                let curIndexArray = 0;
 
                 const VERTEX_RE = /^v\s/;
                 const NORMAL_RE = /^vn\s/;
                 const TEXTURE_RE = /^vt\s/;
                 const FACE_RE = /^f\s/;
+                const MAT_RE = /^material\s/;
+
                 const WHITESPACE_RE = /\s+/;
 
                 for (let i = 0; i < lines.length; i++) {
@@ -34,11 +38,21 @@ class Mesh {
                     elements.shift();
 
                     if (VERTEX_RE.test(line)) {
-                        verts.push.apply(verts, elements);
+                        vertices.push.apply(vertices, elements);
+                    } else if (MAT_RE.test(line)) {
+                        const material = line.match(/(?:"[^"]*"|^[^"]*$)/)[0].replace(/"/g, '');
+                        if (material !== 'none') {
+                            m.resources.addForLoading(material);
+                        }
+                        unpacked.indices.push({
+                            material,
+                            array: []
+                        });
+                        curIndexArray = unpacked.indices.length-1;
                     } else if (NORMAL_RE.test(line)) {
-                        vertNormals.push.apply(vertNormals, elements);
+                        normals.push.apply(normals, elements);
                     } else if (TEXTURE_RE.test(line)) {
-                        textures.push.apply(textures, elements);
+                        uvs.push.apply(uvs, elements);
                     } else if (FACE_RE.test(line)) {
                         let quad = false;
                         for (let j = 0, eleLen = elements.length; j < eleLen; j++) {
@@ -47,42 +61,46 @@ class Mesh {
                                 quad = true;
                             }
                             if (elements[j] in unpacked.hashindices) {
-                                unpacked.indices.push(unpacked.hashindices[elements[j]]);
+                                unpacked.indices[curIndexArray].array.push(unpacked.hashindices[elements[j]]);
                             } else {
                                 const vertex = elements[j].split('/');
                                 // vertex position
-                                unpacked.verts.push(+verts[(vertex[0] - 1) * 3 + 0]);
-                                unpacked.verts.push(+verts[(vertex[0] - 1) * 3 + 1]);
-                                unpacked.verts.push(+verts[(vertex[0] - 1) * 3 + 2]);
+                                unpacked.vertices.push(+vertices[(vertex[0] - 1) * 3 + 0]);
+                                unpacked.vertices.push(+vertices[(vertex[0] - 1) * 3 + 1]);
+                                unpacked.vertices.push(+vertices[(vertex[0] - 1) * 3 + 2]);
                                 // vertex textures
-                                if (textures.length) {
-                                    unpacked.textures.push(+textures[(vertex[1] - 1) * 2 + 0]);
-                                    unpacked.textures.push(+textures[(vertex[1] - 1) * 2 + 1]);
+                                if (uvs.length) {
+                                    unpacked.uvs.push(+uvs[(vertex[1] - 1) * 2 + 0]);
+                                    unpacked.uvs.push(+uvs[(vertex[1] - 1) * 2 + 1]);
                                 }
                                 // vertex normals
-                                unpacked.norms.push(+vertNormals[(vertex[2] - 1) * 3 + 0]);
-                                unpacked.norms.push(+vertNormals[(vertex[2] - 1) * 3 + 1]);
-                                unpacked.norms.push(+vertNormals[(vertex[2] - 1) * 3 + 2]);
+                                unpacked.normals.push(+normals[(vertex[2] - 1) * 3 + 0]);
+                                unpacked.normals.push(+normals[(vertex[2] - 1) * 3 + 1]);
+                                unpacked.normals.push(+normals[(vertex[2] - 1) * 3 + 2]);
                                 // add the newly created vertex to the list of indices
                                 unpacked.hashindices[elements[j]] = unpacked.index;
-                                unpacked.indices.push(unpacked.index);
+                                unpacked.indices[curIndexArray].array.push(unpacked.index);
                                 // increment the counter
                                 unpacked.index += 1;
                             }
                             if (j === 3 && quad) {
                                 // add v0/t0/vn0 onto the second triangle
-                                unpacked.indices.push(unpacked.hashindices[elements[0]]);
+                                unpacked.indices[curIndexArray].array.push(unpacked.hashindices[elements[0]]);
                             }
                         }
                     }
                 }
-                m.vertices = unpacked.verts;
-                m.vertexNormals = unpacked.norms;
-                m.textures = unpacked.textures;
+
                 m.indices = unpacked.indices;
+                m.vertices = unpacked.vertices;
+                if (unpacked.uvs.length > 0) {
+                    m.uvs = unpacked.uvs;
+                }
+                if (unpacked.normals.length > 0) {
+                    m.normals = unpacked.normals;
+                }
 
                 m.initMeshBuffers();
-
                 onSuccess(p);
             },
             () => {
@@ -103,18 +121,30 @@ class Mesh {
 
     initMeshBuffers() {
         const m = this;
-        m.normalBuffer = m.buildBuffer(gl.ARRAY_BUFFER, m.vertexNormals, 3);
-        m.textureBuffer = m.buildBuffer(gl.ARRAY_BUFFER, m.textures, 2);
+        m.indices.forEach((indexObj) => {
+            indexObj.indexBuffer = m.buildBuffer(gl.ELEMENT_ARRAY_BUFFER, indexObj.array, 1);
+        });
         m.vertexBuffer = m.buildBuffer(gl.ARRAY_BUFFER, m.vertices, 3);
-        m.indexBuffer = m.buildBuffer(gl.ELEMENT_ARRAY_BUFFER, m.indices, 1);
+        if (m.uvs.length > 0) {
+            m.uvBuffer = m.buildBuffer(gl.ARRAY_BUFFER, m.uvs, 2);
+        }
+        if (m.normals.length > 0) {
+            m.normalBuffer = m.buildBuffer(gl.ARRAY_BUFFER, m.normals, 3);
+        }
     }
 
     deleteMeshBuffers() {
         const m = this;
-        gl.deleteBuffer(m.normalBuffer);
-        gl.deleteBuffer(m.textureBuffer);
+        m.indices.forEach((indexObj) => {
+            gl.deleteBuffer(indexObj.indexBuffer);
+        });
         gl.deleteBuffer(m.vertexBuffer);
-        gl.deleteBuffer(m.indexBuffer);
+        if (m.uvs.length > 0) {
+            gl.deleteBuffer(m.uvBuffer);
+        }
+        if (m.normals.length > 0) {
+            gl.deleteBuffer(m.normalBuffer);
+        }
     }
 
     render() {
@@ -123,24 +153,35 @@ class Mesh {
         gl.bindBuffer(gl.ARRAY_BUFFER, m.vertexBuffer);
         gl.vertexAttribPointer(0, m.vertexBuffer.itemSize, gl.FLOAT, false, 0, 0);
         gl.enableVertexAttribArray(0);
+        if (m.uvs.length > 0) {
+            gl.bindBuffer(gl.ARRAY_BUFFER, m.uvBuffer);
+            gl.vertexAttribPointer(1, m.uvBuffer.itemSize, gl.FLOAT, false, 0, 0);
+            gl.enableVertexAttribArray(1);
+        }
+        if (m.normals.length > 0) {
+            gl.bindBuffer(gl.ARRAY_BUFFER, m.normalBuffer);
+            gl.vertexAttribPointer(2, m.normalBuffer.itemSize, gl.FLOAT, false, 0, 0);
+            gl.enableVertexAttribArray(2);
+        }
 
-        gl.bindBuffer(gl.ARRAY_BUFFER, m.textureBuffer);
-        gl.vertexAttribPointer(1, m.textureBuffer.itemSize, gl.FLOAT, false, 0, 0);
-        gl.enableVertexAttribArray(1);
-
-        gl.bindBuffer(gl.ARRAY_BUFFER, m.normalBuffer);
-        gl.vertexAttribPointer(2, m.normalBuffer.itemSize, gl.FLOAT, false, 0, 0);
-        gl.enableVertexAttribArray(2);
-
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, m.indexBuffer);
-
-        gl.drawElements(gl.TRIANGLES, m.indexBuffer.numItems, gl.UNSIGNED_SHORT, 0);
+        m.indices.forEach((indexObj) => {
+            if (indexObj.material !== 'none') {
+                const mat = m.resources.get(indexObj.material);
+                mat.bind(gl.TEXTURE0);
+            }
+            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexObj.indexBuffer);
+            gl.drawElements(gl.TRIANGLES, indexObj.indexBuffer.numItems, gl.UNSIGNED_SHORT, 0);
+        });
 
         gl.bindBuffer(gl.ARRAY_BUFFER, null);
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
         gl.disableVertexAttribArray(0);
-        gl.disableVertexAttribArray(1);
-        gl.disableVertexAttribArray(2);
+        if (m.uvs.length > 0) {
+            gl.disableVertexAttribArray(1);
+        }
+        if (m.normals.length > 0) {
+            gl.disableVertexAttribArray(2);
+        }
     }
 }
 
