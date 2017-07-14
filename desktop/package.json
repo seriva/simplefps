@@ -4,8 +4,8 @@
   "chromium-args" : "--enable-unsafe-es3-apis",
   "version": "0.0.1",
   "window": {
-      "width": 800,
-      "height": 600,
+      "width": 1027,
+      "height": 768,
       "show": true,
       "frame": true,
       "resizable": true
