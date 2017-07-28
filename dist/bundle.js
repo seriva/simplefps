@@ -2689,67 +2689,70 @@ const resources = {};
 const basepath = 'resources/';
 
 const Resources = {
-    load(p, afterLoading) {
-        const re = /(?:\.([^.]+))?$/;
-        this.addForLoading(p);
-        let counter = 0;
-        let count = paths.length;
+    load(p) {
+        return new Promise(resolve => {
+            const re = /(?:\.([^.]+))?$/;
+            this.addForLoading(p);
+            let counter = 0;
+            let count = paths.length;
 
-        __WEBPACK_IMPORTED_MODULE_3__loading__["a" /* default */].toggle(true);
+            __WEBPACK_IMPORTED_MODULE_3__loading__["a" /* default */].toggle(true);
 
-        const onSuccess = path => {
-            __WEBPACK_IMPORTED_MODULE_0__console__["a" /* default */].log('Loaded "' + path + '"');
-            counter++;
-            count = paths.length;
-            if (counter === count) {
-                __WEBPACK_IMPORTED_MODULE_3__loading__["a" /* default */].toggle(false);
-                paths = [];
-                afterLoading();
-            } else {
-                loadNext();
-            }
-        };
+            const onSuccess = path => {
+                __WEBPACK_IMPORTED_MODULE_0__console__["a" /* default */].log('Loaded "' + path + '"');
+                counter++;
+                count = paths.length;
+                if (counter === count) {
+                    __WEBPACK_IMPORTED_MODULE_3__loading__["a" /* default */].toggle(false);
+                    paths = [];
+                    resolve();
+                } else {
+                    loadNext();
+                }
+            };
 
-        const onError = path => {
-            __WEBPACK_IMPORTED_MODULE_0__console__["a" /* default */].log('Error loading "' + path + '"');
-        };
+            const onError = path => {
+                __WEBPACK_IMPORTED_MODULE_0__console__["a" /* default */].log('Error loading "' + path + '"');
+            };
 
-        const loadNext = () => {
-            const path = paths[counter];
-            const fullpath = basepath + path;
-            const ext = re.exec(path)[1];
-            switch (ext) {
-                case 'jpg':
-                    new __WEBPACK_IMPORTED_MODULE_1__texture__["a" /* default */](fullpath).then(texture => {
-                        resources[path] = texture;
-                        onSuccess(path);
-                    }).catch(() => {
-                        onError(path);
-                    });
-                    break;
-                case 'obj':
-                    new __WEBPACK_IMPORTED_MODULE_2__mesh__["a" /* default */](fullpath, this).then(mesh => {
-                        resources[path] = mesh;
-                        onSuccess(path);
-                    }).catch(() => {
-                        onError(path);
-                    });
-                    break;
-                case 'list':
-                    __WEBPACK_IMPORTED_MODULE_4__utils__["a" /* default */].loadData(fullpath).then(data => {
-                        const obj = JSON.parse(data);
-                        this.addForLoading(obj.resources);
-                        onSuccess(fullpath);
-                    }).catch(() => {
-                        onError(path);
-                    });
-                    break;
-                default:
-                    break;
-            }
-        };
+            const loadNext = () => {
+                const path = paths[counter];
+                const fullpath = basepath + path;
+                const ext = re.exec(path)[1];
+                switch (ext) {
+                    case 'jpg':
+                        new __WEBPACK_IMPORTED_MODULE_1__texture__["a" /* default */](fullpath).then(texture => {
+                            resources[path] = texture;
+                            onSuccess(path);
+                        }).catch(() => {
+                            onError(path);
+                        });
+                        break;
+                    case 'obj':
+                        new __WEBPACK_IMPORTED_MODULE_2__mesh__["a" /* default */](fullpath, this).then(mesh => {
+                            resources[path] = mesh;
+                            onSuccess(path);
+                        }).catch(() => {
+                            onError(path);
+                        });
+                        break;
+                    case 'list':
+                        __WEBPACK_IMPORTED_MODULE_4__utils__["a" /* default */].loadData(fullpath).then(data => {
+                            const obj = JSON.parse(data);
+                            this.addForLoading(obj.resources);
+                            resources[path] = obj.resources;
+                            onSuccess(fullpath);
+                        }).catch(() => {
+                            onError(path);
+                        });
+                        break;
+                    default:
+                        break;
+                }
+            };
 
-        loadNext();
+            loadNext();
+        });
     },
 
     addForLoading(p) {
@@ -5966,20 +5969,6 @@ Object.defineProperty(__webpack_exports__, "__esModule", { value: true });
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_7__shaders__ = __webpack_require__(14);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_8__input__ = __webpack_require__(12);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_9__skybox__ = __webpack_require__(27);
-let add1 = (() => {
-    var _ref = _asyncToGenerator(function* (x) {
-        const a = yield resolveAfter2Seconds(20);
-        console.log(a);
-        const b = yield resolveAfter2Seconds(30);
-        console.log(b);
-        return x + a + b;
-    });
-
-    return function add1(_x) {
-        return _ref.apply(this, arguments);
-    };
-})();
-
 function _asyncToGenerator(fn) { return function () { var gen = fn.apply(this, arguments); return new Promise(function (resolve, reject) { function step(key, arg) { try { var info = gen[key](arg); var value = info.value; } catch (error) { reject(error); return; } if (info.done) { resolve(value); } else { return Promise.resolve(value).then(function (value) { step("next", value); }, function (err) { step("throw", err); }); } } return step("next"); }); }; }
 
 
@@ -6009,28 +5998,20 @@ __WEBPACK_IMPORTED_MODULE_1__utils__["a" /* default */].addCSS(`
     }
     `);
 
-function resolveAfter2Seconds(x) {
-    return new Promise(resolve => {
-        setTimeout(() => {
-            resolve(x);
-        }, 4000);
-    });
-}
+_asyncToGenerator(function* () {
+    yield __WEBPACK_IMPORTED_MODULE_2__resources__["a" /* default */].load(['skyboxes/skybox.obj', 'meshes/statue.obj', 'meshes/floor.obj', 'skyboxes/1/1.list']);
 
-console.log(add1(10));
-
-const main = () => {
     let time;
     let frameTime = 0;
 
     const gl = __WEBPACK_IMPORTED_MODULE_6__renderer__["a" /* default */].gl;
     const statueModel = __WEBPACK_IMPORTED_MODULE_2__resources__["a" /* default */].get('meshes/statue.obj');
     const floorModel = __WEBPACK_IMPORTED_MODULE_2__resources__["a" /* default */].get('meshes/floor.obj');
+    __WEBPACK_IMPORTED_MODULE_9__skybox__["a" /* default */].setTextures(__WEBPACK_IMPORTED_MODULE_2__resources__["a" /* default */].get('skyboxes/1/1.list'));
 
     __WEBPACK_IMPORTED_MODULE_4__camera__["a" /* default */].setProjection(45, 0.1, 1000);
     __WEBPACK_IMPORTED_MODULE_4__camera__["a" /* default */].setPosition([0, 1, -5]);
     __WEBPACK_IMPORTED_MODULE_8__input__["a" /* default */].toggleCursor(false);
-    __WEBPACK_IMPORTED_MODULE_9__skybox__["a" /* default */].setTextures(['skyboxes/1/front.jpg', 'skyboxes/1/back.jpg', 'skyboxes/1/top.jpg', 'skyboxes/1/bottom.jpg', 'skyboxes/1/right.jpg', 'skyboxes/1/left.jpg']);
 
     const matModel = __WEBPACK_IMPORTED_MODULE_0_gl_matrix__["mat4"].create();
     const matIdentity = __WEBPACK_IMPORTED_MODULE_0_gl_matrix__["mat4"].create();
@@ -6038,7 +6019,7 @@ const main = () => {
     __WEBPACK_IMPORTED_MODULE_0_gl_matrix__["mat4"].identity(matModel);
     __WEBPACK_IMPORTED_MODULE_0_gl_matrix__["mat4"].rotate(matModel, matIdentity, __WEBPACK_IMPORTED_MODULE_0_gl_matrix__["glMatrix"].toRadian(180), [0, 1, 0]);
 
-    const loop = () => {
+    const loop = function () {
         // timing
         const now = performance.now();
         frameTime = now - (time || now);
@@ -6073,9 +6054,7 @@ const main = () => {
         window.requestAnimationFrame(loop);
     };
     window.requestAnimationFrame(loop);
-};
-
-__WEBPACK_IMPORTED_MODULE_2__resources__["a" /* default */].load(['skyboxes/skybox.obj', 'meshes/statue.obj', 'meshes/floor.obj', 'skyboxes/1/1.list'], main);
+})();
 
 /***/ }),
 /* 17 */

@@ -27,43 +27,27 @@ Utils.addCSS(
     `
 );
 
-function resolveAfter2Seconds(x) {
-    return new Promise((resolve) => {
-        setTimeout(() => {
-            resolve(x);
-        }, 4000);
-    });
-}
+(async () => {
+    await Resources.load(
+        [
+            'skyboxes/skybox.obj',
+            'meshes/statue.obj',
+            'meshes/floor.obj',
+            'skyboxes/1/1.list'
+        ]
+    );
 
-async function add1(x) {
-    const a = await resolveAfter2Seconds(20);
-    console.log(a);
-    const b = await resolveAfter2Seconds(30);
-    console.log(b);
-    return x + a + b;
-}
-
-console.log(add1(10));
-
-const main = () => {
     let time;
     let frameTime = 0;
 
     const gl = Renderer.gl;
     const statueModel = Resources.get('meshes/statue.obj');
     const floorModel = Resources.get('meshes/floor.obj');
+    Skybox.setTextures(Resources.get('skyboxes/1/1.list'));
 
     Camera.setProjection(45, 0.1, 1000);
     Camera.setPosition([0, 1, -5]);
     Input.toggleCursor(false);
-    Skybox.setTextures([
-        'skyboxes/1/front.jpg',
-        'skyboxes/1/back.jpg',
-        'skyboxes/1/top.jpg',
-        'skyboxes/1/bottom.jpg',
-        'skyboxes/1/right.jpg',
-        'skyboxes/1/left.jpg'
-    ]);
 
     const matModel = mat4.create();
     const matIdentity = mat4.create();
@@ -106,14 +90,4 @@ const main = () => {
         window.requestAnimationFrame(loop);
     };
     window.requestAnimationFrame(loop);
-};
-
-Resources.load(
-    [
-        'skyboxes/skybox.obj',
-        'meshes/statue.obj',
-        'meshes/floor.obj',
-        'skyboxes/1/1.list'
-    ],
-    main
-);
+})();
