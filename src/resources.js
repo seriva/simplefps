@@ -40,18 +40,28 @@ const Resources = {
             const ext = re.exec(path)[1];
             switch (ext) {
             case 'jpg':
-                resources[path] = new Texture(fullpath, onSuccess, onError, this);
+                new Texture(fullpath).then((texture) => {
+                    resources[path] = texture;
+                    onSuccess(path);
+                }).catch(() => {
+                    onError(path);
+                });
                 break;
             case 'obj':
-                resources[path] = new Mesh(fullpath, onSuccess, onError, this);
+                new Mesh(fullpath, this).then((mesh) => {
+                    resources[path] = mesh;
+                    onSuccess(path);
+                }).catch(() => {
+                    onError(path);
+                });
                 break;
             case 'list':
-                Utils.loadData(fullpath, (data) => {
+                Utils.loadData(fullpath).then((data) => {
                     const obj = JSON.parse(data);
                     this.addForLoading(obj.resources);
                     onSuccess(fullpath);
-                }, () => {
-                    onError(fullpath);
+                }).catch(() => {
+                    onError(path);
                 });
                 break;
             default:

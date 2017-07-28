@@ -19,7 +19,6 @@ const Skydome = {
         for (let i = 0; i < 6; i++) {
             mesh.indices[i].material = tex[i];
         }
-        console.log(mesh.indices);
     },
 
     render() {

@@ -4,13 +4,13 @@ import Renderer from './renderer';
 const gl = Renderer.gl;
 
 class Mesh {
-    constructor(path, onSuccess, onError, resources) {
+    constructor(path, resources) {
         const m = this;
         const p = path;
         m.resources = resources;
 
-        Utils.loadData(p,
-            (data) => {
+        return new Promise((resolve, reject) => {
+            Utils.loadData(p).then((data) => {
                 const vertices = [];
                 const normals = [];
                 const uvs = [];
@@ -99,14 +99,12 @@ class Mesh {
                 if (unpacked.normals.length > 0) {
                     m.normals = unpacked.normals;
                 }
-
                 m.initMeshBuffers();
-                onSuccess(p);
-            },
-            () => {
-                onError(p);
-            }
-        );
+                resolve(this);
+            }).catch(() => {
+                reject();
+            });
+        });
     }
 
     buildBuffer(type, data, itemSize) {

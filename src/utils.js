@@ -25,19 +25,21 @@ const Utils = {
         /* eslint-enable */
     },
 
-    loadData(path, success, error) {
-        const xmlhttp = new XMLHttpRequest();
-        xmlhttp.onreadystatechange = () => {
-            if (xmlhttp.readyState === 4) {
-                if (xmlhttp.status === 200) {
-                    success(xmlhttp.responseText);
-                } else {
-                    error();
+    loadData(path) {
+        return new Promise((resolve, reject) => {
+            const xmlhttp = new XMLHttpRequest();
+            xmlhttp.onreadystatechange = () => {
+                if (xmlhttp.readyState === 4) {
+                    if (xmlhttp.status === 200) {
+                        resolve(xmlhttp.responseText);
+                    } else {
+                        reject();
+                    }
                 }
-            }
-        };
-        xmlhttp.open('GET', path, true);
-        xmlhttp.send();
+            };
+            xmlhttp.open('GET', path, true);
+            xmlhttp.send();
+        });
     },
 
     dispatchEvent(event) {

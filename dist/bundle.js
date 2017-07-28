@@ -96,19 +96,21 @@ const Utils = {
         /* eslint-enable */
     },
 
-    loadData(path, success, error) {
-        const xmlhttp = new XMLHttpRequest();
-        xmlhttp.onreadystatechange = () => {
-            if (xmlhttp.readyState === 4) {
-                if (xmlhttp.status === 200) {
-                    success(xmlhttp.responseText);
-                } else {
-                    error();
+    loadData(path) {
+        return new Promise((resolve, reject) => {
+            const xmlhttp = new XMLHttpRequest();
+            xmlhttp.onreadystatechange = () => {
+                if (xmlhttp.readyState === 4) {
+                    if (xmlhttp.status === 200) {
+                        resolve(xmlhttp.responseText);
+                    } else {
+                        reject();
+                    }
                 }
-            }
-        };
-        xmlhttp.open('GET', path, true);
-        xmlhttp.send();
+            };
+            xmlhttp.open('GET', path, true);
+            xmlhttp.send();
+        });
     },
 
     dispatchEvent(event) {
@@ -2718,18 +2720,28 @@ const Resources = {
             const ext = re.exec(path)[1];
             switch (ext) {
                 case 'jpg':
-                    resources[path] = new __WEBPACK_IMPORTED_MODULE_1__texture__["a" /* default */](fullpath, onSuccess, onError, this);
+                    new __WEBPACK_IMPORTED_MODULE_1__texture__["a" /* default */](fullpath).then(texture => {
+                        resources[path] = texture;
+                        onSuccess(path);
+                    }).catch(() => {
+                        onError(path);
+                    });
                     break;
                 case 'obj':
-                    resources[path] = new __WEBPACK_IMPORTED_MODULE_2__mesh__["a" /* default */](fullpath, onSuccess, onError, this);
+                    new __WEBPACK_IMPORTED_MODULE_2__mesh__["a" /* default */](fullpath, this).then(mesh => {
+                        resources[path] = mesh;
+                        onSuccess(path);
+                    }).catch(() => {
+                        onError(path);
+                    });
                     break;
                 case 'list':
-                    __WEBPACK_IMPORTED_MODULE_4__utils__["a" /* default */].loadData(fullpath, data => {
+                    __WEBPACK_IMPORTED_MODULE_4__utils__["a" /* default */].loadData(fullpath).then(data => {
                         const obj = JSON.parse(data);
                         this.addForLoading(obj.resources);
                         onSuccess(fullpath);
-                    }, () => {
-                        onError(fullpath);
+                    }).catch(() => {
+                        onError(path);
                     });
                     break;
                 default:
@@ -5954,6 +5966,22 @@ Object.defineProperty(__webpack_exports__, "__esModule", { value: true });
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_7__shaders__ = __webpack_require__(14);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_8__input__ = __webpack_require__(12);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_9__skybox__ = __webpack_require__(27);
+let add1 = (() => {
+    var _ref = _asyncToGenerator(function* (x) {
+        const a = yield resolveAfter2Seconds(20);
+        console.log(a);
+        const b = yield resolveAfter2Seconds(30);
+        console.log(b);
+        return x + a + b;
+    });
+
+    return function add1(_x) {
+        return _ref.apply(this, arguments);
+    };
+})();
+
+function _asyncToGenerator(fn) { return function () { var gen = fn.apply(this, arguments); return new Promise(function (resolve, reject) { function step(key, arg) { try { var info = gen[key](arg); var value = info.value; } catch (error) { reject(error); return; } if (info.done) { resolve(value); } else { return Promise.resolve(value).then(function (value) { step("next", value); }, function (err) { step("throw", err); }); } } return step("next"); }); }; }
+
 
 
 
@@ -5980,6 +6008,16 @@ __WEBPACK_IMPORTED_MODULE_1__utils__["a" /* default */].addCSS(`
         font-family: Consolas, monaco, monospace; font-weight: bold;
     }
     `);
+
+function resolveAfter2Seconds(x) {
+    return new Promise(resolve => {
+        setTimeout(() => {
+            resolve(x);
+        }, 4000);
+    });
+}
+
+console.log(add1(10));
 
 const main = () => {
     let time;
@@ -10309,26 +10347,30 @@ module.exports = vec2;
 const gl = __WEBPACK_IMPORTED_MODULE_0__renderer__["a" /* default */].gl;
 
 class Texture {
-    constructor(path, onSuccess, onError) {
+    constructor(path) {
         const t = this;
         const p = path;
 
         t.texture = gl.createTexture();
 
         const image = new Image();
-        image.onload = () => {
-            gl.bindTexture(gl.TEXTURE_2D, t.texture);
-            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_NEAREST);
-            gl.generateMipmap(gl.TEXTURE_2D);
-            gl.bindTexture(gl.TEXTURE_2D, null);
-            onSuccess(p);
-        };
-        image.onerror = () => {
-            onError(p);
-        };
-        image.src = p;
+
+        return new Promise((resolve, reject) => {
+            image.onload = () => {
+                gl.bindTexture(gl.TEXTURE_2D, t.texture);
+                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_NEAREST);
+                gl.generateMipmap(gl.TEXTURE_2D);
+                gl.bindTexture(gl.TEXTURE_2D, null);
+                resolve(this);
+            };
+
+            image.onerror = () => {
+                reject();
+            };
+            image.src = p;
+        });
     }
 
     bind(unit) {
@@ -10357,105 +10399,106 @@ class Texture {
 const gl = __WEBPACK_IMPORTED_MODULE_1__renderer__["a" /* default */].gl;
 
 class Mesh {
-    constructor(path, onSuccess, onError, resources) {
+    constructor(path, resources) {
         const m = this;
         const p = path;
         m.resources = resources;
 
-        __WEBPACK_IMPORTED_MODULE_0__utils__["a" /* default */].loadData(p, data => {
-            const vertices = [];
-            const normals = [];
-            const uvs = [];
-            const unpacked = {};
-            unpacked.vertices = [];
-            unpacked.normals = [];
-            unpacked.uvs = [];
-            unpacked.hashindices = {};
-            unpacked.indices = [];
-            unpacked.index = 0;
-            const lines = data.split('\n');
-            let curIndexArray = 0;
+        return new Promise((resolve, reject) => {
+            __WEBPACK_IMPORTED_MODULE_0__utils__["a" /* default */].loadData(p).then(data => {
+                const vertices = [];
+                const normals = [];
+                const uvs = [];
+                const unpacked = {};
+                unpacked.vertices = [];
+                unpacked.normals = [];
+                unpacked.uvs = [];
+                unpacked.hashindices = {};
+                unpacked.indices = [];
+                unpacked.index = 0;
+                const lines = data.split('\n');
+                let curIndexArray = 0;
 
-            const VERTEX_RE = /^v\s/;
-            const NORMAL_RE = /^vn\s/;
-            const TEXTURE_RE = /^vt\s/;
-            const FACE_RE = /^f\s/;
-            const MAT_RE = /^material\s/;
+                const VERTEX_RE = /^v\s/;
+                const NORMAL_RE = /^vn\s/;
+                const TEXTURE_RE = /^vt\s/;
+                const FACE_RE = /^f\s/;
+                const MAT_RE = /^material\s/;
 
-            const WHITESPACE_RE = /\s+/;
+                const WHITESPACE_RE = /\s+/;
 
-            for (let i = 0; i < lines.length; i++) {
-                const line = lines[i].trim();
-                const elements = line.split(WHITESPACE_RE);
-                elements.shift();
+                for (let i = 0; i < lines.length; i++) {
+                    const line = lines[i].trim();
+                    const elements = line.split(WHITESPACE_RE);
+                    elements.shift();
 
-                if (VERTEX_RE.test(line)) {
-                    vertices.push.apply(vertices, elements);
-                } else if (MAT_RE.test(line)) {
-                    const material = line.match(/(?:"[^"]*"|^[^"]*$)/)[0].replace(/"/g, '');
-                    if (material !== 'none') {
-                        m.resources.addForLoading(material);
-                    }
-                    unpacked.indices.push({
-                        material,
-                        array: []
-                    });
-                    curIndexArray = unpacked.indices.length - 1;
-                } else if (NORMAL_RE.test(line)) {
-                    normals.push.apply(normals, elements);
-                } else if (TEXTURE_RE.test(line)) {
-                    uvs.push.apply(uvs, elements);
-                } else if (FACE_RE.test(line)) {
-                    let quad = false;
-                    for (let j = 0, eleLen = elements.length; j < eleLen; j++) {
-                        if (j === 3 && !quad) {
-                            j = 2;
-                            quad = true;
+                    if (VERTEX_RE.test(line)) {
+                        vertices.push.apply(vertices, elements);
+                    } else if (MAT_RE.test(line)) {
+                        const material = line.match(/(?:"[^"]*"|^[^"]*$)/)[0].replace(/"/g, '');
+                        if (material !== 'none') {
+                            m.resources.addForLoading(material);
                         }
-                        if (elements[j] in unpacked.hashindices) {
-                            unpacked.indices[curIndexArray].array.push(unpacked.hashindices[elements[j]]);
-                        } else {
-                            const vertex = elements[j].split('/');
-                            // vertex position
-                            unpacked.vertices.push(+vertices[(vertex[0] - 1) * 3 + 0]);
-                            unpacked.vertices.push(+vertices[(vertex[0] - 1) * 3 + 1]);
-                            unpacked.vertices.push(+vertices[(vertex[0] - 1) * 3 + 2]);
-                            // vertex textures
-                            if (uvs.length) {
-                                unpacked.uvs.push(+uvs[(vertex[1] - 1) * 2 + 0]);
-                                unpacked.uvs.push(+uvs[(vertex[1] - 1) * 2 + 1]);
+                        unpacked.indices.push({
+                            material,
+                            array: []
+                        });
+                        curIndexArray = unpacked.indices.length - 1;
+                    } else if (NORMAL_RE.test(line)) {
+                        normals.push.apply(normals, elements);
+                    } else if (TEXTURE_RE.test(line)) {
+                        uvs.push.apply(uvs, elements);
+                    } else if (FACE_RE.test(line)) {
+                        let quad = false;
+                        for (let j = 0, eleLen = elements.length; j < eleLen; j++) {
+                            if (j === 3 && !quad) {
+                                j = 2;
+                                quad = true;
                             }
-                            // vertex normals
-                            unpacked.normals.push(+normals[(vertex[2] - 1) * 3 + 0]);
-                            unpacked.normals.push(+normals[(vertex[2] - 1) * 3 + 1]);
-                            unpacked.normals.push(+normals[(vertex[2] - 1) * 3 + 2]);
-                            // add the newly created vertex to the list of indices
-                            unpacked.hashindices[elements[j]] = unpacked.index;
-                            unpacked.indices[curIndexArray].array.push(unpacked.index);
-                            // increment the counter
-                            unpacked.index += 1;
-                        }
-                        if (j === 3 && quad) {
-                            // add v0/t0/vn0 onto the second triangle
-                            unpacked.indices[curIndexArray].array.push(unpacked.hashindices[elements[0]]);
+                            if (elements[j] in unpacked.hashindices) {
+                                unpacked.indices[curIndexArray].array.push(unpacked.hashindices[elements[j]]);
+                            } else {
+                                const vertex = elements[j].split('/');
+                                // vertex position
+                                unpacked.vertices.push(+vertices[(vertex[0] - 1) * 3 + 0]);
+                                unpacked.vertices.push(+vertices[(vertex[0] - 1) * 3 + 1]);
+                                unpacked.vertices.push(+vertices[(vertex[0] - 1) * 3 + 2]);
+                                // vertex textures
+                                if (uvs.length) {
+                                    unpacked.uvs.push(+uvs[(vertex[1] - 1) * 2 + 0]);
+                                    unpacked.uvs.push(+uvs[(vertex[1] - 1) * 2 + 1]);
+                                }
+                                // vertex normals
+                                unpacked.normals.push(+normals[(vertex[2] - 1) * 3 + 0]);
+                                unpacked.normals.push(+normals[(vertex[2] - 1) * 3 + 1]);
+                                unpacked.normals.push(+normals[(vertex[2] - 1) * 3 + 2]);
+                                // add the newly created vertex to the list of indices
+                                unpacked.hashindices[elements[j]] = unpacked.index;
+                                unpacked.indices[curIndexArray].array.push(unpacked.index);
+                                // increment the counter
+                                unpacked.index += 1;
+                            }
+                            if (j === 3 && quad) {
+                                // add v0/t0/vn0 onto the second triangle
+                                unpacked.indices[curIndexArray].array.push(unpacked.hashindices[elements[0]]);
+                            }
                         }
                     }
                 }
-            }
 
-            m.indices = unpacked.indices;
-            m.vertices = unpacked.vertices;
-            if (unpacked.uvs.length > 0) {
-                m.uvs = unpacked.uvs;
-            }
-            if (unpacked.normals.length > 0) {
-                m.normals = unpacked.normals;
-            }
-
-            m.initMeshBuffers();
-            onSuccess(p);
-        }, () => {
-            onError(p);
+                m.indices = unpacked.indices;
+                m.vertices = unpacked.vertices;
+                if (unpacked.uvs.length > 0) {
+                    m.uvs = unpacked.uvs;
+                }
+                if (unpacked.normals.length > 0) {
+                    m.normals = unpacked.normals;
+                }
+                m.initMeshBuffers();
+                resolve(this);
+            }).catch(() => {
+                reject();
+            });
         });
     }
 
@@ -12179,7 +12222,6 @@ const Skydome = {
         for (let i = 0; i < 6; i++) {
             mesh.indices[i].material = tex[i];
         }
-        console.log(mesh.indices);
     },
 
     render() {
