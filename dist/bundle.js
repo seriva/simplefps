@@ -2678,6 +2678,8 @@ module.exports = vec4;
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_2__mesh__ = __webpack_require__(23);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_3__loading__ = __webpack_require__(24);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_4__utils__ = __webpack_require__(0);
+function _asyncToGenerator(fn) { return function () { var gen = fn.apply(this, arguments); return new Promise(function (resolve, reject) { function step(key, arg) { try { var info = gen[key](arg); var value = info.value; } catch (error) { reject(error); return; } if (info.done) { resolve(value); } else { return Promise.resolve(value).then(function (value) { step("next", value); }, function (err) { step("throw", err); }); } } return step("next"); }); }; }
+
 
 
 
@@ -2690,66 +2692,57 @@ const basepath = 'resources/';
 
 const Resources = {
     load(p) {
+        var _this = this;
+
         return new Promise(resolve => {
             const re = /(?:\.([^.]+))?$/;
             this.addForLoading(p);
             let counter = 0;
-            let count = paths.length;
-
             __WEBPACK_IMPORTED_MODULE_3__loading__["a" /* default */].toggle(true);
 
-            const onSuccess = path => {
-                __WEBPACK_IMPORTED_MODULE_0__console__["a" /* default */].log('Loaded "' + path + '"');
-                counter++;
-                count = paths.length;
-                if (counter === count) {
-                    __WEBPACK_IMPORTED_MODULE_3__loading__["a" /* default */].toggle(false);
-                    paths = [];
-                    resolve();
-                } else {
-                    loadNext();
-                }
-            };
+            const loadNext = (() => {
+                var _ref = _asyncToGenerator(function* () {
+                    let resource = null;
+                    const path = paths[counter];
+                    const fullpath = basepath + path;
+                    const ext = re.exec(path)[1];
+                    try {
+                        switch (ext) {
+                            case 'jpg':
+                                resource = yield new __WEBPACK_IMPORTED_MODULE_1__texture__["a" /* default */](fullpath);
+                                break;
+                            case 'obj':
+                                resource = yield new __WEBPACK_IMPORTED_MODULE_2__mesh__["a" /* default */](fullpath, _this);
+                                break;
+                            case 'list':
+                                {
+                                    resource = JSON.parse((yield __WEBPACK_IMPORTED_MODULE_4__utils__["a" /* default */].loadData(fullpath))).resources;
+                                    _this.addForLoading(resource);
+                                    break;
+                                }
+                            default:
+                                break;
+                        }
 
-            const onError = path => {
-                __WEBPACK_IMPORTED_MODULE_0__console__["a" /* default */].log('Error loading "' + path + '"');
-            };
+                        __WEBPACK_IMPORTED_MODULE_0__console__["a" /* default */].log('Loaded "' + path + '"');
+                        resources[path] = resource;
+                        counter++;
+                        if (counter === paths.length) {
+                            __WEBPACK_IMPORTED_MODULE_3__loading__["a" /* default */].toggle(false);
+                            paths = [];
+                            resolve();
+                        } else {
+                            loadNext();
+                        }
+                    } catch (err) {
+                        __WEBPACK_IMPORTED_MODULE_0__console__["a" /* default */].log('Error loading "' + path + '": ' + err);
+                    }
+                });
 
-            const loadNext = () => {
-                const path = paths[counter];
-                const fullpath = basepath + path;
-                const ext = re.exec(path)[1];
-                switch (ext) {
-                    case 'jpg':
-                        new __WEBPACK_IMPORTED_MODULE_1__texture__["a" /* default */](fullpath).then(texture => {
-                            resources[path] = texture;
-                            onSuccess(path);
-                        }).catch(() => {
-                            onError(path);
-                        });
-                        break;
-                    case 'obj':
-                        new __WEBPACK_IMPORTED_MODULE_2__mesh__["a" /* default */](fullpath, this).then(mesh => {
-                            resources[path] = mesh;
-                            onSuccess(path);
-                        }).catch(() => {
-                            onError(path);
-                        });
-                        break;
-                    case 'list':
-                        __WEBPACK_IMPORTED_MODULE_4__utils__["a" /* default */].loadData(fullpath).then(data => {
-                            const obj = JSON.parse(data);
-                            this.addForLoading(obj.resources);
-                            resources[path] = obj.resources;
-                            onSuccess(fullpath);
-                        }).catch(() => {
-                            onError(path);
-                        });
-                        break;
-                    default:
-                        break;
-                }
-            };
+                return function loadNext() {
+                    return _ref.apply(this, arguments);
+                };
+            })();
 
             loadNext();
         });
