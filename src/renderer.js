@@ -28,7 +28,7 @@ if (!gl) {
 gl.clearColor(0.0, 0.0, 0.0, 1.0);
 gl.clearDepth(1.0);
 gl.enable(gl.DEPTH_TEST);
-gl.cullFace(gl.GL_FRONT);
+gl.cullFace(gl.BACK);
 gl.enable(gl.CULL_FACE);
 gl.depthFunc(gl.LEQUAL);
 
