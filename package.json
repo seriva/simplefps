@@ -9,13 +9,13 @@
     "url": "https://github.com/seriva/QDFPSJS.git"
   },
   "scripts": {
-    "postinstall": "webpack && copyfiles -u 1 \"dist/**/*.*\" \"mobile/www\" && npm run cordova -- prepare && copyfiles -u 1 \"mobile/xwalk-command-line\" \"mobile/platforms/android/assets/\"",
+    "postinstall": "npm run build && npm run cordova -- prepare && copyfiles -u 1 \"mobile/xwalk-command-line\" \"mobile/platforms/android/assets/\"",
     "postupdate": "npm run postinstall",
     "cordova": "cd mobile && cordova",
     "nwb": "nwb nwbuild",
     "server": "cd dist && reload",
-    "build": "webpack && copyfiles -u 1 \"dist/**/*.*\" \"desktop/www\" && copyfiles -u 1 \"dist/**/*.*\" \"mobile/www\"",
-    "dev": "npm run build && parallelshell \"npm run server -- -v -b\" \"webpack --watch\"",
+    "build": "rimraf dist/bundle.js.map && webpack --config=webpack.prod.js && copyfiles -u 1 \"dist/**/*.*\" \"desktop/www\" && copyfiles -u 1 \"dist/**/*.*\" \"mobile/www\"",
+    "dev": "parallelshell \"npm run server -- -v -b\" \"webpack --config=webpack.dev.js --watch\"",
     "desktop:deploy": "npm run build && npm run nwb -- -v v0.23.6 -r ./desktop/",
     "desktop:release-win": "npm run build && npm run nwb -- -v v0.23.6 -p win64 ./desktop/ -o ./build/",
     "desktop:release-mac": "npm run build && npm run nwb -- -v v0.23.6 -p osx64 ./desktop/ -o ./build/",
@@ -47,6 +47,8 @@
     "nwjs-builder": "^1.14.0",
     "parallelshell": "^2.0.0",
     "reload": "^1.0.2",
+    "rimraf": "^2.6.1",
+    "uglifyjs-webpack-plugin": "1.0.0-beta.2",
     "webpack": "3.0.0"
   }
 }
