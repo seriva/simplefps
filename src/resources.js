@@ -22,15 +22,16 @@ const Resources = {
                 const fullpath = basepath + path;
                 const ext = re.exec(path)[1];
                 try {
+                    const response = await Utils.loadData(fullpath);
                     switch (ext) {
                     case 'jpg':
-                        resource = await new Texture(fullpath);
+                        resource = new Texture(response);
                         break;
                     case 'obj':
-                        resource = await new Mesh(fullpath, this);
+                        resource = new Mesh(response, this);
                         break;
                     case 'list': {
-                        resource = JSON.parse(await Utils.loadData(fullpath)).resources;
+                        resource = JSON.parse(response).resources;
                         this.addForLoading(resource);
                         break;
                     }

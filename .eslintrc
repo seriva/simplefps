@@ -36,6 +36,7 @@
     "AndroidFullScreen": true,
     "Event": true,
     "KeyboardEvent": true,
-    "Fullscreen": true
+    "Fullscreen": true,
+    "Blob": true
   }
 }

@@ -1,110 +1,101 @@
-import Utils from './utils';
 import Renderer from './renderer';
 
 const gl = Renderer.gl;
 
 class Mesh {
-    constructor(path, resources) {
+    constructor(data, resources) {
         const m = this;
-        const p = path;
         m.resources = resources;
 
-        return new Promise((resolve, reject) => {
-            Utils.loadData(p).then((data) => {
-                const vertices = [];
-                const normals = [];
-                const uvs = [];
-                const unpacked = {};
-                unpacked.vertices = [];
-                unpacked.normals = [];
-                unpacked.uvs = [];
-                unpacked.hashindices = {};
-                unpacked.indices = [];
-                unpacked.index = 0;
-                const lines = data.split('\n');
-                let curIndexArray = 0;
+        const vertices = [];
+        const normals = [];
+        const uvs = [];
+        const unpacked = {};
+        unpacked.vertices = [];
+        unpacked.normals = [];
+        unpacked.uvs = [];
+        unpacked.hashindices = {};
+        unpacked.indices = [];
+        unpacked.index = 0;
+        const lines = data.split('\n');
+        let curIndexArray = 0;
 
-                const VERTEX_RE = /^v\s/;
-                const NORMAL_RE = /^vn\s/;
-                const TEXTURE_RE = /^vt\s/;
-                const FACE_RE = /^f\s/;
-                const MAT_RE = /^material\s/;
+        const VERTEX_RE = /^v\s/;
+        const NORMAL_RE = /^vn\s/;
+        const TEXTURE_RE = /^vt\s/;
+        const FACE_RE = /^f\s/;
+        const MAT_RE = /^material\s/;
 
-                const WHITESPACE_RE = /\s+/;
+        const WHITESPACE_RE = /\s+/;
 
-                for (let i = 0; i < lines.length; i++) {
-                    const line = lines[i].trim();
-                    const elements = line.split(WHITESPACE_RE);
-                    elements.shift();
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i].trim();
+            const elements = line.split(WHITESPACE_RE);
+            elements.shift();
 
-                    if (VERTEX_RE.test(line)) {
-                        vertices.push.apply(vertices, elements);
-                    } else if (MAT_RE.test(line)) {
-                        const material = line.match(/(?:"[^"]*"|^[^"]*$)/)[0].replace(/"/g, '');
-                        if (material !== 'none') {
-                            m.resources.addForLoading(material);
+            if (VERTEX_RE.test(line)) {
+                vertices.push.apply(vertices, elements);
+            } else if (MAT_RE.test(line)) {
+                const material = line.match(/(?:"[^"]*"|^[^"]*$)/)[0].replace(/"/g, '');
+                if (material !== 'none') {
+                    m.resources.addForLoading(material);
+                }
+                unpacked.indices.push({
+                    material,
+                    array: []
+                });
+                curIndexArray = unpacked.indices.length-1;
+            } else if (NORMAL_RE.test(line)) {
+                normals.push.apply(normals, elements);
+            } else if (TEXTURE_RE.test(line)) {
+                uvs.push.apply(uvs, elements);
+            } else if (FACE_RE.test(line)) {
+                let quad = false;
+                for (let j = 0, eleLen = elements.length; j < eleLen; j++) {
+                    if (j === 3 && !quad) {
+                        j = 2;
+                        quad = true;
+                    }
+                    if (elements[j] in unpacked.hashindices) {
+                        unpacked.indices[curIndexArray].array.push(unpacked.hashindices[elements[j]]);
+                    } else {
+                        const vertex = elements[j].split('/');
+                        // vertex position
+                        unpacked.vertices.push(+vertices[(vertex[0] - 1) * 3 + 0]);
+                        unpacked.vertices.push(+vertices[(vertex[0] - 1) * 3 + 1]);
+                        unpacked.vertices.push(+vertices[(vertex[0] - 1) * 3 + 2]);
+                        // vertex textures
+                        if (uvs.length) {
+                            unpacked.uvs.push(+uvs[(vertex[1] - 1) * 2 + 0]);
+                            unpacked.uvs.push(+uvs[(vertex[1] - 1) * 2 + 1]);
                         }
-                        unpacked.indices.push({
-                            material,
-                            array: []
-                        });
-                        curIndexArray = unpacked.indices.length-1;
-                    } else if (NORMAL_RE.test(line)) {
-                        normals.push.apply(normals, elements);
-                    } else if (TEXTURE_RE.test(line)) {
-                        uvs.push.apply(uvs, elements);
-                    } else if (FACE_RE.test(line)) {
-                        let quad = false;
-                        for (let j = 0, eleLen = elements.length; j < eleLen; j++) {
-                            if (j === 3 && !quad) {
-                                j = 2;
-                                quad = true;
-                            }
-                            if (elements[j] in unpacked.hashindices) {
-                                unpacked.indices[curIndexArray].array.push(unpacked.hashindices[elements[j]]);
-                            } else {
-                                const vertex = elements[j].split('/');
-                                // vertex position
-                                unpacked.vertices.push(+vertices[(vertex[0] - 1) * 3 + 0]);
-                                unpacked.vertices.push(+vertices[(vertex[0] - 1) * 3 + 1]);
-                                unpacked.vertices.push(+vertices[(vertex[0] - 1) * 3 + 2]);
-                                // vertex textures
-                                if (uvs.length) {
-                                    unpacked.uvs.push(+uvs[(vertex[1] - 1) * 2 + 0]);
-                                    unpacked.uvs.push(+uvs[(vertex[1] - 1) * 2 + 1]);
-                                }
-                                // vertex normals
-                                unpacked.normals.push(+normals[(vertex[2] - 1) * 3 + 0]);
-                                unpacked.normals.push(+normals[(vertex[2] - 1) * 3 + 1]);
-                                unpacked.normals.push(+normals[(vertex[2] - 1) * 3 + 2]);
-                                // add the newly created vertex to the list of indices
-                                unpacked.hashindices[elements[j]] = unpacked.index;
-                                unpacked.indices[curIndexArray].array.push(unpacked.index);
-                                // increment the counter
-                                unpacked.index += 1;
-                            }
-                            if (j === 3 && quad) {
-                                // add v0/t0/vn0 onto the second triangle
-                                unpacked.indices[curIndexArray].array.push(unpacked.hashindices[elements[0]]);
-                            }
-                        }
+                        // vertex normals
+                        unpacked.normals.push(+normals[(vertex[2] - 1) * 3 + 0]);
+                        unpacked.normals.push(+normals[(vertex[2] - 1) * 3 + 1]);
+                        unpacked.normals.push(+normals[(vertex[2] - 1) * 3 + 2]);
+                        // add the newly created vertex to the list of indices
+                        unpacked.hashindices[elements[j]] = unpacked.index;
+                        unpacked.indices[curIndexArray].array.push(unpacked.index);
+                        // increment the counter
+                        unpacked.index += 1;
+                    }
+                    if (j === 3 && quad) {
+                        // add v0/t0/vn0 onto the second triangle
+                        unpacked.indices[curIndexArray].array.push(unpacked.hashindices[elements[0]]);
                     }
                 }
+            }
+        }
 
-                m.indices = unpacked.indices;
-                m.vertices = unpacked.vertices;
-                if (unpacked.uvs.length > 0) {
-                    m.uvs = unpacked.uvs;
-                }
-                if (unpacked.normals.length > 0) {
-                    m.normals = unpacked.normals;
-                }
-                m.initMeshBuffers();
-                resolve(this);
-            }).catch(() => {
-                reject();
-            });
-        });
+        m.indices = unpacked.indices;
+        m.vertices = unpacked.vertices;
+        if (unpacked.uvs.length > 0) {
+            m.uvs = unpacked.uvs;
+        }
+        if (unpacked.normals.length > 0) {
+            m.normals = unpacked.normals;
+        }
+        m.initMeshBuffers();
     }
 
     buildBuffer(type, data, itemSize) {

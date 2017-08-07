@@ -28,10 +28,13 @@ const Utils = {
     loadData(path) {
         return new Promise((resolve, reject) => {
             const xmlhttp = new XMLHttpRequest();
+            if (path.indexOf('jpg') !== -1) {
+                xmlhttp.responseType = 'arraybuffer';
+            }
             xmlhttp.onreadystatechange = () => {
                 if (xmlhttp.readyState === 4) {
                     if (xmlhttp.status === 200) {
-                        resolve(xmlhttp.responseText);
+                        resolve(xmlhttp.response);
                     } else {
                         reject();
                     }
