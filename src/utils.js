@@ -25,24 +25,41 @@ const Utils = {
         /* eslint-enable */
     },
 
-    loadData(path) {
-        return new Promise((resolve, reject) => {
-            const xmlhttp = new XMLHttpRequest();
-            if (path.indexOf('jpg') !== -1) {
-                xmlhttp.responseType = 'arraybuffer';
-            }
-            xmlhttp.onreadystatechange = () => {
-                if (xmlhttp.readyState === 4) {
-                    if (xmlhttp.status === 200) {
-                        resolve(xmlhttp.response);
-                    } else {
-                        reject();
-                    }
+    inLineWorker(runner, end) {
+        let code = runner.toString();
+        code = code.substring(code.indexOf('{')+1, code.lastIndexOf('}'));
+        const blob = new Blob([code], { type: 'application/javascript' });
+        const worker = new Worker(URL.createObjectURL(blob));
+        worker.start = (data) => {
+            worker.postMessage(data);
+        };
+        worker.onmessage = (e) => {
+            end(e.data);
+        };
+        return worker;
+    },
+
+    loadData(path, response) {
+        const worker = Utils.inLineWorker((self) => {
+            self.onmessage = (e) => {
+                const url = e.data;
+                const xmlhttp = new XMLHttpRequest();
+                if (url.indexOf('jpg') !== -1) {
+                    xmlhttp.responseType = 'arraybuffer';
                 }
+                xmlhttp.onreadystatechange = () => {
+                    if (xmlhttp.readyState === 4) {
+                        if (xmlhttp.status === 200) {
+                            self.postMessage(xmlhttp.response);
+                            self.close();
+                        }
+                    }
+                };
+                xmlhttp.open('GET', url, true);
+                xmlhttp.send();
             };
-            xmlhttp.open('GET', path, true);
-            xmlhttp.send();
-        });
+        }, response);
+        worker.start(path);
     },
 
     dispatchEvent(event) {

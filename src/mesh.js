@@ -38,7 +38,7 @@ class Mesh {
             } else if (MAT_RE.test(line)) {
                 const material = line.match(/(?:"[^"]*"|^[^"]*$)/)[0].replace(/"/g, '');
                 if (material !== 'none') {
-                    m.resources.addForLoading(material);
+                    m.resources.load([material]);
                 }
                 unpacked.indices.push({
                     material,

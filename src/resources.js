@@ -4,35 +4,41 @@ import Mesh from './mesh';
 import Loading from './loading';
 import Utils from './utils';
 
+let counter = 0;
 let paths = [];
+let end = null;
+let startTime;
 const resources = {};
-const basepath = 'resources/';
+const re = /(?:\.([^.]+))?$/;
+const basepath = window.location.href + 'resources/';
 
 const Resources = {
     load(p) {
-        return new Promise((resolve) => {
-            const re = /(?:\.([^.]+))?$/;
-            this.addForLoading(p);
-            let counter = 0;
-            Loading.toggle(true);
+        const load = (data) => {
+            if (data.constructor === Array) {
+                paths = paths.concat(data);
+                data.forEach((path) => {
+                    load(path);
+                });
+                return;
+            }
 
-            const loadNext = async () => {
-                let resource = null;
-                const path = paths[counter];
-                const fullpath = basepath + path;
-                const ext = re.exec(path)[1];
+            let resource = null;
+            const path = data;
+            const fullpath = basepath + path;
+            const ext = re.exec(path)[1];
+            Utils.loadData(fullpath, (response) => {
                 try {
-                    const response = await Utils.loadData(fullpath);
                     switch (ext) {
                     case 'jpg':
                         resource = new Texture(response);
                         break;
                     case 'obj':
-                        resource = new Mesh(response, this);
+                        resource = new Mesh(response, Resources);
                         break;
                     case 'list': {
                         resource = JSON.parse(response).resources;
-                        this.addForLoading(resource);
+                        load(resource);
                         break;
                     }
                     default:
@@ -45,21 +51,28 @@ const Resources = {
                     if (counter === paths.length) {
                         Loading.toggle(false);
                         paths = [];
-                        resolve();
-                    } else {
-                        loadNext();
+                        if (end !== null) end();
+                        end = null;
+                        const timeDiff = new Date().getTime() - startTime;
+                        Console.log('Loaded resources in ' + timeDiff + 'ms');
                     }
                 } catch (err) {
                     Console.log('Error loading "' + path + '": ' + err);
                 }
-            };
+            });
+        };
 
-            loadNext();
-        });
-    },
-
-    addForLoading(p) {
-        paths = paths.concat(p);
+        if (end === null) {
+            return new Promise((resolve) => {
+                startTime = new Date().getTime();
+                Loading.toggle(true);
+                counter = 0;
+                end = resolve;
+                load(p);
+            });
+        }
+        load(p);
+        return null;
     },
 
     get(key) {

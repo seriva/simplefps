@@ -37,6 +37,11 @@
     "Event": true,
     "KeyboardEvent": true,
     "Fullscreen": true,
-    "Blob": true
+    "Blob": true,
+    "Worker": true,
+    "URL": true,
+    "postMessage": true,
+    "self": true,
+    "close": true
   }
 }
