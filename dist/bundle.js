@@ -172,41 +172,24 @@ const Utils = {
         /* eslint-enable */
     },
 
-    inLineWorker(runner, end) {
-        let code = runner.toString();
-        code = code.substring(code.indexOf('{') + 1, code.lastIndexOf('}'));
-        const blob = new Blob([code], { type: 'application/javascript' });
-        const worker = new Worker(URL.createObjectURL(blob));
-        worker.start = data => {
-            worker.postMessage(data);
-        };
-        worker.onmessage = e => {
-            end(e.data);
-        };
-        return worker;
-    },
-
-    loadData(path, response) {
-        const worker = Utils.inLineWorker(self => {
-            self.onmessage = e => {
-                const url = e.data;
-                const xmlhttp = new XMLHttpRequest();
-                if (url.indexOf('jpg') !== -1) {
-                    xmlhttp.responseType = 'arraybuffer';
-                }
-                xmlhttp.onreadystatechange = () => {
-                    if (xmlhttp.readyState === 4) {
-                        if (xmlhttp.status === 200) {
-                            self.postMessage(xmlhttp.response);
-                            self.close();
-                        }
+    fetch(path) {
+        return new Promise((resolve, reject) => {
+            const xmlhttp = new XMLHttpRequest();
+            if (path.indexOf('jpg') !== -1) {
+                xmlhttp.responseType = 'arraybuffer';
+            }
+            xmlhttp.onreadystatechange = () => {
+                if (xmlhttp.readyState === 4) {
+                    if (xmlhttp.status === 200) {
+                        resolve(xmlhttp.response);
+                    } else {
+                        reject();
                     }
-                };
-                xmlhttp.open('GET', url, true);
-                xmlhttp.send();
+                }
             };
-        }, response);
-        worker.start(path);
+            xmlhttp.open('GET', path, true);
+            xmlhttp.send();
+        });
     },
 
     dispatchEvent(event) {
@@ -2698,82 +2681,83 @@ module.exports = vec4;
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_2__mesh__ = __webpack_require__(23);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_3__loading__ = __webpack_require__(24);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_4__utils__ = __webpack_require__(1);
+function _asyncToGenerator(fn) { return function () { var gen = fn.apply(this, arguments); return new Promise(function (resolve, reject) { function step(key, arg) { try { var info = gen[key](arg); var value = info.value; } catch (error) { reject(error); return; } if (info.done) { resolve(value); } else { return Promise.resolve(value).then(function (value) { step("next", value); }, function (err) { step("throw", err); }); } } return step("next"); }); }; }
 
 
 
 
 
 
-let counter = 0;
+
 let paths = [];
-let end = null;
 let startTime;
 const resources = {};
-const re = /(?:\.([^.]+))?$/;
 const basepath = window.location.href + 'resources/';
+const re = /(?:\.([^.]+))?$/;
 
 const Resources = {
     load(p) {
-        const load = data => {
-            if (data.constructor === Array) {
-                paths = paths.concat(data);
-                data.forEach(path => {
-                    load(path);
-                });
-                return;
-            }
+        var _this = this;
 
-            let resource = null;
-            const path = data;
-            const fullpath = basepath + path;
-            const ext = re.exec(path)[1];
-            __WEBPACK_IMPORTED_MODULE_4__utils__["a" /* default */].loadData(fullpath, response => {
-                try {
-                    switch (ext) {
-                        case 'jpg':
-                            resource = new __WEBPACK_IMPORTED_MODULE_1__texture__["a" /* default */](response);
-                            break;
-                        case 'obj':
-                            resource = new __WEBPACK_IMPORTED_MODULE_2__mesh__["a" /* default */](response, Resources);
-                            break;
-                        case 'list':
-                            {
-                                resource = JSON.parse(response).resources;
-                                load(resource);
-                                break;
-                            }
-                        default:
-                            break;
-                    }
-
-                    __WEBPACK_IMPORTED_MODULE_0__console__["a" /* default */].log('Loaded "' + path + '"');
-                    resources[path] = resource;
-                    counter++;
-                    if (counter === paths.length) {
-                        __WEBPACK_IMPORTED_MODULE_3__loading__["a" /* default */].toggle(false);
-                        paths = [];
-                        if (end !== null) end();
-                        end = null;
-                        const timeDiff = new Date().getTime() - startTime;
-                        __WEBPACK_IMPORTED_MODULE_0__console__["a" /* default */].log('Loaded resources in ' + timeDiff + 'ms');
-                    }
-                } catch (err) {
-                    __WEBPACK_IMPORTED_MODULE_0__console__["a" /* default */].log('Error loading "' + path + '": ' + err);
-                }
-            });
-        };
-
-        if (end === null) {
-            return new Promise(resolve => {
-                startTime = new Date().getTime();
-                __WEBPACK_IMPORTED_MODULE_3__loading__["a" /* default */].toggle(true);
-                counter = 0;
-                end = resolve;
-                load(p);
-            });
+        const length = paths.length;
+        paths = paths.concat(p);
+        if (length !== 0) {
+            return null;
         }
-        load(p);
-        return null;
+        return new Promise(resolve => {
+            let counter = 0;
+            startTime = new Date().getTime();
+            __WEBPACK_IMPORTED_MODULE_3__loading__["a" /* default */].toggle(true);
+
+            const loadNext = (() => {
+                var _ref = _asyncToGenerator(function* () {
+                    let resource = null;
+                    const path = paths[counter];
+                    const fullpath = basepath + path;
+                    const ext = re.exec(path)[1];
+                    try {
+                        const response = yield __WEBPACK_IMPORTED_MODULE_4__utils__["a" /* default */].fetch(fullpath);
+                        switch (ext) {
+                            case 'jpg':
+                                resource = new __WEBPACK_IMPORTED_MODULE_1__texture__["a" /* default */](response);
+                                break;
+                            case 'obj':
+                                resource = new __WEBPACK_IMPORTED_MODULE_2__mesh__["a" /* default */](response, _this);
+                                break;
+                            case 'list':
+                                {
+                                    resource = JSON.parse(response).resources;
+                                    Resources.load(resource);
+                                    break;
+                                }
+                            default:
+                                break;
+                        }
+
+                        __WEBPACK_IMPORTED_MODULE_0__console__["a" /* default */].log('Loaded "' + path + '"');
+                        resources[path] = resource;
+                        counter++;
+                        if (counter === paths.length) {
+                            __WEBPACK_IMPORTED_MODULE_3__loading__["a" /* default */].toggle(false);
+                            paths = [];
+                            const ms = new Date().getTime() - startTime;
+                            __WEBPACK_IMPORTED_MODULE_0__console__["a" /* default */].log('Loaded resources in ' + ms + 'ms');
+                            resolve();
+                        } else {
+                            loadNext();
+                        }
+                    } catch (err) {
+                        __WEBPACK_IMPORTED_MODULE_0__console__["a" /* default */].log('Error loading "' + path + '": ' + err);
+                    }
+                });
+
+                return function loadNext() {
+                    return _ref.apply(this, arguments);
+                };
+            })();
+
+            loadNext();
+        });
     },
 
     get(key) {
@@ -10421,7 +10405,7 @@ class Mesh {
             } else if (MAT_RE.test(line)) {
                 const material = line.match(/(?:"[^"]*"|^[^"]*$)/)[0].replace(/"/g, '');
                 if (material !== 'none') {
-                    m.resources.load([material]);
+                    m.resources.load(material);
                 }
                 unpacked.indices.push({
                     material,

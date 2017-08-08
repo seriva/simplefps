@@ -4,41 +4,41 @@ import Mesh from './mesh';
 import Loading from './loading';
 import Utils from './utils';
 
-let counter = 0;
 let paths = [];
-let end = null;
 let startTime;
 const resources = {};
-const re = /(?:\.([^.]+))?$/;
 const basepath = window.location.href + 'resources/';
+const re = /(?:\.([^.]+))?$/;
 
 const Resources = {
     load(p) {
-        const load = (data) => {
-            if (data.constructor === Array) {
-                paths = paths.concat(data);
-                data.forEach((path) => {
-                    load(path);
-                });
-                return;
-            }
+        const length = paths.length;
+        paths = paths.concat(p);
+        if (length !== 0) {
+            return null;
+        }
+        return new Promise((resolve) => {
+            let counter = 0;
+            startTime = new Date().getTime();
+            Loading.toggle(true);
 
-            let resource = null;
-            const path = data;
-            const fullpath = basepath + path;
-            const ext = re.exec(path)[1];
-            Utils.loadData(fullpath, (response) => {
+            const loadNext = async () => {
+                let resource = null;
+                const path = paths[counter];
+                const fullpath = basepath + path;
+                const ext = re.exec(path)[1];
                 try {
+                    const response = await Utils.fetch(fullpath);
                     switch (ext) {
                     case 'jpg':
                         resource = new Texture(response);
                         break;
                     case 'obj':
-                        resource = new Mesh(response, Resources);
+                        resource = new Mesh(response, this);
                         break;
                     case 'list': {
                         resource = JSON.parse(response).resources;
-                        load(resource);
+                        Resources.load(resource);
                         break;
                     }
                     default:
@@ -51,28 +51,19 @@ const Resources = {
                     if (counter === paths.length) {
                         Loading.toggle(false);
                         paths = [];
-                        if (end !== null) end();
-                        end = null;
-                        const timeDiff = new Date().getTime() - startTime;
-                        Console.log('Loaded resources in ' + timeDiff + 'ms');
+                        const ms = new Date().getTime() - startTime;
+                        Console.log('Loaded resources in ' + ms + 'ms');
+                        resolve();
+                    } else {
+                        loadNext();
                     }
                 } catch (err) {
                     Console.log('Error loading "' + path + '": ' + err);
                 }
-            });
-        };
+            };
 
-        if (end === null) {
-            return new Promise((resolve) => {
-                startTime = new Date().getTime();
-                Loading.toggle(true);
-                counter = 0;
-                end = resolve;
-                load(p);
-            });
-        }
-        load(p);
-        return null;
+            loadNext();
+        });
     },
 
     get(key) {
