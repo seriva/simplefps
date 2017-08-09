@@ -7,7 +7,7 @@ import Utils from './utils';
 let paths = [];
 let startTime;
 const resources = {};
-const basepath = window.location.href + 'resources/';
+const basepath = 'resources/';
 const re = /(?:\.([^.]+))?$/;
 
 const Resources = {
