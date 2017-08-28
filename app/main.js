@@ -1,3 +1,4 @@
+import 'babel-polyfill';
 import { glMatrix, mat4 } from 'gl-matrix';
 import Utils from './utils';
 import Resources from './resources';
@@ -91,3 +92,4 @@ Utils.addCSS(
     };
     window.requestAnimationFrame(loop);
 })();
+

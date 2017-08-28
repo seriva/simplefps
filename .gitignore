@@ -1,6 +1,6 @@
 yarn-error.log
-dist/bundle.js.map
 .vscode/
+public
 node_modules
 build
 mobile/www
