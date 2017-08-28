@@ -7,6 +7,12 @@
     <title>QDFPS</title>
 </head>
 <body>
+    <script>
+        window.nodeRequire = require;
+        delete window.require;
+        delete window.exports;
+        delete window.module;
+    </script>
     <script type="text/javascript" src="cordova.js"></script>
     <script type="text/javascript" src="vendor.js"></script>
     <script type="text/javascript" src="app.js"></script>
