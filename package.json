@@ -15,22 +15,23 @@
     "nwb": "nwb nwbuild",
     "build": "rimraf public && brunch build --production && copyfiles -u 1 \"public/**/*.*\" \"desktop/www\" && copyfiles -u 1 \"public/**/*.*\" \"mobile/www\"",
     "dev": "brunch watch --server",
-    "desktop:deploy": "npm run build && npm run nwb -- -v v0.23.6 -r ./desktop/",
+    "desktop": "npm run build && npm run nwb -- -v v0.23.6 -r ./desktop/",
     "desktop:release-win": "npm run build && npm run nwb -- -v v0.23.6 -p win64 ./desktop/ -o ./build/",
     "desktop:release-mac": "npm run build && npm run nwb -- -v v0.23.6 -p osx64 ./desktop/ -o ./build/",
-    "android:deploy": "npm run build && npm run cordova run android",
+    "android": "npm run build && npm run cordova run android",
     "android:debug": "npm run build && npm run cordova -- build android --debug",
     "android:release": "npm run build && npm run cordova -- build android --release"
   },
   "dependencies": {
-    "babel-polyfill": "^6.26.0",
+    "babel-runtime": "^6.26.0",
     "gl-matrix": "^2.3.2",
     "hammerjs": "^2.0.8",
     "nipplejs": "^0.6.7"
   },
   "devDependencies": {
     "auto-reload-brunch": "^2",
-    "babel-brunch": "~6.0",
+    "babel-brunch": "^6.1.1",
+    "babel-plugin-transform-runtime": "^6.23.0",
     "babel-preset-latest": "^6.24.1",
     "brunch": "2.9.1",
     "copyfiles": "^1.0.0",

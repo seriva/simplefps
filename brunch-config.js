@@ -1,16 +1,14 @@
 module.exports = {
-  files: {
-    javascripts: {
-      joinTo: {
-        'vendor.js': /^(?!app)/,
-        'app.js': /^app/
-      }
+    files: {
+        javascripts: {
+            joinTo: {
+                'app.js': /^/
+            }
+        }
+    },
+    plugins: {
+        autoReload: {
+            enabled: true
+        }
     }
-  },
-  plugins: {
-    babel: {presets: ['latest']},
-    autoReload: {
-      enabled: true
-    }
-  }
-}
+};

@@ -8,13 +8,14 @@
 </head>
 <body>
     <script>
-        window.nodeRequire = require;
-        delete window.require;
-        delete window.exports;
-        delete window.module;
+        if (typeof require !== 'undefined') {
+            window.nodeRequire = require;
+            delete window.require;
+            delete window.exports;
+            delete window.module;
+        }
     </script>
-    <script type="text/javascript" src="cordova.js"></script>
-    <script type="text/javascript" src="vendor.js"></script>
+    <script type="text/javascript" src="Cordova.js"></script>
     <script type="text/javascript" src="app.js"></script>
     <script>require('main');</script>
 </body>
