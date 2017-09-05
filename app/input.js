@@ -83,7 +83,7 @@ Utils.addCSS(
     `
 );
 
-let showCursor = true;
+let visibleCursor = true;
 let cursorMovement = {
     x: 0,
     y: 0
@@ -223,12 +223,8 @@ const Input = {
     },
 
     toggleCursor(show) {
-        if (show === undefined) {
-            showCursor = !showCursor;
-        } else {
-            showCursor = show;
-        }
-        if (showCursor) {
+        show === undefined ? visibleCursor = !visibleCursor: visibleCursor = show;
+        if (visibleCursor) {
             document.body.classList.remove('hide-cursor');
             document.exitPointerLock();
         } else {

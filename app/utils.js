@@ -6,9 +6,13 @@ const Utils = {
         document.head.appendChild(css);
     },
 
-    addElement(type, id) {
+    addElement(type, id, parent) {
         const el = document.createElement(type);
-        document.body.appendChild(el);
+        if (parent) {
+            parent.appendChild(el);
+        } else {
+            document.body.appendChild(el);
+        }
         if (id) {
             el.setAttribute('id', id);
         }

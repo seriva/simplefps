@@ -2,7 +2,7 @@ import Utils from './utils';
 
 Utils.addCSS(
     `
-    #loading-div {
+    #loading-overlay {
         width: 100%;
         height: 100%;
         left: 0px;
@@ -14,7 +14,7 @@ Utils.addCSS(
         z-index : 99998;
     }
 
-    #logo { 
+    #loading-logo { 
         position: fixed; 
         width: 20vh; 
         height: 20vh; 
@@ -34,27 +34,16 @@ Utils.addCSS(
     `
 );
 
-let showLoading = false;
-const loadingDiv = Utils.addElement('div', 'loading-div');
-const loadingImg = Utils.addElement('img', 'logo');
-loadingImg.src = 'resources/logo.svg';
-loadingImg.style.display = 'none';
-loadingDiv.style.display = 'none';
+let visible = false;
+const loadingOverlay = Utils.addElement('div', 'loading-overlay');
+const loadingLogo = Utils.addElement('img', 'loading-logo', loadingOverlay);
+loadingLogo.src = 'resources/logo.svg';
+loadingOverlay.style.display = 'none';
 
 const Loading = {
     toggle(show) {
-        if (show === undefined) {
-            showLoading = !showLoading;
-        } else {
-            showLoading = show;
-        }
-        if (showLoading) {
-            loadingImg.style.display = 'inline';
-            loadingDiv.style.display = 'block';
-        } else {
-            loadingImg.style.display = 'none';
-            loadingDiv.style.display = 'none';
-        }
+        show === undefined ? visible = !visible : visible = show;
+        visible ? loadingOverlay.style.display = 'block' : loadingOverlay.style.display = 'none';
     }
 };
 

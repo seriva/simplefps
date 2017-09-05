@@ -92,11 +92,7 @@ const Console = {
     },
 
     toggle(show) {
-        if (show === undefined) {
-            visible = !visible;
-        } else {
-            visible = show;
-        }
+        show === undefined ? visible = !visible: visible = show;
         if (visible) {
             consoleDiv.classList.add('console-down');
             inputField.classList.add('console-input-down');
