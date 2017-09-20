@@ -9,8 +9,6 @@ let frametime = 0;
 Utils.addCSS(
     `
     #stats {
-        left: 0px;
-        top: 0px;
         margin: 0;
         padding: 0;
         color: #FFF;

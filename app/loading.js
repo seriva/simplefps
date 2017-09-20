@@ -2,7 +2,7 @@ import Utils from './utils';
 
 Utils.addCSS(
     `
-    #loading-overlay {
+    #loading {
         width: 100%;
         height: 100%;
         left: 0px;
@@ -12,6 +12,7 @@ Utils.addCSS(
         position: absolute;
         background-color: black;
         z-index : 99998;
+        display : none;
     }
 
     #loading-logo { 
@@ -23,7 +24,8 @@ Utils.addCSS(
         margin-top: -10vh; 
         margin-left: -10vh; 
         -webkit-animation:spin 3s linear infinite;
-         z-index : 99999;
+        z-index : 99999;
+        content:url(resources/logo.svg);
     }
 
     @-webkit-keyframes spin { 
@@ -35,15 +37,13 @@ Utils.addCSS(
 );
 
 let visible = false;
-const loadingOverlay = Utils.addElement('div', 'loading-overlay');
-const loadingLogo = Utils.addElement('img', 'loading-logo', loadingOverlay);
-loadingLogo.src = 'resources/logo.svg';
-loadingOverlay.style.display = 'none';
+const loadingDiv = Utils.addElement('div', 'loading');
+Utils.addElement('img', 'loading-logo', loadingDiv);
 
 const Loading = {
     toggle(show) {
         show === undefined ? visible = !visible : visible = show;
-        visible ? loadingOverlay.style.display = 'block' : loadingOverlay.style.display = 'none';
+        visible ? loadingDiv.style.display = 'block' : loadingDiv.style.display = 'none';
     }
 };
 
