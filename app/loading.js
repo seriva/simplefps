@@ -40,6 +40,7 @@ Utils.addCSS(
     `
 );
 
+// local vars
 let visible = false;
 
 // gui function

@@ -28,6 +28,7 @@ Utils.addCSS(
     `
 );
 
+// local vars
 let visible = true;
 let fps = 0;
 let fpscounter = 0;

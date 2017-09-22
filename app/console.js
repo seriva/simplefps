@@ -1,7 +1,7 @@
 import Utils from './utils';
+import GUI from './gui';
 
-let visible = false;
-const logs = [];
+const h = GUI.h;
 
 Utils.addCSS(
     `
@@ -19,10 +19,14 @@ Utils.addCSS(
         width: 100%;
         height: 35%;
         position: absolute;
-        top: -37vh;
         left: 0;
         overflow: scroll;
         overflow-x: hidden;
+        margin-top: auto !important;
+        font-size: 14px;
+        color: #fff; 
+        margin: 0px;
+        white-space: nowrap;
     }
 
     #console-input {
@@ -32,7 +36,6 @@ Utils.addCSS(
         font-size: 14px;
         position: absolute;
         z-index : 200;
-        top: -37vh;
         left: 0; width:100%;
         border:1px solid #999;
         border-bottom:2px solid #fff;
@@ -40,17 +43,10 @@ Utils.addCSS(
         background-color: #999;
         opacity: 0.75;
         outline: none;
+        top: 35vh;
     }
 
-    #console p {
-        margin-top: auto !important;
-        font-size: 14px;
-        color: #fff; 
-        margin: 0px;
-        white-space: nowrap;
-    }
-
-    .console-down {
+    .console-content-down {
         -webkit-transform: translate(0,37vh);
     }
 
@@ -60,27 +56,47 @@ Utils.addCSS(
     `
 );
 
-const c = Utils.addElement('div', 'console');
-const consoleDiv = Utils.addElement('div', 'console-content', c);
-const inputField = Utils.addElement('input', 'console-input', c);
-consoleDiv.disabled = true;
+// local vars
+let visible = false;
+let command = '';
+const logs = [];
 
-const update = () => {
-    let text = '<p>';
-    for (let i = 0; i < logs.length; i++) {
-        const log = logs[i];
-        let color = '#FFF';
-        if (log.type === 'warning') {
-            color = '#FF0';
-        }
-        if (log.type === 'error') {
-            color = '#F00';
-        }
-        text = text + '<span style="color:' + color + '">' + log.message + '</span></br>';
-    }
-    consoleDiv.innerHTML = text + '</p>';
-    consoleDiv.scrollTop = consoleDiv.scrollHeight;
+// gui functions
+const setFocus = (el) => {
+    setTimeout(() => {
+        el.disabled = false;
+        el.focus();
+    }, 100);
 };
+
+const setScrollPos = (el) => {
+    el.scrollTop = el.scrollHeight;
+};
+
+const updateCommand = (evt) => {
+    command = evt.target.value;
+};
+
+GUI.append(() =>
+    h('div#console', visible ?
+    [
+        h('div#console-content', {
+            afterUpdate: setScrollPos
+        }, [
+            logs.map((log, index) => {
+                return h('span', { key: index, style: 'color:' + log.color }, log.message, [h('br')]);
+            })
+        ]),
+        h('input#console-input', {
+            disabled: true,
+            value: command,
+            oninput: updateCommand,
+            afterCreate: setFocus
+        })
+    ]
+    :
+    [])
+);
 
 const Console = {
     visible() {
@@ -89,53 +105,38 @@ const Console = {
 
     execute() {
         // TODO: add actual execution and registration
-        if (inputField.value === '') return;
-        this.warn('Unknown command "' + inputField.value + '"');
-        inputField.value = '';
+        if (command === '') return;
+        this.warn('Unknown command "' + command + '"');
+        command = '';
+        GUI.update();
     },
 
     toggle(show) {
         show === undefined ? visible = !visible: visible = show;
-        if (visible) {
-            consoleDiv.classList.add('console-down');
-            inputField.classList.add('console-input-down');
-            inputField.disabled = false;
-            setTimeout(() => {
-                inputField.focus();
-            }, 100);
-            update();
-        } else {
-            consoleDiv.classList.remove('console-down');
-            inputField.classList.remove('console-input-down');
-            inputField.disabled = true;
-        }
     },
 
     log(m) {
         console.log(m);
         logs.push({
-            type: 'log',
+            color: '#FFF',
             message: m
         });
-        update();
     },
 
     warn(m) {
         console.warn(m);
         logs.push({
-            type: 'warning',
+            color: '#FF0',
             message: m
         });
-        update();
     },
 
     error(m) {
         console.error(m);
         logs.push({
-            type: 'error',
+            color: '#F00',
             message: m
         });
-        update();
         this.toggle();
         throw new Error();
     }
