@@ -5,7 +5,9 @@ const logs = [];
 
 Utils.addCSS(
     `
-    #console {
+    #console {}
+
+    #console-content {
         -webkit-transition: all 0.150s ease-in-out;
         display: flex; flex-flow:
         column nowrap;
@@ -58,8 +60,9 @@ Utils.addCSS(
     `
 );
 
-const consoleDiv = Utils.addElement('div', 'console');
-const inputField = Utils.addElement('input', 'console-input');
+const c = Utils.addElement('div', 'console');
+const consoleDiv = Utils.addElement('div', 'console-content', c);
+const inputField = Utils.addElement('input', 'console-input', c);
 consoleDiv.disabled = true;
 
 const update = () => {

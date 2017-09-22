@@ -1,8 +1,13 @@
 import Utils from './utils';
+import GUI from './gui';
+
+const h = GUI.h;
 
 Utils.addCSS(
     `
-    #loading {
+    #loading {}
+
+    #loading-background {
         width: 100%;
         height: 100%;
         left: 0px;
@@ -12,7 +17,6 @@ Utils.addCSS(
         position: absolute;
         background-color: black;
         z-index : 99998;
-        display : none;
     }
 
     #loading-logo { 
@@ -37,13 +41,22 @@ Utils.addCSS(
 );
 
 let visible = false;
-const loadingDiv = Utils.addElement('div', 'loading');
-Utils.addElement('img', 'loading-logo', loadingDiv);
+
+// gui function
+GUI.append(() =>
+    h('div#loading', visible ?
+    [
+        h('div#loading-logo'),
+        h('div#loading-background')
+    ]
+    :
+    [])
+);
 
 const Loading = {
     toggle(show) {
         show === undefined ? visible = !visible : visible = show;
-        visible ? loadingDiv.style.display = 'block' : loadingDiv.style.display = 'none';
+        GUI.update();
     }
 };
 

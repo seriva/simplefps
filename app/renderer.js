@@ -3,7 +3,7 @@ import Console from './console';
 
 Utils.addCSS(
     `
-    canvas {
+    #viewport {
         background: #000;
         width: 100vw; height: 100vh;
         display: block;
@@ -12,7 +12,7 @@ Utils.addCSS(
     `
 );
 
-const canvas = Utils.addElement('canvas');
+const canvas = Utils.addElement('canvas', 'viewport');
 let gl = canvas.getContext('webgl2', {
     antialias: true
 });

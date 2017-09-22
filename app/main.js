@@ -8,6 +8,7 @@ import Renderer from './renderer';
 import Shaders from './shaders';
 import Input from './input';
 import Skybox from './skybox';
+import GUI from './gui';
 
 Utils.addCSS(
     `
@@ -85,6 +86,9 @@ Utils.addCSS(
 
         // update stats
         Stats.update(frameTime);
+
+        // update html gui
+        GUI.update();
 
         // restart the loop
         window.requestAnimationFrame(loop);
