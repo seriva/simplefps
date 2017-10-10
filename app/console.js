@@ -34,6 +34,7 @@ Utils.addCSS(
         font-size: 14px;
         color: #fff; 
         width: 100%;
+        white-space: nowrap;
         margin: 0px;
         line-height: 115%;
     }
