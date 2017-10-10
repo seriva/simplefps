@@ -1,6 +1,7 @@
 import { h, createProjector } from 'maquette';
+import { cssTransitions } from 'maquette/dist/css-transitions';
 
-const projector = createProjector();
+const projector = createProjector({ transitions: cssTransitions });
 
 const GUI = {
     h,

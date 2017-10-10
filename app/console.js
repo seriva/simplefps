@@ -5,53 +5,67 @@ const h = GUI.h;
 
 Utils.addCSS(
     `
-    #console {}
-
-    #console-content {
-        -webkit-transition: all 0.150s ease-in-out;
-        display: flex; flex-flow:
-        column nowrap;
-        line-height: 95%;
-        border:1px solid #999;
-        background-color: #999;
-        opacity: 0.75;
+    #console {
+        transition: top 0.150s ease-in-out;
+        display: inline-block;
+        background-color: transparent;
+        position: absolute;
         z-index : 200;
         width: 100%;
         height: 35%;
-        position: absolute;
         left: 0;
+        overflow: none;
+    }
+
+    #console-content {
+        display: flex;
+        flex-direction: column-reverse;
+        column nowrap;
+        border:1px solid #999;
+        background-color: #999;
+        opacity: 0.75;
+        width: 100%;
+        height: 100%;
         overflow: scroll;
         overflow-x: hidden;
-        margin-top: auto !important;
+    }
+
+    #console-content p {
         font-size: 14px;
         color: #fff; 
+        width: 100%;
         margin: 0px;
-        white-space: nowrap;
+        line-height: 115%;
     }
 
     #console-input {
-        -webkit-transition: all 0.150s ease-in-out;
-        display: inline;
+        display: flex;
         color: #fff;
         font-size: 14px;
         position: absolute;
-        z-index : 200;
-        left: 0; width:100%;
-        border:1px solid #999;
-        border-bottom:2px solid #fff;
-        border-top:2px solid #fff;
+        left: 0;
+        width: 100%;
+        border: 1px solid #999;
+        border-bottom: 2px solid #fff;
+        border-top: 2px solid #fff;
         background-color: #999;
         opacity: 0.75;
         outline: none;
-        top: 35vh;
     }
 
-    .console-content-down {
-        -webkit-transform: translate(0,37vh);
+    .console-show {
+        top: -35vh;
     }
 
-    .console-input-down {
-        -webkit-transform: translate(0,72vh);
+    .console-show.console-show-active {
+        top: 0;
+    }
+    .console-hide {
+        top: 0;
+    }
+
+    .console-hide.console-hide-active {
+        top: -35vh;
     }
     `
 );
@@ -78,24 +92,32 @@ const updateCommand = (evt) => {
 };
 
 GUI.append(() =>
-    h('div#console', visible ?
+    h('div',
+    visible ?
     [
-        h('div#console-content', {
-            afterUpdate: setScrollPos
+        h('div#console', {
+            enterAnimation: 'console-show',
+            exitAnimation: 'console-hide'
         }, [
-            logs.map((log, index) => {
-                return h('span', { key: index, style: 'color:' + log.color }, log.message, [h('br')]);
+            h('div#console-content', {
+                onchange: setScrollPos
+            }, [
+                h('p', [
+                    logs.map((log, index) => {
+                        return h('span', { key: index, style: 'color:' + log.color }, log.message, [h('br')]);
+                    })
+                ]),
+            ]),
+            h('input#console-input', {
+                disabled: true,
+                value: command,
+                oninput: updateCommand,
+                afterCreate: setFocus
             })
-        ]),
-        h('input#console-input', {
-            disabled: true,
-            value: command,
-            oninput: updateCommand,
-            afterCreate: setFocus
-        })
+        ])
     ]
     :
-    [])
+    null)
 );
 
 const Console = {
