@@ -16,8 +16,8 @@
     "build": "rimraf public && brunch build --production && copyfiles -u 1 \"public/**/*.*\" \"desktop/www\" && copyfiles -u 1 \"public/**/*.*\" \"mobile/www\"",
     "dev": "brunch watch --server",
     "desktop": "npm run build && npm run nwb -- -v v0.24.4 -r ./desktop/",
-    "desktop:release-win": "npm run build && npm run nwb -- -v v0.24.4 -p win64 ./desktop/ -o ./build/",
-    "desktop:release-mac": "npm run build && npm run nwb -- -v v0.24.4 -p osx64 ./desktop/ -o ./build/",
+    "desktop:release-win": "npm run build && npm run nwb -- -v v0.26.3 -p win64 ./desktop/ -o ./build/",
+    "desktop:release-mac": "npm run build && npm run nwb -- -v v0.26.3 -p osx64 ./desktop/ -o ./build/",
     "android": "npm run build && npm run cordova run android",
     "android:debug": "npm run build && npm run cordova -- build android --debug",
     "android:release": "npm run build && npm run cordova -- build android --release"
