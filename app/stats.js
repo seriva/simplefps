@@ -38,8 +38,8 @@ let frametime = 0;
 GUI.append(() =>
     h('div#stats', visible ?
     [
-        h('span#stats-fps', 'FPS: ' + fps),
-        h('span#stats-ftm', 'FTM: ' + frametime)
+        h('span#stats-fps', ['FPS: ' + fps]),
+        h('span#stats-ftm', ['FTM: ' + frametime])
     ]
     :
     [])

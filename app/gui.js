@@ -1,10 +1,12 @@
+import { createEnterCssTransition, createExitCssTransition } from 'maquette-css-transitions';
 import { h, createProjector } from 'maquette';
-import { cssTransitions } from 'maquette/dist/css-transitions';
 
-const projector = createProjector({ transitions: cssTransitions });
+const projector = createProjector();
 
 const GUI = {
     h,
+    createEnterCssTransition,
+    createExitCssTransition,
     append(render) {
         projector.append(document.body, render);
     },

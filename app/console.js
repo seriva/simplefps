@@ -97,15 +97,15 @@ GUI.append(() =>
     visible ?
     [
         h('div#console', {
-            enterAnimation: 'console-show',
-            exitAnimation: 'console-hide'
+            enterAnimation: GUI.createEnterCssTransition('console-show'),
+            exitAnimation: GUI.createExitCssTransition('console-hide')
         }, [
             h('div#console-content', {
                 onchange: setScrollPos
             }, [
                 h('p', [
                     logs.map((log, index) => {
-                        return h('span', { key: index, style: 'color:' + log.color }, log.message, [h('br')]);
+                        return h('span', { key: index, style: 'color:' + log.color }, [log.message, h('br')]);
                     })
                 ]),
             ]),
@@ -118,7 +118,7 @@ GUI.append(() =>
         ])
     ]
     :
-    null)
+    [])
 );
 
 const Console = {
