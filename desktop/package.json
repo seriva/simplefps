@@ -3,6 +3,7 @@
   "main": "www/index.html",
   "chromium-args" : "--enable-unsafe-es3-apis",
   "version": "0.0.1",
+  "nodejs": false,
   "window": {
       "width": 1027,
       "height": 768,
