@@ -2488,9 +2488,9 @@ getpass@^0.1.1:
   dependencies:
     assert-plus "^1.0.0"
 
-gl-matrix@2.4.0:
-  version "2.4.0"
-  resolved "https://registry.yarnpkg.com/gl-matrix/-/gl-matrix-2.4.0.tgz#2089b13301a29eec822d9d99dffc1f78ee9a3c50"
+gl-matrix@^2.4.1:
+  version "2.4.1"
+  resolved "https://registry.yarnpkg.com/gl-matrix/-/gl-matrix-2.4.1.tgz#da2b13161e9727122a3d41ce894e122f41ccbd25"
 
 glob-base@^0.3.0:
   version "0.3.0"
@@ -3354,9 +3354,9 @@ maquette-css-transitions@^1.1.0:
   version "1.1.0"
   resolved "https://registry.yarnpkg.com/maquette-css-transitions/-/maquette-css-transitions-1.1.0.tgz#b990b3efbe589954e243c7e92e4983591012e33d"
 
-maquette@3.2.1:
-  version "3.2.1"
-  resolved "https://registry.yarnpkg.com/maquette/-/maquette-3.2.1.tgz#fa25065c2585ff088e8eeab3b0622138ca266c68"
+maquette@^3.2.2:
+  version "3.2.2"
+  resolved "https://registry.yarnpkg.com/maquette/-/maquette-3.2.2.tgz#a953b15a0db8df4a63f83933c85270d164de512c"
 
 md5.js@^1.3.4:
   version "1.3.4"
