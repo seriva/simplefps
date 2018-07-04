@@ -137,7 +137,7 @@ if (Utils.isMobile()) {
     // touch mouse input
     const virtualCursor = Utils.addElement('div', 'virtual-cursor');
     const lookDiv = Utils.addElement('div', 'look-div');
-    const look = new Hammer(lookDiv, { touchAction: 'auto' });
+    const look = new Hammer(lookDiv, { touchAction: 'auto', inputClass: Hammer.TouchInput });
     look.get('pan').set({ direction: Hammer.DIRECTION_ALL });
     look.on('panstart panmove panend', (ev) => {
         cursorMovement = {
@@ -145,6 +145,7 @@ if (Utils.isMobile()) {
             y: 0
         };
         if (ev.type === 'panmove') {
+            console.log('move');
             cursorMovement = {
                 x: ev.velocityX * 16 * Settings.looksensitivity,
                 y: ev.velocityY * 16 * Settings.looksensitivity
@@ -155,10 +156,12 @@ if (Utils.isMobile()) {
             }
         }
         if (ev.type === 'panstart') {
+            console.log('start');
             virtualCursor.classList.add('virtual-cursor-fadein');
             virtualCursor.classList.remove('virtual-cursor-fadeout');
         }
         if (ev.type === 'panend') {
+            console.log('end');
             virtualCursor.classList.remove('virtual-cursor-fadein');
             virtualCursor.classList.add('virtual-cursor-fadeout');
         }

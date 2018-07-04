@@ -8,13 +8,6 @@
     ],
     "plugins": {
       "cordova-plugin-whitelist": {},
-      "cordova-plugin-crosswalk-webview": {
-        "XWALK_VERSION": "23+",
-        "XWALK_LITEVERSION": "xwalk_core_library_canary:17+",
-        "XWALK_COMMANDLINE": "--disable-pull-to-refresh-effect",
-        "XWALK_MODE": "embedded",
-        "XWALK_MULTIPLEAPK": "true"
-      },
       "ionic-plugin-keyboard": {},
       "cordova-fs-plugin-fullscreen": {}
     }
@@ -22,7 +15,6 @@
   "dependencies": {
     "cordova-android": "^7.0.0",
     "cordova-fs-plugin-fullscreen": "^1.0.2",
-    "cordova-plugin-crosswalk-webview": "^2.4.0",
     "cordova-plugin-whitelist": "^1.3.1",
     "ionic-plugin-keyboard": "^2.2.1"
   }
