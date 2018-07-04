@@ -37,7 +37,7 @@ if (Utils.isMobile()) {
     document.addEventListener('deviceready', () => {
         Console.log('Platform: ' + cordova.platformId);
         if (cordova.platformId === 'android') {
-            window.addEventListener('native.keyboardhide', () => {
+            window.addEventListener('keyboardDidHide', () => {
                 Fullscreen.on();
                 Console.toggle(false);
                 Input.toggleCursor(false);
