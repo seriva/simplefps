@@ -9,18 +9,8 @@
     "url": "https://github.com/seriva/QDFPSJS.git"
   },
   "scripts": {
-    "postinstall": "npm run build && npm run cordova -- prepare && copyfiles -u 1 \"mobile/xwalk-command-line\" \"mobile/platforms/android/assets/\"",
-    "postupdate": "npm run postinstall",
-    "cordova": "cd mobile && cordova",
-    "nwb": "nwb nwbuild",
-    "build": "rimraf public && brunch build --production && copyfiles -u 1 \"public/**/*.*\" \"desktop/www\" && copyfiles -u 1 \"public/**/*.*\" \"mobile/www\"",
-    "dev": "brunch watch --server",
-    "desktop": "npm run build && npm run nwb -- -v v0.31.4 -r ./desktop/",
-    "desktop:release-win": "npm run build && npm run nwb -- -v v0.31.4 -p win64 ./desktop/ -o ./build/",
-    "desktop:release-mac": "npm run build && npm run nwb -- -v v0.31.4 -p osx64 ./desktop/ -o ./build/",
-    "android": "npm run build && npm run cordova run android",
-    "android:debug": "npm run build && npm run cordova -- build android --debug",
-    "android:release": "npm run build && npm run cordova -- build android --release"
+    "build": "brunch build --production",
+    "dev": "brunch watch --server"
   },
   "dependencies": {
     "babel-runtime": "^6.26.0",
@@ -36,13 +26,9 @@
     "babel-plugin-transform-runtime": "^6.23.0",
     "babel-preset-env": "^1.7.0",
     "brunch": "^2.10.12",
-    "copyfiles": "2.0.0",
-    "cordova": "^8.0.0",
     "eslint-brunch": "^3.12.0",
     "eslint-config-airbnb-base": "11.3.2",
     "eslint-plugin-import": "2.13.0",
-    "nwjs-builder": "^1.14.0",
-    "rimraf": "^2.6.2",
     "uglify-js-brunch": "^2.10.0"
   }
 }
