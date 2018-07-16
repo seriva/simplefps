@@ -2,8 +2,3 @@ yarn-error.log
 .vscode/
 public
 node_modules
-build
-mobile/www
-mobile/platforms
-mobile/plugins
-desktop/www
