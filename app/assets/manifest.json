@@ -2,6 +2,7 @@
     "name": "Quick And Dirty FPS",
     "short_name": "QDFPS",
     "version": "0.1",
+    "start_url": "index.html",
     "icons": [
         {
             "src": "android-chrome-192x192.png",
