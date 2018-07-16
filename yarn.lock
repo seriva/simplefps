@@ -3374,6 +3374,10 @@ vary@~1.1.2:
   version "1.1.2"
   resolved "https://registry.yarnpkg.com/vary/-/vary-1.1.2.tgz#2299f02c6ded30d4a5961b0b9f74524a18f634fc"
 
+"virtualKeyboardDetector@https://github.com/GillesVermeulen/virtualKeyboardDetector.git":
+  version "0.0.1"
+  resolved "https://github.com/GillesVermeulen/virtualKeyboardDetector.git#a2a52824915afba0815defedf06ba57de63b2a16"
+
 vm-browserify@~0.0.4:
   version "0.0.4"
   resolved "https://registry.yarnpkg.com/vm-browserify/-/vm-browserify-0.0.4.tgz#5d7ea45bbef9e4a6ff65f95438e0a87c357d5a73"

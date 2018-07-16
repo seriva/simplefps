@@ -1,5 +1,6 @@
 import Hammer from 'hammerjs';
 import { glMatrix, vec3 } from 'gl-matrix';
+import virtualKeyboardDetector from 'virtualKeyboardDetector';
 import Input from './input';
 import Console from './console';
 import Camera from './camera';
@@ -34,17 +35,12 @@ if (Utils.isMobile()) {
         }
     });
 
-    document.addEventListener('deviceready', () => {
-        Console.log('Platform: ' + cordova.platformId);
-        if (cordova.platformId === 'android') {
-            window.addEventListener('keyboardDidHide', () => {
-                Fullscreen.on();
-                Console.toggle(false);
-                Input.toggleCursor(false);
-                Stats.toggle(true);
-            });
-        }
-    }, false);
+    virtualKeyboardDetector.init({ recentlyFocusedTimeoutDuration: 3000 });
+    virtualKeyboardDetector.on('virtualKeyboardHidden', () => {
+        Console.toggle(false);
+        Input.toggleCursor(false);
+        Stats.toggle(true);
+    };
 }
 
 // mouse and keyboard input
