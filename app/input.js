@@ -145,7 +145,6 @@ if (Utils.isMobile()) {
             y: 0
         };
         if (ev.type === 'panmove') {
-            console.log('move');
             cursorMovement = {
                 x: ev.velocityX * 16 * Settings.looksensitivity,
                 y: ev.velocityY * 16 * Settings.looksensitivity
