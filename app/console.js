@@ -155,6 +155,7 @@ const Console = {
     },
 
     error(m) {
+        document.body.innerHTML = m;
         console.error(m);
         logs.push({
             color: '#F00',

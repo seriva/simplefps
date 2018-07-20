@@ -66,23 +66,29 @@ Utils.addCSS(
         Controls.update(frameTime);
         Camera.update();
 
-        // render the frame
+        // Render the gbuffer
+        Renderer.startGBufferPass();
+        Shaders.gbuffer.bind();
+        Shaders.gbuffer.setMat4('matWorld', matModel);
+        Shaders.gbuffer.setMat4('matViewProj', Camera.viewProjection);
+
+        statueModel.render();
+        floorModel.render();
+
+        Shaders.gbuffer.unBind();
+        Renderer.endGBufferPass();
+
+        // Render the offscreen color buffer for now
         gl.clear(gl.DEPTH_BUFFER_BIT || gl.COLOR_BUFFER_BIT);
 
-        // set diffuse shader
-        Skybox.render();
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, Renderer.gBuffer.color);
 
-        // set diffuse shader
-        Shaders.diffuse.bind();
-        Shaders.diffuse.setVec3('sun.direction', [-3.0, 4.0, -2.0]);
-        Shaders.diffuse.setVec3('sun.ambient', [0.2, 0.2, 0.2]);
-        Shaders.diffuse.setVec3('sun.diffuse', [0.9, 0.9, 0.9]);
-        Shaders.diffuse.setMat4('matWorld', matModel);
-        Shaders.diffuse.setMat4('matViewProj', Camera.viewProjection);
+        Shaders.colorBuffer.bind();
 
-        // render the models
-        floorModel.render();
-        statueModel.render();
+        Renderer.drawFullscreenQuad();
+
+        Shaders.colorBuffer.unBind();
 
         // update stats
         Stats.update(frameTime);

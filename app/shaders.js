@@ -63,76 +63,101 @@ class Shader {
 }
 
 const Shaders = {
-    diffuse: new Shader(
+    gbuffer: new Shader(
     `   #version 300 es
 
-        precision mediump float;
+        precision highp float;
 
-        layout(location=0) in vec3 vertPosition;
-        layout(location=1) in vec2 vertTexCoord;
-        layout(location=2) in vec3 vertNormal;
-
-        out vec2 fragTexCoord;
-        out vec3 fragNormal;
+        layout(location=0) in vec3 aPosition;
+        layout(location=1) in vec2 aUV;
+        layout(location=2) in vec3 aNormal;
 
         uniform mat4 matWorld;
         uniform mat4 matViewProj;
-
-        void main()
-        {
-            fragTexCoord = vertTexCoord; 
-            fragNormal = (matWorld * vec4(vertNormal, 0.0)).xyz;
-            gl_Position = matViewProj * matWorld * vec4(vertPosition, 1.0);
+        
+        out vec4 vPosition;
+        out vec4 vNormal;
+        out vec2 vUV;
+        
+        void main() {
+            vPosition = matWorld * vec4(aPosition, 1.0);
+            vNormal = matWorld * vec4(aNormal, 0.0);
+            vUV = aUV;
+            gl_Position = matViewProj * matWorld * vec4(aPosition, 1.0);
         }`,
     `   #version 300 es
+    
+        precision highp float;
+        
+        in vec4 vPosition;
+        in vec4 vNormal; 
+        in vec2 vUV;
 
-        precision mediump float;
+        layout(location=0) out vec4 fragPosition;
+        layout(location=1) out vec4 fragNormal;
+        layout(location=2) out vec4 fragColor;
 
-        struct DirectionalLight 
-        { 
-            vec3 direction;
-            vec3 diffuse;
-            vec3 ambient;
-        }; 
-
-        in vec2 fragTexCoord;
-        in vec3 fragNormal;
-
-        out vec4 fragmentColor;
-
-        uniform DirectionalLight sun;
         uniform sampler2D sampler;
 
-        void main()
-        {
-            vec3 surfaceNormal = normalize(fragNormal);
-            vec3 normSunDir = normalize(sun.direction);
-            vec4 texel = texture(sampler, fragTexCoord);
-            vec3 lightIntensity = sun.ambient + sun.diffuse * max(dot(fragNormal, normSunDir), 0.0);
-            fragmentColor = vec4(texel.rgb * lightIntensity, texel.a);
+        void main() {
+            fragPosition = vPosition;
+            fragNormal = vec4(normalize(vNormal.xyz), 0.0);
+            fragColor = texture(sampler, vUV);
         }`
     ),
+    colorBuffer: new Shader(
+        `   #version 300 es
+    
+            precision highp float;
+
+            layout(location=0) in vec2 aPosition;
+
+            const vec2 scale = vec2(0.5, 0.5);
+
+            out vec2 vUV;
+
+            void main()
+            {
+                vUV  = aPosition * scale + scale; // scale vertex attribute to [0,1] range
+                gl_Position = vec4(aPosition, 0.0, 1.0);
+            }`,
+        `   #version 300 es
+    
+            precision mediump float;
+
+            in vec2 vUV;
+
+            out vec4 fragmentColor;
+
+            uniform sampler2D sampler;
+            
+            void main()
+            {
+                fragmentColor = texture(sampler, vUV);
+            }`
+        ),
     sky: new Shader(
     `   #version 300 es
+
         precision mediump float;
 
-        layout(location=0) in vec3 vertPosition;
-        layout(location=1) in vec2 vertTexCoord;
+        layout(location=0) in vec3 aPosition;
+        layout(location=1) in vec2 aUV;
 
-        out vec2 fragTexCoord;
+        out vec2 vUV;
 
         uniform mat4 matWorld;
         uniform mat4 matViewProj;
 
         void main()
         {
-            fragTexCoord = vertTexCoord; 
-            gl_Position = matViewProj * matWorld * vec4(vertPosition, 1.0);
+            vUV = aUV; 
+            gl_Position = matViewProj * matWorld * vec4(aPosition, 1.0);
         }`,
     `   #version 300 es
         precision mediump float;
 
-        in vec2 fragTexCoord;
+        in vec2 vUV;
 
         out vec4 fragmentColor;
 
@@ -140,7 +165,7 @@ const Shaders = {
 
         void main()
         {
-            fragmentColor = texture(sampler, fragTexCoord);
+            fragmentColor = texture(sampler, vUV);
         }`
     )
 };
