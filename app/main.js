@@ -41,7 +41,6 @@ Utils.addCSS(
     let time;
     let frameTime = 0;
 
-    const gl = Renderer.gl;
     const statueModel = Resources.get('meshes/statue.obj');
     const floorModel = Resources.get('meshes/floor.obj');
     Skybox.setTextures(Resources.get('skyboxes/1/1.list'));
@@ -66,7 +65,7 @@ Utils.addCSS(
         Controls.update(frameTime);
         Camera.update();
 
-        // Render the gbuffer
+        // Fill the gbuffer
         Renderer.startGBufferPass();
         Shaders.gbuffer.bind();
         Shaders.gbuffer.setMat4('matWorld', matModel);
@@ -78,17 +77,20 @@ Utils.addCSS(
         Shaders.gbuffer.unBind();
         Renderer.endGBufferPass();
 
-        // Render the offscreen color buffer for now
-        gl.clear(gl.DEPTH_BUFFER_BIT || gl.COLOR_BUFFER_BIT);
-
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, Renderer.gBuffer.color);
-
-        Shaders.colorBuffer.bind();
+        // Render the lights
+        Renderer.startLightingPass();
+        Shaders.directionalLight.bind();
+        Shaders.directionalLight.setInt('positionBuffer', 0);
+        Shaders.directionalLight.setInt('normalBuffer', 1);
+        Shaders.directionalLight.setInt('colorBuffer', 2);
+        Shaders.directionalLight.setVec3('sun.direction', [-3.0, 4.0, -2.0]);
+        Shaders.directionalLight.setVec3('sun.ambient', [0.2, 0.2, 0.2]);
+        Shaders.directionalLight.setVec3('sun.diffuse', [0.9, 0.9, 0.9]);
 
         Renderer.drawFullscreenQuad();
 
-        Shaders.colorBuffer.unBind();
+        Shaders.directionalLight.unBind();
+        Renderer.endLightingPass();
 
         // update stats
         Stats.update(frameTime);

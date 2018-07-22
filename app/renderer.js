@@ -40,11 +40,9 @@ const screenQuadVBO = gl.createBuffer();
 gl.bindBuffer(gl.ARRAY_BUFFER, screenQuadVBO);
 gl.bufferData(gl.ARRAY_BUFFER,
     new Float32Array([
-        // First triangle:
         -1.0, -1.0,
         1.0, 1.0,
         -1.0, 1.0,
-        // Second triangle:
         -1.0, -1.0,
         1.0, -1.0,
         1.0, 1.0]),
@@ -136,6 +134,25 @@ const endGBufferPass = () => {
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 };
 
+const startLightingPass = () => {
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, gBuffer.position);
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, gBuffer.normal);
+    gl.activeTexture(gl.TEXTURE2);
+    gl.bindTexture(gl.TEXTURE_2D, gBuffer.color);
+};
+
+const endLightingPass = () => {
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, null);
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, null);
+    gl.activeTexture(gl.TEXTURE2);
+    gl.bindTexture(gl.TEXTURE_2D, null);
+};
+
 window.addEventListener('resize', () => {
     gl.canvas.width = document.body.clientWidth;
     gl.canvas.height = document.body.clientHeight;
@@ -151,6 +168,8 @@ const Renderer = {
     gBuffer,
     startGBufferPass,
     endGBufferPass,
+    startLightingPass,
+    endLightingPass,
     drawFullscreenQuad
 };
 

@@ -45,6 +45,10 @@ class Shader {
         gl.useProgram(null);
     }
 
+    setInt(id, value) {
+        gl.uniform1i(gl.getUniformLocation(this.program, id), value);
+    }
+
     setMat4(id, mat) {
         gl.uniformMatrix4fv(gl.getUniformLocation(this.program, id), gl.FALSE, mat);
     }
@@ -105,37 +109,52 @@ const Shaders = {
             fragColor = texture(sampler, vUV);
         }`
     ),
-    colorBuffer: new Shader(
-        `   #version 300 es
-    
-            precision highp float;
 
-            layout(location=0) in vec2 aPosition;
+    directionalLight: new Shader(
+    `   #version 300 es
 
-            const vec2 scale = vec2(0.5, 0.5);
+        precision highp float;
 
-            out vec2 vUV;
+        layout(location=0) in vec2 aPosition;
 
-            void main()
-            {
-                vUV  = aPosition * scale + scale; // scale vertex attribute to [0,1] range
-                gl_Position = vec4(aPosition, 0.0, 1.0);
-            }`,
-        `   #version 300 es
-    
-            precision mediump float;
+        const vec2 scale = vec2(0.5, 0.5);
 
-            in vec2 vUV;
+        out vec2 vUV;
 
-            out vec4 fragmentColor;
+        void main()
+        {
+            vUV  = aPosition * scale + scale;
+            gl_Position = vec4(aPosition, 0.0, 1.0);
+        }`,
+    `   #version 300 es
 
-            uniform sampler2D sampler;
-            
-            void main()
-            {
-                fragmentColor = texture(sampler, vUV);
-            }`
-        ),
+        precision mediump float; 
+
+        struct DirectionalLight 
+        { 
+            vec3 direction;
+            vec3 diffuse;
+            vec3 ambient;
+        }; 
+
+        in vec2 vUV;
+
+        out vec4 fragmentColor;
+
+        uniform DirectionalLight sun;
+        uniform sampler2D positionBuffer;
+        uniform sampler2D normalBuffer;
+        uniform sampler2D colorBuffer;
+        
+        void main()
+        {
+            vec3 norm = normalize(texture(normalBuffer, vUV).xyz);
+            vec4 color = texture(colorBuffer, vUV);
+            vec3 normSunDir = normalize(sun.direction);
+            vec3 lightIntensity = sun.ambient + sun.diffuse * max(dot(norm, normSunDir), 0.0);
+            fragmentColor = vec4(color.rgb * lightIntensity, 1.0);
+        }`
+    ),
     sky: new Shader(
     `   #version 300 es
 
