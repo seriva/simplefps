@@ -71,27 +71,39 @@ const Shaders = {
     `   #version 300 es
 
         precision highp float;
+        precision highp int;
 
         layout(location=0) in vec3 aPosition;
         layout(location=1) in vec2 aUV;
         layout(location=2) in vec3 aNormal;
 
+        uniform int geomType;
         uniform mat4 matWorld;
         uniform mat4 matViewProj;
         
         out vec4 vPosition;
         out vec4 vNormal;
         out vec2 vUV;
+
+        const int MESH  = 1;
+        const int SKY  = 2;
         
         void main() {
-            vPosition = matWorld * vec4(aPosition, 1.0);
-            vNormal = matWorld * vec4(aNormal, 0.0);
+            switch (geomType) {
+            case MESH:
+                vPosition = matWorld * vec4(aPosition, 1.0);
+                vNormal = matWorld * vec4(aNormal, 0.0);
+                break;
+            case SKY:
+                break;
+            }
             vUV = aUV;
             gl_Position = matViewProj * matWorld * vec4(aPosition, 1.0);
         }`,
     `   #version 300 es
     
         precision highp float;
+        precision highp int;
         
         in vec4 vPosition;
         in vec4 vNormal; 
@@ -101,15 +113,25 @@ const Shaders = {
         layout(location=1) out vec4 fragNormal;
         layout(location=2) out vec4 fragColor;
 
+        uniform int geomType;
         uniform sampler2D sampler;
 
+        const int MESH = 1;
+        const int SKY = 2;
+
         void main() {
-            fragPosition = vPosition;
-            fragNormal = vec4(normalize(vNormal.xyz), 0.0);
+            switch (geomType) {
+            case MESH:
+                fragPosition = vPosition;
+                fragNormal = vec4(normalize(vNormal.xyz), 0.0);
+                break;
+            case SKY:
+                fragNormal = vec4(0.0, 0.0, 0.0, 1.0);
+                break;
+            }
             fragColor = texture(sampler, vUV);
         }`
     ),
-
     directionalLight: new Shader(
     `   #version 300 es
 
@@ -148,43 +170,14 @@ const Shaders = {
         
         void main()
         {
-            vec3 norm = normalize(texture(normalBuffer, vUV).xyz);
+            vec4 norm = texture(normalBuffer, vUV);
             vec4 color = texture(colorBuffer, vUV);
             vec3 normSunDir = normalize(sun.direction);
-            vec3 lightIntensity = sun.ambient + sun.diffuse * max(dot(norm, normSunDir), 0.0);
+            vec3 lightIntensity = vec3(1.0);
+            if (norm.w != 1.0){
+                lightIntensity = sun.ambient + sun.diffuse * max(dot(normalize(norm.xyz), normSunDir), 0.0);
+            }
             fragmentColor = vec4(color.rgb * lightIntensity, 1.0);
-        }`
-    ),
-    sky: new Shader(
-    `   #version 300 es
-
-        precision mediump float;
-
-        layout(location=0) in vec3 aPosition;
-        layout(location=1) in vec2 aUV;
-
-        out vec2 vUV;
-
-        uniform mat4 matWorld;
-        uniform mat4 matViewProj;
-
-        void main()
-        {
-            vUV = aUV; 
-            gl_Position = matViewProj * matWorld * vec4(aPosition, 1.0);
-        }`,
-    `   #version 300 es
-        precision mediump float;
-
-        in vec2 vUV;
-
-        out vec4 fragmentColor;
-
-        uniform sampler2D sampler;
-
-        void main()
-        {
-            fragmentColor = texture(sampler, vUV);
         }`
     )
 };

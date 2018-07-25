@@ -68,9 +68,13 @@ Utils.addCSS(
         // Fill the gbuffer
         Renderer.startGBufferPass();
         Shaders.gbuffer.bind();
+
+        Shaders.gbuffer.setInt('geomType', 2);
+        Skybox.render();
+
+        Shaders.gbuffer.setInt('geomType', 1);
         Shaders.gbuffer.setMat4('matWorld', matModel);
         Shaders.gbuffer.setMat4('matViewProj', Camera.viewProjection);
-
         statueModel.render();
         floorModel.render();
 
