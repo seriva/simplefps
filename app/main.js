@@ -6,6 +6,7 @@ import Camera from './camera';
 import Controls from './controls';
 import Renderer from './renderer';
 import Shaders from './shaders';
+import GBuffer from './gbuffer';
 import Input from './input';
 import Skybox from './skybox';
 import GUI from './gui';
@@ -66,7 +67,7 @@ Utils.addCSS(
         Camera.update();
 
         // Fill the gbuffer
-        Renderer.startGBufferPass();
+        GBuffer.startGeomPass();
         Shaders.gbuffer.bind();
 
         Shaders.gbuffer.setInt('geomType', 2);
@@ -79,10 +80,10 @@ Utils.addCSS(
         floorModel.render();
 
         Shaders.gbuffer.unBind();
-        Renderer.endGBufferPass();
+        GBuffer.endGeomPass();
 
         // Render the lights
-        Renderer.startLightingPass();
+        GBuffer.startLightingPass();
         Shaders.directionalLight.bind();
         Shaders.directionalLight.setInt('positionBuffer', 0);
         Shaders.directionalLight.setInt('normalBuffer', 1);
@@ -94,7 +95,7 @@ Utils.addCSS(
         Renderer.drawFullscreenQuad();
 
         Shaders.directionalLight.unBind();
-        Renderer.endLightingPass();
+        GBuffer.endLightingPass();
 
         // update stats
         Stats.update(frameTime);

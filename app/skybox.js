@@ -17,6 +17,8 @@ const Skydome = {
             mesh = Resources.get('skyboxes/skybox.obj');
         }
         for (let i = 0; i < 6; i++) {
+            const texture = Resources.get(tex[i]);
+            texture.setTextureWrapMode(gl.CLAMP_TO_EDGE);
             mesh.indices[i].material = tex[i];
         }
     },
