@@ -13,6 +13,14 @@
         <title>QDFPS</title>
     </head>
     <body>
+        <script type="text/javascript">
+            if(navigator.serviceWorker){
+                navigator.serviceWorker
+                .register('./sw.js')
+                .then((registration) => {console.log('Service Worker Registered. ', registration)})
+                .catch((error) => {console.log('ServiceWorker registration failed: ', error)})
+            }
+        </script>
         <script type="text/javascript" src="app.js"></script>
         <script>require('main');</script>
     </body>
