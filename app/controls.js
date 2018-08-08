@@ -28,7 +28,6 @@ if (Utils.isMobile()) {
         if (ev.distance > 50) {
             if (ev.type === 'pandown') {
                 Console.toggle(true);
-                Input.toggleCursor(true);
                 Stats.toggle(false);
             }
         }

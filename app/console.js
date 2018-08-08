@@ -1,5 +1,6 @@
 import Utils from './utils';
 import GUI from './gui';
+import Stats from './stats';
 
 const h = GUI.h;
 
@@ -92,6 +93,13 @@ const updateCommand = (evt) => {
     command = evt.target.value;
 };
 
+const hideConsole = () => {
+    if (Utils.isMobile()) {
+        Console.toggle(false);
+        Stats.toggle(true);
+    }
+};
+
 GUI.append(() =>
     h('div',
     visible ?
@@ -113,7 +121,8 @@ GUI.append(() =>
                 disabled: true,
                 value: command,
                 oninput: updateCommand,
-                afterCreate: setFocus
+                afterCreate: setFocus,
+                onblur: hideConsole
             })
         ])
     ]
