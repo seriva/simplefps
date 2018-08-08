@@ -6,7 +6,7 @@ import Camera from './camera';
 import Controls from './controls';
 import Renderer from './renderer';
 import Shaders from './shaders';
-import GBuffer from './gbuffer';
+import Buffers from './buffers';
 import Input from './input';
 import Skybox from './skybox';
 import GUI from './gui';
@@ -66,24 +66,28 @@ Utils.addCSS(
         Controls.update(frameTime);
         Camera.update();
 
-        // Fill the gbuffer
-        GBuffer.startGeomPass();
-        Shaders.gbuffer.bind();
+        // **********************************
+        // geometry pass
+        // **********************************
+        Buffers.startGeomPass();
+        Shaders.geometry.bind();
 
-        Shaders.gbuffer.setInt('geomType', 2);
+        Shaders.geometry.setInt('geomType', 2);
         Skybox.render();
 
-        Shaders.gbuffer.setInt('geomType', 1);
-        Shaders.gbuffer.setMat4('matWorld', matModel);
-        Shaders.gbuffer.setMat4('matViewProj', Camera.viewProjection);
+        Shaders.geometry.setInt('geomType', 1);
+        Shaders.geometry.setMat4('matWorld', matModel);
+        Shaders.geometry.setMat4('matViewProj', Camera.viewProjection);
         statueModel.render();
         floorModel.render();
 
-        Shaders.gbuffer.unBind();
-        GBuffer.endGeomPass();
+        Shaders.geometry.unBind();
+        Buffers.endGeomPass();
 
-        // Render the lights
-        GBuffer.startLightingPass();
+        // **********************************
+        // lighting pass
+        // **********************************
+        Buffers.startLightingPass();
         Shaders.directionalLight.bind();
         Shaders.directionalLight.setInt('positionBuffer', 0);
         Shaders.directionalLight.setInt('normalBuffer', 1);
@@ -95,7 +99,21 @@ Utils.addCSS(
         Renderer.drawFullscreenQuad();
 
         Shaders.directionalLight.unBind();
-        GBuffer.endLightingPass();
+        Buffers.endLightingPass();
+
+        // **********************************
+        // post processing pass
+        // **********************************
+        Buffers.startPostProcessingPass();
+        Shaders.postProcessing.bind();
+        Shaders.postProcessing.setInt('doFXAA', 1);
+        Shaders.postProcessing.setInt('colorBuffer', 0);
+        Shaders.postProcessing.setVec2('viewportSize', [Renderer.canvas.width, Renderer.canvas.height]);
+
+        Renderer.drawFullscreenQuad();
+
+        Shaders.postProcessing.unBind();
+        Buffers.endPostProcessingPass();
 
         // update stats
         Stats.update(frameTime);
