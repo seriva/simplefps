@@ -1,4 +1,5 @@
 import { glMatrix, mat4 } from 'gl-matrix';
+import './settings';
 import Utils from './utils';
 import Resources from './resources';
 import Stats from './stats';
@@ -106,7 +107,7 @@ Utils.addCSS(
         // **********************************
         Buffers.startPostProcessingPass();
         Shaders.postProcessing.bind();
-        Shaders.postProcessing.setInt('doFXAA', 1);
+        Shaders.postProcessing.setInt('doFXAA', window.settings.dofxaa);
         Shaders.postProcessing.setInt('colorBuffer', 0);
         Shaders.postProcessing.setVec2('viewportSize', [Renderer.canvas.width, Renderer.canvas.height]);
 

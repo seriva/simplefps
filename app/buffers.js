@@ -117,7 +117,8 @@ const endPostProcessingPass = () => {
 };
 
 window.addEventListener('resize', () => {
-    Buffers.init(document.body.clientWidth, document.body.clientHeight);
+    Buffers.init(Math.floor(gl.canvas.clientWidth * window.devicePixelRatio * window.settings.renderscale),
+                 Math.floor(gl.canvas.clientHeight * window.devicePixelRatio * window.settings.renderscale));
 }, false);
 
 const Buffers = {

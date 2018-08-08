@@ -58,9 +58,9 @@ const drawFullscreenQuad = () => {
 };
 
 window.addEventListener('resize', () => {
-    gl.canvas.width = document.body.clientWidth;
-    gl.canvas.height = document.body.clientHeight;
-    gl.viewport(0, 0, canvas.width, canvas.height);
+    gl.canvas.width = Math.floor(gl.canvas.clientWidth * window.devicePixelRatio * window.settings.renderscale);
+    gl.canvas.height = Math.floor(gl.canvas.clientHeight * window.devicePixelRatio * window.settings.renderscale);
+    gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
 }, false);
 
 window.dispatchEvent(new Event('resize'));
