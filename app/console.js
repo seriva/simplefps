@@ -136,9 +136,13 @@ const Console = {
     },
 
     execute() {
-        // TODO: add actual execution and registration
         if (command === '') return;
-        this.warn('Unknown command "' + command + '"');
+        try {
+            Console.log(command);
+            eval(command);
+        } catch (error) {
+            Console.warn('Failed to execute command');
+        }
         command = '';
         GUI.update();
     },

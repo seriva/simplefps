@@ -1,4 +1,5 @@
 import Utils from './utils';
+import Console from './console';
 
 window.settings = {
     // rendering
@@ -16,5 +17,6 @@ window.settings = {
 
 // mobile for performance
 if (Utils.isMobile()) {
+    Console.log('Using mobile graphics configuration');
     settings.renderscale = 0.5;
 }
