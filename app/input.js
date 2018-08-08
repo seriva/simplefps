@@ -2,7 +2,6 @@ import Hammer from 'hammerjs';
 import nipplejs from 'nipplejs';
 import Utils from './utils';
 import Renderer from './renderer';
-import Settings from './settings';
 
 Utils.addCSS(
     `
@@ -146,8 +145,8 @@ if (Utils.isMobile()) {
         };
         if (ev.type === 'panmove') {
             cursorMovement = {
-                x: ev.velocityX * 16 * Settings.looksensitivity,
-                y: ev.velocityY * 16 * Settings.looksensitivity
+                x: ev.velocityX * 16 * settings.looksensitivity,
+                y: ev.velocityY * 16 * settings.looksensitivity
             };
             if (ev.pointers && ev.pointers[0]) {
                 virtualCursor.style.left = ev.pointers[0].clientX-25+'px';
@@ -155,12 +154,10 @@ if (Utils.isMobile()) {
             }
         }
         if (ev.type === 'panstart') {
-            console.log('start');
             virtualCursor.classList.add('virtual-cursor-fadein');
             virtualCursor.classList.remove('virtual-cursor-fadeout');
         }
         if (ev.type === 'panend') {
-            console.log('end');
             virtualCursor.classList.remove('virtual-cursor-fadein');
             virtualCursor.classList.add('virtual-cursor-fadeout');
         }
@@ -176,45 +173,45 @@ if (Utils.isMobile()) {
     });
     move.on('move', (evt, data) => {
         if (data.angle && data.distance && data.distance > 20) {
-            delete pressed[Settings.forward];
-            delete pressed[Settings.backwards];
-            delete pressed[Settings.left];
-            delete pressed[Settings.right];
+            delete pressed[settings.forward];
+            delete pressed[settings.backwards];
+            delete pressed[settings.left];
+            delete pressed[settings.right];
             const a = data.angle.degree;
             if ((a >= 337.5 && a < 360) || (a >= 0 && a < 22.5)) {
-                pressed[Settings.right] = true;
+                pressed[settings.right] = true;
             }
             if (a >= 22.5 && a < 67.5) {
-                pressed[Settings.right] = true;
-                pressed[Settings.forward] = true;
+                pressed[settings.right] = true;
+                pressed[settings.forward] = true;
             }
             if (a >= 67.5 && a < 112.5) {
-                pressed[Settings.forward] = true;
+                pressed[settings.forward] = true;
             }
             if (a >= 112.5 && a < 157.5) {
-                pressed[Settings.forward] = true;
-                pressed[Settings.left] = true;
+                pressed[settings.forward] = true;
+                pressed[settings.left] = true;
             }
             if (a >= 157.5 && a < 202.5) {
-                pressed[Settings.left] = true;
+                pressed[settings.left] = true;
             }
             if (a >= 202.5 && a < 247.5) {
-                pressed[Settings.left] = true;
-                pressed[Settings.backwards] = true;
+                pressed[settings.left] = true;
+                pressed[settings.backwards] = true;
             }
             if (a >= 247.5 && a < 292.5) {
-                pressed[Settings.backwards] = true;
+                pressed[settings.backwards] = true;
             }
             if (a >= 292.5 && a < 337.5) {
-                pressed[Settings.backwards] = true;
-                pressed[Settings.right] = true;
+                pressed[settings.backwards] = true;
+                pressed[settings.right] = true;
             }
         }
     }).on('end', () => {
-        delete pressed[Settings.forward];
-        delete pressed[Settings.backwards];
-        delete pressed[Settings.left];
-        delete pressed[Settings.right];
+        delete pressed[settings.forward];
+        delete pressed[settings.backwards];
+        delete pressed[settings.left];
+        delete pressed[settings.right];
     });
     moveDiv.firstChild.classList.add('show-joystick');
 }

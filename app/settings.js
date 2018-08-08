@@ -17,6 +17,6 @@ window.settings = {
 
 // mobile for performance
 if (Utils.isMobile()) {
-    Console.log('Using mobile graphics configuration');
+    Console.log('Using mobile graphics preset');
     settings.renderscale = 0.5;
 }
