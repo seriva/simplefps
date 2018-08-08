@@ -24,7 +24,8 @@
     "no-param-reassign": 0,
     "no-unused-expressions": 0,
     "arrow-body-style": 0,
-    "no-bitwise": 0
+    "no-bitwise": 0,
+    "no-eval": 0
   },
   "globals": {
     "performance": true,
@@ -44,6 +45,8 @@
     "URL": true,
     "postMessage": true,
     "self": true,
-    "close": true
+    "close": true,
+    "settings": true,
+    "eval": true
   }
 }
