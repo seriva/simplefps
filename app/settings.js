@@ -1,7 +1,7 @@
 import Utils from './utils';
 import Console from './console';
 
-window.settings = {
+const Settings = {
     // rendering
     renderscale: 1.0,
     dofxaa: true,
@@ -15,8 +15,12 @@ window.settings = {
     looksensitivity: 5
 };
 
-// mobile for performance
+// mobile preset for better performance
 if (Utils.isMobile()) {
     Console.log('Using mobile graphics preset');
-    settings.renderscale = 0.5;
+    Settings.renderscale = 0.5;
 }
+
+Console.registerCmd('settings', Settings);
+
+export { Settings as default };

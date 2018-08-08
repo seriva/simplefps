@@ -72,6 +72,9 @@ Utils.addCSS(
     `
 );
 
+// where will bind all the commands to eval execution
+window.qdfps = {};
+
 // local vars
 let visible = false;
 let command = '';
@@ -139,7 +142,7 @@ const Console = {
         if (command === '') return;
         try {
             Console.log(command);
-            eval(command);
+            eval('qdfps.' + command);
         } catch (error) {
             Console.warn('Failed to execute command');
         }
@@ -176,6 +179,10 @@ const Console = {
         });
         this.toggle();
         throw new Error();
+    },
+
+    registerCmd(name, value) {
+        window.qdfps[name] = value;
     }
 };
 

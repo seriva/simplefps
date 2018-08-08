@@ -5,6 +5,7 @@ import Console from './console';
 import Camera from './camera';
 import Stats from './stats';
 import Utils from './utils';
+import Settings from './settings';
 
 // console
 Input.addKeyDownEvent(192, () => {
@@ -42,8 +43,8 @@ const Controls = {
 
         // look
         const mpos = Input.cursorMovement();
-        Camera.rotation[0] = Camera.rotation[0] - ((mpos.x/33.0) * settings.looksensitivity);
-        Camera.rotation[1] = Camera.rotation[1] + ((mpos.y/33.0) * settings.looksensitivity);
+        Camera.rotation[0] = Camera.rotation[0] - ((mpos.x/33.0) * Settings.looksensitivity);
+        Camera.rotation[1] = Camera.rotation[1] + ((mpos.y/33.0) * Settings.looksensitivity);
         if (Camera.rotation[1]>89) { Camera.rotation[1] = 89; }
         if (Camera.rotation[1]<-89) { Camera.rotation[1] = -89; }
         if (Camera.rotation[0]<0) { Camera.rotation[0] = 360; }
@@ -56,16 +57,16 @@ const Controls = {
         // movement
         let move = 0;
         let strafe = 0;
-        if (Input.isDown(settings.forward)) {
+        if (Input.isDown(Settings.forward)) {
             move = move + 1;
         }
-        if (Input.isDown(settings.backwards)) {
+        if (Input.isDown(Settings.backwards)) {
             move = move - 1;
         }
-        if (Input.isDown(settings.left)) {
+        if (Input.isDown(Settings.left)) {
             strafe = strafe - 1;
         }
-        if (Input.isDown(settings.right)) {
+        if (Input.isDown(Settings.right)) {
             strafe = strafe + 1;
         }
 
@@ -74,8 +75,8 @@ const Controls = {
         v[1] = 0;
         vec3.rotateY(v, v, [0, 0, 0], glMatrix.toRadian(-90));
         vec3.normalize(v, v);
-        move = move * (ft * settings.movespeed);
-        strafe = strafe * (ft * settings.movespeed);
+        move = move * (ft * Settings.movespeed);
+        strafe = strafe * (ft * Settings.movespeed);
         Camera.position[0] = Camera.position[0] + (Camera.direction[0] * move) + (v[0] * strafe);
         Camera.position[1] = Camera.position[1] + (Camera.direction[1] * move) + (v[1] * strafe);
         Camera.position[2] = Camera.position[2] + (Camera.direction[2] * move) + (v[2] * strafe);

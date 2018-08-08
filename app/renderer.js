@@ -1,5 +1,6 @@
 import Utils from './utils';
 import Console from './console';
+import Settings from  './settings';
 
 Utils.addCSS(
     `
@@ -58,12 +59,17 @@ const drawFullscreenQuad = () => {
 };
 
 window.addEventListener('resize', () => {
-    gl.canvas.width = Math.floor(gl.canvas.clientWidth * window.devicePixelRatio * window.settings.renderscale);
-    gl.canvas.height = Math.floor(gl.canvas.clientHeight * window.devicePixelRatio * window.settings.renderscale);
+    gl.canvas.width = Math.floor(gl.canvas.clientWidth * window.devicePixelRatio * Settings.renderscale);
+    gl.canvas.height = Math.floor(gl.canvas.clientHeight * window.devicePixelRatio * Settings.renderscale);
     gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
 }, false);
 
 window.dispatchEvent(new Event('resize'));
+
+Console.registerCmd('rscale', (scale) => {
+    Settings.renderscale = Math.min(Math.max(scale, 0.2), 1);
+    window.dispatchEvent(new Event('resize'));
+});
 
 const Renderer = {
     gl,

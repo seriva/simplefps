@@ -1,5 +1,6 @@
 import Renderer from './renderer';
 import Texture from './texture';
+import Settings from  './settings';
 
 const gl = Renderer.gl;
 
@@ -117,8 +118,8 @@ const endPostProcessingPass = () => {
 };
 
 window.addEventListener('resize', () => {
-    Buffers.init(Math.floor(gl.canvas.clientWidth * window.devicePixelRatio * window.settings.renderscale),
-                 Math.floor(gl.canvas.clientHeight * window.devicePixelRatio * window.settings.renderscale));
+    Buffers.init(Math.floor(gl.canvas.clientWidth * window.devicePixelRatio * Settings.renderscale),
+                 Math.floor(gl.canvas.clientHeight * window.devicePixelRatio * Settings.renderscale));
 }, false);
 
 const Buffers = {
