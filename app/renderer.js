@@ -1,6 +1,6 @@
 import Utils from './utils';
 import Console from './console';
-import Settings from  './settings';
+import Settings from './settings';
 
 Utils.addCSS(
     `

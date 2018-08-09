@@ -1,6 +1,6 @@
 import Renderer from './renderer';
 import Texture from './texture';
-import Settings from  './settings';
+import Settings from './settings';
 
 const gl = Renderer.gl;
 
