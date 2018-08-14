@@ -3,8 +3,12 @@ import Console from './console';
 
 const Settings = {
     // rendering
+    znear: 0.1,
+    zfar: 1000,
     renderscale: 1.0,
     dofxaa: true,
+    dossao: true,
+
 
     // controls
     forward: 87,

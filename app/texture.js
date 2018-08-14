@@ -28,12 +28,15 @@ class Texture {
             const imageUrl = window.URL.createObjectURL(blob);
             image.src = imageUrl;
         } else {
-            // Create a render target texture
+            // Create a render target texture or texture from data
             gl.bindTexture(gl.TEXTURE_2D, t.texture);
             gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
             gl.texStorage2D(gl.TEXTURE_2D, 1, data.format, data.width, data.height);
+            if (data.pdata != null && data.ptype != null && data.pformat != null) {
+                gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, data.width, data.height, data.pformat, data.ptype, data.pdata);
+            }
             t.setTextureWrapMode(gl.CLAMP_TO_EDGE);
         }
     }

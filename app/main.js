@@ -47,7 +47,7 @@ Utils.addCSS(
     const floorModel = Resources.get('meshes/floor.obj');
     Skybox.setTextures(Resources.get('skyboxes/1/1.list'));
 
-    Camera.setProjection(45, 0.1, 1000);
+    Camera.setProjection(45, Settings.znear, Settings.zfar);
     Camera.setPosition([0, 1, -5]);
     Input.toggleCursor(false);
 
@@ -109,6 +109,9 @@ Utils.addCSS(
         Shaders.postProcessing.bind();
         Shaders.postProcessing.setInt('doFXAA', Settings.dofxaa);
         Shaders.postProcessing.setInt('colorBuffer', 0);
+        Shaders.postProcessing.setInt('positionBuffer', 1);
+        Shaders.postProcessing.setInt('normalBuffer', 2);
+        Shaders.postProcessing.setInt('noiseBuffer', 3);
         Shaders.postProcessing.setVec2('viewportSize', [Renderer.canvas.width, Renderer.canvas.height]);
 
         Renderer.drawFullscreenQuad();

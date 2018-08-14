@@ -17,6 +17,8 @@ const l = {
     color: null,
 };
 
+let noise = null;
+
 const init = (width, height) => {
     // **********************************
     // geometry buffer
@@ -78,6 +80,26 @@ const init = (width, height) => {
         gl.COLOR_ATTACHMENT0
     ]);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+    // **********************************
+    // ssao noise buffer
+    // **********************************
+    const numNoisePixels = gl.drawingBufferWidth * gl.drawingBufferHeight;
+    const noiseTextureData = new Float32Array(numNoisePixels * 2);
+    for (let i = 0; i < numNoisePixels; ++i) {
+        const index = i * 2;
+        noiseTextureData[index] = Math.random() * 2.0 - 1.0;
+        noiseTextureData[index + 1] = Math.random() * 2.0 - 1.0;
+    }
+
+    noise = new Texture({
+        format: gl.RGBA16F,
+        width,
+        height,
+        pformat: gl.FLOAT,
+        ptype: gl.RG,
+        pdata: noiseTextureData
+    });
 };
 
 const startGeomPass = () => {
@@ -111,10 +133,16 @@ const endLightingPass = () => {
 const startPostProcessingPass = () => {
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     l.color.bind(gl.TEXTURE0);
+    g.position.bind(gl.TEXTURE1);
+    g.normal.bind(gl.TEXTURE2);
+    noise.bind(gl.TEXTURE3);
 };
 
 const endPostProcessingPass = () => {
     l.color.unBind();
+    g.position.unBind();
+    g.normal.unBind();
+    noise.unBind();
 };
 
 window.addEventListener('resize', () => {

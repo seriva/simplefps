@@ -142,7 +142,7 @@ const Console = {
         if (command === '') return;
         try {
             Console.log(command);
-            eval('qdfps.' + command);
+            eval('qdfps.' + command.toLowerCase());
         } catch (error) {
             Console.warn('Failed to execute command');
         }
@@ -182,7 +182,7 @@ const Console = {
     },
 
     registerCmd(name, value) {
-        window.qdfps[name] = value;
+        window.qdfps[name.toLowerCase()] = value;
     }
 };
 

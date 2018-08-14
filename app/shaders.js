@@ -200,21 +200,24 @@ const Shaders = {
             uniform bool doFXAA;
             uniform bool doSSAO;
             uniform sampler2D colorBuffer;
+            uniform sampler2D positionBuffer;
+            uniform sampler2D normalBuffer;
+            uniform sampler2D noiseBuffer;
             uniform vec2 viewportSize;
 
             #define FXAA_REDUCE_MIN (1.0/ 128.0)
             #define FXAA_REDUCE_MUL (1.0 / 8.0)
             #define FXAA_SPAN_MAX 8.0
             
-            vec4 applyFXAA(sampler2D tex, vec2 fragCoord)
+            vec4 applyFXAA(vec2 fragCoord)
             {
                 vec4 color;
                 vec2 inverseVP = vec2(1.0 / viewportSize.x, 1.0 / viewportSize.y);
-                vec3 rgbNW = texture(tex, (fragCoord + vec2(-1.0, -1.0)) * inverseVP).xyz;
-                vec3 rgbNE = texture(tex, (fragCoord + vec2(1.0, -1.0)) * inverseVP).xyz;
-                vec3 rgbSW = texture(tex, (fragCoord + vec2(-1.0, 1.0)) * inverseVP).xyz;
-                vec3 rgbSE = texture(tex, (fragCoord + vec2(1.0, 1.0)) * inverseVP).xyz;
-                vec3 rgbM  = texture(tex, fragCoord  * inverseVP).xyz;
+                vec3 rgbNW = texture(colorBuffer, (fragCoord + vec2(-1.0, -1.0)) * inverseVP).xyz;
+                vec3 rgbNE = texture(colorBuffer, (fragCoord + vec2(1.0, -1.0)) * inverseVP).xyz;
+                vec3 rgbSW = texture(colorBuffer, (fragCoord + vec2(-1.0, 1.0)) * inverseVP).xyz;
+                vec3 rgbSE = texture(colorBuffer, (fragCoord + vec2(1.0, 1.0)) * inverseVP).xyz;
+                vec3 rgbM  = texture(colorBuffer, fragCoord  * inverseVP).xyz;
                 vec3 luma = vec3(0.299, 0.587, 0.114);
                 float lumaNW = dot(rgbNW, luma);
                 float lumaNE = dot(rgbNE, luma);
@@ -237,11 +240,11 @@ const Shaders = {
                           dir * rcpDirMin)) * inverseVP;
                   
                 vec3 rgbA = 0.5 * (
-                    texture(tex, fragCoord * inverseVP + dir * (1.0 / 3.0 - 0.5)).xyz +
-                    texture(tex, fragCoord * inverseVP + dir * (2.0 / 3.0 - 0.5)).xyz);
+                    texture(colorBuffer, fragCoord * inverseVP + dir * (1.0 / 3.0 - 0.5)).xyz +
+                    texture(colorBuffer, fragCoord * inverseVP + dir * (2.0 / 3.0 - 0.5)).xyz);
                 vec3 rgbB = rgbA * 0.5 + 0.25 * (
-                    texture(tex, fragCoord * inverseVP + dir * -0.5).xyz +
-                    texture(tex, fragCoord * inverseVP + dir * 0.5).xyz);
+                    texture(colorBuffer, fragCoord * inverseVP + dir * -0.5).xyz +
+                    texture(colorBuffer, fragCoord * inverseVP + dir * 0.5).xyz);
             
                 float lumaB = dot(rgbB, luma);
                 if ((lumaB < lumaMin) || (lumaB > lumaMax))
@@ -258,7 +261,7 @@ const Shaders = {
                 vec4 color;
 
                 if(doFXAA){
-                    color = applyFXAA(colorBuffer, fragCoord);
+                    color = applyFXAA(fragCoord);
                 } else {
                     color = texture(colorBuffer, uv);
                 }
