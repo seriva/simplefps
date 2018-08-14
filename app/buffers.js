@@ -93,11 +93,11 @@ const init = (width, height) => {
     }
 
     noise = new Texture({
-        format: gl.RGBA16F,
+        format: gl.RG16F,
         width,
         height,
-        pformat: gl.FLOAT,
-        ptype: gl.RG,
+        pformat: gl.RG,
+        ptype: gl.FLOAT,
         pdata: noiseTextureData
     });
 };
