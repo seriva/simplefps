@@ -8,7 +8,9 @@ const Settings = {
     renderscale: 1.0,
     dofxaa: true,
     dossao: true,
-
+    ssaoRadius: 8,
+    ssaoBias: 0.04,
+    ssaoAttenuation: [1, 1],
 
     // controls
     forward: 87,

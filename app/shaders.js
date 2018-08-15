@@ -53,6 +53,10 @@ class Shader {
         gl.uniformMatrix4fv(gl.getUniformLocation(this.program, id), gl.FALSE, mat);
     }
 
+    setFloat(id, value) {
+        gl.uniform1f(gl.getUniformLocation(this.program, id), value);
+    }
+
     setVec2(id, vec) {
         gl.uniform2f(gl.getUniformLocation(this.program, id), vec[0], vec[1]);
     }
@@ -193,7 +197,16 @@ const Shaders = {
             }`,
         `   #version 300 es
     
-            precision mediump float;
+            precision highp float;
+
+            struct SSAOUniforms {
+                float sampleRadius;
+                float bias;
+                vec2 attenuation;
+                vec2 depthRange;
+            };
+
+            layout(std140, column_major) uniform;
     
             out vec4 fragColor;
     
@@ -204,10 +217,20 @@ const Shaders = {
             uniform sampler2D normalBuffer;
             uniform sampler2D noiseBuffer;
             uniform vec2 viewportSize;
+            uniform SSAOUniforms ssao;
 
             #define FXAA_REDUCE_MIN (1.0/ 128.0)
             #define FXAA_REDUCE_MUL (1.0 / 8.0)
             #define FXAA_SPAN_MAX 8.0
+            #define SIN45 0.707107
+
+            float getOcclusion(vec3 position, vec3 normal, ivec2 fragCoord) {
+                vec3 occluderPosition = texelFetch(positionBuffer, fragCoord, 0).xyz;
+                vec3 positionVec = occluderPosition - position;
+                float intensity = max(dot(normal, normalize(positionVec)) - ssao.bias, 0.0);
+                float attenuation = 1.0 / (ssao.attenuation.x + ssao.attenuation.y * length(positionVec));
+                return intensity * attenuation;
+            }
             
             vec4 applyFXAA(vec2 fragCoord)
             {
@@ -253,7 +276,33 @@ const Shaders = {
                     color = vec4(rgbB, 1.0);
                 return color;
             }
-            
+
+            float applySSAO(ivec2 fragCoord)
+            {
+                vec3 position = texelFetch(positionBuffer, fragCoord, 0).xyz;
+                vec3 normal = texelFetch(normalBuffer, fragCoord, 0).xyz;
+                vec2 rand = normalize(texelFetch(noiseBuffer, fragCoord, 0).xy);
+                float depth = (length(position) - ssao.depthRange.x) / (ssao.depthRange.y - ssao.depthRange.x);
+                float kernelRadius = ssao.sampleRadius * (1.0 - depth);
+                vec2 kernel[4];
+                kernel[0] = vec2(0.0, 1.0);
+                kernel[1] = vec2(1.0, 0.0);
+                kernel[2] = vec2(0.0, -1.0);
+                kernel[3] = vec2(-1.0, 0.0);
+                float occlusion = 0.0;
+                for (int i = 0; i < 4; ++i) {
+                    vec2 k1 = reflect(kernel[i], rand);
+                    vec2 k2 = vec2(k1.x * SIN45 - k1.y * SIN45, k1.x * SIN45 + k1.y * SIN45);
+                    k1 *= kernelRadius;
+                    k2 *= kernelRadius;
+                    occlusion += getOcclusion(position, normal, fragCoord + ivec2(k1));
+                    occlusion += getOcclusion(position, normal, fragCoord + ivec2(k2 * 0.75));
+                    occlusion += getOcclusion(position, normal, fragCoord + ivec2(k1 * 0.5));
+                    occlusion += getOcclusion(position, normal, fragCoord + ivec2(k2 * 0.25));
+                }
+                return clamp(occlusion / 16.0, 0.0, 1.0);
+            }
+
             void main()
             {
                 vec2 uv = vec2(gl_FragCoord.xy / viewportSize.xy);
@@ -266,7 +315,13 @@ const Shaders = {
                     color = texture(colorBuffer, uv);
                 }
 
-                fragColor = color;
+                float occlusion = 0.0;
+                if(doSSAO)
+                {
+                    occlusion = applySSAO(ivec2(fragCoord.xy));
+                }
+
+                fragColor = vec4(clamp(color.rgb - occlusion, 0.0, 1.0), 1.0);
             }`
         )
 };
