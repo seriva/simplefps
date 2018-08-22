@@ -21,7 +21,16 @@ if (!gl) {
     Console.error('Failed to initialize WebGL 2.0 context');
 }
 if (!gl.getExtension('EXT_color_buffer_float')) {
-    Console.error('EXT_color_buffer_float is required to run');
+    Console.error(' Extension EXT_color_buffer_float is required to run');
+}
+
+const afExt = (
+    gl.getExtension('EXT_texture_filter_anisotropic') ||
+    gl.getExtension('MOZ_EXT_texture_filter_anisotropic') ||
+    gl.getExtension('WEBKIT_EXT_texture_filter_anisotropic')
+);
+if (!afExt) {
+    Console.error('Extension EXT_texture_filter_anisotropic is required to run');
 }
 
 gl.clearColor(0.0, 0.0, 0.0, 1.0);
@@ -36,6 +45,7 @@ Console.log('Renderer: ' + gl.getParameter(gl.RENDERER));
 Console.log('Vendor: ' + gl.getParameter(gl.VENDOR));
 Console.log('WebGL version: ' + gl.getParameter(gl.VERSION));
 Console.log('GLSL version: ' + gl.getParameter(gl.SHADING_LANGUAGE_VERSION));
+Console.log('Max anisotropic filtering: ' + gl.getParameter(afExt.MAX_TEXTURE_MAX_ANISOTROPY_EXT));
 
 const screenQuadVBO = gl.createBuffer();
 gl.bindBuffer(gl.ARRAY_BUFFER, screenQuadVBO);
@@ -74,6 +84,7 @@ Console.registerCmd('rscale', (scale) => {
 const Renderer = {
     gl,
     canvas,
+    afExt,
     drawFullscreenQuad
 };
 

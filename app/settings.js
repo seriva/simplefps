@@ -11,6 +11,7 @@ const Settings = {
     ssaoRadius: 8,
     ssaoBias: 0.04,
     ssaoAttenuation: [1, 1],
+    anisotropicFiltering: 16,
 
     // controls
     forward: 87,
