@@ -14,7 +14,9 @@
     </head>
     <body>
         <script type="text/javascript">
-            if(navigator.serviceWorker){
+            // The localhost:3333 check is a dirty workarround to fix the autoreload of the brunch devserver
+            // which does not play well with the service worker.
+            if(navigator.serviceWorker && window.location.host !== 'localhost:3333'){
                 navigator.serviceWorker
                 .register('./sw.js')
                 .then((registration) => {console.log('Service Worker Registered: ', registration)})
