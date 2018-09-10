@@ -1,7 +1,7 @@
 import Utils from './utils';
 import Console from './console';
 
-const Settings = {
+let Settings = {
     // rendering
     znear: 0.1,
     zfar: 1000,
@@ -22,12 +22,23 @@ const Settings = {
     looksensitivity: 5
 };
 
-// mobile preset for better performance
-if (Utils.isMobile()) {
-    Console.log('Using mobile graphics preset');
-    Settings.renderscale = 0.5;
+
+// load possible settings from local storage
+if (window.localStorage.getItem('settings') !== null) {
+    Console.log('Using stored settings');
+    Settings = localStorage.getItem('settings');
+} else {
+    // mobile preset for better performance
+    if (Utils.isMobile()) {
+        Console.log('Using mobile graphics preset');
+        Settings.renderscale = 0.5;
+    }
+    localStorage.setItem('settings', Settings);
 }
 
 Console.registerCmd('settings', Settings);
+Console.registerCmd('sstore', () => {
+    localStorage.setItem('settings', Settings);
+});
 
 export { Settings as default };

@@ -25,7 +25,8 @@
     "no-unused-expressions": 0,
     "arrow-body-style": 0,
     "no-bitwise": 0,
-    "no-eval": 0
+    "no-eval": 0,
+    "import/no-mutable-exports": 0
   },
   "globals": {
     "performance": true,
@@ -47,6 +48,7 @@
     "self": true,
     "close": true,
     "settings": true,
-    "eval": true
+    "eval": true,
+    "localStorage": true
   }
 }
