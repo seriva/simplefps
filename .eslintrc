@@ -37,7 +37,6 @@
     "document": true,
     "cordova": true,
     "XMLHttpRequest": true,
-    "AndroidFullScreen": true,
     "Event": true,
     "KeyboardEvent": true,
     "Fullscreen": true,
