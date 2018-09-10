@@ -25,7 +25,7 @@ class Texture {
 
                 // Anisotropic filtering
                 const af = Math.min(Math.max(Settings.anisotropicFiltering, 1), gl.getParameter(Renderer.afExt.MAX_TEXTURE_MAX_ANISOTROPY_EXT));
-                gl.texParameterf(gl.TEXTURE_2D, Renderer.afExt.TEXTURE_ANISOTROPY_EXT, af);
+                gl.texParameterf(gl.TEXTURE_2D, Renderer.afExt.TEXTURE_MAX_ANISOTROPY_EXT, af);
 
                 // Generate mipmaps
                 gl.generateMipmap(gl.TEXTURE_2D);
