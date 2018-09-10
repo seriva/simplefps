@@ -54,8 +54,6 @@ Utils.addCSS(
     const matModel = mat4.create();
     const matIdentity = mat4.create();
     mat4.identity(matIdentity);
-    mat4.identity(matModel);
-    mat4.rotate(matModel, matIdentity, glMatrix.toRadian(180), [0, 1, 0]);
 
     const loop = () => {
         // timing
@@ -77,10 +75,23 @@ Utils.addCSS(
         Skybox.render();
 
         Shaders.geometry.setInt('geomType', 1);
-        Shaders.geometry.setMat4('matWorld', matModel);
         Shaders.geometry.setMat4('matViewProj', Camera.viewProjection);
-        statueModel.render();
+        mat4.identity(matModel);
+        mat4.rotate(matModel, matIdentity, glMatrix.toRadian(180), [0, 1, 0]);
+        Shaders.geometry.setMat4('matWorld', matModel);
         floorModel.render();
+
+        const startPos = -2.6;
+        for (let i = 0; i < 5; i++) {
+            for (let j = 0; j < 5; j++) {
+                mat4.identity(matModel);
+                mat4.rotate(matModel, matIdentity, glMatrix.toRadian(180), [0, 1, 0]);
+                mat4.translate(matModel, matModel, [startPos + i * 1.3, 0, startPos + j * 1.3]);
+                Shaders.geometry.setMat4('matWorld', matModel);
+                statueModel.render();
+            }
+        }
+
 
         Shaders.geometry.unBind();
         Buffers.endGeomPass();

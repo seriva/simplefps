@@ -154,7 +154,7 @@ const Shaders = {
         }`,
     `   #version 300 es
 
-        precision mediump float; 
+        precision highp float; 
 
         struct DirectionalLight 
         { 

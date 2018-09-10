@@ -8,9 +8,9 @@ const Settings = {
     renderscale: 1.0,
     dofxaa: true,
     dossao: true,
-    ssaoRadius: 8,
-    ssaoBias: 0.04,
-    ssaoAttenuation: [1, 1],
+    ssaoRadius: 64,
+    ssaoBias: 0.4,
+    ssaoAttenuation: [1, 2],
     anisotropicFiltering: 16,
 
     // controls
