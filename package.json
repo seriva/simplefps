@@ -9,7 +9,7 @@
     "url": "https://github.com/seriva/QDFPSJS.git"
   },
   "scripts": {
-    "build": "brunch build --production",
+    "build": "rimraf public/* && brunch build --production && node sw-generate.js",
     "dev": "brunch watch --server"
   },
   "dependencies": {
@@ -28,6 +28,8 @@
     "eslint-brunch": "^3.12.0",
     "eslint-config-airbnb-base": "11.3.2",
     "eslint-plugin-import": "^2.14.0",
+    "recursive-readdir": "^2.2.2",
+    "rimraf": "^2.6.2",
     "uglify-js-brunch": "^2.10.0"
   }
 }
