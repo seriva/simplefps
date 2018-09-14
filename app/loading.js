@@ -32,6 +32,18 @@ Utils.addCSS(
         content:url(resources/logo.svg);
     }
 
+    #loading-text { 
+        position: fixed; 
+        width: 100%; 
+        height: 3vh; 
+        top: 75%; 
+        color: #fff;
+        font-size: 3vh;    
+        text-align: center;
+        vertical-align: middle;  
+        z-index : 99999;
+    }
+
     @-webkit-keyframes spin { 
         100% { 
             -webkit-transform: rotate(360deg); 
@@ -41,22 +53,30 @@ Utils.addCSS(
 );
 
 // local vars
-let visible = false;
+let isVisible = false;
+let displayText = 'Loading...';
+let forceUntilReload = false;
 
 // gui function
 GUI.append(() =>
-    h('div#loading', visible ?
+    h('div#loading', isVisible ?
     [
         h('div#loading-logo'),
-        h('div#loading-background')
+        h('div#loading-background'),
+        h('div#loading-text', [displayText])
     ]
     :
     [])
 );
 
 const Loading = {
-    toggle(show) {
-        show === undefined ? visible = !visible : visible = show;
+    show(visible, text, force) {
+        if (forceUntilReload === true) return;
+
+        isVisible = visible;
+        if (text !== undefined && text !== null) displayText = text;
+        if (force !== undefined && force !== null) forceUntilReload = force;
+
         GUI.update();
     }
 };

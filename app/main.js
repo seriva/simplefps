@@ -2,6 +2,7 @@ import { glMatrix, mat4 } from 'gl-matrix';
 import Settings from './settings';
 import Utils from './utils';
 import Resources from './resources';
+import './update';
 import Stats from './stats';
 import Camera from './camera';
 import Controls from './controls';

@@ -20,7 +20,7 @@ const Resources = {
         return new Promise((resolve) => {
             let counter = 0;
             startTime = new Date().getTime();
-            Loading.toggle(true);
+            Loading.show(true, 'Loading...');
 
             const loadNext = async () => {
                 let resource = null;
@@ -49,7 +49,7 @@ const Resources = {
                     resources[path] = resource;
                     counter++;
                     if (counter === paths.length) {
-                        Loading.toggle(false);
+                        Loading.show(false);
                         paths = [];
                         const ms = new Date().getTime() - startTime;
                         Console.log('Loaded resources in ' + ms + 'ms');

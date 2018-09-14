@@ -2,14 +2,18 @@ const staticCacheName = '{{cacheName}}';
 const filesToCache = {{cacheArray}};
 
 self.addEventListener('install', event => {
-  console.log('SW - Attempting to install service worker and cache static assets');
+  console.log('SW - Installing service worker and cache static assets');
   event.waitUntil(
-    caches.open(staticCacheName).then(cache => {
-      return cache.addAll(filesToCache);
-    }).then(() => {
-      return self.skipWaiting();
-    })
+    caches.open(staticCacheName)
+      .then(cache => cache.addAll(filesToCache))
   );
+});
+
+self.addEventListener('message', function (event) {
+  console.log('SW - Start installing of new service worker');
+  if (event.data.action === 'skipWaiting') {
+    self.skipWaiting();
+  }
 });
 
 self.addEventListener('activate', event => {
@@ -29,18 +33,17 @@ self.addEventListener('activate', event => {
 });
 
 self.addEventListener('fetch', event => {
-  console.log('SW - Fetch event for: ', event.request.url);
   event.respondWith(
     caches.match(event.request)
     .then(response => {
       if (response) {
-        console.log('SW - Found in cache: ', event.request.url);
+        console.log('SW - Fetch from cache: ', event.request.url);
         return response;
       }
-      console.log('SW - Network request for: ', event.request.url);
+      console.log('SW - Fetch from network: ', event.request.url);
       return fetch(event.request)
     }).catch(error => {
-      console.log('SW - Fetch error: ', error);
+      //console.log('SW - Fetch error: ', error);
     })
   );
 });
