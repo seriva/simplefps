@@ -6,7 +6,6 @@ const package = JSON.parse(fs.readFileSync(__dirname + '/package.json', 'utf8'))
 let   swTemplate = fs.readFileSync(__dirname + '/sw-template.tpl', 'utf8');
 const timeStamp = new Date().getTime();
 const rootDir = __dirname + '/public/';
-let   htmlTemplate = fs.readFileSync(rootDir + '/index.html', 'utf8');
 const exclude = []
 
 recursive(rootDir, exclude, function (err, files) {
