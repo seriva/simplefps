@@ -13,7 +13,7 @@ if (navigator.serviceWorker && window.location.hostname !== 'localhost') {
             newWorker.addEventListener('statechange', () => {
                 if (newWorker.state === 'installed') {
                     Loading.show(true, 'Updating...', true);
-                    newWorker.postMessage({ action: 'skipWaiting' });
+                    // newWorker.postMessage({ action: 'skipWaiting' });
                 }
             });
         });

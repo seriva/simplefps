@@ -10,8 +10,8 @@ self.addEventListener('install', event => {
 });
 
 self.addEventListener('message', function (event) {
-  console.log('SW - Start installing of new service worker');
   if (event.data.action === 'skipWaiting') {
+    console.log('SW - Start installing of new service worker');
     self.skipWaiting();
   }
 });
