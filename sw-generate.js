@@ -14,7 +14,7 @@ recursive(rootDir, exclude, function (err, files) {
     let rp = path.normalize(rootDir);
     let filesNew = "[\n  '.',\n"
     files.forEach( function(s) { 
-        filesNew +=  "  '" + s.replace(rp, '').replace('\\', '/') + "',\n";
+        filesNew +=  "  '" + s.replace(rp, '').replace(/\\/g, '/') + "',\n";
     } );
     filesNew += "]"
     swTemplate = swTemplate.replace('{{cacheArray}}', filesNew.toString());
