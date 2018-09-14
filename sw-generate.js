@@ -19,11 +19,7 @@ recursive(rootDir, exclude, function (err, files) {
     filesNew += "]"
     swTemplate = swTemplate.replace('{{cacheArray}}', filesNew.toString());
     swTemplate = swTemplate.replace('{{cacheName}}', package.name + '-' + package.version  + '-' + timeStamp);
-    fs.writeFileSync(rootDir + '/sw-' + timeStamp + '.js' , swTemplate)
-
-    // Update and write html template.
-    htmlTemplate = htmlTemplate.replace('{{swTemplate}}', './sw-' + timeStamp + '.js');
-    fs.writeFileSync(rootDir + '/index.html' , htmlTemplate);
+    fs.writeFileSync(rootDir + '/sw.js' , swTemplate)
 
     console.log('Generated service worker successfully\n');
 });
