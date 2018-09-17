@@ -24,8 +24,10 @@ class Texture {
                 gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
 
                 // Anisotropic filtering
-                const af = Math.min(Math.max(Settings.anisotropicFiltering, 1), gl.getParameter(Renderer.afExt.MAX_TEXTURE_MAX_ANISOTROPY_EXT));
-                gl.texParameterf(gl.TEXTURE_2D, Renderer.afExt.TEXTURE_MAX_ANISOTROPY_EXT, af);
+                if (Renderer.afExt) {
+                    const af = Math.min(Math.max(Settings.anisotropicFiltering, 1), gl.getParameter(Renderer.afExt.MAX_TEXTURE_MAX_ANISOTROPY_EXT));
+                    gl.texParameterf(gl.TEXTURE_2D, Renderer.afExt.TEXTURE_MAX_ANISOTROPY_EXT, af);
+                }
 
                 // Generate mipmaps
                 gl.generateMipmap(gl.TEXTURE_2D);

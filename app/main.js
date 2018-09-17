@@ -93,7 +93,6 @@ Utils.addCSS(
             }
         }
 
-
         Shaders.geometry.unBind();
         Buffers.endGeomPass();
 
