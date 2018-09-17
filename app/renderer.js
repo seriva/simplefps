@@ -4,16 +4,16 @@ import Settings from './settings';
 
 Utils.addCSS(
     `
-    #viewport {
+    #game {
         background: #000;
         width: 100vw; height: 100vh;
         display: block;
-        z-index : 100;
+        z-index : 0;
     }
     `
 );
 
-const canvas = Utils.addElement('canvas', 'viewport');
+const canvas = Utils.addElement('canvas', 'game');
 const gl = canvas.getContext('webgl2', {
     antialias: true
 });
@@ -30,7 +30,7 @@ const afExt = (
     gl.getExtension('WEBKIT_EXT_texture_filter_anisotropic')
 );
 if (!afExt) {
-    Console.warning('Extension EXT_texture_filter_anisotropic is not present');
+    Console.warn('Extension EXT_texture_filter_anisotropic is not present');
 }
 
 gl.clearColor(0.0, 0.0, 0.0, 1.0);

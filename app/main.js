@@ -11,7 +11,7 @@ import Shaders from './shaders';
 import Buffers from './buffers';
 import Input from './input';
 import Skybox from './skybox';
-import GUI from './gui';
+import DOM from './dom';
 
 Utils.addCSS(
     `
@@ -139,7 +139,7 @@ Utils.addCSS(
         Stats.update(frameTime);
 
         // update html gui
-        GUI.update();
+        DOM.update();
 
         // restart the loop
         window.requestAnimationFrame(loop);

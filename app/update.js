@@ -1,8 +1,8 @@
 import Loading from './loading';
-import GUI from './gui';
+import DOM from './dom';
 import Utils from './utils';
 
-const h = GUI.h;
+const h = DOM.h;
 
 Utils.addCSS(
     `
@@ -47,7 +47,7 @@ const update = () => {
 };
 
 // gui function
-GUI.append(() =>
+DOM.append(() =>
     h('div#update', isVisible ?
     [
         h('div# #update-button', {

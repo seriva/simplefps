@@ -3,7 +3,7 @@ import { h, createProjector } from 'maquette';
 
 const projector = createProjector();
 
-const GUI = {
+const DOM = {
     h,
     createEnterCssTransition,
     createExitCssTransition,
@@ -15,4 +15,4 @@ const GUI = {
     }
 };
 
-export { GUI as default };
+export { DOM as default };

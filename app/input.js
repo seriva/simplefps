@@ -1,11 +1,14 @@
 import Hammer from 'hammerjs';
 import nipplejs from 'nipplejs';
 import Utils from './utils';
-import Renderer from './renderer';
 import Settings from './settings';
 
 Utils.addCSS(
     `
+    #input {
+        z-index: 500;
+    }
+
     .hide-cursor {
         cursor: none;
     }
@@ -58,18 +61,6 @@ Utils.addCSS(
         height: calc(100% - 100px);
         right: 0px;
         bottom: 0px;
-        margin: 0;
-        padding: 0;
-        position: absolute;
-        z-index : 50;
-        opacity: 0.01;
-    }
-
-    #console-div {
-        width: 100%;
-        height: 100px;
-        right: 0px;
-        top: 0px;
         margin: 0;
         padding: 0;
         position: absolute;
@@ -134,9 +125,10 @@ window.addEventListener('mousemove', (evt) => {
 }, false);
 
 if (Utils.isMobile()) {
-    // touch mouse input
-    const virtualCursor = Utils.addElement('div', 'virtual-cursor');
-    const lookDiv = Utils.addElement('div', 'look-div');
+    // virtual mouse input
+    const virtualInputRoot = Utils.addElement('div', 'input');
+    const virtualCursor = Utils.addElement('div', 'virtual-cursor', virtualInputRoot);
+    const lookDiv = Utils.addElement('div', 'look-div', virtualInputRoot);
     const look = new Hammer(lookDiv, { touchAction: 'auto', inputClass: Hammer.TouchInput });
     look.get('pan').set({ direction: Hammer.DIRECTION_ALL });
     look.on('panstart panmove panend', (ev) => {
@@ -165,7 +157,7 @@ if (Utils.isMobile()) {
     });
 
     // WASD input with virtual joystick
-    const moveDiv = Utils.addElement('div', 'move-div');
+    const moveDiv = Utils.addElement('div', 'move-div', virtualInputRoot);
     const move = nipplejs.create({
         zone: moveDiv,
         mode: 'static',
@@ -229,7 +221,7 @@ const Input = {
             document.exitPointerLock();
         } else {
             document.body.classList.add('hide-cursor');
-            Renderer.canvas.requestPointerLock();
+            document.getElementById('game').requestPointerLock();
         }
     },
 

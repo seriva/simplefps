@@ -1,12 +1,27 @@
+import Hammer from 'hammerjs';
 import Utils from './utils';
-import GUI from './gui';
-import Stats from './stats';
+import DOM from './dom';
+import Input from './input';
 
-const h = GUI.h;
+const h = DOM.h;
 
 Utils.addCSS(
     `
-    #console {
+    #console {}
+
+    #console-swipe {
+        width: 100%;
+        height: 100px;
+        right: 0px;
+        top: 0px;
+        margin: 0;
+        padding: 0;
+        position: absolute;
+        z-index : 50;
+        opacity: 0.01;
+    }
+
+    #console-body {
         transition: top 0.150s ease-in-out;
         display: inline-block;
         background-color: transparent;
@@ -16,7 +31,7 @@ Utils.addCSS(
         height: 35%;
         left: 0;
         overflow: none;
-        z-index : 2000;
+        z-index : 2500;
     }
 
     #console-content {
@@ -103,13 +118,13 @@ const hideConsole = () => {
     }
 };
 
-GUI.append(() =>
-    h('div',
+DOM.append(() =>
+    h('div#console',
     visible ?
     [
-        h('div#console', {
-            enterAnimation: GUI.createEnterCssTransition('console-show'),
-            exitAnimation: GUI.createExitCssTransition('console-hide')
+        h('div#console-body', {
+            enterAnimation: DOM.createEnterCssTransition('console-show'),
+            exitAnimation: DOM.createExitCssTransition('console-hide')
         }, [
             h('div#console-content', {
                 onchange: setScrollPos
@@ -133,6 +148,30 @@ GUI.append(() =>
     [])
 );
 
+// Console controls
+Input.addKeyDownEvent(192, () => {
+    Console.toggle();
+    Input.toggleCursor();
+});
+Input.addKeyDownEvent(13, () => {
+    Console.execute();
+});
+
+if (Utils.isMobile()) {
+    // Swipedown console for mobile.
+    const consoleTouch = new Hammer(Utils.addElement('div', 'console-swipe', document.getElementById('console')));
+    consoleTouch.get('pan').set({
+        direction: Hammer.DIRECTION_ALL
+    });
+    consoleTouch.on('pandown', (ev) => {
+        if (ev.distance > 50) {
+            if (ev.type === 'pandown') {
+                Console.toggle(true);
+            }
+        }
+    });
+}
+
 const Console = {
     visible() {
         return visible;
@@ -147,7 +186,7 @@ const Console = {
             Console.warn('Failed to execute command');
         }
         command = '';
-        GUI.update();
+        DOM.update();
     },
 
     toggle(show) {

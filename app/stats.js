@@ -1,7 +1,7 @@
 import Utils from './utils';
-import GUI from './gui';
+import DOM from './dom';
 
-const h = GUI.h;
+const h = DOM.h;
 
 // add css
 Utils.addCSS(
@@ -35,7 +35,7 @@ let fpscounter = 0;
 let frametime = 0;
 
 // gui function
-GUI.append(() =>
+DOM.append(() =>
     h('div#stats', visible ?
     [
         h('span#stats-fps', ['FPS: ' + fps]),

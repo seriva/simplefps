@@ -1,35 +1,8 @@
-import Hammer from 'hammerjs';
 import { glMatrix, vec3 } from 'gl-matrix';
 import Input from './input';
 import Console from './console';
 import Camera from './camera';
-import Utils from './utils';
 import Settings from './settings';
-
-// console
-Input.addKeyDownEvent(192, () => {
-    Console.toggle();
-    Input.toggleCursor();
-});
-Input.addKeyDownEvent(13, () => {
-    Console.execute();
-});
-
-if (Utils.isMobile()) {
-    // console div
-    const consoleDiv = Utils.addElement('div', 'console-div');
-    const consoleTouch = new Hammer(consoleDiv);
-    consoleTouch.get('pan').set({
-        direction: Hammer.DIRECTION_ALL
-    });
-    consoleTouch.on('pandown', (ev) => {
-        if (ev.distance > 50) {
-            if (ev.type === 'pandown') {
-                Console.toggle(true);
-            }
-        }
-    });
-}
 
 // mouse and keyboard input
 const Controls = {

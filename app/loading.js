@@ -1,7 +1,7 @@
 import Utils from './utils';
-import GUI from './gui';
+import DOM from './dom';
 
-const h = GUI.h;
+const h = DOM.h;
 
 Utils.addCSS(
     `
@@ -57,7 +57,7 @@ let isVisible = false;
 let forceUntilReload = false;
 
 // gui function
-GUI.append(() =>
+DOM.append(() =>
     h('div#loading', isVisible ?
     [
         h('div#loading-logo'),
@@ -74,7 +74,7 @@ const Loading = {
         isVisible = visible;
         if (force !== undefined && force !== null) forceUntilReload = force;
 
-        GUI.update();
+        DOM.update();
     }
 };
 
