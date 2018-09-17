@@ -16,6 +16,7 @@ Utils.addCSS(
         height: 35%;
         left: 0;
         overflow: none;
+        z-index : 2000;
     }
 
     #console-content {
@@ -24,7 +25,7 @@ Utils.addCSS(
         column nowrap;
         border:1px solid #999;
         background-color: #999;
-        opacity: 0.75;
+        opacity: 0.90;
         width: 100%;
         height: 100%;
         overflow: scroll;
@@ -99,7 +100,6 @@ const updateCommand = (evt) => {
 const hideConsole = () => {
     if (Utils.isMobile()) {
         Console.toggle(false);
-        Stats.toggle(true);
     }
 };
 

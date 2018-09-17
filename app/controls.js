@@ -3,14 +3,12 @@ import { glMatrix, vec3 } from 'gl-matrix';
 import Input from './input';
 import Console from './console';
 import Camera from './camera';
-import Stats from './stats';
 import Utils from './utils';
 import Settings from './settings';
 
 // console
 Input.addKeyDownEvent(192, () => {
     Console.toggle();
-    Stats.toggle();
     Input.toggleCursor();
 });
 Input.addKeyDownEvent(13, () => {
@@ -28,7 +26,6 @@ if (Utils.isMobile()) {
         if (ev.distance > 50) {
             if (ev.type === 'pandown') {
                 Console.toggle(true);
-                Stats.toggle(false);
             }
         }
     });

@@ -54,7 +54,6 @@ Utils.addCSS(
 
 // local vars
 let isVisible = false;
-let displayText = 'Loading...';
 let forceUntilReload = false;
 
 // gui function
@@ -63,18 +62,16 @@ GUI.append(() =>
     [
         h('div#loading-logo'),
         h('div#loading-background'),
-        h('div#loading-text', [displayText])
     ]
     :
     [])
 );
 
 const Loading = {
-    show(visible, text, force) {
+    toggle(visible, force) {
         if (forceUntilReload === true) return;
 
         isVisible = visible;
-        if (text !== undefined && text !== null) displayText = text;
         if (force !== undefined && force !== null) forceUntilReload = force;
 
         GUI.update();

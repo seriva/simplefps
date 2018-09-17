@@ -41,7 +41,7 @@ const update = () => {
     isVisible = false;
     localStorage.removeItem('update-available');
     if (newServiceWorker !== null) {
-        Loading.show(true, 'Updating...', true);
+        Loading.toggle(true, true);
         newServiceWorker.postMessage({ action: 'skipWaiting' });
     }
 };
