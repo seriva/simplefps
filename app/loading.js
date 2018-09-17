@@ -18,6 +18,7 @@ Utils.addCSS(
         padding: 0;
         position: absolute;
         background-color: black;
+        z-index : 2001;
     }
 
     #loading-logo { 
@@ -30,6 +31,8 @@ Utils.addCSS(
         margin-left: -10vh; 
         -webkit-animation:spin 3s linear infinite;
         content:url(resources/logo.svg);
+        z-index : 2002;
+        
     }
 
     @-webkit-keyframes spin { 
