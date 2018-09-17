@@ -23,7 +23,6 @@ Utils.addCSS(
         background: white;
         opacity: 0;
         border-radius: 50%;
-        z-index : 25;
     }
 
     @-webkit-keyframes virtual-cursor-fadein {
@@ -52,7 +51,6 @@ Utils.addCSS(
         margin: 0;
         padding: 0;
         position: absolute;
-        z-index : 50;
         visibility :hidden;
     }
 
@@ -64,7 +62,6 @@ Utils.addCSS(
         margin: 0;
         padding: 0;
         position: absolute;
-        z-index : 50;
         opacity: 0.01;
     }
 

@@ -5,7 +5,9 @@ const h = DOM.h;
 
 Utils.addCSS(
     `
-    #loading {}
+    #loading {
+        z-index : 2000;
+    }
 
     #loading-background {
         width: 100%;
@@ -16,7 +18,6 @@ Utils.addCSS(
         padding: 0;
         position: absolute;
         background-color: black;
-        z-index : 99998;
     }
 
     #loading-logo { 
@@ -28,20 +29,7 @@ Utils.addCSS(
         margin-top: -10vh; 
         margin-left: -10vh; 
         -webkit-animation:spin 3s linear infinite;
-        z-index : 99999;
         content:url(resources/logo.svg);
-    }
-
-    #loading-text { 
-        position: fixed; 
-        width: 100%; 
-        height: 3vh; 
-        top: 75%; 
-        color: #fff;
-        font-size: 3vh;    
-        text-align: center;
-        vertical-align: middle;  
-        z-index : 99999;
     }
 
     @-webkit-keyframes spin { 

@@ -23,7 +23,7 @@ Utils.addCSS(
         opacity: 0.75;
         border: 2px solid #fff;
         background-color: #999;
-        z-index : 99950;
+        z-index : 1000;
         cursor: pointer;
     }
     `

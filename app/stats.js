@@ -10,7 +10,7 @@ Utils.addCSS(
         margin: 0;
         padding: 0;
         color: #FFF;
-        z-index: 150;
+        z-index: 1000;
         font-size: 14px;
     }
 

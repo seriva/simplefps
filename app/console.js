@@ -9,6 +9,18 @@ Utils.addCSS(
     `
     #console {}
 
+    #console-body {
+        transition: top 0.150s ease-in-out;
+        display: inline-block;
+        background-color: transparent;
+        position: absolute;
+        width: 100%;
+        height: 35%;
+        left: 0;
+        overflow: none;
+        z-index : 2500;
+    }
+
     #console-swipe {
         width: 100%;
         height: 100px;
@@ -17,21 +29,7 @@ Utils.addCSS(
         margin: 0;
         padding: 0;
         position: absolute;
-        z-index : 50;
         opacity: 0.01;
-    }
-
-    #console-body {
-        transition: top 0.150s ease-in-out;
-        display: inline-block;
-        background-color: transparent;
-        position: absolute;
-        z-index : 200;
-        width: 100%;
-        height: 35%;
-        left: 0;
-        overflow: none;
-        z-index : 2500;
     }
 
     #console-content {
