@@ -112,7 +112,7 @@ const updateCommand = (evt) => {
 
 const hideConsole = () => {
     if (Utils.isMobile()) {
-        Console.toggle(false);
+        visible = false;
     }
 };
 
@@ -148,11 +148,19 @@ DOM.append(() =>
 
 // Console controls
 Input.addKeyDownEvent(192, () => {
-    Console.toggle();
+    visible = !visible;
     Input.toggleCursor();
 });
 Input.addKeyDownEvent(13, () => {
-    Console.execute();
+    if (command === '') return;
+    try {
+        Console.log(command);
+        eval('qdfps.' + command.toLowerCase());
+    } catch (error) {
+        Console.warn('Failed to execute command');
+    }
+    command = '';
+    DOM.update();
 });
 
 if (Utils.isMobile()) {
@@ -164,7 +172,7 @@ if (Utils.isMobile()) {
     consoleTouch.on('pandown', (ev) => {
         if (ev.distance > 50) {
             if (ev.type === 'pandown') {
-                Console.toggle(true);
+                visible = true;
             }
         }
     });
@@ -173,22 +181,6 @@ if (Utils.isMobile()) {
 const Console = {
     visible() {
         return visible;
-    },
-
-    execute() {
-        if (command === '') return;
-        try {
-            Console.log(command);
-            eval('qdfps.' + command.toLowerCase());
-        } catch (error) {
-            Console.warn('Failed to execute command');
-        }
-        command = '';
-        DOM.update();
-    },
-
-    toggle(show) {
-        show === undefined ? visible = !visible: visible = show;
     },
 
     log(m) {

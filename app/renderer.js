@@ -1,6 +1,9 @@
 import Utils from './utils';
 import Console from './console';
 import Settings from './settings';
+import DOM from './dom';
+
+const h = DOM.h;
 
 Utils.addCSS(
     `
@@ -10,11 +13,19 @@ Utils.addCSS(
         display: block;
         z-index : 0;
     }
+
+    .game-blur {
+        filter: blur(4px)
+    }
     `
 );
 
-const canvas = Utils.addElement('canvas', 'game');
-const gl = canvas.getContext('webgl2', {
+let doBlur = false;
+
+const canvas = h('canvas#game');
+DOM.append(() => canvas);
+
+const gl = canvas.domNode.getContext('webgl2', {
     antialias: true
 });
 if (!gl) {
@@ -68,10 +79,22 @@ const drawFullscreenQuad = () => {
     gl.bindBuffer(gl.ARRAY_BUFFER, null);
 };
 
+const width = () => Math.floor(gl.canvas.clientWidth * window.devicePixelRatio * Settings.renderscale);
+const height = () => Math.floor(gl.canvas.clientHeight * window.devicePixelRatio * Settings.renderscale);
+const aspectRatio = () => width() / height();
+const toggleBlur = (blur) => {
+    blur === undefined ? doBlur = !doBlur: doBlur = blur;
+    if (doBlur) {
+        canvas.domNode.classList.add('game-blur');
+    } else {
+        canvas.domNode.classList.remove('game-blur');
+    }
+};
+
 window.addEventListener('resize', () => {
-    gl.canvas.width = Math.floor(gl.canvas.clientWidth * window.devicePixelRatio * Settings.renderscale);
-    gl.canvas.height = Math.floor(gl.canvas.clientHeight * window.devicePixelRatio * Settings.renderscale);
-    gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+    gl.canvas.width = width();
+    gl.canvas.height = height();
+    gl.viewport(0, 0, width(), height());
 }, false);
 
 window.dispatchEvent(new Event('resize'));
@@ -82,10 +105,13 @@ Console.registerCmd('rscale', (scale) => {
 });
 
 const Renderer = {
+    width,
+    height,
+    aspectRatio,
     gl,
-    canvas,
     afExt,
-    drawFullscreenQuad
+    drawFullscreenQuad,
+    toggleBlur
 };
 
 export { Renderer as default };

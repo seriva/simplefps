@@ -15,7 +15,7 @@ let nearPlane = 0.1;
 let farPlane = 1000;
 
 window.addEventListener('resize', () => {
-    mat4.perspective(projection, glMatrix.toRadian(fov), Renderer.canvas.width / Renderer.canvas.height, nearPlane, farPlane);
+    mat4.perspective(projection, glMatrix.toRadian(fov), Renderer.aspectRatio(), nearPlane, farPlane);
 }, false);
 
 const Camera = {

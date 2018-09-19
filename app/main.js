@@ -1,9 +1,13 @@
 import { glMatrix, mat4 } from 'gl-matrix';
 import Settings from './settings';
+import Console from './console';
+import './gui';
+import './menu';
+import './update';
+import Game from './game';
 import Utils from './utils';
 import Resources from './resources';
 import Stats from './stats';
-import './update';
 import Camera from './camera';
 import Controls from './controls';
 import Renderer from './renderer';
@@ -12,6 +16,10 @@ import Buffers from './buffers';
 import Input from './input';
 import Skybox from './skybox';
 import DOM from './dom';
+
+Console.registerCmd('state', (state) => {
+    Game.setState(state);
+});
 
 Utils.addCSS(
     `
@@ -124,7 +132,7 @@ Utils.addCSS(
         Shaders.postProcessing.setInt('positionBuffer', 1);
         Shaders.postProcessing.setInt('normalBuffer', 2);
         Shaders.postProcessing.setInt('noiseBuffer', 3);
-        Shaders.postProcessing.setVec2('viewportSize', [Renderer.canvas.width, Renderer.canvas.height]);
+        Shaders.postProcessing.setVec2('viewportSize', [Renderer.width(), Renderer.height()]);
         Shaders.postProcessing.setFloat('ssao.sampleRadius', Settings.ssaoRadius);
         Shaders.postProcessing.setFloat('ssao.bias', Settings.ssaoBias);
         Shaders.postProcessing.setVec2('ssao.attenuation', Settings.ssaoAttenuation);
