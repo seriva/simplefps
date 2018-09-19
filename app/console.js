@@ -116,6 +116,26 @@ const hideConsole = () => {
     }
 };
 
+// Swipedown console for mobile.
+let consoleSwipe = null;
+if (Utils.isMobile()) {
+    consoleSwipe = h('div#console-swipe', {
+        afterCreate: () => {
+            const consoleTouch = new Hammer(consoleSwipe.domNode);
+            consoleTouch.get('pan').set({
+                direction: Hammer.DIRECTION_ALL
+            });
+            consoleTouch.on('pandown', (ev) => {
+                if (ev.distance > 50) {
+                    if (ev.type === 'pandown') {
+                        visible = true;
+                    }
+                }
+            });
+        }
+    });
+}
+
 DOM.append(() =>
     h('div#console',
     visible ?
@@ -140,16 +160,16 @@ DOM.append(() =>
                 afterCreate: setFocus,
                 onblur: hideConsole
             })
-        ])
+        ]),
+        consoleSwipe
     ]
     :
-    [])
+    [consoleSwipe])
 );
 
 // Console controls
 Input.addKeyDownEvent(192, () => {
     visible = !visible;
-    Input.toggleCursor();
 });
 Input.addKeyDownEvent(13, () => {
     if (command === '') return;
@@ -162,21 +182,6 @@ Input.addKeyDownEvent(13, () => {
     command = '';
     DOM.update();
 });
-
-if (Utils.isMobile()) {
-    // Swipedown console for mobile.
-    const consoleTouch = new Hammer(Utils.addElement('div', 'console-swipe', document.getElementById('console')));
-    consoleTouch.get('pan').set({
-        direction: Hammer.DIRECTION_ALL
-    });
-    consoleTouch.on('pandown', (ev) => {
-        if (ev.distance > 50) {
-            if (ev.type === 'pandown') {
-                visible = true;
-            }
-        }
-    });
-}
 
 const Console = {
     visible() {

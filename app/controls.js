@@ -3,11 +3,21 @@ import Input from './input';
 import Console from './console';
 import Camera from './camera';
 import Settings from './settings';
+import Game from './game';
+
+// keyboard input
+Input.addKeyDownEvent(27, () => {
+    if (Game.getState() === 'MENU') {
+        Game.setState('GAME');
+    } else {
+        Game.setState('MENU');
+    }
+});
 
 // mouse and keyboard input
 const Controls = {
     update(frametime) {
-        if (Console.visible()) return;
+        if (Console.visible() || (Game.getState() === 'MENU')) return;
 
         const ft = frametime / 1000;
 
