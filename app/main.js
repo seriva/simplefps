@@ -57,7 +57,6 @@ Utils.addCSS(
 
     Camera.setProjection(45, Settings.znear, Settings.zfar);
     Camera.setPosition([0, 1, -5]);
-    Game.setState('GAME');
 
     const matModel = mat4.create();
     const matIdentity = mat4.create();
