@@ -4,14 +4,22 @@ import Console from './console';
 import Camera from './camera';
 import Settings from './settings';
 import Game from './game';
+import Menu from './menu';
+
+const showMainMenu = () => {
+    Menu.showMenu('Main Menu', [
+        {
+            text: 'Back',
+            callback: () => {
+                Menu.hideMenu();
+            }
+        }
+    ]);
+};
 
 // keyboard input
 Input.addKeyDownEvent(27, () => {
-    if (Game.getState() === 'MENU') {
-        Game.setState('GAME');
-    } else {
-        Game.setState('MENU');
-    }
+    showMainMenu();
 });
 
 // mouse and keyboard input

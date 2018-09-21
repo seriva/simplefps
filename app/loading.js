@@ -32,7 +32,6 @@ Utils.addCSS(
         -webkit-animation:spin 3s linear infinite;
         content:url(resources/logo.svg);
         z-index : 2002;
-        
     }
 
     @-webkit-keyframes spin { 

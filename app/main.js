@@ -13,7 +13,6 @@ import Controls from './controls';
 import Renderer from './renderer';
 import Shaders from './shaders';
 import Buffers from './buffers';
-import Input from './input';
 import Skybox from './skybox';
 import DOM from './dom';
 

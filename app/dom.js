@@ -10,6 +10,10 @@ const DOM = {
     append(render) {
         projector.append(document.body, render);
     },
+    detach(render) {
+        const node = projector.detach(render).domNode;
+        node.remove();
+    },
     update() {
         projector.scheduleRender();
     }

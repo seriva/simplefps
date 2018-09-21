@@ -1,62 +1,36 @@
 import Loading from './loading';
-import DOM from './dom';
-import Utils from './utils';
-
-const h = DOM.h;
-
-Utils.addCSS(
-    `
-    #update {
-        background-color: transparent;
-    }
-
-    #update-button { 
-        position: fixed; 
-        width: 200px; 
-        height: 50px; 
-        color: #fff;
-        text-align: center;
-        line-height: 50px;
-        font-size: 20px;
-        bottom: 20px; 
-        right: 20px; 
-        opacity: 0.75;
-        border: 2px solid #fff;
-        background-color: #999;
-        z-index : 1000;
-        cursor: pointer;
-    }
-    `
-);
+import Menu from './menu';
 
 // local vars
-let isVisible = false;
 let newServiceWorker = null;
 
+const shopUpdateDialog = () => {
+    Menu.showMenu('A new version is available. Do you want to update?', [
+        {
+            text: 'Yes',
+            callback: update
+
+        },
+        {
+            text: 'No',
+            callback: () => {
+                Menu.hideMenu();
+            }
+        }
+    ]);
+};
+
 if (window.localStorage.getItem('update-available') !== null) {
-    isVisible = true;
+    shopUpdateDialog();
 }
 
 const update = () => {
-    isVisible = false;
     localStorage.removeItem('update-available');
     if (newServiceWorker !== null) {
         Loading.toggle(true, true);
         newServiceWorker.postMessage({ action: 'skipWaiting' });
     }
 };
-
-// gui function
-DOM.append(() =>
-    h('div#update', isVisible ?
-    [
-        h('div# #update-button', {
-            onclick: update
-        }, ['Click to update!']),
-    ]
-    :
-    [])
-);
 
 if (navigator.serviceWorker && window.location.hostname !== 'localhost') {
     navigator.serviceWorker.register('./sw.js')
@@ -68,7 +42,7 @@ if (navigator.serviceWorker && window.location.hostname !== 'localhost') {
             newServiceWorker = registration.installing;
             newServiceWorker.addEventListener('statechange', () => {
                 if (newServiceWorker.state === 'installed') {
-                    isVisible = true;
+                    shopUpdateDialog();
                     localStorage.setItem('update-available', '');
                 }
             });
