@@ -43,7 +43,7 @@ self.addEventListener('fetch', event => {
       console.log('SW - Fetch from network: ', event.request.url);
       return fetch(event.request)
     }).catch(error => {
-      //console.log('SW - Fetch error: ', error);
+      console.log('SW - Fetch error: ', error);
     })
   );
 });

@@ -5,9 +5,16 @@ import Camera from './camera';
 import Settings from './settings';
 import Game from './game';
 import Menu from './menu';
+import Update from './update';
 
 const showMainMenu = () => {
     Menu.showMenu('Main Menu', [
+        {
+            text: 'Check for updates',
+            callback: () => {
+                Update.force();
+            }
+        },
         {
             text: 'Back',
             callback: () => {

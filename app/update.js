@@ -3,9 +3,10 @@ import Menu from './menu';
 
 // local vars
 let newServiceWorker = null;
+let registration = null;
 
 const shopUpdateDialog = () => {
-    Menu.showMenu('A new version is available. Do you want to update?', [
+    Menu.showMenu('A new version is available. Do you want to update now?', [
         {
             text: 'Yes',
             callback: update
@@ -20,33 +21,36 @@ const shopUpdateDialog = () => {
     ]);
 };
 
-if (window.localStorage.getItem('update-available') !== null) {
-    shopUpdateDialog();
-}
-
 const update = () => {
-    localStorage.removeItem('update-available');
     if (newServiceWorker !== null) {
         Loading.toggle(true, true);
         newServiceWorker.postMessage({ action: 'skipWaiting' });
+    } else {
+        Menu.hideMenu();
+        console.log('SW - No new service worker found to update');
     }
 };
 
 if (navigator.serviceWorker && window.location.hostname !== 'localhost') {
     navigator.serviceWorker.register('./sw.js')
-    .then((registration) => {
-        console.log('SW - Registered: ', registration);
+    .then((reg) => {
+        console.log('SW - Registered: ', reg);
+        registration = reg;
         registration.update();
-        registration.addEventListener('updatefound', () => {
-            console.log('SW - Service worker update found');
-            newServiceWorker = registration.installing;
-            newServiceWorker.addEventListener('statechange', () => {
-                if (newServiceWorker.state === 'installed') {
-                    shopUpdateDialog();
-                    localStorage.setItem('update-available', '');
-                }
+        if (registration.waiting) {
+            newServiceWorker = registration.waiting;
+            shopUpdateDialog();
+        } else {
+            registration.addEventListener('updatefound', () => {
+                console.log('SW - Service worker update found');
+                newServiceWorker = registration.installing;
+                newServiceWorker.addEventListener('statechange', () => {
+                    if (newServiceWorker.state === 'installed') {
+                        shopUpdateDialog();
+                    }
+                });
             });
-        });
+        }
     }).catch((error) => {
         console.log('SW - Registration failed: ', error);
     });
@@ -59,3 +63,17 @@ if (navigator.serviceWorker && window.location.hostname !== 'localhost') {
         refreshing = true;
     });
 }
+
+const Update = {
+    force: () => {
+        if (newServiceWorker !== null) {
+            shopUpdateDialog();
+            return;
+        }
+        if (registration !== null) {
+            registration.update();
+        }
+    }
+};
+
+export { Update as default };
