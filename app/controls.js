@@ -75,7 +75,8 @@ const Controls = {
         Camera.position[0] = Camera.position[0] + (Camera.direction[0] * move) + (v[0] * strafe);
         Camera.position[1] = Camera.position[1] + (Camera.direction[1] * move) + (v[1] * strafe);
         Camera.position[2] = Camera.position[2] + (Camera.direction[2] * move) + (v[2] * strafe);
-    }
+    },
+    showMainMenu
 };
 
 export { Controls as default };

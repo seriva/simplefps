@@ -1,6 +1,7 @@
 import Utils from './utils';
 import Stats from './stats';
 import DOM from './dom';
+import Controls from './controls';
 
 const h = DOM.h;
 
@@ -11,6 +12,7 @@ Utils.addCSS(
         margin: 0;
         padding: 0;
         z-index: 1000;
+        background-color: transparent;
     }
 
     #stats-fps { 
@@ -38,6 +40,7 @@ Utils.addCSS(
         width: 50px;
         height: 50px;
         position: absolute;
+        opacity: 0.90;
     }
     `
 );
@@ -47,7 +50,12 @@ let visible = true;
 DOM.append(() =>
     h('div#gui', visible ?
     [
-        h('div#button-menu', ['lol']),
+        Utils.isMobile() ? [h('div#button-menu', {
+            onclick: () => {
+                Controls.showMainMenu();
+            }
+        },
+        [''])] : [],
         h('span#stats-fps', ['FPS: ' + Stats.fps().toString()]),
         h('span#stats-ftm', ['FTM: ' + Stats.frametime().toString()])
     ]
