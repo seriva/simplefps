@@ -9,6 +9,9 @@ module.exports = {
     plugins: {
         autoReload: {
             enabled: true
-        }
+        },
+        afterBrunch: [
+            'node sw-generate.js'
+        ]
     }
 };

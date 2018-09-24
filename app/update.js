@@ -31,7 +31,7 @@ const update = () => {
     }
 };
 
-if (navigator.serviceWorker && window.location.hostname !== 'localhost') {
+if (navigator.serviceWorker) {
     navigator.serviceWorker.register('./sw.js')
     .then((reg) => {
         console.log('SW - Registered: ', reg);

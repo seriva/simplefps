@@ -72,6 +72,7 @@ Utils.addCSS(
 );
 
 let visibleCursor = true;
+let virtualInputVisible = Utils.isMobile();
 let cursorMovement = {
     x: 0,
     y: 0
@@ -219,6 +220,17 @@ const Input = {
         } else {
             document.body.classList.add('hide-cursor');
             document.getElementById('game').requestPointerLock();
+        }
+    },
+
+    toggleVirtualInput(show) {
+        if (!Utils.isMobile()) return;
+        show === undefined ? virtualInputVisible = !virtualInputVisible: virtualInputVisible = show;
+        const move = document.getElementById('move-div');
+        if (virtualInputVisible) {
+            move.firstChild.classList.add('show-joystick');
+        } else {
+            move.firstChild.classList.remove('show-joystick');
         }
     },
 

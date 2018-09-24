@@ -20,5 +20,5 @@ recursive(rootDir, exclude, function (err, files) {
     swTemplate = swTemplate.replace('{{cacheName}}', package.name + '-' + package.version  + '-' + timeStamp);
     fs.writeFileSync(rootDir + '/sw.js' , swTemplate)
 
-    console.log('Generated service worker successfully\n');
+    console.log('Generated service worker successfully');
 });

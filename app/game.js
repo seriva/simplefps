@@ -10,11 +10,13 @@ const setState = (s) => {
     switch (state) {
     case 'GAME':
     case 'EDITING':
+        Input.toggleVirtualInput(true);
         Input.toggleCursor(false);
         Renderer.toggleBlur(false);
         GUI.toggle(true);
         break;
     case 'MENU' :
+        Input.toggleVirtualInput(false);
         Input.toggleCursor(true);
         Renderer.toggleBlur(true);
         GUI.toggle(false);

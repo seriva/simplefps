@@ -40,7 +40,8 @@ Utils.addCSS(
         width: 50px;
         height: 50px;
         position: absolute;
-        opacity: 0.90;
+        opacity: 0.60;
+        content:url(resources/menu.png);
     }
     `
 );
@@ -55,7 +56,7 @@ DOM.append(() =>
                 Controls.showMainMenu();
             }
         },
-        [''])] : [],
+        [h('div#button-menu-bar')])] : [],
         h('span#stats-fps', ['FPS: ' + Stats.fps().toString()]),
         h('span#stats-ftm', ['FTM: ' + Stats.frametime().toString()])
     ]
