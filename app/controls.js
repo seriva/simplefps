@@ -6,17 +6,18 @@ import Settings from './settings';
 import Game from './game';
 import Menu from './menu';
 import Update from './update';
+import Translations from './translations';
 
 const showMainMenu = () => {
-    Menu.showMenu('Main Menu', [
+    Menu.showMenu(Translations.get('MAIN_MENU'), [
         {
-            text: 'Check for updates',
+            text: Translations.get('VERSION_CHECK'),
             callback: () => {
                 Update.force();
             }
         },
         {
-            text: 'Back',
+            text: Translations.get('BACK'),
             callback: () => {
                 Menu.hideMenu();
             }

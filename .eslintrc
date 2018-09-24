@@ -26,6 +26,7 @@
     "arrow-body-style": 0,
     "no-bitwise": 0,
     "no-eval": 0,
+    "no-prototype-builtins": 0,
     "import/no-mutable-exports": 0
   },
   "globals": {

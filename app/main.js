@@ -1,6 +1,7 @@
 import { glMatrix, mat4 } from 'gl-matrix';
 import Settings from './settings';
 import Console from './console';
+import './translations';
 import './gui';
 import './menu';
 import './update';

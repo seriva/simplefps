@@ -1,19 +1,20 @@
 import Loading from './loading';
 import Menu from './menu';
+import Translations from './translations';
 
 // local vars
 let newServiceWorker = null;
 let registration = null;
 
 const shopUpdateDialog = () => {
-    Menu.showMenu('A new version is available. Do you want to update now?', [
+    Menu.showMenu(Translations.get('VERSION_NEW'), [
         {
-            text: 'Yes',
+            text: Translations.get('YES'),
             callback: update
 
         },
         {
-            text: 'No',
+            text: Translations.get('NO'),
             callback: () => {
                 Menu.hideMenu();
             }
