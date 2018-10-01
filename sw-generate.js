@@ -1,19 +1,19 @@
-const recursive = require("recursive-readdir");
-const path = require("path");
+const recursive = require('recursive-readdir');
+const path = require('path');
 const fs = require('fs');
 
-const pkg = JSON.parse(fs.readFileSync(__dirname + '/package.json', 'utf8'));
-let   swTemplate = fs.readFileSync(__dirname + '/sw-template.tpl', 'utf8');
+const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '/package.json'), 'utf8'));
+let swTemplate = fs.readFileSync(path.join(__dirname, '/sw-template.tpl'), 'utf8');
 const timeStamp = new Date().getTime();
-const rootDir = __dirname + '/public/';
-const exclude = []
+const rootDir = path.join(__dirname, '/public/');
+const exclude = [];
 
-recursive(rootDir, exclude, function (err, files) {
+recursive(rootDir, exclude, (err, files) => {
     // Update and write service worker template.
     const rp = path.normalize(rootDir);
     let filesNew = "[\n  '.',\n";
-    files.forEach(function(s) {
-        filesNew +=  "  '" + s.replace(rp, '').replace(/\\/g, '/') + "',\n";
+    files.forEach((s) => {
+        filesNew += "  '" + s.replace(rp, '').replace(/\\/g, '/') + "',\n";
     });
     filesNew += ']';
     swTemplate = swTemplate.replace('{{cacheArray}}', filesNew.toString());
