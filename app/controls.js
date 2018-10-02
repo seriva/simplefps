@@ -21,6 +21,12 @@ const showMainMenu = () => {
             callback: () => {
                 Menu.hideMenu();
             }
+        },
+        {
+            text: Translations.get('EXIT'),
+            callback: () => {
+                window.close();
+            }
         }
     ]);
 };

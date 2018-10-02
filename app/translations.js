@@ -7,6 +7,7 @@ const t = {
         YES: 'Yes',
         NO: 'No',
         BACK: 'Back',
+        EXIT: 'Exit',
         MAIN_MENU: 'Main Menu',
         VERSION_CHECK: 'Check for updates',
         VERSION_NEW: 'A new version is available. Do you want to update now?'
