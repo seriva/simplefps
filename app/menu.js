@@ -11,6 +11,7 @@ Utils.addCSS(
     }
 
     #menu-base { 
+        user-select: none; 
         max-width: 500px;
         max-width: 250px;
         position: absolute;
@@ -31,7 +32,6 @@ Utils.addCSS(
     #menu-header { 
         text-align: center;
         margin-bottom: 10px;
-        user-select: none; 
     }
 
     #menu-button { 
@@ -41,7 +41,6 @@ Utils.addCSS(
         margin-bottom: 10px;
         padding: 10px;
         cursor: pointer;
-        user-select: none; 
     }
 
     #menu-button:hover { 
