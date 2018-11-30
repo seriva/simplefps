@@ -45,7 +45,7 @@ Utils.addCSS(
 
     #move-div {
         width: 200px;
-        height: calc(100% - 100px);
+        height: 100%;
         left: 0px;
         bottom: 0px;
         margin: 0;
@@ -56,7 +56,7 @@ Utils.addCSS(
 
     #look-div {
         width: calc(100% - 200px);
-        height: calc(100% - 100px);
+        height: 100%;
         right: 0px;
         bottom: 0px;
         margin: 0;

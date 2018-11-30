@@ -1,4 +1,3 @@
-import Hammer from 'hammerjs';
 import Utils from './utils';
 import DOM from './dom';
 import Input from './input';
@@ -19,17 +18,6 @@ Utils.addCSS(
         left: 0;
         overflow: none;
         z-index : 2500;
-    }
-
-    #console-swipe {
-        width: 100%;
-        height: 100px;
-        right: 0px;
-        top: 0px;
-        margin: 0;
-        padding: 0;
-        position: absolute;
-        opacity: 0.01;
     }
 
     #console-content {
@@ -116,26 +104,6 @@ const hideConsole = () => {
     }
 };
 
-// Swipedown console for mobile.
-let consoleSwipe = null;
-if (Utils.isMobile()) {
-    consoleSwipe = h('div#console-swipe', {
-        afterCreate: () => {
-            const consoleTouch = new Hammer(consoleSwipe.domNode);
-            consoleTouch.get('pan').set({
-                direction: Hammer.DIRECTION_ALL
-            });
-            consoleTouch.on('pandown', (ev) => {
-                if (ev.distance > 50) {
-                    if (ev.type === 'pandown') {
-                        visible = true;
-                    }
-                }
-            });
-        }
-    });
-}
-
 DOM.append(() =>
     h('div#console',
     visible ?
@@ -160,12 +128,18 @@ DOM.append(() =>
                 afterCreate: setFocus,
                 onblur: hideConsole
             })
-        ]),
-        consoleSwipe
+        ])
     ]
     :
-    [consoleSwipe])
+    [])
 );
+
+const deepTest = (s) => {
+    s= s.split('.');
+    let obj = window[s.shift()];
+    while (obj && s.length) obj= obj[s.shift()];
+    return obj;
+};
 
 // Console controls
 Input.addKeyDownEvent(192, () => {
@@ -175,9 +149,24 @@ Input.addKeyDownEvent(13, () => {
     if (command === '') return;
     try {
         Console.log(command);
-        eval('qdfps.' + command.toLowerCase());
+        const cmd = 'qdfps.' + command.toLowerCase();
+        let evalCmd = '';
+        if (cmd.indexOf('=') > -1) {
+            // we are dealing with a var assignement.
+            evalCmd = cmd.split('=')[0];
+        } else if (cmd.indexOf('(') > -1) {
+            // we are dealing with a function.
+            evalCmd = cmd.split('(')[0];
+        } else {
+            evalCmd = cmd;
+        }
+        if (evalCmd !== '') {
+            evalCmd = evalCmd.trim();
+            if (deepTest(evalCmd) === undefined) throw ('Command does not exist');
+        }
+        eval(cmd);
     } catch (error) {
-        Console.warn('Failed to execute command');
+        Console.warn('Failed to execute command: ' + error);
     }
     command = '';
     DOM.update();
@@ -211,7 +200,7 @@ const Console = {
             color: '#F00',
             message: m
         });
-        this.toggle();
+        visible = true;
         throw new Error();
     },
 
