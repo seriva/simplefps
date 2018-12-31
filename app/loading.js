@@ -32,13 +32,11 @@ DOM.registerCSS({
         zIndex: 2002
     },
 
-    /*
     '@keyframes spin': {
         '100%': {
             transform: 'rotate(360deg)'
         }
     }
-    */
 });
 
 // local vars

@@ -25,15 +25,12 @@ DOM.registerCSS({
         borderRadius: '50%'
     },
 
-    /*
     '@keyframes virtual-cursor-fadein': {
-        'virtual-cursor-fadein': {
-            from: {
-                opacity: 0
-            },
-            to: {
-                opacity: 0.5
-            }
+        from: {
+            opacity: 0
+        },
+        to: {
+            opacity: 0.5
         }
     },
 
@@ -42,20 +39,17 @@ DOM.registerCSS({
     },
 
     '@keyframes virtual-cursor-fadeout': {
-        'virtual-cursor-fadeout': {
-            from: {
-                opacity: 0.5
-            },
-            to: {
-                opacity: 0
-            }
+        from: {
+            opacity: 0.5
+        },
+        to: {
+            opacity: 0
         }
     },
 
     '.virtual-cursor-fadeout': {
         animation: 'virtual-cursor-fadeout .1s ease-in 1 forwards'
     },
-    */
 
     '#move-div': {
         width: '200px',
