@@ -1,24 +1,20 @@
-import Utils from './utils';
 import Console from './console';
 import Settings from './settings';
 import DOM from './dom';
 
 const h = DOM.h;
 
-Utils.addCSS(
-    `
-    #game {
-        background: #000;
-        width: 100vw; height: 100vh;
-        display: block;
-        z-index : 0;
+DOM.registerCSS({
+    '#game': {
+        background: '#000',
+        width: '100vw; height: 100vh',
+        display: 'block',
+        zIndex: 0
+    },
+    '.game-blur': {
+        filter: 'blur(4px)'
     }
-
-    .game-blur {
-        filter: blur(4px)
-    }
-    `
-);
+});
 
 let doBlur = false;
 

@@ -4,75 +4,66 @@ import Input from './input';
 
 const h = DOM.h;
 
-Utils.addCSS(
-    `
-    #console {}
-
-    #console-body {
-        transition: top 0.150s ease-in-out;
-        display: inline-block;
-        background-color: transparent;
-        position: absolute;
-        width: 100%;
-        height: 35%;
-        left: 0;
-        overflow: none;
-        z-index : 2500;
+DOM.registerCSS({
+    '#console': {},
+    '#console-body': {
+        transition: 'top 0.150s ease-in-out',
+        display: 'inline-block',
+        backgroundColor: 'transparent',
+        position: 'absolute',
+        width: '100%',
+        height: '35%',
+        left: 0,
+        overflow: 'none',
+        zIndex: '2500'
+    },
+    '#console-content': {
+        display: 'flex',
+        flexDirection: 'column-reverse',
+        column: 'nowrap',
+        border: '1px solid #999',
+        backgroundColor: '#999',
+        opacity: 0.90,
+        width: '100%',
+        height: '100%',
+        overflow: 'scroll',
+        overflowX: 'hidden'
+    },
+    '#console-content p': {
+        fontSize: '14px',
+        color: '#fff',
+        width: '100%',
+        whiteSpace: 'nowrap',
+        margin: '0px',
+        lineHeight: '115%',
+    },
+    '#console-input': {
+        display: 'flex',
+        color: '#fff',
+        fontSize: '14px',
+        position: 'absolute',
+        left: 0,
+        width: '100%',
+        border: '1px solid #999',
+        borderBottom: '2px solid #fff',
+        borderTop: '2px solid #fff',
+        backgroundColor: '#999',
+        opacity: 0.75,
+        outline: 'none',
+    },
+    '.console-show': {
+        top: '-35vh'
+    },
+    '.console-show.console-show-active': {
+        top: 0
+    },
+    '.console-hide': {
+        top: 0
+    },
+    '.console-hide.console-hide-active': {
+        top: '-35vh'
     }
-
-    #console-content {
-        display: flex;
-        flex-direction: column-reverse;
-        column nowrap;
-        border:1px solid #999;
-        background-color: #999;
-        opacity: 0.90;
-        width: 100%;
-        height: 100%;
-        overflow: scroll;
-        overflow-x: hidden;
-    }
-
-    #console-content p {
-        font-size: 14px;
-        color: #fff; 
-        width: 100%;
-        white-space: nowrap;
-        margin: 0px;
-        line-height: 115%;
-    }
-
-    #console-input {
-        display: flex;
-        color: #fff;
-        font-size: 14px;
-        position: absolute;
-        left: 0;
-        width: 100%;
-        border: 1px solid #999;
-        border-bottom: 2px solid #fff;
-        border-top: 2px solid #fff;
-        background-color: #999;
-        opacity: 0.75;
-        outline: none;
-    }
-
-    .console-show {
-        top: -35vh;
-    }
-
-    .console-show.console-show-active {
-        top: 0;
-    }
-    .console-hide {
-        top: 0;
-    }
-
-    .console-hide.console-hide-active {
-        top: -35vh;
-    }
-    `
-);
+});
 
 // where will bind all the commands to eval execution
 window.qdfps = {};

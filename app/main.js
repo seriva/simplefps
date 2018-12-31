@@ -2,11 +2,10 @@ import { glMatrix, mat4 } from 'gl-matrix';
 import Settings from './settings';
 import Console from './console';
 import './translations';
-import './gui';
+import './hud';
 import './menu';
 import './update';
 import Game from './game';
-import Utils from './utils';
 import Resources from './resources';
 import Stats from './stats';
 import Camera from './camera';
@@ -21,23 +20,20 @@ Console.registerCmd('state', (state) => {
     Game.setState(state);
 });
 
-Utils.addCSS(
-    `
-    html { 
-        height: 100%; 
+DOM.registerCSS({
+    html: {
+        height: '100%'
+    },
+    body: {
+        background: '#000',
+        minHeight: '100%',
+        margin: 0,
+        padding: 0,
+        position: 'relative',
+        overflow: 'hidden',
+        fontFamily: 'Consolas, monaco, monospace; font-weight: bold'
     }
-
-    body { 
-        background: #000; 
-        min-height: 100%; 
-        margin: 0; 
-        padding: 0; 
-        position: relative; 
-        overflow: hidden; 
-        font-family: Consolas, monaco, monospace; font-weight: bold;
-    }
-    `
-);
+});
 
 (async () => {
     await Resources.load(

@@ -2,74 +2,87 @@ import Hammer from 'hammerjs';
 import nipplejs from 'nipplejs';
 import Utils from './utils';
 import Settings from './settings';
+import DOM from './dom';
 
-Utils.addCSS(
-    `
-    #input {
-        z-index: 500;
-    }
+DOM.registerCSS({
+    '#input': {
+        zIndex: 500
+    },
 
-    .hide-cursor {
-        cursor: none;
-    }
+    '.hide-cursor': {
+        cursor: 'none'
+    },
 
-    #virtual-cursor {
-        position: absolute;
-        display: block;
-        width: 50px;
-        height: 50px;
-        marginLeft: -25px;
-        marginTop: -25px;
-        background: white;
-        opacity: 0;
-        border-radius: 50%;
-    }
+    '#virtual-cursor': {
+        position: 'absolute',
+        display: 'block',
+        width: '50px',
+        height: '50px',
+        marginLeft: '-25px',
+        marginTop: '-25px',
+        background: 'white',
+        opacity: 0,
+        borderRadius: '50%'
+    },
 
-    @-webkit-keyframes virtual-cursor-fadein {
-        from { opacity: 0; }
-        to   { opacity: 0.5; }
-    }
+    /*
+    '@keyframes virtual-cursor-fadein': {
+        'virtual-cursor-fadein': {
+            from: {
+                opacity: 0
+            },
+            to: {
+                opacity: 0.5
+            }
+        }
+    },
 
-    .virtual-cursor-fadein {
-        -webkit-animation: virtual-cursor-fadein .1s ease-in 1 forwards;
-    }
+    '.virtual-cursor-fadein': {
+        animation: 'virtual-cursor-fadein .1s ease-in 1 forwards'
+    },
 
-    @-webkit-keyframes virtual-cursor-fadeout {
-        from { opacity: 0.5; }
-        to   { opacity: 0; }
-    }
+    '@keyframes virtual-cursor-fadeout': {
+        'virtual-cursor-fadeout': {
+            from: {
+                opacity: 0.5
+            },
+            to: {
+                opacity: 0
+            }
+        }
+    },
 
-    .virtual-cursor-fadeout {
-        -webkit-animation: virtual-cursor-fadeout .1s ease-in 1 forwards;
-    }
+    '.virtual-cursor-fadeout': {
+        animation: 'virtual-cursor-fadeout .1s ease-in 1 forwards'
+    },
+    */
 
-    #move-div {
-        width: 200px;
-        height: 100%;
-        left: 0px;
-        bottom: 0px;
-        margin: 0;
-        padding: 0;
-        position: absolute;
-        visibility :hidden;
-    }
+    '#move-div': {
+        width: '200px',
+        height: '100%',
+        left: '0px',
+        bottom: '0px',
+        margin: 0,
+        padding: 0,
+        position: 'absolute',
+        visibility: 'hidden'
+    },
 
-    #look-div {
-        width: calc(100% - 200px);
-        height: 100%;
-        right: 0px;
-        bottom: 0px;
-        margin: 0;
-        padding: 0;
-        position: absolute;
-        opacity: 0.01;
-    }
+    '#look-div': {
+        width: 'calc(100% - 200px)',
+        height: '100%',
+        right: '0px',
+        bottom: '0px',
+        margin: 0,
+        padding: 0,
+        position: 'absolute',
+        opacity: 0.01
+    },
 
-    .show-joystick {
-        visibility: visible;
+    '.show-joystick': {
+        visibility: 'visible'
     }
-    `
-);
+});
 
 let visibleCursor = true;
 let virtualInputVisible = Utils.isMobile();
@@ -124,9 +137,9 @@ window.addEventListener('mousemove', (evt) => {
 
 if (Utils.isMobile()) {
     // virtual mouse input
-    const virtualInputRoot = Utils.addElement('div', 'input');
-    const virtualCursor = Utils.addElement('div', 'virtual-cursor', virtualInputRoot);
-    const lookDiv = Utils.addElement('div', 'look-div', virtualInputRoot);
+    const virtualInputRoot = DOM.addElement('div', 'input');
+    const virtualCursor = DOM.addElement('div', 'virtual-cursor', virtualInputRoot);
+    const lookDiv = DOM.addElement('div', 'look-div', virtualInputRoot);
     const look = new Hammer(lookDiv, { touchAction: 'auto', inputClass: Hammer.TouchInput });
     look.get('pan').set({ direction: Hammer.DIRECTION_ALL });
     look.on('panstart panmove panend', (ev) => {
@@ -155,7 +168,7 @@ if (Utils.isMobile()) {
     });
 
     // WASD input with virtual joystick
-    const moveDiv = Utils.addElement('div', 'move-div', virtualInputRoot);
+    const moveDiv = DOM.addElement('div', 'move-div', virtualInputRoot);
     const move = nipplejs.create({
         zone: moveDiv,
         mode: 'static',

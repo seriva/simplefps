@@ -1,53 +1,50 @@
 import DOM from './dom';
-import Utils from './utils';
 import Game from './game';
 
 const h = DOM.h;
 
-Utils.addCSS(
-    `
-    #menu {
-        background-color: transparent;
-    }
+// add css
+DOM.registerCSS({
+    '#menu': {
+        backgroundColor: 'transparent'
+    },
 
-    #menu-base { 
-        user-select: none; 
-        max-width: 500px;
-        max-width: 250px;
-        position: absolute;
-        color: #fff;
-        padding: 10px;
-        padding-bottom: 0px;
-        font-size: 16px;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        border: 2px solid #fff;
-        background-color: #999;
-        z-index : 1000;
-        display: block;
-        opacity: 0.90;
-    }
+    '#menu-base': {
+        userSelect: 'none',
+        maxWidth: '500px',
+        position: 'absolute',
+        color: '#fff',
+        padding: '10px',
+        paddingBottom: '0px',
+        fontSize: '16px',
+        top: '50%',
+        left: '50%',
+        transform: 'translate(-50%, -50%)',
+        border: '2px solid #fff',
+        backgroundColor: '#999',
+        zIndex: 1000,
+        display: 'block',
+        opacity: 0.90,
+    },
 
-    #menu-header { 
-        text-align: center;
-        margin-bottom: 10px;
-    }
+    '#menu-header': {
+        textAlign: 'center',
+        marginBottom: '10px'
+    },
 
-    #menu-button { 
-        text-align: center;
-        border: 2px solid #fff;
-        background-color: #999;
-        margin-bottom: 10px;
-        padding: 10px;
-        cursor: pointer;
-    }
+    '.menu-button': {
+        textAlign: 'center',
+        border: '2px solid #fff',
+        backgroundColor: '#999',
+        marginBottom: '10px',
+        padding: '10px',
+        cursor: 'pointer'
+    },
 
-    #menu-button:hover { 
-        background-color: #888;
+    '.menu-button:hover': {
+        backgroundColor: '#888'
     }
-    `
-);
+});
 
 let renderfunc = null;
 
@@ -60,7 +57,7 @@ const showMenu = (header, buttons) => {
                 h('div#menu-base', [
                     h('div#menu-header', [header]),
                     buttons.map((button) => {
-                        return h('div#menu-button', {
+                        return h('div.menu-button', {
                             onclick: button.callback
                         }, [button.text]);
                     })

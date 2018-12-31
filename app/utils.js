@@ -1,24 +1,6 @@
+
+
 const Utils = {
-    addCSS(styling) {
-        const css = document.createElement('style');
-        css.type = 'text/css';
-        css.appendChild(document.createTextNode(styling));
-        document.head.appendChild(css);
-    },
-
-    addElement(type, id, parent) {
-        const el = document.createElement(type);
-        if (parent) {
-            parent.appendChild(el);
-        } else {
-            document.body.appendChild(el);
-        }
-        if (id) {
-            el.setAttribute('id', id);
-        }
-        return el;
-    },
-
     isMobile() {
         /* eslint-disable */
         let check = false;

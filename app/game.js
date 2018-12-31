@@ -1,4 +1,4 @@
-import GUI from './gui';
+import HUD from './hud';
 import Renderer from './renderer';
 import Input from './input';
 
@@ -13,13 +13,13 @@ const setState = (s) => {
         Input.toggleVirtualInput(true);
         Input.toggleCursor(false);
         Renderer.toggleBlur(false);
-        GUI.toggle(true);
+        HUD.toggle(true);
         break;
     case 'MENU' :
         Input.toggleVirtualInput(false);
         Input.toggleCursor(true);
         Renderer.toggleBlur(true);
-        GUI.toggle(false);
+        HUD.toggle(false);
         break;
     default : break;
     }
