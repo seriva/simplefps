@@ -11,8 +11,15 @@ DOM.registerCSS({
         display: 'block',
         zIndex: 0
     },
-    '.game-blur': {
-        filter: 'blur(4px)'
+
+    '@keyframes game-blurin': {
+        '0%': { filter: 'blur(0px)' },
+        '100%': { filter: 'blur(4px)' }
+    },
+
+    '@keyframes game-blurout': {
+        '0%': { filter: 'blur(4px)' },
+        '100%': { filter: 'blur(0px)' }
     }
 });
 
@@ -81,9 +88,9 @@ const aspectRatio = () => width() / height();
 const toggleBlur = (blur) => {
     blur === undefined ? doBlur = !doBlur: doBlur = blur;
     if (doBlur) {
-        canvas.domNode.classList.add('game-blur');
+        canvas.domNode.style.animation = 'game-blurin 0.2s forwards';
     } else {
-        canvas.domNode.classList.remove('game-blur');
+        canvas.domNode.style.animation = 'game-blurout 0.2s forwards';
     }
 };
 

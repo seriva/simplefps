@@ -1,3 +1,4 @@
+import Velocity from 'velocity-animate';
 import DOM from './dom';
 import Game from './game';
 
@@ -23,8 +24,7 @@ DOM.registerCSS({
         border: '2px solid #fff',
         backgroundColor: '#999',
         zIndex: 1000,
-        display: 'block',
-        opacity: 0.90,
+        display: 'block'
     },
 
     '#menu-header': {
@@ -46,34 +46,48 @@ DOM.registerCSS({
     }
 });
 
-let renderfunc = null;
+let isVisible = false;
+let header = '';
+let buttons = [];
 
-const showMenu = (header, buttons) => {
+DOM.append(() =>
+    h('div#menu', isVisible ?
+    [
+        h('div#menu-base', {
+            enterAnimation: (domElement) => {
+                domElement.style.opacity = 0;
+                Velocity.animate(domElement, { opacity: 0.9 }, 200, 'ease-out');
+            },
+            exitAnimation: (domElement) => {
+                domElement.style.opacity = 0.9;
+                Velocity.animate(domElement, { opacity: 0 }, 200, 'ease-out');
+            }
+        }, [
+            h('div#menu-header', [header]),
+            buttons.map((button) => {
+                return h('div.menu-button', {
+                    key: button.text,
+                    onclick: button.callback
+                }, [button.text]);
+            })
+        ]),
+    ]
+    :
+    [])
+);
+
+const showMenu = (mh, mb) => {
     Menu.hideMenu();
     Game.setState('MENU');
-    renderfunc = () => {
-        return h('div#menu',
-            [
-                h('div#menu-base', [
-                    h('div#menu-header', [header]),
-                    buttons.map((button) => {
-                        return h('div.menu-button', {
-                            onclick: button.callback
-                        }, [button.text]);
-                    })
-                ]),
-            ]);
-    };
-    DOM.append(renderfunc);
+    header = mh;
+    buttons = mb;
+    isVisible = true;
 };
 
 const Menu = {
     showMenu,
     hideMenu: () => {
-        if (renderfunc !== null) {
-            DOM.detach(renderfunc);
-            renderfunc = null;
-        }
+        isVisible = false;
         Game.setState('GAME');
     }
 };
