@@ -56,10 +56,10 @@ DOM.append(() =>
     [
         h('div#menu-base', {
             enterAnimation: (domElement) => {
-                Velocity.animate(domElement, { opacity: 0.9 }, { mobileHA: false }, 100, 'linear');
+                Velocity.animate(domElement, { opacity: 0.9 }, { mobileHA: false, duration: 100, delay: 0, easing: 'linear' });
             },
             exitAnimation: (domElement) => {
-                Velocity.animate(domElement, { opacity: 0 }, { mobileHA: false }, 100, 'linear');
+                Velocity.animate(domElement, { opacity: 0 }, { mobileHA: false, duration: 100, delay: 0, easing: 'linear' });
             }
         }, [
             h('div#menu-header', [header]),
