@@ -121,15 +121,15 @@ if (Utils.isMobile()) {
                 y: ev.velocityY * 16 * Settings.looksensitivity
             };
             if (ev.pointers && ev.pointers[0]) {
-                virtualCursor.style.left = ev.pointers[0].clientX-25+'px';
-                virtualCursor.style.top = ev.pointers[0].clientY-25+'px';
+                virtualCursor.style.left = ev.pointers[0].clientX+'px';
+                virtualCursor.style.top = ev.pointers[0].clientY+'px';
             }
         }
         if (ev.type === 'panstart') {
             DOM.animate(virtualCursor, { opacity: 0.5 }, { mobileHA: false, duration: 100, delay: 0, easing: 'ease-in' });
         }
         if (ev.type === 'panend') {
-            DOM.animate(virtualCursor, { opacity: 0.0 }, { mobileHA: false, duration: 1-0, delay: 0, easing: 'ease-in' });
+            DOM.animate(virtualCursor, { opacity: 0.0 }, { mobileHA: false, duration: 100, delay: 0, easing: 'ease-in' });
         }
     });
 
