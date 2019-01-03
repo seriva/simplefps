@@ -57,8 +57,8 @@ DOM.append(() =>
             enterAnimation: (domElement) => {
                 DOM.animate(domElement, { opacity: 0.9 }, { mobileHA: false, duration: 150, delay: 0, easing: 'linear' });
             },
-            exitAnimation: (domElement) => {
-                DOM.animate(domElement, { opacity: 0 }, { mobileHA: false, duration: 150, delay: 0, easing: 'linear' });
+            exitAnimation: (domElement, removeDomNodeFunction) => {
+                DOM.animate(domElement, { opacity: 0 }, { mobileHA: false, duration: 150, delay: 0, easing: 'linear', complete: removeDomNodeFunction });
             }
         }, [
             h('div#menu-header', [header]),

@@ -152,10 +152,12 @@ if (Utils.isMobile()) {
             }
         }
         if (ev.type === 'panstart') {
+            // DOM.animate(virtualCursor, { opacity: 0.5 }, { mobileHA: false, duration: 100, delay: 0, easing: 'ease-in' });
             virtualCursor.classList.add('virtual-cursor-fadein');
             virtualCursor.classList.remove('virtual-cursor-fadeout');
         }
         if (ev.type === 'panend') {
+            // DOM.animate(virtualCursor, { opacity: 0.0 }, { mobileHA: false, duration: 1-0, delay: 0, easing: 'ease-in' });
             virtualCursor.classList.remove('virtual-cursor-fadein');
             virtualCursor.classList.add('virtual-cursor-fadeout');
         }

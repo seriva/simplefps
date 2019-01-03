@@ -7,7 +7,6 @@ const h = DOM.h;
 DOM.registerCSS({
     '#console': {},
     '#console-body': {
-        transition: 'top 0.150s ease-in-out',
         display: 'inline-block',
         backgroundColor: 'transparent',
         position: 'absolute',
@@ -15,7 +14,8 @@ DOM.registerCSS({
         height: '35%',
         left: 0,
         overflow: 'none',
-        zIndex: '2500'
+        zIndex: '2500',
+        top: '-35vh'
     },
     '#console-content': {
         display: 'flex',
@@ -51,18 +51,6 @@ DOM.registerCSS({
         opacity: 0.75,
         outline: 'none',
     },
-    '.console-show': {
-        top: '-35vh'
-    },
-    '.console-show.console-show-active': {
-        top: 0
-    },
-    '.console-hide': {
-        top: 0
-    },
-    '.console-hide.console-hide-active': {
-        top: '-35vh'
-    }
 });
 
 // where will bind all the commands to eval execution
@@ -100,8 +88,12 @@ DOM.append(() =>
     visible ?
     [
         h('div#console-body', {
-            enterAnimation: DOM.createEnterCssTransition('console-show'),
-            exitAnimation: DOM.createExitCssTransition('console-hide')
+            enterAnimation: (domElement) => {
+                DOM.animate(domElement, { top: 0 }, { duration: 150, delay: 0, easing: 'ease-in-out' });
+            },
+            exitAnimation: (domElement, removeDomNodeFunction) => {
+                DOM.animate(domElement, { top: '-35vh' }, { duration: 150, delay: 0, easing: 'ease-in-out', complete: removeDomNodeFunction });
+            }
         }, [
             h('div#console-content', {
                 onchange: setScrollPos
