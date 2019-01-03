@@ -11,6 +11,7 @@ DOM.registerCSS({
     },
 
     '#menu-base': {
+        transform: 'translate(-50%, -50%)',
         userSelect: 'none',
         maxWidth: '500px',
         position: 'absolute',
@@ -55,12 +56,10 @@ DOM.append(() =>
     [
         h('div#menu-base', {
             enterAnimation: (domElement) => {
-                Velocity.animate(domElement, { opacity: 0.9 }, 200, 'ease-out');
-                domElement.style.transform = 'translate(-50%, -50%)';
+                Velocity.animate(domElement, { opacity: 0.9 }, { mobileHA: false }, 100, 'linear');
             },
             exitAnimation: (domElement) => {
-                Velocity.animate(domElement, { opacity: 0 }, 200, 'ease-out');
-                domElement.style.transform = 'translate(-50%, -50%)';
+                Velocity.animate(domElement, { opacity: 0 }, { mobileHA: false }, 100, 'linear');
             }
         }, [
             h('div#menu-header', [header]),

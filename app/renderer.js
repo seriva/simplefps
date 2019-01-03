@@ -1,3 +1,4 @@
+import Velocity from 'velocity-animate';
 import Console from './console';
 import Settings from './settings';
 import DOM from './dom';
@@ -11,16 +12,6 @@ DOM.registerCSS({
         height: '100vh',
         display: 'block',
         zIndex: 0
-    },
-
-    '@keyframes game-blurin': {
-        '0%': { filter: 'blur(0px)' },
-        '100%': { filter: 'blur(4px)' }
-    },
-
-    '@keyframes game-blurout': {
-        '0%': { filter: 'blur(4px)' },
-        '100%': { filter: 'blur(0px)' }
     }
 });
 
@@ -89,9 +80,9 @@ const aspectRatio = () => width() / height();
 const toggleBlur = (blur) => {
     blur === undefined ? doBlur = !doBlur: doBlur = blur;
     if (doBlur) {
-        canvas.domNode.style.animation = 'game-blurin 0.2s forwards';
+        Velocity.animate(canvas.domNode, { blur: 4 }, 100, 'linear');
     } else {
-        canvas.domNode.style.animation = 'game-blurout 0.2s forwards';
+        Velocity.animate(canvas.domNode, { blur: 0 }, 100, 'linear');
     }
 };
 
