@@ -7,7 +7,8 @@ const h = DOM.h;
 DOM.registerCSS({
     '#game': {
         background: '#000',
-        width: '100vw; height: 100vh',
+        width: '100vw',
+        height: '100vh',
         display: 'block',
         zIndex: 0
     },

@@ -20,11 +20,11 @@ DOM.registerCSS({
         fontSize: '16px',
         top: '50%',
         left: '50%',
-        transform: 'translate(-50%, -50%)',
         border: '2px solid #fff',
         backgroundColor: '#999',
         zIndex: 1000,
-        display: 'block'
+        display: 'block',
+        opacity: 0
     },
 
     '#menu-header': {
@@ -55,12 +55,12 @@ DOM.append(() =>
     [
         h('div#menu-base', {
             enterAnimation: (domElement) => {
-                domElement.style.opacity = 0;
                 Velocity.animate(domElement, { opacity: 0.9 }, 200, 'ease-out');
+                domElement.style.transform = 'translate(-50%, -50%)';
             },
             exitAnimation: (domElement) => {
-                domElement.style.opacity = 0.9;
                 Velocity.animate(domElement, { opacity: 0 }, 200, 'ease-out');
+                domElement.style.transform = 'translate(-50%, -50%)';
             }
         }, [
             h('div#menu-header', [header]),
