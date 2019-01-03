@@ -25,32 +25,6 @@ DOM.registerCSS({
         borderRadius: '50%'
     },
 
-    '@keyframes virtual-cursor-fadein': {
-        from: {
-            opacity: 0
-        },
-        to: {
-            opacity: 0.5
-        }
-    },
-
-    '.virtual-cursor-fadein': {
-        animation: 'virtual-cursor-fadein .1s ease-in 1 forwards'
-    },
-
-    '@keyframes virtual-cursor-fadeout': {
-        from: {
-            opacity: 0.5
-        },
-        to: {
-            opacity: 0
-        }
-    },
-
-    '.virtual-cursor-fadeout': {
-        animation: 'virtual-cursor-fadeout .1s ease-in 1 forwards'
-    },
-
     '#move-div': {
         width: '200px',
         height: '100%',
@@ -152,14 +126,10 @@ if (Utils.isMobile()) {
             }
         }
         if (ev.type === 'panstart') {
-            // DOM.animate(virtualCursor, { opacity: 0.5 }, { mobileHA: false, duration: 100, delay: 0, easing: 'ease-in' });
-            virtualCursor.classList.add('virtual-cursor-fadein');
-            virtualCursor.classList.remove('virtual-cursor-fadeout');
+            DOM.animate(virtualCursor, { opacity: 0.5 }, { mobileHA: false, duration: 100, delay: 0, easing: 'ease-in' });
         }
         if (ev.type === 'panend') {
-            // DOM.animate(virtualCursor, { opacity: 0.0 }, { mobileHA: false, duration: 1-0, delay: 0, easing: 'ease-in' });
-            virtualCursor.classList.remove('virtual-cursor-fadein');
-            virtualCursor.classList.add('virtual-cursor-fadeout');
+            DOM.animate(virtualCursor, { opacity: 0.0 }, { mobileHA: false, duration: 1-0, delay: 0, easing: 'ease-in' });
         }
     });
 
