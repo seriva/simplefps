@@ -1,4 +1,3 @@
-import Velocity from 'velocity-animate';
 import DOM from './dom';
 import Game from './game';
 
@@ -56,10 +55,10 @@ DOM.append(() =>
     [
         h('div#menu-base', {
             enterAnimation: (domElement) => {
-                Velocity.animate(domElement, { opacity: 0.9 }, { mobileHA: false, duration: 100, delay: 0, easing: 'linear' });
+                DOM.animate(domElement, { opacity: 0.9 }, { mobileHA: false, duration: 150, delay: 0, easing: 'linear' });
             },
             exitAnimation: (domElement) => {
-                Velocity.animate(domElement, { opacity: 0 }, { mobileHA: false, duration: 100, delay: 0, easing: 'linear' });
+                DOM.animate(domElement, { opacity: 0 }, { mobileHA: false, duration: 150, delay: 0, easing: 'linear' });
             }
         }, [
             h('div#menu-header', [header]),

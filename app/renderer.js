@@ -1,4 +1,3 @@
-import Velocity from 'velocity-animate';
 import Console from './console';
 import Settings from './settings';
 import DOM from './dom';
@@ -80,9 +79,9 @@ const aspectRatio = () => width() / height();
 const toggleBlur = (blur) => {
     blur === undefined ? doBlur = !doBlur: doBlur = blur;
     if (doBlur) {
-        Velocity.animate(canvas.domNode, { blur: 8 }, { duration: 100, delay: 0, easing: 'linear' });
+        DOM.animate(canvas.domNode, { blur: 8 }, { duration: 75, delay: 0, easing: 'linear' });
     } else {
-        Velocity.animate(canvas.domNode, { blur: 0 }, { duration: 100, delay: 0, easing: 'linear' });
+        DOM.animate(canvas.domNode, { blur: 0 }, { duration: 75, delay: 0, easing: 'linear' });
     }
 };
 
