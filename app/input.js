@@ -190,7 +190,7 @@ const Input = {
             document.exitPointerLock();
         } else {
             document.body.style.cursor = 'none';
-            document.getElementById('game').requestPointerLock();
+            document.body.requestPointerLock();
         }
     },
 
