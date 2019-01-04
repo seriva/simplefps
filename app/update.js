@@ -1,33 +1,37 @@
 import Loading from './loading';
-import Menu from './menu';
+import State from './state';
+import UI from './ui';
 import Translations from './translations';
 
 // local vars
 let newServiceWorker = null;
 let registration = null;
 
-const shopUpdateDialog = () => {
-    Menu.showMenu(Translations.get('VERSION_NEW'), [
+UI.register('UPDATE_MENU', {
+    header: Translations.get('VERSION_NEW'),
+    controls: [
         {
             text: Translations.get('YES'),
-            callback: update
-
+            callback: () => {
+                update();
+            }
         },
         {
             text: Translations.get('NO'),
             callback: () => {
-                Menu.hideMenu();
+                State.setState('GAME');
             }
         }
-    ]);
-};
+    ]
+});
+
 
 const update = () => {
     if (newServiceWorker !== null) {
         Loading.toggle(true, true);
         newServiceWorker.postMessage({ action: 'skipWaiting' });
     } else {
-        Menu.hideMenu();
+        State.setState('GAME');
         console.log('SW - No new service worker found to update');
     }
 };
@@ -40,14 +44,14 @@ if (navigator.serviceWorker) {
         registration.update();
         if (registration.waiting) {
             newServiceWorker = registration.waiting;
-            shopUpdateDialog();
+            State.setState('UI', 'UPDATE_MENU');
         } else {
             registration.addEventListener('updatefound', () => {
                 console.log('SW - Service worker update found');
                 newServiceWorker = registration.installing;
                 newServiceWorker.addEventListener('statechange', () => {
                     if (newServiceWorker.state === 'installed') {
-                        shopUpdateDialog();
+                        State.setState('UI', 'UPDATE_MENU');
                     }
                 });
             });
@@ -68,7 +72,7 @@ if (navigator.serviceWorker) {
 const Update = {
     force: () => {
         if (newServiceWorker !== null) {
-            shopUpdateDialog();
+            State.setState('UI', 'UPDATE_MENU');
             return;
         }
         if (registration !== null) {

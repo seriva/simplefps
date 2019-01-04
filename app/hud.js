@@ -1,7 +1,7 @@
 import Stats from './stats';
 import Utils from './utils';
 import DOM from './dom';
-import Controls from './controls';
+import State from './state';
 
 const h = DOM.h;
 
@@ -48,7 +48,7 @@ DOM.append(() =>
     [
         Utils.isMobile() ? [h('div#button-menu', {
             onclick: () => {
-                Controls.showMainMenu();
+                State.setState('UI', 'MAIN_MENU');
             }
         },
         [h('div#button-menu-bar')])] : [],

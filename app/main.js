@@ -3,9 +3,9 @@ import Settings from './settings';
 import Console from './console';
 import './translations';
 import './hud';
-import './menu';
+import './ui';
 import './update';
-import Game from './game';
+import State from './state';
 import Resources from './resources';
 import Stats from './stats';
 import Camera from './camera';
@@ -17,7 +17,7 @@ import Skybox from './skybox';
 import DOM from './dom';
 
 Console.registerCmd('state', (state) => {
-    Game.setState(state);
+    State.setState(state);
 });
 
 DOM.registerCSS({
@@ -44,6 +44,8 @@ DOM.registerCSS({
             'skyboxes/1/1.list'
         ]
     );
+
+    State.setState('UI', 'MAIN_MENU');
 
     let time;
     let frameTime = 0;

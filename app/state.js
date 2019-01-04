@@ -1,10 +1,11 @@
 import HUD from './hud';
 import Renderer from './renderer';
 import Input from './input';
+import UI from './ui';
 
-let state = 'GAME';
+let state = 'UI';
 
-const setState = (s) => {
+const setState = (s, ui) => {
     state = s.toUpperCase();
 
     switch (state) {
@@ -14,20 +15,23 @@ const setState = (s) => {
         Input.toggleCursor(false);
         Renderer.toggleBlur(false);
         HUD.toggle(true);
+        UI.hide();
         break;
-    case 'MENU' :
+    case 'UI' :
         Input.toggleVirtualInput(false);
         Input.toggleCursor(true);
         Renderer.toggleBlur(true);
         HUD.toggle(false);
+        UI.show(ui);
+
         break;
     default : break;
     }
 };
 
-const Game = {
+const State = {
     getState: () => state,
     setState
 };
 
-export { Game as default };
+export { State as default };

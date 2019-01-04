@@ -186,10 +186,8 @@ const Input = {
     toggleCursor(show) {
         show === undefined ? visibleCursor = !visibleCursor: visibleCursor = show;
         if (visibleCursor) {
-            document.body.style.cursor = ' default';
             document.exitPointerLock();
         } else {
-            document.body.style.cursor = 'none';
             document.body.requestPointerLock();
         }
     },

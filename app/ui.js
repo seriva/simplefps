@@ -1,11 +1,10 @@
 import DOM from './dom';
-import Game from './game';
 
 const h = DOM.h;
 
 // add css
 DOM.registerCSS({
-    '#menu': {
+    '#ui': {
         backgroundColor: 'transparent'
     },
 
@@ -47,11 +46,11 @@ DOM.registerCSS({
 });
 
 let isVisible = false;
-let header = '';
-let buttons = [];
+let current = '';
+const uis = {};
 
 DOM.append(() =>
-    h('div#menu', isVisible ?
+    h('div#ui', isVisible ?
     [
         h('div#menu-base', {
             enterAnimation: (domElement) => {
@@ -61,8 +60,8 @@ DOM.append(() =>
                 DOM.animate(domElement, { opacity: 0 }, { mobileHA: false, duration: 150, delay: 0, easing: 'linear', complete: removeDomNodeFunction });
             }
         }, [
-            h('div#menu-header', [header]),
-            buttons.map((button) => {
+            h('div#menu-header', [uis[current].header]),
+            uis[current].controls.map((button) => {
                 return h('div.menu-button', {
                     key: button.text,
                     onclick: button.callback
@@ -74,20 +73,19 @@ DOM.append(() =>
     [])
 );
 
-const showMenu = (mh, mb) => {
-    Menu.hideMenu();
-    Game.setState('MENU');
-    header = mh;
-    buttons = mb;
-    isVisible = true;
-};
-
-const Menu = {
-    showMenu,
-    hideMenu: () => {
+const UI = {
+    register: (name, ui) => {
+        uis[name] = ui;
+    },
+    show: (name) => {
         isVisible = false;
-        Game.setState('GAME');
+        DOM.update();
+        current = name;
+        isVisible = true;
+    },
+    hide: () => {
+        isVisible = false;
     }
 };
 
-export { Menu as default };
+export { UI as default };

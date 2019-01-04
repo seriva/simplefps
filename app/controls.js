@@ -3,23 +3,24 @@ import Input from './input';
 import Console from './console';
 import Camera from './camera';
 import Settings from './settings';
-import Game from './game';
-import Menu from './menu';
+import State from './state';
+import UI from './ui';
 import Update from './update';
 import Translations from './translations';
 
-const showMainMenu = () => {
-    Menu.showMenu(Translations.get('MAIN_MENU'), [
+UI.register('MAIN_MENU', {
+    header: Translations.get('MAIN_MENU'),
+    controls: [
+        {
+            text: Translations.get('START_GAME'),
+            callback: () => {
+                State.setState('GAME');
+            }
+        },
         {
             text: Translations.get('VERSION_CHECK'),
             callback: () => {
                 Update.force();
-            }
-        },
-        {
-            text: Translations.get('BACK'),
-            callback: () => {
-                Menu.hideMenu();
             }
         },
         {
@@ -28,19 +29,23 @@ const showMainMenu = () => {
                 window.close();
             }
         }
-    ]);
-};
-
-// keyboard input
-Input.addKeyDownEvent(27, () => {
-    showMainMenu();
+    ]
 });
+
+document.addEventListener('pointerlockchange', () => {
+    if (document.pointerLockElement === null) {
+        State.setState('UI', 'MAIN_MENU');
+    }
+}, false);
+
+window.addEventListener('focus', () => {
+    State.setState('UI', 'MAIN_MENU');
+}, false);
 
 // mouse and keyboard input
 const Controls = {
     update(frametime) {
-        if (Console.visible() || (Game.getState() === 'MENU')) return;
-
+        if (Console.visible() || (State.getState() === 'UI')) return;
         const ft = frametime / 1000;
 
         // look
@@ -82,8 +87,7 @@ const Controls = {
         Camera.position[0] = Camera.position[0] + (Camera.direction[0] * move) + (v[0] * strafe);
         Camera.position[1] = Camera.position[1] + (Camera.direction[1] * move) + (v[1] * strafe);
         Camera.position[2] = Camera.position[2] + (Camera.direction[2] * move) + (v[2] * strafe);
-    },
-    showMainMenu
+    }
 };
 
 export { Controls as default };
