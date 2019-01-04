@@ -6,7 +6,7 @@ const t = {
     'en-US': {
         YES: 'Yes',
         NO: 'No',
-        START_GAME: 'Start game',
+        CONTINUE_GAME: 'Continue game',
         EXIT: 'Exit',
         MAIN_MENU: 'Main Menu',
         VERSION_CHECK: 'Check for updates',

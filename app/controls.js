@@ -12,7 +12,7 @@ UI.register('MAIN_MENU', {
     header: Translations.get('MAIN_MENU'),
     controls: [
         {
-            text: Translations.get('START_GAME'),
+            text: Translations.get('CONTINUE_GAME'),
             callback: () => {
                 State.setState('GAME');
             }
@@ -34,12 +34,16 @@ UI.register('MAIN_MENU', {
 
 document.addEventListener('pointerlockchange', () => {
     if (document.pointerLockElement === null) {
-        State.setState('UI', 'MAIN_MENU');
+        if (State.getState() !== 'UI') {
+            State.setState('UI', 'MAIN_MENU');
+        }
     }
 }, false);
 
 window.addEventListener('focus', () => {
-    State.setState('UI', 'MAIN_MENU');
+    if (State.getState() !== 'UI') {
+        State.setState('UI', 'MAIN_MENU');
+    }
 }, false);
 
 // mouse and keyboard input
