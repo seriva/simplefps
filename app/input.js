@@ -199,7 +199,7 @@ const Input = {
         if (virtualInputVisible) {
             move.firstChild.style.visibility = 'visible';
         } else {
-            move.firstChild.style.visibility = 'none';
+            move.firstChild.style.visibility = 'hidden';
         }
     },
 
