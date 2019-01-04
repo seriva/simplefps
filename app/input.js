@@ -9,10 +9,6 @@ DOM.registerCSS({
         zIndex: 500
     },
 
-    '.hide-cursor': {
-        cursor: 'none'
-    },
-
     '#virtual-cursor': {
         position: 'absolute',
         display: 'block',
@@ -45,10 +41,6 @@ DOM.registerCSS({
         padding: 0,
         position: 'absolute',
         opacity: 0.01
-    },
-
-    '.show-joystick': {
-        visibility: 'visible'
     }
 });
 
@@ -183,7 +175,7 @@ if (Utils.isMobile()) {
         delete pressed[Settings.left];
         delete pressed[Settings.right];
     });
-    moveDiv.firstChild.classList.add('show-joystick');
+    moveDiv.firstChild.style.visibility = 'visible';
 }
 
 const Input = {
@@ -194,10 +186,10 @@ const Input = {
     toggleCursor(show) {
         show === undefined ? visibleCursor = !visibleCursor: visibleCursor = show;
         if (visibleCursor) {
-            document.body.classList.remove('hide-cursor');
+            document.body.style.cursor = ' default';
             document.exitPointerLock();
         } else {
-            document.body.classList.add('hide-cursor');
+            document.body.style.cursor = 'none';
             document.getElementById('game').requestPointerLock();
         }
     },
@@ -207,9 +199,9 @@ const Input = {
         show === undefined ? virtualInputVisible = !virtualInputVisible: virtualInputVisible = show;
         const move = document.getElementById('move-div');
         if (virtualInputVisible) {
-            move.firstChild.classList.add('show-joystick');
+            move.firstChild.style.visibility = 'visible';
         } else {
-            move.firstChild.classList.remove('show-joystick');
+            move.firstChild.style.visibility = 'none';
         }
     },
 
