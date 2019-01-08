@@ -12,18 +12,6 @@ const DOM = {
     append(render) {
         projector.append(document.body, render);
     },
-    addElement(type, id, parent) {
-        const el = document.createElement(type);
-        if (parent) {
-            parent.appendChild(el);
-        } else {
-            document.body.appendChild(el);
-        }
-        if (id) {
-            el.setAttribute('id', id);
-        }
-        return el;
-    },
     animate(...args) {
         Velocity(...args);
     },

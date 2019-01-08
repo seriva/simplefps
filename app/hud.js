@@ -7,7 +7,7 @@ const h = DOM.h;
 
 // add css
 DOM.registerCSS({
-    '#gui': {
+    '#hud': {
         margin: 0,
         padding: 0,
         zIndex: 1000,
@@ -44,7 +44,7 @@ DOM.registerCSS({
 let visible = true;
 
 DOM.append(() =>
-    h('div#gui', visible ?
+    h('div#hud', visible ?
     [
         Utils.isMobile() ? [h('div#button-menu', {
             onclick: () => {

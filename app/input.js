@@ -4,12 +4,14 @@ import Utils from './utils';
 import Settings from './settings';
 import DOM from './dom';
 
+const h = DOM.h;
+
 DOM.registerCSS({
     '#input': {
         zIndex: 500
     },
 
-    '#virtual-cursor': {
+    '#cursor': {
         position: 'absolute',
         display: 'block',
         width: '50px',
@@ -21,7 +23,7 @@ DOM.registerCSS({
         borderRadius: '50%'
     },
 
-    '#move-div': {
+    '#move': {
         width: '200px',
         height: '100%',
         left: '0px',
@@ -30,7 +32,7 @@ DOM.registerCSS({
         padding: 0,
     },
 
-    '#look-div': {
+    '#look': {
         width: 'calc(100% - 200px)',
         height: '100%',
         right: '0px',
@@ -52,6 +54,7 @@ let pressed = {};
 let upevents = [];
 let downevents = [];
 let timeout;
+let input = null;
 
 window.addEventListener('keyup', (event) => {
     delete pressed[event.keyCode];
@@ -94,15 +97,17 @@ window.addEventListener('mousemove', (evt) => {
 }, false);
 
 if (Utils.isMobile()) {
-    // virtual mouse input
-    const virtualInputRoot = DOM.addElement('div', 'input');
-    const moveDiv = DOM.addElement('div', 'move-div', virtualInputRoot);
-    const lookDiv = DOM.addElement('div', 'look-div', virtualInputRoot);
-    const virtualCursor = DOM.addElement('div', 'virtual-cursor', virtualInputRoot);
+    const move = h('div#move');
+    const look = h('div#look');
+    const cursor = h('div#cursor');
+    input = h('div#input', [
+        move, look, cursor
+    ]);
+    DOM.append(() => input);
 
-    const look = new Hammer(lookDiv, { touchAction: 'auto', inputClass: Hammer.TouchInput });
-    look.get('pan').set({ direction: Hammer.DIRECTION_ALL });
-    look.on('panstart panmove panend', (ev) => {
+    const lookTouch = new Hammer(look.domNode, { touchAction: 'auto', inputClass: Hammer.TouchInput });
+    lookTouch.get('pan').set({ direction: Hammer.DIRECTION_ALL });
+    lookTouch.on('panstart panmove panend', (ev) => {
         cursorMovement = {
             x: 0,
             y: 0
@@ -113,26 +118,26 @@ if (Utils.isMobile()) {
                 y: ev.velocityY * 16 * Settings.looksensitivity
             };
             if (ev.pointers && ev.pointers[0]) {
-                virtualCursor.style.left = ev.pointers[0].clientX+'px';
-                virtualCursor.style.top = ev.pointers[0].clientY+'px';
+                cursor.domNode.style.left = ev.pointers[0].clientX+'px';
+                cursor.domNode.style.top = ev.pointers[0].clientY+'px';
             }
         }
         if (ev.type === 'panstart') {
-            DOM.animate(virtualCursor, { opacity: 0.5 }, { mobileHA: false, duration: 100, delay: 0, easing: 'ease-in' });
+            DOM.animate(cursor.domNode, { opacity: 0.5 }, { mobileHA: false, duration: 100, delay: 0, easing: 'ease-in' });
         }
         if (ev.type === 'panend') {
-            DOM.animate(virtualCursor, { opacity: 0.0 }, { mobileHA: false, duration: 100, delay: 0, easing: 'ease-in' });
+            DOM.animate(cursor.domNode, { opacity: 0.0 }, { mobileHA: false, duration: 100, delay: 0, easing: 'ease-in' });
         }
     });
 
     // WASD input with virtual joystick
-    const move = nipplejs.create({
-        zone: moveDiv,
+    const moveJoystick = nipplejs.create({
+        zone: move.domNode,
         mode: 'static',
         position: { left: '80px', bottom: '80px' },
         color: 'white'
     });
-    move.on('move', (evt, data) => {
+    moveJoystick.on('move', (evt, data) => {
         if (data.angle && data.distance && data.distance > 20) {
             delete pressed[Settings.forward];
             delete pressed[Settings.backwards];
@@ -193,11 +198,10 @@ const Input = {
     toggleVirtualInput(show) {
         if (!Utils.isMobile()) return;
         show === undefined ? virtualInputVisible = !virtualInputVisible: virtualInputVisible = show;
-        const input = document.getElementById('input');
         if (virtualInputVisible) {
-            input.style.visibility = 'visible';
+            input.domNode.style.visibility = 'visible';
         } else {
-            input.style.visibility = 'hidden';
+            input.domNode.style.visibility = 'hidden';
         }
     },
 

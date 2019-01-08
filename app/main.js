@@ -143,7 +143,7 @@ DOM.registerCSS({
         // update stats
         Stats.update(frameTime);
 
-        // update html gui
+        // update dom
         DOM.update();
 
         // restart the loop
