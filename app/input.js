@@ -28,8 +28,6 @@ DOM.registerCSS({
         bottom: '0px',
         margin: 0,
         padding: 0,
-        position: 'absolute',
-        visibility: 'hidden'
     },
 
     '#look-div': {
@@ -98,8 +96,10 @@ window.addEventListener('mousemove', (evt) => {
 if (Utils.isMobile()) {
     // virtual mouse input
     const virtualInputRoot = DOM.addElement('div', 'input');
-    const virtualCursor = DOM.addElement('div', 'virtual-cursor', virtualInputRoot);
+    const moveDiv = DOM.addElement('div', 'move-div', virtualInputRoot);
     const lookDiv = DOM.addElement('div', 'look-div', virtualInputRoot);
+    const virtualCursor = DOM.addElement('div', 'virtual-cursor', virtualInputRoot);
+
     const look = new Hammer(lookDiv, { touchAction: 'auto', inputClass: Hammer.TouchInput });
     look.get('pan').set({ direction: Hammer.DIRECTION_ALL });
     look.on('panstart panmove panend', (ev) => {
@@ -126,7 +126,6 @@ if (Utils.isMobile()) {
     });
 
     // WASD input with virtual joystick
-    const moveDiv = DOM.addElement('div', 'move-div', virtualInputRoot);
     const move = nipplejs.create({
         zone: moveDiv,
         mode: 'static',
@@ -175,7 +174,6 @@ if (Utils.isMobile()) {
         delete pressed[Settings.left];
         delete pressed[Settings.right];
     });
-    moveDiv.firstChild.style.visibility = 'visible';
 }
 
 const Input = {
@@ -195,11 +193,11 @@ const Input = {
     toggleVirtualInput(show) {
         if (!Utils.isMobile()) return;
         show === undefined ? virtualInputVisible = !virtualInputVisible: virtualInputVisible = show;
-        const move = document.getElementById('move-div');
+        const input = document.getElementById('input');
         if (virtualInputVisible) {
-            move.firstChild.style.visibility = 'visible';
+            input.style.visibility = 'visible';
         } else {
-            move.firstChild.style.visibility = 'hidden';
+            input.style.visibility = 'hidden';
         }
     },
 
