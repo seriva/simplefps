@@ -62,10 +62,14 @@ DOM.registerCSS({
     mat4.identity(matIdentity);
 
     const loop = () => {
+
         // timing
         const now = performance.now();
         frameTime = now - (time || now);
         time = now;
+
+        // update stats
+        Stats.update();
 
         // update the camera
         Controls.update(frameTime);
@@ -139,9 +143,6 @@ DOM.registerCSS({
 
         Shaders.postProcessing.unBind();
         Buffers.endPostProcessingPass();
-
-        // update stats
-        Stats.update(frameTime);
 
         // update dom
         DOM.update();

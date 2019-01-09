@@ -1,4 +1,3 @@
-import Stats from './stats';
 import Utils from './utils';
 import DOM from './dom';
 import State from './state';
@@ -12,20 +11,6 @@ DOM.registerCSS({
         padding: 0,
         zIndex: 1000,
         backgroundColor: 'transparent',
-    },
-    '#stats-fps': {
-        fontSize: '14px',
-        color: '#FFF',
-        left: '15px',
-        top: '15px',
-        position: 'absolute',
-    },
-    '#stats-ftm': {
-        fontSize: '14px',
-        color: '#FFF',
-        left: '15px',
-        top: '30px',
-        position: 'absolute'
     },
     '#button-menu': {
         borderRadius: '50%',
@@ -51,9 +36,7 @@ DOM.append(() =>
                 State.setState('UI', 'MAIN_MENU');
             }
         },
-        [h('div#button-menu-bar')])] : [],
-        h('span#stats-fps', ['FPS: ' + Stats.fps().toString()]),
-        h('span#stats-ftm', ['FTM: ' + Stats.frametime().toString()])
+        [h('div#button-menu-bar')])] : []
     ]
     :
     [])

@@ -23,7 +23,6 @@ const setState = (s, ui) => {
         Renderer.toggleBlur(true);
         HUD.toggle(false);
         UI.show(ui);
-
         break;
     default : break;
     }
