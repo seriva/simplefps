@@ -25,7 +25,6 @@ UI.register('UPDATE_MENU', {
     ]
 });
 
-
 const update = () => {
     if (newServiceWorker !== null) {
         Loading.toggle(true, true);
