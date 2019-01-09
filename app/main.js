@@ -62,7 +62,6 @@ DOM.registerCSS({
     mat4.identity(matIdentity);
 
     const loop = () => {
-
         // timing
         const now = performance.now();
         frameTime = now - (time || now);
