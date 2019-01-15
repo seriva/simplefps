@@ -167,7 +167,7 @@ const Shaders = {
 
         layout(location=0) out vec4 fragColor;
 
-        uniform DirectionalLight sun;
+        uniform DirectionalLight directionalLight;
         uniform sampler2D positionBuffer;
         uniform sampler2D normalBuffer;
         uniform sampler2D colorBuffer;
@@ -176,10 +176,10 @@ const Shaders = {
         {
             vec4 norm = texture(normalBuffer, vUV);
             vec4 color = texture(colorBuffer, vUV);
-            vec3 normSunDir = normalize(sun.direction);
+            vec3 normSunDir = normalize(directionalLight.direction);
             vec3 lightIntensity = vec3(1.0);
             if (norm.w != 1.0){
-                lightIntensity = sun.ambient + sun.diffuse * max(dot(normalize(norm.xyz), normSunDir), 0.0);
+                lightIntensity = directionalLight.ambient + directionalLight.diffuse * max(dot(normalize(norm.xyz), normSunDir), 0.0);
             }
             fragColor = vec4(color.rgb * lightIntensity, 1.0);
         }`

@@ -108,13 +108,14 @@ DOM.registerCSS({
         // lighting pass
         // **********************************
         Buffers.startLightingPass();
+
         Shaders.directionalLight.bind();
         Shaders.directionalLight.setInt('positionBuffer', 0);
         Shaders.directionalLight.setInt('normalBuffer', 1);
         Shaders.directionalLight.setInt('colorBuffer', 2);
-        Shaders.directionalLight.setVec3('sun.direction', [-3.0, 4.0, -2.0]);
-        Shaders.directionalLight.setVec3('sun.ambient', [0.2, 0.2, 0.2]);
-        Shaders.directionalLight.setVec3('sun.diffuse', [0.9, 0.9, 0.9]);
+        Shaders.directionalLight.setVec3('directionalLight.direction', [-3.0, 4.0, -2.0]);
+        Shaders.directionalLight.setVec3('directionalLight.ambient', [0.2, 0.2, 0.2]);
+        Shaders.directionalLight.setVec3('directionalLight.diffuse', [0.9, 0.9, 0.9]);
 
         Renderer.drawFullscreenQuad();
 

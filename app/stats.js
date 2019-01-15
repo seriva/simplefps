@@ -39,7 +39,9 @@ let visible = true;
 let prevTime = 0;
 let frames = 0;
 
-Console.registerCmd('stats', visible);
+Console.registerCmd('stats', (show) => {
+    toggle(show);
+});
 
 window.setInterval(() => {
     fps = frames;
