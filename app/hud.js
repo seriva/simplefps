@@ -4,7 +4,6 @@ import State from './state';
 
 const h = DOM.h;
 
-// add css
 DOM.registerCSS({
     '#hud': {
         margin: 0,

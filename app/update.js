@@ -3,7 +3,6 @@ import State from './state';
 import UI from './ui';
 import Translations from './translations';
 
-// local vars
 let newServiceWorker = null;
 let registration = null;
 

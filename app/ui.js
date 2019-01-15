@@ -2,7 +2,6 @@ import DOM from './dom';
 
 const h = DOM.h;
 
-// add css
 DOM.registerCSS({
     '#ui': {
         backgroundColor: 'transparent'

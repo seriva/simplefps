@@ -1,5 +1,3 @@
-
-
 const Utils = {
     isMobile() {
         /* eslint-disable */

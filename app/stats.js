@@ -3,7 +3,6 @@ import Console from './console';
 
 const h = DOM.h;
 
-// add css
 DOM.registerCSS({
     '#stats': {
         margin: 0,
@@ -23,7 +22,7 @@ DOM.registerCSS({
         marginLeft: '5px'
     },
     '#stats-ft': {
-        color: '#4F4',
+        color: '#FF0090',
         marginLeft: '5px'
     },
     '#stats-mem': {
