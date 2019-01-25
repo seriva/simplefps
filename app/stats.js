@@ -22,7 +22,7 @@ DOM.registerCSS({
         marginLeft: '5px'
     },
     '#stats-ft': {
-        color: '#FF0090',
+        color: '#0F0',
         marginLeft: '5px'
     },
     '#stats-mem': {

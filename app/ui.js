@@ -26,6 +26,7 @@ DOM.registerCSS({
     },
 
     '#menu-header': {
+        fontSize: '18px',
         textAlign: 'center',
         marginBottom: '10px'
     },

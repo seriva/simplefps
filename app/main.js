@@ -41,7 +41,8 @@ DOM.registerCSS({
             'skyboxes/skybox.obj',
             'meshes/statue.obj',
             'meshes/floor.obj',
-            'skyboxes/1/1.list'
+            'skyboxes/1/1.list',
+            'skyboxes/2/2.list'
         ]
     );
 
@@ -52,7 +53,7 @@ DOM.registerCSS({
 
     const statueModel = Resources.get('meshes/statue.obj');
     const floorModel = Resources.get('meshes/floor.obj');
-    Skybox.setTextures(Resources.get('skyboxes/1/1.list'));
+    Skybox.setTextures(Resources.get('skyboxes/2/2.list'));
 
     Camera.setProjection(45, Settings.znear, Settings.zfar);
     Camera.setPosition([0, 1, -5]);
@@ -114,8 +115,8 @@ DOM.registerCSS({
         Shaders.directionalLight.setInt('normalBuffer', 1);
         Shaders.directionalLight.setInt('colorBuffer', 2);
         Shaders.directionalLight.setVec3('directionalLight.direction', [-3.0, 4.0, -2.0]);
-        Shaders.directionalLight.setVec3('directionalLight.ambient', [0.2, 0.2, 0.2]);
-        Shaders.directionalLight.setVec3('directionalLight.diffuse', [0.9, 0.9, 0.9]);
+        Shaders.directionalLight.setVec3('directionalLight.diffuse', [49/256, 72/255, 125/255]);
+        Shaders.directionalLight.setVec3('directionalLight.ambient', [14/256, 20/255, 34/255]);
 
         Renderer.drawFullscreenQuad();
 
