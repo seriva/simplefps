@@ -54,7 +54,7 @@ DOM.registerCSS({
 });
 
 // where will bind all the commands to eval execution
-window.qdfps = {};
+window.qdfpa = {};
 
 // local vars
 let visible = false;
@@ -132,7 +132,7 @@ Input.addKeyDownEvent(13, () => {
     if (command === '') return;
     try {
         Console.log(command);
-        const cmd = 'qdfps.' + command.toLowerCase();
+        const cmd = 'qdfpa.' + command.toLowerCase();
         let evalCmd = '';
         if (cmd.indexOf('=') > -1) {
             // we are dealing with a var assignement.
@@ -188,7 +188,7 @@ const Console = {
     },
 
     registerCmd(name, value) {
-        window.qdfps[name.toLowerCase()] = value;
+        window.qdfpa[name.toLowerCase()] = value;
     }
 };
 

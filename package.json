@@ -1,12 +1,12 @@
 {
-  "name": "qdfpsjs",
+  "name": "qdfpa",
   "version": "0.0.2",
-  "description": "Quick And Dirty FPS",
+  "description": "Quick And Dirty First Person Adventure",
   "author": "Luuk van Venrooij",
   "license": "LGPL-3.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/seriva/QDFPSJS.git"
+    "url": "https://github.com/seriva/QDFPA.git"
   },
   "scripts": {
     "build": "rimraf public/* && brunch build --production",
