@@ -29,11 +29,10 @@ if (!gl.getExtension('EXT_color_buffer_float')) {
     Console.error(' Extension EXT_color_buffer_float is required to run');
 }
 
-const afExt = (
+const afExt =
     gl.getExtension('EXT_texture_filter_anisotropic') ||
     gl.getExtension('MOZ_EXT_texture_filter_anisotropic') ||
-    gl.getExtension('WEBKIT_EXT_texture_filter_anisotropic')
-);
+    gl.getExtension('WEBKIT_EXT_texture_filter_anisotropic');
 if (!afExt) {
     Console.warn('Extension EXT_texture_filter_anisotropic is not present');
 }
@@ -50,19 +49,31 @@ Console.log('Renderer: ' + gl.getParameter(gl.RENDERER));
 Console.log('Vendor: ' + gl.getParameter(gl.VENDOR));
 Console.log('WebGL version: ' + gl.getParameter(gl.VERSION));
 Console.log('GLSL version: ' + gl.getParameter(gl.SHADING_LANGUAGE_VERSION));
-Console.log('Max anisotropic filtering: ' + gl.getParameter(afExt.MAX_TEXTURE_MAX_ANISOTROPY_EXT));
+Console.log(
+    'Max anisotropic filtering: ' +
+        gl.getParameter(afExt.MAX_TEXTURE_MAX_ANISOTROPY_EXT)
+);
 
 const screenQuadVBO = gl.createBuffer();
 gl.bindBuffer(gl.ARRAY_BUFFER, screenQuadVBO);
-gl.bufferData(gl.ARRAY_BUFFER,
+gl.bufferData(
+    gl.ARRAY_BUFFER,
     new Float32Array([
-        -1.0, -1.0,
-        1.0, 1.0,
-        -1.0, 1.0,
-        -1.0, -1.0,
-        1.0, -1.0,
-        1.0, 1.0]),
-    gl.STATIC_DRAW);
+        -1.0,
+        -1.0,
+        1.0,
+        1.0,
+        -1.0,
+        1.0,
+        -1.0,
+        -1.0,
+        1.0,
+        -1.0,
+        1.0,
+        1.0
+    ]),
+    gl.STATIC_DRAW
+);
 
 const drawFullscreenQuad = () => {
     gl.bindBuffer(gl.ARRAY_BUFFER, screenQuadVBO);
@@ -73,23 +84,44 @@ const drawFullscreenQuad = () => {
     gl.bindBuffer(gl.ARRAY_BUFFER, null);
 };
 
-const width = () => Math.floor(gl.canvas.clientWidth * window.devicePixelRatio * Settings.renderscale);
-const height = () => Math.floor(gl.canvas.clientHeight * window.devicePixelRatio * Settings.renderscale);
+const width = () =>
+    Math.floor(
+        gl.canvas.clientWidth * window.devicePixelRatio * Settings.renderscale
+    );
+
+const height = () =>
+    Math.floor(
+        gl.canvas.clientHeight * window.devicePixelRatio * Settings.renderscale
+    );
+
 const aspectRatio = () => width() / height();
+
 const toggleBlur = (blur) => {
-    blur === undefined ? doBlur = !doBlur: doBlur = blur;
+    blur === undefined ? (doBlur = !doBlur) : (doBlur = blur);
     if (doBlur) {
-        DOM.animate(canvas.domNode, { blur: 8 }, { duration: 75, delay: 0, easing: 'linear' });
+        DOM.animate(
+            canvas.domNode,
+            { blur: 8 },
+            { duration: 75, delay: 0, easing: 'linear' }
+        );
     } else {
-        DOM.animate(canvas.domNode, { blur: 0 }, { duration: 75, delay: 0, easing: 'linear' });
+        DOM.animate(
+            canvas.domNode,
+            { blur: 0 },
+            { duration: 75, delay: 0, easing: 'linear' }
+        );
     }
 };
 
-window.addEventListener('resize', () => {
-    gl.canvas.width = width();
-    gl.canvas.height = height();
-    gl.viewport(0, 0, width(), height());
-}, false);
+window.addEventListener(
+    'resize',
+    () => {
+        gl.canvas.width = width();
+        gl.canvas.height = height();
+        gl.viewport(0, 0, width(), height());
+    },
+    false
+);
 
 window.dispatchEvent(new Event('resize'));
 

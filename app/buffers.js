@@ -13,7 +13,7 @@ const g = {
 
 const l = {
     framebuffer: null,
-    color: null,
+    color: null
 };
 
 let noise = null;
@@ -31,28 +31,52 @@ const init = (width, height) => {
         width,
         height
     });
-    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, g.position.texture, 0);
+    gl.framebufferTexture2D(
+        gl.FRAMEBUFFER,
+        gl.COLOR_ATTACHMENT0,
+        gl.TEXTURE_2D,
+        g.position.texture,
+        0
+    );
 
     g.normal = new Texture({
         format: gl.RGBA16F,
         width,
         height
     });
-    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT1, gl.TEXTURE_2D, g.normal.texture, 0);
+    gl.framebufferTexture2D(
+        gl.FRAMEBUFFER,
+        gl.COLOR_ATTACHMENT1,
+        gl.TEXTURE_2D,
+        g.normal.texture,
+        0
+    );
 
     g.color = new Texture({
         format: gl.RGBA8,
         width,
         height
     });
-    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT2, gl.TEXTURE_2D, g.color.texture, 0);
+    gl.framebufferTexture2D(
+        gl.FRAMEBUFFER,
+        gl.COLOR_ATTACHMENT2,
+        gl.TEXTURE_2D,
+        g.color.texture,
+        0
+    );
 
     g.depth = new Texture({
         format: gl.DEPTH_COMPONENT16,
         width,
         height
     });
-    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, g.depth.texture, 0);
+    gl.framebufferTexture2D(
+        gl.FRAMEBUFFER,
+        gl.DEPTH_ATTACHMENT,
+        gl.TEXTURE_2D,
+        g.depth.texture,
+        0
+    );
 
     gl.drawBuffers([
         gl.COLOR_ATTACHMENT0,
@@ -73,11 +97,15 @@ const init = (width, height) => {
         width,
         height
     });
-    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, l.color.texture, 0);
+    gl.framebufferTexture2D(
+        gl.FRAMEBUFFER,
+        gl.COLOR_ATTACHMENT0,
+        gl.TEXTURE_2D,
+        l.color.texture,
+        0
+    );
 
-    gl.drawBuffers([
-        gl.COLOR_ATTACHMENT0
-    ]);
+    gl.drawBuffers([gl.COLOR_ATTACHMENT0]);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
     // **********************************
@@ -144,9 +172,13 @@ const endPostProcessingPass = () => {
     noise.unBind();
 };
 
-window.addEventListener('resize', () => {
-    Buffers.init(Renderer.width(), Renderer.height());
-}, false);
+window.addEventListener(
+    'resize',
+    () => {
+        Buffers.init(Renderer.width(), Renderer.height());
+    },
+    false
+);
 
 const Buffers = {
     init,

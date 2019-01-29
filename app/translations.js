@@ -28,7 +28,6 @@ const Translations = {
         }
         return t[language][key];
     }
-
 };
 
 export { Translations as default };

@@ -7,7 +7,7 @@ DOM.registerCSS({
     '#stats': {
         margin: 0,
         padding: 0,
-        backgroundColor: 'transparent',
+        backgroundColor: 'transparent'
     },
     '#stats-text': {
         fontSize: '12px',
@@ -15,7 +15,7 @@ DOM.registerCSS({
         left: '8px',
         top: '8px',
         zIndex: 3000,
-        position: 'absolute',
+        position: 'absolute'
     },
     '#stats-fps': {
         color: '#F00',
@@ -49,20 +49,22 @@ window.setInterval(() => {
 }, 1000);
 
 DOM.append(() =>
-    h('div#stats', visible ?
-    [
-        h('div#stats-text', [
-            h('span##stats-fps', [fps + 'fps']),
-            h('span##stats-ft', [Math.round(frameTime) + 'ms']),
-            h('span##stats-mem', [memory + 'mb'])
-        ])
-    ]
-    :
-    [])
+    h(
+        'div#stats',
+        visible
+            ? [
+                h('div#stats-text', [
+                    h('span##stats-fps', [fps + 'fps']),
+                    h('span##stats-ft', [Math.round(frameTime) + 'ms']),
+                    h('span##stats-mem', [memory + 'mb'])
+                ])
+            ]
+            : []
+    )
 );
 
 const toggle = (show) => {
-    show === undefined ? visible = !visible: visible = show;
+    show === undefined ? (visible = !visible) : (visible = show);
 };
 
 const Stats = {

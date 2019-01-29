@@ -36,15 +36,13 @@ DOM.registerCSS({
 });
 
 (async () => {
-    await Resources.load(
-        [
-            'skyboxes/skybox.obj',
-            'meshes/statue.obj',
-            'meshes/floor.obj',
-            'skyboxes/1/1.list',
-            'skyboxes/2/2.list'
-        ]
-    );
+    await Resources.load([
+        'skyboxes/skybox.obj',
+        'meshes/statue.obj',
+        'meshes/floor.obj',
+        'skyboxes/1/1.list',
+        'skyboxes/2/2.list'
+    ]);
 
     State.setState('UI', 'MAIN_MENU');
 
@@ -95,8 +93,16 @@ DOM.registerCSS({
         for (let i = 0; i < 5; i++) {
             for (let j = 0; j < 5; j++) {
                 mat4.identity(matModel);
-                mat4.rotate(matModel, matIdentity, glMatrix.toRadian(180), [0, 1, 0]);
-                mat4.translate(matModel, matModel, [startPos + i * 1.3, 0, startPos + j * 1.3]);
+                mat4.rotate(matModel, matIdentity, glMatrix.toRadian(180), [
+                    0,
+                    1,
+                    0
+                ]);
+                mat4.translate(matModel, matModel, [
+                    startPos + i * 1.3,
+                    0,
+                    startPos + j * 1.3
+                ]);
                 Shaders.geometry.setMat4('matWorld', matModel);
                 statueModel.render();
             }
@@ -114,9 +120,21 @@ DOM.registerCSS({
         Shaders.directionalLight.setInt('positionBuffer', 0);
         Shaders.directionalLight.setInt('normalBuffer', 1);
         Shaders.directionalLight.setInt('colorBuffer', 2);
-        Shaders.directionalLight.setVec3('directionalLight.direction', [-3.0, 4.0, -2.0]);
-        Shaders.directionalLight.setVec3('directionalLight.diffuse', [49/256, 72/255, 125/255]);
-        Shaders.directionalLight.setVec3('directionalLight.ambient', [14/256, 20/255, 34/255]);
+        Shaders.directionalLight.setVec3('directionalLight.direction', [
+            -3.0,
+            4.0,
+            -2.0
+        ]);
+        Shaders.directionalLight.setVec3('directionalLight.diffuse', [
+            49 / 256,
+            72 / 255,
+            125 / 255
+        ]);
+        Shaders.directionalLight.setVec3('directionalLight.ambient', [
+            14 / 256,
+            20 / 255,
+            34 / 255
+        ]);
 
         Renderer.drawFullscreenQuad();
 
@@ -134,11 +152,23 @@ DOM.registerCSS({
         Shaders.postProcessing.setInt('positionBuffer', 1);
         Shaders.postProcessing.setInt('normalBuffer', 2);
         Shaders.postProcessing.setInt('noiseBuffer', 3);
-        Shaders.postProcessing.setVec2('viewportSize', [Renderer.width(), Renderer.height()]);
-        Shaders.postProcessing.setFloat('ssao.sampleRadius', Settings.ssaoRadius);
+        Shaders.postProcessing.setVec2('viewportSize', [
+            Renderer.width(),
+            Renderer.height()
+        ]);
+        Shaders.postProcessing.setFloat(
+            'ssao.sampleRadius',
+            Settings.ssaoRadius
+        );
         Shaders.postProcessing.setFloat('ssao.bias', Settings.ssaoBias);
-        Shaders.postProcessing.setVec2('ssao.attenuation', Settings.ssaoAttenuation);
-        Shaders.postProcessing.setVec2('ssao.depthRange', [Settings.znear, Settings.zfar]);
+        Shaders.postProcessing.setVec2(
+            'ssao.attenuation',
+            Settings.ssaoAttenuation
+        );
+        Shaders.postProcessing.setVec2('ssao.depthRange', [
+            Settings.znear,
+            Settings.zfar
+        ]);
 
         Renderer.drawFullscreenQuad();
 
@@ -153,4 +183,3 @@ DOM.registerCSS({
     };
     window.requestAnimationFrame(loop);
 })();
-

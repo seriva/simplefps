@@ -23,7 +23,7 @@ DOM.registerCSS({
         column: 'nowrap',
         border: '1px solid #999',
         backgroundColor: '#999',
-        opacity: 0.90,
+        opacity: 0.9,
         width: '100%',
         height: '100%',
         overflow: 'scroll',
@@ -35,7 +35,7 @@ DOM.registerCSS({
         width: '100%',
         whiteSpace: 'nowrap',
         margin: '0px',
-        lineHeight: '115%',
+        lineHeight: '115%'
     },
     '#console-input': {
         display: 'flex',
@@ -49,8 +49,8 @@ DOM.registerCSS({
         borderTop: '2px solid #fff',
         backgroundColor: '#999',
         opacity: 0.75,
-        outline: 'none',
-    },
+        outline: 'none'
+    }
 });
 
 // where will bind all the commands to eval execution
@@ -84,43 +84,79 @@ const hideConsole = () => {
 };
 
 DOM.append(() =>
-    h('div#console',
-    visible ?
-    [
-        h('div#console-body', {
-            enterAnimation: (domElement) => {
-                DOM.animate(domElement, { top: 0 }, { duration: 150, delay: 0, easing: 'ease-in-out' });
-            },
-            exitAnimation: (domElement, removeDomNodeFunction) => {
-                DOM.animate(domElement, { top: '-35vh' }, { duration: 150, delay: 0, easing: 'ease-in-out', complete: removeDomNodeFunction });
-            }
-        }, [
-            h('div#console-content', {
-                onchange: setScrollPos
-            }, [
-                h('p', [
-                    logs.map((log, index) => {
-                        return h('span', { key: index, style: 'color:' + log.color }, [log.message, h('br')]);
-                    })
-                ]),
-            ]),
-            h('input#console-input', {
-                disabled: true,
-                value: command,
-                oninput: updateCommand,
-                afterCreate: setFocus,
-                onblur: hideConsole
-            })
-        ])
-    ]
-    :
-    [])
+    h(
+        'div#console',
+        visible
+            ? [
+                h(
+                    'div#console-body',
+                    {
+                        enterAnimation: (domElement) => {
+                            DOM.animate(
+                                domElement,
+                                { top: 0 },
+                                {
+                                    duration: 150,
+                                    delay: 0,
+                                    easing: 'ease-in-out'
+                                }
+                            );
+                        },
+                        exitAnimation: (
+                            domElement,
+                            removeDomNodeFunction
+                        ) => {
+                            DOM.animate(
+                                domElement,
+                                { top: '-35vh' },
+                                {
+                                    duration: 150,
+                                    delay: 0,
+                                    easing: 'ease-in-out',
+                                    complete: removeDomNodeFunction
+                                }
+                            );
+                        }
+                    },
+                    [
+                        h(
+                            'div#console-content',
+                            {
+                                onchange: setScrollPos
+                            },
+                            [
+                                h('p', [
+                                    logs.map((log, index) => {
+                                        return h(
+                                            'span',
+                                            {
+                                                key: index,
+                                                style: 'color:' + log.color
+                                            },
+                                            [log.message, h('br')]
+                                        );
+                                    })
+                                ])
+                            ]
+                        ),
+                        h('input#console-input', {
+                            disabled: true,
+                            value: command,
+                            oninput: updateCommand,
+                            afterCreate: setFocus,
+                            onblur: hideConsole
+                        })
+                    ]
+                )
+            ]
+            : []
+    )
 );
 
 const deepTest = (s) => {
-    s= s.split('.');
+    s = s.split('.');
     let obj = window[s.shift()];
-    while (obj && s.length) obj= obj[s.shift()];
+    while (obj && s.length) obj = obj[s.shift()];
     return obj;
 };
 
@@ -145,7 +181,7 @@ Input.addKeyDownEvent(13, () => {
         }
         if (evalCmd !== '') {
             evalCmd = evalCmd.trim();
-            if (deepTest(evalCmd) === undefined) throw ('Command does not exist');
+            if (deepTest(evalCmd) === undefined) throw 'Command does not exist';
         }
         eval(cmd);
     } catch (error) {

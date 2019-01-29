@@ -45,13 +45,10 @@ let forceUntilReload = false;
 
 // gui function
 DOM.append(() =>
-    h('div#loading', isVisible ?
-    [
-        h('div#loading-logo'),
-        h('div#loading-background'),
-    ]
-    :
-    [])
+    h(
+        'div#loading',
+        isVisible ? [h('div#loading-logo'), h('div#loading-background')] : []
+    )
 );
 
 const Loading = {

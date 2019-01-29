@@ -17,14 +17,15 @@ const setState = (s, ui) => {
         HUD.toggle(true);
         UI.hide();
         break;
-    case 'UI' :
+    case 'UI':
         Input.toggleVirtualInput(false);
         Input.toggleCursor(true);
         Renderer.toggleBlur(true);
         HUD.toggle(false);
         UI.show(ui);
         break;
-    default : break;
+    default:
+        break;
     }
 };
 

@@ -32,37 +32,67 @@ UI.register('MAIN_MENU', {
     ]
 });
 
-document.addEventListener('pointerlockchange', () => {
-    if (document.pointerLockElement === null) {
+document.addEventListener(
+    'pointerlockchange',
+    () => {
+        if (document.pointerLockElement === null) {
+            if (State.getState() !== 'UI') {
+                State.setState('UI', 'MAIN_MENU');
+            }
+        }
+    },
+    false
+);
+
+window.addEventListener(
+    'focus',
+    () => {
         if (State.getState() !== 'UI') {
             State.setState('UI', 'MAIN_MENU');
         }
-    }
-}, false);
-
-window.addEventListener('focus', () => {
-    if (State.getState() !== 'UI') {
-        State.setState('UI', 'MAIN_MENU');
-    }
-}, false);
+    },
+    false
+);
 
 // mouse and keyboard input
 const Controls = {
     update(frametime) {
-        if (Console.visible() || (State.getState() === 'UI')) return;
+        if (Console.visible() || State.getState() === 'UI') return;
         const ft = frametime / 1000;
 
         // look
         const mpos = Input.cursorMovement();
-        Camera.rotation[0] = Camera.rotation[0] - ((mpos.x/33.0) * Settings.looksensitivity);
-        Camera.rotation[1] = Camera.rotation[1] + ((mpos.y/33.0) * Settings.looksensitivity);
-        if (Camera.rotation[1]>89) { Camera.rotation[1] = 89; }
-        if (Camera.rotation[1]<-89) { Camera.rotation[1] = -89; }
-        if (Camera.rotation[0]<0) { Camera.rotation[0] = 360; }
-        if (Camera.rotation[0]>360) { Camera.rotation[0] = 0; }
-        Camera.direction[0] = 0; Camera.direction[1] = 0; Camera.direction[2] = 1;
-        vec3.rotateX(Camera.direction, Camera.direction, [0, 0, 0], glMatrix.toRadian(Camera.rotation[1]));
-        vec3.rotateY(Camera.direction, Camera.direction, [0, 0, 0], glMatrix.toRadian(Camera.rotation[0]));
+        Camera.rotation[0] =
+            Camera.rotation[0] - (mpos.x / 33.0) * Settings.looksensitivity;
+        Camera.rotation[1] =
+            Camera.rotation[1] + (mpos.y / 33.0) * Settings.looksensitivity;
+        if (Camera.rotation[1] > 89) {
+            Camera.rotation[1] = 89;
+        }
+        if (Camera.rotation[1] < -89) {
+            Camera.rotation[1] = -89;
+        }
+        if (Camera.rotation[0] < 0) {
+            Camera.rotation[0] = 360;
+        }
+        if (Camera.rotation[0] > 360) {
+            Camera.rotation[0] = 0;
+        }
+        Camera.direction[0] = 0;
+        Camera.direction[1] = 0;
+        Camera.direction[2] = 1;
+        vec3.rotateX(
+            Camera.direction,
+            Camera.direction,
+            [0, 0, 0],
+            glMatrix.toRadian(Camera.rotation[1])
+        );
+        vec3.rotateY(
+            Camera.direction,
+            Camera.direction,
+            [0, 0, 0],
+            glMatrix.toRadian(Camera.rotation[0])
+        );
         vec3.normalize(Camera.direction, Camera.direction);
 
         // movement
@@ -88,9 +118,12 @@ const Controls = {
         vec3.normalize(v, v);
         move = move * (ft * Settings.movespeed);
         strafe = strafe * (ft * Settings.movespeed);
-        Camera.position[0] = Camera.position[0] + (Camera.direction[0] * move) + (v[0] * strafe);
-        Camera.position[1] = Camera.position[1] + (Camera.direction[1] * move) + (v[1] * strafe);
-        Camera.position[2] = Camera.position[2] + (Camera.direction[2] * move) + (v[2] * strafe);
+        Camera.position[0] =
+            Camera.position[0] + Camera.direction[0] * move + v[0] * strafe;
+        Camera.position[1] =
+            Camera.position[1] + Camera.direction[1] * move + v[1] * strafe;
+        Camera.position[2] =
+            Camera.position[2] + Camera.direction[2] * move + v[2] * strafe;
     }
 };
 

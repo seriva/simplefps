@@ -21,7 +21,6 @@ const Resources = {
             let counter = 0;
             startTime = new Date().getTime();
             Loading.toggle(true);
-
             const loadNext = async () => {
                 let resource = null;
                 const path = paths[counter];

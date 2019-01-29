@@ -50,27 +50,59 @@ let current = '';
 const uis = {};
 
 DOM.append(() =>
-    h('div#ui', isVisible ?
-    [
-        h('div#menu-base', {
-            enterAnimation: (domElement) => {
-                DOM.animate(domElement, { opacity: 0.9 }, { mobileHA: false, duration: 150, delay: 0, easing: 'linear' });
-            },
-            exitAnimation: (domElement, removeDomNodeFunction) => {
-                DOM.animate(domElement, { opacity: 0 }, { mobileHA: false, duration: 150, delay: 0, easing: 'linear', complete: removeDomNodeFunction });
-            }
-        }, [
-            h('div#menu-header', [uis[current].header]),
-            uis[current].controls.map((button) => {
-                return h('div.menu-button', {
-                    key: button.text,
-                    onclick: button.callback
-                }, [button.text]);
-            })
-        ]),
-    ]
-    :
-    [])
+    h(
+        'div#ui',
+        isVisible
+            ? [
+                h(
+                    'div#menu-base',
+                    {
+                        enterAnimation: (domElement) => {
+                            DOM.animate(
+                                domElement,
+                                { opacity: 0.9 },
+                                {
+                                    mobileHA: false,
+                                    duration: 150,
+                                    delay: 0,
+                                    easing: 'linear'
+                                }
+                            );
+                        },
+                        exitAnimation: (
+                            domElement,
+                            removeDomNodeFunction
+                        ) => {
+                            DOM.animate(
+                                domElement,
+                                { opacity: 0 },
+                                {
+                                    mobileHA: false,
+                                    duration: 150,
+                                    delay: 0,
+                                    easing: 'linear',
+                                    complete: removeDomNodeFunction
+                                }
+                            );
+                        }
+                    },
+                    [
+                        h('div#menu-header', [uis[current].header]),
+                        uis[current].controls.map((button) => {
+                            return h(
+                                'div.menu-button',
+                                {
+                                    key: button.text,
+                                    onclick: button.callback
+                                },
+                                [button.text]
+                            );
+                        })
+                    ]
+                )
+            ]
+            : []
+    )
 );
 
 const UI = {

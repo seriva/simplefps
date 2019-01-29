@@ -15,12 +15,18 @@ class Shader {
 
         gl.compileShader(s.vertexShader);
         if (!gl.getShaderParameter(s.vertexShader, gl.COMPILE_STATUS)) {
-            Console.error('Error compiling vertex shader: ' + gl.getShaderInfoLog(s.vertexShader));
+            Console.error(
+                'Error compiling vertex shader: ' +
+                    gl.getShaderInfoLog(s.vertexShader)
+            );
         }
 
         gl.compileShader(s.fragmentShader);
         if (!gl.getShaderParameter(s.fragmentShader, gl.COMPILE_STATUS)) {
-            Console.error('Error compiling fragment shader: ' + gl.getShaderInfoLog(s.fragmentShader));
+            Console.error(
+                'Error compiling fragment shader: ' +
+                    gl.getShaderInfoLog(s.fragmentShader)
+            );
         }
 
         s.program = gl.createProgram();
@@ -29,11 +35,15 @@ class Shader {
 
         gl.linkProgram(s.program);
         if (!gl.getProgramParameter(s.program, gl.LINK_STATUS)) {
-            Console.error('Error linking program: ' + gl.getProgramInfoLog(s.program));
+            Console.error(
+                'Error linking program: ' + gl.getProgramInfoLog(s.program)
+            );
         }
         gl.validateProgram(s.program);
         if (!gl.getProgramParameter(s.program, gl.VALIDATE_STATUS)) {
-            Console.error('Error validating program: ' + gl.getProgramInfoLog(s.program));
+            Console.error(
+                'Error validating program: ' + gl.getProgramInfoLog(s.program)
+            );
         }
     }
 
@@ -50,7 +60,11 @@ class Shader {
     }
 
     setMat4(id, mat) {
-        gl.uniformMatrix4fv(gl.getUniformLocation(this.program, id), gl.FALSE, mat);
+        gl.uniformMatrix4fv(
+            gl.getUniformLocation(this.program, id),
+            gl.FALSE,
+            mat
+        );
     }
 
     setFloat(id, value) {
@@ -62,17 +76,28 @@ class Shader {
     }
 
     setVec3(id, vec) {
-        gl.uniform3f(gl.getUniformLocation(this.program, id), vec[0], vec[1], vec[2]);
+        gl.uniform3f(
+            gl.getUniformLocation(this.program, id),
+            vec[0],
+            vec[1],
+            vec[2]
+        );
     }
 
     setVec4(id, vec) {
-        gl.uniform4f(gl.getUniformLocation(this.program, id), vec[0], vec[1], vec[2], vec[3]);
+        gl.uniform4f(
+            gl.getUniformLocation(this.program, id),
+            vec[0],
+            vec[1],
+            vec[2],
+            vec[3]
+        );
     }
 }
 
 const Shaders = {
     geometry: new Shader(
-    `   #version 300 es
+        `   #version 300 es
 
         precision highp float;
         precision highp int;
@@ -104,7 +129,7 @@ const Shaders = {
             vUV = aUV;
             gl_Position = matViewProj * matWorld * vec4(aPosition, 1.0);
         }`,
-    `   #version 300 es
+        `   #version 300 es
     
         precision highp float;
         precision highp int;
@@ -137,7 +162,7 @@ const Shaders = {
         }`
     ),
     directionalLight: new Shader(
-    `   #version 300 es
+        `   #version 300 es
 
         precision highp float;
 
@@ -152,7 +177,7 @@ const Shaders = {
             vUV  = aPosition * scale + scale;
             gl_Position = vec4(aPosition, 0.0, 1.0);
         }`,
-    `   #version 300 es
+        `   #version 300 es
 
         precision highp float; 
 
@@ -323,7 +348,7 @@ const Shaders = {
 
                 fragColor = vec4(clamp(color.rgb - occlusion, 0.0, 1.0), 1.0);
             }`
-        )
+    )
 };
 
 export { Shaders as default };

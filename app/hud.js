@@ -9,7 +9,7 @@ DOM.registerCSS({
         margin: 0,
         padding: 0,
         zIndex: 1000,
-        backgroundColor: 'transparent',
+        backgroundColor: 'transparent'
     },
     '#button-menu': {
         borderRadius: '50%',
@@ -20,7 +20,7 @@ DOM.registerCSS({
         width: '50px',
         height: '50px',
         position: 'absolute',
-        opacity: 0.60,
+        opacity: 0.6,
         content: 'url(resources/menu.png)'
     }
 });
@@ -28,21 +28,30 @@ DOM.registerCSS({
 let visible = true;
 
 DOM.append(() =>
-    h('div#hud', visible ?
-    [
-        Utils.isMobile() ? [h('div#button-menu', {
-            onclick: () => {
-                State.setState('UI', 'MAIN_MENU');
-            }
-        },
-        [h('div#button-menu-bar')])] : []
-    ]
-    :
-    [])
+    h(
+        'div#hud',
+        visible
+            ? [
+                Utils.isMobile()
+                    ? [
+                        h(
+                            'div#button-menu',
+                            {
+                                onclick: () => {
+                                    State.setState('UI', 'MAIN_MENU');
+                                }
+                            },
+                            [h('div#button-menu-bar')]
+                        )
+                    ]
+                    : []
+            ]
+            : []
+    )
 );
 
 const toggle = (show) => {
-    show === undefined ? visible = !visible: visible = show;
+    show === undefined ? (visible = !visible) : (visible = show);
 };
 
 const HUD = {

@@ -35,28 +35,30 @@ const update = () => {
 };
 
 if (navigator.serviceWorker) {
-    navigator.serviceWorker.register('./sw.js')
-    .then((reg) => {
-        console.log('SW - Registered: ', reg);
-        registration = reg;
-        registration.update();
-        if (registration.waiting) {
-            newServiceWorker = registration.waiting;
-            State.setState('UI', 'UPDATE_MENU');
-        } else {
-            registration.addEventListener('updatefound', () => {
-                console.log('SW - Service worker update found');
-                newServiceWorker = registration.installing;
-                newServiceWorker.addEventListener('statechange', () => {
-                    if (newServiceWorker.state === 'installed') {
-                        State.setState('UI', 'UPDATE_MENU');
-                    }
+    navigator.serviceWorker
+        .register('./sw.js')
+        .then((reg) => {
+            console.log('SW - Registered: ', reg);
+            registration = reg;
+            registration.update();
+            if (registration.waiting) {
+                newServiceWorker = registration.waiting;
+                State.setState('UI', 'UPDATE_MENU');
+            } else {
+                registration.addEventListener('updatefound', () => {
+                    console.log('SW - Service worker update found');
+                    newServiceWorker = registration.installing;
+                    newServiceWorker.addEventListener('statechange', () => {
+                        if (newServiceWorker.state === 'installed') {
+                            State.setState('UI', 'UPDATE_MENU');
+                        }
+                    });
                 });
-            });
-        }
-    }).catch((error) => {
-        console.log('SW - Registration failed: ', error);
-    });
+            }
+        })
+        .catch((error) => {
+            console.log('SW - Registration failed: ', error);
+        });
 
     let refreshing;
     navigator.serviceWorker.addEventListener('controllerchange', () => {
