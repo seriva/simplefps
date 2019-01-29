@@ -30,8 +30,8 @@
     "brunch": "^2.10.17",
     "eslint-brunch": "^3.12.0",
     "eslint-config-airbnb-base": "11.3.2",
-    "eslint-plugin-import": "2.15.0",
-    "jss-plugin-global": "^10.0.0-alpha.3",
+    "eslint-plugin-import": "2.16.0",
+    "jss-plugin-global": "10.0.0-alpha.7",
     "recursive-readdir": "^2.2.2",
     "rimraf": "2.6.3",
     "uglify-js-brunch": "^2.10.0"
