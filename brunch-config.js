@@ -14,14 +14,9 @@ module.exports = {
             'node sw-generate.js'
         ],
         babel: {
-            presets: ['env'],
+            presets: ['@babel/preset-env'],
             plugins: [
-                ['transform-runtime', {
-                    helpers: false,
-                    polyfill: false,
-                    regenerator: true,
-                    moduleName: 'babel-runtime'
-                }]
+                ['@babel/plugin-transform-runtime']
             ]
         }
     }
