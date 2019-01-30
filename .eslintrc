@@ -12,10 +12,10 @@
     "no-mixed-operators": 0,
     "max-len": 0,
     "guard-for-in": 0,
-    "no-restricted-syntax":0,
-    "no-use-before-define":0,
+    "no-restricted-syntax": 0,
+    "no-use-before-define": 0,
     "space-infix-ops": 0,
-    "new-cap":0,
+    "new-cap": 0,
     "class-methods-use-this": 0,
     "operator-assignment": 0,
     "import/first": 0,
@@ -52,5 +52,5 @@
     "settings": true,
     "eval": true,
     "localStorage": true
-  }  
+  }
 }
