@@ -29,10 +29,9 @@ if (!gl.getExtension('EXT_color_buffer_float')) {
     Console.error(' Extension EXT_color_buffer_float is required to run');
 }
 
-const afExt =
-    gl.getExtension('EXT_texture_filter_anisotropic') ||
-    gl.getExtension('MOZ_EXT_texture_filter_anisotropic') ||
-    gl.getExtension('WEBKIT_EXT_texture_filter_anisotropic');
+const afExt = gl.getExtension('EXT_texture_filter_anisotropic')
+    || gl.getExtension('MOZ_EXT_texture_filter_anisotropic')
+    || gl.getExtension('WEBKIT_EXT_texture_filter_anisotropic');
 if (!afExt) {
     Console.warn('Extension EXT_texture_filter_anisotropic is not present');
 }
@@ -50,8 +49,8 @@ Console.log('Vendor: ' + gl.getParameter(gl.VENDOR));
 Console.log('WebGL version: ' + gl.getParameter(gl.VERSION));
 Console.log('GLSL version: ' + gl.getParameter(gl.SHADING_LANGUAGE_VERSION));
 Console.log(
-    'Max anisotropic filtering: ' +
-        gl.getParameter(afExt.MAX_TEXTURE_MAX_ANISOTROPY_EXT)
+    'Max anisotropic filtering: '
+        + gl.getParameter(afExt.MAX_TEXTURE_MAX_ANISOTROPY_EXT)
 );
 
 const screenQuadVBO = gl.createBuffer();
@@ -84,15 +83,13 @@ const drawFullscreenQuad = () => {
     gl.bindBuffer(gl.ARRAY_BUFFER, null);
 };
 
-const width = () =>
-    Math.floor(
-        gl.canvas.clientWidth * window.devicePixelRatio * Settings.renderscale
-    );
+const width = () => Math.floor(
+    gl.canvas.clientWidth * window.devicePixelRatio * Settings.renderscale
+);
 
-const height = () =>
-    Math.floor(
-        gl.canvas.clientHeight * window.devicePixelRatio * Settings.renderscale
-    );
+const height = () => Math.floor(
+    gl.canvas.clientHeight * window.devicePixelRatio * Settings.renderscale
+);
 
 const aspectRatio = () => width() / height();
 

@@ -27,28 +27,26 @@ DOM.registerCSS({
 
 let visible = true;
 
-DOM.append(() =>
-    h(
-        'div#hud',
-        visible
-            ? [
-                Utils.isMobile()
-                    ? [
-                        h(
-                            'div#button-menu',
-                            {
-                                onclick: () => {
-                                    State.setState('UI', 'MAIN_MENU');
-                                }
-                            },
-                            [h('div#button-menu-bar')]
-                        )
-                    ]
-                    : []
-            ]
-            : []
-    )
-);
+DOM.append(() => h(
+    'div#hud',
+    visible
+        ? [
+            Utils.isMobile()
+                ? [
+                    h(
+                        'div#button-menu',
+                        {
+                            onclick: () => {
+                                State.setState('UI', 'MAIN_MENU');
+                            }
+                        },
+                        [h('div#button-menu-bar')]
+                    )
+                ]
+                : []
+        ]
+        : []
+));
 
 const toggle = (show) => {
     show === undefined ? (visible = !visible) : (visible = show);

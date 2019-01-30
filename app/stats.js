@@ -48,20 +48,18 @@ window.setInterval(() => {
     memory = Math.round(performance.memory.usedJSHeapSize / 1048576);
 }, 1000);
 
-DOM.append(() =>
-    h(
-        'div#stats',
-        visible
-            ? [
-                h('div#stats-text', [
-                    h('span##stats-fps', [fps + 'fps']),
-                    h('span##stats-ft', [Math.round(frameTime) + 'ms']),
-                    h('span##stats-mem', [memory + 'mb'])
-                ])
-            ]
-            : []
-    )
-);
+DOM.append(() => h(
+    'div#stats',
+    visible
+        ? [
+            h('div#stats-text', [
+                h('span##stats-fps', [fps + 'fps']),
+                h('span##stats-ft', [Math.round(frameTime) + 'ms']),
+                h('span##stats-mem', [memory + 'mb'])
+            ])
+        ]
+        : []
+));
 
 const toggle = (show) => {
     show === undefined ? (visible = !visible) : (visible = show);

@@ -139,14 +139,18 @@ if (Utils.isMobile()) {
             DOM.animate(
                 cursor.domNode,
                 { opacity: 0.5 },
-                { mobileHA: false, duration: 100, delay: 0, easing: 'ease-in' }
+                {
+                    mobileHA: false, duration: 100, delay: 0, easing: 'ease-in'
+                }
             );
         }
         if (ev.type === 'panend') {
             DOM.animate(
                 cursor.domNode,
                 { opacity: 0.0 },
-                { mobileHA: false, duration: 100, delay: 0, easing: 'ease-in' }
+                {
+                    mobileHA: false, duration: 100, delay: 0, easing: 'ease-in'
+                }
             );
         }
     });

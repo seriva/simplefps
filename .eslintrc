@@ -29,7 +29,9 @@
     "no-prototype-builtins": 0,
     "import/no-mutable-exports": 0,
     "no-confusing-arrow": 0,
-    "no-throw-literal": 0
+    "no-throw-literal": 0,
+    "prefer-destructuring": 0,
+    "import/no-cycle": 0
   },
   "globals": {
     "performance": true,

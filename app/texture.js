@@ -73,9 +73,9 @@ class Texture {
                 data.height
             );
             if (
-                data.pdata != null &&
-                data.ptype != null &&
-                data.pformat != null
+                data.pdata != null
+                && data.ptype != null
+                && data.pformat != null
             ) {
                 gl.texSubImage2D(
                     gl.TEXTURE_2D,

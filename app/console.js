@@ -83,75 +83,73 @@ const hideConsole = () => {
     }
 };
 
-DOM.append(() =>
-    h(
-        'div#console',
-        visible
-            ? [
-                h(
-                    'div#console-body',
-                    {
-                        enterAnimation: (domElement) => {
-                            DOM.animate(
-                                domElement,
-                                { top: 0 },
-                                {
-                                    duration: 150,
-                                    delay: 0,
-                                    easing: 'ease-in-out'
-                                }
-                            );
-                        },
-                        exitAnimation: (
+DOM.append(() => h(
+    'div#console',
+    visible
+        ? [
+            h(
+                'div#console-body',
+                {
+                    enterAnimation: (domElement) => {
+                        DOM.animate(
                             domElement,
-                            removeDomNodeFunction
-                        ) => {
-                            DOM.animate(
-                                domElement,
-                                { top: '-35vh' },
-                                {
-                                    duration: 150,
-                                    delay: 0,
-                                    easing: 'ease-in-out',
-                                    complete: removeDomNodeFunction
-                                }
-                            );
-                        }
-                    },
-                    [
-                        h(
-                            'div#console-content',
+                            { top: 0 },
                             {
-                                onchange: setScrollPos
-                            },
-                            [
-                                h('p', [
-                                    logs.map((log, index) => {
-                                        return h(
-                                            'span',
-                                            {
-                                                key: index,
-                                                style: 'color:' + log.color
-                                            },
-                                            [log.message, h('br')]
-                                        );
-                                    })
-                                ])
-                            ]
-                        ),
-                        h('input#console-input', {
-                            disabled: true,
-                            value: command,
-                            oninput: updateCommand,
-                            afterCreate: setFocus,
-                            onblur: hideConsole
-                        })
-                    ]
-                )
-            ]
-            : []
-    )
-);
+                                duration: 150,
+                                delay: 0,
+                                easing: 'ease-in-out'
+                            }
+                        );
+                    },
+                    exitAnimation: (
+                        domElement,
+                        removeDomNodeFunction
+                    ) => {
+                        DOM.animate(
+                            domElement,
+                            { top: '-35vh' },
+                            {
+                                duration: 150,
+                                delay: 0,
+                                easing: 'ease-in-out',
+                                complete: removeDomNodeFunction
+                            }
+                        );
+                    }
+                },
+                [
+                    h(
+                        'div#console-content',
+                        {
+                            onchange: setScrollPos
+                        },
+                        [
+                            h('p', [
+                                logs.map((log, index) => {
+                                    return h(
+                                        'span',
+                                        {
+                                            key: index,
+                                            style: 'color:' + log.color
+                                        },
+                                        [log.message, h('br')]
+                                    );
+                                })
+                            ])
+                        ]
+                    ),
+                    h('input#console-input', {
+                        disabled: true,
+                        value: command,
+                        oninput: updateCommand,
+                        afterCreate: setFocus,
+                        onblur: hideConsole
+                    })
+                ]
+            )
+        ]
+        : []
+));
 
 const deepTest = (s) => {
     s = s.split('.');

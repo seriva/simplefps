@@ -16,16 +16,16 @@ class Shader {
         gl.compileShader(s.vertexShader);
         if (!gl.getShaderParameter(s.vertexShader, gl.COMPILE_STATUS)) {
             Console.error(
-                'Error compiling vertex shader: ' +
-                    gl.getShaderInfoLog(s.vertexShader)
+                'Error compiling vertex shader: '
+                    + gl.getShaderInfoLog(s.vertexShader)
             );
         }
 
         gl.compileShader(s.fragmentShader);
         if (!gl.getShaderParameter(s.fragmentShader, gl.COMPILE_STATUS)) {
             Console.error(
-                'Error compiling fragment shader: ' +
-                    gl.getShaderInfoLog(s.fragmentShader)
+                'Error compiling fragment shader: '
+                    + gl.getShaderInfoLog(s.fragmentShader)
             );
         }
 
