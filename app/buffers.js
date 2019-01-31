@@ -70,19 +70,9 @@ const init = (width, height) => {
         width,
         height
     });
-    gl.framebufferTexture2D(
-        gl.FRAMEBUFFER,
-        gl.DEPTH_ATTACHMENT,
-        gl.TEXTURE_2D,
-        g.depth.texture,
-        0
-    );
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, g.depth.texture, 0);
 
-    gl.drawBuffers([
-        gl.COLOR_ATTACHMENT0,
-        gl.COLOR_ATTACHMENT1,
-        gl.COLOR_ATTACHMENT2
-    ]);
+    gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1, gl.COLOR_ATTACHMENT2]);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
     // **********************************
@@ -172,14 +162,6 @@ const endPostProcessingPass = () => {
     noise.unBind();
 };
 
-window.addEventListener(
-    'resize',
-    () => {
-        Buffers.init(Renderer.width(), Renderer.height());
-    },
-    false
-);
-
 const Buffers = {
     init,
     startGeomPass,
@@ -189,5 +171,13 @@ const Buffers = {
     startPostProcessingPass,
     endPostProcessingPass
 };
+
+window.addEventListener(
+    'resize',
+    () => {
+        Buffers.init(Renderer.width(), Renderer.height());
+    },
+    false
+);
 
 export { Buffers as default };

@@ -36,9 +36,7 @@ class Mesh {
             if (VERTEX_RE.test(line)) {
                 vertices.push.apply(vertices, elements);
             } else if (MAT_RE.test(line)) {
-                const material = line
-                    .match(/(?:"[^"]*"|^[^"]*$)/)[0]
-                    .replace(/"/g, '');
+                const material = line.match(/(?:"[^"]*"|^[^"]*$)/)[0].replace(/"/g, '');
                 if (material !== 'none') {
                     m.resources.load(material);
                 }
@@ -65,35 +63,21 @@ class Mesh {
                     } else {
                         const vertex = elements[j].split('/');
                         // vertex position
-                        unpacked.vertices.push(
-                            +vertices[(vertex[0] - 1) * 3 + 0]
-                        );
-                        unpacked.vertices.push(
-                            +vertices[(vertex[0] - 1) * 3 + 1]
-                        );
-                        unpacked.vertices.push(
-                            +vertices[(vertex[0] - 1) * 3 + 2]
-                        );
+                        unpacked.vertices.push(+vertices[(vertex[0] - 1) * 3 + 0]);
+                        unpacked.vertices.push(+vertices[(vertex[0] - 1) * 3 + 1]);
+                        unpacked.vertices.push(+vertices[(vertex[0] - 1) * 3 + 2]);
                         // vertex textures
                         if (uvs.length) {
                             unpacked.uvs.push(+uvs[(vertex[1] - 1) * 2 + 0]);
                             unpacked.uvs.push(+uvs[(vertex[1] - 1) * 2 + 1]);
                         }
                         // vertex normals
-                        unpacked.normals.push(
-                            +normals[(vertex[2] - 1) * 3 + 0]
-                        );
-                        unpacked.normals.push(
-                            +normals[(vertex[2] - 1) * 3 + 1]
-                        );
-                        unpacked.normals.push(
-                            +normals[(vertex[2] - 1) * 3 + 2]
-                        );
+                        unpacked.normals.push(+normals[(vertex[2] - 1) * 3 + 0]);
+                        unpacked.normals.push(+normals[(vertex[2] - 1) * 3 + 1]);
+                        unpacked.normals.push(+normals[(vertex[2] - 1) * 3 + 2]);
                         // add the newly created vertex to the list of indices
                         unpacked.hashindices[elements[j]] = unpacked.index;
-                        unpacked.indices[curIndexArray].array.push(
-                            unpacked.index
-                        );
+                        unpacked.indices[curIndexArray].array.push(unpacked.index);
                         // increment the counter
                         unpacked.index += 1;
                     }
@@ -131,11 +115,7 @@ class Mesh {
     initMeshBuffers() {
         const m = this;
         m.indices.forEach((indexObj) => {
-            indexObj.indexBuffer = m.buildBuffer(
-                gl.ELEMENT_ARRAY_BUFFER,
-                indexObj.array,
-                1
-            );
+            indexObj.indexBuffer = m.buildBuffer(gl.ELEMENT_ARRAY_BUFFER, indexObj.array, 1);
         });
         m.vertexBuffer = m.buildBuffer(gl.ARRAY_BUFFER, m.vertices, 3);
         if (m.uvs.length > 0) {
@@ -164,37 +144,16 @@ class Mesh {
         const m = this;
 
         gl.bindBuffer(gl.ARRAY_BUFFER, m.vertexBuffer);
-        gl.vertexAttribPointer(
-            0,
-            m.vertexBuffer.itemSize,
-            gl.FLOAT,
-            false,
-            0,
-            0
-        );
+        gl.vertexAttribPointer(0, m.vertexBuffer.itemSize, gl.FLOAT, false, 0, 0);
         gl.enableVertexAttribArray(0);
         if (m.uvs.length > 0) {
             gl.bindBuffer(gl.ARRAY_BUFFER, m.uvBuffer);
-            gl.vertexAttribPointer(
-                1,
-                m.uvBuffer.itemSize,
-                gl.FLOAT,
-                false,
-                0,
-                0
-            );
+            gl.vertexAttribPointer(1, m.uvBuffer.itemSize, gl.FLOAT, false, 0, 0);
             gl.enableVertexAttribArray(1);
         }
         if (m.normals.length > 0) {
             gl.bindBuffer(gl.ARRAY_BUFFER, m.normalBuffer);
-            gl.vertexAttribPointer(
-                2,
-                m.normalBuffer.itemSize,
-                gl.FLOAT,
-                false,
-                0,
-                0
-            );
+            gl.vertexAttribPointer(2, m.normalBuffer.itemSize, gl.FLOAT, false, 0, 0);
             gl.enableVertexAttribArray(2);
         }
 
@@ -204,12 +163,7 @@ class Mesh {
                 mat.bind(gl.TEXTURE0);
             }
             gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexObj.indexBuffer);
-            gl.drawElements(
-                gl.TRIANGLES,
-                indexObj.indexBuffer.numItems,
-                gl.UNSIGNED_SHORT,
-                0
-            );
+            gl.drawElements(gl.TRIANGLES, indexObj.indexBuffer.numItems, gl.UNSIGNED_SHORT, 0);
         });
 
         gl.bindBuffer(gl.ARRAY_BUFFER, null);

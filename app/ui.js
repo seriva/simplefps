@@ -68,10 +68,7 @@ DOM.append(() => h(
                             }
                         );
                     },
-                    exitAnimation: (
-                        domElement,
-                        removeDomNodeFunction
-                    ) => {
+                    exitAnimation: (domElement, removeDomNodeFunction) => {
                         DOM.animate(
                             domElement,
                             { opacity: 0 },

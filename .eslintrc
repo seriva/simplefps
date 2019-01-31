@@ -2,24 +2,26 @@
   "extends": ["airbnb-base"],
   "rules": {
     "indent": ["error", 4],
-    "max-len": ["error", { "code": 150 }],
+    "max-len": ["error", { "code": 100 }],
     "linebreak-style": 0,
+    "no-unused-expressions": [
+      "error",
+      {
+        "allowShortCircuit": true,
+        "allowTernary": true,
+        "allowTaggedTemplates": true
+      }
+    ],
     "comma-dangle": 0,
     "no-console": 0,
     "no-plusplus": 0,
     "prefer-spread": 0,
-    "no-mixed-operators": 0,
-    "no-use-before-define": 0,
     "new-cap": 0,
     "class-methods-use-this": 0,
-    "no-loop-func": 0,
-    "no-new": 0,
     "no-param-reassign": 0,
-    "no-unused-expressions": 0,
     "no-bitwise": 0,
     "no-eval": 0,
     "import/no-mutable-exports": 0,
-    "no-throw-literal": 0,
     "prefer-destructuring": 0,
     "import/no-cycle": 0
   },

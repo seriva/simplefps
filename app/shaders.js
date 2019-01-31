@@ -15,19 +15,13 @@ class Shader {
 
         gl.compileShader(s.vertexShader);
         if (!gl.getShaderParameter(s.vertexShader, gl.COMPILE_STATUS)) {
-            Console.error(
-                `Error compiling vertex shader: ${gl.getShaderInfoLog(
-                    s.vertexShader
-                )}`
-            );
+            Console.error(`Error compiling vertex shader: ${gl.getShaderInfoLog(s.vertexShader)}`);
         }
 
         gl.compileShader(s.fragmentShader);
         if (!gl.getShaderParameter(s.fragmentShader, gl.COMPILE_STATUS)) {
             Console.error(
-                `Error compiling fragment shader: ${gl.getShaderInfoLog(
-                    s.fragmentShader
-                )}`
+                `Error compiling fragment shader: ${gl.getShaderInfoLog(s.fragmentShader)}`
             );
         }
 
@@ -37,15 +31,11 @@ class Shader {
 
         gl.linkProgram(s.program);
         if (!gl.getProgramParameter(s.program, gl.LINK_STATUS)) {
-            Console.error(
-                `Error linking program: ${gl.getProgramInfoLog(s.program)}`
-            );
+            Console.error(`Error linking program: ${gl.getProgramInfoLog(s.program)}`);
         }
         gl.validateProgram(s.program);
         if (!gl.getProgramParameter(s.program, gl.VALIDATE_STATUS)) {
-            Console.error(
-                `Error validating program: ${gl.getProgramInfoLog(s.program)}`
-            );
+            Console.error(`Error validating program: ${gl.getProgramInfoLog(s.program)}`);
         }
     }
 
@@ -62,11 +52,7 @@ class Shader {
     }
 
     setMat4(id, mat) {
-        gl.uniformMatrix4fv(
-            gl.getUniformLocation(this.program, id),
-            gl.FALSE,
-            mat
-        );
+        gl.uniformMatrix4fv(gl.getUniformLocation(this.program, id), gl.FALSE, mat);
     }
 
     setFloat(id, value) {
@@ -78,25 +64,15 @@ class Shader {
     }
 
     setVec3(id, vec) {
-        gl.uniform3f(
-            gl.getUniformLocation(this.program, id),
-            vec[0],
-            vec[1],
-            vec[2]
-        );
+        gl.uniform3f(gl.getUniformLocation(this.program, id), vec[0], vec[1], vec[2]);
     }
 
     setVec4(id, vec) {
-        gl.uniform4f(
-            gl.getUniformLocation(this.program, id),
-            vec[0],
-            vec[1],
-            vec[2],
-            vec[3]
-        );
+        gl.uniform4f(gl.getUniformLocation(this.program, id), vec[0], vec[1], vec[2], vec[3]);
     }
 }
 
+/* eslint-disable */
 const Shaders = {
     geometry: new Shader(
         `   #version 300 es
@@ -309,7 +285,8 @@ const Shaders = {
                 vec3 position = texelFetch(positionBuffer, fragCoord, 0).xyz;
                 vec3 normal = texelFetch(normalBuffer, fragCoord, 0).xyz;
                 vec2 rand = normalize(texelFetch(noiseBuffer, fragCoord, 0).xy);
-                float depth = (length(position) - ssao.depthRange.x) / (ssao.depthRange.y - ssao.depthRange.x);
+                float depth = (length(position) - ssao.depthRange.x) / 
+                              (ssao.depthRange.y - ssao.depthRange.x);
                 float kernelRadius = ssao.sampleRadius * (1.0 - depth);
                 vec2 kernel[4];
                 kernel[0] = vec2(0.0, 1.0);
@@ -352,5 +329,6 @@ const Shaders = {
             }`
     )
 };
+/* eslint-disable */
 
 export { Shaders as default };

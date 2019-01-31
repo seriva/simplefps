@@ -67,8 +67,10 @@ const drawFullscreenQuad = () => {
     gl.bindBuffer(gl.ARRAY_BUFFER, null);
 };
 
+/* eslint-disable */
 const width = () => Math.floor(gl.canvas.clientWidth * window.devicePixelRatio * Settings.renderscale);
 const height = () => Math.floor(gl.canvas.clientHeight * window.devicePixelRatio * Settings.renderscale);
+/* eslint-disable */
 
 const aspectRatio = () => width() / height();
 

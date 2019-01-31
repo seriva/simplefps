@@ -6,6 +6,16 @@ import Translations from './translations';
 let newServiceWorker = null;
 let registration = null;
 
+const update = () => {
+    if (newServiceWorker !== null) {
+        Loading.toggle(true, true);
+        newServiceWorker.postMessage({ action: 'skipWaiting' });
+    } else {
+        State.setState('GAME');
+        console.log('SW - No new service worker found to update');
+    }
+};
+
 UI.register('UPDATE_MENU', {
     header: Translations.get('VERSION_NEW'),
     controls: [
@@ -23,16 +33,6 @@ UI.register('UPDATE_MENU', {
         }
     ]
 });
-
-const update = () => {
-    if (newServiceWorker !== null) {
-        Loading.toggle(true, true);
-        newServiceWorker.postMessage({ action: 'skipWaiting' });
-    } else {
-        State.setState('GAME');
-        console.log('SW - No new service worker found to update');
-    }
-};
 
 if (navigator.serviceWorker) {
     navigator.serviceWorker

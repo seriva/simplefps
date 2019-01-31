@@ -220,9 +220,7 @@ const Input = {
     },
 
     toggleCursor(show) {
-        show === undefined
-            ? (visibleCursor = !visibleCursor)
-            : (visibleCursor = show);
+        show === undefined ? (visibleCursor = !visibleCursor) : (visibleCursor = show);
         if (visibleCursor) {
             document.exitPointerLock();
         } else {

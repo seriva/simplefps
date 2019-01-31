@@ -153,37 +153,6 @@ const deepTest = (s) => {
     return obj;
 };
 
-// Console controls
-Input.addKeyDownEvent(192, () => {
-    visible = !visible;
-});
-Input.addKeyDownEvent(13, () => {
-    if (command === '') return;
-    try {
-        Console.log(command);
-        const cmd = `qdfpa.${command.toLowerCase()}`;
-        let evalCmd = '';
-        if (cmd.indexOf('=') > -1) {
-            // we are dealing with a var assignement.
-            evalCmd = cmd.split('=')[0];
-        } else if (cmd.indexOf('(') > -1) {
-            // we are dealing with a function.
-            evalCmd = cmd.split('(')[0];
-        } else {
-            evalCmd = cmd;
-        }
-        if (evalCmd !== '') {
-            evalCmd = evalCmd.trim();
-            if (deepTest(evalCmd) === undefined) throw 'Command does not exist';
-        }
-        eval(cmd);
-    } catch (error) {
-        Console.warn(`Failed to execute command: ${error}`);
-    }
-    command = '';
-    DOM.update();
-});
-
 const Console = {
     visible() {
         return visible;
@@ -220,5 +189,36 @@ const Console = {
         window.qdfpa[name.toLowerCase()] = value;
     }
 };
+
+// Console controls
+Input.addKeyDownEvent(192, () => {
+    visible = !visible;
+});
+Input.addKeyDownEvent(13, () => {
+    if (command === '') return;
+    try {
+        Console.log(command);
+        const cmd = `qdfpa.${command.toLowerCase()}`;
+        let evalCmd = '';
+        if (cmd.indexOf('=') > -1) {
+            // we are dealing with a var assignement.
+            evalCmd = cmd.split('=')[0];
+        } else if (cmd.indexOf('(') > -1) {
+            // we are dealing with a function.
+            evalCmd = cmd.split('(')[0];
+        } else {
+            evalCmd = cmd;
+        }
+        if (evalCmd !== '') {
+            evalCmd = evalCmd.trim();
+            if (deepTest(evalCmd) === undefined) throw new Error('Command does not exist');
+        }
+        eval(cmd);
+    } catch (error) {
+        Console.warn(`Failed to execute command: ${error}`);
+    }
+    command = '';
+    DOM.update();
+});
 
 export { Console as default };

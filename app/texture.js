@@ -14,39 +14,18 @@ class Texture {
             const image = new Image();
             image.onload = () => {
                 gl.bindTexture(gl.TEXTURE_2D, t.texture);
-                gl.texImage2D(
-                    gl.TEXTURE_2D,
-                    0,
-                    gl.RGBA,
-                    gl.RGBA,
-                    gl.UNSIGNED_BYTE,
-                    image
-                );
+                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
                 // Trilinear filtering
-                gl.texParameteri(
-                    gl.TEXTURE_2D,
-                    gl.TEXTURE_MAG_FILTER,
-                    gl.LINEAR
-                );
-                gl.texParameteri(
-                    gl.TEXTURE_2D,
-                    gl.TEXTURE_MIN_FILTER,
-                    gl.LINEAR_MIPMAP_LINEAR
-                );
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
 
                 // Anisotropic filtering
                 if (Renderer.afExt) {
                     const af = Math.min(
                         Math.max(Settings.anisotropicFiltering, 1),
-                        gl.getParameter(
-                            Renderer.afExt.MAX_TEXTURE_MAX_ANISOTROPY_EXT
-                        )
+                        gl.getParameter(Renderer.afExt.MAX_TEXTURE_MAX_ANISOTROPY_EXT)
                     );
-                    gl.texParameterf(
-                        gl.TEXTURE_2D,
-                        Renderer.afExt.TEXTURE_MAX_ANISOTROPY_EXT,
-                        af
-                    );
+                    gl.texParameterf(gl.TEXTURE_2D, Renderer.afExt.TEXTURE_MAX_ANISOTROPY_EXT, af);
                 }
 
                 // Generate mipmaps
@@ -65,18 +44,8 @@ class Texture {
             gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-            gl.texStorage2D(
-                gl.TEXTURE_2D,
-                1,
-                data.format,
-                data.width,
-                data.height
-            );
-            if (
-                data.pdata != null
-                && data.ptype != null
-                && data.pformat != null
-            ) {
+            gl.texStorage2D(gl.TEXTURE_2D, 1, data.format, data.width, data.height);
+            if (data.pdata != null && data.ptype != null && data.pformat != null) {
                 gl.texSubImage2D(
                     gl.TEXTURE_2D,
                     0,

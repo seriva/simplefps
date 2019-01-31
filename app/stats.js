@@ -38,6 +38,10 @@ let visible = true;
 let prevTime = 0;
 let frames = 0;
 
+const toggle = (show) => {
+    show === undefined ? (visible = !visible) : (visible = show);
+};
+
 Console.registerCmd('stats', (show) => {
     toggle(show);
 });
@@ -60,10 +64,6 @@ DOM.append(() => h(
         ]
         : []
 ));
-
-const toggle = (show) => {
-    show === undefined ? (visible = !visible) : (visible = show);
-};
 
 const Stats = {
     toggle,

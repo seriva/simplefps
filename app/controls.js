@@ -79,8 +79,18 @@ const Controls = {
         Camera.direction[0] = 0;
         Camera.direction[1] = 0;
         Camera.direction[2] = 1;
-        vec3.rotateX(Camera.direction, Camera.direction, [0, 0, 0], glMatrix.toRadian(Camera.rotation[1]));
-        vec3.rotateY(Camera.direction, Camera.direction, [0, 0, 0], glMatrix.toRadian(Camera.rotation[0]));
+        vec3.rotateX(
+            Camera.direction,
+            Camera.direction,
+            [0, 0, 0],
+            glMatrix.toRadian(Camera.rotation[1])
+        );
+        vec3.rotateY(
+            Camera.direction,
+            Camera.direction,
+            [0, 0, 0],
+            glMatrix.toRadian(Camera.rotation[0])
+        );
         vec3.normalize(Camera.direction, Camera.direction);
 
         // movement
@@ -104,8 +114,8 @@ const Controls = {
         v[1] = 0;
         vec3.rotateY(v, v, [0, 0, 0], glMatrix.toRadian(-90));
         vec3.normalize(v, v);
-        move *= (ft * Settings.movespeed);
-        strafe *= (ft * Settings.movespeed);
+        move *= ft * Settings.movespeed;
+        strafe *= ft * Settings.movespeed;
         Camera.position[0] = Camera.position[0] + Camera.direction[0] * move + v[0] * strafe;
         Camera.position[1] = Camera.position[1] + Camera.direction[1] * move + v[1] * strafe;
         Camera.position[2] = Camera.position[2] + Camera.direction[2] * move + v[2] * strafe;
