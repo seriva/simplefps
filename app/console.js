@@ -101,10 +101,7 @@ DOM.append(() => h(
                             }
                         );
                     },
-                    exitAnimation: (
-                        domElement,
-                        removeDomNodeFunction
-                    ) => {
+                    exitAnimation: (domElement, removeDomNodeFunction) => {
                         DOM.animate(
                             domElement,
                             { top: '-35vh' },
@@ -125,16 +122,14 @@ DOM.append(() => h(
                         },
                         [
                             h('p', [
-                                logs.map((log, index) => {
-                                    return h(
-                                        'span',
-                                        {
-                                            key: index,
-                                            style: 'color:' + log.color
-                                        },
-                                        [log.message, h('br')]
-                                    );
-                                })
+                                logs.map((log, index) => h(
+                                    'span',
+                                    {
+                                        key: index,
+                                        style: `color: ${log.color}`
+                                    },
+                                    [log.message, h('br')]
+                                ))
                             ])
                         ]
                     ),
@@ -166,7 +161,7 @@ Input.addKeyDownEvent(13, () => {
     if (command === '') return;
     try {
         Console.log(command);
-        const cmd = 'qdfpa.' + command.toLowerCase();
+        const cmd = `qdfpa.${command.toLowerCase()}`;
         let evalCmd = '';
         if (cmd.indexOf('=') > -1) {
             // we are dealing with a var assignement.
@@ -183,7 +178,7 @@ Input.addKeyDownEvent(13, () => {
         }
         eval(cmd);
     } catch (error) {
-        Console.warn('Failed to execute command: ' + error);
+        Console.warn(`Failed to execute command: ${error}`);
     }
     command = '';
     DOM.update();

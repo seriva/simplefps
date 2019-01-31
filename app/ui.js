@@ -87,16 +87,14 @@ DOM.append(() => h(
                 },
                 [
                     h('div#menu-header', [uis[current].header]),
-                    uis[current].controls.map((button) => {
-                        return h(
-                            'div.menu-button',
-                            {
-                                key: button.text,
-                                onclick: button.callback
-                            },
-                            [button.text]
-                        );
-                    })
+                    uis[current].controls.map(button => h(
+                        'div.menu-button',
+                        {
+                            key: button.text,
+                            onclick: button.callback
+                        },
+                        [button.text]
+                    ))
                 ]
             )
         ]

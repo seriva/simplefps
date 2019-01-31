@@ -44,20 +44,20 @@ const Resources = {
                         break;
                     }
 
-                    Console.log('Loaded "' + path + '"');
+                    Console.log(`Loaded: ${path}`);
                     resources[path] = resource;
                     counter++;
                     if (counter === paths.length) {
                         Loading.toggle(false);
                         paths = [];
                         const ms = new Date().getTime() - startTime;
-                        Console.log('Loaded resources in ' + ms + 'ms');
+                        Console.log(`Loaded resources in ${ms} ms`);
                         resolve();
                     } else {
                         loadNext();
                     }
                 } catch (err) {
-                    Console.log('Error loading "' + path + '": ' + err);
+                    Console.error(`Error loading ${path}: ${err}`);
                 }
             };
 
@@ -70,7 +70,7 @@ const Resources = {
         if (resource) {
             return resource;
         }
-        Console.error('Resource "' + key + '" does not exist');
+        Console.error(`Resource "${key}" does not exist`);
         return null;
     }
 };

@@ -15,15 +15,16 @@ const t = {
 };
 
 // Fallback if the language does not exist
-if (!t.hasOwnProperty(language)) {
+
+if (!Object.prototype.hasOwnProperty.call(t, language)) {
     language = 'en-US';
 }
 
-Console.log('Language: ' + language);
+Console.log(`Language ${language}`);
 
 const Translations = {
     get: (key) => {
-        if (!t[language].hasOwnProperty(key)) {
+        if (!Object.prototype.hasOwnProperty.call(t[language], key)) {
             return '*UNKNOWN KEY*';
         }
         return t[language][key];

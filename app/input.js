@@ -131,8 +131,8 @@ if (Utils.isMobile()) {
                 y: ev.velocityY * 16 * Settings.looksensitivity
             };
             if (ev.pointers && ev.pointers[0]) {
-                cursor.domNode.style.left = ev.pointers[0].clientX + 'px';
-                cursor.domNode.style.top = ev.pointers[0].clientY + 'px';
+                cursor.domNode.style.left = `${ev.pointers[0].clientX}px`;
+                cursor.domNode.style.top = `${ev.pointers[0].clientY}px`;
             }
         }
         if (ev.type === 'panstart') {
@@ -140,7 +140,10 @@ if (Utils.isMobile()) {
                 cursor.domNode,
                 { opacity: 0.5 },
                 {
-                    mobileHA: false, duration: 100, delay: 0, easing: 'ease-in'
+                    mobileHA: false,
+                    duration: 100,
+                    delay: 0,
+                    easing: 'ease-in'
                 }
             );
         }
@@ -149,7 +152,10 @@ if (Utils.isMobile()) {
                 cursor.domNode,
                 { opacity: 0.0 },
                 {
-                    mobileHA: false, duration: 100, delay: 0, easing: 'ease-in'
+                    mobileHA: false,
+                    duration: 100,
+                    delay: 0,
+                    easing: 'ease-in'
                 }
             );
         }

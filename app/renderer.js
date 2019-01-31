@@ -44,33 +44,17 @@ gl.enable(gl.CULL_FACE);
 gl.depthFunc(gl.LEQUAL);
 
 Console.log('Initialized renderer');
-Console.log('Renderer: ' + gl.getParameter(gl.RENDERER));
-Console.log('Vendor: ' + gl.getParameter(gl.VENDOR));
-Console.log('WebGL version: ' + gl.getParameter(gl.VERSION));
-Console.log('GLSL version: ' + gl.getParameter(gl.SHADING_LANGUAGE_VERSION));
-Console.log(
-    'Max anisotropic filtering: '
-        + gl.getParameter(afExt.MAX_TEXTURE_MAX_ANISOTROPY_EXT)
-);
+Console.log(`Renderer: ${gl.getParameter(gl.RENDERER)}`);
+Console.log(`Vendor: ${gl.getParameter(gl.VENDOR)}`);
+Console.log(`WebGL version: ${gl.getParameter(gl.VERSION)}`);
+Console.log(`GLSL version: ${gl.getParameter(gl.SHADING_LANGUAGE_VERSION)}`);
+Console.log(`Max anisotropic filtering: ${afExt.MAX_TEXTURE_MAX_ANISOTROPY_EXT}`);
 
 const screenQuadVBO = gl.createBuffer();
 gl.bindBuffer(gl.ARRAY_BUFFER, screenQuadVBO);
 gl.bufferData(
     gl.ARRAY_BUFFER,
-    new Float32Array([
-        -1.0,
-        -1.0,
-        1.0,
-        1.0,
-        -1.0,
-        1.0,
-        -1.0,
-        -1.0,
-        1.0,
-        -1.0,
-        1.0,
-        1.0
-    ]),
+    new Float32Array([-1.0, -1.0, 1.0, 1.0, -1.0, 1.0, -1.0, -1.0, 1.0, -1.0, 1.0, 1.0]),
     gl.STATIC_DRAW
 );
 
@@ -83,30 +67,17 @@ const drawFullscreenQuad = () => {
     gl.bindBuffer(gl.ARRAY_BUFFER, null);
 };
 
-const width = () => Math.floor(
-    gl.canvas.clientWidth * window.devicePixelRatio * Settings.renderscale
-);
-
-const height = () => Math.floor(
-    gl.canvas.clientHeight * window.devicePixelRatio * Settings.renderscale
-);
+const width = () => Math.floor(gl.canvas.clientWidth * window.devicePixelRatio * Settings.renderscale);
+const height = () => Math.floor(gl.canvas.clientHeight * window.devicePixelRatio * Settings.renderscale);
 
 const aspectRatio = () => width() / height();
 
 const toggleBlur = (blur) => {
     blur === undefined ? (doBlur = !doBlur) : (doBlur = blur);
     if (doBlur) {
-        DOM.animate(
-            canvas.domNode,
-            { blur: 8 },
-            { duration: 75, delay: 0, easing: 'linear' }
-        );
+        DOM.animate(canvas.domNode, { blur: 8 }, { duration: 75, delay: 0, easing: 'linear' });
     } else {
-        DOM.animate(
-            canvas.domNode,
-            { blur: 0 },
-            { duration: 75, delay: 0, easing: 'linear' }
-        );
+        DOM.animate(canvas.domNode, { blur: 0 }, { duration: 75, delay: 0, easing: 'linear' });
     }
 };
 

@@ -53,9 +53,9 @@ DOM.append(() => h(
     visible
         ? [
             h('div#stats-text', [
-                h('span##stats-fps', [fps + 'fps']),
-                h('span##stats-ft', [Math.round(frameTime) + 'ms']),
-                h('span##stats-mem', [memory + 'mb'])
+                h('span##stats-fps', [`${fps} fps`]),
+                h('span##stats-ft', [`${Math.round(frameTime)} ms`]),
+                h('span##stats-mem', [`${memory} mb`])
             ])
         ]
         : []
