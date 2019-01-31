@@ -43,7 +43,7 @@ class Shader {
         gl.useProgram(this.program);
     }
 
-    unBind() {
+    static unBind() {
         gl.useProgram(null);
     }
 
@@ -331,4 +331,4 @@ const Shaders = {
 };
 /* eslint-disable */
 
-export { Shaders as default };
+export { Shaders, Shader };

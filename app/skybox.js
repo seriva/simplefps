@@ -1,6 +1,6 @@
 import { mat4 } from 'gl-matrix';
 import Renderer from './renderer';
-import Shaders from './shaders';
+import { Shaders } from './shaders';
 import Camera from './camera';
 import Resources from './resources';
 

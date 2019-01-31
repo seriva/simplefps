@@ -102,7 +102,7 @@ class Mesh {
         m.initMeshBuffers();
     }
 
-    buildBuffer(type, data, itemSize) {
+    static buildBuffer(type, data, itemSize) {
         const buffer = gl.createBuffer();
         const arrayView = type === gl.ARRAY_BUFFER ? Float32Array : Uint16Array;
         gl.bindBuffer(type, buffer);
@@ -115,14 +115,14 @@ class Mesh {
     initMeshBuffers() {
         const m = this;
         m.indices.forEach((indexObj) => {
-            indexObj.indexBuffer = m.buildBuffer(gl.ELEMENT_ARRAY_BUFFER, indexObj.array, 1);
+            indexObj.indexBuffer = Mesh.buildBuffer(gl.ELEMENT_ARRAY_BUFFER, indexObj.array, 1);
         });
-        m.vertexBuffer = m.buildBuffer(gl.ARRAY_BUFFER, m.vertices, 3);
+        m.vertexBuffer = Mesh.buildBuffer(gl.ARRAY_BUFFER, m.vertices, 3);
         if (m.uvs.length > 0) {
-            m.uvBuffer = m.buildBuffer(gl.ARRAY_BUFFER, m.uvs, 2);
+            m.uvBuffer = Mesh.buildBuffer(gl.ARRAY_BUFFER, m.uvs, 2);
         }
         if (m.normals.length > 0) {
-            m.normalBuffer = m.buildBuffer(gl.ARRAY_BUFFER, m.normals, 3);
+            m.normalBuffer = Mesh.buildBuffer(gl.ARRAY_BUFFER, m.normals, 3);
         }
     }
 

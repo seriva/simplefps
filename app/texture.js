@@ -67,7 +67,8 @@ class Texture {
         gl.bindTexture(gl.TEXTURE_2D, this.texture);
     }
 
-    unBind() {
+    static unBind(unit) {
+        gl.activeTexture(unit);
         gl.bindTexture(gl.TEXTURE_2D, null);
     }
 

@@ -11,7 +11,7 @@ import Stats from './stats';
 import Camera from './camera';
 import Controls from './controls';
 import Renderer from './renderer';
-import Shaders from './shaders';
+import { Shaders, Shader } from './shaders';
 import Buffers from './buffers';
 import Skybox from './skybox';
 import DOM from './dom';
@@ -100,7 +100,7 @@ DOM.registerCSS({
             }
         }
 
-        Shaders.geometry.unBind();
+        Shader.unBind();
         Buffers.endGeomPass();
 
         // **********************************
@@ -126,7 +126,7 @@ DOM.registerCSS({
 
         Renderer.drawFullscreenQuad();
 
-        Shaders.directionalLight.unBind();
+        Shader.unBind();
         Buffers.endLightingPass();
 
         // **********************************
@@ -148,7 +148,7 @@ DOM.registerCSS({
 
         Renderer.drawFullscreenQuad();
 
-        Shaders.postProcessing.unBind();
+        Shader.unBind();
         Buffers.endPostProcessingPass();
 
         // update dom

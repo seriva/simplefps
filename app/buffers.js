@@ -141,9 +141,9 @@ const startLightingPass = () => {
 };
 
 const endLightingPass = () => {
-    g.position.unBind();
-    g.normal.unBind();
-    g.color.unBind();
+    Texture.unBind(gl.TEXTURE0);
+    Texture.unBind(gl.TEXTURE1);
+    Texture.unBind(gl.TEXTURE2);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 };
 
@@ -156,10 +156,10 @@ const startPostProcessingPass = () => {
 };
 
 const endPostProcessingPass = () => {
-    l.color.unBind();
-    g.position.unBind();
-    g.normal.unBind();
-    noise.unBind();
+    Texture.unBind(gl.TEXTURE0);
+    Texture.unBind(gl.TEXTURE1);
+    Texture.unBind(gl.TEXTURE2);
+    Texture.unBind(gl.TEXTURE3);
 };
 
 const Buffers = {
