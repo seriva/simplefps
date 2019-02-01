@@ -14,12 +14,10 @@
   },
   "dependencies": {
     "gl-matrix": "^3.0.0",
-    "hammerjs": "^2.0.8",
     "jss": "^10.0.0-alpha.9",
     "jss-plugin-global": "^10.0.0-alpha.9",
     "jss-preset-default": "^10.0.0-alpha.9",
     "maquette": "^3.3.3",
-    "nipplejs": "^0.8.0",
     "velocity-animate": "^1.5.2"
   },
   "devDependencies": {
@@ -30,6 +28,7 @@
     "auto-reload-brunch": "^2.7.1",
     "babel-brunch": "7.0.0",
     "brunch": "^2.10.17",
+    "eslint": "^5.12.1",
     "eslint-brunch": "https://github.com/maerics/eslint-brunch",
     "eslint-config-airbnb-base": "13.1.0",
     "eslint-plugin-import": "^2.16.0",
