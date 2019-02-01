@@ -48,7 +48,7 @@ DOM.registerCSS({
         left: '35px',
         bottom: '35px',
         position: 'absolute',
-        opacity: 0.5,
+        opacity: 0.35,
         borderRadius: '50%',
         zIndex: 501
     },
@@ -63,7 +63,7 @@ DOM.registerCSS({
         left: '60px',
         bottom: '60px',
         position: 'absolute',
-        opacity: 0.5,
+        opacity: 0.35,
         zIndex: 502
     }
 });
@@ -112,18 +112,22 @@ window.addEventListener(
     false
 );
 
+const setCursorMovement = (x, y) => {
+    cursorMovement.x = x;
+    cursorMovement.y = y;
+    if (timeout !== undefined) {
+        window.clearTimeout(timeout);
+    }
+    timeout = window.setTimeout(() => {
+        cursorMovement.x = 0;
+        cursorMovement.y = 0;
+    }, 50);
+};
+
 window.addEventListener(
     'mousemove',
     (ev) => {
-        cursorMovement.x = ev.movementX;
-        cursorMovement.y = ev.movementY;
-        if (timeout !== undefined) {
-            window.clearTimeout(timeout);
-        }
-        timeout = window.setTimeout(() => {
-            cursorMovement.x = 0;
-            cursorMovement.y = 0;
-        }, 50);
+        setCursorMovement(ev.movementX, ev.movementY);
     },
     false
 );
@@ -138,6 +142,7 @@ if (Utils.isMobile()) {
     DOM.append(() => input);
 
     let cursorPos = null;
+    let lastPos = null;
 
     // touch cursor/mouse
     look.domNode.addEventListener(
@@ -148,10 +153,11 @@ if (Utils.isMobile()) {
                     x: ev.targetTouches[0].clientX,
                     y: ev.targetTouches[0].clientY
                 };
+                lastPos = cursorPos;
             }
             DOM.animate(
                 cursor.domNode,
-                { opacity: 0.5 },
+                { opacity: 0.35 },
                 {
                     mobileHA: false,
                     duration: 100,
@@ -166,6 +172,9 @@ if (Utils.isMobile()) {
         'touchend',
         () => {
             cursorPos = null;
+            lastPos = null;
+            cursorMovement.x = 0;
+            cursorMovement.y = 0;
             DOM.animate(
                 cursor.domNode,
                 { opacity: 0.0 },
@@ -188,6 +197,12 @@ if (Utils.isMobile()) {
                     x: ev.targetTouches[0].clientX,
                     y: ev.targetTouches[0].clientY
                 };
+                setCursorMovement(
+                    (cursorPos.x - lastPos.x) * Settings.looksensitivity,
+                    (cursorPos.y - lastPos.y) * Settings.looksensitivity
+                );
+                lastPos.x = cursorPos.x;
+                lastPos.y = cursorPos.y;
             }
         },
         false
@@ -243,11 +258,12 @@ if (Utils.isMobile()) {
             dAngle = 360 - Math.abs(dAngle);
         }
 
+        delete pressed[Settings.forward];
+        delete pressed[Settings.backwards];
+        delete pressed[Settings.left];
+        delete pressed[Settings.right];
+               
         if (dAngle && distance > 20) {
-            delete pressed[Settings.forward];
-            delete pressed[Settings.backwards];
-            delete pressed[Settings.left];
-            delete pressed[Settings.right];
             const a = dAngle;
             if ((a >= 337.5 && a < 360) || (a >= 0 && a < 22.5)) {
                 pressed[Settings.right] = true;
@@ -292,30 +308,6 @@ if (Utils.isMobile()) {
         window.requestAnimationFrame(updateInput);
     };
     window.requestAnimationFrame(updateInput);
-
-    /*
-    const lookTouch = new Hammer(look.domNode, {
-        touchAction: 'auto',
-        inputClass: Hammer.TouchInput
-    });
-    lookTouch.get('pan').set({ direction: Hammer.DIRECTION_ALL });
-    lookTouch.on('panstart panmove panend', (ev) => {
-        cursorMovement = {
-            x: 0,
-            y: 0
-        };
-        if (ev.type === 'panmove') {
-            cursorMovement = {
-                x: ev.velocityX * 16 * Settings.looksensitivity,
-                y: ev.velocityY * 16 * Settings.looksensitivity
-            };
-            if (ev.pointers && ev.pointers[0]) {
-                cursor.domNode.style.left = `${ev.pointers[0].clientX}px`;
-                cursor.domNode.style.top = `${ev.pointers[0].clientY}px`;
-            }
-        }
-    });
-    */
 }
 
 const Input = {
@@ -324,6 +316,7 @@ const Input = {
     },
 
     toggleCursor(show) {
+        if (Utils.isMobile()) return;
         show === undefined ? (visibleCursor = !visibleCursor) : (visibleCursor = show);
         if (visibleCursor) {
             document.exitPointerLock();
