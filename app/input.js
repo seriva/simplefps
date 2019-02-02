@@ -262,8 +262,8 @@ if (Utils.isMobile()) {
         delete pressed[Settings.backwards];
         delete pressed[Settings.left];
         delete pressed[Settings.right];
-               
-        if (dAngle && distance > 20) {
+
+        if (dAngle && distance > 15) {
             const a = dAngle;
             if ((a >= 337.5 && a < 360) || (a >= 0 && a < 22.5)) {
                 pressed[Settings.right] = true;
