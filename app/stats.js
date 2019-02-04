@@ -1,5 +1,6 @@
 import DOM from './dom';
 import Console from './console';
+import Camera from './camera';
 
 const h = DOM.h;
 
@@ -28,6 +29,14 @@ DOM.registerCSS({
     '#stats-mem': {
         color: '#00F',
         marginLeft: '5px'
+    },
+    '#stats-pos': {
+        fontSize: '12px',
+        color: '#FFF',
+        left: '13px',
+        top: '20px',
+        zIndex: 3000,
+        position: 'absolute'
     }
 });
 
@@ -60,6 +69,11 @@ DOM.append(() => h(
                 h('span##stats-fps', [`${fps}fps`]),
                 h('span##stats-ft', [`${Math.round(frameTime)}ms`]),
                 h('span##stats-mem', [`${memory}mb`])
+            ]),
+            h('div#stats-pos', [
+                `xyz: ${Math.round(Camera.position[0])}, 
+                      ${Math.round(Camera.position[1])}, 
+                      ${Math.round(Camera.position[2])}`
             ])
         ]
         : []

@@ -39,7 +39,7 @@ DOM.registerCSS({
     await Resources.load([
         'skyboxes/skybox.obj',
         'meshes/statue.obj',
-        'meshes/floor.obj',
+        'meshes/terrain.obj',
         'meshes/temple.obj',
         'skyboxes/1/1.list',
         'skyboxes/2/2.list'
@@ -51,11 +51,11 @@ DOM.registerCSS({
     let frameTime = 0;
 
     const templeModel = Resources.get('meshes/temple.obj');
-    const floorModel = Resources.get('meshes/floor.obj');
+    const terrainModel = Resources.get('meshes/terrain.obj');
     Skybox.setTextures(Resources.get('skyboxes/2/2.list'));
 
     Camera.setProjection(45, Settings.znear, Settings.zfar);
-    Camera.setPosition([0, 1, -5]);
+    Camera.setPosition([11, -1, -28]);
 
     const matModel = mat4.create();
     const matIdentity = mat4.create();
@@ -88,7 +88,10 @@ DOM.registerCSS({
         mat4.identity(matModel);
         mat4.rotate(matModel, matIdentity, glMatrix.toRadian(180), [0, 1, 0]);
         Shaders.geometry.setMat4('matWorld', matModel);
-        floorModel.render();
+        terrainModel.render();
+
+        mat4.translate(matModel, matModel, [-11, -2.2, 46]);
+        Shaders.geometry.setMat4('matWorld', matModel);
         templeModel.render();
 
         Shader.unBind();
