@@ -40,6 +40,7 @@ DOM.registerCSS({
         'skyboxes/skybox.obj',
         'meshes/statue.obj',
         'meshes/floor.obj',
+        'meshes/temple.obj',
         'skyboxes/1/1.list',
         'skyboxes/2/2.list'
     ]);
@@ -49,7 +50,7 @@ DOM.registerCSS({
     let time;
     let frameTime = 0;
 
-    const statueModel = Resources.get('meshes/statue.obj');
+    const templeModel = Resources.get('meshes/temple.obj');
     const floorModel = Resources.get('meshes/floor.obj');
     Skybox.setTextures(Resources.get('skyboxes/2/2.list'));
 
@@ -88,17 +89,7 @@ DOM.registerCSS({
         mat4.rotate(matModel, matIdentity, glMatrix.toRadian(180), [0, 1, 0]);
         Shaders.geometry.setMat4('matWorld', matModel);
         floorModel.render();
-
-        const startPos = -2.6;
-        for (let i = 0; i < 5; i++) {
-            for (let j = 0; j < 5; j++) {
-                mat4.identity(matModel);
-                mat4.rotate(matModel, matIdentity, glMatrix.toRadian(180), [0, 1, 0]);
-                mat4.translate(matModel, matModel, [startPos + i * 1.3, 0, startPos + j * 1.3]);
-                Shaders.geometry.setMat4('matWorld', matModel);
-                statueModel.render();
-            }
-        }
+        templeModel.render();
 
         Shader.unBind();
         Buffers.endGeomPass();
