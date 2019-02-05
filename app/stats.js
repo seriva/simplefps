@@ -71,8 +71,8 @@ DOM.append(() => h(
                 h('span##stats-mem', [`${memory}mb`])
             ]),
             h('div#stats-pos', [
-                `xyz: ${Math.round(Camera.position[0])}, 
-                      ${Math.round(Camera.position[1])}, 
+                `xyz: ${Math.round(Camera.position[0])},
+                      ${Math.round(Camera.position[1])},
                       ${Math.round(Camera.position[2])}`
             ])
         ]
