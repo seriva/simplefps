@@ -121,7 +121,11 @@ const Shaders = {
         layout(location=2) out vec4 fragColor;
 
         uniform int geomType;
-        uniform sampler2D sampler;
+        uniform int doDetail;
+        uniform float detailMult;
+        uniform float detailUVMult;
+        uniform sampler2D colorSampler;
+        uniform sampler2D detailSampler;
 
         const int MESH = 1;
         const int SKY = 2;
@@ -135,8 +139,17 @@ const Shaders = {
             case SKY:
                 fragNormal = vec4(0.0, 0.0, 0.0, 1.0);
                 break;
-            }
-            fragColor = texture(sampler, vUV);
+            }   
+            vec4 color = texture(colorSampler, vUV);
+
+            if (doDetail==1)
+            {
+                vec2 dUV = vUV * detailUVMult;
+                vec4 detail = texture(detailSampler, dUV);
+                color.rgb += detail.rgb - detailMult;
+            }  
+
+            fragColor = color;
         }`
     ),
     directionalLight: new Shader(

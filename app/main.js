@@ -16,6 +16,8 @@ import Buffers from './buffers';
 import Skybox from './skybox';
 import DOM from './dom';
 
+const gl = Renderer.gl;
+
 Console.registerCmd('state', (state) => {
     State.setState(state);
 });
@@ -42,7 +44,9 @@ DOM.registerCSS({
         'meshes/terrain.obj',
         'meshes/temple.obj',
         'skyboxes/1/1.list',
-        'skyboxes/2/2.list'
+        'skyboxes/2/2.list',
+        'textures/detail1.jpg',
+        'textures/detail2.jpg'
     ]);
 
     State.setState('UI', 'MAIN_MENU');
@@ -52,6 +56,8 @@ DOM.registerCSS({
 
     const templeModel = Resources.get('meshes/temple.obj');
     const terrainModel = Resources.get('meshes/terrain.obj');
+    const detail1Texture = Resources.get('textures/detail1.jpg');
+    const detail2Texture = Resources.get('textures/detail2.jpg');
     Skybox.setTextures(Resources.get('skyboxes/2/2.list'));
 
     Camera.setProjection(45, Settings.znear, Settings.zfar);
@@ -79,19 +85,28 @@ DOM.registerCSS({
         // **********************************
         Buffers.startGeomPass();
         Shaders.geometry.bind();
-
+        Shaders.geometry.setInt('colorSampler', 0);
+        Shaders.geometry.setInt('detailSampler', 1);
         Shaders.geometry.setInt('geomType', 2);
+        Shaders.geometry.setInt('doDetail', 0);
         Skybox.render();
 
+        Shaders.geometry.setInt('doDetail', 1);
         Shaders.geometry.setInt('geomType', 1);
+        Shaders.geometry.setFloat('detailMult', 0.55);
         Shaders.geometry.setMat4('matViewProj', Camera.viewProjection);
+
         mat4.identity(matModel);
         mat4.rotate(matModel, matIdentity, glMatrix.toRadian(180), [0, 1, 0]);
         Shaders.geometry.setMat4('matWorld', matModel);
+        Shaders.geometry.setFloat('detailUVMult', 50);
+        detail1Texture.bind(gl.TEXTURE1);
         terrainModel.render();
 
         mat4.translate(matModel, matModel, [-11, -2.1, 47.5]);
         Shaders.geometry.setMat4('matWorld', matModel);
+        Shaders.geometry.setInt('detailUVMult', 10);
+        detail2Texture.bind(gl.TEXTURE1);
         templeModel.render();
 
         Shader.unBind();
