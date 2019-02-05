@@ -90,7 +90,7 @@ DOM.registerCSS({
         Shaders.geometry.setMat4('matWorld', matModel);
         terrainModel.render();
 
-        mat4.translate(matModel, matModel, [-11, -2.2, 46]);
+        mat4.translate(matModel, matModel, [-11, -2.1, 47.5]);
         Shaders.geometry.setMat4('matWorld', matModel);
         templeModel.render();
 
@@ -106,16 +106,16 @@ DOM.registerCSS({
         Shaders.directionalLight.setInt('positionBuffer', 0);
         Shaders.directionalLight.setInt('normalBuffer', 1);
         Shaders.directionalLight.setInt('colorBuffer', 2);
-        Shaders.directionalLight.setVec3('directionalLight.direction', [-3.0, 4.0, -2.0]);
+        Shaders.directionalLight.setVec3('directionalLight.direction', [-3.0, 4.0, 2.0]);
         Shaders.directionalLight.setVec3('directionalLight.diffuse', [
-            49 / 256,
-            72 / 255,
-            125 / 255
+            89 / 255,
+            112 / 255,
+            145 / 255
         ]);
         Shaders.directionalLight.setVec3('directionalLight.ambient', [
-            14 / 256,
-            20 / 255,
-            34 / 255
+            44 / 255,
+            50 / 255,
+            64 / 255
         ]);
 
         Renderer.drawFullscreenQuad();

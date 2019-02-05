@@ -34,7 +34,7 @@ DOM.registerCSS({
         fontSize: '12px',
         color: '#FFF',
         left: '13px',
-        top: '20px',
+        top: '22px',
         zIndex: 3000,
         position: 'absolute'
     }
