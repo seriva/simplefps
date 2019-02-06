@@ -10,13 +10,14 @@ DOM.registerCSS({
     },
 
     '#look': {
-        width: '50%',
+        width: '80%',
         height: '100%',
         right: '0px',
         bottom: '0px',
         margin: 0,
         padding: 0,
-        position: 'absolute'
+        position: 'absolute',
+        zIndex: 502
     },
 
     '#cursor': {
@@ -28,20 +29,12 @@ DOM.registerCSS({
         marginTop: '-25px',
         background: 'white',
         opacity: 0,
-        borderRadius: '50%'
+        borderRadius: '50%',
+        zIndex: 501,
+        userSelect: 'none'
     },
 
-    '#move': {
-        width: '50%',
-        height: '100%',
-        left: '0px',
-        bottom: '0px',
-        margin: 0,
-        padding: 0,
-        position: 'absolute'
-    },
-
-    '#joystick': {
+    '#joystick-base': {
         background: 'white',
         width: '100px',
         height: '100px',
@@ -53,7 +46,7 @@ DOM.registerCSS({
         zIndex: 501
     },
 
-    '#stick': {
+    '#joystick-stick': {
         background: 'white',
         borderRadius: '100%',
         cursor: 'pointer',
@@ -135,10 +128,9 @@ window.addEventListener(
 if (Utils.isMobile()) {
     const look = h('div#look');
     const cursor = h('div#cursor');
-    const stick = h('div#stick');
-    const joystick = h('div#joystick');
-    const move = h('div#move', [joystick, stick]);
-    input = h('div#input', [move, look, cursor]);
+    const joystickStick = h('div#joystick-stick');
+    const joystickBase = h('div#joystick-base');
+    input = h('div#input', [joystickBase, joystickStick, look, cursor]);
     DOM.append(() => input);
 
     let cursorPos = null;
@@ -212,8 +204,8 @@ if (Utils.isMobile()) {
     let dragStart = null;
     let stickPos = null;
 
-    stick.domNode.addEventListener('touchstart', (ev) => {
-        stick.domNode.style.transition = '0s';
+    joystickStick.domNode.addEventListener('touchstart', (ev) => {
+        joystickStick.domNode.style.transition = '0s';
         if (ev.targetTouches) {
             dragStart = {
                 x: ev.targetTouches[0].clientX,
@@ -226,10 +218,10 @@ if (Utils.isMobile()) {
             y: ev.clientY
         };
     });
-    move.domNode.addEventListener('touchend', () => {
+    joystickStick.domNode.addEventListener('touchend', () => {
         if (dragStart === null) return;
-        stick.domNode.style.transition = '.2s';
-        stick.domNode.style.transform = 'translate3d(0px, 0px, 0px)';
+        joystickStick.domNode.style.transition = '.2s';
+        joystickStick.domNode.style.transform = 'translate3d(0px, 0px, 0px)';
         delete pressed[Settings.forward];
         delete pressed[Settings.backwards];
         delete pressed[Settings.left];
@@ -237,7 +229,7 @@ if (Utils.isMobile()) {
         dragStart = null;
         stickPos = null;
     });
-    move.domNode.addEventListener('touchmove', (ev) => {
+    joystickStick.domNode.addEventListener('touchmove', (ev) => {
         ev.preventDefault();
         if (dragStart === null) return;
         if (ev.targetTouches) {
@@ -299,7 +291,9 @@ if (Utils.isMobile()) {
     // update cursor/joystink
     const updateInput = () => {
         if (stickPos !== null) {
-            stick.domNode.style.transform = `translate3d(${stickPos.x}px, ${stickPos.y}px, 0px)`;
+            joystickStick.domNode.style.transform = `translate3d(${stickPos.x}px, ${
+                stickPos.y
+            }px, 0px)`;
         }
         if (cursorPos !== null) {
             cursor.domNode.style.left = `${cursorPos.x}px`;

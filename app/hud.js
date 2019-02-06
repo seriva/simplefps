@@ -21,6 +21,7 @@ DOM.registerCSS({
         height: '50px',
         position: 'absolute',
         opacity: 0.6,
+        zIndex: 1001,
         content: 'url(resources/menu.png)'
     }
 });
