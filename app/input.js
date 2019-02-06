@@ -296,8 +296,7 @@ if (Utils.isMobile()) {
             }px, 0px)`;
         }
         if (cursorPos !== null) {
-            cursor.domNode.style.left = `${cursorPos.x}px`;
-            cursor.domNode.style.top = `${cursorPos.y}px`;
+            cursor.domNode.style.transform = `translate3d(${cursorPos.x}px, ${cursorPos.y}px, 0px)`;
         }
         window.requestAnimationFrame(updateInput);
     };
