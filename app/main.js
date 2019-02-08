@@ -33,21 +33,13 @@ DOM.registerCSS({
         padding: 0,
         position: 'relative',
         overflow: 'hidden',
+        color: 'white',
         fontFamily: 'Consolas, monaco, monospace; font-weight: bold'
     }
 });
 
 (async () => {
-    await Resources.load([
-        'skyboxes/skybox.obj',
-        'meshes/statue.obj',
-        'meshes/terrain.obj',
-        'meshes/temple.obj',
-        'skyboxes/1/1.list',
-        'skyboxes/2/2.list',
-        'textures/detail1.jpg',
-        'textures/detail2.jpg'
-    ]);
+    await Resources.load(['resources.list']);
 
     State.setState('UI', 'MAIN_MENU');
 
@@ -56,12 +48,14 @@ DOM.registerCSS({
 
     const templeModel = Resources.get('meshes/temple.obj');
     const terrainModel = Resources.get('meshes/terrain.obj');
+    const statueModel = Resources.get('meshes/statue.obj');
     const detail1Texture = Resources.get('textures/detail1.jpg');
     const detail2Texture = Resources.get('textures/detail2.jpg');
     Skybox.setTextures(Resources.get('skyboxes/2/2.list'));
 
     Camera.setProjection(45, Settings.znear, Settings.zfar);
     Camera.setPosition([11, -1, -28]);
+    Camera.setRotation([180, 0, 0]);
 
     const matModel = mat4.create();
     const matIdentity = mat4.create();
@@ -86,13 +80,13 @@ DOM.registerCSS({
         Buffers.startGeomPass();
         Shaders.geometry.bind();
         Shaders.geometry.setInt('colorSampler', 0);
-        Shaders.geometry.setInt('detailSampler', 1);
         Shaders.geometry.setInt('geomType', 2);
         Shaders.geometry.setInt('doDetail', 0);
         Skybox.render();
 
         Shaders.geometry.setInt('doDetail', 1);
         Shaders.geometry.setInt('geomType', 1);
+        Shaders.geometry.setInt('detailSampler', 1);
         Shaders.geometry.setFloat('detailMult', 0.55);
         Shaders.geometry.setMat4('matViewProj', Camera.viewProjection);
 
@@ -103,11 +97,19 @@ DOM.registerCSS({
         detail1Texture.bind(gl.TEXTURE1);
         terrainModel.render();
 
-        mat4.translate(matModel, matModel, [-11, -2.1, 47.5]);
+        mat4.identity(matModel);
+        mat4.translate(matModel, matModel, [11, -2.1, -35]);
         Shaders.geometry.setMat4('matWorld', matModel);
-        Shaders.geometry.setInt('detailUVMult', 10);
+        Shaders.geometry.setFloat('detailUVMult', 10);
         detail2Texture.bind(gl.TEXTURE1);
         templeModel.render();
+
+        mat4.identity(matModel);
+        mat4.translate(matModel, matModel, [11, -1.7, -41.5]);
+        Shaders.geometry.setMat4('matWorld', matModel);
+        Shaders.geometry.setFloat('detailUVMult', 2);
+        detail2Texture.bind(gl.TEXTURE1);
+        statueModel.render();
 
         Shader.unBind();
         Buffers.endGeomPass();

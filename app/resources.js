@@ -21,31 +21,40 @@ const Resources = {
             let counter = 0;
             startTime = new Date().getTime();
             Loading.toggle(true);
+
             const loadNext = async () => {
                 let resource = null;
                 const path = paths[counter];
                 const fullpath = basepath + path;
                 const ext = re.exec(path)[1];
-                try {
-                    const response = await Utils.fetch(fullpath);
-                    switch (ext) {
-                    case 'jpg':
-                        resource = new Texture({ data: response });
-                        break;
-                    case 'obj':
-                        resource = new Mesh(response, this);
-                        break;
-                    case 'list': {
-                        resource = JSON.parse(response).resources;
-                        Resources.load(resource);
-                        break;
-                    }
-                    default:
-                        break;
-                    }
 
-                    Console.log(`Loaded: ${path}`);
-                    resources[path] = resource;
+                try {
+                    // if resource already excist move to the next.
+                    if (resources[path]) {
+                        Console.warn(
+                            `Trying to load resource " ${path} " multiple times so skipping`
+                        );
+                    } else {
+                        const response = await Utils.fetch(fullpath);
+                        switch (ext) {
+                        case 'jpg':
+                            resource = new Texture({ data: response });
+                            break;
+                        case 'obj':
+                            resource = new Mesh(response, this);
+                            break;
+                        case 'list': {
+                            resource = JSON.parse(response).resources;
+                            Resources.load(resource);
+                            break;
+                        }
+                        default:
+                            break;
+                        }
+
+                        Console.log(`Loaded: ${path}`);
+                        resources[path] = resource;
+                    }
                     counter++;
                     if (counter === paths.length) {
                         Loading.toggle(false);

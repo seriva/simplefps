@@ -32,7 +32,7 @@ DOM.registerCSS({
     },
     '#stats-pos': {
         fontSize: '12px',
-        color: '#FFF',
+        color: '#9932CC',
         left: '13px',
         top: '24px',
         zIndex: 3000,
