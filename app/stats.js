@@ -18,21 +18,12 @@ DOM.registerCSS({
         zIndex: 3000,
         position: 'absolute'
     },
-    '#stats-fps': {
-        color: '#F00',
-        marginLeft: '5px'
-    },
-    '#stats-ft': {
-        color: '#0F0',
-        marginLeft: '5px'
-    },
-    '#stats-mem': {
-        color: '#00F',
+    '.stats-info': {
         marginLeft: '5px'
     },
     '#stats-pos': {
+        color: '#FFF',
         fontSize: '12px',
-        color: '#9932CC',
         left: '13px',
         top: '24px',
         zIndex: 3000,
@@ -66,9 +57,9 @@ DOM.append(() => h(
     visible
         ? [
             h('div#stats-text', [
-                h('span##stats-fps', [`${fps}fps`]),
-                h('span##stats-ft', [`${Math.round(frameTime)}ms`]),
-                h('span##stats-mem', [`${memory}mb`])
+                h('span.stats-info', [`${fps}fps`]),
+                h('span.stats-info', [`${Math.round(frameTime)}ms`]),
+                h('span.stats-info', [`${memory}mb`])
             ]),
             h('div#stats-pos', [
                 // eslint-disable-next-line

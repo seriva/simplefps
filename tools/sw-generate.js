@@ -2,10 +2,10 @@ const recursive = require('recursive-readdir');
 const path = require('path');
 const fs = require('fs');
 
-const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '/package.json'), 'utf8'));
+const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '../package.json'), 'utf8'));
 let swTemplate = fs.readFileSync(path.join(__dirname, '/sw-template.tpl'), 'utf8');
 const timeStamp = new Date().getTime();
-const rootDir = path.join(__dirname, '/public/');
+const rootDir = path.join(__dirname, '../public/');
 const exclude = [];
 
 recursive(rootDir, exclude, (err, files) => {

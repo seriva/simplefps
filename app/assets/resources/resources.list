@@ -1,9 +1,9 @@
 {
     "resources": [
-        "skyboxes/skybox.obj",
-        "meshes/statue.obj",
-        "meshes/terrain.obj",
-        "meshes/temple.obj",
+        "skyboxes/skybox.mesh",
+        "meshes/statue.mesh",
+        "meshes/terrain.mesh",
+        "meshes/temple.mesh",
         "skyboxes/1/1.list",
         "skyboxes/2/2.list",
         "textures/detail1.jpg",

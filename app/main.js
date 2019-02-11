@@ -46,9 +46,9 @@ DOM.registerCSS({
     let time;
     let frameTime = 0;
 
-    const templeModel = Resources.get('meshes/temple.obj');
-    const terrainModel = Resources.get('meshes/terrain.obj');
-    const statueModel = Resources.get('meshes/statue.obj');
+    const templeModel = Resources.get('meshes/temple.mesh');
+    const terrainModel = Resources.get('meshes/terrain.mesh');
+    const statueModel = Resources.get('meshes/statue.mesh');
     const detail1Texture = Resources.get('textures/detail1.jpg');
     const detail2Texture = Resources.get('textures/detail2.jpg');
     Skybox.setTextures(Resources.get('skyboxes/2/2.list'));

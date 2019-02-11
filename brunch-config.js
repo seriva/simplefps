@@ -11,7 +11,7 @@ module.exports = {
             enabled: true
         },
         afterBrunch: [
-            'node sw-generate.js'
+            'node tools/sw-generate.js'
         ],
         babel: {
             presets: ['@babel/preset-env'],

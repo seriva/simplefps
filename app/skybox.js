@@ -14,7 +14,7 @@ mat4.identity(matModel);
 const Skydome = {
     setTextures(tex) {
         if (!mesh) {
-            mesh = Resources.get('skyboxes/skybox.obj');
+            mesh = Resources.get('skyboxes/skybox.mesh');
         }
         for (let i = 0; i < 6; i++) {
             const texture = Resources.get(tex[i]);

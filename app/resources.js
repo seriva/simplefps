@@ -29,19 +29,14 @@ const Resources = {
                 const ext = re.exec(path)[1];
 
                 try {
-                    // if resource already excist move to the next.
-                    if (resources[path]) {
-                        Console.warn(
-                            `Trying to load resource " ${path} " multiple times so skipping`
-                        );
-                    } else {
+                    if (!resources[path]) {
                         const response = await Utils.fetch(fullpath);
                         switch (ext) {
                         case 'jpg':
                             resource = new Texture({ data: response });
                             break;
-                        case 'obj':
-                            resource = new Mesh(response, this);
+                        case 'mesh':
+                            resource = new Mesh(JSON.parse(response), this);
                             break;
                         case 'list': {
                             resource = JSON.parse(response).resources;
