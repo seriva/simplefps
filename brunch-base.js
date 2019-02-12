@@ -7,12 +7,6 @@ module.exports = {
         }
     },
     plugins: {
-        autoReload: {
-            enabled: true
-        },
-        afterBrunch: [
-            'node tools/sw-generate.js'
-        ],
         babel: {
             presets: ['@babel/preset-env'],
             plugins: [

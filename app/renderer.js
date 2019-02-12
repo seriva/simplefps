@@ -48,7 +48,7 @@ Console.log(`Renderer: ${gl.getParameter(gl.RENDERER)}`);
 Console.log(`Vendor: ${gl.getParameter(gl.VENDOR)}`);
 Console.log(`WebGL version: ${gl.getParameter(gl.VERSION)}`);
 Console.log(`GLSL version: ${gl.getParameter(gl.SHADING_LANGUAGE_VERSION)}`);
-Console.log(`Max anisotropic filtering: ${afExt.MAX_TEXTURE_MAX_ANISOTROPY_EXT}`);
+Console.log(`Max anisotropic filtering: ${gl.getParameter(afExt.MAX_TEXTURE_MAX_ANISOTROPY_EXT)}`);
 
 const screenQuadVBO = gl.createBuffer();
 gl.bindBuffer(gl.ARRAY_BUFFER, screenQuadVBO);

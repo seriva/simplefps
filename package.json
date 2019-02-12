@@ -9,8 +9,8 @@
     "url": "https://github.com/seriva/QDFPA.git"
   },
   "scripts": {
-    "build": "rimraf public/* && brunch build --production",
-    "dev": "brunch watch --server"
+    "build": "rimraf public/* && brunch build --production -c brunch-prod.js",
+    "dev": "brunch watch --server -c brunch-dev.js"
   },
   "dependencies": {
     "gl-matrix": "^3.0.0",
@@ -32,6 +32,7 @@
     "eslint-brunch": "https://github.com/maerics/eslint-brunch",
     "eslint-config-airbnb-base": "13.1.0",
     "eslint-plugin-import": "^2.16.0",
+    "jspreprocess-brunch": "^1.0.2",
     "prettier-eslint": "^8.8.2",
     "recursive-readdir": "^2.2.2",
     "rimraf": "^2.6.3",

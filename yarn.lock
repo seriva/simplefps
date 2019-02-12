@@ -3095,6 +3095,11 @@ json5@^2.1.0:
   dependencies:
     minimist "^1.2.0"
 
+jspreprocess-brunch@^1.0.2:
+  version "1.0.2"
+  resolved "https://registry.yarnpkg.com/jspreprocess-brunch/-/jspreprocess-brunch-1.0.2.tgz#35abf2fc1840cf85cce4a76531a323d6b5f9e091"
+  integrity sha1-Navy/BhAz4XM5KdlMaMj1rX54JE=
+
 jss-plugin-camel-case@10.0.0-alpha.9:
   version "10.0.0-alpha.9"
   resolved "https://registry.yarnpkg.com/jss-plugin-camel-case/-/jss-plugin-camel-case-10.0.0-alpha.9.tgz#bdde443c6f51a93df1d338688a5551d64bc66fc3"

@@ -1,11 +1,12 @@
-import Loading from './loading';
 import State from './state';
+import Loading from './loading';
 import UI from './ui';
 import Translations from './translations';
 
 let newServiceWorker = null;
 let registration = null;
 
+// #BRUNCH_IF (PROD)
 const update = () => {
     if (newServiceWorker !== null) {
         Loading.toggle(true, true);
@@ -68,6 +69,7 @@ if (navigator.serviceWorker) {
         refreshing = true;
     });
 }
+// #BRUNCH_ENDIF
 
 const Update = {
     force: () => {
