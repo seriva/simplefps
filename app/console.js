@@ -175,14 +175,7 @@ const Console = {
     },
 
     error(m) {
-        document.body.innerHTML = m;
-        console.error(m);
-        logs.push({
-            color: '#F00',
-            message: m
-        });
-        visible = true;
-        throw new Error();
+        throw new Error(m);
     },
 
     registerCmd(name, value) {

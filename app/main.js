@@ -1,6 +1,6 @@
 import { glMatrix, mat4 } from 'gl-matrix';
 import Settings from './settings';
-import Console from './console';
+import './console';
 import './translations';
 import './hud';
 import './ui';
@@ -17,26 +17,6 @@ import Skybox from './skybox';
 import DOM from './dom';
 
 const gl = Renderer.gl;
-
-Console.registerCmd('state', (state) => {
-    State.setState(state);
-});
-
-DOM.registerCSS({
-    html: {
-        height: '100%'
-    },
-    body: {
-        background: '#000',
-        minHeight: '100%',
-        margin: 0,
-        padding: 0,
-        position: 'relative',
-        overflow: 'hidden',
-        color: 'white',
-        fontFamily: 'Consolas, monaco, monospace; font-weight: bold'
-    }
-});
 
 (async () => {
     await Resources.load(['resources.list']);

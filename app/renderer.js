@@ -68,13 +68,15 @@ const drawFullscreenQuad = () => {
 };
 
 /* eslint-disable */
-const width = () => Math.floor(gl.canvas.clientWidth * window.devicePixelRatio * Settings.renderscale);
-const height = () => Math.floor(gl.canvas.clientHeight * window.devicePixelRatio * Settings.renderscale);
+const width = () =>
+    Math.floor(gl.canvas.clientWidth * window.devicePixelRatio * Settings.renderscale);
+const height = () =>
+    Math.floor(gl.canvas.clientHeight * window.devicePixelRatio * Settings.renderscale);
 /* eslint-disable */
 
 const aspectRatio = () => width() / height();
 
-const toggleBlur = (blur) => {
+const toggleBlur = blur => {
     blur === undefined ? (doBlur = !doBlur) : (doBlur = blur);
     if (doBlur) {
         DOM.animate(canvas.domNode, { blur: 8 }, { duration: 75, delay: 0, easing: 'linear' });
@@ -95,7 +97,7 @@ window.addEventListener(
 
 window.dispatchEvent(new Event('resize'));
 
-Console.registerCmd('rscale', (scale) => {
+Console.registerCmd('rscale', scale => {
     Settings.renderscale = Math.min(Math.max(scale, 0.2), 1);
     window.dispatchEvent(new Event('resize'));
 });

@@ -6,7 +6,6 @@ import Translations from './translations';
 let newServiceWorker = null;
 let registration = null;
 
-// #BRUNCH_IF (PROD)
 const update = () => {
     if (newServiceWorker !== null) {
         Loading.toggle(true, true);
@@ -35,7 +34,7 @@ UI.register('UPDATE_MENU', {
     ]
 });
 
-if (navigator.serviceWorker) {
+if (navigator.serviceWorker && window.env === 'PRODUCTION') {
     navigator.serviceWorker
         .register('./sw.js')
         .then((reg) => {
@@ -69,7 +68,6 @@ if (navigator.serviceWorker) {
         refreshing = true;
     });
 }
-// #BRUNCH_ENDIF
 
 const Update = {
     force: () => {

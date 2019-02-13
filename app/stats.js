@@ -15,7 +15,7 @@ DOM.registerCSS({
         color: '#FFF',
         left: '8px',
         top: '8px',
-        zIndex: 3000,
+        zIndex: 2001,
         position: 'absolute'
     },
     '.stats-info': {
@@ -26,7 +26,7 @@ DOM.registerCSS({
         fontSize: '12px',
         left: '13px',
         top: '24px',
-        zIndex: 3000,
+        zIndex: 2001,
         position: 'absolute'
     }
 });
