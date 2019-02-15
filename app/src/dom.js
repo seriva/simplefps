@@ -1,4 +1,6 @@
-import { maquette, Velocity, jss, jssPresetDefault } from '../libs/import.js';
+import {
+    maquette, Velocity, jss, jssPresetDefault
+} from '../libs/import.js';
 
 const projector = maquette.createProjector();
 const styles = jss.create(jssPresetDefault.default());
@@ -12,9 +14,11 @@ const DOM = {
         Velocity(...args);
     },
     registerCSS(styling) {
-        styles.createStyleSheet({
-            '@global': styling
-        }).attach();
+        styles
+            .createStyleSheet({
+                '@global': styling
+            })
+            .attach();
     },
     update() {
         projector.scheduleRender();

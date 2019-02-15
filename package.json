@@ -10,7 +10,8 @@
   },
   "scripts": {
     "dev": "node cli.js DEVELOPMENT",
-    "build": "node cli.js PRODUCTION"
+    "build": "node cli.js PRODUCTION",
+    "lint": "eslint app/src/**"
   },
   "dependencies": {
     "gl-matrix": "^3.0.0",

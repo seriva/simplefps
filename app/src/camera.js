@@ -3,7 +3,7 @@ import Renderer from './renderer.js';
 import Utils from './utils.js';
 
 const glm = glMatrix.glMatrix;
-const mat4 = glMatrix.mat4; 
+const mat4 = glMatrix.mat4;
 const vec3 = glMatrix.vec3;
 
 const view = mat4.create();
