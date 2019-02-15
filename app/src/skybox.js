@@ -1,16 +1,17 @@
-import { mat4 } from 'gl-matrix';
-import Renderer from './renderer';
-import { Shaders } from './shaders';
-import Camera from './camera';
-import Resources from './resources';
+import { glMatrix } from '../libs/import.js';
+import Renderer from './renderer.js';
+import { Shaders } from './shaders.js';
+import Camera from './camera.js';
+import Resources from './resources.js';
 
+const mat4 = glMatrix.mat4;
 const gl = Renderer.gl;
 const matModel = mat4.create();
 const matIdentity = mat4.create();
+
 let mesh;
 mat4.identity(matIdentity);
 mat4.identity(matModel);
-
 const Skydome = {
     setTextures(tex) {
         if (!mesh) {

@@ -1,6 +1,6 @@
-import DOM from './dom';
-import Console from './console';
-import Camera from './camera';
+import DOM from './dom.js';
+import Console from './console.js';
+import Camera from './camera.js';
 
 const h = DOM.h;
 

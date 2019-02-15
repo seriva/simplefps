@@ -1,8 +1,8 @@
-import Console from './console';
-import Texture from './texture';
-import Mesh from './mesh';
-import Loading from './loading';
-import Utils from './utils';
+import Console from './console.js';
+import Texture from './texture.js';
+import Mesh from './mesh.js';
+import Loading from './loading.js';
+import Utils from './utils.js';
 
 let paths = [];
 let startTime;

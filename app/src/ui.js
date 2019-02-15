@@ -1,4 +1,4 @@
-import DOM from './dom';
+import DOM from './dom.js';
 
 const h = DOM.h;
 

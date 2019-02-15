@@ -1,6 +1,6 @@
-import Console from './console';
-import Settings from './settings';
-import DOM from './dom';
+import Console from './console.js';
+import Settings from './settings.js';
+import DOM from './dom.js';
 
 const h = DOM.h;
 

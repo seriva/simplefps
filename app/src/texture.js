@@ -1,5 +1,5 @@
-import Renderer from './renderer';
-import Settings from './settings';
+import Renderer from './renderer.js';
+import Settings from './settings.js';
 
 const gl = Renderer.gl;
 

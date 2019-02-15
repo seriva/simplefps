@@ -1,5 +1,5 @@
-import Utils from './utils';
-import Console from './console';
+import Utils from './utils.js';
+import Console from './console.js';
 
 let Settings = {
     // rendering

@@ -1,5 +1,5 @@
-import Renderer from './renderer';
-import Texture from './texture';
+import Renderer from './renderer.js';
+import Texture from './texture.js';
 
 const gl = Renderer.gl;
 

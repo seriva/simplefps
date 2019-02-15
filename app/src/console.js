@@ -1,6 +1,6 @@
-import Utils from './utils';
-import DOM from './dom';
-import Input from './input';
+import Utils from './utils.js';
+import DOM from './dom.js';
+import Input from './input.js';
 
 const h = DOM.h;
 

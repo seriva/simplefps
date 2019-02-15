@@ -1,5 +1,5 @@
-import Console from './console';
-import Renderer from './renderer';
+import Console from './console.js';
+import Renderer from './renderer.js';
 
 const gl = Renderer.gl;
 

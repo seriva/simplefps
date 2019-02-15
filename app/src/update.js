@@ -1,7 +1,7 @@
-import State from './state';
-import Loading from './loading';
-import UI from './ui';
-import Translations from './translations';
+import State from './state.js';
+import Loading from './loading.js';
+import UI from './ui.js';
+import Translations from './translations.js';
 
 let newServiceWorker = null;
 let registration = null;

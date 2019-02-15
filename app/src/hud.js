@@ -1,6 +1,6 @@
-import Utils from './utils';
-import DOM from './dom';
-import State from './state';
+import Utils from './utils.js';
+import DOM from './dom.js';
+import State from './state.js';
 
 const h = DOM.h;
 

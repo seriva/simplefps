@@ -1,14 +1,10 @@
-import jss from 'jss';
-import preset from 'jss-preset-default';
-import Velocity from 'velocity-animate';
-import { h, createProjector } from 'maquette';
+import { maquette, Velocity, jss, jssPresetDefault } from '../libs/import.js';
 
-const projector = createProjector();
-
-jss.setup(preset());
+const projector = maquette.createProjector();
+const styles = jss.create(jssPresetDefault.default());
 
 const DOM = {
-    h,
+    h: maquette.h,
     append(render) {
         projector.append(document.body, render);
     },
@@ -16,7 +12,7 @@ const DOM = {
         Velocity(...args);
     },
     registerCSS(styling) {
-        jss.createStyleSheet({
+        styles.createStyleSheet({
             '@global': styling
         }).attach();
     },

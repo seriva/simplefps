@@ -9,32 +9,40 @@
     "url": "https://github.com/seriva/QDFPA.git"
   },
   "scripts": {
-    "build": "rimraf public/* && brunch build --production -c brunch-prod.js",
-    "dev": "brunch watch --server -c brunch-dev.js"
+    "dev": "node cli.js DEVELOPMENT",
+    "build": "node cli.js PRODUCTION"
   },
   "dependencies": {
     "gl-matrix": "^3.0.0",
-    "jss": "^10.0.0-alpha.9",
-    "jss-plugin-global": "^10.0.0-alpha.9",
-    "jss-preset-default": "^10.0.0-alpha.9",
+    "jss": "10.0.0-alpha.9",
+    "jss-plugin-global": "10.0.0-alpha.9",
+    "jss-preset-default": "10.0.0-alpha.9",
     "maquette": "^3.3.3",
     "velocity-animate": "^1.5.2"
   },
   "devDependencies": {
-    "@babel/core": "^7.2.2",
-    "@babel/plugin-transform-runtime": "^7.2.0",
-    "@babel/preset-env": "^7.3.1",
-    "after-brunch": "^0.0.5",
-    "auto-reload-brunch": "^2.7.1",
-    "babel-brunch": "7.0.0",
-    "brunch": "^2.10.17",
-    "eslint": "5.13.0",
-    "eslint-brunch": "https://github.com/maerics/eslint-brunch",
-    "eslint-config-airbnb-base": "13.1.0",
+    "@node-minify/core": "^4.0.5",
+    "@node-minify/uglify-es": "^4.0.5",
+    "@node-minify/uglify-js": "^4.0.5",
+    "eslint": "^5.13.0",
+    "eslint-config-airbnb-base": "^13.1.0",
     "eslint-plugin-import": "^2.16.0",
-    "prettier-eslint": "^8.8.2",
-    "recursive-readdir": "^2.2.2",
-    "rimraf": "^2.6.3",
-    "uglify-js-brunch": "^2.10.0"
-  }
+    "live-server": "^1.2.1"
+  },
+  "dependencyPaths": [
+    "node_modules/gl-matrix/gl-matrix-min.js",
+    "node_modules/maquette/dist/maquette.umd.min.js",
+    "node_modules/velocity-animate/velocity.min.js",
+    "node_modules/jss/dist/jss.min.js",
+    "node_modules/jss-preset-default/dist/jss-preset-default.min.js",
+    "node_modules/jss-plugin-global/dist/jss-plugin-global.min.js"
+  ],
+  "dependencyGlobalNames": [
+    "glMatrix",
+    "maquette",
+    "Velocity",
+    "jss",
+    "jssPresetDefault",
+    "jssPluginGlobal"
+  ]
 }

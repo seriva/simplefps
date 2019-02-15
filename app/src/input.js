@@ -1,6 +1,6 @@
-import Utils from './utils';
-import Settings from './settings';
-import DOM from './dom';
+import Utils from './utils.js';
+import Settings from './settings.js';
+import DOM from './dom.js';
 
 const h = DOM.h;
 

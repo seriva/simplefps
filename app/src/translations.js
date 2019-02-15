@@ -1,4 +1,4 @@
-import Console from './console';
+import Console from './console.js';
 
 let language = navigator.language;
 
@@ -15,7 +15,6 @@ const t = {
 };
 
 // Fallback if the language does not exist
-
 if (!Object.prototype.hasOwnProperty.call(t, language)) {
     language = 'en-US';
 }

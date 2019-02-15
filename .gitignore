@@ -2,3 +2,4 @@ yarn-error.log
 .vscode/
 public
 node_modules
+app/libs

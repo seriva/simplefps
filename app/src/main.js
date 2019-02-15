@@ -1,21 +1,23 @@
-import { glMatrix, mat4 } from 'gl-matrix';
-import Settings from './settings';
-import './console';
-import './translations';
-import './hud';
-import './ui';
-import './update';
-import State from './state';
-import Resources from './resources';
-import Stats from './stats';
-import Camera from './camera';
-import Controls from './controls';
-import Renderer from './renderer';
-import { Shaders, Shader } from './shaders';
-import Buffers from './buffers';
-import Skybox from './skybox';
-import DOM from './dom';
+import { glMatrix } from '../libs/import.js';
+import Settings from './settings.js';
+import './console.js';
+import './translations.js';
+import './hud.js';
+import './ui.js';
+import './update.js';
+import State from './state.js';
+import Resources from './resources.js';
+import Stats from './stats.js';
+import Camera from './camera.js';
+import Controls from './controls.js';
+import Renderer from './renderer.js';
+import { Shaders, Shader } from './shaders.js';
+import Buffers from './buffers.js';
+import Skybox from './skybox.js';
+import DOM from './dom.js';
 
+const glm = glMatrix.glMatrix;
+const mat4 = glMatrix.mat4;
 const gl = Renderer.gl;
 
 (async () => {
@@ -71,7 +73,7 @@ const gl = Renderer.gl;
         Shaders.geometry.setMat4('matViewProj', Camera.viewProjection);
 
         mat4.identity(matModel);
-        mat4.rotate(matModel, matIdentity, glMatrix.toRadian(180), [0, 1, 0]);
+        mat4.rotate(matModel, matIdentity, glm.toRadian(180), [0, 1, 0]);
         Shaders.geometry.setMat4('matWorld', matModel);
         Shaders.geometry.setFloat('detailUVMult', 50);
         detail1Texture.bind(gl.TEXTURE1);
