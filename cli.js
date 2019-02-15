@@ -91,18 +91,19 @@ try {
         swTemplate = swTemplate.replace('{{cacheName}}', `${pkg.name}-${pkg.version}-${timeStamp}`);
         fs.writeFileSync(`${publicDir}sw.js`, swTemplate);
 
-        /*
         console.log('Minifying source');
         const minifyFiles = [];
-        listFilesRecursiveSync(`${publicDir}src/`, minifyFiles);
-        console.log(minifyFiles);
+        listRecursiveSync(`${publicDir}src/`, minifyFiles);
         minify({
             compressor: uglifyES,
             input: minifyFiles,
-            output: minifyFiles,
-            callback: (err, min) => {}
+            output: minifyFiles.map(s => `${s}c`),
+            callback: (err, min) => {
+                minifyFiles.forEach((f) => {
+                    fs.renameSync(`${f}c`, f);
+                });
+            }
         });
-        */
     }
 
     if (env === 'DEVELOPMENT') {
