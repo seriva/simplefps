@@ -34,7 +34,7 @@ UI.register('UPDATE_MENU', {
     ]
 });
 
-if (navigator.serviceWorker && window.env === 'PRODUCTION') {
+if (navigator.serviceWorker) {
     navigator.serviceWorker
         .register('./sw.js')
         .then((reg) => {
