@@ -61,7 +61,7 @@ try {
         compressor: uglifyJS,
         input: pkg.dependencyPaths,
         output: 'app/libs/libs.js',
-        callback: (err, min) => {}
+        callback: () => {}
     });
 
     console.log('Generate libs import');
@@ -98,7 +98,7 @@ try {
             compressor: uglifyES,
             input: minifyFiles,
             output: minifyFiles.map(s => `${s}c`),
-            callback: (err, min) => {
+            callback: () => {
                 minifyFiles.forEach((f) => {
                     fs.renameSync(`${f}c`, f);
                 });
