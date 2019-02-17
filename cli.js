@@ -1,18 +1,25 @@
 const minify = require('@node-minify/core');
 const uglifyJS = require('@node-minify/uglify-js');
 const uglifyES = require('@node-minify/uglify-es');
+const rollup = require('rollup');
 const liveServer = require('live-server');
 const path = require('path');
 const fs = require('fs');
 
-const copyRecursiveSync = (src, dest) => {
+const copyRecursiveSync = (src, dest, exclude) => {
+    if (!exclude) exclude = [];
     const exists = fs.existsSync(src);
     const stats = exists && fs.statSync(src);
     const isDirectory = exists && stats.isDirectory();
     if (exists && isDirectory) {
         fs.mkdirSync(dest);
         fs.readdirSync(src).forEach((childItemName) => {
-            copyRecursiveSync(path.join(src, childItemName), path.join(dest, childItemName));
+            if (exclude.indexOf(childItemName) > -1) return;
+            copyRecursiveSync(
+                path.join(src, childItemName),
+                path.join(dest, childItemName),
+                exclude
+            );
         });
     } else {
         fs.linkSync(src, dest);
@@ -56,15 +63,14 @@ try {
     const templateDir = path.join(__dirname, 'templates/');
     const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, 'package.json'), 'utf8'));
 
-    console.log('Generate libs bundle');
+    console.log('Generating libs bundle');
     minify({
         compressor: uglifyJS,
         input: pkg.dependencyPaths,
-        output: 'app/libs/libs.js',
-        callback: () => {}
+        output: 'app/libs/libs.js'
     });
 
-    console.log('Generate libs import');
+    console.log('Generating libs import');
     let imports = '';
     pkg.dependencyGlobalNames.forEach((name) => {
         imports += `const ${name} = window.${name};\ndelete window.${name};\nexport { ${name} };\n\n`;
@@ -74,7 +80,7 @@ try {
     if (env === 'PRODUCTION') {
         console.log('Publishing files');
         deleteRecursiveSync(publicDir);
-        copyRecursiveSync(rootDir, publicDir);
+        copyRecursiveSync(rootDir, publicDir, ['src']);
 
         console.log('Generating service worker');
         let swTemplate = fs.readFileSync(`${templateDir}sw.tpl`, 'utf8');
@@ -91,18 +97,23 @@ try {
         swTemplate = swTemplate.replace('{{cacheName}}', `${pkg.name}-${pkg.version}-${timeStamp}`);
         fs.writeFileSync(`${publicDir}sw.js`, swTemplate);
 
-        console.log('Minifying source');
-        const minifyFiles = [];
-        listRecursiveSync(`${publicDir}src/`, minifyFiles);
-        minify({
-            compressor: uglifyES,
-            input: minifyFiles,
-            output: minifyFiles.map(s => `${s}c`),
-            callback: () => {
-                minifyFiles.forEach((f) => {
-                    fs.renameSync(`${f}c`, f);
-                });
-            }
+        console.log('Generating bundle');
+        const bundleSrc = async () => {
+            const b = await rollup.rollup({
+                input: 'app/src/main.js'
+            });
+            await b.write({
+                format: 'es',
+                file: 'public/src/main.js'
+            });
+        };
+        bundleSrc().then(() => {
+            console.log('Minifying source');
+            minify({
+                compressor: uglifyES,
+                input: 'public/src/main.js',
+                output: 'public/src/main.js'
+            });
         });
     }
 

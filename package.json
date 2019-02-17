@@ -28,7 +28,8 @@
     "eslint": "^5.13.0",
     "eslint-config-airbnb-base": "^13.1.0",
     "eslint-plugin-import": "^2.16.0",
-    "live-server": "^1.2.1"
+    "live-server": "^1.2.1",
+    "rollup": "^1.2.1"
   },
   "dependencyPaths": [
     "node_modules/gl-matrix/gl-matrix-min.js",

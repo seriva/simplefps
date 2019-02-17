@@ -49,7 +49,10 @@ Console.registerCmd('stats', (show) => {
 window.setInterval(() => {
     fps = frames;
     frames = 0;
-    memory = Math.round(performance.memory.usedJSHeapSize / 1048576);
+    memory = 0;
+    if (performance.memory) {
+        memory = Math.round(performance.memory.usedJSHeapSize / 1048576);
+    }
 }, 1000);
 
 DOM.append(() => h(
