@@ -97,7 +97,7 @@ try {
         swTemplate = swTemplate.replace('{{cacheName}}', `${pkg.name}-${pkg.version}-${timeStamp}`);
         fs.writeFileSync(`${publicDir}sw.js`, swTemplate);
 
-        console.log('Generating bundle');
+        console.log('Generating app bundle');
         const bundleSrc = async () => {
             const b = await rollup.rollup({
                 input: 'app/src/main.js'
@@ -108,7 +108,7 @@ try {
             });
         };
         bundleSrc().then(() => {
-            console.log('Minifying source');
+            console.log('Minifying app bundle');
             minify({
                 compressor: uglifyES,
                 input: 'public/src/main.js',
