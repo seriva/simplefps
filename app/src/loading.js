@@ -27,15 +27,8 @@ DOM.registerCSS({
         left: '50%',
         marginTop: '-10vh',
         marginLeft: '-10vh',
-        animation: 'spin 3s linear infinite',
         content: 'url(resources/logo.svg)',
         zIndex: 2002
-    },
-
-    '@keyframes spin': {
-        '100%': {
-            transform: 'rotate(360deg)'
-        }
     }
 });
 
