@@ -25,7 +25,7 @@
     "@node-minify/core": "^4.0.5",
     "@node-minify/uglify-es": "^4.0.5",
     "@node-minify/uglify-js": "^4.0.5",
-    "eslint": "^5.13.0",
+    "eslint": "^5.14.0",
     "eslint-config-airbnb-base": "^13.1.0",
     "eslint-plugin-import": "^2.16.0",
     "live-server": "^1.2.1",

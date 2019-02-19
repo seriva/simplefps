@@ -22,8 +22,6 @@ let Settings = {
     looksensitivity: 5
 };
 
-Console.log(`Env: ${window.env}`);
-
 // load possible settings from local storage
 if (window.localStorage.getItem('settings') !== null) {
     Console.log('Using stored settings');
