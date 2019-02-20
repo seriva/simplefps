@@ -29,6 +29,24 @@ DOM.registerCSS({
         marginLeft: '-10vh',
         content: 'url(resources/logo.svg)',
         zIndex: 2002
+    },
+
+    '#loading-bar-background': {
+        position: 'fixed',
+        width: '60%',
+        height: '15px',
+        padding: '2px',
+        top: '70%',
+        left: '50%',
+        marginLeft: '-30%',
+        border: '2px solid white',
+        zIndex: 2002
+    },
+
+    '#loading-bar': {
+        width: '0%',
+        height: '100%',
+        background: '#FFF'
     }
 });
 
@@ -37,8 +55,17 @@ let isVisible = false;
 let forceUntilReload = false;
 
 // gui function
-// eslint-disable-next-line
-DOM.append(() => h('div#loading', isVisible ? [h('div#loading-logo'), h('div#loading-background')] : []));
+const bar = h('div#loading-bar');
+DOM.append(() => h(
+    'div#loading',
+    isVisible
+        ? [
+            h('div#loading-logo'),
+            h('div#loading-bar-background', [bar]),
+            h('div#loading-background')
+        ]
+        : []
+));
 
 const Loading = {
     toggle(visible, force) {
@@ -47,6 +74,12 @@ const Loading = {
         isVisible = visible;
         if (force !== undefined && force !== null) forceUntilReload = force;
 
+        DOM.update();
+    },
+
+    update(step, max) {
+        if (!bar.domNode) return;
+        bar.domNode.style.width = `${Math.round((step * 100) / max)}%`;
         DOM.update();
     }
 };
