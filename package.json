@@ -25,11 +25,11 @@
     "@node-minify/core": "^4.0.5",
     "@node-minify/uglify-es": "^4.0.5",
     "@node-minify/uglify-js": "^4.0.5",
-    "eslint": "^5.14.0",
+    "eslint": "^5.15.3",
     "eslint-config-airbnb-base": "^13.1.0",
     "eslint-plugin-import": "^2.16.0",
     "live-server": "^1.2.1",
-    "rollup": "^1.2.1"
+    "rollup": "^1.7.3"
   },
   "dependencyPaths": [
     "node_modules/gl-matrix/gl-matrix-min.js",
