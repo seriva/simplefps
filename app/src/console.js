@@ -1,6 +1,4 @@
-import Utils from './utils.js';
 import DOM from './dom.js';
-import Input from './input.js';
 
 const h = DOM.h;
 
@@ -77,10 +75,8 @@ const updateCommand = (evt) => {
     command = evt.target.value;
 };
 
-const hideConsole = () => {
-    if (Utils.isMobile()) {
-        visible = false;
-    }
+const toggle = (show) => {
+    show === undefined ? (visible = !visible) : (visible = show);
 };
 
 DOM.append(() => h(
@@ -137,8 +133,7 @@ DOM.append(() => h(
                         disabled: true,
                         value: command,
                         oninput: updateCommand,
-                        afterCreate: setFocus,
-                        onblur: hideConsole
+                        afterCreate: setFocus
                     })
                 ]
             )
@@ -157,6 +152,8 @@ const Console = {
     visible() {
         return visible;
     },
+
+    toggle,
 
     log(m) {
         console.log(m);
@@ -180,38 +177,34 @@ const Console = {
 
     registerCmd(name, value) {
         window.qdfpa[name.toLowerCase()] = value;
+    },
+
+    executeCmd() {
+        if (command === '') return;
+        try {
+            Console.log(command);
+            const cmd = `qdfpa.${command.toLowerCase()}`;
+            let evalCmd = '';
+            if (cmd.indexOf('=') > -1) {
+                // we are dealing with a var assignement.
+                evalCmd = cmd.split('=')[0];
+            } else if (cmd.indexOf('(') > -1) {
+                // we are dealing with a function.
+                evalCmd = cmd.split('(')[0];
+            } else {
+                evalCmd = cmd;
+            }
+            if (evalCmd !== '') {
+                evalCmd = evalCmd.trim();
+                if (deepTest(evalCmd) === undefined) throw new Error('Command does not exist');
+            }
+            eval(cmd);
+        } catch (error) {
+            Console.warn(`Failed to execute command: ${error}`);
+        }
+        command = '';
+        DOM.update();
     }
 };
-
-// Console controls
-Input.addKeyDownEvent(192, () => {
-    visible = !visible;
-});
-Input.addKeyDownEvent(13, () => {
-    if (command === '') return;
-    try {
-        Console.log(command);
-        const cmd = `qdfpa.${command.toLowerCase()}`;
-        let evalCmd = '';
-        if (cmd.indexOf('=') > -1) {
-            // we are dealing with a var assignement.
-            evalCmd = cmd.split('=')[0];
-        } else if (cmd.indexOf('(') > -1) {
-            // we are dealing with a function.
-            evalCmd = cmd.split('(')[0];
-        } else {
-            evalCmd = cmd;
-        }
-        if (evalCmd !== '') {
-            evalCmd = evalCmd.trim();
-            if (deepTest(evalCmd) === undefined) throw new Error('Command does not exist');
-        }
-        eval(cmd);
-    } catch (error) {
-        Console.warn(`Failed to execute command: ${error}`);
-    }
-    command = '';
-    DOM.update();
-});
 
 export { Console as default };

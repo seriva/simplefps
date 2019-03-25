@@ -57,6 +57,14 @@ window.addEventListener(
     false
 );
 
+// console
+Input.addKeyDownEvent(192, () => {
+    Console.toggle();
+});
+Input.addKeyDownEvent(13, () => {
+    Console.executeCmd();
+});
+
 // mouse and keyboard input
 const Controls = {
     update(frametime) {
