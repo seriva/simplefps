@@ -141,6 +141,23 @@ DOM.append(() => h(
         : []
 ));
 
+const convertValue = (type, value) => {
+    switch (type) {
+    case 'string':
+        return value;
+    case 'number':
+        if (Number.isNaN(Number(value))) {
+            throw new Error('Parsing of value failed');
+        }
+        return Number(value);
+    case 'boolean':
+    case 'object':
+        return JSON.parse(value);
+    default:
+        throw new Error('Parsing of value failed');
+    }
+};
+
 const deepTest = (s) => {
     s = s.split('.');
     let obj = window[s.shift()];
@@ -148,21 +165,30 @@ const deepTest = (s) => {
     return obj;
 };
 
-function setDeepValue(obj, path, value) {
-    if (typeof path === "string") {
-        var path = path.split('.');
+const setDeepValue = (obj, path, value) => {
+    if (typeof path === 'string') {
+        path = path.split('.');
     }
 
     if (path.length > 1) {
-        var p = path.shift();
-        if (obj[p] == null || typeof obj[p] !== 'object') {
-            obj[p] = {};
-        }
+        const p = path.shift();
         setDeepValue(obj[p], path, value);
     } else {
-        obj[path[0]] = value;
+        obj[path[0]] = convertValue(typeof obj[path[0]], value);
     }
-}
+};
+
+const executeDeepFunction = (obj, path, params) => {
+    if (typeof path === 'string') {
+        path = path.split('.');
+    }
+
+    if (path.length > 1) {
+        const p = path.shift();
+        executeDeepFunction(obj[p], path, params);
+    } else if (typeof obj[path[0]] === 'function') obj[path[0]](...params);
+    else throw new Error('Parsing of function failed');
+};
 
 const Console = {
     visible() {
@@ -199,16 +225,20 @@ const Console = {
         if (command === '') return;
         try {
             Console.log(command);
-            const cmd = `qdfpa.${command.toLowerCase()}`;
+            const cmd = `qdfpa.${command}`;
             if (cmd.indexOf('=') > -1) {
                 // we are dealing with a var assignement.
-                let split = cmd.split('=');
-                let variable = split[0].trim();
-                let value = split[1].trim();
+                const split = cmd.split('=');
+                const variable = split[0].trim();
+                const value = split[1].trim();
                 if (deepTest(variable) === undefined) throw new Error('Variable does not exist');
                 setDeepValue(window, variable, value);
             } else if (cmd.indexOf('(') > -1) {
-                // we are dealing with a function.
+                const split = cmd.split('(');
+                const func = split[0].trim();
+                const params = split[1].trim().replace(')', ']');
+                if (deepTest(func) === undefined) throw new Error('Function does not exist');
+                executeDeepFunction(window, func, JSON.parse(`[${params}`));
             } else {
                 throw new Error('Parsing command failed');
             }
