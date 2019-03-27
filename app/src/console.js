@@ -148,6 +148,22 @@ const deepTest = (s) => {
     return obj;
 };
 
+function setDeepValue(obj, path, value) {
+    if (typeof path === "string") {
+        var path = path.split('.');
+    }
+
+    if (path.length > 1) {
+        var p = path.shift();
+        if (obj[p] == null || typeof obj[p] !== 'object') {
+            obj[p] = {};
+        }
+        setDeepValue(obj[p], path, value);
+    } else {
+        obj[path[0]] = value;
+    }
+}
+
 const Console = {
     visible() {
         return visible;
@@ -184,21 +200,18 @@ const Console = {
         try {
             Console.log(command);
             const cmd = `qdfpa.${command.toLowerCase()}`;
-            let evalCmd = '';
             if (cmd.indexOf('=') > -1) {
                 // we are dealing with a var assignement.
-                evalCmd = cmd.split('=')[0];
+                let split = cmd.split('=');
+                let variable = split[0].trim();
+                let value = split[1].trim();
+                if (deepTest(variable) === undefined) throw new Error('Variable does not exist');
+                setDeepValue(window, variable, value);
             } else if (cmd.indexOf('(') > -1) {
                 // we are dealing with a function.
-                evalCmd = cmd.split('(')[0];
             } else {
-                evalCmd = cmd;
+                throw new Error('Parsing command failed');
             }
-            if (evalCmd !== '') {
-                evalCmd = evalCmd.trim();
-                if (deepTest(evalCmd) === undefined) throw new Error('Command does not exist');
-            }
-            eval(cmd);
         } catch (error) {
             Console.warn(`Failed to execute command: ${error}`);
         }
