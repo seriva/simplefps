@@ -38,7 +38,7 @@ DOM.append(() => h(
                         'div#button-menu',
                         {
                             onclick: () => {
-                                State.setState('UI', 'MAIN_MENU');
+                                State.setState('MENU', 'MAIN_MENU');
                             }
                         },
                         [h('div#button-menu-bar')]

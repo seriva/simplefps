@@ -39,8 +39,8 @@ document.addEventListener(
     'pointerlockchange',
     () => {
         if (document.pointerLockElement === null) {
-            if (State.getState() !== 'UI') {
-                State.setState('UI', 'MAIN_MENU');
+            if (State.getState() !== 'MENU') {
+                State.setState('MENU', 'MAIN_MENU');
             }
         }
     },
@@ -50,8 +50,8 @@ document.addEventListener(
 window.addEventListener(
     'focus',
     () => {
-        if (State.getState() !== 'UI') {
-            State.setState('UI', 'MAIN_MENU');
+        if (State.getState() !== 'MENU') {
+            State.setState('MENU', 'MAIN_MENU');
         }
     },
     false
@@ -68,7 +68,7 @@ Input.addKeyDownEvent(13, () => {
 // mouse and keyboard input
 const Controls = {
     update(frametime) {
-        if (Console.visible() || State.getState() === 'UI') return;
+        if (Console.visible() || State.getState() === 'MENU') return;
         const ft = frametime / 1000;
 
         // look

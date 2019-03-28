@@ -43,14 +43,14 @@ if (navigator.serviceWorker) {
             registration.update();
             if (registration.waiting) {
                 newServiceWorker = registration.waiting;
-                State.setState('UI', 'UPDATE_MENU');
+                State.setState('MENU', 'UPDATE_MENU');
             } else {
                 registration.addEventListener('updatefound', () => {
                     console.log('SW - Service worker update found');
                     newServiceWorker = registration.installing;
                     newServiceWorker.addEventListener('statechange', () => {
                         if (newServiceWorker.state === 'installed') {
-                            State.setState('UI', 'UPDATE_MENU');
+                            State.setState('MENU', 'UPDATE_MENU');
                         }
                     });
                 });
@@ -72,7 +72,7 @@ if (navigator.serviceWorker) {
 const Update = {
     force: () => {
         if (newServiceWorker !== null) {
-            State.setState('UI', 'UPDATE_MENU');
+            State.setState('MENU', 'UPDATE_MENU');
             return;
         }
         if (registration !== null) {

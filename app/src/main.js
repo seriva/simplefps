@@ -23,7 +23,7 @@ const gl = Renderer.gl;
 (async () => {
     await Resources.load(['resources.list']);
 
-    State.setState('UI', 'MAIN_MENU');
+    State.setState('MENU', 'MAIN_MENU');
 
     let time;
     let frameTime = 0;

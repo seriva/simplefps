@@ -5,24 +5,23 @@ import UI from './ui.js';
 
 let state = 'UI';
 
-const setState = (s, ui) => {
+const setState = (s, menu) => {
     state = s.toUpperCase();
 
     switch (state) {
     case 'GAME':
-    case 'EDITING':
         Input.toggleVirtualInput(true);
         Input.toggleCursor(false);
         Renderer.toggleBlur(false);
         HUD.toggle(true);
         UI.hide();
         break;
-    case 'UI':
+    case 'MENU':
         Input.toggleVirtualInput(false);
         Input.toggleCursor(true);
         Renderer.toggleBlur(true);
         HUD.toggle(false);
-        UI.show(ui);
+        UI.show(menu);
         break;
     default:
         break;
