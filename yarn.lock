@@ -63,9 +63,9 @@
   integrity sha512-EYNwp3bU+98cpU4lAWYYL7Zz+2gryWH1qbdDTidVd6hkiR6weksdbMadyXKXNPEkQFhXM+hVO9ZygomHXp+AIw==
 
 "@types/node@^11.11.6":
-  version "11.11.6"
-  resolved "https://registry.yarnpkg.com/@types/node/-/node-11.11.6.tgz#df929d1bb2eee5afdda598a41930fe50b43eaa6a"
-  integrity sha512-Exw4yUWMBXM3X+8oqzJNRqZSwUAaS4+7NdvHqQuFi/d+synz++xmX3QIf+BFqneW8N31R8Ky+sikfZUXq07ggQ==
+  version "11.12.0"
+  resolved "https://registry.yarnpkg.com/@types/node/-/node-11.12.0.tgz#ec5594728811dc2797e42396cfcdf786f2052c12"
+  integrity sha512-Lg00egj78gM+4aE0Erw05cuDbvX9sLJbaaPwwRtdCdAMnIudqrQZ0oZX98Ek0yiSK/A2nubHgJfvII/rTT2Dwg==
 
 abbrev@1:
   version "1.1.1"
@@ -2219,10 +2219,10 @@ rimraf@2.6.3, rimraf@^2.6.1:
   dependencies:
     glob "^7.1.3"
 
-rollup@^1.7.3:
-  version "1.7.3"
-  resolved "https://registry.yarnpkg.com/rollup/-/rollup-1.7.3.tgz#cade518b92e23efa72026e264e29d9a56cbf8eb9"
-  integrity sha512-U3/HaZujvGofNZQldfIknKoaNFNRS+j8/uCS/jSy3FrxF9t0FBsgZW4+VXLHG7l1daTgE6+jEy0Dv7cVCB2NPg==
+rollup@^1.7.4:
+  version "1.7.4"
+  resolved "https://registry.yarnpkg.com/rollup/-/rollup-1.7.4.tgz#dd9d1d4935d3db38f16e1caaef635d8d1b0831c4"
+  integrity sha512-nc86fETLHdozhRWlW/uNVIQ7ODuA1vU2/L8znAxP9TNMx1NA6GTth3llqoxxCle2kkyui+OfGzbKaQxD60NJjA==
   dependencies:
     "@types/estree" "0.0.39"
     "@types/node" "^11.11.6"

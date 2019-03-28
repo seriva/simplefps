@@ -236,9 +236,9 @@ const Console = {
             } else if (cmd.indexOf('(') > -1) {
                 const split = cmd.split('(');
                 const func = split[0].trim();
-                const params = split[1].trim().replace(')', ']');
+                const params = JSON.parse(`[${split[1].trim().replace(')', ']')}`);
                 if (deepTest(func) === undefined) throw new Error('Function does not exist');
-                executeDeepFunction(window, func, JSON.parse(`[${params}`));
+                executeDeepFunction(window, func, params);
             } else {
                 throw new Error('Parsing command failed');
             }

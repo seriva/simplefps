@@ -35,7 +35,6 @@
     "URL": true,
     "postMessage": true,
     "settings": true,
-    "eval": true,
     "localStorage": true
   }
 }

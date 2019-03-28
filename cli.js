@@ -78,7 +78,7 @@ try {
     fs.writeFileSync(`${rootDir}libs/import.js`, imports);
 
     if (env === 'PRODUCTION') {
-        console.log('Publishing files');
+        console.log('Publishing static files');
         deleteRecursiveSync(publicDir);
         copyRecursiveSync(rootDir, publicDir, ['src']);
 
