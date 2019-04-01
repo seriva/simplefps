@@ -292,11 +292,10 @@ if (Utils.isMobile()) {
     const updateInput = () => {
         if (stickPos !== null) {
             joystickStick.domNode.style.transform = `translate3d(${stickPos.x}px, ${
-                stickPos.y
-            }px, 0px)`;
+                stickPos.y}px, 0px)`;
         }
         if (cursorPos !== null) {
-            cursor.domNode.style.transform = `translate3d(${cursorPos.x}px, ${cursorPos.y}px, 0px)`;
+            cursor.domNode.style.transform = `translate3d(${cursorPos.x}px, ${-window.innerHeight + cursorPos.y}px, 0px)`;
         }
         window.requestAnimationFrame(updateInput);
     };
