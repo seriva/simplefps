@@ -28,9 +28,12 @@ const setState = (s, menu) => {
     }
 };
 
+window.addEventListener('changestate', (e) => {
+    setState(e.detail.state, e.detail.menu);
+});
+
 const State = {
-    getState: () => state,
-    setState
+    getState: () => state
 };
 
 export { State as default };

@@ -1,6 +1,5 @@
 import Utils from './utils.js';
 import DOM from './dom.js';
-import State from './state.js';
 
 const h = DOM.h;
 
@@ -38,7 +37,10 @@ DOM.append(() => h(
                         'div#button-menu',
                         {
                             onclick: () => {
-                                State.setState('MENU', 'MAIN_MENU');
+                                Utils.dispatchCustomEvent('changestate', {
+                                    state: 'MENU',
+                                    menu: 'MAIN_MENU'
+                                });
                             }
                         },
                         [h('div#button-menu-bar')]

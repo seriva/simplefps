@@ -5,7 +5,6 @@ import './translations.js';
 import './hud.js';
 import './ui.js';
 import './update.js';
-import State from './state.js';
 import Resources from './resources.js';
 import Stats from './stats.js';
 import Camera from './camera.js';
@@ -15,6 +14,7 @@ import { Shaders, Shader } from './shaders.js';
 import Buffers from './buffers.js';
 import Skybox from './skybox.js';
 import DOM from './dom.js';
+import Utils from './utils.js';
 
 const glm = glMatrix.glMatrix;
 const mat4 = glMatrix.mat4;
@@ -23,7 +23,10 @@ const gl = Renderer.gl;
 (async () => {
     await Resources.load(['resources.list']);
 
-    State.setState('MENU', 'MAIN_MENU');
+    Utils.dispatchCustomEvent('changestate', {
+        state: 'MENU',
+        menu: 'MAIN_MENU'
+    });
 
     let time;
     let frameTime = 0;
@@ -106,16 +109,8 @@ const gl = Renderer.gl;
         Shaders.directionalLight.setInt('normalBuffer', 1);
         Shaders.directionalLight.setInt('colorBuffer', 2);
         Shaders.directionalLight.setVec3('directionalLight.direction', [-3.0, 4.0, 2.0]);
-        Shaders.directionalLight.setVec3('directionalLight.diffuse', [
-            89 / 255,
-            112 / 255,
-            145 / 255
-        ]);
-        Shaders.directionalLight.setVec3('directionalLight.ambient', [
-            44 / 255,
-            50 / 255,
-            64 / 255
-        ]);
+        Shaders.directionalLight.setVec3('directionalLight.diffuse', [89 / 255, 112 / 255, 145 / 255]);
+        Shaders.directionalLight.setVec3('directionalLight.ambient', [44 / 255, 50 / 255, 64 / 255]);
 
         Renderer.drawFullscreenQuad();
 

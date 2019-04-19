@@ -7,6 +7,7 @@ import State from './state.js';
 import UI from './ui.js';
 import Update from './update.js';
 import Translations from './translations.js';
+import Utils from './utils.js';
 
 const glm = glMatrix.glMatrix;
 const vec3 = glMatrix.vec3;
@@ -17,7 +18,9 @@ UI.register('MAIN_MENU', {
         {
             text: Translations.get('CONTINUE_GAME'),
             callback: () => {
-                State.setState('GAME');
+                Utils.dispatchCustomEvent('changestate', {
+                    state: 'GAME'
+                });
             }
         },
         {
@@ -40,7 +43,10 @@ document.addEventListener(
     () => {
         if (document.pointerLockElement === null) {
             if (State.getState() !== 'MENU') {
-                State.setState('MENU', 'MAIN_MENU');
+                Utils.dispatchCustomEvent('changestate', {
+                    state: 'MENU',
+                    menu: 'MAIN_MENU'
+                });
             }
         }
     },
@@ -51,7 +57,10 @@ window.addEventListener(
     'focus',
     () => {
         if (State.getState() !== 'MENU') {
-            State.setState('MENU', 'MAIN_MENU');
+            Utils.dispatchCustomEvent('changestate', {
+                state: 'MENU',
+                menu: 'MAIN_MENU'
+            });
         }
     },
     false
@@ -90,18 +99,8 @@ const Controls = {
         Camera.direction[0] = 0;
         Camera.direction[1] = 0;
         Camera.direction[2] = 1;
-        vec3.rotateX(
-            Camera.direction,
-            Camera.direction,
-            [0, 0, 0],
-            glm.toRadian(Camera.rotation[1])
-        );
-        vec3.rotateY(
-            Camera.direction,
-            Camera.direction,
-            [0, 0, 0],
-            glm.toRadian(Camera.rotation[0])
-        );
+        vec3.rotateX(Camera.direction, Camera.direction, [0, 0, 0], glm.toRadian(Camera.rotation[1]));
+        vec3.rotateY(Camera.direction, Camera.direction, [0, 0, 0], glm.toRadian(Camera.rotation[0]));
         vec3.normalize(Camera.direction, Camera.direction);
 
         // movement

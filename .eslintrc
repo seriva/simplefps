@@ -2,7 +2,9 @@
   "extends": ["airbnb-base"],
   "rules": {
     "indent": ["error", 4],
-    "max-len": ["error", { "code": 120 }],
+    "max-len": ["error", {
+      "code": 120
+    }],
     "linebreak-style": 0,
     "no-unused-expressions": [
       "error",
@@ -35,6 +37,7 @@
     "URL": true,
     "postMessage": true,
     "settings": true,
-    "localStorage": true
+    "localStorage": true,
+    "CustomEvent": true
   }
 }

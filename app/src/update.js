@@ -1,7 +1,7 @@
-import State from './state.js';
 import Loading from './loading.js';
 import UI from './ui.js';
 import Translations from './translations.js';
+import Utils from './utils.js';
 
 let newServiceWorker = null;
 let registration = null;
@@ -9,9 +9,13 @@ let registration = null;
 const update = () => {
     if (newServiceWorker !== null) {
         Loading.toggle(true, true);
-        newServiceWorker.postMessage({ action: 'skipWaiting' });
+        newServiceWorker.postMessage({
+            action: 'skipWaiting'
+        });
     } else {
-        State.setState('GAME');
+        Utils.dispatchCustomEvent('changestate', {
+            state: 'GAME'
+        });
         console.log('SW - No new service worker found to update');
     }
 };
@@ -28,7 +32,9 @@ UI.register('UPDATE_MENU', {
         {
             text: Translations.get('NO'),
             callback: () => {
-                State.setState('GAME');
+                Utils.dispatchCustomEvent('changestate', {
+                    state: 'GAME'
+                });
             }
         }
     ]
@@ -43,14 +49,20 @@ if (navigator.serviceWorker) {
             registration.update();
             if (registration.waiting) {
                 newServiceWorker = registration.waiting;
-                State.setState('MENU', 'UPDATE_MENU');
+                Utils.dispatchCustomEvent('changestate', {
+                    state: 'MENU',
+                    menu: 'UPDATE_MENU'
+                });
             } else {
                 registration.addEventListener('updatefound', () => {
                     console.log('SW - Service worker update found');
                     newServiceWorker = registration.installing;
                     newServiceWorker.addEventListener('statechange', () => {
                         if (newServiceWorker.state === 'installed') {
-                            State.setState('MENU', 'UPDATE_MENU');
+                            Utils.dispatchCustomEvent('changestate', {
+                                state: 'MENU',
+                                menu: 'UPDATE_MENU'
+                            });
                         }
                     });
                 });
@@ -72,7 +84,10 @@ if (navigator.serviceWorker) {
 const Update = {
     force: () => {
         if (newServiceWorker !== null) {
-            State.setState('MENU', 'UPDATE_MENU');
+            Utils.dispatchCustomEvent('changestate', {
+                state: 'MENU',
+                menu: 'UPDATE_MENU'
+            });
             return;
         }
         if (registration !== null) {

@@ -1,6 +1,7 @@
 import Utils from './utils.js';
 import Settings from './settings.js';
 import DOM from './dom.js';
+import Console from './console.js';
 
 const h = DOM.h;
 
@@ -72,6 +73,7 @@ let upevents = [];
 let downevents = [];
 let timeout;
 let input = null;
+let gamepad = false;
 
 window.addEventListener(
     'keyup',
@@ -125,16 +127,36 @@ window.addEventListener(
     false
 );
 
+window.addEventListener('gamepadconnected', () => {
+    const gp = navigator.getGamepads()[0];
+    Console.log(`Gamepad connected: : ${gp.id}`);
+    gamepad = true;
+    Utils.dispatchCustomEvent('changestate', {
+        state: 'MENU',
+        menu: 'MAIN_MENU'
+    });
+});
+
+window.addEventListener('gamepaddisconnected', () => {
+    Console.log('Gamepad disconnected');
+    gamepad = false;
+    Utils.dispatchCustomEvent('changestate', {
+        state: 'MENU',
+        menu: 'MAIN_MENU'
+    });
+});
+
 if (Utils.isMobile()) {
+    let cursorPos = null;
+    let lastPos = null;
+    let stickPos = null;
+
     const look = h('div#look');
     const cursor = h('div#cursor');
     const joystickStick = h('div#joystick-stick');
     const joystickBase = h('div#joystick-base');
     input = h('div#input', [joystickBase, joystickStick, look, cursor]);
     DOM.append(() => input);
-
-    let cursorPos = null;
-    let lastPos = null;
 
     // touch cursor/mouse
     look.domNode.addEventListener(
@@ -149,7 +171,9 @@ if (Utils.isMobile()) {
             }
             DOM.animate(
                 cursor.domNode,
-                { opacity: 0.35 },
+                {
+                    opacity: 0.35
+                },
                 {
                     mobileHA: false,
                     duration: 100,
@@ -169,7 +193,9 @@ if (Utils.isMobile()) {
             cursorMovement.y = 0;
             DOM.animate(
                 cursor.domNode,
-                { opacity: 0.0 },
+                {
+                    opacity: 0.0
+                },
                 {
                     mobileHA: false,
                     duration: 100,
@@ -200,9 +226,7 @@ if (Utils.isMobile()) {
         false
     );
 
-    // touch joystick
     let dragStart = null;
-    let stickPos = null;
 
     joystickStick.domNode.addEventListener('touchstart', (ev) => {
         joystickStick.domNode.style.transition = '0s';
@@ -288,21 +312,46 @@ if (Utils.isMobile()) {
         }
     });
 
-    // update cursor/joystink
-    const updateInput = () => {
+    // update virtual input
+    const updateVirtualInput = () => {
         if (stickPos !== null) {
-            joystickStick.domNode.style.transform = `translate3d(${stickPos.x}px, ${
-                stickPos.y
-            }px, 0px)`;
+            joystickStick.domNode.style.transform = `translate3d(${stickPos.x}px, ${stickPos.y}px, 0px)`;
         }
         if (cursorPos !== null) {
             cursor.domNode.style.transform = `translate3d(${cursorPos.x}px, ${-window.innerHeight
                 + cursorPos.y}px, 0px)`;
         }
-        window.requestAnimationFrame(updateInput);
+        window.requestAnimationFrame(updateVirtualInput);
     };
-    window.requestAnimationFrame(updateInput);
+    window.requestAnimationFrame(updateVirtualInput);
 }
+
+// update virtual input
+const updateGamepad = () => {
+    const gp = navigator.getGamepads()[0];
+    if (gamepad && gp) {
+        delete pressed[Settings.forward];
+        delete pressed[Settings.backwards];
+        delete pressed[Settings.left];
+        delete pressed[Settings.right];
+
+        if (gp.axes[0] < 0) {
+            pressed[Settings.left] = true;
+        } else if (gp.axes[0] > 0) {
+            pressed[Settings.right] = true;
+        }
+        if (gp.axes[1] < 0) {
+            pressed[Settings.forward] = true;
+        } else if (gp.axes[1] > 0) {
+            pressed[Settings.backwards] = true;
+        }
+
+        // TODO: add sensitivity
+        setCursorMovement(gp.axes[2] * 15, gp.axes[3] * 15);
+    }
+    window.requestAnimationFrame(updateGamepad);
+};
+window.requestAnimationFrame(updateGamepad);
 
 const Input = {
     cursorMovement() {
@@ -321,10 +370,8 @@ const Input = {
 
     toggleVirtualInput(show) {
         if (!Utils.isMobile()) return;
-        show === undefined
-            ? (virtualInputVisible = !virtualInputVisible)
-            : (virtualInputVisible = show);
-        if (virtualInputVisible) {
+        show === undefined ? (virtualInputVisible = !virtualInputVisible) : (virtualInputVisible = show);
+        if (virtualInputVisible && gamepad === false) {
             input.domNode.style.visibility = 'visible';
         } else {
             input.domNode.style.visibility = 'hidden';

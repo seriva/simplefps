@@ -39,6 +39,13 @@ const Utils = {
 
     dispatchEvent(event) {
         window.dispatchEvent(new Event(event));
+    },
+
+    dispatchCustomEvent(event, detail) {
+        const ev = new CustomEvent(event, {
+            detail
+        });
+        window.dispatchEvent(ev);
     }
 };
 
