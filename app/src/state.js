@@ -3,12 +3,12 @@ import Renderer from './renderer.js';
 import Input from './input.js';
 import UI from './ui.js';
 
-let state = 'UI';
+let State = 'UI';
 
 const setState = (s, menu) => {
-    state = s.toUpperCase();
+    State = s.toUpperCase();
 
-    switch (state) {
+    switch (State) {
     case 'GAME':
         Input.toggleVirtualInput(true);
         Input.toggleCursor(false);
@@ -31,9 +31,5 @@ const setState = (s, menu) => {
 window.addEventListener('changestate', (e) => {
     setState(e.detail.state, e.detail.menu);
 });
-
-const State = {
-    getState: () => state
-};
 
 export { State as default };

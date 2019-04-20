@@ -42,7 +42,7 @@ document.addEventListener(
     'pointerlockchange',
     () => {
         if (document.pointerLockElement === null) {
-            if (State.getState() !== 'MENU') {
+            if (State !== 'MENU') {
                 Utils.dispatchCustomEvent('changestate', {
                     state: 'MENU',
                     menu: 'MAIN_MENU'
@@ -56,7 +56,7 @@ document.addEventListener(
 window.addEventListener(
     'focus',
     () => {
-        if (State.getState() !== 'MENU') {
+        if (State !== 'MENU') {
             Utils.dispatchCustomEvent('changestate', {
                 state: 'MENU',
                 menu: 'MAIN_MENU'
@@ -77,7 +77,7 @@ Input.addKeyDownEvent(13, () => {
 // mouse and keyboard input
 const Controls = {
     update(frametime) {
-        if (Console.visible() || State.getState() === 'MENU') return;
+        if (Console.visible() || State === 'MENU') return;
         const ft = frametime / 1000;
 
         // look
