@@ -14,6 +14,7 @@
     "lint": "eslint app/src/**"
   },
   "dependencies": {
+    "cannon": "^0.6.2",
     "gl-matrix": "^3.0.0",
     "jss": "10.0.0-alpha.9",
     "jss-plugin-global": "10.0.0-alpha.9",
@@ -38,7 +39,8 @@
     "node_modules/velocity-animate/velocity.min.js",
     "node_modules/jss/dist/jss.min.js",
     "node_modules/jss-preset-default/dist/jss-preset-default.min.js",
-    "node_modules/jss-plugin-global/dist/jss-plugin-global.min.js"
+    "node_modules/jss-plugin-global/dist/jss-plugin-global.min.js",
+    "node_modules/cannon/build/cannon.min.js"
   ],
   "dependencyGlobalNames": [
     "glMatrix",
@@ -46,6 +48,7 @@
     "Velocity",
     "jss",
     "jssPresetDefault",
-    "jssPluginGlobal"
+    "jssPluginGlobal",
+    "CANNON"
   ]
 }
