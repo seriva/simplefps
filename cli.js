@@ -1,6 +1,5 @@
-const minify = require('@node-minify/core');
-const uglifyES = require('@node-minify/uglify-es');
 const rollup = require('rollup');
+const terser = require('rollup-plugin-terser');
 const liveServer = require('live-server');
 const path = require('path');
 const fs = require('fs');
@@ -81,21 +80,15 @@ try {
         console.log('Generating app bundle');
         const bundleSrc = async () => {
             const b = await rollup.rollup({
-                input: 'app/src/main.js'
+                input: 'app/src/main.js',
+                plugins: [terser.terser()]
             });
             await b.write({
                 format: 'es',
                 file: 'public/src/main.js'
             });
         };
-        bundleSrc().then(() => {
-            console.log('Minifying app bundle');
-            minify({
-                compressor: uglifyES,
-                input: 'public/src/main.js',
-                output: 'public/src/main.js'
-            });
-        });
+        bundleSrc();
     }
 
     if (env === 'DEVELOPMENT') {
