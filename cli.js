@@ -4,7 +4,6 @@ const rollup = require('rollup');
 const liveServer = require('live-server');
 const path = require('path');
 const fs = require('fs');
-const execSync = require('child_process').execSync;
 
 const copyRecursiveSync = (src, dest, exclude) => {
     if (!exclude) exclude = [];
@@ -58,9 +57,6 @@ try {
     const publicDir = path.join(__dirname, 'public/');
     const templateDir = path.join(__dirname, 'templates/');
     const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, 'package.json'), 'utf8'));
-
-    console.log('Generating libs dir');
-    execSync('npx @pika/web --clean --optimize --dest app/src/libs');
 
     if (env === 'PRODUCTION') {
         console.log('Publishing static files');

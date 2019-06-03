@@ -9,17 +9,30 @@
     "url": "https://github.com/seriva/QDFPA.git"
   },
   "scripts": {
+    "prepare": "pika-web --clean --optimize --dest app/src/libs",
     "dev": "node cli.js DEVELOPMENT",
     "build": "node cli.js PRODUCTION",
     "lint": "eslint app/src/**"
   },
   "dependencies": {
+    "cannon": "^0.6.2",
     "gl-matrix": "^3.0.0",
     "jss": "10.0.0-alpha.9",
     "jss-plugin-global": "10.0.0-alpha.9",
     "jss-preset-default": "10.0.0-alpha.9",
     "maquette": "3.3.4",
     "velocity-animate": "^2.0.5"
+  },
+  "@pika/web": {
+    "webDependencies": [
+      "gl-matrix",
+      "jss",
+      "jss-plugin-global",
+      "jss-preset-default",
+      "maquette",
+      "velocity-animate",
+      "cannon/build/cannon.js"
+    ]
   },
   "devDependencies": {
     "@node-minify/core": "^4.0.5",
