@@ -5,19 +5,16 @@ import './translations.js';
 import './hud.js';
 import './ui.js';
 import './update.js';
-
 import Resources from './resources.js';
 import Stats from './stats.js';
 import Camera from './camera.js';
 import Controls from './controls.js';
-import Renderer from './renderer.js';
+import { gl, Renderer } from './renderer.js';
 import { Shaders, Shader } from './shaders.js';
 import Buffers from './buffers.js';
 import Skybox from './skybox.js';
 import DOM from './dom.js';
 import Utils from './utils.js';
-
-const gl = Renderer.gl;
 
 (async () => {
     await Resources.load(['resources.list']);

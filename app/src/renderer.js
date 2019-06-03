@@ -2,7 +2,7 @@ import Console from './console.js';
 import Settings from './settings.js';
 import DOM from './dom.js';
 
-const h = DOM.h;
+const { h } = DOM;
 
 DOM.registerCSS({
     '#game': {
@@ -106,10 +106,8 @@ const Renderer = {
     width,
     height,
     aspectRatio,
-    gl,
-    afExt,
     drawFullscreenQuad,
     toggleBlur
 };
 
-export { Renderer as default };
+export { gl, afExt, Renderer };

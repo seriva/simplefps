@@ -1,8 +1,6 @@
 import DOM from './dom.js';
 
-const h = DOM.h;
-
-DOM.registerCSS({
+DOM.css({
     '#loading': {
         zIndex: 2000
     },
@@ -55,15 +53,11 @@ let isVisible = false;
 let forceUntilReload = false;
 
 // gui function
-const bar = h('div#loading-bar');
-DOM.append(() => h(
+const bar = DOM.h('div#loading-bar');
+DOM.append(() => DOM.h(
     'div#loading',
     isVisible
-        ? [
-            h('div#loading-logo'),
-            h('div#loading-bar-background', [bar]),
-            h('div#loading-background')
-        ]
+        ? [DOM.h('div#loading-logo'), DOM.h('div#loading-bar-background', [bar]), DOM.h('div#loading-background')]
         : []
 ));
 

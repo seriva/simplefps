@@ -1,7 +1,5 @@
-import Renderer from './renderer.js';
+import { gl, Renderer } from './renderer.js';
 import Texture from './texture.js';
-
-const gl = Renderer.gl;
 
 const g = {
     framebuffer: null,
@@ -31,39 +29,21 @@ const init = (width, height) => {
         width,
         height
     });
-    gl.framebufferTexture2D(
-        gl.FRAMEBUFFER,
-        gl.COLOR_ATTACHMENT0,
-        gl.TEXTURE_2D,
-        g.position.texture,
-        0
-    );
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, g.position.texture, 0);
 
     g.normal = new Texture({
         format: gl.RGBA16F,
         width,
         height
     });
-    gl.framebufferTexture2D(
-        gl.FRAMEBUFFER,
-        gl.COLOR_ATTACHMENT1,
-        gl.TEXTURE_2D,
-        g.normal.texture,
-        0
-    );
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT1, gl.TEXTURE_2D, g.normal.texture, 0);
 
     g.color = new Texture({
         format: gl.RGBA8,
         width,
         height
     });
-    gl.framebufferTexture2D(
-        gl.FRAMEBUFFER,
-        gl.COLOR_ATTACHMENT2,
-        gl.TEXTURE_2D,
-        g.color.texture,
-        0
-    );
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT2, gl.TEXTURE_2D, g.color.texture, 0);
 
     g.depth = new Texture({
         format: gl.DEPTH_COMPONENT16,
@@ -87,13 +67,7 @@ const init = (width, height) => {
         width,
         height
     });
-    gl.framebufferTexture2D(
-        gl.FRAMEBUFFER,
-        gl.COLOR_ATTACHMENT0,
-        gl.TEXTURE_2D,
-        l.color.texture,
-        0
-    );
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, l.color.texture, 0);
 
     gl.drawBuffers([gl.COLOR_ATTACHMENT0]);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);

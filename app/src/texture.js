@@ -1,7 +1,5 @@
-import Renderer from './renderer.js';
+import { gl, afExt } from './renderer.js';
 import Settings from './settings.js';
-
-const gl = Renderer.gl;
 
 class Texture {
     constructor(data) {
@@ -9,17 +7,7 @@ class Texture {
         gl.deleteTexture(t.texture);
         t.texture = gl.createTexture();
         gl.bindTexture(gl.TEXTURE_2D, t.texture);
-        gl.texImage2D(
-            gl.TEXTURE_2D,
-            0,
-            gl.RGBA,
-            1,
-            1,
-            0,
-            gl.RGBA,
-            gl.UNSIGNED_BYTE,
-            new Uint8Array([0, 0, 0, 255])
-        );
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([0, 0, 0, 255]));
 
         if (data.data != null) {
             // Create a texture from a file
@@ -32,12 +20,12 @@ class Texture {
                 gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
 
                 // Anisotropic filtering
-                if (Renderer.afExt) {
+                if (afExt) {
                     const af = Math.min(
                         Math.max(Settings.anisotropicFiltering, 1),
-                        gl.getParameter(Renderer.afExt.MAX_TEXTURE_MAX_ANISOTROPY_EXT)
+                        gl.getParameter(afExt.MAX_TEXTURE_MAX_ANISOTROPY_EXT)
                     );
-                    gl.texParameterf(gl.TEXTURE_2D, Renderer.afExt.TEXTURE_MAX_ANISOTROPY_EXT, af);
+                    gl.texParameterf(gl.TEXTURE_2D, afExt.TEXTURE_MAX_ANISOTROPY_EXT, af);
                 }
 
                 // Generate mipmaps
@@ -58,17 +46,7 @@ class Texture {
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
             gl.texStorage2D(gl.TEXTURE_2D, 1, data.format, data.width, data.height);
             if (data.pdata != null && data.ptype != null && data.pformat != null) {
-                gl.texSubImage2D(
-                    gl.TEXTURE_2D,
-                    0,
-                    0,
-                    0,
-                    data.width,
-                    data.height,
-                    data.pformat,
-                    data.ptype,
-                    data.pdata
-                );
+                gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, data.width, data.height, data.pformat, data.ptype, data.pdata);
             }
             t.setTextureWrapMode(gl.CLAMP_TO_EDGE);
         }

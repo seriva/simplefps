@@ -1,9 +1,7 @@
 import Utils from './utils.js';
 import DOM from './dom.js';
 
-const h = DOM.h;
-
-DOM.registerCSS({
+DOM.css({
     '#hud': {
         margin: 0,
         padding: 0,
@@ -27,13 +25,13 @@ DOM.registerCSS({
 
 let visible = true;
 
-DOM.append(() => h(
+DOM.append(() => DOM.h(
     'div#hud',
     visible
         ? [
             Utils.isMobile()
                 ? [
-                    h(
+                    DOM.h(
                         'div#button-menu',
                         {
                             onclick: () => {
@@ -43,7 +41,7 @@ DOM.append(() => h(
                                 });
                             }
                         },
-                        [h('div#button-menu-bar')]
+                        [DOM.h('div#button-menu-bar')]
                     )
                 ]
                 : []

@@ -1,8 +1,6 @@
 import DOM from './dom.js';
 
-const h = DOM.h;
-
-DOM.registerCSS({
+DOM.css({
     '#console': {},
     '#console-body': {
         display: 'inline-block',
@@ -79,11 +77,11 @@ const toggle = (show) => {
     show === undefined ? (visible = !visible) : (visible = show);
 };
 
-DOM.append(() => h(
+DOM.append(() => DOM.h(
     'div#console',
     visible
         ? [
-            h(
+            DOM.h(
                 'div#console-body',
                 {
                     enterAnimation: (domElement) => {
@@ -111,25 +109,25 @@ DOM.append(() => h(
                     }
                 },
                 [
-                    h(
+                    DOM.h(
                         'div#console-content',
                         {
                             onchange: setScrollPos
                         },
                         [
-                            h('p', [
-                                logs.map((log, index) => h(
+                            DOM.h('p', [
+                                logs.map((log, index) => DOM.h(
                                     'span',
                                     {
                                         key: index,
                                         style: `color: ${log.color}`
                                     },
-                                    [log.message, h('br')]
+                                    [log.message, DOM.h('br')]
                                 ))
                             ])
                         ]
                     ),
-                    h('input#console-input', {
+                    DOM.h('input#console-input', {
                         disabled: true,
                         value: command,
                         oninput: updateCommand,

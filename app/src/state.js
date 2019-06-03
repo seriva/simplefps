@@ -1,5 +1,5 @@
 import HUD from './hud.js';
-import Renderer from './renderer.js';
+import { Renderer } from './renderer.js';
 import Input from './input.js';
 import UI from './ui.js';
 

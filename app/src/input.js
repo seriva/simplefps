@@ -3,9 +3,7 @@ import Settings from './settings.js';
 import DOM from './dom.js';
 import Console from './console.js';
 
-const h = DOM.h;
-
-DOM.registerCSS({
+DOM.css({
     '#input': {
         zIndex: 500
     },
@@ -151,11 +149,11 @@ if (Utils.isMobile()) {
     let lastPos = null;
     let stickPos = null;
 
-    const look = h('div#look');
-    const cursor = h('div#cursor');
-    const joystickStick = h('div#joystick-stick');
-    const joystickBase = h('div#joystick-base');
-    input = h('div#input', [joystickBase, joystickStick, look, cursor]);
+    const look = DOM.h('div#look');
+    const cursor = DOM.h('div#cursor');
+    const joystickStick = DOM.h('div#joystick-stick');
+    const joystickBase = DOM.h('div#joystick-base');
+    input = DOM.h('div#input', [joystickBase, joystickStick, look, cursor]);
     DOM.append(() => input);
 
     // touch cursor/mouse

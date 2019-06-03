@@ -14,7 +14,7 @@ const DOM = {
     animate(...args) {
         Velocity(...args);
     },
-    registerCSS(styling) {
+    css(styling) {
         styles
             .createStyleSheet({
                 '@global': styling

@@ -1,6 +1,6 @@
 import Console from './console.js';
 
-let language = navigator.language;
+let l = navigator.language;
 
 const t = {
     'en-US': {
@@ -15,18 +15,18 @@ const t = {
 };
 
 // Fallback if the language does not exist
-if (!Object.prototype.hasOwnProperty.call(t, language)) {
-    language = 'en-US';
+if (!Object.prototype.hasOwnProperty.call(t, l)) {
+    l = 'en-US';
 }
 
-Console.log(`Language ${language}`);
+Console.log(`Language ${localStorage}`);
 
 const Translations = {
     get: (key) => {
-        if (!Object.prototype.hasOwnProperty.call(t[language], key)) {
+        if (!Object.prototype.hasOwnProperty.call(t[l], key)) {
             return '*UNKNOWN KEY*';
         }
-        return t[language][key];
+        return t[l][key];
     }
 };
 

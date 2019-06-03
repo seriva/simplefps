@@ -2,9 +2,12 @@
   "extends": ["airbnb-base"],
   "rules": {
     "indent": ["error", 4],
-    "max-len": ["error", {
-      "code": 120
-    }],
+    "max-len": [
+      "error",
+      {
+        "code": 120
+      }
+    ],
     "linebreak-style": 0,
     "no-unused-expressions": [
       "error",
@@ -22,7 +25,6 @@
     "no-param-reassign": 0,
     "no-bitwise": 0,
     "import/no-mutable-exports": 0,
-    "prefer-destructuring": 0,
     "import/extensions": 0
   },
   "globals": {

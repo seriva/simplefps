@@ -12,9 +12,9 @@ const re = /(?:\.([^.]+))?$/;
 
 const Resources = {
     load(p) {
-        const length = paths.length;
+        const l = paths.length;
         paths = paths.concat(p);
-        if (length !== 0) {
+        if (l !== 0) {
             return null;
         }
         return new Promise((resolve) => {

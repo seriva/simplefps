@@ -1,6 +1,4 @@
-import Renderer from './renderer.js';
-
-const gl = Renderer.gl;
+import { gl } from './renderer.js';
 
 class Mesh {
     constructor(data, resources) {

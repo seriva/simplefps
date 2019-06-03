@@ -1,7 +1,5 @@
 import Console from './console.js';
-import Renderer from './renderer.js';
-
-const gl = Renderer.gl;
+import { gl } from './renderer.js';
 
 class Shader {
     constructor(vertex, fragment) {
@@ -20,9 +18,7 @@ class Shader {
 
         gl.compileShader(s.fragmentShader);
         if (!gl.getShaderParameter(s.fragmentShader, gl.COMPILE_STATUS)) {
-            Console.error(
-                `Error compiling fragment shader: ${gl.getShaderInfoLog(s.fragmentShader)}`
-            );
+            Console.error(`Error compiling fragment shader: ${gl.getShaderInfoLog(s.fragmentShader)}`);
         }
 
         s.program = gl.createProgram();

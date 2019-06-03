@@ -1,5 +1,5 @@
 import { glMatrix, mat4, vec3 } from './libs/gl-matrix.js';
-import Renderer from './renderer.js';
+import { Renderer } from './renderer.js';
 import Utils from './utils.js';
 
 const view = mat4.create();

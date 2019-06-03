@@ -1,8 +1,6 @@
 import DOM from './dom.js';
 
-const h = DOM.h;
-
-DOM.registerCSS({
+DOM.css({
     '#ui': {
         backgroundColor: 'transparent'
     },
@@ -49,11 +47,11 @@ let isVisible = false;
 let current = '';
 const uis = {};
 
-DOM.append(() => h(
+DOM.append(() => DOM.h(
     'div#ui',
     isVisible
         ? [
-            h(
+            DOM.h(
                 'div#menu-base',
                 {
                     enterAnimation: (domElement) => {
@@ -83,8 +81,8 @@ DOM.append(() => h(
                     }
                 },
                 [
-                    h('div#menu-header', [uis[current].header]),
-                    uis[current].controls.map(button => h(
+                    DOM.h('div#menu-header', [uis[current].header]),
+                    uis[current].controls.map(button => DOM.h(
                         'div.menu-button',
                         {
                             key: button.text,

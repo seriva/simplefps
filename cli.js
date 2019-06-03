@@ -1,5 +1,6 @@
 const rollup = require('rollup');
 const terser = require('rollup-plugin-terser');
+const eslint = require('rollup-plugin-eslint');
 const liveServer = require('live-server');
 const path = require('path');
 const fs = require('fs');
@@ -81,7 +82,7 @@ try {
         const bundleSrc = async () => {
             const b = await rollup.rollup({
                 input: 'app/src/main.js',
-                plugins: [terser.terser()]
+                plugins: [terser.terser(), eslint.eslint()]
             });
             await b.write({
                 format: 'es',

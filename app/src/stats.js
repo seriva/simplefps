@@ -2,9 +2,7 @@ import DOM from './dom.js';
 import Console from './console.js';
 import Camera from './camera.js';
 
-const h = DOM.h;
-
-DOM.registerCSS({
+DOM.css({
     '#stats': {
         margin: 0,
         padding: 0,
@@ -55,20 +53,20 @@ window.setInterval(() => {
     }
 }, 1000);
 
-DOM.append(() => h(
+DOM.append(() => DOM.h(
     'div#stats',
     visible
         ? [
-            h('div#stats-text', [
-                h('span.stats-info', [`${fps}fps`]),
-                h('span.stats-info', [`${Math.round(frameTime)}ms`]),
-                h('span.stats-info', [`${memory}mb`])
+            DOM.h('div#stats-text', [
+                DOM.h('span.stats-info', [`${fps}fps`]),
+                DOM.h('span.stats-info', [`${Math.round(frameTime)}ms`]),
+                DOM.h('span.stats-info', [`${memory}mb`])
             ]),
-            h('div#stats-pos', [
+            DOM.h('div#stats-pos', [
                 // eslint-disable-next-line
-                      `xyz: ${Math.round(Camera.position[0])},${Math.round(
-                    Camera.position[1]
-                )},${Math.round(Camera.position[2])}`
+                      `xyz: ${Math.round(Camera.position[0])},${Math.round(Camera.position[1])},${Math.round(
+                    Camera.position[2]
+                )}`
             ])
         ]
         : []
