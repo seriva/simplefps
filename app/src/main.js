@@ -1,10 +1,11 @@
-import { glMatrix } from '../libs/import.js';
+import { glMatrix, mat4 } from './libs/gl-matrix.js';
 import Settings from './settings.js';
 import './console.js';
 import './translations.js';
 import './hud.js';
 import './ui.js';
 import './update.js';
+
 import Resources from './resources.js';
 import Stats from './stats.js';
 import Camera from './camera.js';
@@ -16,8 +17,6 @@ import Skybox from './skybox.js';
 import DOM from './dom.js';
 import Utils from './utils.js';
 
-const glm = glMatrix.glMatrix;
-const mat4 = glMatrix.mat4;
 const gl = Renderer.gl;
 
 (async () => {
@@ -76,7 +75,7 @@ const gl = Renderer.gl;
         Shaders.geometry.setMat4('matViewProj', Camera.viewProjection);
 
         mat4.identity(matModel);
-        mat4.rotate(matModel, matIdentity, glm.toRadian(180), [0, 1, 0]);
+        mat4.rotate(matModel, matIdentity, glMatrix.toRadian(180), [0, 1, 0]);
         Shaders.geometry.setMat4('matWorld', matModel);
         Shaders.geometry.setFloat('detailUVMult', 50);
         detail1Texture.bind(gl.TEXTURE1);

@@ -49,9 +49,7 @@ Console.log(`Vendor: ${gl.getParameter(gl.VENDOR)}`);
 Console.log(`WebGL version: ${gl.getParameter(gl.VERSION)}`);
 Console.log(`GLSL version: ${gl.getParameter(gl.SHADING_LANGUAGE_VERSION)}`);
 Console.log(
-    `Max anisotropic filtering: ${
-        afExt ? gl.getParameter(afExt.MAX_TEXTURE_MAX_ANISOTROPY_EXT) : 'Not supported'
-    }`
+    `Max anisotropic filtering: ${afExt ? gl.getParameter(afExt.MAX_TEXTURE_MAX_ANISOTROPY_EXT) : 'Not supported'}`
 );
 
 const screenQuadVBO = gl.createBuffer();
@@ -72,10 +70,8 @@ const drawFullscreenQuad = () => {
 };
 
 /* eslint-disable */
-const width = () =>
-    Math.floor(gl.canvas.clientWidth * window.devicePixelRatio * Settings.renderscale);
-const height = () =>
-    Math.floor(gl.canvas.clientHeight * window.devicePixelRatio * Settings.renderscale);
+const width = () => Math.floor(gl.canvas.clientWidth * window.devicePixelRatio * Settings.renderscale);
+const height = () => Math.floor(gl.canvas.clientHeight * window.devicePixelRatio * Settings.renderscale);
 /* eslint-disable */
 
 const aspectRatio = () => width() / height();

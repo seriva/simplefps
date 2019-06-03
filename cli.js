@@ -1,10 +1,10 @@
 const minify = require('@node-minify/core');
-const uglifyJS = require('@node-minify/uglify-js');
 const uglifyES = require('@node-minify/uglify-es');
 const rollup = require('rollup');
 const liveServer = require('live-server');
 const path = require('path');
 const fs = require('fs');
+const execSync = require('child_process').execSync;
 
 const copyRecursiveSync = (src, dest, exclude) => {
     if (!exclude) exclude = [];
@@ -15,11 +15,7 @@ const copyRecursiveSync = (src, dest, exclude) => {
         fs.mkdirSync(dest);
         fs.readdirSync(src).forEach((childItemName) => {
             if (exclude.indexOf(childItemName) > -1) return;
-            copyRecursiveSync(
-                path.join(src, childItemName),
-                path.join(dest, childItemName),
-                exclude
-            );
+            copyRecursiveSync(path.join(src, childItemName), path.join(dest, childItemName), exclude);
         });
     } else {
         fs.linkSync(src, dest);
@@ -63,19 +59,8 @@ try {
     const templateDir = path.join(__dirname, 'templates/');
     const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, 'package.json'), 'utf8'));
 
-    console.log('Generating libs bundle');
-    minify({
-        compressor: uglifyJS,
-        input: pkg.dependencyPaths,
-        output: 'app/libs/libs.js'
-    });
-
-    console.log('Generating libs import');
-    let imports = '';
-    pkg.dependencyGlobalNames.forEach((name) => {
-        imports += `const ${name} = window.${name};\ndelete window.${name};\nexport { ${name} };\n\n`;
-    });
-    fs.writeFileSync(`${rootDir}libs/import.js`, imports);
+    console.log('Generating libs dir');
+    execSync('npx @pika/web --clean --optimize --dest app/src/libs');
 
     if (env === 'PRODUCTION') {
         console.log('Publishing static files');

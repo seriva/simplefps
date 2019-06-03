@@ -1,10 +1,6 @@
-import { glMatrix } from '../libs/import.js';
+import { glMatrix, mat4, vec3 } from './libs/gl-matrix.js';
 import Renderer from './renderer.js';
 import Utils from './utils.js';
-
-const glm = glMatrix.glMatrix;
-const mat4 = glMatrix.mat4;
-const vec3 = glMatrix.vec3;
 
 const view = mat4.create();
 const projection = mat4.create();
@@ -21,13 +17,7 @@ let farPlane = 1000;
 window.addEventListener(
     'resize',
     () => {
-        mat4.perspective(
-            projection,
-            glm.toRadian(fov),
-            Renderer.aspectRatio(),
-            nearPlane,
-            farPlane
-        );
+        mat4.perspective(projection, glMatrix.toRadian(fov), Renderer.aspectRatio(), nearPlane, farPlane);
     },
     false
 );

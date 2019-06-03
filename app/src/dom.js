@@ -1,12 +1,13 @@
-import {
-    maquette, Velocity, jss, jssPresetDefault
-} from '../libs/import.js';
+import { createProjector, h } from './libs/maquette.js';
+import Velocity from './libs/velocity-animate.js';
+import { create } from './libs/jss.js';
+import jssPresetDefault from './libs/jss-preset-default.js';
 
-const projector = maquette.createProjector();
-const styles = jss.create(jssPresetDefault.default());
+const projector = createProjector();
+const styles = create(jssPresetDefault());
 
 const DOM = {
-    h: maquette.h,
+    h,
     append(render) {
         projector.append(document.body, render);
     },
