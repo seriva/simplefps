@@ -2,9 +2,7 @@ import Console from './console.js';
 import Settings from './settings.js';
 import DOM from './dom.js';
 
-const { h } = DOM;
-
-DOM.registerCSS({
+DOM.css({
     '#game': {
         background: '#000',
         width: '100vw',
@@ -16,7 +14,7 @@ DOM.registerCSS({
 
 let doBlur = false;
 
-const canvas = h('canvas#game');
+const canvas = DOM.h('canvas#game');
 DOM.append(() => canvas);
 
 const gl = canvas.domNode.getContext('webgl2', {
