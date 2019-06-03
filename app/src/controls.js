@@ -1,4 +1,4 @@
-import { glMatrix } from '../libs/import.js';
+import { glMatrix, vec3 } from './libs/gl-matrix.js';
 import Input from './input.js';
 import Console from './console.js';
 import Camera from './camera.js';
@@ -8,9 +8,6 @@ import UI from './ui.js';
 import Update from './update.js';
 import Translations from './translations.js';
 import Utils from './utils.js';
-
-const glm = glMatrix.glMatrix;
-const vec3 = glMatrix.vec3;
 
 UI.register('MAIN_MENU', {
     header: Translations.get('MAIN_MENU'),
@@ -99,8 +96,8 @@ const Controls = {
         Camera.direction[0] = 0;
         Camera.direction[1] = 0;
         Camera.direction[2] = 1;
-        vec3.rotateX(Camera.direction, Camera.direction, [0, 0, 0], glm.toRadian(Camera.rotation[1]));
-        vec3.rotateY(Camera.direction, Camera.direction, [0, 0, 0], glm.toRadian(Camera.rotation[0]));
+        vec3.rotateX(Camera.direction, Camera.direction, [0, 0, 0], glMatrix.toRadian(Camera.rotation[1]));
+        vec3.rotateY(Camera.direction, Camera.direction, [0, 0, 0], glMatrix.toRadian(Camera.rotation[0]));
         vec3.normalize(Camera.direction, Camera.direction);
 
         // movement
@@ -122,7 +119,7 @@ const Controls = {
         // calculate new position and view direction
         const v = vec3.clone(Camera.direction);
         v[1] = 0;
-        vec3.rotateY(v, v, [0, 0, 0], glm.toRadian(-90));
+        vec3.rotateY(v, v, [0, 0, 0], glMatrix.toRadian(-90));
         vec3.normalize(v, v);
         move *= ft * Settings.movespeed;
         strafe *= ft * Settings.movespeed;

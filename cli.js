@@ -1,7 +1,5 @@
-const minify = require('@node-minify/core');
-const uglifyJS = require('@node-minify/uglify-js');
-const uglifyES = require('@node-minify/uglify-es');
 const rollup = require('rollup');
+const terser = require('rollup-plugin-terser');
 const liveServer = require('live-server');
 const path = require('path');
 const fs = require('fs');
@@ -15,11 +13,7 @@ const copyRecursiveSync = (src, dest, exclude) => {
         fs.mkdirSync(dest);
         fs.readdirSync(src).forEach((childItemName) => {
             if (exclude.indexOf(childItemName) > -1) return;
-            copyRecursiveSync(
-                path.join(src, childItemName),
-                path.join(dest, childItemName),
-                exclude
-            );
+            copyRecursiveSync(path.join(src, childItemName), path.join(dest, childItemName), exclude);
         });
     } else {
         fs.linkSync(src, dest);
@@ -63,20 +57,6 @@ try {
     const templateDir = path.join(__dirname, 'templates/');
     const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, 'package.json'), 'utf8'));
 
-    console.log('Generating libs bundle');
-    minify({
-        compressor: uglifyJS,
-        input: pkg.dependencyPaths,
-        output: 'app/libs/libs.js'
-    });
-
-    console.log('Generating libs import');
-    let imports = '';
-    pkg.dependencyGlobalNames.forEach((name) => {
-        imports += `const ${name} = window.${name};\ndelete window.${name};\nexport { ${name} };\n\n`;
-    });
-    fs.writeFileSync(`${rootDir}libs/import.js`, imports);
-
     if (env === 'PRODUCTION') {
         console.log('Publishing static files');
         deleteRecursiveSync(publicDir);
@@ -100,21 +80,15 @@ try {
         console.log('Generating app bundle');
         const bundleSrc = async () => {
             const b = await rollup.rollup({
-                input: 'app/src/main.js'
+                input: 'app/src/main.js',
+                plugins: [terser.terser()]
             });
             await b.write({
                 format: 'es',
                 file: 'public/src/main.js'
             });
         };
-        bundleSrc().then(() => {
-            console.log('Minifying app bundle');
-            minify({
-                compressor: uglifyES,
-                input: 'public/src/main.js',
-                output: 'public/src/main.js'
-            });
-        });
+        bundleSrc();
     }
 
     if (env === 'DEVELOPMENT') {

@@ -1,10 +1,9 @@
-import { glMatrix } from '../libs/import.js';
+import { mat4 } from './libs/gl-matrix.js';
 import Renderer from './renderer.js';
 import { Shaders } from './shaders.js';
 import Camera from './camera.js';
 import Resources from './resources.js';
 
-const mat4 = glMatrix.mat4;
 const gl = Renderer.gl;
 const matModel = mat4.create();
 const matIdentity = mat4.create();
