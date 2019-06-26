@@ -1,4 +1,4 @@
-import { gl, afExt } from './renderer.js';
+import { gl, afExt } from './context.js';
 import Settings from './settings.js';
 
 class Texture {

@@ -1,5 +1,6 @@
 {
     "resources": [
+        "system/quad.mesh",
         "skyboxes/skybox.mesh",
         "meshes/statue.mesh",
         "meshes/terrain.mesh",

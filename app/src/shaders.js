@@ -1,5 +1,5 @@
 import Console from './console.js';
-import { gl } from './renderer.js';
+import { gl } from './context.js';
 
 class Shader {
     constructor(vertex, fragment) {
@@ -153,7 +153,7 @@ const Shaders = {
 
         precision highp float;
 
-        layout(location=0) in vec2 aPosition;
+        layout(location=0) in vec3 aPosition;
 
         const vec2 scale = vec2(0.5, 0.5);
 
@@ -161,8 +161,8 @@ const Shaders = {
 
         void main()
         {
-            vUV  = aPosition * scale + scale;
-            gl_Position = vec4(aPosition, 0.0, 1.0);
+            vUV  = aPosition.xy * scale + scale;
+            gl_Position = vec4(aPosition, 1.0);
         }`,
         `   #version 300 es
 
@@ -201,11 +201,11 @@ const Shaders = {
     
             precision highp float;
     
-            layout(location=0) in vec2 aPosition;
+            layout(location=0) in vec3 aPosition;
     
             void main()
             {
-                gl_Position = vec4(aPosition, 1.0, 1.0);
+                gl_Position = vec4(aPosition.x, aPosition.y, 1.0, 1.0);
             }`,
         `   #version 300 es
     

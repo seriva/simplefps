@@ -1,4 +1,4 @@
-import { gl } from './renderer.js';
+import { gl } from './context.js';
 
 class Mesh {
     constructor(data, resources) {
@@ -8,11 +8,11 @@ class Mesh {
         m.indices = data.indices;
         m.vertices = data.vertices;
         m.uvs = [];
-        if (data.uvs.length > 0) {
+        if (data.uvs && data.uvs.length > 0) {
             m.uvs = data.uvs;
         }
         m.normals = [];
-        if (data.normals.length > 0) {
+        if (data.normals && data.normals.length > 0) {
             m.normals = data.normals;
         }
         m.initMeshBuffers();

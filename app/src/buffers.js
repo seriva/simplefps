@@ -1,4 +1,4 @@
-import { gl, Renderer } from './renderer.js';
+import { gl, Context } from './context.js';
 import Texture from './texture.js';
 
 const g = {
@@ -149,7 +149,7 @@ const Buffers = {
 window.addEventListener(
     'resize',
     () => {
-        Buffers.init(Renderer.width(), Renderer.height());
+        Buffers.init(Context.width(), Context.height());
     },
     false
 );

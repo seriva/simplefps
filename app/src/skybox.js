@@ -1,5 +1,5 @@
 import { mat4 } from './libs/gl-matrix.js';
-import { gl } from './renderer.js';
+import { gl } from './context.js';
 import { Shaders } from './shaders.js';
 import Camera from './camera.js';
 import Resources from './resources.js';

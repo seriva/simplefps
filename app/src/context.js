@@ -50,23 +50,6 @@ Console.log(
     `Max anisotropic filtering: ${afExt ? gl.getParameter(afExt.MAX_TEXTURE_MAX_ANISOTROPY_EXT) : 'Not supported'}`
 );
 
-const screenQuadVBO = gl.createBuffer();
-gl.bindBuffer(gl.ARRAY_BUFFER, screenQuadVBO);
-gl.bufferData(
-    gl.ARRAY_BUFFER,
-    new Float32Array([-1.0, -1.0, 1.0, 1.0, -1.0, 1.0, -1.0, -1.0, 1.0, -1.0, 1.0, 1.0]),
-    gl.STATIC_DRAW
-);
-
-const drawFullscreenQuad = () => {
-    gl.bindBuffer(gl.ARRAY_BUFFER, screenQuadVBO);
-    gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
-    gl.enableVertexAttribArray(0);
-    gl.drawArrays(gl.TRIANGLES, 0, 6);
-    gl.disableVertexAttribArray(0);
-    gl.bindBuffer(gl.ARRAY_BUFFER, null);
-};
-
 /* eslint-disable */
 const width = () => Math.floor(gl.canvas.clientWidth * window.devicePixelRatio * Settings.renderscale);
 const height = () => Math.floor(gl.canvas.clientHeight * window.devicePixelRatio * Settings.renderscale);
@@ -100,12 +83,11 @@ Console.registerCmd('rscale', scale => {
     window.dispatchEvent(new Event('resize'));
 });
 
-const Renderer = {
+const Context = {
     width,
     height,
     aspectRatio,
-    drawFullscreenQuad,
     toggleBlur
 };
 
-export { gl, afExt, Renderer };
+export { gl, afExt, Context };

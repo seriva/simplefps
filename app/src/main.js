@@ -9,7 +9,7 @@ import Resources from './resources.js';
 import Stats from './stats.js';
 import Camera from './camera.js';
 import Controls from './controls.js';
-import { gl, Renderer } from './renderer.js';
+import { gl, Context } from './context.js';
 import { Shaders, Shader } from './shaders.js';
 import Buffers from './buffers.js';
 import Skybox from './skybox.js';
@@ -27,6 +27,7 @@ import Utils from './utils.js';
     let time;
     let frameTime = 0;
 
+    const quad = Resources.get('system/quad.mesh');
     const templeModel = Resources.get('meshes/temple.mesh');
     const terrainModel = Resources.get('meshes/terrain.mesh');
     const statueModel = Resources.get('meshes/statue.mesh');
@@ -108,7 +109,7 @@ import Utils from './utils.js';
         Shaders.directionalLight.setVec3('directionalLight.diffuse', [89 / 255, 112 / 255, 145 / 255]);
         Shaders.directionalLight.setVec3('directionalLight.ambient', [44 / 255, 50 / 255, 64 / 255]);
 
-        Renderer.drawFullscreenQuad();
+        quad.render();
 
         Shader.unBind();
         Buffers.endLightingPass();
@@ -124,13 +125,13 @@ import Utils from './utils.js';
         Shaders.postProcessing.setInt('positionBuffer', 1);
         Shaders.postProcessing.setInt('normalBuffer', 2);
         Shaders.postProcessing.setInt('noiseBuffer', 3);
-        Shaders.postProcessing.setVec2('viewportSize', [Renderer.width(), Renderer.height()]);
+        Shaders.postProcessing.setVec2('viewportSize', [Context.width(), Context.height()]);
         Shaders.postProcessing.setFloat('ssao.sampleRadius', Settings.ssaoRadius);
         Shaders.postProcessing.setFloat('ssao.bias', Settings.ssaoBias);
         Shaders.postProcessing.setVec2('ssao.attenuation', Settings.ssaoAttenuation);
         Shaders.postProcessing.setVec2('ssao.depthRange', [Settings.znear, Settings.zfar]);
 
-        Renderer.drawFullscreenQuad();
+        quad.render();
 
         Shader.unBind();
         Buffers.endPostProcessingPass();

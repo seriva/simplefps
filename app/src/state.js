@@ -1,5 +1,5 @@
 import HUD from './hud.js';
-import { Renderer } from './renderer.js';
+import { Context } from './context.js';
 import Input from './input.js';
 import UI from './ui.js';
 
@@ -12,14 +12,14 @@ const setState = (s, menu) => {
     case 'GAME':
         Input.toggleVirtualInput(true);
         Input.toggleCursor(false);
-        Renderer.toggleBlur(false);
+        Context.toggleBlur(false);
         HUD.toggle(true);
         UI.hide();
         break;
     case 'MENU':
         Input.toggleVirtualInput(false);
         Input.toggleCursor(true);
-        Renderer.toggleBlur(true);
+        Context.toggleBlur(true);
         HUD.toggle(false);
         UI.show(menu);
         break;
