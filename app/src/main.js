@@ -9,12 +9,14 @@ import Resources from './resources.js';
 import Stats from './stats.js';
 import Camera from './camera.js';
 import Controls from './controls.js';
-import { gl, Context } from './context.js';
+import { gl } from './context.js';
 import { Shaders, Shader } from './shaders.js';
 import Buffers from './buffers.js';
 import Skybox from './skybox.js';
 import DOM from './dom.js';
 import Utils from './utils.js';
+import World from './world.js';
+import Renderer from './renderer.js';
 
 (async () => {
     await Resources.load(['resources.list']);
@@ -27,7 +29,6 @@ import Utils from './utils.js';
     let time;
     let frameTime = 0;
 
-    const quad = Resources.get('system/quad.mesh');
     const templeModel = Resources.get('meshes/temple.mesh');
     const terrainModel = Resources.get('meshes/terrain.mesh');
     const statueModel = Resources.get('meshes/statue.mesh');
@@ -52,9 +53,14 @@ import Utils from './utils.js';
         // update stats
         Stats.update();
 
-        // update the camera
+        // update controls
         Controls.update(frameTime);
+
+        // update camera
         Camera.update();
+
+        // update the world
+        World.update(frameTime);
 
         // **********************************
         // geometry pass
@@ -96,45 +102,8 @@ import Utils from './utils.js';
         Shader.unBind();
         Buffers.endGeomPass();
 
-        // **********************************
-        // lighting pass
-        // **********************************
-        Buffers.startLightingPass();
-
-        Shaders.directionalLight.bind();
-        Shaders.directionalLight.setInt('positionBuffer', 0);
-        Shaders.directionalLight.setInt('normalBuffer', 1);
-        Shaders.directionalLight.setInt('colorBuffer', 2);
-        Shaders.directionalLight.setVec3('directionalLight.direction', [-3.0, 4.0, 2.0]);
-        Shaders.directionalLight.setVec3('directionalLight.diffuse', [89 / 255, 112 / 255, 145 / 255]);
-        Shaders.directionalLight.setVec3('directionalLight.ambient', [44 / 255, 50 / 255, 64 / 255]);
-
-        quad.render();
-
-        Shader.unBind();
-        Buffers.endLightingPass();
-
-        // **********************************
-        // post processing pass
-        // **********************************
-        Buffers.startPostProcessingPass();
-        Shaders.postProcessing.bind();
-        Shaders.postProcessing.setInt('doFXAA', Settings.dofxaa);
-        Shaders.postProcessing.setInt('doSSAO', Settings.dossao);
-        Shaders.postProcessing.setInt('colorBuffer', 0);
-        Shaders.postProcessing.setInt('positionBuffer', 1);
-        Shaders.postProcessing.setInt('normalBuffer', 2);
-        Shaders.postProcessing.setInt('noiseBuffer', 3);
-        Shaders.postProcessing.setVec2('viewportSize', [Context.width(), Context.height()]);
-        Shaders.postProcessing.setFloat('ssao.sampleRadius', Settings.ssaoRadius);
-        Shaders.postProcessing.setFloat('ssao.bias', Settings.ssaoBias);
-        Shaders.postProcessing.setVec2('ssao.attenuation', Settings.ssaoAttenuation);
-        Shaders.postProcessing.setVec2('ssao.depthRange', [Settings.znear, Settings.zfar]);
-
-        quad.render();
-
-        Shader.unBind();
-        Buffers.endPostProcessingPass();
+        // render the actual frame
+        Renderer.render();
 
         // update dom
         DOM.update();
