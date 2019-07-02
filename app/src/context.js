@@ -41,7 +41,7 @@ gl.cullFace(gl.BACK);
 gl.enable(gl.CULL_FACE);
 gl.depthFunc(gl.LEQUAL);
 
-Console.log('Initialized renderer');
+Console.log('Initialized context');
 Console.log(`Renderer: ${gl.getParameter(gl.RENDERER)}`);
 Console.log(`Vendor: ${gl.getParameter(gl.VENDOR)}`);
 Console.log(`WebGL version: ${gl.getParameter(gl.VERSION)}`);
