@@ -15,7 +15,6 @@
   },
   "dependencies": {
     "cannon": "^0.6.2",
-    "eslint-config-airbnb-base": "^13.2.0",
     "gl-matrix": "^3.0.0",
     "jss": "10.0.0-alpha.9",
     "jss-plugin-global": "10.0.0-alpha.9",
@@ -36,8 +35,9 @@
     ]
   },
   "devDependencies": {
-    "@pika/web": "0.4.2",
+    "@pika/web": "^0.5.3",
     "eslint": "^6.0.1",
+    "eslint-config-airbnb-base": "^14.0.0",
     "eslint-plugin-import": "^2.18.0",
     "live-server": "^1.2.1",
     "rollup-plugin-eslint": "^7.0.0",

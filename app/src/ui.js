@@ -82,7 +82,7 @@ DOM.append(() => DOM.h(
                 },
                 [
                     DOM.h('div#menu-header', [uis[current].header]),
-                    uis[current].controls.map(button => DOM.h(
+                    uis[current].controls.map((button) => DOM.h(
                         'div.menu-button',
                         {
                             key: button.text,

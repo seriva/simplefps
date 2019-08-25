@@ -5,8 +5,6 @@
     }
   ],
   "settings": {
-    "prettier.eslintIntegration": true,
-    "editor.formatOnSave": true,
-    "eslint.autoFixOnSave": false
+    "eslint.autoFixOnSave": true
   }
 }
