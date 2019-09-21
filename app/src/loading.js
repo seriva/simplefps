@@ -19,14 +19,21 @@ DOM.css({
 
     '#loading-logo': {
         position: 'fixed',
-        width: '20vh',
-        height: '20vh',
+        width: '30vh',
+        height: '30vh',
         top: '50%',
         left: '50%',
-        marginTop: '-10vh',
-        marginLeft: '-10vh',
+        marginTop: '-15vh',
+        marginLeft: '-15vh',
         content: 'url(resources/logo.svg)',
-        zIndex: 2002
+        zIndex: 2002,
+        animation: 'spin 3s linear infinite'
+    },
+
+    '@keyframes spin': {
+        '100%': {
+            transform: 'rotate(360deg)'
+        }
     },
 
     '#loading-bar-background': {
@@ -34,7 +41,7 @@ DOM.css({
         width: '60%',
         height: '15px',
         padding: '2px',
-        top: '70%',
+        top: '80%',
         left: '50%',
         marginLeft: '-30%',
         border: '2px solid white',

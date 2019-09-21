@@ -29,12 +29,8 @@ import Renderer from './renderer.js';
     let time;
     let frameTime = 0;
 
-    const templeModel = Resources.get('meshes/temple.mesh');
-    const terrainModel = Resources.get('meshes/terrain.mesh');
-    const statueModel = Resources.get('meshes/statue.mesh');
-    const detail1Texture = Resources.get('textures/detail1.jpg');
-    const detail2Texture = Resources.get('textures/detail2.jpg');
-    Skybox.setTextures(Resources.get('skyboxes/2/2.list'));
+    // const templeModel = Resources.get('meshes/temple.mesh');
+    Skybox.setTextures(Resources.get('skyboxes/1/1.list'));
 
     Camera.setProjection(45, Settings.znear, Settings.zfar);
     Camera.setPosition([11, -1, -28]);
@@ -78,26 +74,12 @@ import Renderer from './renderer.js';
         Shaders.geometry.setFloat('detailMult', 0.55);
         Shaders.geometry.setMat4('matViewProj', Camera.viewProjection);
 
-        mat4.identity(matModel);
-        mat4.rotate(matModel, matIdentity, glMatrix.toRadian(180), [0, 1, 0]);
-        Shaders.geometry.setMat4('matWorld', matModel);
-        Shaders.geometry.setFloat('detailUVMult', 50);
-        detail1Texture.bind(gl.TEXTURE1);
-        terrainModel.render();
-
-        mat4.identity(matModel);
-        mat4.translate(matModel, matModel, [11, -2.1, -35]);
-        Shaders.geometry.setMat4('matWorld', matModel);
-        Shaders.geometry.setFloat('detailUVMult', 10);
-        detail2Texture.bind(gl.TEXTURE1);
-        templeModel.render();
-
-        mat4.identity(matModel);
-        mat4.translate(matModel, matModel, [11, -1.7, -41.5]);
-        Shaders.geometry.setMat4('matWorld', matModel);
-        Shaders.geometry.setFloat('detailUVMult', 2);
-        detail2Texture.bind(gl.TEXTURE1);
-        statueModel.render();
+        // mat4.identity(matModel);
+        // mat4.rotate(matModel, matIdentity, glMatrix.toRadian(180), [0, 1, 0]);
+        // Shaders.geometry.setMat4('matWorld', matModel);
+        // Shaders.geometry.setFloat('detailUVMult', 50);
+        // detail1Texture.bind(gl.TEXTURE1);
+        // terrainModel.render();
 
         Shader.unBind();
         Buffers.endGeomPass();

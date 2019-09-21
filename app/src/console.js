@@ -50,7 +50,7 @@ DOM.css({
 });
 
 // where will bind all the commands to eval execution
-window.qdfpa = {};
+window.cubetastic = {};
 
 // local vars
 let visible = false;
@@ -216,14 +216,14 @@ const Console = {
     },
 
     registerCmd(name, value) {
-        window.qdfpa[name.toLowerCase()] = value;
+        window.cubetastic[name.toLowerCase()] = value;
     },
 
     executeCmd() {
         if (command === '') return;
         try {
             Console.log(command);
-            const cmd = `qdfpa.${command}`;
+            const cmd = `cubetastic.${command}`;
             if (cmd.indexOf('=') > -1) {
                 // we are dealing with a var assignement.
                 const split = cmd.split('=');
