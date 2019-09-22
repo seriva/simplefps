@@ -72,7 +72,7 @@ import Renderer from './renderer.js';
         Shaders.geometry.setInt('doDetail', 1);
         Shaders.geometry.setInt('geomType', 1);
         Shaders.geometry.setInt('detailSampler', 1);
-        Shaders.geometry.setFloat('detailMult', 0.7);
+        Shaders.geometry.setFloat('detailMult', 0.8);
         Shaders.geometry.setMat4('matViewProj', Camera.viewProjection);
 
         mat4.identity(matModel);
@@ -85,6 +85,11 @@ import Renderer from './renderer.js';
             for (let j = -6; j <= 6; j++) {
                 mat4.identity(matModel);
                 mat4.translate(matModel, matModel, [i, 0, j]);
+                Shaders.geometry.setMat4('matWorld', matModel);
+                cube.render();
+
+                mat4.identity(matModel);
+                mat4.translate(matModel, matModel, [i, 4, j]);
                 Shaders.geometry.setMat4('matWorld', matModel);
                 cube.render();
             }

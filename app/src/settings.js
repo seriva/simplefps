@@ -9,8 +9,8 @@ let Settings = {
     dofxaa: true,
     dossao: true,
     ssaoRadius: 64,
-    ssaoBias: 0.24,
-    ssaoAttenuation: [1, 2],
+    ssaoBias: 0.1,
+    ssaoAttenuation: [0.7, 1],
     anisotropicFiltering: 16,
 
     // controls
