@@ -1,4 +1,4 @@
-import { glMatrix, mat4 } from './libs/gl-matrix.js';
+// import { glMatrix, mat4 } from './libs/gl-matrix.js';
 import Settings from './settings.js';
 import './console.js';
 import './translations.js';
@@ -9,7 +9,7 @@ import Resources from './resources.js';
 import Stats from './stats.js';
 import Camera from './camera.js';
 import Controls from './controls.js';
-import { gl } from './context.js';
+// import { gl } from './context.js';
 import { Shaders, Shader } from './shaders.js';
 import Buffers from './buffers.js';
 import Skybox from './skybox.js';
@@ -36,9 +36,9 @@ import Renderer from './renderer.js';
     Camera.setPosition([11, -1, -28]);
     Camera.setRotation([180, 0, 0]);
 
-    const matModel = mat4.create();
-    const matIdentity = mat4.create();
-    mat4.identity(matIdentity);
+    // const matModel = mat4.create();
+    // const matIdentity = mat4.create();
+    // mat4.identity(matIdentity);
 
     const loop = () => {
         // timing
