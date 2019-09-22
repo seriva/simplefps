@@ -72,7 +72,7 @@ import Renderer from './renderer.js';
         Shaders.geometry.setInt('doDetail', 1);
         Shaders.geometry.setInt('geomType', 1);
         Shaders.geometry.setInt('detailSampler', 1);
-        Shaders.geometry.setFloat('detailMult', 0.8);
+        Shaders.geometry.setFloat('detailMult', 0.85);
         Shaders.geometry.setMat4('matViewProj', Camera.viewProjection);
 
         mat4.identity(matModel);
