@@ -34,7 +34,7 @@ import Renderer from './renderer.js';
     Skybox.setTextures(Resources.get('skyboxes/1/1.list'));
 
     Camera.setProjection(45, Settings.znear, Settings.zfar);
-    Camera.setPosition([0, 0, -4]);
+    Camera.setPosition([0, 2, -5]);
     Camera.setRotation([0, 0, 0]);
 
     const matModel = mat4.create();
@@ -72,7 +72,7 @@ import Renderer from './renderer.js';
         Shaders.geometry.setInt('doDetail', 1);
         Shaders.geometry.setInt('geomType', 1);
         Shaders.geometry.setInt('detailSampler', 1);
-        Shaders.geometry.setFloat('detailMult', 0.5);
+        Shaders.geometry.setFloat('detailMult', 0.7);
         Shaders.geometry.setMat4('matViewProj', Camera.viewProjection);
 
         mat4.identity(matModel);
@@ -81,32 +81,25 @@ import Renderer from './renderer.js';
         detail.bind(gl.TEXTURE1);
         cube.render();
 
-        mat4.identity(matModel);
-        mat4.translate(matModel, matModel, [1, 0, 0]);
-        Shaders.geometry.setMat4('matWorld', matModel);
-        cube.render();
-        mat4.identity(matModel);
-        mat4.translate(matModel, matModel, [-1, 0, 0]);
-        Shaders.geometry.setMat4('matWorld', matModel);
-        cube.render();
+        for (let i = -6; i <= 6; i++) {
+            for (let j = -6; j <= 6; j++) {
+                mat4.identity(matModel);
+                mat4.translate(matModel, matModel, [i, 0, j]);
+                Shaders.geometry.setMat4('matWorld', matModel);
+                cube.render();
+            }
+        }
 
-        mat4.identity(matModel);
-        mat4.translate(matModel, matModel, [0, 1, 0]);
-        Shaders.geometry.setMat4('matWorld', matModel);
-        cube.render();
-        mat4.identity(matModel);
-        mat4.translate(matModel, matModel, [0, -1, 0]);
-        Shaders.geometry.setMat4('matWorld', matModel);
-        cube.render();
-
-        mat4.identity(matModel);
-        mat4.translate(matModel, matModel, [0, 0, 1]);
-        Shaders.geometry.setMat4('matWorld', matModel);
-        cube.render();
-        mat4.identity(matModel);
-        mat4.translate(matModel, matModel, [0, 0, -1]);
-        Shaders.geometry.setMat4('matWorld', matModel);
-        cube.render();
+        for (let i = -6; i <= 6; i += 3) {
+            for (let j = -6; j <= 6; j += 3) {
+                for (let k = 1; k <= 3; k++) {
+                    mat4.identity(matModel);
+                    mat4.translate(matModel, matModel, [i, k, j]);
+                    Shaders.geometry.setMat4('matWorld', matModel);
+                    cube.render();
+                }
+            }
+        }
 
         Shader.unBind();
         Buffers.endGeomPass();
