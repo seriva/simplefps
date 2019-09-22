@@ -2,6 +2,8 @@
     "resources": [
         "system/quad.mesh",
         "skyboxes/skybox.mesh",
-        "skyboxes/1/1.list"
+        "skyboxes/1/1.list",
+        "meshes/cube.mesh",
+        "textures/detail1.jpg"
     ]
 }

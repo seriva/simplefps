@@ -27,9 +27,9 @@ const doLightingPass = () => {
     Shaders.directionalLight.setInt('positionBuffer', 0);
     Shaders.directionalLight.setInt('normalBuffer', 1);
     Shaders.directionalLight.setInt('colorBuffer', 2);
-    Shaders.directionalLight.setVec3('directionalLight.direction', [-3.0, 4.0, 2.0]);
-    Shaders.directionalLight.setVec3('directionalLight.diffuse', [89 / 255, 112 / 255, 145 / 255]);
-    Shaders.directionalLight.setVec3('directionalLight.ambient', [44 / 255, 50 / 255, 64 / 255]);
+    Shaders.directionalLight.setVec3('directionalLight.direction', [-3.0, 3.0, -3.0]);
+    Shaders.directionalLight.setVec3('directionalLight.diffuse', [0.85, 0.85, 0.85]);
+    Shaders.directionalLight.setVec3('directionalLight.ambient', [0.7, 0.7, 0.7]);
 
     renderQuad();
 
