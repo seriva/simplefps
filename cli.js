@@ -95,7 +95,8 @@ try {
     if (env === 'DEVELOPMENT') {
         console.log('Start dev server');
         liveServer.start({
-            root: rootDir
+            root: rootDir,
+            open: false
         });
     }
 } catch (e) {
