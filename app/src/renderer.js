@@ -10,7 +10,7 @@ const renderQuad = () => {
     if (quad === null) {
         quad = Resources.get('system/quad.mesh');
     } else {
-        quad.render();
+        quad.renderSingle();
     }
 };
 

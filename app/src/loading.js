@@ -26,14 +26,7 @@ DOM.css({
         marginTop: '-15vh',
         marginLeft: '-15vh',
         content: 'url(resources/logo.svg)',
-        zIndex: 2002,
-        animation: 'spin 3s linear infinite'
-    },
-
-    '@keyframes spin': {
-        '100%': {
-            transform: 'rotate(360deg)'
-        }
+        zIndex: 2002
     },
 
     '#loading-bar-background': {
@@ -64,7 +57,21 @@ const bar = DOM.h('div#loading-bar');
 DOM.append(() => DOM.h(
     'div#loading',
     isVisible
-        ? [DOM.h('div#loading-logo'), DOM.h('div#loading-bar-background', [bar]), DOM.h('div#loading-background')]
+        ? [DOM.h('div#loading-logo', {
+            enterAnimation: (domElement) => {
+                console.log(domElement);
+                DOM.animate(
+                    domElement,
+                    { transform: ['rotateZ(360deg)', 'rotateZ(0deg)'] },
+                    {
+                        duration: 3000,
+                        delay: 0,
+                        easing: 'linear',
+                        repeat: true
+                    }
+                );
+            }
+        },), DOM.h('div#loading-bar-background', [bar]), DOM.h('div#loading-background')]
         : []
 ));
 

@@ -62,9 +62,8 @@ class Mesh {
         }
     }
 
-    render() {
+    bind() {
         const m = this;
-
         gl.bindBuffer(gl.ARRAY_BUFFER, m.vertexBuffer);
         gl.vertexAttribPointer(0, m.vertexBuffer.itemSize, gl.FLOAT, false, 0, 0);
         gl.enableVertexAttribArray(0);
@@ -78,6 +77,25 @@ class Mesh {
             gl.vertexAttribPointer(2, m.normalBuffer.itemSize, gl.FLOAT, false, 0, 0);
             gl.enableVertexAttribArray(2);
         }
+    }
+
+    unBind() {
+        const m = this;
+        gl.bindBuffer(gl.ARRAY_BUFFER, null);
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
+        gl.disableVertexAttribArray(0);
+        if (m.uvs.length > 0) {
+            gl.disableVertexAttribArray(1);
+        }
+        if (m.normals.length > 0) {
+            gl.disableVertexAttribArray(2);
+        }
+    }
+
+    renderSingle() {
+        const m = this;
+
+        m.bind();
 
         m.indices.forEach((indexObj) => {
             if (indexObj.material !== 'none') {
@@ -88,15 +106,20 @@ class Mesh {
             gl.drawElements(gl.TRIANGLES, indexObj.indexBuffer.numItems, gl.UNSIGNED_SHORT, 0);
         });
 
-        gl.bindBuffer(gl.ARRAY_BUFFER, null);
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
-        gl.disableVertexAttribArray(0);
-        if (m.uvs.length > 0) {
-            gl.disableVertexAttribArray(1);
-        }
-        if (m.normals.length > 0) {
-            gl.disableVertexAttribArray(2);
-        }
+        m.unBind();
+    }
+
+    renderMany() {
+        const m = this;
+
+        m.indices.forEach((indexObj) => {
+            if (indexObj.material !== 'none') {
+                const mat = m.resources.get(indexObj.material);
+                mat.bind(gl.TEXTURE0);
+            }
+            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexObj.indexBuffer);
+            gl.drawElements(gl.TRIANGLES, indexObj.indexBuffer.numItems, gl.UNSIGNED_SHORT, 0);
+        });
     }
 }
 

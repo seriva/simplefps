@@ -15,7 +15,7 @@ import Buffers from './buffers.js';
 import Skybox from './skybox.js';
 import DOM from './dom.js';
 import Utils from './utils.js';
-import World from './world.js';
+import Map from './map.js';
 import Renderer from './renderer.js';
 
 (async () => {
@@ -56,8 +56,8 @@ import Renderer from './renderer.js';
         // update camera
         Camera.update();
 
-        // update the world
-        World.update(frameTime);
+        // update the map
+        Map.update(frameTime);
 
         // **********************************
         // geometry pass
@@ -79,19 +79,20 @@ import Renderer from './renderer.js';
         Shaders.geometry.setMat4('matWorld', matModel);
         Shaders.geometry.setFloat('detailUVMult', 3);
         detail.bind(gl.TEXTURE1);
-        cube.render();
+
+        cube.bind();
 
         for (let i = -6; i <= 6; i++) {
             for (let j = -6; j <= 6; j++) {
                 mat4.identity(matModel);
                 mat4.translate(matModel, matModel, [i, 0, j]);
                 Shaders.geometry.setMat4('matWorld', matModel);
-                cube.render();
+                cube.renderMany();
 
                 mat4.identity(matModel);
                 mat4.translate(matModel, matModel, [i, 4, j]);
                 Shaders.geometry.setMat4('matWorld', matModel);
-                cube.render();
+                cube.renderMany();
             }
         }
 
@@ -101,11 +102,12 @@ import Renderer from './renderer.js';
                     mat4.identity(matModel);
                     mat4.translate(matModel, matModel, [i, k, j]);
                     Shaders.geometry.setMat4('matWorld', matModel);
-                    cube.render();
+                    cube.renderMany();
                 }
             }
         }
 
+        cube.unBind();
         Shader.unBind();
         Buffers.endGeomPass();
 
