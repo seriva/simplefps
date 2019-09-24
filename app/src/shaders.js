@@ -43,6 +43,14 @@ class Shader {
         gl.useProgram(null);
     }
 
+    getUniformLocation(id) {
+        return gl.getUniformLocation(this.program, id);
+    }
+
+    getAttribLocation(id) {
+        return gl.getAttribLocation(this.program, id);
+    }
+
     setInt(id, value) {
         gl.uniform1i(gl.getUniformLocation(this.program, id), value);
     }
@@ -79,6 +87,7 @@ const Shaders = {
         layout(location=0) in vec3 aPosition;
         layout(location=1) in vec2 aUV;
         layout(location=2) in vec3 aNormal;
+        layout(location=3) in vec3 aOffset;
 
         uniform int geomType;
         uniform mat4 matWorld;
@@ -88,20 +97,27 @@ const Shaders = {
         out vec4 vNormal;
         out vec2 vUV;
 
-        const int MESH  = 1;
-        const int SKY  = 2;
+        const int MESH = 1;
+        const int INSTANCED_MESHES = 2;
+        const int SKYBOX = 3;
         
         void main() {
+            
+            vPosition = vec4(aPosition, 1.0);
             switch (geomType) {
             case MESH:
-                vPosition = matWorld * vec4(aPosition, 1.0);
                 vNormal = matWorld * vec4(aNormal, 0.0);
                 break;
-            case SKY:
+            case INSTANCED_MESHES:
+                vPosition = vPosition + vec4(aOffset, 0.0);
+                vNormal = matWorld * vec4(aNormal, 0.0);
+                break;                
+            case SKYBOX:
                 break;
             }
             vUV = aUV;
-            gl_Position = matViewProj * matWorld * vec4(aPosition, 1.0);
+            vPosition = matWorld * vPosition;
+            gl_Position = matViewProj * vPosition;
         }`,
         `   #version 300 es
     
@@ -124,15 +140,17 @@ const Shaders = {
         uniform sampler2D detailSampler;
 
         const int MESH = 1;
-        const int SKY = 2;
+        const int INSTANCED_MESHES = 2;
+        const int SKYBOX = 3;
 
         void main() {
             switch (geomType) {
             case MESH:
+            case INSTANCED_MESHES:
                 fragPosition = vPosition;
                 fragNormal = vec4(normalize(vNormal.xyz), 0.0);
                 break;
-            case SKY:
+            case SKYBOX:
                 fragNormal = vec4(0.0, 0.0, 0.0, 1.0);
                 break;
             }   

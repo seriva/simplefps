@@ -109,7 +109,7 @@ class Mesh {
         m.unBind();
     }
 
-    renderMany() {
+    renderMany(count) {
         const m = this;
 
         m.indices.forEach((indexObj) => {
@@ -118,7 +118,7 @@ class Mesh {
                 mat.bind(gl.TEXTURE0);
             }
             gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexObj.indexBuffer);
-            gl.drawElements(gl.TRIANGLES, indexObj.indexBuffer.numItems, gl.UNSIGNED_SHORT, 0);
+            gl.drawElementsInstanced(gl.TRIANGLES, indexObj.indexBuffer.numItems, gl.UNSIGNED_SHORT, 0, count);
         });
     }
 }
