@@ -59,7 +59,6 @@ DOM.append(() => DOM.h(
     isVisible
         ? [DOM.h('div#loading-logo', {
             enterAnimation: (domElement) => {
-                console.log(domElement);
                 DOM.animate(
                     domElement,
                     { transform: ['rotateZ(360deg)', 'rotateZ(0deg)'] },
