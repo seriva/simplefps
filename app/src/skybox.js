@@ -27,6 +27,10 @@ const Skydome = {
         gl.depthMask(false);
 
         mat4.translate(matModel, matIdentity, Camera.position);
+
+        Shaders.geometry.setInt('colorSampler', 0);
+        Shaders.geometry.setInt('geomType', 3);
+        Shaders.geometry.setInt('doDetail', 0);
         Shaders.geometry.setMat4('matWorld', matModel);
         Shaders.geometry.setMat4('matViewProj', Camera.viewProjection);
 

@@ -2,6 +2,8 @@ import { Shaders, Shader } from './shaders.js';
 import Resources from './resources.js';
 import Buffers from './buffers.js';
 import Settings from './settings.js';
+import Skybox from './skybox.js';
+import World from './world.js';
 import { Context } from './context.js';
 
 let quad = null;
@@ -15,9 +17,15 @@ const renderQuad = () => {
 };
 
 const doGeomPass = () => {
-    // Buffers.startGeomPass();
+    Buffers.startGeomPass();
+    Shaders.geometry.bind();
 
-    // Buffers.endGeomPass();
+    Skybox.render();
+
+    World.render();
+
+    Shader.unBind();
+    Buffers.endGeomPass();
 };
 
 const doLightingPass = () => {

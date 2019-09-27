@@ -16,7 +16,7 @@ try {
     const NORMAL_RE = /^vn\s/;
     const TEXTURE_RE = /^vt\s/;
     const FACE_RE = /^f\s/;
-    const MAT_RE = /^material\s/;
+    const MAT_RE = /^usemtl\s/;
     const WHITESPACE_RE = /\s+/;
 
     const vertices = [];
@@ -59,18 +59,18 @@ try {
                 } else {
                     const vertex = elements[j].split('/');
                     // vertex position
-                    unpacked.vertices.push(+vertices[(vertex[0]) * 3 + 0]);
-                    unpacked.vertices.push(+vertices[(vertex[0]) * 3 + 1]);
-                    unpacked.vertices.push(+vertices[(vertex[0]) * 3 + 2]);
+                    unpacked.vertices.push(+vertices[(vertex[0] - 1) * 3 + 0]);
+                    unpacked.vertices.push(+vertices[(vertex[0] - 1) * 3 + 1]);
+                    unpacked.vertices.push(+vertices[(vertex[0] - 1) * 3 + 2]);
                     // vertex textures
                     if (uvs.length) {
-                        unpacked.uvs.push(+uvs[(vertex[1]) * 2 + 0]);
-                        unpacked.uvs.push(+uvs[(vertex[1]) * 2 + 1]);
+                        unpacked.uvs.push(+uvs[(vertex[1] - 1) * 2 + 0]);
+                        unpacked.uvs.push(+uvs[(vertex[1] - 1) * 2 + 1]);
                     }
                     // vertex normals
-                    unpacked.normals.push(+normals[(vertex[2]) * 3 + 0]);
-                    unpacked.normals.push(+normals[(vertex[2]) * 3 + 1]);
-                    unpacked.normals.push(+normals[(vertex[2]) * 3 + 2]);
+                    unpacked.normals.push(+normals[(vertex[2] - 1) * 3 + 0]);
+                    unpacked.normals.push(+normals[(vertex[2] - 1) * 3 + 1]);
+                    unpacked.normals.push(+normals[(vertex[2] - 1) * 3 + 2]);
                     // add the newly created vertex to the list of indices
                     unpacked.hashindices[elements[j]] = unpacked.index;
                     unpacked.indices[curIndexArray].array.push(unpacked.index);
