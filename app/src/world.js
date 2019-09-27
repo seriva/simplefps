@@ -11,6 +11,7 @@ let detail = null;
 const dimension = 256;
 const mapData = new Uint8Array(dimension * dimension * dimension);
 const entities = [];
+let cubeCount = 0;
 const offsetBuffer = gl.createBuffer();
 
 const to1D = (x, y, z) => (z * dimension * dimension) + (y * dimension) + x;
@@ -24,6 +25,7 @@ const to3D = (i) => {
 
 const clear = () => {
     mapData.fill(0);
+    cubeCount = 0;
     entities.length = 0;
 };
 
@@ -32,6 +34,7 @@ const prepare = () => {
     for (let i = 0; i < mapData.length; i++) {
         if (mapData[i] === 1) {
             offsetData = offsetData.concat(to3D(i));
+            cubeCount++;
         } else if (mapData[i] === 128) {
             entities.push(new Entity(to3D(i), 'meshes/health.mesh'));
         }
@@ -45,7 +48,6 @@ const update = () => {
     const m = mat4.create();
     mat4.fromRotation(m, performance.now() / 1000, [0, 1, 0]);
     mat4.translate(m, m, [0, (Math.cos(Math.PI * (performance.now() / 1000)) * 0.15), 0]);
-
     entities.forEach((entity) => {
         entity.update(m);
     });
@@ -77,7 +79,7 @@ const render = () => {
     gl.vertexAttribPointer(3, 3, gl.FLOAT, false, 12, 0);
     gl.enableVertexAttribArray(3);
     gl.vertexAttribDivisor(3, 1);
-    cube.renderMany(413);
+    cube.renderMany(cubeCount);
     gl.vertexAttribDivisor(3, 0);
     gl.disableVertexAttribArray(3);
     cube.unBind();
