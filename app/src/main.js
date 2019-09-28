@@ -8,14 +8,22 @@ import Resources from './resources.js';
 import Stats from './stats.js';
 import Camera from './camera.js';
 import Controls from './controls.js';
-import Skybox from './skybox.js';
 import DOM from './dom.js';
 import Utils from './utils.js';
-import World from './world.js';
-import Renderer from './renderer.js';
 
 (async () => {
     await Resources.load(['resources.list']);
+
+    // These modules are dependant on Resources so we import them 
+    // dynamicly after resource loading.
+    /* eslint-disable */
+    let imp = await import('./world.js');
+    let World = imp.default;
+    imp = await import('./renderer.js');
+    let Renderer = imp.default;
+    imp = await import('./skybox.js');
+    let Skybox = imp.default;
+    /* eslint-disable */
 
     Utils.dispatchCustomEvent('changestate', {
         state: 'MENU',

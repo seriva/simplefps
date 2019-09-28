@@ -6,15 +6,13 @@ import Resources from './resources.js';
 
 const matModel = mat4.create();
 const matIdentity = mat4.create();
-
-let mesh;
 mat4.identity(matIdentity);
 mat4.identity(matModel);
+
+const mesh = Resources.get('skyboxes/skybox.mesh');
+
 const Skydome = {
     setTextures(tex) {
-        if (!mesh) {
-            mesh = Resources.get('skyboxes/skybox.mesh');
-        }
         for (let i = 0; i < 6; i++) {
             const texture = Resources.get(tex[i]);
             texture.setTextureWrapMode(gl.CLAMP_TO_EDGE);

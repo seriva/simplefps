@@ -5,8 +5,8 @@ import Resources from './resources.js';
 import Entity from './entity.js';
 import { Shaders } from './shaders.js';
 
-let cube = null;
-let detail = null;
+const cube = Resources.get('meshes/cube.mesh');
+const detail = Resources.get('textures/detail1.jpg');
 
 const dimension = 256;
 const mapData = new Uint8Array(dimension * dimension * dimension);
@@ -57,13 +57,6 @@ const render = () => {
     const matModel = mat4.create();
     mat4.identity(matModel);
 
-    if (cube === null) {
-        cube = Resources.get('meshes/cube.mesh');
-    }
-    if (detail === null) {
-        detail = Resources.get('textures/detail1.jpg');
-    }
-
     Shaders.geometry.setInt('colorSampler', 0);
     Shaders.geometry.setInt('detailSampler', 1);
     Shaders.geometry.setInt('geomType', 2);
@@ -113,10 +106,9 @@ const test = () => {
 
 test();
 
-const Map = {
-    test,
+const World = {
     update,
     render
 };
 
-export { Map as default };
+export { World as default };

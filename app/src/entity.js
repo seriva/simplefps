@@ -4,13 +4,13 @@ import Resources from './resources.js';
 
 class Entity {
     constructor(pos, name) {
-        this.name = name;
-        this.mesh = null;
-        this.base_matrix = mat4.create();
-        this.ani_matrix = mat4.create();
-        mat4.identity(this.base_matrix);
-        mat4.identity(this.ani_matrix);
-        mat4.translate(this.base_matrix, this.base_matrix, pos);
+        const t = this;
+        t.mesh = Resources.get(name);
+        t.base_matrix = mat4.create();
+        t.ani_matrix = mat4.create();
+        mat4.identity(t.base_matrix);
+        mat4.identity(t.ani_matrix);
+        mat4.translate(t.base_matrix, t.base_matrix, pos);
     }
 
     update(mat) {
@@ -20,9 +20,6 @@ class Entity {
     render() {
         Shaders.geometry.setInt('geomType', 1);
         Shaders.geometry.setMat4('matWorld', this.ani_matrix);
-        if (this.mesh === null) {
-            this.mesh = Resources.get(this.name);
-        }
         this.mesh.renderSingle();
     }
 }

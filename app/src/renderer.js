@@ -6,15 +6,7 @@ import Skybox from './skybox.js';
 import World from './world.js';
 import { Context } from './context.js';
 
-let quad = null;
-
-const renderQuad = () => {
-    if (quad === null) {
-        quad = Resources.get('system/quad.mesh');
-    } else {
-        quad.renderSingle();
-    }
-};
+const quad = Resources.get('system/quad.mesh');
 
 const doGeomPass = () => {
     Buffers.startGeomPass();
@@ -39,7 +31,7 @@ const doLightingPass = () => {
     Shaders.directionalLight.setVec3('directionalLight.diffuse', [0.8, 0.8, 0.8]);
     Shaders.directionalLight.setVec3('directionalLight.ambient', [0.7, 0.7, 0.7]);
 
-    renderQuad();
+    quad.renderSingle();
 
     Shader.unBind();
     Buffers.endLightingPass();
@@ -60,7 +52,7 @@ const doPostProcessingPass = () => {
     Shaders.postProcessing.setVec2('ssao.attenuation', Settings.ssaoAttenuation);
     Shaders.postProcessing.setVec2('ssao.depthRange', [Settings.znear, Settings.zfar]);
 
-    renderQuad();
+    quad.renderSingle();
 
     Shader.unBind();
     Buffers.endPostProcessingPass();
