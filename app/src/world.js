@@ -8,14 +8,17 @@ import { Shaders } from './shaders.js';
 const cube = Resources.get('meshes/cube.mesh');
 const detail = Resources.get('textures/detail1.jpg');
 
+const typeMap = new Map();
+typeMap.set(1, 'meshes/tiles.jpg');
+typeMap.set(2, 'meshes/concrete.jpg');
+typeMap.set(128, 'meshes/health.mesh');
+
 const dimension = 256;
 const mapData = new Uint8Array(dimension * dimension * dimension);
 const entities = [];
-let cubeCount = 0;
-const offsetBuffer = gl.createBuffer();
+const buffers = new Map();
 
 const to1D = (x, y, z) => (z * dimension * dimension) + (y * dimension) + x;
-
 const to3D = (i) => {
     const x = Math.floor(i % dimension);
     const y = Math.floor((i / dimension) % dimension);
@@ -25,23 +28,36 @@ const to3D = (i) => {
 
 const clear = () => {
     mapData.fill(0);
-    cubeCount = 0;
     entities.length = 0;
+    buffers.forEach((value) => {
+        gl.deleteBuffer(value.id);
+    });
+    buffers.clear();
 };
 
 const prepare = () => {
-    let offsetData = [];
     for (let i = 0; i < mapData.length; i++) {
-        if (mapData[i] === 1) {
-            offsetData = offsetData.concat(to3D(i));
-            cubeCount++;
-        } else if (mapData[i] === 128) {
-            entities.push(new Entity(to3D(i), 'meshes/health.mesh'));
+        if (mapData[i] >= 1 && mapData[i] < 128) {
+            if (!buffers.has(mapData[i])) {
+                buffers.set(mapData[i], {
+                    id: gl.createBuffer(),
+                    count: 0,
+                    data: []
+                });
+            }
+            const buffer = buffers.get(mapData[i]);
+            buffer.data = buffer.data.concat(to3D(i));
+            buffer.count++;
+        } else if (mapData[i] >= 128) {
+            entities.push(new Entity(to3D(i), typeMap.get(mapData[i])));
         }
     }
-    offsetData = new Float32Array(offsetData);
-    gl.bindBuffer(gl.ARRAY_BUFFER, offsetBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, offsetData, gl.STATIC_DRAW);
+
+    buffers.forEach((value) => {
+        gl.bindBuffer(gl.ARRAY_BUFFER, value.id);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(value.data), gl.STATIC_DRAW);
+        value.data = [];
+    });
 };
 
 const update = () => {
@@ -68,13 +84,16 @@ const render = () => {
     detail.bind(gl.TEXTURE1);
 
     cube.bind();
-    gl.bindBuffer(gl.ARRAY_BUFFER, offsetBuffer);
-    gl.vertexAttribPointer(3, 3, gl.FLOAT, false, 12, 0);
-    gl.enableVertexAttribArray(3);
-    gl.vertexAttribDivisor(3, 1);
-    cube.renderMany(cubeCount);
-    gl.vertexAttribDivisor(3, 0);
-    gl.disableVertexAttribArray(3);
+    buffers.forEach((value, key) => {
+        cube.indices[0].material = typeMap.get(key);
+        gl.bindBuffer(gl.ARRAY_BUFFER, value.id);
+        gl.vertexAttribPointer(3, 3, gl.FLOAT, false, 12, 0);
+        gl.enableVertexAttribArray(3);
+        gl.vertexAttribDivisor(3, 1);
+        cube.renderMany(value.count);
+        gl.vertexAttribDivisor(3, 0);
+        gl.disableVertexAttribArray(3);
+    });
     cube.unBind();
 
     entities.forEach((entity) => {
@@ -96,7 +115,7 @@ const test = () => {
                 continue;
             }
             for (let k = 1; k <= 3; k++) {
-                mapData[to1D(i, k, j)] = 1;
+                mapData[to1D(i, k, j)] = 2;
             }
         }
     }

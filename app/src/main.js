@@ -23,7 +23,7 @@ import Utils from './utils.js';
     let Renderer = imp.default;
     imp = await import('./skybox.js');
     let Skybox = imp.default;
-    /* eslint-disable */
+    /* eslint-enable */
 
     Utils.dispatchCustomEvent('changestate', {
         state: 'MENU',
@@ -32,7 +32,7 @@ import Utils from './utils.js';
 
     let time;
     let frameTime = 0;
-
+    
     Skybox.setTextures(Resources.get('skyboxes/1/1.list'));
     Camera.setProjection(45, Settings.znear, Settings.zfar);
     Camera.setPosition([6, 1.75, 4]);
