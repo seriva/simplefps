@@ -82,11 +82,11 @@ try {
         const bundleSrc = async () => {
             const b = await rollup.rollup({
                 input: 'app/src/main.js',
-                plugins: [terser.terser(), eslint.eslint()]
+                plugins: [terser.terser()] // , eslint.eslint()]
             });
             await b.write({
                 format: 'es',
-                file: 'public/src/main.js'
+                dir: 'public/src/'
             });
         };
         bundleSrc();
