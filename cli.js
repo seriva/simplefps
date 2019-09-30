@@ -63,23 +63,8 @@ try {
         deleteRecursiveSync(publicDir);
         copyRecursiveSync(rootDir, publicDir, ['src']);
 
-        console.log('Generating service worker');
-        let swTemplate = fs.readFileSync(`${templateDir}sw.tpl`, 'utf8');
-        const timeStamp = new Date().getTime();
-        const swFiles = [];
-        listRecursiveSync(publicDir, swFiles);
-        const rp = path.normalize(publicDir);
-        let filesNew = "[\n  '.',\n";
-        swFiles.forEach((s) => {
-            filesNew += `  '${s.replace(rp, '').replace(/\\/g, '/')}',\n`;
-        });
-        filesNew += ']';
-        swTemplate = swTemplate.replace('{{cacheArray}}', filesNew.toString());
-        swTemplate = swTemplate.replace('{{cacheName}}', `${pkg.name}-${pkg.version}-${timeStamp}`);
-        fs.writeFileSync(`${publicDir}sw.js`, swTemplate);
-
         console.log('Generating app bundle');
-        const bundleSrc = async () => {
+        const bundle = async () => {
             const b = await rollup.rollup({
                 input: 'app/src/main.js',
                 plugins: [terser.terser(), eslint.eslint()]
@@ -91,7 +76,22 @@ try {
                 dir: 'public/src/'
             });
         };
-        bundleSrc();
+        bundle().then(() => {
+            console.log('Generating service worker');
+            let swTemplate = fs.readFileSync(`${templateDir}sw.tpl`, 'utf8');
+            const timeStamp = new Date().getTime();
+            const swFiles = [];
+            listRecursiveSync(publicDir, swFiles);
+            const rp = path.normalize(publicDir);
+            let filesNew = "[\n  '.',\n";
+            swFiles.forEach((s) => {
+                filesNew += `  '${s.replace(rp, '').replace(/\\/g, '/')}',\n`;
+            });
+            filesNew += ']';
+            swTemplate = swTemplate.replace('{{cacheArray}}', filesNew.toString());
+            swTemplate = swTemplate.replace('{{cacheName}}', `${pkg.name}-${pkg.version}-${timeStamp}`);
+            fs.writeFileSync(`${publicDir}sw.js`, swTemplate);
+        });
     }
 
     if (env === 'DEVELOPMENT') {
