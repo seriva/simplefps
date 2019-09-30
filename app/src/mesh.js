@@ -26,9 +26,9 @@ class Mesh {
 
     static buildBuffer(type, data, itemSize) {
         const buffer = gl.createBuffer();
-        const arrayView = type === gl.ARRAY_BUFFER ? Float32Array : Uint16Array;
+        const ArrayView = type === gl.ARRAY_BUFFER ? Float32Array : Uint16Array;
         gl.bindBuffer(type, buffer);
-        gl.bufferData(type, new arrayView(data), gl.STATIC_DRAW);
+        gl.bufferData(type, new ArrayView(data), gl.STATIC_DRAW);
         buffer.itemSize = itemSize;
         buffer.numItems = data.length / itemSize;
         return buffer;

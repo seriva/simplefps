@@ -16,14 +16,13 @@ import Utils from './utils.js';
 
     // These modules are dependant on Resources so we import them 
     // dynamicly after resource loading.
-    /* eslint-disable */
+    // TODO: Check eslint for dynamic import support, for now we exclude main.js.
     let imp = await import('./world.js');
     let World = imp.default;
     imp = await import('./renderer.js');
     let Renderer = imp.default;
     imp = await import('./skybox.js');
     let Skybox = imp.default;
-    /* eslint-enable */
 
     Utils.dispatchCustomEvent('changestate', {
         state: 'MENU',

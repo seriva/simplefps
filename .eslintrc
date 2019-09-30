@@ -1,5 +1,8 @@
 {
   "extends": ["airbnb-base"],
+  "env": {
+    "browser": true
+  },  
   "rules": {
     "indent": ["error", 4],
     "max-len": [
@@ -21,26 +24,10 @@
     "no-console": 0,
     "no-plusplus": 0,
     "prefer-spread": 0,
-    "new-cap": 0,
     "no-param-reassign": 0,
     "no-bitwise": 0,
     "import/no-mutable-exports": 0,
     "import/extensions": 0,
     "no-continue": 0
-  }, 
-  "globals": {
-    "performance": true,
-    "Image": true,
-    "window": true,
-    "navigator": true,
-    "document": true,
-    "XMLHttpRequest": true,
-    "Event": true,
-    "Blob": true,
-    "URL": true,
-    "postMessage": true,
-    "settings": true,
-    "localStorage": true,
-    "CustomEvent": true
   }
 }
