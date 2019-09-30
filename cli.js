@@ -82,11 +82,12 @@ try {
         const bundleSrc = async () => {
             const b = await rollup.rollup({
                 input: 'app/src/main.js',
-                inlineDynamicImports: true,
                 plugins: [terser.terser(), eslint.eslint()]
             });
             await b.write({
                 format: 'es',
+                entryFileNames: 'main.js',
+                chunkFileNames: 'main-[hash].js',
                 dir: 'public/src/'
             });
         };

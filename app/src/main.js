@@ -1,9 +1,4 @@
 import Settings from './settings.js';
-import './console.js';
-import './translations.js';
-import './hud.js';
-import './ui.js';
-import './update.js';
 import Resources from './resources.js';
 import Stats from './stats.js';
 import Camera from './camera.js';
@@ -14,8 +9,7 @@ import Utils from './utils.js';
 (async () => {
     await Resources.load(['resources.list']);
 
-    // These modules are dependant on Resources so we import them 
-    // dynamicly after resource loading.
+    // These modules are dependant on Resources so we import them dynamicly after resource loading.
     // TODO: Check eslint for dynamic import support, for now we exclude main.js.
     let imp = await import('./world.js');
     let World = imp.default;
