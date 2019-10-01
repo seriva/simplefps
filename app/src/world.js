@@ -12,6 +12,8 @@ const typeMap = new Map();
 typeMap.set(1, 'meshes/tiles.jpg');
 typeMap.set(2, 'meshes/concrete.jpg');
 typeMap.set(128, 'meshes/health.mesh');
+typeMap.set(129, 'meshes/armor.mesh');
+typeMap.set(130, 'meshes/ammo.mesh');
 
 const dimension = 256;
 const mapData = new Uint8Array(dimension * dimension * dimension);
@@ -96,6 +98,7 @@ const render = () => {
     });
     cube.unBind();
 
+    Shaders.geometry.setInt('doDetail', 0);
     entities.forEach((entity) => {
         entity.render();
     });
@@ -119,7 +122,9 @@ const test = () => {
             }
         }
     }
+    mapData[to1D(5, 1, 6)] = 129;
     mapData[to1D(6, 1, 6)] = 128;
+    mapData[to1D(7, 1, 6)] = 130;
     prepare();
 };
 

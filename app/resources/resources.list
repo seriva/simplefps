@@ -5,6 +5,8 @@
         "meshes/concrete.jpg",
         "meshes/tiles.jpg",
         "meshes/health.mesh",
+        "meshes/armor.mesh",
+        "meshes/ammo.mesh",
         "skyboxes/skybox.mesh",
         "skyboxes/1/1.list",
         "textures/detail1.jpg"
