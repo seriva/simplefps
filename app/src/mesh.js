@@ -6,14 +6,8 @@ class Mesh {
         m.resources = resources;
         m.indices = data.indices;
         m.vertices = data.vertices;
-        m.uvs = [];
-        if (data.uvs && data.uvs.length > 0) {
-            m.uvs = data.uvs;
-        }
-        m.normals = [];
-        if (data.normals && data.normals.length > 0) {
-            m.normals = data.normals;
-        }
+        m.uvs = data.uvs && data.uvs.length > 0 ? data.uvs : [];
+        m.normals = (data.normals && data.normals.length > 0) ? data.normals : [];
         m.initMeshBuffers();
     }
 
