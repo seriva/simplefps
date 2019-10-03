@@ -3,6 +3,7 @@ import Texture from './texture.js';
 import Mesh from './mesh.js';
 import Loading from './loading.js';
 import Utils from './utils.js';
+import Material from './material.js';
 
 let paths = [];
 let startTime;
@@ -24,7 +25,6 @@ const Resources = {
             Loading.update(0, paths.length);
 
             const loadNext = async () => {
-                let resource = null;
                 const path = paths[counter];
                 const fullpath = basepath + path;
                 const ext = re.exec(path)[1];
@@ -34,14 +34,19 @@ const Resources = {
                         const response = await Utils.fetch(fullpath);
                         switch (ext) {
                         case 'jpg':
-                            resource = new Texture({ data: response });
+                            resources[path] = new Texture({ data: response });
                             break;
                         case 'mesh':
-                            resource = new Mesh(JSON.parse(response), this);
+                            resources[path] = new Mesh(JSON.parse(response), this);
                             break;
+                        case 'mat': {
+                            JSON.parse(response).materials.forEach((data) => {
+                                resources[data.name] = new Material(data, this);
+                            });
+                            break;
+                        }
                         case 'list': {
-                            resource = JSON.parse(response).resources;
-                            Resources.load(resource);
+                            Resources.load(JSON.parse(response).resources);
                             break;
                         }
                         default:
@@ -49,7 +54,6 @@ const Resources = {
                         }
 
                         Console.log(`Loaded: ${path}`);
-                        resources[path] = resource;
                     }
                     counter++;
                     Loading.update(counter, paths.length);

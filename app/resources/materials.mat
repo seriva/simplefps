@@ -1,0 +1,47 @@
+{
+    "materials": [
+        {
+            "name": "mat_world_tiles",
+            "textures": [
+                "meshes/tiles.jpg",
+                "textures/detail1.jpg"
+            ],
+            "geomType": 2,
+            "doDetail": 1,
+            "detailMult": 0.85,
+            "detailUVMult": 3      
+        },
+        {
+            "name": "mat_world_concrete",
+            "textures": [
+                "meshes/concrete.jpg",
+                "textures/detail1.jpg"
+            ],
+            "geomType": 2,
+            "doDetail": 1,
+            "detailMult": 0.85,
+            "detailUVMult": 3      
+        },
+        {
+            "name": "mat_pickup_ammo",
+            "textures": [
+                "meshes/ammo.jpg"
+            ],
+            "geomType": 1     
+        },
+        {
+            "name": "mat_pickup_health",
+            "textures": [
+                "meshes/health.jpg"
+            ],
+            "geomType": 1 
+        },
+        {
+            "name": "mat_pickup_armor",
+            "textures": [
+                "meshes/armor.jpg"
+            ],
+            "geomType": 1
+        }
+    ]
+}

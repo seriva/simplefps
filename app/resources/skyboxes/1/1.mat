@@ -1,0 +1,46 @@
+{
+    "materials": [
+        {
+            "name": "mat_sky_0_front",
+            "textures": [
+                "skyboxes/1/front.jpg"
+            ],
+            "geomType": 3   
+        },        
+        {
+            "name": "mat_sky_0_back",
+            "textures": [
+                "skyboxes/1/back.jpg"
+            ],
+            "geomType": 3    
+        },  
+        {
+            "name": "mat_sky_0_top",
+            "textures": [
+                "skyboxes/1/top.jpg"
+            ],
+            "geomType": 3  
+        },  
+        {
+            "name": "mat_sky_0_bottom",
+            "textures": [
+                "skyboxes/1/bottom.jpg"
+            ],
+            "geomType": 3   
+        },
+        {
+            "name": "mat_sky_0_right",
+            "textures": [
+                "skyboxes/1/right.jpg"
+            ],
+            "geomType": 3    
+        },
+        {
+            "name": "mat_sky_0_left",
+            "textures": [
+                "skyboxes/1/left.jpg"
+            ],
+            "geomType": 3   
+        } 
+    ]
+}

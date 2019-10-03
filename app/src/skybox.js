@@ -12,11 +12,9 @@ mat4.identity(matModel);
 const mesh = Resources.get('skyboxes/skybox.mesh');
 
 const Skydome = {
-    setTextures(tex) {
+    setMaterials(matList) {
         for (let i = 0; i < 6; i++) {
-            const texture = Resources.get(tex[i]);
-            texture.setTextureWrapMode(gl.CLAMP_TO_EDGE);
-            mesh.indices[i].material = tex[i];
+            mesh.indices[i].material = matList[i];
         }
     },
 
@@ -25,12 +23,9 @@ const Skydome = {
         gl.depthMask(false);
 
         mat4.translate(matModel, matIdentity, Camera.position);
-
-        Shaders.geometry.setInt('colorSampler', 0);
-        Shaders.geometry.setInt('geomType', 3);
-        Shaders.geometry.setInt('doDetail', 0);
         Shaders.geometry.setMat4('matWorld', matModel);
         Shaders.geometry.setMat4('matViewProj', Camera.viewProjection);
+        Shaders.geometry.setInt('colorSampler', 0);
 
         mesh.renderSingle();
 

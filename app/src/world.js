@@ -6,11 +6,10 @@ import Entity from './entity.js';
 import { Shaders } from './shaders.js';
 
 const cube = Resources.get('meshes/cube.mesh');
-const detail = Resources.get('textures/detail1.jpg');
 
 const typeMap = new Map();
-typeMap.set(1, 'meshes/tiles.jpg');
-typeMap.set(2, 'meshes/concrete.jpg');
+typeMap.set(1, 'mat_world_tiles');
+typeMap.set(2, 'mat_world_concrete');
 typeMap.set(128, 'meshes/health.mesh');
 typeMap.set(129, 'meshes/armor.mesh');
 typeMap.set(130, 'meshes/ammo.mesh');
@@ -74,16 +73,8 @@ const update = () => {
 const render = () => {
     const matModel = mat4.create();
     mat4.identity(matModel);
-
-    Shaders.geometry.setInt('colorSampler', 0);
-    Shaders.geometry.setInt('detailSampler', 1);
-    Shaders.geometry.setInt('geomType', 2);
-    Shaders.geometry.setInt('doDetail', 1);
-    Shaders.geometry.setFloat('detailMult', 0.85);
-    Shaders.geometry.setFloat('detailUVMult', 3);
     Shaders.geometry.setMat4('matViewProj', Camera.viewProjection);
     Shaders.geometry.setMat4('matWorld', matModel);
-    detail.bind(gl.TEXTURE1);
 
     cube.bind();
     buffers.forEach((value, key) => {
@@ -98,7 +89,6 @@ const render = () => {
     });
     cube.unBind();
 
-    Shaders.geometry.setInt('doDetail', 0);
     entities.forEach((entity) => {
         entity.render();
     });

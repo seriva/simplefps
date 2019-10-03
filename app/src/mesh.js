@@ -3,7 +3,6 @@ import { gl } from './context.js';
 class Mesh {
     constructor(data, resources) {
         const m = this;
-
         m.resources = resources;
         m.indices = data.indices;
         m.vertices = data.vertices;
@@ -16,12 +15,6 @@ class Mesh {
             m.normals = data.normals;
         }
         m.initMeshBuffers();
-
-        m.indices.forEach((indice) => {
-            if (indice.material !== 'none') {
-                resources.load(indice.material);
-            }
-        });
     }
 
     static buildBuffer(type, data, itemSize) {
@@ -100,7 +93,7 @@ class Mesh {
         m.indices.forEach((indexObj) => {
             if (indexObj.material !== 'none') {
                 const mat = m.resources.get(indexObj.material);
-                mat.bind(gl.TEXTURE0);
+                mat.bind();
             }
             gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexObj.indexBuffer);
             gl.drawElements(gl.TRIANGLES, indexObj.indexBuffer.numItems, gl.UNSIGNED_SHORT, 0);
@@ -115,7 +108,7 @@ class Mesh {
         m.indices.forEach((indexObj) => {
             if (indexObj.material !== 'none') {
                 const mat = m.resources.get(indexObj.material);
-                mat.bind(gl.TEXTURE0);
+                mat.bind();
             }
             gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexObj.indexBuffer);
             gl.drawElementsInstanced(gl.TRIANGLES, indexObj.indexBuffer.numItems, gl.UNSIGNED_SHORT, 0, count);
