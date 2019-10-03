@@ -25,12 +25,6 @@ UI.register('MAIN_MENU', {
             callback: () => {
                 Update.force();
             }
-        },
-        {
-            text: Translations.get('EXIT'),
-            callback: () => {
-                window.close();
-            }
         }
     ]
 });
