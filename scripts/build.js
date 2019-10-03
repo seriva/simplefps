@@ -53,10 +53,9 @@ try {
         throw new Error('Invalid input parameter');
     }
     const env = process.argv[2];
-    const rootDir = path.join(__dirname, 'app/');
-    const publicDir = path.join(__dirname, 'public/');
-    const templateDir = path.join(__dirname, 'templates/');
-    const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, 'package.json'), 'utf8'));
+    const rootDir = path.join(__dirname, '../app/');
+    const publicDir = path.join(__dirname, '../public/');
+    const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '../package.json'), 'utf8'));
 
     if (env === 'PRODUCTION') {
         console.log('Publishing static files');
@@ -78,7 +77,7 @@ try {
         };
         bundle().then(() => {
             console.log('Generating service worker');
-            let swTemplate = fs.readFileSync(`${templateDir}sw.tpl`, 'utf8');
+            let swTemplate = fs.readFileSync(path.join(__dirname, 'sw.tpl'), 'utf8');
             const timeStamp = new Date().getTime();
             const swFiles = [];
             listRecursiveSync(publicDir, swFiles);
