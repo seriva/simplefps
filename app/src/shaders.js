@@ -343,6 +343,21 @@ const Shaders = {
                 return clamp(occlusion / 16.0, 0.0, 1.0);
             }
 
+            vec4 blur(sampler2D image, vec2 uv, vec2 resolution) {
+                vec4 color = vec4(0.0);
+                vec2 off1 = vec2(1.411764705882353);
+                vec2 off2 = vec2(3.2941176470588234);
+                vec2 off3 = vec2(5.176470588235294);
+                color += texture(image, uv) * 0.1964825501511404;
+                color += texture(image, uv + (off1 / resolution)) * 0.2969069646728344;
+                color += texture(image, uv - (off1 / resolution)) * 0.2969069646728344;
+                color += texture(image, uv + (off2 / resolution)) * 0.09447039785044732;
+                color += texture(image, uv - (off2 / resolution)) * 0.09447039785044732;
+                color += texture(image, uv + (off3 / resolution)) * 0.010381362401148057;
+                color += texture(image, uv - (off3 / resolution)) * 0.010381362401148057;
+                return color;
+            }            
+
             void main()
             {
                 vec2 uv = vec2(gl_FragCoord.xy / viewportSize.xy);
@@ -363,7 +378,7 @@ const Shaders = {
                 }
 
                 if(doEmissive){
-                    emissive = texture(emissiveBuffer, uv);
+                    emissive = blur(emissiveBuffer, uv, viewportSize);
                 }                             
 
                 fragColor = vec4(clamp(color.rgb - occlusion, 0.0, 1.0), 1.0) + emissive;
