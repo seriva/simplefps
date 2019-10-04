@@ -25,7 +25,6 @@ const Skydome = {
         mat4.translate(matModel, matIdentity, Camera.position);
         Shaders.geometry.setMat4('matWorld', matModel);
         Shaders.geometry.setMat4('matViewProj', Camera.viewProjection);
-        Shaders.geometry.setInt('colorSampler', 0);
 
         mesh.renderSingle();
 

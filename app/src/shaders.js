@@ -131,13 +131,16 @@ const Shaders = {
         layout(location=0) out vec4 fragPosition;
         layout(location=1) out vec4 fragNormal;
         layout(location=2) out vec4 fragColor;
+        layout(location=3) out vec4 fragEmissive;
 
         uniform int geomType;
         uniform int doDetail;
+        uniform int doEmissive;
         uniform float detailMult;
         uniform float detailUVMult;
         uniform sampler2D colorSampler;
         uniform sampler2D detailSampler;
+        uniform sampler2D emissiveSampler;
 
         const int MESH = 1;
         const int INSTANCED_MESHES = 2;
@@ -161,7 +164,11 @@ const Shaders = {
                 vec2 dUV = vUV * detailUVMult;
                 vec4 detail = texture(detailSampler, dUV);
                 color.rgb += detail.rgb - detailMult;
-            }  
+            }
+
+            if (doEmissive==1) {
+                fragEmissive = texture(emissiveSampler, vUV);            
+            }
 
             fragColor = color;
         }`
@@ -242,10 +249,12 @@ const Shaders = {
     
             uniform bool doFXAA;
             uniform bool doSSAO;
+            uniform bool doEmissive;
             uniform sampler2D colorBuffer;
             uniform sampler2D positionBuffer;
             uniform sampler2D normalBuffer;
             uniform sampler2D noiseBuffer;
+            uniform sampler2D emissiveBuffer;
             uniform vec2 viewportSize;
             uniform SSAOUniforms ssao;
 
@@ -339,6 +348,7 @@ const Shaders = {
                 vec2 uv = vec2(gl_FragCoord.xy / viewportSize.xy);
                 vec2 fragCoord = uv * viewportSize; 
                 vec4 color;
+                vec4 emissive = vec4(0.0, 0.0, 0.0, 0.0);
 
                 if(doFXAA){
                     color = applyFXAA(fragCoord);
@@ -352,7 +362,11 @@ const Shaders = {
                     occlusion = applySSAO(ivec2(fragCoord.xy));
                 }
 
-                fragColor = vec4(clamp(color.rgb - occlusion, 0.0, 1.0), 1.0);
+                if(doEmissive){
+                    emissive = texture(emissiveBuffer, uv);
+                }                             
+
+                fragColor = vec4(clamp(color.rgb - occlusion, 0.0, 1.0), 1.0) + emissive;
             }`
     )
 };

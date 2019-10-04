@@ -42,10 +42,13 @@ const doPostProcessingPass = () => {
     Shaders.postProcessing.bind();
     Shaders.postProcessing.setInt('doFXAA', Settings.dofxaa);
     Shaders.postProcessing.setInt('doSSAO', Settings.dossao);
+    Shaders.postProcessing.setInt('doEmissive', Settings.doemissive);
+    Shaders.postProcessing.setInt('emissiveBuffer', 4);
     Shaders.postProcessing.setInt('colorBuffer', 0);
     Shaders.postProcessing.setInt('positionBuffer', 1);
     Shaders.postProcessing.setInt('normalBuffer', 2);
     Shaders.postProcessing.setInt('noiseBuffer', 3);
+    Shaders.postProcessing.setInt('emissiveBuffer', 4);
     Shaders.postProcessing.setVec2('viewportSize', [Context.width(), Context.height()]);
     Shaders.postProcessing.setFloat('ssao.sampleRadius', Settings.ssaoRadius);
     Shaders.postProcessing.setFloat('ssao.bias', Settings.ssaoBias);

@@ -8,6 +8,7 @@ let Settings = {
     renderscale: 1.0,
     dofxaa: true,
     dossao: true,
+    doemissive: true,
     ssaoRadius: 64,
     ssaoBias: 0.3,
     ssaoAttenuation: [0.7, 1],
