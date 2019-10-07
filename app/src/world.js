@@ -10,6 +10,7 @@ const cube = Resources.get('meshes/cube.mesh');
 const typeMap = new Map();
 typeMap.set(1, 'mat_world_tiles');
 typeMap.set(2, 'mat_world_concrete');
+typeMap.set(3, 'mat_world_concrete_spot');
 typeMap.set(128, 'meshes/health.mesh');
 typeMap.set(129, 'meshes/armor.mesh');
 typeMap.set(130, 'meshes/ammo.mesh');
@@ -108,7 +109,11 @@ const test = () => {
                 continue;
             }
             for (let k = 1; k <= 3; k++) {
-                mapData[to1D(i, k, j)] = 2;
+                if (k === 1) {
+                    mapData[to1D(i, k, j)] = 3;
+                } else {
+                    mapData[to1D(i, k, j)] = 2;
+                }
             }
         }
     }
