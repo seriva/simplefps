@@ -12,6 +12,9 @@ let Settings = {
     ssaoRadius: 64,
     ssaoBias: 0.3,
     ssaoAttenuation: [0.7, 1],
+    bloomOffset: 5,
+    bloomMult: 2.2,
+    bloomIteration: 8,
     anisotropicFiltering: 16,
 
     // controls
