@@ -13,7 +13,7 @@ let Settings = {
     ssaoBias: 0.3,
     ssaoAttenuation: [0.7, 1],
     bloomOffset: 5,
-    bloomMult: 2.2,
+    bloomMult: 3.2,
     bloomIteration: 8,
     anisotropicFiltering: 16,
 
