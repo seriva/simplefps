@@ -15,6 +15,11 @@ const l = {
     color: null
 };
 
+const b = {
+    framebuffer: null,
+    color: null
+};
+
 let noise = null;
 
 const init = (width, height) => {
@@ -76,7 +81,23 @@ const init = (width, height) => {
         height
     });
     gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, l.color.texture, 0);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
+    // **********************************
+    // gaussianblur buffer
+    // **********************************
+    b.framebuffer = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, b.framebuffer);
+    gl.activeTexture(gl.TEXTURE0);
+
+    b.color = new Texture({
+        format: gl.RGBA8,
+        width,
+        height
+    });
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, b.color.texture, 0);
+
+    gl.readBuffer(gl.COLOR_ATTACHMENT0);
     gl.drawBuffers([gl.COLOR_ATTACHMENT0]);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
@@ -129,6 +150,20 @@ const endLightingPass = () => {
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 };
 
+const blurEmissive = () => {
+    gl.bindFramebuffer(gl.FRAMEBUFFER, b.framebuffer);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    gl.drawBuffers([gl.COLOR_ATTACHMENT0]);
+    g.emissive.bind(gl.TEXTURE0);
+};
+
+const endBlurPass = () => {
+    gl.readBuffer(gl.COLOR_ATTACHMENT0);
+    gl.copyTexSubImage2D(gl.TEXTURE_2D, 0, 0, 0, 0, 0, Context.width(), Context.height());
+    Texture.unBind(gl.TEXTURE0);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+};
+
 const startPostProcessingPass = () => {
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     l.color.bind(gl.TEXTURE0);
@@ -152,6 +187,8 @@ const Buffers = {
     endGeomPass,
     startLightingPass,
     endLightingPass,
+    blurEmissive,
+    endBlurPass,
     startPostProcessingPass,
     endPostProcessingPass
 };

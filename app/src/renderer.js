@@ -37,13 +37,28 @@ const doLightingPass = () => {
     Buffers.endLightingPass();
 };
 
+const doEmissiveBlurPass = () => {
+    for (let i = 0; i < 8; i++) {
+        Buffers.blurEmissive();
+
+        Shaders.gaussianBlur.bind();
+        Shaders.gaussianBlur.setInt('colorBuffer', 0);
+        Shaders.gaussianBlur.setVec2('viewportSize', [Context.width(), Context.height()]);
+        Shaders.gaussianBlur.setVec2('direction', i % 2 === 0 ? [2, 0] : [0, 2]);
+
+        quad.renderSingle();
+
+        Shader.unBind();
+        Buffers.endBlurPass();
+    }
+};
+
 const doPostProcessingPass = () => {
     Buffers.startPostProcessingPass();
     Shaders.postProcessing.bind();
     Shaders.postProcessing.setInt('doFXAA', Settings.dofxaa);
     Shaders.postProcessing.setInt('doSSAO', Settings.dossao);
     Shaders.postProcessing.setInt('doEmissive', Settings.doemissive);
-    Shaders.postProcessing.setInt('emissiveBuffer', 4);
     Shaders.postProcessing.setInt('colorBuffer', 0);
     Shaders.postProcessing.setInt('positionBuffer', 1);
     Shaders.postProcessing.setInt('normalBuffer', 2);
@@ -65,6 +80,7 @@ const Renderer = {
     render() {
         doGeomPass();
         doLightingPass();
+        doEmissiveBlurPass();
         doPostProcessingPass();
     }
 };
