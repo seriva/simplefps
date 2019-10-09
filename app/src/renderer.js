@@ -2,7 +2,6 @@ import { Shaders, Shader } from './shaders.js';
 import Resources from './resources.js';
 import Buffers from './buffers.js';
 import Settings from './settings.js';
-import Skybox from './skybox.js';
 import World from './world.js';
 import { Context } from './context.js';
 
@@ -11,8 +10,6 @@ const quad = Resources.get('system/quad.mesh');
 const doGeomPass = () => {
     Buffers.startGeomPass();
     Shaders.geometry.bind();
-
-    Skybox.render();
 
     World.render();
 
@@ -39,7 +36,7 @@ const doLightingPass = () => {
 
 const doEmissiveBlurPass = () => {
     for (let i = 0; i < Settings.bloomIteration; i++) {
-        Buffers.blurEmissive();
+        Buffers.startBlurEmissivePass();
 
         Shaders.gaussianBlur.bind();
         Shaders.gaussianBlur.setInt('colorBuffer', 0);
@@ -49,7 +46,7 @@ const doEmissiveBlurPass = () => {
         quad.renderSingle();
 
         Shader.unBind();
-        Buffers.endBlurPass();
+        Buffers.endBlurEmissivePass();
     }
 };
 

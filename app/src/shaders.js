@@ -1,6 +1,8 @@
 import Console from './console.js';
 import { gl } from './context.js';
 
+const glsl = (x) => x;
+
 class Shader {
     constructor(vertex, fragment) {
         const s = this;
@@ -79,7 +81,7 @@ class Shader {
 /* eslint-disable */
 const Shaders = {
     geometry: new Shader(
-        `   #version 300 es
+        glsl`#version 300 es
 
         precision highp float;
         precision highp int;
@@ -119,7 +121,7 @@ const Shaders = {
             vPosition = matWorld * vPosition;
             gl_Position = matViewProj * vPosition;
         }`,
-        `   #version 300 es
+        glsl`#version 300 es
     
         precision highp float;
         precision highp int;
@@ -174,7 +176,7 @@ const Shaders = {
         }`
     ),
     directionalLight: new Shader(
-        `   #version 300 es
+        glsl`#version 300 es
 
         precision highp float;
 
@@ -189,7 +191,7 @@ const Shaders = {
             vUV  = aPosition.xy * scale + scale;
             gl_Position = vec4(aPosition, 1.0);
         }`,
-        `   #version 300 es
+        glsl`#version 300 es
 
         precision highp float; 
 
@@ -222,7 +224,7 @@ const Shaders = {
         }`
     ),
     gaussianBlur: new Shader(
-        `   #version 300 es
+        glsl`#version 300 es
     
             precision highp float;
     
@@ -232,7 +234,7 @@ const Shaders = {
             {
                 gl_Position = vec4(aPosition.x, aPosition.y, 1.0, 1.0);
             }`,
-        `   #version 300 es
+        glsl`#version 300 es
     
             precision highp float;
     
@@ -263,7 +265,7 @@ const Shaders = {
             }`
     ),
     postProcessing: new Shader(
-        `   #version 300 es
+        glsl`#version 300 es
     
             precision highp float;
     
@@ -273,7 +275,7 @@ const Shaders = {
             {
                 gl_Position = vec4(aPosition.x, aPosition.y, 1.0, 1.0);
             }`,
-        `   #version 300 es
+        glsl`#version 300 es
     
             precision highp float;
 

@@ -12,9 +12,17 @@ mat4.identity(matModel);
 const mesh = Resources.get('skyboxes/skybox.mesh');
 
 const Skydome = {
-    setMaterials(matList) {
-        for (let i = 0; i < 6; i++) {
-            mesh.indices[i].material = matList[i];
+    set(id) {
+        const matlist = [
+            `mat_skybox_${id}_front`,
+            `mat_skybox_${id}_back`,
+            `mat_skybox_${id}_top`,
+            `mat_skybox_${id}_bottom`,
+            `mat_skybox_${id}_right`,
+            `mat_skybox_${id}_left`
+        ];
+        for (let i = 0; i < matlist.length; i++) {
+            mesh.indices[i].material = matlist[i];
         }
     },
 

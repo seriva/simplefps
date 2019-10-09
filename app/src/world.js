@@ -4,6 +4,7 @@ import Camera from './camera.js';
 import Resources from './resources.js';
 import Entity from './entity.js';
 import { Shaders } from './shaders.js';
+import Skybox from './skybox.js';
 
 const cube = Resources.get('meshes/cube.mesh');
 
@@ -16,6 +17,7 @@ typeMap.set(129, 'meshes/armor.mesh');
 typeMap.set(130, 'meshes/ammo.mesh');
 
 const dimension = 256;
+let skyBoxId = 1;
 const mapData = new Uint8Array(dimension * dimension * dimension);
 const entities = [];
 const buffers = new Map();
@@ -29,6 +31,7 @@ const to3D = (i) => {
 };
 
 const clear = () => {
+    skyBoxId = 1;
     mapData.fill(0);
     entities.length = 0;
     buffers.forEach((value) => {
@@ -38,6 +41,10 @@ const clear = () => {
 };
 
 const prepare = () => {
+    // set skydome
+    Skybox.set(skyBoxId);
+
+    // prepare map data and entities
     for (let i = 0; i < mapData.length; i++) {
         if (mapData[i] >= 1 && mapData[i] < 128) {
             if (!buffers.has(mapData[i])) {
@@ -72,6 +79,8 @@ const update = () => {
 };
 
 const render = () => {
+    Skybox.render();
+
     const matModel = mat4.create();
     mat4.identity(matModel);
     Shaders.geometry.setMat4('matViewProj', Camera.viewProjection);

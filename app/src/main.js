@@ -16,7 +16,6 @@ import Utils from './utils.js';
     imp = await import('./renderer.js');
     let Renderer = imp.default;
     imp = await import('./skybox.js');
-    let Skybox = imp.default;
 
     Utils.dispatchCustomEvent('changestate', {
         state: 'MENU',
@@ -25,15 +24,7 @@ import Utils from './utils.js';
 
     let time;
     let frameTime = 0;
-    
-    Skybox.setMaterials([
-        "mat_sky_0_front",
-        "mat_sky_0_back",
-        "mat_sky_0_top",    
-        "mat_sky_0_bottom",
-        "mat_sky_0_right",
-        "mat_sky_0_left"
-    ]);
+
     Camera.setProjection(45, Settings.znear, Settings.zfar);
     Camera.setPosition([6, 1.75, 4]);
     Camera.setRotation([0, 0, 0]);
