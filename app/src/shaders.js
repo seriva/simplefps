@@ -301,6 +301,7 @@ const Shaders = {
             uniform vec2 viewportSize;
             uniform SSAOUniforms ssao;
             uniform float bloomMult;
+            uniform float gamma;
 
             #define FXAA_REDUCE_MIN (1.0/ 128.0)
             #define FXAA_REDUCE_MUL (1.0 / 8.0)
@@ -411,6 +412,7 @@ const Shaders = {
                 }                             
 
                 fragColor = vec4(clamp(color.rgb - occlusion, 0.0, 1.0), 1.0) + (emissive * bloomMult);
+                fragColor = vec4(pow(fragColor.rgb, 1.0 / vec3(gamma)), 1.0);
             }`
     )
 };

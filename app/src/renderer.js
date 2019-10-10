@@ -67,6 +67,7 @@ const doPostProcessingPass = () => {
     Shaders.postProcessing.setVec2('ssao.attenuation', Settings.ssaoAttenuation);
     Shaders.postProcessing.setVec2('ssao.depthRange', [Settings.znear, Settings.zfar]);
     Shaders.postProcessing.setFloat('bloomMult', Settings.bloomMult);
+    Shaders.postProcessing.setFloat('gamma', Settings.gamma);
 
     quad.renderSingle();
 

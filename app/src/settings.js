@@ -1,11 +1,11 @@
 import Utils from './utils.js';
 import Console from './console.js';
 
-let Settings = {
+const defaults = {
     // rendering
     znear: 0.1,
     zfar: 1000,
-    renderscale: 1.0,
+    renderscale: Utils.isMobile() ? 0.5 : 1.0,
     dofxaa: true,
     dossao: true,
     doemissive: true,
@@ -16,6 +16,7 @@ let Settings = {
     bloomMult: 3.2,
     bloomIteration: 8,
     anisotropicFiltering: 16,
+    gamma: 1.0,
 
     // controls
     forward: 87,
@@ -26,16 +27,16 @@ let Settings = {
     looksensitivity: 5
 };
 
+let Settings = {};
+
 // load possible settings from local storage
 if (window.localStorage.getItem('settings') !== null) {
     Console.log('Using stored settings');
-    Settings = JSON.parse(localStorage.getItem('settings'));
+    const stored = JSON.parse(localStorage.getItem('settings'));
+    Settings = { ...stored, ...defaults };
 } else {
-    // mobile preset for better performance
-    if (Utils.isMobile()) {
-        Console.log('Using mobile graphics preset');
-        Settings.renderscale = 0.5;
-    }
+    Console.log('Using default settings');
+    Settings = defaults;
     localStorage.setItem('settings', JSON.stringify(Settings));
 }
 
