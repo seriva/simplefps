@@ -20,6 +20,7 @@
     "jss-plugin-global": "^10.0.0",
     "jss-preset-default": "^10.0.0",
     "maquette": "3.3.4",
+    "pretty-json-stringify": "^0.0.2",
     "velocity-animate": "^2.0.5"
   },
   "@pika/web": {
@@ -30,6 +31,7 @@
       "jss-preset-default",
       "maquette",
       "velocity-animate",
+      "pretty-json-stringify/index.js",
       "cannon/build/cannon.js"
     ]
   },

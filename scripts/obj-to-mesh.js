@@ -1,5 +1,7 @@
+#!/usr/bin/env node
 const fs = require('fs');
 const path = require('path');
+const prettyJSONStringify = require('pretty-json-stringify');
 
 try {
     if (!process.argv[2]) {
@@ -40,7 +42,7 @@ try {
         if (VERTEX_RE.test(line)) {
             vertices.push.apply(vertices, elements);
         } else if (MAT_RE.test(line)) {
-            const material = line.match(/(?:"[^"]*"|^[^"]*$)/)[0].replace(/"/g, '');
+            const material = line.split(' ')[1];
             unpacked.indices.push({
                 material,
                 array: []
@@ -95,7 +97,16 @@ try {
         mesh.normals = unpacked.normals;
     }
 
-    fs.writeFileSync(output, JSON.stringify(mesh /* , null, 4 */));
+    fs.writeFileSync(output, prettyJSONStringify(mesh, {
+        shouldExpand: (object, level, key) => {
+            if (key === 'indices') return true;
+            if (key === 'array') return false;
+            if (key === 'vertices') return false;
+            if (key === 'uvs') return false;
+            if (key === 'normals') return false;
+            return true;
+        }
+    }));
 } catch (e) {
     console.error(e);
 }

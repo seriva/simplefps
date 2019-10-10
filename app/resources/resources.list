@@ -1,11 +1,13 @@
 {
     "resources": [
         "system/quad.mesh",
+
         "meshes/materials.mat",
         "meshes/cube.mesh",
         "meshes/health.mesh",
         "meshes/armor.mesh",
         "meshes/ammo.mesh",
+        
         "skyboxes/skybox.mesh",
         "skyboxes/1/1.mat"
     ]

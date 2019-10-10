@@ -4,7 +4,7 @@
             "name": "mat_world_tiles",
             "textures": [
                 "meshes/tiles.jpg",
-                "textures/detail1.jpg"
+                "meshes/detail1.jpg"
             ],
             "geomType": 2,
             "doDetail": 1,
@@ -15,7 +15,7 @@
             "name": "mat_world_concrete",
             "textures": [
                 "meshes/concrete.jpg",
-                "textures/detail1.jpg"
+                "meshes/detail1.jpg"
             ],
             "geomType": 2,
             "doDetail": 1,
@@ -26,7 +26,7 @@
             "name": "mat_world_concrete_spot",
             "textures": [
                 "meshes/concrete_spot.jpg",
-                "textures/detail1.jpg",
+                "meshes/detail1.jpg",
                 "meshes/concrete_spot_emissive.jpg"
             ],
             "geomType": 2,
@@ -39,7 +39,7 @@
             "name": "mat_pickup_ammo",
             "textures": [
                 "meshes/ammo.jpg",
-                "textures/detail1.jpg",
+                "meshes/detail1.jpg",
                 "meshes/ammo_emissive.jpg"
             ],
             "geomType": 1,
@@ -52,7 +52,7 @@
             "name": "mat_pickup_health",
             "textures": [
                 "meshes/health.jpg",
-                "textures/detail1.jpg",
+                "meshes/detail1.jpg",
                 "meshes/health_emissive.jpg"
             ],
             "geomType": 1,
@@ -65,7 +65,7 @@
             "name": "mat_pickup_armor",
             "textures": [
                 "meshes/armor.jpg",
-                "textures/detail1.jpg",
+                "meshes/detail1.jpg",
                 "meshes/armor_emissive.jpg"
             ],
             "geomType": 1,
