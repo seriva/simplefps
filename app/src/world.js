@@ -119,6 +119,7 @@ const load = async (path) => {
     }
 
     prepare();
+    Console.log(`Loaded: ${path}`);
 };
 
 const save = (name) => {
@@ -140,6 +141,7 @@ const save = (name) => {
         }
     }),
     name, 'application/json');
+    Console.log(`Saved: ${name}`);
 };
 Console.registerCmd('saveworld', save);
 
