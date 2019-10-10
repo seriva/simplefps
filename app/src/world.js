@@ -1,10 +1,13 @@
-import { gl } from './context.js';
+import prettyJsonStringify from './libs/pretty-json-stringify/index.js';
 import { mat4 } from './libs/gl-matrix.js';
+import { gl } from './context.js';
 import Camera from './camera.js';
 import Resources from './resources.js';
 import Entity from './entity.js';
 import { Shaders } from './shaders.js';
 import Skybox from './skybox.js';
+import Console from './console.js';
+import Utils from './utils.js';
 
 const cube = Resources.get('meshes/cube.mesh');
 
@@ -18,11 +21,11 @@ typeMap.set(130, 'meshes/ammo.mesh');
 
 const dimension = 256;
 let skyBoxId = 1;
-const mapData = new Uint8Array(dimension * dimension * dimension);
+const blockData = new Uint8Array(dimension * dimension * dimension);
 const entities = [];
 const buffers = new Map();
 
-const to1D = (x, y, z) => (z * dimension * dimension) + (y * dimension) + x;
+// const to1D = (x, y, z) => (z * dimension * dimension) + (y * dimension) + x;
 const to3D = (i) => {
     const x = Math.floor(i % dimension);
     const y = Math.floor((i / dimension) % dimension);
@@ -32,7 +35,7 @@ const to3D = (i) => {
 
 const clear = () => {
     skyBoxId = 1;
-    mapData.fill(0);
+    blockData.fill(0);
     entities.length = 0;
     buffers.forEach((value) => {
         gl.deleteBuffer(value.id);
@@ -45,22 +48,22 @@ const prepare = () => {
     Skybox.set(skyBoxId);
 
     // prepare map data and entities
-    for (let i = 0; i < mapData.length; i++) {
-        if (mapData[i] >= 1 && mapData[i] < 128) {
-            if (!buffers.has(mapData[i])) {
-                buffers.set(mapData[i], {
+    blockData.forEach((block, i) => {
+        if (block >= 1 && block < 128) {
+            if (!buffers.has(block)) {
+                buffers.set(block, {
                     id: gl.createBuffer(),
                     count: 0,
                     data: []
                 });
             }
-            const buffer = buffers.get(mapData[i]);
+            const buffer = buffers.get(block);
             buffer.data = buffer.data.concat(to3D(i));
             buffer.count++;
-        } else if (mapData[i] >= 128) {
-            entities.push(new Entity(to3D(i), typeMap.get(mapData[i])));
+        } else if (block >= 128) {
+            entities.push(new Entity(to3D(i), typeMap.get(block)));
         }
-    }
+    });
 
     buffers.forEach((value) => {
         gl.bindBuffer(gl.ARRAY_BUFFER, value.id);
@@ -104,12 +107,50 @@ const render = () => {
     });
 };
 
+const load = async (path) => {
+    clear();
+
+    const response = await Utils.fetch(path);
+    const world = JSON.parse(response);
+
+    skyBoxId = world.skybox;
+    for (let i = 0; i < world.data.length - 1; i += 2) {
+        blockData[world.data[i]] = world.data[i + 1];
+    }
+
+    prepare();
+};
+
+const save = (name) => {
+    const data = [];
+    blockData.forEach((block, i) => {
+        if (block >= 1) {
+            data.push(i, block);
+        }
+    });
+
+    Utils.download(prettyJsonStringify({
+        skybox: skyBoxId,
+        data
+    }, {
+        spaceAfterComma: '',
+        shouldExpand: (object, level, key) => {
+            if (key === 'data') return false;
+            return true;
+        }
+    }),
+    name, 'application/json');
+};
+Console.registerCmd('saveworld', save);
+
+// Leave this for now since we cant edit maps jet.
+/*
 const test = () => {
     clear();
     for (let i = 0; i <= 12; i++) {
         for (let j = 0; j <= 12; j++) {
-            mapData[to1D(i, 0, j)] = 1;
-            mapData[to1D(i, 4, j)] = 1;
+            blockData[to1D(i, 0, j)] = 1;
+            blockData[to1D(i, 4, j)] = 1;
         }
     }
     for (let i = 0; i <= 12; i += 3) {
@@ -119,22 +160,23 @@ const test = () => {
             }
             for (let k = 1; k <= 3; k++) {
                 if (k === 1) {
-                    mapData[to1D(i, k, j)] = 3;
+                    blockData[to1D(i, k, j)] = 3;
                 } else {
-                    mapData[to1D(i, k, j)] = 2;
+                    blockData[to1D(i, k, j)] = 2;
                 }
             }
         }
     }
-    mapData[to1D(5, 1, 6)] = 129;
-    mapData[to1D(6, 1, 6)] = 128;
-    mapData[to1D(7, 1, 6)] = 130;
+    blockData[to1D(5, 1, 6)] = 129;
+    blockData[to1D(6, 1, 6)] = 128;
+    blockData[to1D(7, 1, 6)] = 130;
     prepare();
 };
-
 test();
+*/
 
 const World = {
+    load,
     update,
     render
 };

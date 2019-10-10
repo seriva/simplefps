@@ -98,6 +98,7 @@ try {
     }
 
     fs.writeFileSync(output, prettyJSONStringify(mesh, {
+        spaceAfterComma: '',
         shouldExpand: (object, level, key) => {
             if (key === 'indices') return true;
             if (key === 'array') return false;

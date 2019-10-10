@@ -17,6 +17,8 @@ import Utils from './utils.js';
     let Renderer = imp.default;
     imp = await import('./skybox.js');
 
+    await World.load('/resources/maps/test.map');
+
     Utils.dispatchCustomEvent('changestate', {
         state: 'MENU',
         menu: 'MAIN_MENU'
