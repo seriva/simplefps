@@ -107,10 +107,10 @@ const render = () => {
     });
 };
 
-const load = async (path) => {
+const load = async (name) => {
     clear();
 
-    const response = await Utils.fetch(path);
+    const response = await Utils.fetch(`${window.location}resources/maps/${name}`);
     const world = JSON.parse(response);
 
     skyBoxId = world.skybox;
@@ -119,7 +119,7 @@ const load = async (path) => {
     }
 
     prepare();
-    Console.log(`Loaded: ${path}`);
+    Console.log(`Loaded: ${name}`);
 };
 
 const save = (name) => {
