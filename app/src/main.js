@@ -1,4 +1,3 @@
-import Settings from './settings.js';
 import Resources from './resources.js';
 import Stats from './stats.js';
 import Camera from './camera.js';
@@ -23,13 +22,10 @@ import Utils from './utils.js';
         state: 'MENU',
         menu: 'MAIN_MENU'
     });
+    Utils.dispatchEvent('resize');
 
     let time;
     let frameTime = 0;
-
-    Camera.setProjection(45, Settings.znear, Settings.zfar);
-    Camera.setPosition([6, 1.75, 4]);
-    Camera.setRotation([0, 0, 0]);
 
     const loop = () => {
         // timing

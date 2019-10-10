@@ -21,6 +21,8 @@ typeMap.set(130, 'meshes/ammo.mesh');
 
 const dimension = 256;
 let skyBoxId = 1;
+let camPos = [0, 0, 0];
+let camRot = [0, 0, 0];
 const blockData = new Uint8Array(dimension * dimension * dimension);
 const entities = [];
 const buffers = new Map();
@@ -46,6 +48,10 @@ const clear = () => {
 const prepare = () => {
     // set skydome
     Skybox.set(skyBoxId);
+
+    // spawnpoint
+    Camera.setPosition(camPos);
+    Camera.setRotation(camRot);
 
     // prepare map data and entities
     blockData.forEach((block, i) => {
@@ -114,6 +120,9 @@ const load = async (name) => {
     const world = JSON.parse(response);
 
     skyBoxId = world.skybox;
+    camPos = world.spawnpoint.pos;
+    camRot = world.spawnpoint.rot;
+
     for (let i = 0; i < world.data.length - 1; i += 2) {
         blockData[world.data[i]] = world.data[i + 1];
     }
@@ -132,6 +141,10 @@ const save = (name) => {
 
     Utils.download(prettyJsonStringify({
         skybox: skyBoxId,
+        spawnpoint: {
+            pos: camPos,
+            rot: camRot
+        },
         data
     }, {
         spaceAfterComma: '',
