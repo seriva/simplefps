@@ -11,7 +11,7 @@ const doGeomPass = () => {
     Buffers.startGeomPass();
     Shaders.geometry.bind();
 
-    World.render();
+    World.renderGeometry();
 
     Shader.unBind();
     Buffers.endGeomPass();
@@ -20,17 +20,8 @@ const doGeomPass = () => {
 const doLightingPass = () => {
     Buffers.startLightingPass();
 
-    Shaders.directionalLight.bind();
-    Shaders.directionalLight.setInt('positionBuffer', 0);
-    Shaders.directionalLight.setInt('normalBuffer', 1);
-    Shaders.directionalLight.setInt('colorBuffer', 2);
-    Shaders.directionalLight.setVec3('directionalLight.direction', [-3.0, 3.0, -5.0]);
-    Shaders.directionalLight.setVec3('directionalLight.diffuse', [0.65, 0.625, 0.65]);
-    Shaders.directionalLight.setVec3('directionalLight.ambient', [0.5, 0.475, 0.5]);
+    World.renderLights();
 
-    quad.renderSingle();
-
-    Shader.unBind();
     Buffers.endLightingPass();
 };
 
