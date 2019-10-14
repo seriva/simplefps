@@ -1,14 +1,16 @@
 import prettyJsonStringify from './libs/pretty-json-stringify/index.js';
 import { mat4 } from './libs/gl-matrix.js';
-import { gl } from './context.js';
+import { gl, Context } from './context.js';
 import Camera from './camera.js';
 import Resources from './resources.js';
 import MeshEntity from './meshentity.js';
+import PointlightEntity from './pointlightentity.js';
 import { Shaders, Shader } from './shaders.js';
 import Skybox from './skybox.js';
 import Console from './console.js';
 import Utils from './utils.js';
 import { EntityTypes } from './entity.js';
+
 
 const quad = Resources.get('system/quad.mesh');
 const cube = Resources.get('meshes/cube.mesh');
@@ -23,14 +25,14 @@ typeMap.set(130, 'meshes/ammo.mesh');
 
 const dimension = 256;
 let skyBoxId = 1;
+let ambient = [0.5, 0.475, 0.5];
 let spawnPoint = {
     position: [0, 0, 0],
     rotation: [0, 0, 0]
 };
 let dirLight = {
     direction: [-3.0, 3.0, -5.0],
-    diffuse: [0.65, 0.625, 0.65],
-    ambient: [0.5, 0.475, 0.5]
+    color: [0.65, 0.625, 0.65],
 };
 
 const blockData = new Uint8Array(dimension * dimension * dimension);
@@ -56,6 +58,8 @@ const clear = () => {
 };
 
 const prepare = () => {
+    gl.clearColor(ambient[0], ambient[1], ambient[2], 1.0);
+
     // set skydome
     Skybox.set(skyBoxId);
 
@@ -127,16 +131,25 @@ const renderGeometry = () => {
 };
 
 const renderLights = () => {
+    // directionallight
     Shaders.directionalLight.bind();
     Shaders.directionalLight.setInt('positionBuffer', 0);
     Shaders.directionalLight.setInt('normalBuffer', 1);
-    Shaders.directionalLight.setInt('colorBuffer', 2);
     Shaders.directionalLight.setVec3('directionalLight.direction', dirLight.direction);
-    Shaders.directionalLight.setVec3('directionalLight.diffuse', dirLight.diffuse);
-    Shaders.directionalLight.setVec3('directionalLight.ambient', dirLight.ambient);
-
+    Shaders.directionalLight.setVec3('directionalLight.color', dirLight.color);
+    Shaders.directionalLight.setVec2('viewportSize', [Context.width(), Context.height()]);
     quad.renderSingle();
+    Shader.unBind();
 
+    // pointlights
+    Shaders.pointLight.bind();
+    Shaders.pointLight.setMat4('matViewProj', Camera.viewProjection);
+    Shaders.pointLight.setInt('positionBuffer', 0);
+    Shaders.pointLight.setInt('normalBuffer', 1);
+    const pointLightEntities = entities.filter((entity) => entity.type === EntityTypes.POINTLIGHT);
+    pointLightEntities.forEach((entity) => {
+        entity.render();
+    });
     Shader.unBind();
 };
 
@@ -147,12 +160,17 @@ const load = async (name) => {
     const world = JSON.parse(response);
 
     skyBoxId = world.skybox;
+    ambient = world.ambient;
     spawnPoint = world.spawnpoint;
     dirLight = world.lights.directional;
 
     for (let i = 0; i < world.data.length - 1; i += 2) {
         blockData[world.data[i]] = world.data[i + 1];
     }
+
+    world.lights.pointlights.forEach((pl) => {
+        entities.push(new PointlightEntity(pl.position, pl.size, pl.color, pl.intensity));
+    });
 
     prepare();
     Console.log(`Loaded: ${name}`);
@@ -166,13 +184,24 @@ const save = (name) => {
         }
     });
 
+    const pointLights = [];
+    const pointLightEntities = entities.filter((entity) => entity.type === EntityTypes.POINTLIGHT);
+    pointLightEntities.forEach((entity) => {
+        pointLights.push({
+            position: entity.position,
+            size: entity.size,
+            color: entity.color,
+            intensity: entity.intensity
+        });
+    });
+
     Utils.download(prettyJsonStringify({
         skybox: skyBoxId,
         spawnpoint: spawnPoint,
+        ambient,
         lights: {
             directional: dirLight,
-            pointlights: [
-            ]
+            pointlights: pointLights
         },
         data
     }, {
@@ -182,7 +211,7 @@ const save = (name) => {
             if (key === 'position') return false;
             if (key === 'rotation') return false;
             if (key === 'direction') return false;
-            if (key === 'diffuse') return false;
+            if (key === 'color') return false;
             if (key === 'ambient') return false;
             return true;
         }

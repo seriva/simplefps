@@ -12,7 +12,7 @@ const g = {
 
 const l = {
     framebuffer: null,
-    color: null
+    light: null
 };
 
 const b = {
@@ -75,12 +75,12 @@ const init = (width, height) => {
     gl.bindFramebuffer(gl.FRAMEBUFFER, l.framebuffer);
     gl.activeTexture(gl.TEXTURE0);
 
-    l.color = new Texture({
+    l.light = new Texture({
         format: gl.RGBA8,
         width,
         height
     });
-    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, l.color.texture, 0);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, l.light.texture, 0);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
     // **********************************
@@ -166,11 +166,12 @@ const endBlurEmissivePass = () => {
 
 const startPostProcessingPass = () => {
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-    l.color.bind(gl.TEXTURE0);
-    g.position.bind(gl.TEXTURE1);
-    g.normal.bind(gl.TEXTURE2);
-    noise.bind(gl.TEXTURE3);
+    g.color.bind(gl.TEXTURE0);
+    l.light.bind(gl.TEXTURE1);
+    g.position.bind(gl.TEXTURE2);
+    g.normal.bind(gl.TEXTURE3);
     g.emissive.bind(gl.TEXTURE4);
+    noise.bind(gl.TEXTURE5);
 };
 
 const endPostProcessingPass = () => {
@@ -179,6 +180,7 @@ const endPostProcessingPass = () => {
     Texture.unBind(gl.TEXTURE2);
     Texture.unBind(gl.TEXTURE3);
     Texture.unBind(gl.TEXTURE4);
+    Texture.unBind(gl.TEXTURE5);
 };
 
 const Buffers = {

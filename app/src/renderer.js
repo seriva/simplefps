@@ -3,7 +3,7 @@ import Resources from './resources.js';
 import Buffers from './buffers.js';
 import Settings from './settings.js';
 import World from './world.js';
-import { Context } from './context.js';
+import { gl, Context } from './context.js';
 
 const quad = Resources.get('system/quad.mesh');
 
@@ -18,11 +18,17 @@ const doGeomPass = () => {
 };
 
 const doLightingPass = () => {
+    gl.disable(gl.CULL_FACE);
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.ONE, gl.ONE);
+
     Buffers.startLightingPass();
 
     World.renderLights();
 
     Buffers.endLightingPass();
+    gl.disable(gl.BLEND);
+    gl.enable(gl.CULL_FACE);
 };
 
 const doEmissiveBlurPass = () => {
@@ -48,10 +54,11 @@ const doPostProcessingPass = () => {
     Shaders.postProcessing.setInt('doSSAO', Settings.dossao);
     Shaders.postProcessing.setInt('doEmissive', Settings.doemissive);
     Shaders.postProcessing.setInt('colorBuffer', 0);
-    Shaders.postProcessing.setInt('positionBuffer', 1);
-    Shaders.postProcessing.setInt('normalBuffer', 2);
-    Shaders.postProcessing.setInt('noiseBuffer', 3);
+    Shaders.postProcessing.setInt('lightBuffer', 1);
+    Shaders.postProcessing.setInt('positionBuffer', 2);
+    Shaders.postProcessing.setInt('normalBuffer', 3);
     Shaders.postProcessing.setInt('emissiveBuffer', 4);
+    Shaders.postProcessing.setInt('noiseBuffer', 5);
     Shaders.postProcessing.setVec2('viewportSize', [Context.width(), Context.height()]);
     Shaders.postProcessing.setFloat('ssao.sampleRadius', Settings.ssaoRadius);
     Shaders.postProcessing.setFloat('ssao.bias', Settings.ssaoBias);

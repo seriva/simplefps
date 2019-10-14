@@ -1,6 +1,7 @@
 {
     "resources": [
         "system/quad.mesh",
+        "system/sphere.mesh",
 
         "meshes/materials.mat",
         "meshes/cube.mesh",

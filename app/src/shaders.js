@@ -182,13 +182,8 @@ const Shaders = {
 
         layout(location=0) in vec3 aPosition;
 
-        const vec2 scale = vec2(0.5, 0.5);
-
-        out vec2 vUV;
-
         void main()
         {
-            vUV  = aPosition.xy * scale + scale;
             gl_Position = vec4(aPosition, 1.0);
         }`,
         glsl`#version 300 es
@@ -198,29 +193,79 @@ const Shaders = {
         struct DirectionalLight 
         { 
             vec3 direction;
-            vec3 diffuse;
-            vec3 ambient;
+            vec3 color;
         }; 
-
-        in vec2 vUV;
 
         layout(location=0) out vec4 fragColor;
 
         uniform DirectionalLight directionalLight;
+        uniform vec2 viewportSize;
         uniform sampler2D positionBuffer;
         uniform sampler2D normalBuffer;
-        uniform sampler2D colorBuffer;
         
         void main()
         {
-            vec4 norm = texture(normalBuffer, vUV);
-            vec4 color = texture(colorBuffer, vUV);
+            vec2 uv = vec2(gl_FragCoord.xy / viewportSize.xy);
+            vec4 norm = texture(normalBuffer, uv);
             vec3 normSunDir = normalize(directionalLight.direction);
             vec3 lightIntensity = vec3(1.0);
             if (norm.w != 1.0){
-                lightIntensity = directionalLight.ambient + directionalLight.diffuse * max(dot(normalize(norm.xyz), normSunDir), 0.0);
+                lightIntensity = directionalLight.color * max(dot(normalize(norm.xyz), normSunDir), 0.0);
             }
-            fragColor = vec4(color.rgb * lightIntensity, 1.0);
+            fragColor = vec4(lightIntensity, 1.0);
+        }`
+    ),
+    pointLight: new Shader(
+        glsl`#version 300 es
+
+        precision highp float;
+
+        layout(location=0) in vec3 aPosition;
+
+        uniform mat4 matWorld;
+        uniform mat4 matViewProj;        
+
+        void main()
+        {
+            gl_Position = matViewProj * matWorld * vec4(aPosition, 1.0);
+        }`,
+        glsl`#version 300 es
+
+        precision highp float;
+
+        struct PointLight 
+        { 
+            vec3 position;
+            vec3 color;
+            float size;
+            float intensity;
+        };
+
+        layout(location=0) out vec4 fragColor;
+
+        uniform PointLight pointLight;
+        uniform vec3 worldAmbient;
+        uniform sampler2D positionBuffer;
+        uniform sampler2D normalBuffer;
+
+        void main()
+        {
+            ivec2 fragCoord = ivec2(gl_FragCoord.xy);
+            vec3 position = texelFetch(positionBuffer, fragCoord, 0).xyz;
+            vec3 lightDir = pointLight.position - position;
+            
+            float dist = length(lightDir);
+            if (dist > pointLight.size)
+                discard;
+            
+            vec3 n = normalize(texelFetch(normalBuffer, fragCoord, 0).xyz);
+            vec3 l = normalize(lightDir);
+            
+            vec3 lDir = lightDir/pointLight.size;
+            float atten = max(0.0, 1.0 - dot(lDir, lDir))*pointLight.intensity;
+            float nDotL = max(0.0, dot(n, l));
+
+            fragColor = vec4(pointLight.color * atten * nDotL, 1.0);
         }`
     ),
     gaussianBlur: new Shader(
@@ -232,7 +277,7 @@ const Shaders = {
     
             void main()
             {
-                gl_Position = vec4(aPosition.x, aPosition.y, 1.0, 1.0);
+                gl_Position = vec4(aPosition, 1.0);
             }`,
         glsl`#version 300 es
     
@@ -273,7 +318,7 @@ const Shaders = {
     
             void main()
             {
-                gl_Position = vec4(aPosition.x, aPosition.y, 1.0, 1.0);
+                gl_Position = vec4(aPosition, 1.0);
             }`,
         glsl`#version 300 es
     
@@ -294,10 +339,11 @@ const Shaders = {
             uniform bool doSSAO;
             uniform bool doEmissive;
             uniform sampler2D colorBuffer;
+            uniform sampler2D lightBuffer;
             uniform sampler2D positionBuffer;
             uniform sampler2D normalBuffer;
-            uniform sampler2D noiseBuffer;
             uniform sampler2D emissiveBuffer;
+            uniform sampler2D noiseBuffer;
             uniform vec2 viewportSize;
             uniform SSAOUniforms ssao;
             uniform float bloomMult;
@@ -325,7 +371,7 @@ const Shaders = {
                 vec3 rgbSW = texture(colorBuffer, (fragCoord + vec2(-1.0, 1.0)) * inverseVP).xyz;
                 vec3 rgbSE = texture(colorBuffer, (fragCoord + vec2(1.0, 1.0)) * inverseVP).xyz;
                 vec3 rgbM  = texture(colorBuffer, fragCoord  * inverseVP).xyz;
-                vec3 luma = vec3(0.299, 0.587, 0.114);
+                vec3 luma  = vec3(0.299, 0.587, 0.114);
                 float lumaNW = dot(rgbNW, luma);
                 float lumaNE = dot(rgbNE, luma);
                 float lumaSW = dot(rgbSW, luma);
@@ -400,6 +446,9 @@ const Shaders = {
                 } else {
                     color = texture(colorBuffer, uv);
                 }
+                
+                vec4 light =  texture(lightBuffer, uv);
+                color = color * light;
 
                 float occlusion = 0.0;
                 if(doSSAO)
