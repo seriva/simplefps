@@ -5,7 +5,7 @@
             "textures": [
                 "skyboxes/1/front.jpg"
             ],
-            "geomType": 3   
+            "geomType": 3
         },        
         {
             "name": "mat_skybox_1_back",
