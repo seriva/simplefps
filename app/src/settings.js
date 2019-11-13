@@ -5,7 +5,7 @@ const defaults = {
     // rendering
     znear: 0.1,
     zfar: 1000,
-    renderscale: Utils.isMobile() ? 0.5 : 1.0,
+    renderscale: Utils.isMobile() ? 0.36 : 1.0,
     dofxaa: true,
     dossao: true,
     doemissive: true,
