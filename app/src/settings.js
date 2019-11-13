@@ -33,7 +33,7 @@ let Settings = {};
 if (window.localStorage.getItem('settings') !== null) {
     Console.log('Using stored settings');
     const stored = JSON.parse(localStorage.getItem('settings'));
-    Settings = { ...stored, ...defaults };
+    Settings = { ...defaults, ...stored };
 } else {
     Console.log('Using default settings');
     Settings = defaults;
