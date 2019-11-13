@@ -4,7 +4,7 @@
         "position" : [6,1.75,4],
         "rotation" : [0,0,0]
     },
-    "ambient" : [0.2,0.225,0.3],
+    "ambient" : [0.3,0.325,0.4],
     "lights" : {
         "directional" : {
             "direction" : [0,3,5],
