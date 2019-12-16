@@ -21,7 +21,7 @@
     "jss-preset-default": "^10.0.0",
     "maquette": "3.3.4",
     "pretty-json-stringify": "^0.0.2",
-    "velocity-animate": "^2.0.5"
+    "velocity-animate": "^1.5.2"
   },
   "@pika/web": {
     "webDependencies": [
