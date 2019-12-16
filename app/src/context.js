@@ -60,9 +60,9 @@ const aspectRatio = () => width() / height();
 const toggleBlur = blur => {
     blur === undefined ? (doBlur = !doBlur) : (doBlur = blur);
     if (doBlur) {
-        DOM.animate(canvas.domNode, { blur: 8 }, { duration: 75, delay: 0, easing: 'linear' });
+        DOM.animate(canvas.domNode, { blur: 8 }, { mobileHA: false, duration: 75, delay: 0, easing: 'linear' });
     } else {
-        DOM.animate(canvas.domNode, { blur: 0 }, { duration: 75, delay: 0, easing: 'linear' });
+        DOM.animate(canvas.domNode, { blur: 0 }, { mobileHA: false, duration: 75, delay: 0, easing: 'linear' });
     }
 };
 
