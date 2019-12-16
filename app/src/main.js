@@ -11,9 +11,9 @@ import Utils from './utils.js';
     // These modules are dependant on Resources so we import them dynamicly after resource loading.
     // TODO: Check eslint for dynamic import support, for now we exclude main.js.
     let imp = await import('./world.js');
-    let World = imp.default;
+    const World = imp.default;
     imp = await import('./renderer.js');
-    let Renderer = imp.default;
+    const Renderer = imp.default;
     imp = await import('./skybox.js');
 
     await World.load('test.map');
