@@ -10,7 +10,8 @@ import Skybox from './skybox.js';
 import Console from './console.js';
 import Utils from './utils.js';
 import { EntityTypes } from './entity.js';
-
+import Loading from './loading.js';
+import Physics from './physics.js';
 
 const quad = Resources.get('system/quad.mesh');
 const cube = Resources.get('meshes/cube.mesh');
@@ -55,6 +56,7 @@ const clear = () => {
         gl.deleteBuffer(value.id);
     });
     buffers.clear();
+    Physics.init();
 };
 
 const prepare = () => {
@@ -92,7 +94,7 @@ const prepare = () => {
     });
 };
 
-const update = () => {
+const update = (frameTime) => {
     const m = mat4.create();
     mat4.fromRotation(m, performance.now() / 1000, [0, 1, 0]);
     mat4.translate(m, m, [0, (Math.cos(Math.PI * (performance.now() / 1000)) * 0.15), 0]);
@@ -101,6 +103,8 @@ const update = () => {
     meshEntities.forEach((entity) => {
         entity.update(m);
     });
+
+    Physics.update(frameTime);
 };
 
 const renderGeometry = () => {
@@ -154,10 +158,12 @@ const renderLights = () => {
 };
 
 const load = async (name) => {
+    Loading.toggle(true);
     clear();
 
     const response = await Utils.fetch(`${window.location}resources/maps/${name}`);
     const world = JSON.parse(response);
+    Loading.update(0, 2);
 
     skyBoxId = world.skybox;
     ambient = world.ambient;
@@ -171,8 +177,11 @@ const load = async (name) => {
     world.lights.pointlights.forEach((pl) => {
         entities.push(new PointlightEntity(pl.position, pl.size, pl.color, pl.intensity));
     });
+    Loading.update(1, 2);
 
     prepare();
+    Loading.update(2, 2);
+    Loading.toggle(false);
     Console.log(`Loaded: ${name}`);
 };
 
