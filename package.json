@@ -6,7 +6,7 @@
   "license": "LGPL-3.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/seriva/QDFPA.git"
+    "url": "https://github.com/seriva/Cubetastic.git"
   },
   "scripts": {
     "prepare": "snowpack --clean --dest app/src/libs",
@@ -15,10 +15,10 @@
   },
   "dependencies": {
     "cannon": "^0.6.2",
-    "gl-matrix": "^3.1.0",
-    "jss": "^10.0.3",
-    "jss-plugin-global": "^10.0.3",
-    "jss-preset-default": "^10.0.3",
+    "gl-matrix": "^3.2.1",
+    "jss": "^10.0.4",
+    "jss-plugin-global": "^10.0.4",
+    "jss-preset-default": "^10.0.4",
     "maquette": "3.3.4",
     "pretty-json-stringify": "^0.0.2",
     "velocity-animate": "^1.5.2"
@@ -39,11 +39,11 @@
     "babel-eslint": "^10.0.3",
     "eslint": "^6.8.0",
     "eslint-config-airbnb-base": "^14.0.0",
-    "eslint-plugin-import": "^2.20.0",
+    "eslint-plugin-import": "^2.20.1",
     "live-server": "^1.2.1",
-    "rollup": "^1.29.1",
+    "rollup": "^1.31.1",
     "rollup-plugin-eslint": "^7.0.0",
     "rollup-plugin-terser": "^5.2.0",
-    "snowpack": "^1.1.0"
+    "snowpack": "^1.4.0"
   }
 }
