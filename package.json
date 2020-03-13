@@ -19,7 +19,7 @@
     "jss": "^10.0.4",
     "jss-plugin-global": "^10.0.4",
     "jss-preset-default": "^10.0.4",
-    "maquette": "3.3.4",
+    "maquette": "^3.3.6",
     "pretty-json-stringify": "^0.0.2",
     "velocity-animate": "^1.5.2"
   },
@@ -36,14 +36,14 @@
     ]
   },
   "devDependencies": {
-    "babel-eslint": "^10.0.3",
+    "babel-eslint": "^10.1.0",
     "eslint": "^6.8.0",
     "eslint-config-airbnb-base": "^14.0.0",
     "eslint-plugin-import": "^2.20.1",
     "live-server": "^1.2.1",
-    "rollup": "^1.31.1",
+    "rollup": "^2.0.4",
     "rollup-plugin-eslint": "^7.0.0",
-    "rollup-plugin-terser": "^5.2.0",
-    "snowpack": "^1.4.0"
+    "rollup-plugin-terser": "^5.3.0",
+    "snowpack": "^1.6.0"
   }
 }

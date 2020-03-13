@@ -9,7 +9,6 @@ import Utils from './utils.js';
     await Resources.load(['resources.list']);
 
     // These modules are dependant on Resources so we import them dynamicly after resource loading.
-    // TODO: Check eslint for dynamic import support, for now we exclude main.js.
     let imp = await import('./world.js');
     const World = imp.default;
     imp = await import('./renderer.js');
