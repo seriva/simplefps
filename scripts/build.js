@@ -66,7 +66,8 @@ try {
         const bundle = async () => {
             const b = await rollup.rollup({
                 input: 'app/src/main.js',
-                plugins: [terser.terser(), eslint.eslint()]
+                plugins: [terser.terser(), eslint.eslint()],
+                preserveEntrySignatures: false
             });
             await b.write({
                 format: 'es',
