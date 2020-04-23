@@ -58,6 +58,7 @@ try {
     const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '../package.json'), 'utf8'));
 
     if (env === 'PRODUCTION') {
+        const start = new Date();
         console.log('Publishing static files');
         deleteRecursiveSync(publicDir);
         copyRecursiveSync(rootDir, publicDir, ['src']);
@@ -91,6 +92,9 @@ try {
             swTemplate = swTemplate.replace('{{cacheArray}}', filesNew.toString());
             swTemplate = swTemplate.replace('{{cacheName}}', `${pkg.name}-${pkg.version}-${timeStamp}`);
             fs.writeFileSync(`${publicDir}sw.js`, swTemplate);
+
+            const end = new Date() - start;
+            console.log('Build time: %dms', end);
         });
     }
 
