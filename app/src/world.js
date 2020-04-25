@@ -1,5 +1,5 @@
 import prettyJsonStringify from './libs/pretty-json-stringify/index.js';
-import { mat4 } from './libs/gl-matrix.js';
+import { mat4, quat } from './libs/gl-matrix.js';
 import { gl, Context } from './context.js';
 import Camera from './camera.js';
 import Resources from './resources.js';
@@ -13,6 +13,7 @@ import { EntityTypes } from './entity.js';
 import Loading from './loading.js';
 import Physics from './physics.js';
 import State from './state.js';
+import CANNON from './libs/cannon/build/cannon.js';
 
 const quad = Resources.get('system/quad.mesh');
 const cube = Resources.get('meshes/cube.mesh');
@@ -60,12 +61,45 @@ const clear = () => {
     Physics.init();
 };
 
-const animatePowerup = (entity) => {
+const updatePowerup = (entity) => {
     mat4.identity(entity.ani_matrix);
     mat4.fromRotation(entity.ani_matrix, performance.now() / 1000, [0, 1, 0]);
     mat4.translate(entity.ani_matrix, entity.ani_matrix,
         [0, (Math.cos(Math.PI * (performance.now() / 1000)) * 0.15), 0]);
 };
+
+
+const updateBall = (entity) => {
+    const q = entity.physicsBody.quaternion;
+    const p = entity.physicsBody.position;
+    mat4.fromRotationTranslation(
+        entity.ani_matrix,
+        [q.x, q.y, q.z, q.w],
+        [p.x, p.y, p.z]
+    );
+};
+const ballShape = new CANNON.Sphere(0.165);
+const createBall = () => {
+    if (State !== 'GAME') return;
+    const p = Camera.position;
+    const d = Camera.direction;
+    const ballEntity = new MeshEntity([0, 0, 0], 'meshes/ball.mesh', updateBall);
+    ballEntity.physicsBody = new CANNON.Body({ mass: 1 });
+    ballEntity.physicsBody.position.set(p[0], p[1], p[2]);
+    ballEntity.physicsBody.addShape(ballShape);
+    Physics.addBody(ballEntity.physicsBody);
+    entities.push(ballEntity);
+
+    ballEntity.physicsBody.velocity.set(
+        d[0] * 10,
+        d[1] * 10,
+        d[2] * 10
+    );
+};
+window.addEventListener('click', () => {
+    createBall();
+});
+
 
 const prepare = () => {
     gl.clearColor(ambient[0], ambient[1], ambient[2], 1.0);
@@ -93,7 +127,7 @@ const prepare = () => {
             Physics.addWorldCube(pos[0], pos[1], pos[2]);
             buffer.count++;
         } else if (block >= 128) {
-            entities.push(new MeshEntity(to3D(i), typeMap.get(block), animatePowerup));
+            entities.push(new MeshEntity(to3D(i), typeMap.get(block), updatePowerup));
         }
     });
 
@@ -106,10 +140,10 @@ const prepare = () => {
 
 const update = (frameTime) => {
     if (State !== 'GAME') return;
+    Physics.update(frameTime);
     entities.forEach((entity) => {
         entity.update(frameTime);
     });
-    Physics.update(frameTime);
 };
 
 const renderGeometry = () => {

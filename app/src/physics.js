@@ -18,8 +18,8 @@ const init = () => {
     const physicsMaterial = new CANNON.Material('slipperyMaterial');
     const physicsContactMaterial = new CANNON.ContactMaterial(physicsMaterial,
         physicsMaterial,
-        0.0,
-        0.3);
+        0,
+        0.2);
     world.addContactMaterial(physicsContactMaterial);
 };
 
@@ -30,15 +30,19 @@ const addWorldCube = (x, y, z) => {
     worldCubeBody.position.set(x, y, z);
 };
 
-const update = (frameTime) => {
-    world.step(frameTime);
+const addBody = (body) => {
+    world.addBody(body);
 };
 
+const update = (frameTime) => {
+    world.step(frameTime / 1000);
+};
 
 const Physics = {
     init,
     update,
-    addWorldCube
+    addWorldCube,
+    addBody
 };
 
 export { Physics as default };

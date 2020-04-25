@@ -42,7 +42,7 @@ import Utils from './utils.js';
         Camera.update();
 
         // update the map
-        World.update();
+        World.update(frameTime);
 
         // render the actual frame
         Renderer.render();
