@@ -1,5 +1,5 @@
 import prettyJsonStringify from './libs/pretty-json-stringify/index.js';
-import { mat4, quat } from './libs/gl-matrix.js';
+import { mat4 } from './libs/gl-matrix.js';
 import { gl, Context } from './context.js';
 import Camera from './camera.js';
 import Resources from './resources.js';
