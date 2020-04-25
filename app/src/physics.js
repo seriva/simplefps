@@ -1,6 +1,7 @@
 import CANNON from './libs/cannon/build/cannon.js';
 
 let world = null;
+const worldCube = new CANNON.Box(new CANNON.Vec3(0.5, 0.5, 0.5));
 
 const init = () => {
     world = new CANNON.World();
@@ -23,12 +24,10 @@ const init = () => {
 };
 
 const addWorldCube = (x, y, z) => {
-    const halfExtents = new CANNON.Vec3(1.0, 1.0, 1.0);
-    const boxShape = new CANNON.Box(halfExtents);
-    const boxBody = new CANNON.Body({ mass: 0 });
-    boxBody.addShape(boxShape);
-    world.addBody(boxBody);
-    boxBody.position.set(x, y, z);
+    const worldCubeBody = new CANNON.Body({ mass: 0 });
+    worldCubeBody.addShape(worldCube);
+    world.addBody(worldCubeBody);
+    worldCubeBody.position.set(x, y, z);
 };
 
 const update = (frameTime) => {

@@ -6,17 +6,20 @@ const EntityTypes = {
 };
 
 class Entity {
-    constructor(type) {
+    constructor(type, updateCallback) {
         const t = this;
         t.type = type;
+        t.updateCallback = updateCallback;
         t.base_matrix = mat4.create();
         t.ani_matrix = mat4.create();
         mat4.identity(t.base_matrix);
         mat4.identity(t.ani_matrix);
     }
 
-    update(mat) {
-        mat4.multiply(this.ani_matrix, this.base_matrix, mat);
+    update(frametime) {
+        if (this.updateCallback) {
+            this.updateCallback(this, frametime);
+        }
     }
 }
 

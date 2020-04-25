@@ -73,6 +73,17 @@
             "doDetail": 1,
             "detailMult": 0.65,
             "detailUVMult": 3
+        },
+        {
+            "name": "mat_ball",
+            "textures": [
+                "meshes/ball.jpg",
+                "meshes/detail1.jpg"
+            ],
+            "geomType": 2,
+            "doDetail": 1,
+            "detailMult": 0.85,
+            "detailUVMult": 3    
         }
     ]
 }

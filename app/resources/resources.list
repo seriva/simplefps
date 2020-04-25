@@ -8,7 +8,8 @@
         "meshes/health.mesh",
         "meshes/armor.mesh",
         "meshes/ammo.mesh",
-        
+        "meshes/ball.mesh",
+    
         "skyboxes/skybox.mesh",
         "skyboxes/1/1.mat"
     ]

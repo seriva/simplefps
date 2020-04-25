@@ -12,6 +12,7 @@ import Utils from './utils.js';
 import { EntityTypes } from './entity.js';
 import Loading from './loading.js';
 import Physics from './physics.js';
+import State from './state.js';
 
 const quad = Resources.get('system/quad.mesh');
 const cube = Resources.get('meshes/cube.mesh');
@@ -59,6 +60,13 @@ const clear = () => {
     Physics.init();
 };
 
+const animatePowerup = (entity) => {
+    mat4.identity(entity.ani_matrix);
+    mat4.fromRotation(entity.ani_matrix, performance.now() / 1000, [0, 1, 0]);
+    mat4.translate(entity.ani_matrix, entity.ani_matrix,
+        [0, (Math.cos(Math.PI * (performance.now() / 1000)) * 0.15), 0]);
+};
+
 const prepare = () => {
     gl.clearColor(ambient[0], ambient[1], ambient[2], 1.0);
 
@@ -80,10 +88,12 @@ const prepare = () => {
                 });
             }
             const buffer = buffers.get(block);
-            buffer.data = buffer.data.concat(to3D(i));
+            const pos = to3D(i);
+            buffer.data = buffer.data.concat(pos);
+            Physics.addWorldCube(pos[0], pos[1], pos[2]);
             buffer.count++;
         } else if (block >= 128) {
-            entities.push(new MeshEntity(to3D(i), typeMap.get(block)));
+            entities.push(new MeshEntity(to3D(i), typeMap.get(block), animatePowerup));
         }
     });
 
@@ -95,15 +105,10 @@ const prepare = () => {
 };
 
 const update = (frameTime) => {
-    const m = mat4.create();
-    mat4.fromRotation(m, performance.now() / 1000, [0, 1, 0]);
-    mat4.translate(m, m, [0, (Math.cos(Math.PI * (performance.now() / 1000)) * 0.15), 0]);
-
-    const meshEntities = entities.filter((entity) => entity.type === EntityTypes.MESH);
-    meshEntities.forEach((entity) => {
-        entity.update(m);
+    if (State !== 'GAME') return;
+    entities.forEach((entity) => {
+        entity.update(frameTime);
     });
-
     Physics.update(frameTime);
 };
 
@@ -229,38 +234,6 @@ const save = (name) => {
     Console.log(`Saved: ${name}`);
 };
 Console.registerCmd('saveworld', save);
-
-// Leave this for now since we cant edit maps jet.
-/*
-const test = () => {
-    clear();
-    for (let i = 0; i <= 12; i++) {
-        for (let j = 0; j <= 12; j++) {
-            blockData[to1D(i, 0, j)] = 1;
-            blockData[to1D(i, 4, j)] = 1;
-        }
-    }
-    for (let i = 0; i <= 12; i += 3) {
-        for (let j = 0; j <= 12; j += 3) {
-            if (i === 6 && j === 6) {
-                continue;
-            }
-            for (let k = 1; k <= 3; k++) {
-                if (k === 1) {
-                    blockData[to1D(i, k, j)] = 3;
-                } else {
-                    blockData[to1D(i, k, j)] = 2;
-                }
-            }
-        }
-    }
-    blockData[to1D(5, 1, 6)] = 129;
-    blockData[to1D(6, 1, 6)] = 128;
-    blockData[to1D(7, 1, 6)] = 130;
-    prepare();
-};
-test();
-*/
 
 const World = {
     load,

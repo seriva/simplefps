@@ -3,7 +3,7 @@ import { Context } from './context.js';
 import Input from './input.js';
 import UI from './ui.js';
 
-let State = 'UI';
+let State = 'MENU';
 
 const setState = (s, menu) => {
     State = s.toUpperCase();
