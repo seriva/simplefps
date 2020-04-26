@@ -2,6 +2,7 @@ import HUD from './hud.js';
 import { Context } from './context.js';
 import Input from './input.js';
 import UI from './ui.js';
+import World from './world.js';
 
 let State = 'MENU';
 
@@ -15,6 +16,7 @@ const setState = (s, menu) => {
         Context.toggleBlur(false);
         HUD.toggle(true);
         UI.hide();
+        World.pause(false);
         break;
     case 'MENU':
         Input.toggleVirtualInput(false);
@@ -22,6 +24,7 @@ const setState = (s, menu) => {
         Context.toggleBlur(true);
         HUD.toggle(false);
         UI.show(menu);
+        World.pause(true);
         break;
     default:
         break;

@@ -1,7 +1,6 @@
 import Resources from './resources.js';
 import Stats from './stats.js';
 import Camera from './camera.js';
-import Controls from './controls.js';
 import DOM from './dom.js';
 import Utils from './utils.js';
 
@@ -9,7 +8,9 @@ import Utils from './utils.js';
     await Resources.load(['resources.list']);
 
     // These modules are dependant on Resources so we import them dynamicly after resource loading.
-    let imp = await import('./world.js');
+    let imp = await import('./controls.js');
+    const Controls = imp.default;
+    imp = await import('./world.js');
     const World = imp.default;
     imp = await import('./renderer.js');
     const Renderer = imp.default;

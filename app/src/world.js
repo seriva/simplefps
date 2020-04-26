@@ -12,12 +12,12 @@ import Utils from './utils.js';
 import { EntityTypes } from './entity.js';
 import Loading from './loading.js';
 import Physics from './physics.js';
-import State from './state.js';
 import CANNON from './libs/cannon/build/cannon.js';
 
 const quad = Resources.get('system/quad.mesh');
 const cube = Resources.get('meshes/cube.mesh');
 
+let pauseUpdate = false;
 const typeMap = new Map();
 typeMap.set(1, 'mat_world_tiles');
 typeMap.set(2, 'mat_world_concrete');
@@ -61,11 +61,12 @@ const clear = () => {
     Physics.init();
 };
 
-const updatePowerup = (entity) => {
+const updatePowerup = (entity, frameTime) => {
+    entity.animationTime += frameTime;
     mat4.identity(entity.ani_matrix);
-    mat4.fromRotation(entity.ani_matrix, performance.now() / 1000, [0, 1, 0]);
+    mat4.fromRotation(entity.ani_matrix, entity.animationTime / 1000, [0, 1, 0]);
     mat4.translate(entity.ani_matrix, entity.ani_matrix,
-        [0, (Math.cos(Math.PI * (performance.now() / 1000)) * 0.15), 0]);
+        [0, (Math.cos(Math.PI * (entity.animationTime / 1000)) * 0.15), 0]);
 };
 
 
@@ -80,7 +81,6 @@ const updateBall = (entity) => {
 };
 const ballShape = new CANNON.Sphere(0.165);
 const createBall = () => {
-    if (State !== 'GAME') return;
     const p = Camera.position;
     const d = Camera.direction;
     const ballEntity = new MeshEntity([0, 0, 0], 'meshes/ball.mesh', updateBall);
@@ -89,7 +89,6 @@ const createBall = () => {
     ballEntity.physicsBody.addShape(ballShape);
     Physics.addBody(ballEntity.physicsBody);
     entities.push(ballEntity);
-
     ballEntity.physicsBody.velocity.set(
         d[0] * 10,
         d[1] * 10,
@@ -127,7 +126,9 @@ const prepare = () => {
             Physics.addWorldCube(pos[0], pos[1], pos[2]);
             buffer.count++;
         } else if (block >= 128) {
-            entities.push(new MeshEntity(to3D(i), typeMap.get(block), updatePowerup));
+            const powerup = new MeshEntity(to3D(i), typeMap.get(block), updatePowerup);
+            powerup.animationTime = 0;
+            entities.push(powerup);
         }
     });
 
@@ -138,8 +139,12 @@ const prepare = () => {
     });
 };
 
+const pause = (doPause) => {
+    pauseUpdate = doPause;
+};
+
 const update = (frameTime) => {
-    if (State !== 'GAME') return;
+    if (pauseUpdate) return;
     Physics.update(frameTime);
     entities.forEach((entity) => {
         entity.update(frameTime);
@@ -271,6 +276,7 @@ Console.registerCmd('saveworld', save);
 
 const World = {
     load,
+    pause,
     update,
     renderGeometry,
     renderLights
