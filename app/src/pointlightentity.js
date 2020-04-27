@@ -9,16 +9,16 @@ class PointlightEntity extends Entity {
     constructor(position, size, color, intensity, updateCallback) {
         super(EntityTypes.POINTLIGHT, updateCallback);
         const t = this;
-        t.size = size;
         t.color = color;
+        t.size = size;
         t.intensity = intensity;
         mat4.translate(t.base_matrix, t.base_matrix, position);
-        mat4.scale(t.base_matrix, t.base_matrix, [size, size, size]);
     }
 
     render() {
         const m = mat4.create();
         mat4.multiply(m, this.base_matrix, this.ani_matrix);
+        mat4.scale(m, m, [this.size, this.size, this.size]);
         const pos = vec3.create();
         mat4.getTranslation(pos, m);
         Shaders.pointLight.setMat4('matWorld', m);

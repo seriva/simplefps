@@ -31,14 +31,14 @@
         {
             "name": "mat_skybox_1_right",
             "textures": [
-                "skyboxes/1/right.jpg"
+                "skyboxes/1/left.jpg"
             ],
             "geomType": 3    
         },
         {
             "name": "mat_skybox_1_left",
             "textures": [
-                "skyboxes/1/left.jpg"
+                "skyboxes/1/right.jpg"
             ],
             "geomType": 3   
         } 

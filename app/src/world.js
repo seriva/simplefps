@@ -21,7 +21,6 @@ let pauseUpdate = false;
 const typeMap = new Map();
 typeMap.set(1, 'mat_world_tiles');
 typeMap.set(2, 'mat_world_concrete');
-typeMap.set(3, 'mat_world_concrete_spot');
 typeMap.set(128, 'meshes/health.mesh');
 typeMap.set(129, 'meshes/armor.mesh');
 typeMap.set(130, 'meshes/ammo.mesh');
@@ -69,13 +68,17 @@ const updatePowerup = (entity, frameTime) => {
         [0, (Math.cos(Math.PI * (entity.animationTime / 1000)) * 0.15), 0]);
 };
 
-
 const updateBall = (entity) => {
     const q = entity.physicsBody.quaternion;
     const p = entity.physicsBody.position;
     mat4.fromRotationTranslation(
         entity.ani_matrix,
         [q.x, q.y, q.z, q.w],
+        [p.x, p.y, p.z]
+    );
+
+    mat4.fromTranslation(
+        entity.light.ani_matrix,
         [p.x, p.y, p.z]
     );
 };
@@ -94,6 +97,9 @@ const createBall = () => {
         d[1] * 10,
         d[2] * 10
     );
+    const ballLightEntity = new PointlightEntity([0, 0, 0], 1.5, [0.988, 0.31, 0.051], 1.5);
+    ballEntity.light = ballLightEntity;
+    entities.push(ballLightEntity);
 };
 window.addEventListener('click', () => {
     createBall();

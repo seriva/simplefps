@@ -172,7 +172,7 @@ const Shaders = {
                 fragEmissive = texture(emissiveSampler, vUV);            
             }
 
-            fragColor = color;
+            fragColor = color + fragEmissive;
         }`
     ),
     directionalLight: new Shader(

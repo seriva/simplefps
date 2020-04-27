@@ -4,36 +4,27 @@
             "name": "mat_world_tiles",
             "textures": [
                 "meshes/tiles.jpg",
-                "meshes/detail1.jpg"
-            ],
-            "geomType": 2,
-            "doDetail": 1,
-            "detailMult": 0.85,
-            "detailUVMult": 3      
-        },
-        {
-            "name": "mat_world_concrete",
-            "textures": [
-                "meshes/concrete.jpg",
-                "meshes/detail1.jpg"
-            ],
-            "geomType": 2,
-            "doDetail": 1,
-            "detailMult": 0.85,
-            "detailUVMult": 3      
-        },
-        {
-            "name": "mat_world_concrete_spot",
-            "textures": [
-                "meshes/concrete_spot.jpg",
                 "meshes/detail1.jpg",
-                "meshes/concrete_spot_emissive.jpg"
+                "meshes/tiles_emissive.jpg"                
             ],
             "geomType": 2,
             "doEmissive": 1,
             "doDetail": 1,
             "detailMult": 0.85,
-            "detailUVMult": 3      
+            "detailUVMult": 8
+        },
+        {
+            "name": "mat_world_concrete",
+            "textures": [
+                "meshes/concrete.jpg",
+                "meshes/detail1.jpg",
+                "meshes/concrete_emissive.jpg"
+            ],
+            "geomType": 2,
+            "doEmissive": 1,
+            "doDetail": 1,
+            "detailMult": 0.95,
+            "detailUVMult": 8    
         },        
         {
             "name": "mat_pickup_ammo",
@@ -45,7 +36,7 @@
             "geomType": 1,
             "doEmissive": 1,
             "doDetail": 1,
-            "detailMult": 0.65,
+            "detailMult": 0.85,
             "detailUVMult": 3
         },
         {
@@ -78,10 +69,12 @@
             "name": "mat_ball",
             "textures": [
                 "meshes/ball.jpg",
-                "meshes/detail1.jpg"
+                "meshes/detail1.jpg",
+                "meshes/ball.jpg"
             ],
             "geomType": 2,
             "doDetail": 1,
+            "doEmissive": 1,
             "detailMult": 0.85,
             "detailUVMult": 3    
         }
