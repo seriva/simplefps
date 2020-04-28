@@ -4,6 +4,7 @@ import Mesh from './mesh.js';
 import Loading from './loading.js';
 import Utils from './utils.js';
 import Material from './material.js';
+import Sound from './sound.js';
 
 let paths = [];
 let startTime;
@@ -43,6 +44,10 @@ const Resources = {
                             JSON.parse(response).materials.forEach((data) => {
                                 resources[data.name] = new Material(data, this);
                             });
+                            break;
+                        }
+                        case 'sfx': {
+                            resources[path] = new Sound(JSON.parse(response));
                             break;
                         }
                         case 'list': {

@@ -85,6 +85,8 @@ const updateBall = (entity) => {
 };
 const ballShape = new CANNON.Sphere(0.165);
 const createBall = () => {
+    const shoot = Resources.get('sounds/shoot.sfx');
+    shoot.play();
     const p = Camera.position;
     const d = Camera.direction;
     const ballEntity = new MeshEntity([0, 0, 0], 'meshes/ball.mesh', updateBall);
@@ -102,7 +104,9 @@ const createBall = () => {
     ballEntity.light = light;
     entities.push(light);
 };
-window.addEventListener('click', () => {
+window.addEventListener('click', (e) => {
+    Console.log(e);
+    if (e.button > 0 || e.target.tagName.toUpperCase() !== 'BODY') return;
     createBall();
 });
 

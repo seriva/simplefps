@@ -11,6 +11,9 @@
         "meshes/ball.mesh",
     
         "skyboxes/skybox.mesh",
-        "skyboxes/1/1.mat"
+        "skyboxes/1/1.mat",
+
+        "sounds/music.sfx",
+        "sounds/shoot.sfx"
     ]
 }

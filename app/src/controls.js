@@ -8,6 +8,9 @@ import UI from './ui.js';
 import Update from './update.js';
 import Translations from './translations.js';
 import Utils from './utils.js';
+import Resources from './resources.js';
+
+const music = Resources.get('sounds/music.sfx');
 
 UI.register('MAIN_MENU', {
     header: Translations.get('MAIN_MENU'),
@@ -18,6 +21,7 @@ UI.register('MAIN_MENU', {
                 Utils.dispatchCustomEvent('changestate', {
                     state: 'GAME'
                 });
+                music.play();
             }
         },
         {
@@ -38,6 +42,7 @@ document.addEventListener(
                     state: 'MENU',
                     menu: 'MAIN_MENU'
                 });
+                music.pause();
             }
         }
     },

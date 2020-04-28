@@ -1,0 +1,7 @@
+{
+    "file"   : "resources/sounds/shoot.ogg",
+    "cached"  : true,
+    "speed"  : 1,
+    "volume" : 0.3,
+    "loop"   : false
+}
