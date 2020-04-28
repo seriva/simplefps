@@ -14,7 +14,7 @@ const defaults = {
     ssaoAttenuation: [0.7, 1],
     bloomOffset: 1.5,
     bloomMult: 3.0,
-    bloomIteration: 8,
+    bloomIteration: 10,
     anisotropicFiltering: 16,
     gamma: 1.0,
 
