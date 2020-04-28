@@ -106,7 +106,9 @@ const createBall = () => {
 };
 window.addEventListener('click', (e) => {
     Console.log(e);
-    if (e.button > 0 || e.target.tagName.toUpperCase() !== 'BODY') return;
+    if (e.button > 0) return;
+    if ((e.target.tagName.toUpperCase() !== 'BODY') && !Utils.isMobile()) return;
+    if ((e.target.id !== 'look') && Utils.isMobile()) return;
     createBall();
 });
 
