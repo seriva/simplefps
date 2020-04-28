@@ -61,11 +61,13 @@ const clear = () => {
 };
 
 const updatePowerup = (entity, frameTime) => {
-    entity.animationTime += frameTime;
+    entity.animationTime += frameTime / 1.75;
     mat4.identity(entity.ani_matrix);
     mat4.fromRotation(entity.ani_matrix, entity.animationTime / 1000, [0, 1, 0]);
     mat4.translate(entity.ani_matrix, entity.ani_matrix,
         [0, (Math.cos(Math.PI * (entity.animationTime / 1000)) * 0.15), 0]);
+    mat4.copy(entity.light.ani_matrix, entity.ani_matrix);
+    mat4.translate(entity.light.ani_matrix, entity.light.ani_matrix, [0, 0.15, 0]);
 };
 
 const updateBall = (entity) => {
@@ -76,7 +78,6 @@ const updateBall = (entity) => {
         [q.x, q.y, q.z, q.w],
         [p.x, p.y, p.z]
     );
-
     mat4.fromTranslation(
         entity.light.ani_matrix,
         [p.x, p.y, p.z]
@@ -97,9 +98,9 @@ const createBall = () => {
         d[1] * 10,
         d[2] * 10
     );
-    const ballLightEntity = new PointlightEntity([0, 0, 0], 1.5, [0.988, 0.31, 0.051], 1.5);
-    ballEntity.light = ballLightEntity;
-    entities.push(ballLightEntity);
+    const light = new PointlightEntity([0, 0, 0], 2.5, [0.988, 0.31, 0.051], 1.5);
+    ballEntity.light = light;
+    entities.push(light);
 };
 window.addEventListener('click', () => {
     createBall();
@@ -133,8 +134,22 @@ const prepare = () => {
             buffer.count++;
         } else if (block >= 128) {
             const powerup = new MeshEntity(to3D(i), typeMap.get(block), updatePowerup);
-            powerup.animationTime = 0;
             entities.push(powerup);
+            switch (block) {
+            case 128:
+                powerup.light = new PointlightEntity(to3D(i), 1.2, [0.752, 0, 0.035], 1.25);
+                break;
+            case 129:
+                powerup.light = new PointlightEntity(to3D(i), 1.2, [0, 0.352, 0.662], 1.25);
+                break;
+            case 130:
+                powerup.light = new PointlightEntity(to3D(i), 1.2, [0.623, 0.486, 0.133], 1.25);
+                break;
+            default:
+                  // code block
+            }
+            entities.push(powerup);
+            entities.push(powerup.light);
         }
     });
 

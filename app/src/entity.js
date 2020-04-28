@@ -9,6 +9,7 @@ class Entity {
     constructor(type, updateCallback) {
         const t = this;
         t.type = type;
+        t.animationTime = 0;
         t.updateCallback = updateCallback;
         t.base_matrix = mat4.create();
         t.ani_matrix = mat4.create();
