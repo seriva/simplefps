@@ -11,6 +11,7 @@ import Console from './console.js';
 import Utils from './utils.js';
 import Loading from './loading.js';
 import Physics from './physics.js';
+import Settings from './settings.js';
 import Game from './game.js';
 
 const quad = Resources.get('system/quad.mesh');
@@ -108,8 +109,10 @@ const prepare = () => {
             const pos = to3D(i);
             buffer.data = buffer.data.concat(pos);
             Physics.addWorldCube(pos[0], pos[1], pos[2]);
-            addEntities(new PointlightEntity(pos, 1.25, lightMap.get(block), 1.25));
             buffer.count++;
+            if (Settings.doEmissiveLighting) {
+                addEntities(new PointlightEntity(pos, 1.25, lightMap.get(block), 1.25));
+            }
         // entities
         } else if (block >= 128) {
             addEntities(Game.createPowerup(to3D(i), block, typeMap.get(block)));

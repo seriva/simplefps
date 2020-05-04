@@ -7,7 +7,7 @@ import Camera from './camera.js';
 import Physics from './physics.js';
 
 const updatePowerup = (entity, frameTime) => {
-    entity.animationTime += frameTime / 1.75;
+    entity.animationTime += frameTime;
     mat4.identity(entity.ani_matrix);
     mat4.fromRotation(entity.ani_matrix, entity.animationTime / 1000, [0, 1, 0]);
     mat4.translate(entity.ani_matrix, entity.ani_matrix,

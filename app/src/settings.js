@@ -9,6 +9,7 @@ const defaults = {
     dofxaa: true,
     dossao: !Utils.isMobile(),
     doemissive: true,
+    doEmissiveLighting: !Utils.isMobile(),
     ssaoRadius: 64,
     ssaoBias: 0.55,
     ssaoAttenuation: [0.7, 1],
