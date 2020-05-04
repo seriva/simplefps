@@ -9,6 +9,8 @@ import Update from './update.js';
 import Translations from './translations.js';
 import Utils from './utils.js';
 import Resources from './resources.js';
+import Game from './game.js';
+import World from './world.js';
 
 const music = Resources.get('sounds/music.sfx');
 
@@ -70,7 +72,15 @@ Input.addKeyDownEvent(13, () => {
     Console.executeCmd();
 });
 
-// mouse and keyboard input
+// mouse buttons input
+window.addEventListener('click', (e) => {
+    if (e.button > 0) return;
+    if ((e.target.tagName.toUpperCase() !== 'BODY') && !Utils.isMobile()) return;
+    if ((e.target.id !== 'look') && Utils.isMobile()) return;
+    World.addEntities(Game.createBall());
+});
+
+// mouse movement and keyboard input
 const Controls = {
     update(frametime) {
         if (Console.visible() || State === 'MENU') return;
