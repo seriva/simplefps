@@ -16,6 +16,7 @@ import Game from './game.js';
 
 const quad = Resources.get('system/quad.mesh');
 const cube = Resources.get('meshes/cube.mesh');
+const sphere = Resources.get('system/sphere.mesh');
 
 let pauseUpdate = false;
 const typeMap = new Map();
@@ -80,7 +81,6 @@ const getEntities = (type) => {
         }
         selection = selection.concat(entity.getChildren(type));
     });
-
     return selection;
 };
 
@@ -96,7 +96,7 @@ const prepare = () => {
 
     // prepare map data and entities
     blockData.forEach((block, i) => {
-        // map data
+        // map blocks
         if (block >= 1 && block < 128) {
             if (!buffers.has(block)) {
                 buffers.set(block, {
@@ -107,12 +107,9 @@ const prepare = () => {
             }
             const buffer = buffers.get(block);
             const pos = to3D(i);
-            buffer.data = buffer.data.concat(pos);
+            buffer.data.push(...pos);
             Physics.addWorldCube(pos[0], pos[1], pos[2]);
             buffer.count++;
-            if (Settings.doEmissiveLighting) {
-                addEntities(new PointlightEntity(pos, 1.25, lightMap.get(block), 1.25));
-            }
         // entities
         } else if (block >= 128) {
             addEntities(Game.createPowerup(to3D(i), block, typeMap.get(block)));
@@ -166,7 +163,7 @@ const renderGeometry = () => {
 };
 
 const renderLights = () => {
-    // directionallight
+    // directional light
     Shaders.directionalLight.bind();
     Shaders.directionalLight.setInt('positionBuffer', 0);
     Shaders.directionalLight.setInt('normalBuffer', 1);
@@ -181,10 +178,36 @@ const renderLights = () => {
     Shaders.pointLight.setMat4('matViewProj', Camera.viewProjection);
     Shaders.pointLight.setInt('positionBuffer', 0);
     Shaders.pointLight.setInt('normalBuffer', 1);
+
+    // instanced
+    if (Settings.doEmissiveLighting) {
+        const m = mat4.create();
+        mat4.identity(m);
+        mat4.scale(m, m, [1.25, 1.25, 1.25]);
+        Shaders.pointLight.setMat4('matWorld', m);
+        Shaders.pointLight.setInt('lightType', 2);
+        Shaders.pointLight.setFloat('pointLight.size', 1.25);
+        Shaders.pointLight.setFloat('pointLight.intensity', 1.25);
+        sphere.bind();
+        buffers.forEach((value, key) => {
+            Shaders.pointLight.setVec3('pointLight.color', lightMap.get(key));
+            gl.bindBuffer(gl.ARRAY_BUFFER, value.id);
+            gl.vertexAttribPointer(3, 3, gl.FLOAT, false, 12, 0);
+            gl.enableVertexAttribArray(3);
+            gl.vertexAttribDivisor(3, 1);
+            sphere.renderMany(value.count);
+            gl.vertexAttribDivisor(3, 0);
+            gl.disableVertexAttribArray(3);
+        });
+        sphere.unBind();
+    }
+
+    // entities
     const pointLightEntities = getEntities(EntityTypes.POINTLIGHT);
     pointLightEntities.forEach((entity) => {
         entity.render();
     });
+
     Shader.unBind();
 };
 

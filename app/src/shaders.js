@@ -219,19 +219,35 @@ const Shaders = {
         glsl`#version 300 es
 
         precision highp float;
+        precision highp int;
 
         layout(location=0) in vec3 aPosition;
+        layout(location=3) in vec3 aOffset;
 
         uniform mat4 matWorld;
-        uniform mat4 matViewProj;        
+        uniform mat4 matViewProj;   
+        uniform int  lightType; 
+
+        flat out vec3 offsetPosition;
+        
+        const int ENTITY_LIGHT = 1;
+        const int INSTANCED_LIGHT = 2;
 
         void main()
         {
-            gl_Position = matViewProj * matWorld * vec4(aPosition, 1.0);
+            mat4 newMatWorld = matWorld;
+            if (lightType == INSTANCED_LIGHT) {
+                offsetPosition = aOffset;
+                newMatWorld[3][0] = aOffset.x; 
+                newMatWorld[3][1] = aOffset.y; 
+                newMatWorld[3][2] = aOffset.z;  
+            }     
+            gl_Position = matViewProj * newMatWorld * vec4(aPosition, 1.0);
         }`,
         glsl`#version 300 es
 
         precision highp float;
+        precision highp int;
 
         struct PointLight 
         { 
@@ -243,16 +259,31 @@ const Shaders = {
 
         layout(location=0) out vec4 fragColor;
 
+        flat in vec3 offsetPosition;
+
         uniform PointLight pointLight;
         uniform vec3 worldAmbient;
+        uniform int  lightType; 
         uniform sampler2D positionBuffer;
         uniform sampler2D normalBuffer;
+
+        const int ENTITY_LIGHT = 1;
+        const int INSTANCED_LIGHT = 2;
 
         void main()
         {
             ivec2 fragCoord = ivec2(gl_FragCoord.xy);
             vec3 position = texelFetch(positionBuffer, fragCoord, 0).xyz;
-            vec3 lightDir = pointLight.position - position;
+
+            vec3 lightDir;
+            switch (lightType) {
+            case ENTITY_LIGHT:
+                lightDir = pointLight.position - position;
+                break;
+            case INSTANCED_LIGHT:
+                lightDir = offsetPosition - position;
+                break;                
+            }
             
             float dist = length(lightDir);
             if (dist > pointLight.size)

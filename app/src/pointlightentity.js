@@ -22,6 +22,7 @@ class PointlightEntity extends Entity {
         const pos = vec3.create();
         mat4.getTranslation(pos, m);
         Shaders.pointLight.setMat4('matWorld', m);
+        Shaders.pointLight.setInt('lightType', 1);
         Shaders.pointLight.setVec3('pointLight.position', pos);
         Shaders.pointLight.setVec3('pointLight.color', this.color);
         Shaders.pointLight.setFloat('pointLight.size', this.size);
