@@ -88,7 +88,7 @@ const prepare = () => {
     gl.clearColor(ambient[0], ambient[1], ambient[2], 1.0);
 
     // set skydome
-    Skybox.set(skyBoxId);
+    // Skybox.set(skyBoxId);
 
     // spawnpoint
     Camera.setPosition(spawnPoint.position);
