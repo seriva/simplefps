@@ -3,44 +3,62 @@
         {
             "name": "mat_skybox_1_front",
             "textures": [
-                "skyboxes/1/front.jpg"
+                "skyboxes/1/front.jpg",
+                "none",
+                "skyboxes/1/front_emissive.jpg"
             ],
-            "geomType": 3
+            "geomType": 3,
+            "doEmissive": 1   
         },        
         {
             "name": "mat_skybox_1_back",
             "textures": [
-                "skyboxes/1/back.jpg"
+                "skyboxes/1/black.jpg",
+                "none",
+                "skyboxes/1/black.jpg"
             ],
-            "geomType": 3    
+            "geomType": 3,
+            "doEmissive": 1     
         },  
         {
             "name": "mat_skybox_1_top",
             "textures": [
-                "skyboxes/1/top.jpg"
+                "skyboxes/1/black.jpg",
+                "none",
+                "skyboxes/1/black.jpg"
             ],
-            "geomType": 3  
+            "geomType": 3,
+            "doEmissive": 1      
         },  
         {
             "name": "mat_skybox_1_bottom",
             "textures": [
-                "skyboxes/1/bottom.jpg"
+                "skyboxes/1/black.jpg",
+                "none",
+                "skyboxes/1/black.jpg"
             ],
-            "geomType": 3   
+            "geomType": 3,
+            "doEmissive": 1       
         },
         {
             "name": "mat_skybox_1_right",
             "textures": [
-                "skyboxes/1/right.jpg"
+                "skyboxes/1/black.jpg",
+                "none",
+                "skyboxes/1/black.jpg"
             ],
-            "geomType": 3    
+            "geomType": 3,
+            "doEmissive": 1        
         },
         {
             "name": "mat_skybox_1_left",
             "textures": [
-                "skyboxes/1/left.jpg"
+                "skyboxes/1/black.jpg",
+                "none",
+                "skyboxes/1/black.jpg"
             ],
-            "geomType": 3   
+            "geomType": 3,
+            "doEmissive": 1       
         } 
     ]
 }
