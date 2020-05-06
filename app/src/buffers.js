@@ -135,6 +135,20 @@ const endGeomPass = () => {
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 };
 
+const startBlurPass = (texture) => {
+    gl.bindFramebuffer(gl.FRAMEBUFFER, b.framebuffer);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    gl.drawBuffers([gl.COLOR_ATTACHMENT0]);
+    texture.bind(gl.TEXTURE0);
+};
+
+const endBlurPass = () => {
+    gl.readBuffer(gl.COLOR_ATTACHMENT0);
+    gl.copyTexSubImage2D(gl.TEXTURE_2D, 0, 0, 0, 0, 0, Context.width(), Context.height());
+    Texture.unBind(gl.TEXTURE0);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+};
+
 const startLightingPass = () => {
     gl.bindFramebuffer(gl.FRAMEBUFFER, l.framebuffer);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -150,18 +164,22 @@ const endLightingPass = () => {
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 };
 
+
+const startBlurLightingPass = () => {
+    startBlurPass(l.light);
+};
+
+const endBlurLightingPass = () => {
+    endBlurPass();
+};
+
+
 const startBlurEmissivePass = () => {
-    gl.bindFramebuffer(gl.FRAMEBUFFER, b.framebuffer);
-    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-    gl.drawBuffers([gl.COLOR_ATTACHMENT0]);
-    g.emissive.bind(gl.TEXTURE0);
+    startBlurPass(g.emissive);
 };
 
 const endBlurEmissivePass = () => {
-    gl.readBuffer(gl.COLOR_ATTACHMENT0);
-    gl.copyTexSubImage2D(gl.TEXTURE_2D, 0, 0, 0, 0, 0, Context.width(), Context.height());
-    Texture.unBind(gl.TEXTURE0);
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    endBlurPass();
 };
 
 const startPostProcessingPass = () => {
@@ -189,6 +207,8 @@ const Buffers = {
     endGeomPass,
     startLightingPass,
     endLightingPass,
+    startBlurLightingPass,
+    endBlurLightingPass,
     startBlurEmissivePass,
     endBlurEmissivePass,
     startPostProcessingPass,

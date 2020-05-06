@@ -27,7 +27,7 @@ typeMap.set(129, 'meshes/armor.mesh');
 typeMap.set(130, 'meshes/ammo.mesh');
 
 const lightMap = new Map();
-lightMap.set(1, [0.278, 0.663, 1]);
+lightMap.set(1, [0.153, 0.643, 0.871]);
 lightMap.set(2, [0.569, 0.267, 0.722]);
 
 const dimension = 256;

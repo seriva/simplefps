@@ -29,6 +29,20 @@ const doLightingPass = () => {
     Buffers.endLightingPass();
     gl.disable(gl.BLEND);
     gl.enable(gl.CULL_FACE);
+
+    for (let i = 0; i < 2; i++) {
+        Buffers.startBlurLightingPass();
+
+        Shaders.gaussianBlur.bind();
+        Shaders.gaussianBlur.setInt('colorBuffer', 0);
+        Shaders.gaussianBlur.setVec2('viewportSize', [Context.width(), Context.height()]);
+        Shaders.gaussianBlur.setVec2('direction', i % 2 === 0 ? [1.5, 0] : [0, 1.5]);
+
+        quad.renderSingle();
+
+        Shader.unBind();
+        Buffers.endBlurLightingPass();
+    }
 };
 
 const doEmissiveBlurPass = () => {
