@@ -377,7 +377,7 @@ const Shaders = {
             uniform sampler2D noiseBuffer;
             uniform vec2 viewportSize;
             uniform SSAOUniforms ssao;
-            uniform float bloomMult;
+            uniform float emissiveMult;
             uniform float gamma;
 
             #define FXAA_REDUCE_MIN (1.0/ 128.0)
@@ -491,7 +491,7 @@ const Shaders = {
                     emissive = texture(emissiveBuffer, uv);
                 }                             
 
-                fragColor = vec4(clamp(color.rgb - occlusion, 0.0, 1.0), 1.0) + (emissive * bloomMult);
+                fragColor = vec4(clamp(color.rgb - occlusion, 0.0, 1.0), 1.0) + (emissive * emissiveMult);
                 fragColor = vec4(pow(fragColor.rgb, 1.0 / vec3(gamma)), 1.0);
             }`
     )

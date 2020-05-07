@@ -3,29 +3,29 @@ import Console from './console.js';
 
 const defaults = {
     // rendering
-    znear: 0.1,
-    zfar: 1000,
-    renderscale: Utils.isMobile() ? 0.5 : 1.0,
-    dofxaa: true,
-    dossao: !Utils.isMobile(),
-    doemissive: true,
+    zNear: 0.1,
+    zFar: 256,
+    renderScale: Utils.isMobile() ? 0.5 : 1.0,
+    anisotropicFiltering: 16,
+    gamma: 1.0,
+    doFXAA: true,
+    doSSAO: !Utils.isMobile(),
+    doEmissive: true,
     doEmissiveLighting: !Utils.isMobile(),
     ssaoRadius: 64,
     ssaoBias: 0.55,
     ssaoAttenuation: [0.7, 1],
-    bloomOffset: 1.5,
-    bloomMult: 3.0,
-    bloomIteration: 10,
-    anisotropicFiltering: 16,
-    gamma: 1.0,
+    emissiveOffset: 1.5,
+    emissiveMult: 3.0,
+    emissiveIteration: 10,
 
     // controls
     forward: 87,
     backwards: 83,
     left: 65,
     right: 68,
-    movespeed: 5,
-    looksensitivity: 5
+    moveSpeed: 5,
+    lookSensitivity: 5
 };
 
 let Settings = {};

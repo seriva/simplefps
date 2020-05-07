@@ -88,8 +88,8 @@ const Controls = {
 
         // look
         const mpos = Input.cursorMovement();
-        Camera.rotation[0] -= (mpos.x / 33.0) * Settings.looksensitivity;
-        Camera.rotation[1] += (mpos.y / 33.0) * Settings.looksensitivity;
+        Camera.rotation[0] -= (mpos.x / 33.0) * Settings.lookSensitivity;
+        Camera.rotation[1] += (mpos.y / 33.0) * Settings.lookSensitivity;
         if (Camera.rotation[1] > 89) {
             Camera.rotation[1] = 89;
         }
@@ -130,8 +130,8 @@ const Controls = {
         v[1] = 0;
         vec3.rotateY(v, v, [0, 0, 0], glMatrix.toRadian(-90));
         vec3.normalize(v, v);
-        move *= ft * Settings.movespeed;
-        strafe *= ft * Settings.movespeed;
+        move *= ft * Settings.moveSpeed;
+        strafe *= ft * Settings.moveSpeed;
         Camera.position[0] = Camera.position[0] + Camera.direction[0] * move + v[0] * strafe;
         Camera.position[1] = Camera.position[1] + Camera.direction[1] * move + v[1] * strafe;
         Camera.position[2] = Camera.position[2] + Camera.direction[2] * move + v[2] * strafe;

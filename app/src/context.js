@@ -51,8 +51,8 @@ Console.log(
 );
 
 /* eslint-disable */
-const width = () => Math.floor(gl.canvas.clientWidth * window.devicePixelRatio * Settings.renderscale);
-const height = () => Math.floor(gl.canvas.clientHeight * window.devicePixelRatio * Settings.renderscale);
+const width = () => Math.floor(gl.canvas.clientWidth * window.devicePixelRatio * Settings.renderScale);
+const height = () => Math.floor(gl.canvas.clientHeight * window.devicePixelRatio * Settings.renderScale);
 /* eslint-disable */
 
 const aspectRatio = () => width() / height();
@@ -79,7 +79,7 @@ window.addEventListener(
 window.dispatchEvent(new Event('resize'));
 
 Console.registerCmd('rscale', scale => {
-    Settings.renderscale = Math.min(Math.max(scale, 0.2), 1);
+    Settings.renderScale = Math.min(Math.max(scale, 0.2), 1);
     window.dispatchEvent(new Event('resize'));
 });
 

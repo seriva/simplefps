@@ -4,7 +4,6 @@ import { gl, Context } from './context.js';
 import Camera from './camera.js';
 import { EntityTypes } from './entity.js';
 import Resources from './resources.js';
-import PointlightEntity from './pointlightentity.js';
 import { Shaders, Shader } from './shaders.js';
 import Skybox from './skybox.js';
 import Console from './console.js';
@@ -46,7 +45,7 @@ const blockData = new Uint8Array(dimension * dimension * dimension);
 let entities = [];
 const buffers = new Map();
 
-// const to1D = (x, y, z) => (z * dimension * dimension) + (y * dimension) + x;
+const to1D = (x, y, z) => (z * dimension * dimension) + (y * dimension) + x;
 const to3D = (i) => {
     const x = Math.floor(i % dimension);
     const y = Math.floor((i / dimension) % dimension);

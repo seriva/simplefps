@@ -214,8 +214,8 @@ if (Utils.isMobile()) {
                     y: ev.targetTouches[0].clientY
                 };
                 setCursorMovement(
-                    (cursorPos.x - lastPos.x) * Settings.looksensitivity,
-                    (cursorPos.y - lastPos.y) * Settings.looksensitivity
+                    (cursorPos.x - lastPos.x) * Settings.lookSensitivity,
+                    (cursorPos.y - lastPos.y) * Settings.lookSensitivity
                 );
                 lastPos.x = cursorPos.x;
                 lastPos.y = cursorPos.y;

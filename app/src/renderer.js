@@ -46,13 +46,13 @@ const doLightingPass = () => {
 };
 
 const doEmissiveBlurPass = () => {
-    for (let i = 0; i < Settings.bloomIteration; i++) {
+    for (let i = 0; i < Settings.emissiveIteration; i++) {
         Buffers.startBlurEmissivePass();
 
         Shaders.gaussianBlur.bind();
         Shaders.gaussianBlur.setInt('colorBuffer', 0);
         Shaders.gaussianBlur.setVec2('viewportSize', [Context.width(), Context.height()]);
-        Shaders.gaussianBlur.setVec2('direction', i % 2 === 0 ? [Settings.bloomOffset, 0] : [0, Settings.bloomOffset]);
+        Shaders.gaussianBlur.setVec2('direction', i % 2 === 0 ? [Settings.emissiveOffset, 0] : [0, Settings.emissiveOffset]);
 
         quad.renderSingle();
 
@@ -64,9 +64,9 @@ const doEmissiveBlurPass = () => {
 const doPostProcessingPass = () => {
     Buffers.startPostProcessingPass();
     Shaders.postProcessing.bind();
-    Shaders.postProcessing.setInt('doFXAA', Settings.dofxaa);
-    Shaders.postProcessing.setInt('doSSAO', Settings.dossao);
-    Shaders.postProcessing.setInt('doEmissive', Settings.doemissive);
+    Shaders.postProcessing.setInt('doFXAA', Settings.doFXAA);
+    Shaders.postProcessing.setInt('doSSAO', Settings.doSSAO);
+    Shaders.postProcessing.setInt('doEmissive', Settings.doEmissive);
     Shaders.postProcessing.setInt('colorBuffer', 0);
     Shaders.postProcessing.setInt('lightBuffer', 1);
     Shaders.postProcessing.setInt('positionBuffer', 2);
@@ -77,8 +77,8 @@ const doPostProcessingPass = () => {
     Shaders.postProcessing.setFloat('ssao.sampleRadius', Settings.ssaoRadius);
     Shaders.postProcessing.setFloat('ssao.bias', Settings.ssaoBias);
     Shaders.postProcessing.setVec2('ssao.attenuation', Settings.ssaoAttenuation);
-    Shaders.postProcessing.setVec2('ssao.depthRange', [Settings.znear, Settings.zfar]);
-    Shaders.postProcessing.setFloat('bloomMult', Settings.bloomMult);
+    Shaders.postProcessing.setVec2('ssao.depthRange', [Settings.zNear, Settings.zFar]);
+    Shaders.postProcessing.setFloat('emissiveMult', Settings.emissiveMult);
     Shaders.postProcessing.setFloat('gamma', Settings.gamma);
 
     quad.renderSingle();
