@@ -13,7 +13,7 @@
         {
             "name": "mat_skybox_1_back",
             "textures": [
-                "skyboxes/1/black.jpg",
+                "skyboxes/1/blue.jpg",
                 "none",
                 "skyboxes/1/black.jpg"
             ],
@@ -23,7 +23,7 @@
         {
             "name": "mat_skybox_1_top",
             "textures": [
-                "skyboxes/1/black.jpg",
+                "skyboxes/1/blue.jpg",
                 "none",
                 "skyboxes/1/black.jpg"
             ],
@@ -33,7 +33,7 @@
         {
             "name": "mat_skybox_1_bottom",
             "textures": [
-                "skyboxes/1/black.jpg",
+                "skyboxes/1/blue.jpg",
                 "none",
                 "skyboxes/1/black.jpg"
             ],
@@ -43,7 +43,7 @@
         {
             "name": "mat_skybox_1_right",
             "textures": [
-                "skyboxes/1/black.jpg",
+                "skyboxes/1/blue.jpg",
                 "none",
                 "skyboxes/1/black.jpg"
             ],
@@ -53,7 +53,7 @@
         {
             "name": "mat_skybox_1_left",
             "textures": [
-                "skyboxes/1/black.jpg",
+                "skyboxes/1/blue.jpg",
                 "none",
                 "skyboxes/1/black.jpg"
             ],
