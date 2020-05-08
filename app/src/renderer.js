@@ -52,7 +52,8 @@ const doEmissiveBlurPass = () => {
         Shaders.gaussianBlur.bind();
         Shaders.gaussianBlur.setInt('colorBuffer', 0);
         Shaders.gaussianBlur.setVec2('viewportSize', [Context.width(), Context.height()]);
-        Shaders.gaussianBlur.setVec2('direction', i % 2 === 0 ? [Settings.emissiveOffset, 0] : [0, Settings.emissiveOffset]);
+        Shaders.gaussianBlur.setVec2('direction',
+            i % 2 === 0 ? [Settings.emissiveOffset, 0] : [0, Settings.emissiveOffset]);
 
         quad.renderSingle();
 

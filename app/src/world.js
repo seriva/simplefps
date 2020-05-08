@@ -45,7 +45,7 @@ const blockData = new Uint8Array(dimension * dimension * dimension);
 let entities = [];
 const buffers = new Map();
 
-const to1D = (x, y, z) => (z * dimension * dimension) + (y * dimension) + x;
+// const to1D = (x, y, z) => (z * dimension * dimension) + (y * dimension) + x;
 const to3D = (i) => {
     const x = Math.floor(i % dimension);
     const y = Math.floor((i / dimension) % dimension);
