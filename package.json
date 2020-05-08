@@ -32,8 +32,8 @@
       "jss-preset-default",
       "maquette",
       "velocity-animate",
-      "pretty-json-stringify/index.js",
-      "cannon/build/cannon.js"
+      "pretty-json-stringify",
+      "cannon"
     ]
   },
   "prepareDependencies": [
@@ -43,6 +43,7 @@
     "jss-preset-default",
     "maquette",
     "velocity-animate",
+    "pretty-json-stringify",
     "cannon"
   ],
   "devDependencies": {

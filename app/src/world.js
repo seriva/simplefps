@@ -1,4 +1,4 @@
-import prettyJsonStringify from './libs/pretty-json-stringify/index.js';
+import prettyJsonStringify from './libs/pretty-json-stringify.js';
 import { mat4 } from './libs/gl-matrix.js';
 import { gl, Context } from './context.js';
 import Camera from './camera.js';
