@@ -8,7 +8,7 @@
             "type": "chrome",
             "request": "launch",
             "name": "Launch Cubetastic",
-            "url": "http://localhost:8080",
+            "url": "http://localhost:8181",
             "webRoot": "${workspaceFolder}/app/"
         }
     ]

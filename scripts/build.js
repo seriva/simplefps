@@ -1,9 +1,15 @@
 const rollup = require('rollup');
 const terser = require('rollup-plugin-terser');
 const eslint = require('rollup-plugin-eslint');
-const liveServer = require('live-server');
+const commonjs = require('@rollup/plugin-commonjs');
+const nodeResolve = require('@rollup/plugin-node-resolve');
+const nodePolyfills = require('rollup-plugin-node-polyfills');
 const path = require('path');
 const fs = require('fs');
+const http = require('http');
+const url = require('url');
+
+const port = 8181;
 
 const copyRecursiveSync = (src, dest, exclude) => {
     if (!exclude) exclude = [];
@@ -54,11 +60,40 @@ try {
     }
     const env = process.argv[2];
     const rootDir = path.join(__dirname, '../app/');
+    const libDir = path.join(rootDir, '/src/libs/');
     const publicDir = path.join(__dirname, '../public/');
     const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '../package.json'), 'utf8'));
 
-    if (env === 'PRODUCTION') {
-        const start = new Date();
+    const start = new Date();
+    switch (env) {
+    case 'PREPARE':
+        console.log('Preparing dependencies:');
+        deleteRecursiveSync(libDir);
+        fs.mkdirSync(libDir);
+        let i = 0;
+        pkg.prepareDependencies.forEach((e) => {
+            const bundle = async () => {
+                console.log(`- ${e}`);
+                const b = await rollup.rollup({
+                    input: `node_modules/${e}`,
+                    plugins: [nodePolyfills(), nodeResolve(), commonjs()]
+                });
+                await b.write({
+                    format: 'es',
+                    entryFileNames: `${e}.js`,
+                    dir: libDir
+                });
+            };
+            bundle().then(() => {
+                i++;
+                if (i === pkg.prepareDependencies.length) {
+                    const end = new Date() - start;
+                    console.log('Preparing time: %dms', end);
+                }
+            });
+        });
+        break;
+    case 'PRODUCTION':
         console.log('Publishing static files');
         deleteRecursiveSync(publicDir);
         copyRecursiveSync(rootDir, publicDir, ['src']);
@@ -96,14 +131,58 @@ try {
             const end = new Date() - start;
             console.log('Build time: %dms', end);
         });
-    }
+        break;
+    case 'DEVELOPMENT':
+        console.log(`Started dev server on ${port}`);
+        http.createServer((req, res) => {
+            const parsedUrl = url.parse(req.url);
+            let pathname = `${rootDir}/${parsedUrl.pathname}`;
+            let { ext } = path.parse(pathname);
+            const map = {
+                '.ico': 'image/x-icon',
+                '.html': 'text/html',
+                '.js': 'text/javascript',
+                '.json': 'application/json',
+                '.css': 'text/css',
+                '.png': 'image/png',
+                '.jpg': 'image/jpeg',
+                '.ogg': 'audio/mpeg',
+                '.svg': 'image/svg+xml'
+            };
 
-    if (env === 'DEVELOPMENT') {
-        console.log('Start dev server');
-        liveServer.start({
-            root: rootDir,
-            open: false
-        });
+            const printStatus = (color) => {
+                console.log(`${color}%s\x1b[0m`, `${req.method} ${res.statusCode} ${req.url}`);
+            };
+
+            fs.exists(pathname, (exist) => {
+                if (!exist) {
+                    res.statusCode = 404;
+                    res.end(`File ${pathname} not found.`);
+                    printStatus('\x1b[31m');
+                } else {
+                    if (fs.statSync(pathname).isDirectory()) {
+                        pathname += '/index.html';
+                        ext = '.html';
+                    }
+
+                    fs.readFile(pathname, (err, data) => {
+                        if (err) {
+                            res.statusCode = 500;
+                            res.end(`Error getting the file: ${err}.`);
+                            printStatus('\x1b[31m');
+                        } else {
+                            res.statusCode = 200;
+                            res.setHeader('Content-type', map[ext] || 'text/plain');
+                            res.end(data);
+                            printStatus('\x1b[32m');
+                        }
+                    });
+                }
+            });
+        }).listen(port);
+        break;
+    default:
+        // code block
     }
 } catch (e) {
     console.error(e);
