@@ -71,12 +71,12 @@ try {
         deleteRecursiveSync(libDir);
         fs.mkdirSync(libDir);
         let i = 0;
-        pkg.prepareDependencies.forEach((e) => {
+        Object.keys(pkg.dependencies).forEach(function(e) {
             const bundle = async () => {
                 console.log(`- ${e}`);
                 const b = await rollup.rollup({
                     input: `node_modules/${e}`,
-                    plugins: [nodePolyfills(), nodeResolve(), commonjs()]
+                    plugins: [nodeResolve(), commonjs(), nodePolyfills()]
                 });
                 await b.write({
                     format: 'es',
@@ -86,11 +86,11 @@ try {
             };
             bundle().then(() => {
                 i++;
-                if (i === pkg.prepareDependencies.length) {
+                if (i === Object.keys(pkg.dependencies).length ) {
                     const end = new Date() - start;
                     console.log('Preparing time: %dms', end);
                 }
-            });
+            });   
         });
         break;
     case 'PRODUCTION':
@@ -133,7 +133,7 @@ try {
         });
         break;
     case 'DEVELOPMENT':
-        console.log(`Started dev server on ${port}`);
+        console.log(`Started dev server on localhost:${port}`);
         http.createServer((req, res) => {
             const parsedUrl = url.parse(req.url);
             let pathname = `${rootDir}/${parsedUrl.pathname}`;
@@ -182,7 +182,7 @@ try {
         }).listen(port);
         break;
     default:
-        // code block
+        console.log('Unknow build command!');
     }
 } catch (e) {
     console.error(e);
