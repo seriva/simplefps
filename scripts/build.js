@@ -71,7 +71,7 @@ try {
         deleteRecursiveSync(libDir);
         fs.mkdirSync(libDir);
         let i = 0;
-        Object.keys(pkg.dependencies).forEach(function(e) {
+        Object.keys(pkg.dependencies).forEach((e) => {
             const bundle = async () => {
                 console.log(`- ${e}`);
                 const b = await rollup.rollup({
@@ -86,11 +86,11 @@ try {
             };
             bundle().then(() => {
                 i++;
-                if (i === Object.keys(pkg.dependencies).length ) {
+                if (i === Object.keys(pkg.dependencies).length) {
                     const end = new Date() - start;
                     console.log('Preparing time: %dms', end);
                 }
-            });   
+            });
         });
         break;
     case 'PRODUCTION':
