@@ -9,9 +9,9 @@
     "url": "https://github.com/seriva/Cubetastic.git"
   },
   "scripts": {
-    "prepare": "node scripts/build.js PREPARE",
-    "dev": "node scripts/build.js DEVELOPMENT",
-    "build": "node scripts/build.js PRODUCTION"
+    "prepare": "node scripts/build.js prepare",
+    "dev": "node scripts/build.js development",
+    "build": "node scripts/build.js production"
   },
   "dependencies": {
     "cannon": "^0.6.2",

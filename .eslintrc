@@ -13,7 +13,6 @@
       }
     ],
     "linebreak-style": 0,
-    "no-case-declarations": 0,
     "no-unused-expressions": [
       "error",
       {

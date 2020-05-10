@@ -1,3 +1,5 @@
+/* eslint-disable no-case-declarations */
+/* eslint-disable import/no-extraneous-dependencies */
 const rollup = require('rollup');
 const terser = require('rollup-plugin-terser');
 const eslint = require('rollup-plugin-eslint');
@@ -8,8 +10,6 @@ const path = require('path');
 const fs = require('fs');
 const http = require('http');
 const url = require('url');
-
-const port = 8181;
 
 const copyRecursiveSync = (src, dest, exclude) => {
     if (!exclude) exclude = [];
@@ -54,19 +54,32 @@ const listRecursiveSync = (dir, filelist) => {
     return filelist;
 };
 
+const renderTemplate = (template, data, output) => {
+    const content = fs.readFileSync(template, { encoding: 'utf8' });
+    const newContent = content.replace(/{{.*?}}/g,
+        (match) => data[`${match.slice(2, -2)}`]);
+    const p = path.dirname(output);
+    if (!fs.existsSync(p)) {
+        fs.mkdirSync(p);
+    }
+    fs.writeFileSync(output, newContent);
+};
+
 try {
     if (!process.argv[2]) {
         throw new Error('Invalid input parameter');
     }
+
     const env = process.argv[2];
+    const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '../package.json'), 'utf8'));
     const rootDir = path.join(__dirname, '../app/');
     const libDir = path.join(rootDir, '/src/libs/');
     const publicDir = path.join(__dirname, '../public/');
-    const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '../package.json'), 'utf8'));
+    const port = 8181;
 
     const start = new Date();
     switch (env) {
-    case 'PREPARE':
+    case 'prepare':
         console.log('Preparing dependencies:');
         deleteRecursiveSync(libDir);
         fs.mkdirSync(libDir);
@@ -93,7 +106,7 @@ try {
             });
         });
         break;
-    case 'PRODUCTION':
+    case 'production':
         console.log('Publishing static files');
         deleteRecursiveSync(publicDir);
         copyRecursiveSync(rootDir, publicDir, ['src']);
@@ -114,25 +127,28 @@ try {
         };
         bundle().then(() => {
             console.log('Generating service worker');
-            let swTemplate = fs.readFileSync(path.join(__dirname, 'sw.tpl'), 'utf8');
-            const timeStamp = new Date().getTime();
-            const swFiles = [];
-            listRecursiveSync(publicDir, swFiles);
+            const files = [];
+            listRecursiveSync(publicDir, files);
             const rp = path.normalize(publicDir);
-            let filesNew = "[\n  '.',\n";
-            swFiles.forEach((s) => {
-                filesNew += `  '${s.replace(rp, '').replace(/\\/g, '/')}',\n`;
+            let cacheArray = "[\n    '.',\n";
+            files.forEach((s) => {
+                cacheArray += `    '${s.replace(rp, '').replace(/\\/g, '/')}',\n`;
             });
-            filesNew += ']';
-            swTemplate = swTemplate.replace('{{cacheArray}}', filesNew.toString());
-            swTemplate = swTemplate.replace('{{cacheName}}', `${pkg.name}-${pkg.version}-${timeStamp}`);
-            fs.writeFileSync(`${publicDir}sw.js`, swTemplate);
-
+            cacheArray += ']';
+            const data = {
+                cacheName: `${pkg.name}-${pkg.version}-${new Date().getTime()}`,
+                cacheArray
+            };
+            renderTemplate(
+                path.join(__dirname, 'sw.tpl'),
+                data,
+                `${publicDir}/sw.js`
+            );
             const end = new Date() - start;
             console.log('Build time: %dms', end);
         });
         break;
-    case 'DEVELOPMENT':
+    case 'development':
         console.log(`Started dev server on localhost:${port}`);
         http.createServer((req, res) => {
             const parsedUrl = url.parse(req.url);
