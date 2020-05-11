@@ -70,19 +70,26 @@ try {
         throw new Error('Invalid input parameter');
     }
 
-    const env = process.argv[2];
+    const cmd = process.argv[2];
     const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '../package.json'), 'utf8'));
-    const rootDir = path.join(__dirname, '../app/');
-    const libDir = path.join(rootDir, '/src/libs/');
+
+    const appRootDir = path.join(__dirname, '../app/');
+    const appSrcDir = path.join(appRootDir, '/src/');
+    const appSrcEntryPath = path.join(appSrcDir, 'main.js');
+    const appDependenciesDir = path.join(appSrcDir, 'dependencies/');
     const publicDir = path.join(__dirname, '../public/');
+    const publicSrcDir = path.join(publicDir, '/src/');
+    const publicBundleName = 'main.js';
+    const publicBundleChunkName = 'main-[hash].js';
+
     const port = 8181;
 
     const start = new Date();
-    switch (env) {
+    switch (cmd) {
     case 'prepare':
         console.log('Preparing dependencies:');
-        deleteRecursiveSync(libDir);
-        fs.mkdirSync(libDir);
+        deleteRecursiveSync(appDependenciesDir);
+        fs.mkdirSync(appDependenciesDir);
         let i = 0;
         Object.keys(pkg.dependencies).forEach((e) => {
             const bundle = async () => {
@@ -94,7 +101,7 @@ try {
                 await b.write({
                     format: 'es',
                     entryFileNames: `${e}.js`,
-                    dir: libDir
+                    dir: appDependenciesDir
                 });
             };
             bundle().then(() => {
@@ -109,20 +116,20 @@ try {
     case 'production':
         console.log('Publishing static files');
         deleteRecursiveSync(publicDir);
-        copyRecursiveSync(rootDir, publicDir, ['src']);
+        copyRecursiveSync(appRootDir, publicDir, [path.basename(appSrcDir)]);
 
         console.log('Generating app bundle');
         const bundle = async () => {
             const b = await rollup.rollup({
-                input: 'app/src/main.js',
+                input: appSrcEntryPath,
                 plugins: [terser.terser(), eslint.eslint()],
                 preserveEntrySignatures: false
             });
             await b.write({
                 format: 'es',
-                entryFileNames: 'main.js',
-                chunkFileNames: 'main-[hash].js',
-                dir: 'public/src/'
+                entryFileNames: publicBundleName,
+                chunkFileNames: publicBundleChunkName,
+                dir: publicSrcDir
             });
         };
         bundle().then(() => {
@@ -149,39 +156,46 @@ try {
         });
         break;
     case 'development':
-        console.log(`Started dev server on localhost:${port}`);
         http.createServer((req, res) => {
+            const printStatus = (color) => {
+                console.log(`${color}%s\x1b[0m`, `${req.method} ${req.statusCode} ${req.url}`);
+            };
+
             const parsedUrl = url.parse(req.url);
-            let pathname = `${rootDir}/${parsedUrl.pathname}`;
-            let { ext } = path.parse(pathname);
+            let pathName = `${appRootDir}/${parsedUrl.pathname}`;
+            let { ext } = path.parse(pathName);
+
             const map = {
-                '.ico': 'image/x-icon',
                 '.html': 'text/html',
                 '.js': 'text/javascript',
-                '.json': 'application/json',
                 '.css': 'text/css',
+                '.json': 'application/json',
                 '.png': 'image/png',
-                '.jpg': 'image/jpeg',
+                '.jpg': 'image/jpg',
+                '.gif': 'image/gif',
+                '.svg': 'image/svg+xml',
+                '.wav': 'audio/wav',
                 '.ogg': 'audio/mpeg',
-                '.svg': 'image/svg+xml'
+                '.mp4': 'video/mp4',
+                '.woff': 'application/font-woff',
+                '.ttf': 'application/font-ttf',
+                '.eot': 'application/vnd.ms-fontobject',
+                '.otf': 'application/font-otf',
+                '.wasm': 'application/wasm'
             };
 
-            const printStatus = (color) => {
-                console.log(`${color}%s\x1b[0m`, `${req.method} ${res.statusCode} ${req.url}`);
-            };
-
-            fs.exists(pathname, (exist) => {
+            fs.exists(pathName, (exist) => {
                 if (!exist) {
                     res.statusCode = 404;
-                    res.end(`File ${pathname} not found.`);
+                    res.end(`File ${pathName} not found.`);
                     printStatus('\x1b[31m');
                 } else {
-                    if (fs.statSync(pathname).isDirectory()) {
-                        pathname += '/index.html';
+                    if (fs.statSync(pathName).isDirectory()) {
+                        pathName += '/index.html';
                         ext = '.html';
                     }
 
-                    fs.readFile(pathname, (err, data) => {
+                    fs.readFile(pathName, (err, data) => {
                         if (err) {
                             res.statusCode = 500;
                             res.end(`Error getting the file: ${err}.`);
@@ -196,6 +210,7 @@ try {
                 }
             });
         }).listen(port);
+        console.log(`Started dev server on localhost:${port}`);
         break;
     default:
         console.log('Unknow build command!');

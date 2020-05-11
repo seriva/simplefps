@@ -1,4 +1,4 @@
-import CANNON from './libs/cannon.js';
+import CANNON from './dependencies/cannon.js';
 
 let world = null;
 const worldCube = new CANNON.Box(new CANNON.Vec3(0.5, 0.5, 0.5));

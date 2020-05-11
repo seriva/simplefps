@@ -1,4 +1,4 @@
-import { mat4, vec3 } from './libs/gl-matrix.js';
+import { mat4, vec3 } from './dependencies/gl-matrix.js';
 import { Entity, EntityTypes } from './entity.js';
 import { Shaders } from './shaders.js';
 import Resources from './resources.js';

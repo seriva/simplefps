@@ -1,4 +1,4 @@
-import { mat4 } from './libs/gl-matrix.js';
+import { mat4 } from './dependencies/gl-matrix.js';
 
 const EntityTypes = {
     MESH: 1,

@@ -1,4 +1,4 @@
-import { glMatrix, mat4, vec3 } from './libs/gl-matrix.js';
+import { glMatrix, mat4, vec3 } from './dependencies/gl-matrix.js';
 import { Context } from './context.js';
 import Utils from './utils.js';
 

@@ -1,5 +1,5 @@
-import CANNON from './libs/cannon.js';
-import { mat4 } from './libs/gl-matrix.js';
+import CANNON from './dependencies/cannon.js';
+import { mat4 } from './dependencies/gl-matrix.js';
 import Resources from './resources.js';
 import MeshEntity from './meshentity.js';
 import PointlightEntity from './pointlightentity.js';

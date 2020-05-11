@@ -1,4 +1,4 @@
-import { glMatrix, vec3 } from './libs/gl-matrix.js';
+import { glMatrix, vec3 } from './dependencies/gl-matrix.js';
 import Input from './input.js';
 import Console from './console.js';
 import Camera from './camera.js';
