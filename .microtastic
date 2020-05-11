@@ -1,0 +1,6 @@
+{
+    "genServiceWorker": true,
+    "eslintOnBuild": true,
+    "minifyBuild": true,
+    "serverPort": 8181
+}
