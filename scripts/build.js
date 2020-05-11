@@ -70,7 +70,7 @@ try {
         throw new Error('Invalid input parameter');
     }
 
-    const cmd = process.argv[2];
+    const cmd = process.argv[2].toLowerCase();
     const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '../package.json'), 'utf8'));
 
     const appRootDir = path.join(__dirname, '../app/');
@@ -86,7 +86,7 @@ try {
 
     const start = new Date();
     switch (cmd) {
-    case 'prepare':
+    case 'prep':
         console.log('Preparing dependencies:');
         deleteRecursiveSync(appDependenciesDir);
         fs.mkdirSync(appDependenciesDir);
@@ -113,7 +113,7 @@ try {
             });
         });
         break;
-    case 'production':
+    case 'prod':
         console.log('Publishing static files');
         deleteRecursiveSync(publicDir);
         copyRecursiveSync(appRootDir, publicDir, [path.basename(appSrcDir)]);
@@ -155,10 +155,10 @@ try {
             console.log('Build time: %dms', end);
         });
         break;
-    case 'development':
+    case 'dev':
         http.createServer((req, res) => {
             const printStatus = (color) => {
-                console.log(`${color}%s\x1b[0m`, `${req.method} ${req.statusCode} ${req.url}`);
+                console.log(`${color}%s\x1b[0m`, `${req.method} ${res.statusCode} ${req.url}`);
             };
 
             const parsedUrl = url.parse(req.url);
@@ -213,7 +213,7 @@ try {
         console.log(`Started dev server on localhost:${port}`);
         break;
     default:
-        console.log('Unknow build command!');
+        throw new Error('Invalid input parameter');
     }
 } catch (e) {
     console.error(e);
