@@ -28,6 +28,6 @@
     "eslint": "^7.0.0",
     "eslint-config-airbnb-base": "^14.1.0",
     "eslint-plugin-import": "^2.20.2",
-    "microtastic": "^0.0.3"
+    "microtastic": "^0.0.5"
   }
 }

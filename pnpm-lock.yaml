@@ -12,7 +12,7 @@ devDependencies:
   eslint: 7.0.0
   eslint-config-airbnb-base: 14.1.0_c3a28c28a53f44caa0bfc5559cbf192d
   eslint-plugin-import: 2.20.2_eslint@7.0.0
-  microtastic: 0.0.3
+  microtastic: 0.0.5
 lockfileVersion: 5.1
 packages:
   /@babel/code-frame/7.8.3:
@@ -1282,7 +1282,7 @@ packages:
     dev: true
     resolution:
       integrity: sha512-abv/qOcuPfk3URPfDzmZU1LKmuw8kT+0nIHvKrKgFrwifol/doWcdA4ZqsWQ8ENrFKkd67Mfpo/LovbIUsbt3w==
-  /microtastic/0.0.3:
+  /microtastic/0.0.5:
     dependencies:
       '@rollup/plugin-commonjs': 11.0.2_rollup@2.8.2
       '@rollup/plugin-node-resolve': 7.1.3_rollup@2.8.2
@@ -1295,7 +1295,7 @@ packages:
     dev: true
     hasBin: true
     resolution:
-      integrity: sha512-H7Dl4e/B3RsErCNQG7zjIT8ZSiX7kVWkMtW4MBKLQ6AudhixNZOP7krVxH1WIC3gy+RNgolX30qZl0X3m5H13w==
+      integrity: sha512-kf4DHVAs7eFzjQ1heGu7Sil+5BV5n/gvroGf04wfcCNnT3VJWncBiPkz8WXZKvl7OYYVxLwr0Ya+grPAL96rXQ==
   /mimic-fn/2.1.0:
     dev: true
     engines:
@@ -2060,6 +2060,6 @@ specifiers:
   jss-plugin-global: ^10.1.1
   jss-preset-default: ^10.1.1
   maquette: ^3.3.6
-  microtastic: ^0.0.3
+  microtastic: ^0.0.5
   pretty-json-stringify: ^0.0.2
   velocity-animate: ^1.5.2
