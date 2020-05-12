@@ -27,7 +27,9 @@ const createPowerup = (pos, type, mesh) => {
         powerup.addChild(new PointlightEntity(pos, 1.2, [0, 0.352, 0.662], 1.25));
         break;
     case 130:
-        powerup.addChild(new PointlightEntity(pos, 1.2, [0.623, 0.486, 0.133], 1.25));
+        // powerup.addChild(new PointlightEntity(pos, 1.2, [0.623, 0.486, 0.133], 1.25));
+        powerup.addChild(new PointlightEntity(pos, 1.5, [0, 0.352, 0.662], 1.25));
+        mat4.scale(powerup.base_matrix, powerup.base_matrix, [2.25, 2.25, 2.25]);
         break;
     default:
         // code block

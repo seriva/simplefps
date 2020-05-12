@@ -23,7 +23,7 @@ typeMap.set(1, 'mat_world_tiles');
 typeMap.set(2, 'mat_world_concrete');
 typeMap.set(128, 'meshes/health.mesh');
 typeMap.set(129, 'meshes/armor.mesh');
-typeMap.set(130, 'meshes/ammo.mesh');
+typeMap.set(130, 'meshes/grenade_launcher.mesh');
 
 const lightMap = new Map();
 lightMap.set(1, [0.153, 0.643, 0.871]);

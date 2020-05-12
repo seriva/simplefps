@@ -69,6 +69,20 @@
             "semMult": 0.8
         },
         {
+            "name": "mat_pickup_grenade_launcher",
+            "textures": [
+                "meshes/grenade_launcher.jpg",
+                "none",
+                "meshes/grenade_launcher_emissive.jpg",
+                "meshes/spheremap2.jpg",
+                "meshes/grenade_launcher_sem.jpg"
+            ],
+            "geomType": 1,
+            "doEmissive": 1,
+            "doSEM": 1,
+            "semMult": 0.7
+        },        
+        {
             "name": "mat_ball",
             "textures": [
                 "meshes/ball.jpg",

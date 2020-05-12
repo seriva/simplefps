@@ -8,6 +8,7 @@
         "meshes/health.mesh",
         "meshes/armor.mesh",
         "meshes/ammo.mesh",
+        "meshes/grenade_launcher.mesh",
         "meshes/ball.mesh",
     
         "skyboxes/skybox.mesh",
