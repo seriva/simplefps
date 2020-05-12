@@ -150,10 +150,12 @@ const Shaders = {
         uniform int doSEM;
         uniform float detailMult;
         uniform float detailUVMult;
+        uniform float semMult;
         uniform sampler2D colorSampler;
         uniform sampler2D detailSampler;
         uniform sampler2D emissiveSampler;
         uniform sampler2D semSampler;
+        uniform sampler2D semApplySampler;
 
         const int MESH = 1;
         const int INSTANCED_MESHES = 2;
@@ -186,7 +188,11 @@ const Shaders = {
             if (doSEM==1)
             {
                 vec4 semColor = texture(semSampler, vSemUV);
-                color = mix(color, semColor, 0.5);
+                vec4 semApply = texture(semApplySampler, vUV);
+                float semSum = semApply.x * semApply.y * semApply.z;
+                if (semSum > 0.2) {
+                    color =  mix(color, semColor * semApply, semMult);
+                }
             }         
 
             fragColor = color + fragEmissive;

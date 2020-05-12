@@ -1,5 +1,5 @@
 import { gl } from './context.js';
-import { Shaders, Shader } from './shaders.js';
+import { Shaders } from './shaders.js';
 import Texture from './texture.js';
 
 class Material {
@@ -14,6 +14,7 @@ class Material {
         m.detailUVMult = data.detailUVMult ? data.detailUVMult : 0;
         m.doEmissive = data.doEmissive ? data.doEmissive : 0;
         m.doSEM = data.doSEM ? data.doSEM : 0;
+        m.semMult = data.semMult ? data.semMult : 0;
         m.textures.forEach((name) => {
             if (name === 'none') {
                 return;
@@ -28,10 +29,12 @@ class Material {
         Shaders.geometry.setInt('detailSampler', 1);
         Shaders.geometry.setInt('emissiveSampler', 2);
         Shaders.geometry.setInt('semSampler', 3);
+        Shaders.geometry.setInt('semApplySampler', 4);
         Shaders.geometry.setInt('geomType', m.geomType);
         Shaders.geometry.setInt('doDetail', m.doDetail);
         Shaders.geometry.setFloat('detailMult', m.detailMult);
         Shaders.geometry.setFloat('detailUVMult', m.detailUVMult);
+        Shaders.geometry.setFloat('semMult', m.semMult);
         Shaders.geometry.setInt('doEmissive', m.doEmissive);
         Shaders.geometry.setInt('doSEM', m.doSEM);
 

@@ -32,11 +32,13 @@
                 "meshes/ammo.jpg",
                 "none",
                 "meshes/ammo_emissive.jpg",
-                "meshes/spheremap1.jpg"
+                "meshes/spheremap1.jpg",
+                "meshes/powerup_sem.jpg"
             ],
             "geomType": 1,
             "doEmissive": 1,
-            "doSEM": 1
+            "doSEM": 1,
+            "semMult": 0.8
         },
         {
             "name": "mat_pickup_health",
@@ -44,11 +46,13 @@
                 "meshes/health.jpg",
                 "none",
                 "meshes/health_emissive.jpg",
-                "meshes/spheremap1.jpg"
+                "meshes/spheremap1.jpg",
+                "meshes/powerup_sem.jpg"
             ],
             "geomType": 1,
             "doEmissive": 1,
-            "doSEM": 1 
+            "doSEM": 1,
+            "semMult": 0.8
         },
         {
             "name": "mat_pickup_armor",
@@ -56,11 +60,13 @@
                 "meshes/armor.jpg",
                 "none",
                 "meshes/armor_emissive.jpg",
-                "meshes/spheremap1.jpg"
+                "meshes/spheremap1.jpg",
+                "meshes/powerup_sem.jpg"
             ],
             "geomType": 1,
             "doEmissive": 1,
-            "doSEM": 1
+            "doSEM": 1,
+            "semMult": 0.8
         },
         {
             "name": "mat_ball",
