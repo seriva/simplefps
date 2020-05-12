@@ -56,7 +56,7 @@
                 "meshes/armor.jpg",
                 "none",
                 "meshes/armor_emissive.jpg",
-                "meshes/spheremap2.jpg"
+                "meshes/spheremap1.jpg"
             ],
             "geomType": 1,
             "doEmissive": 1,
