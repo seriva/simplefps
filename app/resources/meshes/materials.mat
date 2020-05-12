@@ -30,40 +30,37 @@
             "name": "mat_pickup_ammo",
             "textures": [
                 "meshes/ammo.jpg",
-                "meshes/detail1.jpg",
-                "meshes/ammo_emissive.jpg"
+                "none",
+                "meshes/ammo_emissive.jpg",
+                "meshes/spheremap1.jpg"
             ],
             "geomType": 1,
             "doEmissive": 1,
-            "doDetail": 1,
-            "detailMult": 0.85,
-            "detailUVMult": 3
+            "doSEM": 1
         },
         {
             "name": "mat_pickup_health",
             "textures": [
                 "meshes/health.jpg",
-                "meshes/detail1.jpg",
-                "meshes/health_emissive.jpg"
+                "none",
+                "meshes/health_emissive.jpg",
+                "meshes/spheremap1.jpg"
             ],
             "geomType": 1,
             "doEmissive": 1,
-            "doDetail": 1,
-            "detailMult": 0.65,
-            "detailUVMult": 3 
+            "doSEM": 1 
         },
         {
             "name": "mat_pickup_armor",
             "textures": [
                 "meshes/armor.jpg",
-                "meshes/detail1.jpg",
-                "meshes/armor_emissive.jpg"
+                "none",
+                "meshes/armor_emissive.jpg",
+                "meshes/spheremap2.jpg"
             ],
             "geomType": 1,
             "doEmissive": 1,
-            "doDetail": 1,
-            "detailMult": 0.65,
-            "detailUVMult": 3
+            "doSEM": 1
         },
         {
             "name": "mat_ball",

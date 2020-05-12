@@ -92,33 +92,41 @@ const Shaders = {
         layout(location=3) in vec3 aOffset;
 
         uniform int geomType;
+        uniform int doSEM;
         uniform mat4 matWorld;
         uniform mat4 matViewProj;
         
         out vec4 vPosition;
-        out vec4 vNormal;
+        out vec3 vNormal;
         out vec2 vUV;
+        out vec2 vSemUV;
 
         const int MESH = 1;
         const int INSTANCED_MESHES = 2;
         const int SKYBOX = 3;
         
         void main() {
-            
             vPosition = vec4(aPosition, 1.0);
-            switch (geomType) {
-            case MESH:
-                vNormal = matWorld * vec4(aNormal, 0.0);
-                break;
-            case INSTANCED_MESHES:
+
+            if (geomType == INSTANCED_MESHES) {
                 vPosition = vPosition + vec4(aOffset, 0.0);
-                vNormal = matWorld * vec4(aNormal, 0.0);
-                break;                
-            case SKYBOX:
-                break;
             }
+
             vUV = aUV;
             vPosition = matWorld * vPosition;
+            vNormal = normalize((matWorld * vec4(aNormal, 0.0)).xyz);
+
+            if (doSEM==1)
+            {
+                vec3 r = reflect( normalize( vPosition.xyz ), vNormal );
+                float m = 2. * sqrt(
+                  pow( r.x, 2. ) +
+                  pow( r.y, 2. ) +
+                  pow( r.z + 1., 2. )
+                );
+                vSemUV = r.xy / m + .5;
+            }
+
             gl_Position = matViewProj * vPosition;
         }`,
         glsl`#version 300 es
@@ -127,8 +135,9 @@ const Shaders = {
         precision highp int;
         
         in vec4 vPosition;
-        in vec4 vNormal; 
+        in vec3 vNormal; 
         in vec2 vUV;
+        in vec2 vSemUV;
 
         layout(location=0) out vec4 fragPosition;
         layout(location=1) out vec4 fragNormal;
@@ -138,11 +147,13 @@ const Shaders = {
         uniform int geomType;
         uniform int doDetail;
         uniform int doEmissive;
+        uniform int doSEM;
         uniform float detailMult;
         uniform float detailUVMult;
         uniform sampler2D colorSampler;
         uniform sampler2D detailSampler;
         uniform sampler2D emissiveSampler;
+        uniform sampler2D semSampler;
 
         const int MESH = 1;
         const int INSTANCED_MESHES = 2;
@@ -153,7 +164,7 @@ const Shaders = {
             case MESH:
             case INSTANCED_MESHES:
                 fragPosition = vPosition;
-                fragNormal = vec4(normalize(vNormal.xyz), 0.0);
+                fragNormal = vec4(vNormal, 0.0);
                 break;
             case SKYBOX:
                 fragNormal = vec4(0.0, 0.0, 0.0, 1.0);
@@ -171,6 +182,12 @@ const Shaders = {
             if (doEmissive==1) {
                 fragEmissive = texture(emissiveSampler, vUV);            
             }
+
+            if (doSEM==1)
+            {
+                vec4 semColor = texture(semSampler, vSemUV);
+                color = mix(color, semColor, 0.5);
+            }         
 
             fragColor = color + fragEmissive;
         }`
