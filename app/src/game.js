@@ -11,13 +11,13 @@ const updatePowerup = (entity, frameTime) => {
     mat4.identity(entity.ani_matrix);
     mat4.fromRotation(entity.ani_matrix, entity.animationTime / 1000, [0, 1, 0]);
     mat4.translate(entity.ani_matrix, entity.ani_matrix,
-        [0, (Math.cos(Math.PI * (entity.animationTime / 1000)) * 0.15), 0]);
+        [0, (Math.cos(Math.PI * (entity.animationTime / 1000)) * 0.1), 0]);
     entity.children.forEach((e) => {
         mat4.copy(e.ani_matrix, entity.ani_matrix);
         mat4.translate(e.ani_matrix, e.ani_matrix, [0, 0.15, 0]);
     });
 };
-const createPowerup = (pos, type, mesh) => {
+const createPickup = (pos, type, mesh) => {
     const powerup = new MeshEntity(pos, mesh, updatePowerup);
     switch (type) {
     case 128:
@@ -27,9 +27,11 @@ const createPowerup = (pos, type, mesh) => {
         powerup.addChild(new PointlightEntity(pos, 1.2, [0, 0.352, 0.662], 1.25));
         break;
     case 130:
-        // powerup.addChild(new PointlightEntity(pos, 1.2, [0.623, 0.486, 0.133], 1.25));
-        powerup.addChild(new PointlightEntity(pos, 1.5, [0, 0.352, 0.662], 1.25));
-        mat4.scale(powerup.base_matrix, powerup.base_matrix, [2.25, 2.25, 2.25]);
+        powerup.addChild(new PointlightEntity(pos, 1.2, [0.623, 0.486, 0.133], 1.25));
+        break;
+    case 150:
+        powerup.addChild(new PointlightEntity(pos, 1.2, [0.2, 0.552, 0.862], 1.25));
+        mat4.scale(powerup.base_matrix, powerup.base_matrix, [1.75, 1.75, 1.75]);
         break;
     default:
         // code block
@@ -74,7 +76,7 @@ const createBall = () => {
 
 const Game = {
     createBall,
-    createPowerup
+    createPickup
 };
 
 export { Game as default };
