@@ -198,6 +198,35 @@ const Shaders = {
             fragColor = color + fragEmissive;
         }`
     ),
+    entityShadows: new Shader(
+        glsl`#version 300 es
+
+        precision highp float;
+        precision highp int;
+
+        layout(location=0) in vec3 aPosition;
+
+        uniform mat4 matWorld;
+        uniform mat4 matViewProj;
+
+        void main()
+        {
+            gl_Position = matViewProj * matWorld * vec4(aPosition, 1.0);
+        }`,
+        glsl`#version 300 es
+
+        precision highp float;
+        precision highp int;
+
+        layout(location=0) out vec4 fragColor;
+
+        uniform vec3 shadowAmbient;
+
+        void main()
+        {
+            fragColor = vec4(shadowAmbient, 1.0);
+        }`
+    ),
     directionalLight: new Shader(
         glsl`#version 300 es
 
@@ -285,8 +314,7 @@ const Shaders = {
         flat in vec3 offsetPosition;
 
         uniform PointLight pointLight;
-        uniform vec3 worldAmbient;
-        uniform int  lightType; 
+        uniform int  lightType;    
         uniform sampler2D positionBuffer;
         uniform sampler2D normalBuffer;
 
@@ -397,6 +425,7 @@ const Shaders = {
             uniform sampler2D positionBuffer;
             uniform sampler2D normalBuffer;
             uniform sampler2D emissiveBuffer;
+            uniform sampler2D shadowBuffer;
             uniform sampler2D noiseBuffer;
             uniform vec2 viewportSize;
             uniform SSAOUniforms ssao;
@@ -502,7 +531,8 @@ const Shaders = {
                 }
                 
                 vec4 light =  texture(lightBuffer, uv);
-                color = color * light;
+                vec4 shadow =  texture(shadowBuffer, uv);
+                color = color * (light * shadow);
 
                 float occlusion = 0.0;
                 if(doSSAO)

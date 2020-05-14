@@ -14,21 +14,46 @@ const doGeomPass = () => {
     World.renderGeometry();
 
     Shader.unBind();
-    Buffers.endGeomPass();
+    Buffers.endLightingPass();
+};
+
+const doShadowPass = () => {
+    Buffers.startShadowPass();
+
+    World.renderShadows();
+
+    Buffers.endShadowPass();
+
+    for (let i = 0; i < 2; i++) {
+        Buffers.startBlurShadowPass();
+
+        Shaders.gaussianBlur.bind();
+        Shaders.gaussianBlur.setInt('colorBuffer', 0);
+        Shaders.gaussianBlur.setVec2('viewportSize', [Context.width(), Context.height()]);
+        Shaders.gaussianBlur.setVec2('direction', i % 2 === 0 ? [2, 0] : [0, 2]);
+
+        quad.renderSingle();
+
+        Shader.unBind();
+        Buffers.endBlurPass();
+    }
 };
 
 const doLightingPass = () => {
+    Buffers.startLightingPass();
+
     gl.disable(gl.CULL_FACE);
+    gl.disable(gl.DEPTH_TEST);
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.ONE, gl.ONE);
 
-    Buffers.startLightingPass();
-
     World.renderLights();
 
-    Buffers.endLightingPass();
     gl.disable(gl.BLEND);
+    gl.enable(gl.DEPTH_TEST);
     gl.enable(gl.CULL_FACE);
+
+    Buffers.endLightingPass();
 
     for (let i = 0; i < 2; i++) {
         Buffers.startBlurLightingPass();
@@ -41,7 +66,7 @@ const doLightingPass = () => {
         quad.renderSingle();
 
         Shader.unBind();
-        Buffers.endBlurLightingPass();
+        Buffers.endBlurPass();
     }
 };
 
@@ -58,7 +83,7 @@ const doEmissiveBlurPass = () => {
         quad.renderSingle();
 
         Shader.unBind();
-        Buffers.endBlurEmissivePass();
+        Buffers.endBlurPass();
     }
 };
 
@@ -73,7 +98,8 @@ const doPostProcessingPass = () => {
     Shaders.postProcessing.setInt('positionBuffer', 2);
     Shaders.postProcessing.setInt('normalBuffer', 3);
     Shaders.postProcessing.setInt('emissiveBuffer', 4);
-    Shaders.postProcessing.setInt('noiseBuffer', 5);
+    Shaders.postProcessing.setInt('shadowBuffer', 5);
+    Shaders.postProcessing.setInt('noiseBuffer', 6);
     Shaders.postProcessing.setVec2('viewportSize', [Context.width(), Context.height()]);
     Shaders.postProcessing.setFloat('ssao.sampleRadius', Settings.ssaoRadius);
     Shaders.postProcessing.setFloat('ssao.bias', Settings.ssaoBias);
@@ -91,6 +117,7 @@ const doPostProcessingPass = () => {
 const Renderer = {
     render() {
         doGeomPass();
+        doShadowPass();
         doLightingPass();
         doEmissiveBlurPass();
         doPostProcessingPass();

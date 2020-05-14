@@ -80,7 +80,7 @@
             "geomType": 1,
             "doEmissive": 1,
             "doSEM": 1,
-            "semMult": 0.7
+            "semMult": 0.8
         },        
         {
             "name": "mat_ball",

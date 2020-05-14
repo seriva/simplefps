@@ -6,7 +6,7 @@ import PointlightEntity from './pointlightentity.js';
 import Camera from './camera.js';
 import Physics from './physics.js';
 
-const updatePowerup = (entity, frameTime) => {
+const updatePickup = (entity, frameTime) => {
     entity.animationTime += frameTime;
     mat4.identity(entity.ani_matrix);
     mat4.fromRotation(entity.ani_matrix, entity.animationTime / 1000, [0, 1, 0]);
@@ -18,25 +18,25 @@ const updatePowerup = (entity, frameTime) => {
     });
 };
 const createPickup = (pos, type, mesh) => {
-    const powerup = new MeshEntity(pos, mesh, updatePowerup);
+    const pickup = new MeshEntity(pos, mesh, updatePickup);
+    pickup.castShadow = true;
     switch (type) {
     case 128:
-        powerup.addChild(new PointlightEntity(pos, 1.2, [0.752, 0, 0.035], 1.25));
+        pickup.addChild(new PointlightEntity(pos, 1.2, [0.752, 0, 0.035], 1.25));
         break;
     case 129:
-        powerup.addChild(new PointlightEntity(pos, 1.2, [0, 0.352, 0.662], 1.25));
+        pickup.addChild(new PointlightEntity(pos, 1.2, [0, 0.352, 0.662], 1.25));
         break;
     case 130:
-        powerup.addChild(new PointlightEntity(pos, 1.2, [0.623, 0.486, 0.133], 1.25));
+        pickup.addChild(new PointlightEntity(pos, 1.2, [0.623, 0.486, 0.133], 1.25));
         break;
     case 150:
-        powerup.addChild(new PointlightEntity(pos, 1.2, [0.2, 0.552, 0.862], 1.25));
-        mat4.scale(powerup.base_matrix, powerup.base_matrix, [1.75, 1.75, 1.75]);
+        pickup.addChild(new PointlightEntity(pos, 1.2, [0.2, 0.552, 0.862], 1.25));
         break;
     default:
         // code block
     }
-    return powerup;
+    return pickup;
 };
 
 const ballShape = new CANNON.Sphere(0.165);

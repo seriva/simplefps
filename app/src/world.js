@@ -1,5 +1,5 @@
 import prettyJsonStringify from './dependencies/pretty-json-stringify.js';
-import { mat4 } from './dependencies/gl-matrix.js';
+import { mat4, vec3 } from './dependencies/gl-matrix.js';
 import { gl, Context } from './context.js';
 import Camera from './camera.js';
 import { EntityTypes } from './entity.js';
@@ -41,6 +41,7 @@ let mainLight = {
     direction: [-3.0, 3.0, -5.0],
     color: [0.65, 0.625, 0.65],
 };
+const shadowAmbient = [1, 1, 1];
 
 const blockData = new Uint8Array(dimension * dimension * dimension);
 let entities = [];
@@ -52,6 +53,17 @@ const to3D = (i) => {
     const y = Math.floor((i / dimension) % dimension);
     const z = Math.floor(i / (dimension * dimension));
     return [x, y, z];
+};
+
+const calcShadowAmbient = () => {
+    const up = vec3.fromValues(0, 1, 0);
+    const ld = vec3.fromValues(mainLight.direction[0], mainLight.direction[1], mainLight.direction[2]);
+    vec3.inverse(ld, ld);
+    vec3.normalize(ld, ld);
+    const dot = Math.max(vec3.dot(up, ld), 0);
+    shadowAmbient[0] = (mainLight.color[0] * dot) + ambient[0];
+    shadowAmbient[1] = (mainLight.color[1] * dot) + ambient[1];
+    shadowAmbient[2] = (mainLight.color[2] * dot) + ambient[2];
 };
 
 const clear = () => {
@@ -121,6 +133,8 @@ const prepare = () => {
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(value.data), gl.STATIC_DRAW);
         value.data = [];
     });
+
+    calcShadowAmbient();
 };
 
 const pause = (doPause) => {
@@ -162,6 +176,20 @@ const renderGeometry = () => {
     });
 };
 
+const renderShadows = () => {
+    Shaders.entityShadows.bind();
+    Shaders.entityShadows.setMat4('matViewProj', Camera.viewProjection);
+    Shaders.entityShadows.setVec3('shadowAmbient', shadowAmbient);
+
+    const meshEntities = getEntities(EntityTypes.MESH);
+    meshEntities.forEach((entity) => {
+        entity.renderShadow();
+    });
+
+    Shader.unBind();
+    gl.clearColor(ambient[0], ambient[1], ambient[2], 1.0);
+};
+
 const renderLights = () => {
     // directional light
     Shaders.directionalLight.bind();
@@ -178,6 +206,7 @@ const renderLights = () => {
     Shaders.pointLight.setMat4('matViewProj', Camera.viewProjection);
     Shaders.pointLight.setInt('positionBuffer', 0);
     Shaders.pointLight.setInt('normalBuffer', 1);
+    Shaders.pointLight.setInt('shadowBuffer', 2);
 
     // instanced
     if (Settings.doEmissiveLighting) {
@@ -273,7 +302,8 @@ const World = {
     addEntities,
     getEntities,
     renderGeometry,
-    renderLights
+    renderLights,
+    renderShadows
 };
 
 export { World as default };
