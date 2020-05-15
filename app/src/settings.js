@@ -16,7 +16,7 @@ const defaults = {
     ssaoAttenuation: [0.7, 1],
     emissiveOffset: 1.5,
     emissiveMult: 3.0,
-    emissiveIteration: 10,
+    emissiveIteration: 9,
 
     // controls
     forward: 87,

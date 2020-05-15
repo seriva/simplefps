@@ -9,17 +9,17 @@ const quad = Resources.get('system/quad.mesh');
 
 const blurImage = (source, iterations, radius) => {
     Shaders.gaussianBlur.bind();
+    Buffers.startBlurPass(source);
     for (let i = 0; i < iterations; i++) {
-        Buffers.startBlurPass(source);
+        Buffers.swapBlur(i);
 
         Shaders.gaussianBlur.setInt('colorBuffer', 0);
         Shaders.gaussianBlur.setVec2('viewportSize', [Context.width(), Context.height()]);
         Shaders.gaussianBlur.setVec2('direction', i % 2 === 0 ? [radius, 0] : [0, radius]);
 
         quad.renderSingle();
-
-        Buffers.endBlurPass();
     }
+    Buffers.endBlurPass();
     Shader.unBind();
 };
 
@@ -38,7 +38,7 @@ const shadowPass = () => {
 
     Buffers.endShadowPass();
 
-    blurImage(BlurSourceType.SHADOW, 2, 2);
+    blurImage(BlurSourceType.SHADOW, 3, 2);
 };
 
 const lightingPass = () => {
@@ -57,7 +57,7 @@ const lightingPass = () => {
 
     Buffers.endLightingPass();
 
-    blurImage(BlurSourceType.LIGHTING, 2, 1.5);
+    blurImage(BlurSourceType.LIGHTING, 3, 1.5);
 };
 
 const emissiveBlurPass = () => {

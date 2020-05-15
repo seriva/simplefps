@@ -31,7 +31,8 @@ const l = {
 
 const b = {
     framebuffer: null,
-    color: null
+    blur: null,
+    source: null
 };
 
 const init = (width, height) => {
@@ -142,15 +143,12 @@ const init = (width, height) => {
     gl.bindFramebuffer(gl.FRAMEBUFFER, b.framebuffer);
     gl.activeTexture(gl.TEXTURE0);
 
-    b.color = new Texture({
+    b.blur = new Texture({
         format: gl.RGBA8,
         width,
         height
     });
-    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, b.color.texture, 0);
-
-    gl.readBuffer(gl.COLOR_ATTACHMENT0);
-    gl.drawBuffers([gl.COLOR_ATTACHMENT0]);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, b.blur.texture, 0);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 };
 
@@ -160,30 +158,35 @@ const setWorldClearColor = () => {
 };
 
 const startBlurPass = (blurSource) => {
-    let source = null;
     switch (blurSource) {
     case BlurSourceType.SHADOW:
-        source = s.shadow;
+        b.source = s.shadow;
         break;
     case BlurSourceType.LIGHTING:
-        source = l.light;
+        b.source = l.light;
         break;
     case BlurSourceType.EMISSIVE:
-        source = g.emissive;
+        b.source = g.emissive;
         break;
     default:
     }
     gl.bindFramebuffer(gl.FRAMEBUFFER, b.framebuffer);
-    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-    gl.drawBuffers([gl.COLOR_ATTACHMENT0]);
-    source.bind(gl.TEXTURE0);
 };
 
 const endBlurPass = () => {
-    gl.readBuffer(gl.COLOR_ATTACHMENT0);
-    gl.copyTexSubImage2D(gl.TEXTURE_2D, 0, 0, 0, 0, 0, Context.width(), Context.height());
     Texture.unBind(gl.TEXTURE0);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+};
+
+const swapBlur = (i) => {
+    if (i % 2 === 0) {
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, b.blur.texture, 0);
+        b.source.bind(gl.TEXTURE0);
+    } else {
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, b.source.texture, 0);
+        b.blur.bind(gl.TEXTURE0);
+    }
+    gl.clear(gl.COLOR_BUFFER_BIT);
 };
 
 const startGeomPass = () => {
@@ -254,6 +257,7 @@ const Buffers = {
     endLightingPass,
     startBlurPass,
     endBlurPass,
+    swapBlur,
     startPostProcessingPass,
     endPostProcessingPass
 };
