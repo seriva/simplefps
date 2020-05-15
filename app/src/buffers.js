@@ -2,6 +2,9 @@ import { gl, Context } from './context.js';
 import Texture from './texture.js';
 import World from './world.js';
 
+let noise = null;
+let depth = null;
+
 const BlurSourceType = {
     SHADOW: 1,
     LIGHTING: 2,
@@ -13,8 +16,7 @@ const g = {
     position: null,
     normal: null,
     color: null,
-    emissive: null,
-    depth: null
+    emissive: null
 };
 
 const s = {
@@ -32,10 +34,36 @@ const b = {
     color: null
 };
 
-let noise = null;
-
-
 const init = (width, height) => {
+    // **********************************
+    // ssao noise buffer
+    // **********************************
+    const numNoisePixels = gl.drawingBufferWidth * gl.drawingBufferHeight;
+    const noiseTextureData = new Float32Array(numNoisePixels * 2);
+    for (let i = 0; i < numNoisePixels; ++i) {
+        const index = i * 2;
+        noiseTextureData[index] = Math.random() * 2.0 - 1.0;
+        noiseTextureData[index + 1] = Math.random() * 2.0 - 1.0;
+    }
+
+    noise = new Texture({
+        format: gl.RG16F,
+        width,
+        height,
+        pformat: gl.RG,
+        ptype: gl.FLOAT,
+        pdata: noiseTextureData
+    });
+
+    // **********************************
+    // depth buffer
+    // **********************************
+    depth = new Texture({
+        format: gl.DEPTH_COMPONENT16,
+        width,
+        height
+    });
+
     // **********************************
     // geometry buffer
     // **********************************
@@ -71,16 +99,9 @@ const init = (width, height) => {
     });
     gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT3, gl.TEXTURE_2D, g.emissive.texture, 0);
 
-    g.depth = new Texture({
-        format: gl.DEPTH_COMPONENT16,
-        width,
-        height
-    });
-    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, g.depth.texture, 0);
-
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, depth.texture, 0);
     gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1, gl.COLOR_ATTACHMENT2, gl.COLOR_ATTACHMENT3]);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-
 
     // **********************************
     // shadow buffer
@@ -95,7 +116,7 @@ const init = (width, height) => {
         height
     });
     gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, s.shadow.texture, 0);
-    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, g.depth.texture, 0);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, depth.texture, 0);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
     // **********************************
@@ -111,7 +132,7 @@ const init = (width, height) => {
         height
     });
     gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, l.light.texture, 0);
-    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, g.depth.texture, 0);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, depth.texture, 0);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
     // **********************************
@@ -131,26 +152,6 @@ const init = (width, height) => {
     gl.readBuffer(gl.COLOR_ATTACHMENT0);
     gl.drawBuffers([gl.COLOR_ATTACHMENT0]);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-
-    // **********************************
-    // ssao noise buffer
-    // **********************************
-    const numNoisePixels = gl.drawingBufferWidth * gl.drawingBufferHeight;
-    const noiseTextureData = new Float32Array(numNoisePixels * 2);
-    for (let i = 0; i < numNoisePixels; ++i) {
-        const index = i * 2;
-        noiseTextureData[index] = Math.random() * 2.0 - 1.0;
-        noiseTextureData[index + 1] = Math.random() * 2.0 - 1.0;
-    }
-
-    noise = new Texture({
-        format: gl.RG16F,
-        width,
-        height,
-        pformat: gl.RG,
-        ptype: gl.FLOAT,
-        pdata: noiseTextureData
-    });
 };
 
 const setWorldClearColor = () => {
