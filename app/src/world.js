@@ -213,7 +213,7 @@ const renderLights = () => {
     Shaders.pointLight.setInt('shadowBuffer', 2);
 
     // instanced
-    if (Settings.doEmissiveLighting) {
+    if (Settings.doRadiosity) {
         const m = mat4.create();
         mat4.identity(m);
         mat4.scale(m, m, [1.25, 1.25, 1.25]);

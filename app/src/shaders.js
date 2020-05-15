@@ -7,6 +7,7 @@ class Shader {
     constructor(vertex, fragment) {
         const s = this;
 
+        s.uniformMap = {};
         s.vertexShader = gl.createShader(gl.VERTEX_SHADER);
         s.fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
 
@@ -46,11 +47,12 @@ class Shader {
     }
 
     getUniformLocation(id) {
-        return gl.getUniformLocation(this.program, id);
-    }
-
-    getAttribLocation(id) {
-        return gl.getAttribLocation(this.program, id);
+        if (id in this.uniformMap) {
+            return this.uniformMap[id];
+        }
+        const loc = gl.getUniformLocation(this.program, id);
+        this.uniformMap[id] = loc;
+        return loc;
     }
 
     setInt(id, value) {
@@ -521,28 +523,26 @@ const Shaders = {
             {
                 vec2 uv = vec2(gl_FragCoord.xy / viewportSize.xy);
                 vec2 fragCoord = uv * viewportSize; 
-                vec4 color;
+                vec4 color, light;
                 vec4 emissive = vec4(0.0, 0.0, 0.0, 0.0);
+                vec4 shadow = vec4(1.0, 1.0, 1.0, 1.0);
+                float occlusion = 0.0;
 
                 if(doFXAA){
                     color = applyFXAA(fragCoord);
                 } else {
                     color = texture(colorBuffer, uv);
                 }
-                
-                vec4 light =  texture(lightBuffer, uv);
-                vec4 shadow =  texture(shadowBuffer, uv);
-                color = color * (light * shadow);
 
-                float occlusion = 0.0;
                 if(doSSAO)
                 {
                     occlusion = applySSAO(ivec2(fragCoord.xy));
-                }
-
-                if(doEmissive){
-                    emissive = texture(emissiveBuffer, uv);
-                }                             
+                }                
+                
+                light =  texture(lightBuffer, uv);
+                shadow =  texture(shadowBuffer, uv);
+                emissive = texture(emissiveBuffer, uv);  
+                color = color * (light * shadow);
 
                 fragColor = vec4(clamp(color.rgb - occlusion, 0.0, 1.0), 1.0) + (emissive * emissiveMult);
                 fragColor = vec4(pow(fragColor.rgb, 1.0 / vec3(gamma)), 1.0);

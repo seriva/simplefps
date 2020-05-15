@@ -23,7 +23,7 @@ const blurImage = (source, iterations, radius) => {
     Shader.unBind();
 };
 
-const doGeomPass = () => {
+const geomPass = () => {
     Buffers.startGeomPass();
 
     World.renderGeometry();
@@ -31,7 +31,7 @@ const doGeomPass = () => {
     Buffers.endLightingPass();
 };
 
-const doShadowPass = () => {
+const shadowPass = () => {
     Buffers.startShadowPass();
 
     World.renderShadows();
@@ -41,7 +41,7 @@ const doShadowPass = () => {
     blurImage(BlurSourceType.SHADOW, 2, 2);
 };
 
-const doLightingPass = () => {
+const lightingPass = () => {
     Buffers.startLightingPass();
 
     gl.disable(gl.CULL_FACE);
@@ -60,16 +60,15 @@ const doLightingPass = () => {
     blurImage(BlurSourceType.LIGHTING, 2, 1.5);
 };
 
-const doEmissiveBlurPass = () => {
+const emissiveBlurPass = () => {
     blurImage(BlurSourceType.EMISSIVE, Settings.emissiveIteration, Settings.emissiveOffset);
 };
 
-const doPostProcessingPass = () => {
+const postProcessingPass = () => {
     Buffers.startPostProcessingPass();
     Shaders.postProcessing.bind();
     Shaders.postProcessing.setInt('doFXAA', Settings.doFXAA);
     Shaders.postProcessing.setInt('doSSAO', Settings.doSSAO);
-    Shaders.postProcessing.setInt('doEmissive', Settings.doEmissive);
     Shaders.postProcessing.setInt('colorBuffer', 0);
     Shaders.postProcessing.setInt('lightBuffer', 1);
     Shaders.postProcessing.setInt('positionBuffer', 2);
@@ -93,11 +92,11 @@ const doPostProcessingPass = () => {
 
 const Renderer = {
     render() {
-        doGeomPass();
-        doShadowPass();
-        doLightingPass();
-        doEmissiveBlurPass();
-        doPostProcessingPass();
+        geomPass();
+        shadowPass();
+        lightingPass();
+        emissiveBlurPass();
+        postProcessingPass();
     }
 };
 
