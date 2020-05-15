@@ -1,6 +1,7 @@
 import { gl, Context } from './context.js';
 import Texture from './texture.js';
 import World from './world.js';
+import Console from './console.js';
 
 let noise = null;
 let depth = null;
@@ -33,6 +34,28 @@ const b = {
     framebuffer: null,
     blur: null,
     source: null
+};
+
+const checkFramebufferStatus = (fbo) => {
+    const status = gl.checkFramebufferStatus(fbo);
+    switch (status) {
+    case gl.FRAMEBUFFER_COMPLETE:
+        break;
+    case gl.FRAMEBUFFER_INCOMPLETE_ATTACHMENT:
+        Console.error('FRAMEBUFFER_INCOMPLETE_ATTACHMENT');
+        break;
+    case gl.FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT:
+        Console.error('FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT');
+        break;
+    case gl.FRAMEBUFFER_INCOMPLETE_DIMENSIONS:
+        Console.error('FRAMEBUFFER_INCOMPLETE_DIMENSIONS');
+        break;
+    case gl.FRAMEBUFFER_UNSUPPORTED:
+        Console.error('FRAMEBUFFER_UNSUPPORTED');
+        break;
+    default:
+        break;
+    }
 };
 
 const init = (width, height) => {
@@ -102,6 +125,7 @@ const init = (width, height) => {
 
     gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, depth.texture, 0);
     gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1, gl.COLOR_ATTACHMENT2, gl.COLOR_ATTACHMENT3]);
+    checkFramebufferStatus(g.framebuffer);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
     // **********************************
@@ -118,6 +142,7 @@ const init = (width, height) => {
     });
     gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, s.shadow.texture, 0);
     gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, depth.texture, 0);
+    checkFramebufferStatus(s.framebuffer);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
     // **********************************
@@ -134,6 +159,7 @@ const init = (width, height) => {
     });
     gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, l.light.texture, 0);
     gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, depth.texture, 0);
+    checkFramebufferStatus(l.framebuffer);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
     // **********************************
@@ -149,6 +175,7 @@ const init = (width, height) => {
         height
     });
     gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, b.blur.texture, 0);
+    checkFramebufferStatus(b.framebuffer);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 };
 
