@@ -1,5 +1,6 @@
 import { gl, Context } from './context.js';
 import Texture from './texture.js';
+import World from './world.js';
 
 const BlurSourceType = {
     SHADOW: 1,
@@ -152,17 +153,9 @@ const init = (width, height) => {
     });
 };
 
-const startGeomPass = () => {
-    gl.bindFramebuffer(gl.FRAMEBUFFER, g.framebuffer);
-    gl.depthMask(true);
-    gl.disable(gl.BLEND);
-    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-};
-
-const endGeomPass = () => {
-    gl.depthMask(false);
-    gl.enable(gl.BLEND);
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+const setWorldClearColor = () => {
+    const ambient = World.getAmbient();
+    gl.clearColor(ambient[0], ambient[1], ambient[2], 1.0);
 };
 
 const startBlurPass = (blurSource) => {
@@ -192,6 +185,20 @@ const endBlurPass = () => {
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 };
 
+const startGeomPass = () => {
+    gl.bindFramebuffer(gl.FRAMEBUFFER, g.framebuffer);
+    gl.depthMask(true);
+    gl.disable(gl.BLEND);
+    setWorldClearColor();
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+};
+
+const endGeomPass = () => {
+    gl.depthMask(false);
+    gl.enable(gl.BLEND);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+};
+
 const startShadowPass = () => {
     gl.bindFramebuffer(gl.FRAMEBUFFER, s.framebuffer);
     gl.clearColor(1.0, 1.0, 1.0, 1.0);
@@ -204,7 +211,8 @@ const endShadowPass = () => {
 
 const startLightingPass = () => {
     gl.bindFramebuffer(gl.FRAMEBUFFER, l.framebuffer);
-    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    setWorldClearColor();
+    gl.clear(gl.COLOR_BUFFER_BIT);
     g.position.bind(gl.TEXTURE0);
     g.normal.bind(gl.TEXTURE1);
 };
@@ -216,7 +224,6 @@ const endLightingPass = () => {
 };
 
 const startPostProcessingPass = () => {
-    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     g.color.bind(gl.TEXTURE0);
     l.light.bind(gl.TEXTURE1);
     g.position.bind(gl.TEXTURE2);

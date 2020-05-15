@@ -55,6 +55,8 @@ const to3D = (i) => {
     return [x, y, z];
 };
 
+const getAmbient = () => ambient;
+
 const calcShadowAmbient = () => {
     const up = vec3.fromValues(0, 1, 0);
     const ld = vec3.fromValues(mainLight.direction[0], mainLight.direction[1], mainLight.direction[2]);
@@ -97,8 +99,6 @@ const getEntities = (type) => {
 };
 
 const prepare = () => {
-    gl.clearColor(ambient[0], ambient[1], ambient[2], 1.0);
-
     // set skydome
     Skybox.set(skyBoxId);
 
@@ -191,7 +191,6 @@ const renderShadows = () => {
     });
 
     Shader.unBind();
-    gl.clearColor(ambient[0], ambient[1], ambient[2], 1.0);
 };
 
 const renderLights = () => {
@@ -305,6 +304,7 @@ const World = {
     update,
     addEntities,
     getEntities,
+    getAmbient,
     renderGeometry,
     renderLights,
     renderShadows
