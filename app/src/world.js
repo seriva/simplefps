@@ -150,6 +150,8 @@ const update = (frameTime) => {
 };
 
 const renderGeometry = () => {
+    Shaders.geometry.bind();
+
     Skybox.render();
 
     const matModel = mat4.create();
@@ -174,6 +176,8 @@ const renderGeometry = () => {
     meshEntities.forEach((entity) => {
         entity.render();
     });
+
+    Shader.unBind();
 };
 
 const renderShadows = () => {

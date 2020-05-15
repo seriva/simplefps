@@ -1,19 +1,33 @@
 import { Shaders, Shader } from './shaders.js';
 import Resources from './resources.js';
-import Buffers from './buffers.js';
+import { Buffers, BlurSourceType } from './buffers.js';
 import Settings from './settings.js';
 import World from './world.js';
 import { gl, Context } from './context.js';
 
 const quad = Resources.get('system/quad.mesh');
 
+const blurImage = (source, iterations, radius) => {
+    Shaders.gaussianBlur.bind();
+    for (let i = 0; i < iterations; i++) {
+        Buffers.startBlurPass(source);
+
+        Shaders.gaussianBlur.setInt('colorBuffer', 0);
+        Shaders.gaussianBlur.setVec2('viewportSize', [Context.width(), Context.height()]);
+        Shaders.gaussianBlur.setVec2('direction', i % 2 === 0 ? [radius, 0] : [0, radius]);
+
+        quad.renderSingle();
+
+        Buffers.endBlurPass();
+    }
+    Shader.unBind();
+};
+
 const doGeomPass = () => {
     Buffers.startGeomPass();
-    Shaders.geometry.bind();
 
     World.renderGeometry();
 
-    Shader.unBind();
     Buffers.endLightingPass();
 };
 
@@ -24,19 +38,7 @@ const doShadowPass = () => {
 
     Buffers.endShadowPass();
 
-    for (let i = 0; i < 2; i++) {
-        Buffers.startBlurShadowPass();
-
-        Shaders.gaussianBlur.bind();
-        Shaders.gaussianBlur.setInt('colorBuffer', 0);
-        Shaders.gaussianBlur.setVec2('viewportSize', [Context.width(), Context.height()]);
-        Shaders.gaussianBlur.setVec2('direction', i % 2 === 0 ? [2, 0] : [0, 2]);
-
-        quad.renderSingle();
-
-        Shader.unBind();
-        Buffers.endBlurPass();
-    }
+    blurImage(BlurSourceType.SHADOW, 2, 2);
 };
 
 const doLightingPass = () => {
@@ -55,36 +57,11 @@ const doLightingPass = () => {
 
     Buffers.endLightingPass();
 
-    for (let i = 0; i < 2; i++) {
-        Buffers.startBlurLightingPass();
-
-        Shaders.gaussianBlur.bind();
-        Shaders.gaussianBlur.setInt('colorBuffer', 0);
-        Shaders.gaussianBlur.setVec2('viewportSize', [Context.width(), Context.height()]);
-        Shaders.gaussianBlur.setVec2('direction', i % 2 === 0 ? [1.5, 0] : [0, 1.5]);
-
-        quad.renderSingle();
-
-        Shader.unBind();
-        Buffers.endBlurPass();
-    }
+    blurImage(BlurSourceType.LIGHTING, 2, 1.5);
 };
 
 const doEmissiveBlurPass = () => {
-    for (let i = 0; i < Settings.emissiveIteration; i++) {
-        Buffers.startBlurEmissivePass();
-
-        Shaders.gaussianBlur.bind();
-        Shaders.gaussianBlur.setInt('colorBuffer', 0);
-        Shaders.gaussianBlur.setVec2('viewportSize', [Context.width(), Context.height()]);
-        Shaders.gaussianBlur.setVec2('direction',
-            i % 2 === 0 ? [Settings.emissiveOffset, 0] : [0, Settings.emissiveOffset]);
-
-        quad.renderSingle();
-
-        Shader.unBind();
-        Buffers.endBlurPass();
-    }
+    blurImage(BlurSourceType.EMISSIVE, Settings.emissiveIteration, Settings.emissiveOffset);
 };
 
 const doPostProcessingPass = () => {

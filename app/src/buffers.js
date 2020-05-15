@@ -1,6 +1,12 @@
 import { gl, Context } from './context.js';
 import Texture from './texture.js';
 
+const BlurSourceType = {
+    SHADOW: 1,
+    LIGHTING: 2,
+    EMISSIVE: 3
+};
+
 const g = {
     framebuffer: null,
     position: null,
@@ -26,6 +32,7 @@ const b = {
 };
 
 let noise = null;
+
 
 const init = (width, height) => {
     // **********************************
@@ -158,11 +165,24 @@ const endGeomPass = () => {
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 };
 
-const startBlurPass = (texture) => {
+const startBlurPass = (blurSource) => {
+    let source = null;
+    switch (blurSource) {
+    case BlurSourceType.SHADOW:
+        source = s.shadow;
+        break;
+    case BlurSourceType.LIGHTING:
+        source = l.light;
+        break;
+    case BlurSourceType.EMISSIVE:
+        source = g.emissive;
+        break;
+    default:
+    }
     gl.bindFramebuffer(gl.FRAMEBUFFER, b.framebuffer);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     gl.drawBuffers([gl.COLOR_ATTACHMENT0]);
-    texture.bind(gl.TEXTURE0);
+    source.bind(gl.TEXTURE0);
 };
 
 const endBlurPass = () => {
@@ -195,18 +215,6 @@ const endLightingPass = () => {
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 };
 
-const startBlurShadowPass = () => {
-    startBlurPass(s.shadow);
-};
-
-const startBlurLightingPass = () => {
-    startBlurPass(l.light);
-};
-
-const startBlurEmissivePass = () => {
-    startBlurPass(g.emissive);
-};
-
 const startPostProcessingPass = () => {
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     g.color.bind(gl.TEXTURE0);
@@ -236,9 +244,7 @@ const Buffers = {
     endShadowPass,
     startLightingPass,
     endLightingPass,
-    startBlurShadowPass,
-    startBlurLightingPass,
-    startBlurEmissivePass,
+    startBlurPass,
     endBlurPass,
     startPostProcessingPass,
     endPostProcessingPass
@@ -252,4 +258,4 @@ window.addEventListener(
     false
 );
 
-export { Buffers as default };
+export { Buffers, BlurSourceType };
