@@ -71,7 +71,6 @@ window.addEventListener(
     () => {
         gl.canvas.width = width();
         gl.canvas.height = height();
-        gl.viewport(0, 0, width(), height());
     },
     false
 );
