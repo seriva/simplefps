@@ -22,16 +22,16 @@ const createPickup = (pos, type, mesh) => {
     pickup.castShadow = true;
     switch (type) {
     case 128:
-        pickup.addChild(new PointlightEntity(pos, 1.2, [0.752, 0, 0.035], 1.25));
+        pickup.addChild(new PointlightEntity(pos, 1.4, [0.752, 0, 0.035], 1.35));
         break;
     case 129:
-        pickup.addChild(new PointlightEntity(pos, 1.2, [0, 0.352, 0.662], 1.25));
+        pickup.addChild(new PointlightEntity(pos, 1.4, [0, 0.352, 0.662], 1.35));
         break;
     case 130:
-        pickup.addChild(new PointlightEntity(pos, 1.2, [0.623, 0.486, 0.133], 1.25));
+        pickup.addChild(new PointlightEntity(pos, 1.4, [0.623, 0.486, 0.133], 1.35));
         break;
     case 150:
-        pickup.addChild(new PointlightEntity(pos, 1.2, [0.2, 0.552, 0.862], 1.25));
+        pickup.addChild(new PointlightEntity(pos, 1.4, [0.2, 0.552, 0.862], 1.35));
         break;
     default:
         // code block

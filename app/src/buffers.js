@@ -12,6 +12,13 @@ const BlurSourceType = {
     EMISSIVE: 3
 };
 
+const BufferType = {
+    GEOMETRY: 1,
+    SHADOW: 2,
+    LIGHT: 3,
+    BLUR: 4
+};
+
 const g = {
     framebuffer: null,
     position: null,
@@ -60,6 +67,25 @@ const checkFramebufferStatus = (fbo) => {
         break;
     case gl.FRAMEBUFFER_UNSUPPORTED:
         Console.error('FRAMEBUFFER_UNSUPPORTED');
+        break;
+    default:
+        break;
+    }
+};
+
+const getBufferSize = (fbo) => {
+    switch (fbo) {
+    case BufferType.GEOMETRY:
+        return [g.width, g.height];
+        break;
+    case BufferType.SHADOW:
+        return [s.width, s.height];
+        break;
+    case BufferType.LIGHT:
+        return [l.width, l.height];
+        break;
+    case BufferType.BLUR:
+        return [b.width, b.height];
         break;
     default:
         break;
@@ -160,8 +186,8 @@ const init = (width, height) => {
     // **********************************
     // lighting buffer
     // **********************************
-    l.width = width;
-    l.height = height;
+    l.width = width;// Math.round(width * 0.5);
+    l.height = height;// Math.round(height * 0.5);
     l.framebuffer = gl.createFramebuffer();
     gl.bindFramebuffer(gl.FRAMEBUFFER, l.framebuffer);
     gl.activeTexture(gl.TEXTURE0);
@@ -172,7 +198,6 @@ const init = (width, height) => {
         height: l.height
     });
     gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, l.light.texture, 0);
-    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, depth.texture, 0);
     checkFramebufferStatus(l.framebuffer);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
@@ -306,7 +331,8 @@ const Buffers = {
     endBlurPass,
     swapBlur,
     startPostProcessingPass,
-    endPostProcessingPass
+    endPostProcessingPass,
+    getBufferSize
 };
 
 window.addEventListener(
@@ -317,4 +343,4 @@ window.addEventListener(
     false
 );
 
-export { Buffers, BlurSourceType };
+export { Buffers, BlurSourceType, BufferType };

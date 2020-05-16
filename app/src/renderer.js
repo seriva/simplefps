@@ -1,6 +1,6 @@
 import { Shaders, Shader } from './shaders.js';
 import Resources from './resources.js';
-import { Buffers, BlurSourceType } from './buffers.js';
+import { Buffers, BlurSourceType, BufferType } from './buffers.js';
 import Settings from './settings.js';
 import World from './world.js';
 import { gl, Context } from './context.js';
@@ -44,7 +44,8 @@ const shadowPass = () => {
 const lightingPass = () => {
     Buffers.startLightingPass();
 
-    gl.disable(gl.CULL_FACE);
+    gl.enable(gl.CULL_FACE);
+    gl.cullFace(gl.FRONT);
     gl.disable(gl.DEPTH_TEST);
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.ONE, gl.ONE);
@@ -54,6 +55,7 @@ const lightingPass = () => {
     gl.disable(gl.BLEND);
     gl.enable(gl.DEPTH_TEST);
     gl.enable(gl.CULL_FACE);
+    gl.cullFace(gl.BACK);
 
     Buffers.endLightingPass();
 
