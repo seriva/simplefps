@@ -37,8 +37,6 @@ const shadowPass = () => {
     World.renderShadows();
 
     Buffers.endShadowPass();
-
-    blurImage(BlurSourceType.SHADOW, 3, 2);
 };
 
 const lightingPass = () => {
@@ -49,7 +47,7 @@ const lightingPass = () => {
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.ONE, gl.ONE);
 
-    World.renderLights();
+    World.renderLighting();
 
     gl.disable(gl.BLEND);
     gl.enable(gl.DEPTH_TEST);
@@ -74,8 +72,7 @@ const postProcessingPass = () => {
     Shaders.postProcessing.setInt('positionBuffer', 2);
     Shaders.postProcessing.setInt('normalBuffer', 3);
     Shaders.postProcessing.setInt('emissiveBuffer', 4);
-    Shaders.postProcessing.setInt('shadowBuffer', 5);
-    Shaders.postProcessing.setInt('noiseBuffer', 6);
+    Shaders.postProcessing.setInt('noiseBuffer', 5);
     Shaders.postProcessing.setVec2('viewportSize', [Context.width(), Context.height()]);
     Shaders.postProcessing.setFloat('ssao.sampleRadius', Settings.ssaoRadius);
     Shaders.postProcessing.setFloat('ssao.bias', Settings.ssaoBias);

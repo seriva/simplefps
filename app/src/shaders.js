@@ -229,6 +229,32 @@ const Shaders = {
             fragColor = vec4(shadowAmbient, 1.0);
         }`
     ),
+    applyShadows: new Shader(
+        glsl`#version 300 es
+
+        precision highp float;
+
+        layout(location=0) in vec3 aPosition;
+
+        void main()
+        {
+            gl_Position = vec4(aPosition, 1.0);
+        }`,
+        glsl`#version 300 es
+
+        precision highp float;
+
+        layout(location=0) out vec4 fragColor;
+
+        uniform vec2 viewportSize;
+        uniform sampler2D shadowBuffer;
+        
+        void main()
+        {
+            vec2 uv = vec2(gl_FragCoord.xy / viewportSize.xy);
+            fragColor = texture(shadowBuffer, uv);
+        }`
+    ),
     directionalLight: new Shader(
         glsl`#version 300 es
 
@@ -540,9 +566,8 @@ const Shaders = {
                 }                
                 
                 light =  texture(lightBuffer, uv);
-                shadow =  texture(shadowBuffer, uv);
                 emissive = texture(emissiveBuffer, uv);  
-                color = color * (light * shadow);
+                color = color * light * shadow;
 
                 fragColor = vec4(clamp(color.rgb - occlusion, 0.0, 1.0), 1.0) + (emissive * emissiveMult);
                 fragColor = vec4(pow(fragColor.rgb, 1.0 / vec3(gamma)), 1.0);

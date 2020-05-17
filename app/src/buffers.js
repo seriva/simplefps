@@ -7,9 +7,8 @@ let noise = null;
 let depth = null;
 
 const BlurSourceType = {
-    SHADOW: 1,
-    LIGHTING: 2,
-    EMISSIVE: 3
+    LIGHTING: 1,
+    EMISSIVE: 2
 };
 
 const BufferType = {
@@ -286,11 +285,13 @@ const startLightingPass = () => {
     gl.clear(gl.COLOR_BUFFER_BIT);
     g.position.bind(gl.TEXTURE0);
     g.normal.bind(gl.TEXTURE1);
+    s.shadow.bind(gl.TEXTURE2);
 };
 
 const endLightingPass = () => {
     Texture.unBind(gl.TEXTURE0);
     Texture.unBind(gl.TEXTURE1);
+    Texture.unBind(gl.TEXTURE2);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 };
 
@@ -301,8 +302,7 @@ const startPostProcessingPass = () => {
     g.position.bind(gl.TEXTURE2);
     g.normal.bind(gl.TEXTURE3);
     g.emissive.bind(gl.TEXTURE4);
-    s.shadow.bind(gl.TEXTURE5);
-    noise.bind(gl.TEXTURE6);
+    noise.bind(gl.TEXTURE5);
 };
 
 const endPostProcessingPass = () => {
@@ -312,7 +312,6 @@ const endPostProcessingPass = () => {
     Texture.unBind(gl.TEXTURE3);
     Texture.unBind(gl.TEXTURE4);
     Texture.unBind(gl.TEXTURE5);
-    Texture.unBind(gl.TEXTURE6);
 };
 
 const Buffers = {

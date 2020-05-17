@@ -193,7 +193,7 @@ const renderShadows = () => {
     Shader.unBind();
 };
 
-const renderLights = () => {
+const renderLighting = () => {
     // directional light
     Shaders.directionalLight.bind();
     Shaders.directionalLight.setInt('positionBuffer', 0);
@@ -243,6 +243,14 @@ const renderLights = () => {
 
     Shader.unBind();
     gl.cullFace(gl.BACK);
+
+    // apply shadows
+    gl.blendFunc(gl.DST_COLOR, gl.ZERO);
+    Shaders.applyShadows.bind();
+    Shaders.applyShadows.setInt('shadowBuffer', 2);
+    Shaders.applyShadows.setVec2('viewportSize', [Context.width(), Context.height()]);
+    quad.renderSingle();
+    Shader.unBind();       
 };
 
 const load = async (name) => {
@@ -308,8 +316,8 @@ const World = {
     getEntities,
     getAmbient,
     renderGeometry,
-    renderLights,
-    renderShadows
+    renderLighting,
+    renderShadows,
 };
 
 export { World as default };
