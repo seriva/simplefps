@@ -205,6 +205,7 @@ const renderLights = () => {
     Shader.unBind();
 
     // pointlights
+    gl.cullFace(gl.FRONT);
     Shaders.pointLight.bind();
     Shaders.pointLight.setMat4('matViewProj', Camera.viewProjection);
     Shaders.pointLight.setInt('positionBuffer', 0);
@@ -241,6 +242,7 @@ const renderLights = () => {
     });
 
     Shader.unBind();
+    gl.cullFace(gl.BACK);
 };
 
 const load = async (name) => {

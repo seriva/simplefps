@@ -45,7 +45,6 @@ const lightingPass = () => {
     Buffers.startLightingPass();
 
     gl.enable(gl.CULL_FACE);
-    gl.cullFace(gl.FRONT);
     gl.disable(gl.DEPTH_TEST);
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.ONE, gl.ONE);
@@ -55,7 +54,6 @@ const lightingPass = () => {
     gl.disable(gl.BLEND);
     gl.enable(gl.DEPTH_TEST);
     gl.enable(gl.CULL_FACE);
-    gl.cullFace(gl.BACK);
 
     Buffers.endLightingPass();
 
