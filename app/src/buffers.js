@@ -77,18 +77,14 @@ const getBufferSize = (fbo) => {
     switch (fbo) {
     case BufferType.GEOMETRY:
         return [g.width, g.height];
-        break;
     case BufferType.SHADOW:
         return [s.width, s.height];
-        break;
     case BufferType.LIGHT:
         return [l.width, l.height];
-        break;
     case BufferType.BLUR:
         return [b.width, b.height];
-        break;
     default:
-        break;
+        return [];
     }
 };
 
@@ -186,8 +182,8 @@ const init = (width, height) => {
     // **********************************
     // lighting buffer
     // **********************************
-    l.width = width;// Math.round(width * 0.5);
-    l.height = height;// Math.round(height * 0.5);
+    l.width = width; // Math.round(width * 0.5);
+    l.height = height; // Math.round(height * 0.5);
     l.framebuffer = gl.createFramebuffer();
     gl.bindFramebuffer(gl.FRAMEBUFFER, l.framebuffer);
     gl.activeTexture(gl.TEXTURE0);
@@ -299,6 +295,7 @@ const endLightingPass = () => {
 };
 
 const startPostProcessingPass = () => {
+    gl.viewport(0, 0, g.width, g.height);
     g.color.bind(gl.TEXTURE0);
     l.light.bind(gl.TEXTURE1);
     g.position.bind(gl.TEXTURE2);
@@ -309,7 +306,6 @@ const startPostProcessingPass = () => {
 };
 
 const endPostProcessingPass = () => {
-    gl.viewport(0, 0, g.width, g.height);
     Texture.unBind(gl.TEXTURE0);
     Texture.unBind(gl.TEXTURE1);
     Texture.unBind(gl.TEXTURE2);
