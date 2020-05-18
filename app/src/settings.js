@@ -3,7 +3,7 @@ import Console from './console.js';
 
 const defaults = {
     // rendering
-    zNear: 0.1,
+    zNear: 1,
     zFar: 256,
     renderScale: Utils.isMobile() ? 0.5 : 1.0,
     anisotropicFiltering: 16,

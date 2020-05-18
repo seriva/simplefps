@@ -55,7 +55,7 @@ const updateBall = (entity) => {
         );
     });
 };
-const createBall = () => {
+const createGrenade = () => {
     const shoot = Resources.get('sounds/shoot.sfx');
     shoot.play();
     const p = Camera.position;
@@ -74,9 +74,9 @@ const createBall = () => {
     return ballEntity;
 };
 
-const Game = {
-    createBall,
+const Entities = {
+    createGrenade,
     createPickup
 };
 
-export { Game as default };
+export { Entities as default };

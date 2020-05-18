@@ -11,7 +11,7 @@ import Utils from './utils.js';
 import Loading from './loading.js';
 import Physics from './physics.js';
 import Settings from './settings.js';
-import Game from './game.js';
+import Entities from './entities.js';
 
 const quad = Resources.get('system/quad.mesh');
 const cube = Resources.get('meshes/cube.mesh');
@@ -124,7 +124,7 @@ const prepare = () => {
             buffer.count++;
         // entities
         } else if (block >= 128) {
-            addEntities(Game.createPickup(to3D(i), block, typeMap.get(block)));
+            addEntities(Entities.createPickup(to3D(i), block, typeMap.get(block)));
         }
     });
 

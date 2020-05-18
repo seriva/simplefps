@@ -26,6 +26,7 @@ const Camera = {
     position,
     rotation,
     direction,
+    view,
     viewProjection,
 
     setProjection(inFov, inNearPlane, inFarPlane) {

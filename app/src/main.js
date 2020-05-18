@@ -14,9 +14,12 @@ import Utils from './utils.js';
     const World = imp.default;
     imp = await import('./renderer.js');
     const Renderer = imp.default;
+    imp = await import('./weapons.js');
+    const Weapons = imp.default;
     imp = await import('./skybox.js');
 
     await World.load('test.map');
+    Weapons.load();
 
     Utils.dispatchCustomEvent('changestate', {
         state: 'MENU',
