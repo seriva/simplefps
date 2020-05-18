@@ -250,7 +250,7 @@ const renderLighting = () => {
     Shaders.applyShadows.setInt('shadowBuffer', 2);
     Shaders.applyShadows.setVec2('viewportSize', [Context.width(), Context.height()]);
     quad.renderSingle();
-    Shader.unBind();       
+    Shader.unBind();
 };
 
 const load = async (name) => {

@@ -453,7 +453,6 @@ const Shaders = {
             uniform sampler2D positionBuffer;
             uniform sampler2D normalBuffer;
             uniform sampler2D emissiveBuffer;
-            uniform sampler2D shadowBuffer;
             uniform sampler2D noiseBuffer;
             uniform vec2 viewportSize;
             uniform SSAOUniforms ssao;
@@ -551,7 +550,6 @@ const Shaders = {
                 vec2 fragCoord = uv * viewportSize; 
                 vec4 color, light;
                 vec4 emissive = vec4(0.0, 0.0, 0.0, 0.0);
-                vec4 shadow = vec4(1.0, 1.0, 1.0, 1.0);
                 float occlusion = 0.0;
 
                 if(doFXAA){
@@ -567,7 +565,7 @@ const Shaders = {
                 
                 light =  texture(lightBuffer, uv);
                 emissive = texture(emissiveBuffer, uv);  
-                color = color * light * shadow;
+                color = color * light;
 
                 fragColor = vec4(clamp(color.rgb - occlusion, 0.0, 1.0), 1.0) + (emissive * emissiveMult);
                 fragColor = vec4(pow(fragColor.rgb, 1.0 / vec3(gamma)), 1.0);
