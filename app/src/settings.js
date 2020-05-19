@@ -9,14 +9,12 @@ const defaults = {
     anisotropicFiltering: 16,
     gamma: 1.0,
     doFXAA: true,
-    doSSAO: !Utils.isMobile(),
     doRadiosity: !Utils.isMobile(),
-    ssaoRadius: 64,
-    ssaoBias: 0.55,
-    ssaoAttenuation: [0.7, 1],
     emissiveOffset: 1.5,
     emissiveMult: 3.0,
     emissiveIteration: 9,
+    noiseAmmount: 0.2,
+    noiseSpeed: 1,
 
     // controls
     forward: 87,

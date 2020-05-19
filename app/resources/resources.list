@@ -2,6 +2,7 @@
     "resources": [
         "system/quad.mesh",
         "system/sphere.mesh",
+        "system/dirt.jpg",
 
         "meshes/materials.mat",
         "meshes/cube.mesh",

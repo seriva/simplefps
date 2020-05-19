@@ -9,7 +9,7 @@ import Update from './update.js';
 import Translations from './translations.js';
 import Utils from './utils.js';
 import Resources from './resources.js';
-import Entities from './entities.js';
+import Weapons from './weapons.js';
 import World from './world.js';
 
 const music = Resources.get('sounds/music.sfx');
@@ -77,7 +77,7 @@ window.addEventListener('click', (e) => {
     if (e.button > 0) return;
     if ((e.target.tagName.toUpperCase() !== 'BODY') && !Utils.isMobile()) return;
     if ((e.target.id !== 'look') && Utils.isMobile()) return;
-    World.addEntities(Entities.createGrenade());
+    World.addEntities(Weapons.shootGrenade());
 });
 
 // mouse movement and keyboard input

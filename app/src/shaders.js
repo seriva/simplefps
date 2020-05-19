@@ -434,43 +434,37 @@ const Shaders = {
     
             precision highp float;
 
-            struct SSAOUniforms {
-                float sampleRadius;
-                float bias;
-                vec2 attenuation;
-                vec2 depthRange;
-            };
-
             layout(std140, column_major) uniform;
     
             out vec4 fragColor;
     
             uniform bool doFXAA;
-            uniform bool doSSAO;
             uniform bool doEmissive;
             uniform sampler2D colorBuffer;
             uniform sampler2D lightBuffer;
             uniform sampler2D positionBuffer;
             uniform sampler2D normalBuffer;
             uniform sampler2D emissiveBuffer;
-            uniform sampler2D noiseBuffer;
+            uniform sampler2D dirtBuffer;
             uniform vec2 viewportSize;
-            uniform SSAOUniforms ssao;
             uniform float emissiveMult;
             uniform float gamma;
+            uniform float noiseAmmount;
+            uniform float noiseSpeed;
+            uniform float noiseTime;
 
-            #define FXAA_REDUCE_MIN (1.0/ 128.0)
+            #define FXAA_REDUCE_MIN (1.0 / 128.0)
             #define FXAA_REDUCE_MUL (1.0 / 8.0)
             #define FXAA_SPAN_MAX 8.0
             #define SIN45 0.707107
 
-            float getOcclusion(vec3 position, vec3 normal, ivec2 fragCoord) {
-                vec3 occluderPosition = texelFetch(positionBuffer, fragCoord, 0).xyz;
-                vec3 positionVec = occluderPosition - position;
-                float intensity = max(dot(normal, normalize(positionVec)) - ssao.bias, 0.0);
-                float attenuation = 1.0 / (ssao.attenuation.x + ssao.attenuation.y * length(positionVec));
-                return intensity * attenuation;
-            }
+            float random(vec2 n, float offset ){
+                return .5 - fract(sin(dot(n.xy + vec2( offset, 0. ), vec2(12.9898, 78.233)))* 43758.5453);
+            }  
+            
+            float applySoftLightToChannel( float base, float blend ) {
+                return ((blend < 0.5) ? (2.0 * base * blend + base * base * (1.0 - 2.0 * blend)) : (sqrt(base) * (2.0 * blend - 1.0) + 2.0 * base * (1.0 - blend)));
+            }            
             
             vec4 applyFXAA(vec2 fragCoord)
             {
@@ -515,59 +509,33 @@ const Shaders = {
                 else
                     color = vec4(rgbB, 1.0);
                 return color;
-            }
-
-            float applySSAO(ivec2 fragCoord)
-            {
-                vec3 position = texelFetch(positionBuffer, fragCoord, 0).xyz;
-                vec3 normal = texelFetch(normalBuffer, fragCoord, 0).xyz;
-                vec2 rand = normalize(texelFetch(noiseBuffer, fragCoord, 0).xy);
-                float depth = (length(position) - ssao.depthRange.x) / 
-                              (ssao.depthRange.y - ssao.depthRange.x);
-                float kernelRadius = ssao.sampleRadius * (1.0 - depth);
-                vec2 kernel[4];
-                kernel[0] = vec2(0.0, 1.0);
-                kernel[1] = vec2(1.0, 0.0);
-                kernel[2] = vec2(0.0, -1.0);
-                kernel[3] = vec2(-1.0, 0.0);
-                float occlusion = 0.0;
-                for (int i = 0; i < 4; ++i) {
-                    vec2 k1 = reflect(kernel[i], rand);
-                    vec2 k2 = vec2(k1.x * SIN45 - k1.y * SIN45, k1.x * SIN45 + k1.y * SIN45);
-                    k1 *= kernelRadius;
-                    k2 *= kernelRadius;
-                    occlusion += getOcclusion(position, normal, fragCoord + ivec2(k1));
-                    occlusion += getOcclusion(position, normal, fragCoord + ivec2(k2 * 0.75));
-                    occlusion += getOcclusion(position, normal, fragCoord + ivec2(k1 * 0.5));
-                    occlusion += getOcclusion(position, normal, fragCoord + ivec2(k2 * 0.25));
-                }
-                return clamp(occlusion / 16.0, 0.0, 1.0);
             }           
 
             void main()
             {
                 vec2 uv = vec2(gl_FragCoord.xy / viewportSize.xy);
-                vec2 fragCoord = uv * viewportSize; 
-                vec4 color, light;
+                vec4 color, light, dirt;
                 vec4 emissive = vec4(0.0, 0.0, 0.0, 0.0);
-                float occlusion = 0.0;
 
                 if(doFXAA){
-                    color = applyFXAA(fragCoord);
+                    color = applyFXAA(gl_FragCoord.xy);
                 } else {
                     color = texture(colorBuffer, uv);
-                }
+                }     
 
-                if(doSSAO)
-                {
-                    occlusion = applySSAO(ivec2(fragCoord.xy));
-                }                
+                color += vec4( vec3( noiseAmmount * random( uv, .00001 * noiseSpeed * noiseTime ) ), 1.0 );          
                 
                 light =  texture(lightBuffer, uv);
-                emissive = texture(emissiveBuffer, uv);  
-                color = color * light;
-
-                fragColor = vec4(clamp(color.rgb - occlusion, 0.0, 1.0), 1.0) + (emissive * emissiveMult);
+                emissive = texture(emissiveBuffer, uv);
+                dirt = texture(dirtBuffer, uv);
+            
+                fragColor = (color * light) + (emissive * emissiveMult);
+                fragColor = vec4( 
+                    applySoftLightToChannel( fragColor.r, dirt.r ),
+                    applySoftLightToChannel( fragColor.g, dirt.g ),
+                    applySoftLightToChannel( fragColor.b, dirt.b ),
+                    applySoftLightToChannel( fragColor.a, dirt.a )
+                );
                 fragColor = vec4(pow(fragColor.rgb, 1.0 / vec3(gamma)), 1.0);
             }`
     )

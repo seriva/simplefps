@@ -2,6 +2,45 @@ import { mat4, vec3, glMatrix } from './dependencies/gl-matrix.js';
 import Camera from './camera.js';
 import MeshEntity from './meshentity.js';
 import World from './world.js';
+import Physics from './physics.js';
+import CANNON from './dependencies/cannon.js';
+import Resources from './resources.js';
+import PointlightEntity from './pointlightentity.js';
+
+const grenadeShape = new CANNON.Sphere(0.165);
+const updateGrenade = (entity) => {
+    const q = entity.physicsBody.quaternion;
+    const p = entity.physicsBody.position;
+    mat4.fromRotationTranslation(
+        entity.ani_matrix,
+        [q.x, q.y, q.z, q.w],
+        [p.x, p.y, p.z]
+    );
+    entity.children.forEach((e) => {
+        mat4.fromTranslation(
+            e.ani_matrix,
+            [p.x, p.y, p.z]
+        );
+    });
+};
+const shootGrenade = () => {
+    const shoot = Resources.get('sounds/shoot.sfx');
+    shoot.play();
+    const p = Camera.position;
+    const d = Camera.direction;
+    const ballEntity = new MeshEntity([0, 0, 0], 'meshes/ball.mesh', updateGrenade);
+    ballEntity.physicsBody = new CANNON.Body({ mass: 1 });
+    ballEntity.physicsBody.position.set(p[0] + d[0], p[1] + d[1], p[2] + d[2]);
+    ballEntity.physicsBody.addShape(grenadeShape);
+    Physics.addBody(ballEntity.physicsBody);
+    ballEntity.physicsBody.velocity.set(
+        d[0] * 20,
+        d[1] * 20,
+        d[2] * 20
+    );
+    ballEntity.addChild(new PointlightEntity([0, 0, 0], 2.5, [0.988, 0.31, 0.051], 1.5));
+    return ballEntity;
+};
 
 const load = () => {
     const updateGrenadeLauncher = (entity, frameTime) => {
@@ -18,7 +57,10 @@ const load = () => {
             [0, 1, 0]
         );
         mat4.invert(entity.ani_matrix, entity.ani_matrix);
-        mat4.translate(entity.ani_matrix, entity.ani_matrix, [0.15, -0.20, -0.3]);
+        mat4.translate(entity.ani_matrix, entity.ani_matrix, [
+            0.15 + (Math.cos(Math.PI * (entity.animationTime / 1500)) * 0.005),
+            -0.20 + (Math.cos(Math.PI * (entity.animationTime / 1400)) * 0.01),
+            -0.3]);
         mat4.rotateY(entity.ani_matrix, entity.ani_matrix, glMatrix.toRadian(180));
     };
     World.addEntities(new MeshEntity([0, 0, 0],
@@ -27,7 +69,8 @@ const load = () => {
 };
 
 const Weapons = {
-    load
+    load,
+    shootGrenade
 };
 
 export { Weapons as default };

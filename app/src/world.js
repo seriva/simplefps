@@ -219,8 +219,8 @@ const renderLighting = () => {
         mat4.scale(m, m, [1.25, 1.25, 1.25]);
         Shaders.pointLight.setMat4('matWorld', m);
         Shaders.pointLight.setInt('lightType', 2);
-        Shaders.pointLight.setFloat('pointLight.size', 1.25);
-        Shaders.pointLight.setFloat('pointLight.intensity', 1.25);
+        Shaders.pointLight.setFloat('pointLight.size', 1.35);
+        Shaders.pointLight.setFloat('pointLight.intensity', 1.35);
         sphere.bind();
         buffers.forEach((value, key) => {
             Shaders.pointLight.setVec3('pointLight.color', lightMap.get(key));
