@@ -13,8 +13,8 @@ const defaults = {
     emissiveOffset: 1.5,
     emissiveMult: 3.0,
     emissiveIteration: 9,
-    noiseAmmount: 0.2,
-    noiseSpeed: 1,
+    noiseAmmount: 0.1,
+    noiseSpeed: 0.1,
 
     // controls
     forward: 87,
