@@ -1,7 +1,7 @@
 import CANNON from './dependencies/cannon.js';
 
 let world = null;
-const worldCube = new CANNON.Box(new CANNON.Vec3(0.5, 0.5, 0.5));
+const worldCube = new CANNON.Box(new CANNON.Vec3(0.57, 0.57, 0.57));
 
 const init = () => {
     world = new CANNON.World();
