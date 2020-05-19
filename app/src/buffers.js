@@ -195,12 +195,16 @@ const swapBlur = (i) => {
     gl.clear(gl.COLOR_BUFFER_BIT);
 };
 
-const startGeomPass = () => {
+const startGeomPass = (clearDepthOnly = false) => {
     gl.bindFramebuffer(gl.FRAMEBUFFER, g.framebuffer);
     gl.depthMask(true);
     gl.disable(gl.BLEND);
     setWorldClearColor();
-    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    if (clearDepthOnly) {
+        gl.clear(gl.DEPTH_BUFFER_BIT);
+    } else {
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    }
 };
 
 const endGeomPass = () => {

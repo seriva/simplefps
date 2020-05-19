@@ -6,6 +6,7 @@ import Physics from './physics.js';
 import CANNON from './dependencies/cannon.js';
 import Resources from './resources.js';
 import PointlightEntity from './pointlightentity.js';
+import FpsMeshEntity from './fpsmeshentity.js';
 
 const grenadeShape = new CANNON.Sphere(0.165);
 const updateGrenade = (entity) => {
@@ -63,7 +64,7 @@ const load = () => {
             -0.3]);
         mat4.rotateY(entity.ani_matrix, entity.ani_matrix, glMatrix.toRadian(180));
     };
-    World.addEntities(new MeshEntity([0, 0, 0],
+    World.addEntities(new FpsMeshEntity([0, 0, 0],
         'meshes/grenade_launcher.mesh',
         updateGrenadeLauncher));
 };

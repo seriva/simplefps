@@ -2,7 +2,8 @@ import { mat4 } from './dependencies/gl-matrix.js';
 
 const EntityTypes = {
     MESH: 1,
-    POINTLIGHT: 2
+    POINTLIGHT: 2,
+    FPS_MESH: 3
 };
 
 class Entity {

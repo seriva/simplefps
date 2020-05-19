@@ -149,7 +149,7 @@ const update = (frameTime) => {
     });
 };
 
-const renderGeometry = () => {
+const renderWorldGeometry = () => {
     Shaders.geometry.bind();
 
     Skybox.render();
@@ -174,6 +174,28 @@ const renderGeometry = () => {
 
     const meshEntities = getEntities(EntityTypes.MESH);
     meshEntities.forEach((entity) => {
+        entity.render();
+    });
+
+
+    const fpsMeshEntities = getEntities(EntityTypes.FPS_MESH);
+    fpsMeshEntities.forEach((entity) => {
+        entity.render();
+    });
+
+    Shader.unBind();
+};
+
+const renderFPSGeometry = () => {
+    Shaders.geometry.bind();
+
+    const matModel = mat4.create();
+    mat4.identity(matModel);
+    Shaders.geometry.setMat4('matViewProj', Camera.viewProjection);
+    Shaders.geometry.setMat4('matWorld', matModel);
+
+    const fpsMeshEntities = getEntities(EntityTypes.FPS_MESH);
+    fpsMeshEntities.forEach((entity) => {
         entity.render();
     });
 
@@ -315,9 +337,10 @@ const World = {
     addEntities,
     getEntities,
     getAmbient,
-    renderGeometry,
+    renderWorldGeometry,
     renderLighting,
     renderShadows,
+    renderFPSGeometry
 };
 
 export { World as default };

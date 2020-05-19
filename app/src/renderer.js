@@ -25,10 +25,10 @@ const blurImage = (source, iterations, radius) => {
     Shader.unBind();
 };
 
-const geomPass = () => {
+const worldGeomPass = () => {
     Buffers.startGeomPass();
 
-    World.renderGeometry();
+    World.renderWorldGeometry();
 
     Buffers.endLightingPass();
 };
@@ -39,6 +39,14 @@ const shadowPass = () => {
     World.renderShadows();
 
     Buffers.endShadowPass();
+};
+
+const fpsGeomPass = () => {
+    Buffers.startGeomPass(true);
+
+    World.renderFPSGeometry();
+
+    Buffers.endLightingPass();
 };
 
 const lightingPass = () => {
@@ -91,8 +99,9 @@ const postProcessingPass = () => {
 
 const Renderer = {
     render() {
-        geomPass();
+        worldGeomPass();
         shadowPass();
+        fpsGeomPass();
         lightingPass();
         emissiveBlurPass();
         postProcessingPass();
