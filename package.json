@@ -19,7 +19,7 @@
     "jss": "^10.1.1",
     "jss-plugin-global": "^10.1.1",
     "jss-preset-default": "^10.1.1",
-    "maquette": "^3.3.6",
+    "maquette": "^3.3.7",
     "pretty-json-stringify": "^0.0.2",
     "velocity-animate": "^1.5.2"
   },

@@ -4,7 +4,7 @@ dependencies:
   jss: 10.1.1
   jss-plugin-global: 10.1.1
   jss-preset-default: 10.1.1
-  maquette: 3.3.6
+  maquette: 3.3.7
   pretty-json-stringify: 0.0.2
   velocity-animate: 1.5.2
 devDependencies:
@@ -156,13 +156,13 @@ packages:
     dev: true
     resolution:
       integrity: sha512-EYNwp3bU+98cpU4lAWYYL7Zz+2gryWH1qbdDTidVd6hkiR6weksdbMadyXKXNPEkQFhXM+hVO9ZygomHXp+AIw==
-  /@types/node/13.13.5:
+  /@types/node/14.0.4:
     dev: true
     resolution:
-      integrity: sha512-3ySmiBYJPqgjiHA7oEaIo2Rzz0HrOZ7yrNO5HWyaE5q0lQ3BppDZ3N53Miz8bw2I7gh1/zir2MGVZBvpb1zq9g==
+      integrity: sha512-k3NqigXWRzQZVBDS5D1U70A5E8Qk4Kh+Ha/x4M8Bt9pF0X05eggfnC9+63Usc9Q928hRUIpIhTQaXsZwZBl4Ew==
   /@types/resolve/0.0.8:
     dependencies:
-      '@types/node': 13.13.5
+      '@types/node': 14.0.4
     dev: true
     resolution:
       integrity: sha512-auApPaJf3NPfe18hSoJkp8EbZzer2ISk7o8mCC3M9he/a04+gbMF97NkpD2S8riMGvm4BMRI59/SZQSaLTKpsQ==
@@ -1274,10 +1274,10 @@ packages:
     dev: true
     resolution:
       integrity: sha512-4CrMT5DOHTDk4HYDlzmwu4FVCcIYI8gauveasrdCu2IKIFOJ3f0v/8MDGJCDL9oD2ppz/Av1b0Nj345H9M+XIA==
-  /maquette/3.3.6:
+  /maquette/3.3.7:
     dev: false
     resolution:
-      integrity: sha512-FTs2OHEGBK7TYcQp2QTHYZ4zzOEnoG1yOxDkcII5UN2CUEOXzVSo2jTueJiWr4fubf5rX1lo8X5KxiKlNFaq/A==
+      integrity: sha512-yB10T1PjjsojFJMz5PP+HfIYQBKZD06Y9rWTUqPRMJMYGCELlWCebY4LrtWhF2x32eZZ263WJUu4sms/rh1sKQ==
   /merge-stream/2.0.0:
     dev: true
     resolution:
@@ -1651,7 +1651,7 @@ packages:
       rollup: 2.8.2
       rollup-pluginutils: 2.8.2
       serialize-javascript: 2.1.2
-      terser: 4.6.13
+      terser: 4.7.0
     dev: true
     peerDependencies:
       rollup: '>=0.66.0 <3'
@@ -1680,7 +1680,7 @@ packages:
       integrity: sha512-tvVnVv01b8c1RrA6Ep7JkStj85Guv/YrMcwqYQnwjsAS2cTmmPGBBjAjpCW7RrSodNSoE2/qg9O4bceNvUuDgQ==
   /rxjs/6.5.5:
     dependencies:
-      tslib: 1.11.2
+      tslib: 1.13.0
     dev: true
     engines:
       npm: '>=2.0.0'
@@ -1778,7 +1778,7 @@ packages:
       integrity: sha512-9NykojV5Uih4lgo5So5dtw+f0JgJX30KCNI8gwhz2J9A15wD0Ml6tjHKwf6fTSa6fAdVBdZeNOs9eJ71qCk8vA==
   /spdx-correct/3.1.0:
     dependencies:
-      spdx-expression-parse: 3.0.0
+      spdx-expression-parse: 3.0.1
       spdx-license-ids: 3.0.5
     dev: true
     resolution:
@@ -1787,13 +1787,13 @@ packages:
     dev: true
     resolution:
       integrity: sha512-/tTrYOC7PPI1nUAgx34hUpqXuyJG+DTHJTnIULG4rDygi4xu/tfgmq1e1cIRwRzwZgo4NLySi+ricLkZkw4i5A==
-  /spdx-expression-parse/3.0.0:
+  /spdx-expression-parse/3.0.1:
     dependencies:
       spdx-exceptions: 2.3.0
       spdx-license-ids: 3.0.5
     dev: true
     resolution:
-      integrity: sha512-Yg6D3XpRD4kkOmTpdgbUiEJFKghJH03fiC1OPll5h/0sO6neh2jqRDVHOQ4o/LMea0tgCkbMgea5ip/e+MkWyg==
+      integrity: sha512-cbqHunsQWnJNE6KhVSMsMeH5H/L9EpymbzqTQ3uLwNCLZ1Q481oWaofqH7nO6V07xlXwY6PhQdQ2IedWx/ZK4Q==
   /spdx-license-ids/3.0.5:
     dev: true
     resolution:
@@ -1925,7 +1925,7 @@ packages:
       node: '>=6.0.0'
     resolution:
       integrity: sha512-wmEc8m4fjnob4gt5riFRtTu/6+4rSe12TpAELNSqHMfF3IqnA+CH37USM6/YR3qRZv7e56kAEAtd6nKZaxe0Ug==
-  /terser/4.6.13:
+  /terser/4.7.0:
     dependencies:
       commander: 2.20.3
       source-map: 0.6.1
@@ -1935,7 +1935,7 @@ packages:
       node: '>=6.0.0'
     hasBin: true
     resolution:
-      integrity: sha512-wMvqukYgVpQlymbnNbabVZbtM6PN63AzqexpwJL8tbh/mRT9LE5o+ruVduAGL7D6Fpjl+Q+06U5I9Ul82odAhw==
+      integrity: sha512-Lfb0RiZcjRDXCC3OSHJpEkxJ9Qeqs6mp2v4jf2MHfy8vGERmVDuvjXdd/EnP5Deme5F2yBRBymKmKHCBg2echw==
   /text-table/0.2.0:
     dev: true
     resolution:
@@ -1962,10 +1962,10 @@ packages:
       node: '>=4'
     resolution:
       integrity: sha1-3F5pjL0HkmW8c+A3doGk5Og/YW4=
-  /tslib/1.11.2:
+  /tslib/1.13.0:
     dev: true
     resolution:
-      integrity: sha512-tTSkux6IGPnUGUd1XAZHcpu85MOkIl5zX49pO+jfsie3eP0B6pyhOlLXm3cAC6T7s+euSDDUUV+Acop5WmtkVg==
+      integrity: sha512-i/6DQjL8Xf3be4K/E6Wgpekn5Qasl1usyw++dAA35Ue5orEn65VIxOA+YvNNl9HV3qv70T7CNwjODHZrLwvd1Q==
   /type-check/0.3.2:
     dependencies:
       prelude-ls: 1.1.2
@@ -2007,7 +2007,7 @@ packages:
   /validate-npm-package-license/3.0.4:
     dependencies:
       spdx-correct: 3.1.0
-      spdx-expression-parse: 3.0.0
+      spdx-expression-parse: 3.0.1
     dev: true
     resolution:
       integrity: sha512-DpKm2Ui/xN7/HQKCtpZxoRWBhZ9Z0kqtygG8XCgNQ8ZlDnxuQmWhj566j8fN4Cu3/JmbhsDo7fcAJq4s9h27Ew==
@@ -2059,7 +2059,7 @@ specifiers:
   jss: ^10.1.1
   jss-plugin-global: ^10.1.1
   jss-preset-default: ^10.1.1
-  maquette: ^3.3.6
+  maquette: ^3.3.7
   microtastic: ^0.0.5
   pretty-json-stringify: ^0.0.2
   velocity-animate: ^1.5.2
