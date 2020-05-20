@@ -1,7 +1,7 @@
 import CANNON from './dependencies/cannon.js';
 
 let world = null;
-const worldCube = new CANNON.Box(new CANNON.Vec3(0.5, 0.5, 0.5));
+const worldCube = new CANNON.Box(new CANNON.Vec3(0.51, 0.51, 0.51));
 
 const init = () => {
     world = new CANNON.World();
@@ -10,8 +10,8 @@ const init = () => {
     const solver = new CANNON.GSSolver();
     world.defaultContactMaterial.contactEquationStiffness = 1e9;
     world.defaultContactMaterial.contactEquationRelaxation = 4;
-    solver.iterations = 7;
-    solver.tolerance = 0.1;
+    solver.iterations = 25;
+    solver.tolerance = 0.5;
     world.solver = new CANNON.SplitSolver(solver);
     world.gravity.set(0, -9.8, 0);
     world.broadphase = new CANNON.NaiveBroadphase();

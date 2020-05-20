@@ -60,7 +60,6 @@ const load = () => {
         if (firing) {
             const dt = performance.now() - firingStart;
             firingTimer += frameTime;
-            console.log(dt, firingStart,);
             if (dt > 500) {
                 firing = false;
             }
