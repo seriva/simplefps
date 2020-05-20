@@ -20,6 +20,17 @@ DOM.css({
         opacity: 0.6,
         zIndex: 1001,
         content: 'url(resources/menu.png)'
+    },
+    '#crosshair': {
+        position: 'absolute',
+        top: '50%',
+        left: '50%',
+        marginTop: '-20px',
+        marginLeft: '-20px',
+        width: '40px',
+        height: '40px',
+        zIndex: 1001,
+        content: 'url(resources/crosshair.png)'
     }
 });
 
@@ -42,9 +53,12 @@ DOM.append(() => DOM.h(
                             }
                         },
                         [DOM.h('div#button-menu-bar')]
-                    )
+                    ),
+                    DOM.h('div#crosshair')
                 ]
-                : []
+                : [
+                    DOM.h('div#crosshair')
+                ]
         ]
         : []
 ));

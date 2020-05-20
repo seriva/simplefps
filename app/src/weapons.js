@@ -10,7 +10,7 @@ import FpsMeshEntity from './fpsmeshentity.js';
 
 let grenadeLauncher = null;
 
-const grenadeShape = new CANNON.Sphere(0.1);
+const grenadeShape = new CANNON.Sphere(0.2);
 const updateGrenade = (entity) => {
     const q = entity.physicsBody.quaternion;
     const p = entity.physicsBody.position;
@@ -34,13 +34,13 @@ const shootGrenade = () => {
     const d = Camera.direction;
     const ballEntity = new MeshEntity([0, 0, 0], 'meshes/ball.mesh', updateGrenade);
     ballEntity.physicsBody = new CANNON.Body({ mass: 0.5 });
-    ballEntity.physicsBody.position.set(p[0] + d[0], p[1] + d[1], p[2] + d[2]);
+    ballEntity.physicsBody.position.set(p[0] + d[0], p[1] + d[1] + 0.2, p[2] + d[2]);
     ballEntity.physicsBody.addShape(grenadeShape);
     Physics.addBody(ballEntity.physicsBody);
     ballEntity.physicsBody.velocity.set(
-        d[0] * 17.5,
-        d[1] * 17.5,
-        d[2] * 17.5
+        d[0] * 20,
+        d[1] * 20,
+        d[2] * 20
     );
     ballEntity.addChild(new PointlightEntity([0, 0, 0], 2.5, [0.988, 0.31, 0.051], 1.5));
     return ballEntity;
@@ -66,6 +66,7 @@ const load = () => {
             -0.20 + (Math.cos(Math.PI * (entity.animationTime / 1400)) * 0.01),
             -0.3]);
         mat4.rotateY(entity.ani_matrix, entity.ani_matrix, glMatrix.toRadian(180));
+        mat4.rotateX(entity.ani_matrix, entity.ani_matrix, glMatrix.toRadian(-2.5));
     };
     grenadeLauncher = new FpsMeshEntity([0, 0, 0],
         'meshes/grenade_launcher.mesh',
