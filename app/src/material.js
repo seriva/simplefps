@@ -45,10 +45,10 @@ class Material {
                 return;
             }
             const tex = m.resources.get(name);
-            if (m.geomType === 3) {
-                tex.setTextureWrapMode(gl.CLAMP_TO_EDGE);
-            }
             tex.bind(gl.TEXTURE0 + texUnit);
+            // if (m.geomType === 3) {
+            //    tex.setTextureWrapMode(gl.CLAMP_TO_EDGE);
+            // }
             texUnit++;
         });
     }

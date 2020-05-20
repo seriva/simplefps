@@ -56,27 +56,27 @@ class Shader {
     }
 
     setInt(id, value) {
-        gl.uniform1i(gl.getUniformLocation(this.program, id), value);
+        gl.uniform1i(this.getUniformLocation(id), value);
     }
 
     setMat4(id, mat) {
-        gl.uniformMatrix4fv(gl.getUniformLocation(this.program, id), gl.FALSE, mat);
+        gl.uniformMatrix4fv(this.getUniformLocation(id), gl.FALSE, mat);
     }
 
     setFloat(id, value) {
-        gl.uniform1f(gl.getUniformLocation(this.program, id), value);
+        gl.uniform1f(this.getUniformLocation(id), value);
     }
 
     setVec2(id, vec) {
-        gl.uniform2f(gl.getUniformLocation(this.program, id), vec[0], vec[1]);
+        gl.uniform2f(this.getUniformLocation(id), vec[0], vec[1]);
     }
 
     setVec3(id, vec) {
-        gl.uniform3f(gl.getUniformLocation(this.program, id), vec[0], vec[1], vec[2]);
+        gl.uniform3f(this.getUniformLocation(id), vec[0], vec[1], vec[2]);
     }
 
     setVec4(id, vec) {
-        gl.uniform4f(gl.getUniformLocation(this.program, id), vec[0], vec[1], vec[2], vec[3]);
+        gl.uniform4f(this.getUniformLocation(id), vec[0], vec[1], vec[2], vec[3]);
     }
 }
 
