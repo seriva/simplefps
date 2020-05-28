@@ -32,7 +32,7 @@ class MeshEntity extends Entity {
         mat4.scale(m, m, [1, 0.001, 1]);
         mat4.multiply(m, m, rm);
         Shaders.entityShadows.setMat4('matWorld', m);
-        this.mesh.renderSingle();
+        this.mesh.renderSingle(false);
     }
 }
 

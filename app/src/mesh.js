@@ -79,13 +79,13 @@ class Mesh {
         }
     }
 
-    renderSingle() {
+    renderSingle(applyMaterial = true) {
         const m = this;
 
         m.bind();
 
         m.indices.forEach((indexObj) => {
-            if (indexObj.material !== 'none') {
+            if (indexObj.material !== 'none' && applyMaterial) {
                 const mat = m.resources.get(indexObj.material);
                 mat.bind();
             }
@@ -96,11 +96,11 @@ class Mesh {
         m.unBind();
     }
 
-    renderMany(count) {
+    renderMany(count, applyMaterial = true) {
         const m = this;
 
         m.indices.forEach((indexObj) => {
-            if (indexObj.material !== 'none') {
+            if (indexObj.material !== 'none' && applyMaterial) {
                 const mat = m.resources.get(indexObj.material);
                 mat.bind();
             }
