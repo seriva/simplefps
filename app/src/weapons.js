@@ -7,6 +7,7 @@ import CANNON from './dependencies/cannon.js';
 import Resources from './resources.js';
 import PointlightEntity from './pointlightentity.js';
 import FpsMeshEntity from './fpsmeshentity.js';
+import Controls from './controls.js';
 
 let grenadeLauncher = null;
 let firing = false;
@@ -65,6 +66,14 @@ const load = () => {
             }
             fireAnim = (Math.cos(Math.PI * (firingTimer / 1000)) * 0.12);
         }
+
+        let moveHorizontalAnim = 0;
+        let moveVerticalAnim = 0;
+        if (Controls.moving()) {
+            moveHorizontalAnim = (Math.cos(Math.PI * (entity.animationTime / 350)) * 0.0125);
+            moveVerticalAnim = -(Math.cos(Math.PI * (entity.animationTime / 300)) * 0.002);
+        }
+
         const dir = vec3.create();
         const pos = vec3.create();
         vec3.copy(dir, Camera.direction);
@@ -78,8 +87,8 @@ const load = () => {
         );
         mat4.invert(entity.ani_matrix, entity.ani_matrix);
         mat4.translate(entity.ani_matrix, entity.ani_matrix, [
-            0.15 + (Math.cos(Math.PI * (entity.animationTime / 1500)) * 0.005),
-            -0.20 + (Math.sin(Math.PI * (entity.animationTime / 1400)) * 0.01),
+            0.15 + (Math.cos(Math.PI * (entity.animationTime / 1500)) * 0.005) + moveHorizontalAnim,
+            -0.20 + (Math.sin(Math.PI * (entity.animationTime / 1400)) * 0.01) + moveVerticalAnim,
             -0.3 + fireAnim]);
         mat4.rotateY(entity.ani_matrix, entity.ani_matrix, glMatrix.toRadian(180));
         mat4.rotateX(entity.ani_matrix, entity.ani_matrix, glMatrix.toRadian(-2.5));
