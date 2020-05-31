@@ -1,6 +1,7 @@
 import prettyJsonStringify from './dependencies/pretty-json-stringify.js';
 import { mat4, vec3 } from './dependencies/gl-matrix.js';
 import { gl, Context } from './context.js';
+import CANNON from './dependencies/cannon.js';
 import Camera from './camera.js';
 import { EntityTypes } from './entity.js';
 import Resources from './resources.js';
@@ -43,7 +44,9 @@ let mainLight = {
 };
 const shadowAmbient = [1, 1, 1];
 
-const blockData = new Uint8Array(dimension * dimension * dimension);
+const blocks = new Uint8Array(dimension * dimension * dimension);
+const blockified = new Array(dimension * dimension * dimension);
+blockified.fill(false);
 let entities = [];
 const buffers = new Map();
 
@@ -53,6 +56,31 @@ const to3D = (i) => {
     const y = Math.floor((i / dimension) % dimension);
     const z = Math.floor(i / (dimension * dimension));
     return [x, y, z];
+};
+
+const getBlockIndex = (x, y, z) => {
+    if (x >= 0 && x < dimension
+        && y >= 0 && y < dimension
+        && z >= 0 && z < dimension) {
+        return x + dimension * y + dimension * dimension * z;
+    }
+    return -1;
+};
+
+const isFilled = (x, y, z) => {
+    const i = getBlockIndex(x, y, z);
+    if (i !== -1) return (blocks[i] >= 1 && blocks[i] < 128);
+    return false;
+};
+
+const isBlockified = (x, y, z) => {
+    const i = getBlockIndex(x, y, z);
+    if (i !== -1) return blockified[i] > 0;
+    return false;
+};
+
+const setBlockified = (x, y, z, value) => {
+    blockified[getBlockIndex(x, y, z)] = !!value;
 };
 
 const getAmbient = () => ambient;
@@ -70,7 +98,8 @@ const calcShadowAmbient = () => {
 
 const clear = () => {
     skyBoxId = 1;
-    blockData.fill(0);
+    blocks.fill(0);
+    blockified.fill(false);
     entities.length = 0;
     buffers.forEach((value) => {
         gl.deleteBuffer(value.id);
@@ -107,7 +136,7 @@ const prepare = () => {
     Camera.setRotation(spawnPoint.rotation);
 
     // prepare map data and entities
-    blockData.forEach((block, i) => {
+    blocks.forEach((block, i) => {
         // map blocks
         if (block >= 1 && block < 128) {
             if (!buffers.has(block)) {
@@ -120,7 +149,6 @@ const prepare = () => {
             const buffer = buffers.get(block);
             const pos = to3D(i);
             buffer.data.push(...pos);
-            Physics.addWorldCube(pos[0], pos[1], pos[2]);
             buffer.count++;
         // entities
         } else if (block >= 128) {
@@ -134,7 +162,111 @@ const prepare = () => {
         value.data = [];
     });
 
+    // shadow ambient
     calcShadowAmbient();
+
+    // prepare physics bodies
+    const boxes = [];
+
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+        let box;
+
+        // 1. Get a filled box that we haven't boxified yet
+        for (let i = 0; !box && i < dimension; i++) {
+            for (let j = 0; !box && j < dimension; j++) {
+                for (let k = 0; !box && k < dimension; k++) {
+                    if (isFilled(i, j, k) && !isBlockified(i, j, k)) {
+                        box = new CANNON.Body({ mass: 0 });
+                        box.xi = i; // Position
+                        box.yi = j;
+                        box.zi = k;
+                        box.nx = 0; // Size
+                        box.ny = 0;
+                        box.nz = 0;
+                        boxes.push(box);
+                    }
+                }
+            }
+        }
+
+        // 2. Check if we can merge it with its neighbors
+        if (box) {
+            // Check what can be merged
+            const { xi } = box;
+            const { yi } = box;
+            const { zi } = box;
+            box.nx = dimension; // merge=1 means merge just with the self box
+            box.ny = dimension;
+            box.nz = dimension;
+
+            // Merge in x
+            for (let i = xi; i < dimension + 1; i++) {
+                if (!isFilled(i, yi, zi) || (isBlockified(i, yi, zi) && getBlockIndex(i, yi, zi) !== -1)) {
+                    // Can't merge this box. Make sure we limit the merging
+                    box.nx = i - xi;
+                    break;
+                }
+            }
+
+            // Merge in y
+            let found = false;
+            for (let i = xi; !found && i < xi + box.nx; i++) {
+                for (let j = yi; !found && j < dimension + 1; j++) {
+                    if (!isFilled(i, j, zi) || (isBlockified(i, j, zi) && getBlockIndex(i, j, zi) !== -1)) {
+                        // Can't merge this box. Make sure we limit the merging
+                        if (box.ny > j - yi) box.ny = j - yi;
+                    }
+                }
+            }
+
+            // Merge in z
+            found = false;
+            for (let i = xi; !found && i < xi + box.nx; i++) {
+                for (let j = yi; !found && j < yi + box.ny; j++) {
+                    for (let k = zi; k < dimension + 1; k++) {
+                        if (!isFilled(i, j, k) || (isBlockified(i, j, k) && getBlockIndex(i, j, k) !== -1)) {
+                            // Can't merge this box. Make sure we limit the merging
+                            if (box.nz > k - zi) box.nz = k - zi;
+                        }
+                    }
+                }
+            }
+
+            if (box.nx === 0) box.nx = 1;
+            if (box.ny === 0) box.ny = 1;
+            if (box.nz === 0) box.nz = 1;
+
+            // Set the merged boxes as boxified
+            for (let i = xi; i < xi + box.nx; i++) {
+                for (let j = yi; j < yi + box.ny; j++) {
+                    for (let k = zi; k < zi + box.nz; k++) {
+                        if (i >= xi && i <= xi + box.nx
+                            && j >= yi && j <= yi + box.ny
+                            && k >= zi && k <= zi + box.nz) {
+                            setBlockified(i, j, k, true);
+                        }
+                    }
+                }
+            }
+
+            box = false;
+        } else {
+            break;
+        }
+    }
+
+    // Set box positions
+    for (let i = 0; i < boxes.length; i++) {
+        const b = boxes[i];
+        b.position.set(
+            (b.xi + b.nx * 0.5) - 0.5,
+            (b.yi + b.ny * 0.5) - 0.5,
+            (b.zi + b.nz * 0.5) - 0.5
+        );
+        b.addShape(new CANNON.Box(new CANNON.Vec3(b.nx * 0.5, b.ny * 0.5, b.nz * 0.5)));
+        Physics.addBody(b);
+    }
 };
 
 const pause = (doPause) => {
@@ -289,7 +421,7 @@ const load = async (name) => {
     mainLight = world.mainlight;
 
     for (let i = 0; i < world.data.length - 1; i += 2) {
-        blockData[world.data[i]] = world.data[i + 1];
+        blocks[world.data[i]] = world.data[i + 1];
     }
     Loading.update(1, 2);
 
@@ -301,7 +433,7 @@ const load = async (name) => {
 
 const save = (name) => {
     const data = [];
-    blockData.forEach((block, i) => {
+    blocks.forEach((block, i) => {
         if (block >= 1) {
             data.push(i, block);
         }

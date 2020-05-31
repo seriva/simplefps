@@ -13,7 +13,7 @@ let firing = false;
 let firingStart = 0;
 let firingTimer = 0;
 
-const grenadeShape = new CANNON.Sphere(0.2);
+const grenadeShape = new CANNON.Sphere(0.095);
 const updateGrenade = (entity) => {
     const q = entity.physicsBody.quaternion;
     const p = entity.physicsBody.position;
@@ -40,7 +40,7 @@ const shootGrenade = () => {
     mat4.getTranslation(p, grenadeLauncher.ani_matrix);
     const d = Camera.direction;
     const ballEntity = new MeshEntity([0, 0, 0], 'meshes/ball.mesh', updateGrenade);
-    ballEntity.physicsBody = new CANNON.Body({ mass: 0.5 });
+    ballEntity.physicsBody = new CANNON.Body({ mass: 0.25 });
     ballEntity.physicsBody.position.set(p[0] + d[0], p[1] + d[1] + 0.2, p[2] + d[2]);
     ballEntity.physicsBody.addShape(grenadeShape);
     Physics.addBody(ballEntity.physicsBody);
