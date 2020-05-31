@@ -9,7 +9,7 @@ const init = () => {
     const solver = new CANNON.GSSolver();
     world.defaultContactMaterial.contactEquationStiffness = 1e9;
     world.defaultContactMaterial.contactEquationRelaxation = 4;
-    solver.iterations = 7;
+    solver.iterations = 15;
     solver.tolerance = 0.2;
     world.solver = new CANNON.SplitSolver(solver);
     world.gravity.set(0, -9.8, 0);
