@@ -16,18 +16,18 @@
   "dependencies": {
     "cannon": "^0.6.2",
     "gl-matrix": "^3.3.0",
-    "jss": "^10.1.1",
-    "jss-plugin-global": "^10.1.1",
-    "jss-preset-default": "^10.1.1",
+    "jss": "^10.3.0",
+    "jss-plugin-global": "^10.3.0",
+    "jss-preset-default": "^10.3.0",
     "maquette": "^3.3.7",
     "pretty-json-stringify": "^0.0.2",
     "velocity-animate": "^1.5.2"
   },
   "devDependencies": {
     "babel-eslint": "^10.1.0",
-    "eslint": "^7.0.0",
-    "eslint-config-airbnb-base": "^14.1.0",
-    "eslint-plugin-import": "^2.20.2",
-    "microtastic": "^0.0.5"
+    "eslint": "^7.3.0",
+    "eslint-config-airbnb-base": "^14.2.0",
+    "eslint-plugin-import": "^2.21.2",
+    "microtastic": "^0.0.6"
   }
 }

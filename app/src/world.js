@@ -309,7 +309,6 @@ const renderWorldGeometry = () => {
         entity.render();
     });
 
-
     const fpsMeshEntities = getEntities(EntityTypes.FPS_MESH);
     fpsMeshEntities.forEach((entity) => {
         entity.render();
