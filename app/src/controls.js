@@ -63,8 +63,6 @@ window.addEventListener(
     false
 );
 
-let moving = false;
-
 // console
 Input.addKeyDownEvent(192, () => {
     Console.toggle();
@@ -83,10 +81,6 @@ window.addEventListener('click', (e) => {
 
 // mouse movement and keyboard input
 const Controls = {
-    moving() {
-        return moving;
-    },
-
     update(frametime) {
         if (Console.visible() || State === 'MENU') return;
         const ft = frametime / 1000;
@@ -117,22 +111,23 @@ const Controls = {
         // movement
         let move = 0;
         let strafe = 0;
-        moving = false;
+
+        Weapons.setIsMoving(false);
         if (Input.isDown(Settings.forward)) {
             move += 1;
-            moving = true;
+            Weapons.setIsMoving(true);
         }
         if (Input.isDown(Settings.backwards)) {
             move -= 1;
-            moving = true;
+            Weapons.setIsMoving(true);
         }
         if (Input.isDown(Settings.left)) {
             strafe -= 1;
-            moving = true;
+            Weapons.setIsMoving(true);
         }
         if (Input.isDown(Settings.right)) {
             strafe += 1;
-            moving = true;
+            Weapons.setIsMoving(true);
         }
 
         // calculate new position and view direction

@@ -7,12 +7,16 @@ import CANNON from './dependencies/cannon.js';
 import Resources from './resources.js';
 import PointlightEntity from './pointlightentity.js';
 import FpsMeshEntity from './fpsmeshentity.js';
-import Controls from './controls.js';
 
 let grenadeLauncher = null;
 let firing = false;
 let firingStart = 0;
 let firingTimer = 0;
+let isMoving = false;
+
+const setIsMoving = (value) => {
+    isMoving = value;
+};
 
 const grenadeShape = new CANNON.Sphere(0.095);
 const updateGrenade = (entity) => {
@@ -69,7 +73,7 @@ const load = () => {
 
         let moveHorizontalAnim = 0;
         let moveVerticalAnim = 0;
-        if (Controls.moving()) {
+        if (isMoving) {
             moveHorizontalAnim = (Math.cos(Math.PI * (entity.animationTime / 350)) * 0.0125);
             moveVerticalAnim = -(Math.cos(Math.PI * (entity.animationTime / 300)) * 0.002);
         }
@@ -101,6 +105,7 @@ const load = () => {
 
 const Weapons = {
     load,
+    setIsMoving,
     shootGrenade
 };
 
