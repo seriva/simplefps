@@ -11,6 +11,7 @@
         "meshes/ammo.mesh",
         "meshes/grenade_launcher.mesh",
         "meshes/ball.mesh",
+        "meshes/minigun.mesh",
     
         "skyboxes/skybox.mesh",
         "skyboxes/1/1.mat",

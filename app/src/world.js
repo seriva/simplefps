@@ -26,6 +26,7 @@ typeMap.set(128, 'meshes/health.mesh');
 typeMap.set(129, 'meshes/armor.mesh');
 typeMap.set(130, 'meshes/ammo.mesh');
 typeMap.set(150, 'meshes/grenade_launcher.mesh');
+typeMap.set(151, 'meshes/minigun.mesh');
 
 const lightMap = new Map();
 lightMap.set(1, [0.153, 0.643, 0.871]);
@@ -50,7 +51,7 @@ blockified.fill(false);
 let entities = [];
 const buffers = new Map();
 
-// const to1D = (x, y, z) => (z * dimension * dimension) + (y * dimension) + x;
+const to1D = (x, y, z) => (z * dimension * dimension) + (y * dimension) + x;
 const to3D = (i) => {
     const x = Math.floor(i % dimension);
     const y = Math.floor((i / dimension) % dimension);

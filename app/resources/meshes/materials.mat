@@ -81,7 +81,7 @@
             "doEmissive": 1,
             "doSEM": 1,
             "semMult": 0.6
-        },        
+        },
         {
             "name": "mat_ball",
             "textures": [
@@ -94,6 +94,20 @@
             "doEmissive": 1,
             "detailMult": 0.85,
             "detailUVMult": 3    
+        },
+        {
+            "name": "mat_pickup_minigun",
+            "textures": [
+                "meshes/minigun.jpg",
+                "none",
+                "meshes/minigun_emissive.jpg",
+                "meshes/spheremap1.jpg",
+                "meshes/minigun_sem.jpg"
+            ],
+            "geomType": 1,
+            "doEmissive": 1,
+            "doSEM": 1,
+            "semMult": 0.6
         }
     ]
 }
