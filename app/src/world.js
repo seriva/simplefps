@@ -139,6 +139,7 @@ const prepare = () => {
     // prepare map data and entities
     blocks.forEach((block, i) => {
         // map blocks
+        const pos = to3D(i);
         if (block >= 1 && block < 128) {
             if (!buffers.has(block)) {
                 buffers.set(block, {
@@ -148,12 +149,11 @@ const prepare = () => {
                 });
             }
             const buffer = buffers.get(block);
-            const pos = to3D(i);
             buffer.data.push(...pos);
             buffer.count++;
         // entities
         } else if (block >= 128) {
-            addEntities(Entities.createPickup(to3D(i), block, typeMap.get(block)));
+            addEntities(Entities.createPickup(pos, block, typeMap.get(block)));
         }
     });
 

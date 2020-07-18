@@ -29,6 +29,9 @@ const createPickup = (pos, type, mesh) => {
     case 150:
         pickup.addChild(new PointlightEntity(pos, 1.4, [0.2, 0.552, 0.862], 1.7));
         break;
+    case 151:
+        pickup.addChild(new PointlightEntity(pos, 1.4, [0.752, 0, 0.035], 1.7));
+        break;
     default:
         // code block
     }
