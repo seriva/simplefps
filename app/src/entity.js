@@ -14,6 +14,7 @@ class Entity {
         t.children = [];
         t.updateCallback = updateCallback;
         t.animationTime = 0;
+        t.visible = true;
         t.base_matrix = mat4.create();
         t.ani_matrix = mat4.create();
         mat4.identity(t.base_matrix);
@@ -39,6 +40,10 @@ class Entity {
 
     update(frametime) {
         const t = this;
+
+        if (!t.visible) {
+            return;
+        }
 
         // update entity
         if (t.updateCallback) {

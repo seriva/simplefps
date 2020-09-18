@@ -79,6 +79,18 @@ window.addEventListener('click', (e) => {
     Weapons.shootGrenade();
 });
 
+window.addEventListener('wheel', (e) => {
+    if (State !== "GAME") return;
+    if (e.deltaY < 0)
+    {
+        Weapons.selectNext();
+    }
+    else if (e.deltaY > 0)
+    {
+        Weapons.selectPrevious();
+    }
+});
+
 // mouse movement and keyboard input
 const Controls = {
     update(frametime) {

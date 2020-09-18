@@ -13,26 +13,30 @@ class MeshEntity extends Entity {
     }
 
     render() {
+        const t = this;
+        if (!t.visible) return;
         const m = mat4.create();
-        mat4.multiply(m, this.base_matrix, this.ani_matrix);
+        mat4.multiply(m, t.base_matrix, t.ani_matrix);
         Shaders.geometry.setInt('geomType', 1);
         Shaders.geometry.setMat4('matWorld', m);
-        this.mesh.renderSingle();
+        t.mesh.renderSingle();
     }
 
     renderShadow() {
-        if (!this.castShadow) return;
+        const t = this;
+        if (!t.visible) return;
+        if (!t.castShadow) return;
         const m = mat4.create();
-        mat4.copy(m, this.base_matrix);
+        mat4.copy(m, t.base_matrix);
         const q = quat.create();
-        mat4.getRotation(q, this.ani_matrix);
+        mat4.getRotation(q, t.ani_matrix);
         const rm = mat4.create();
         mat4.fromQuat(rm, q);
         mat4.translate(m, m, [0, -0.499, 0]);
         mat4.scale(m, m, [1, 0.001, 1]);
         mat4.multiply(m, m, rm);
         Shaders.entityShadows.setMat4('matWorld', m);
-        this.mesh.renderSingle(false);
+        t.mesh.renderSingle(false);
     }
 }
 
