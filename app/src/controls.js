@@ -80,13 +80,10 @@ window.addEventListener('click', (e) => {
 });
 
 window.addEventListener('wheel', (e) => {
-    if (State !== "GAME") return;
-    if (e.deltaY < 0)
-    {
+    if (State !== 'GAME') return;
+    if (e.deltaY < 0) {
         Weapons.selectNext();
-    }
-    else if (e.deltaY > 0)
-    {
+    } else if (e.deltaY > 0) {
         Weapons.selectPrevious();
     }
 });

@@ -7,7 +7,7 @@ import CANNON from './dependencies/cannon.js';
 import Resources from './resources.js';
 import PointlightEntity from './pointlightentity.js';
 import FpsMeshEntity from './fpsmeshentity.js';
-import {EntityTypes} from './entity.js';
+import { EntityTypes } from './entity.js';
 
 let weaponList = [];
 let selected = -1;
@@ -40,7 +40,7 @@ const selectNext = () => {
 const selectPrevious = () => {
     hideAll();
     selected--;
-    if (selected < 0) selected = weaponList.length-1;
+    if (selected < 0) selected = weaponList.length - 1;
     weaponList[selected].visible = true;
 };
 
@@ -171,11 +171,11 @@ const load = () => {
     miniGun = new FpsMeshEntity([0, 0, 0],
         'meshes/minigun.mesh',
         updateMinigun);
-        miniGun.visible = false;
+    miniGun.visible = false;
     World.addEntities(miniGun);
 
     // get list of weapons and select first
-    weaponList = World.getEntities(EntityTypes.FPS_MESH)
+    weaponList = World.getEntities(EntityTypes.FPS_MESH);
     selectNext();
 };
 
