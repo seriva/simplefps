@@ -25,9 +25,9 @@
   },
   "devDependencies": {
     "babel-eslint": "^10.1.0",
-    "eslint": "^7.9.0",
+    "eslint": "^7.10.0",
     "eslint-config-airbnb-base": "^14.2.0",
-    "eslint-plugin-import": "^2.22.0",
-    "microtastic": "^0.0.8"
+    "eslint-plugin-import": "^2.22.1",
+    "microtastic": "^0.0.10"
   }
 }
