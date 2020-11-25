@@ -18,7 +18,7 @@ if (!Object.prototype.hasOwnProperty.call(t, l)) {
     l = 'en-US';
 }
 
-Console.log(`Language ${localStorage}`);
+Console.log(`Language ${l}`);
 
 const Translations = {
     get: (key) => {
