@@ -50,8 +50,8 @@ document.addEventListener(
     false
 );
 
-document.addEventListener('pointerlockerror', (event) => {
-    //Workarround for Chrome where it would throw an error in some weird case.
+document.addEventListener('pointerlockerror', () => {
+    // Workarround for Chrome where it would throw an error in some weird case.
     Utils.dispatchCustomEvent('changestate', {
         state: 'GAME'
     });
