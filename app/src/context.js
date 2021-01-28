@@ -18,7 +18,7 @@ const canvas = DOM.h('canvas#game');
 DOM.append(() => canvas);
 
 const gl = canvas.domNode.getContext('webgl2', {
-    antialias: true
+    antialias: false
 });
 if (!gl) {
     Console.error('Failed to initialize WebGL 2.0 context');
