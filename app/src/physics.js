@@ -1,33 +1,36 @@
-import CANNON from './dependencies/cannon.js';
+import * as CANNON from './dependencies/cannon-es.js';
 
 let world = null;
+let lastCallTime;
+const timeStep = 1 / 60;
 
 const init = () => {
     world = new CANNON.World();
+    world = new CANNON.World({
+        gravity: new CANNON.Vec3(0, -9.82, 0), // m/s²
+    });
     world.quatNormalizeSkip = 0;
     world.quatNormalizeFast = false;
     const solver = new CANNON.GSSolver();
-    world.defaultContactMaterial.contactEquationStiffness = 1e9;
-    world.defaultContactMaterial.contactEquationRelaxation = 4;
     solver.iterations = 15;
     solver.tolerance = 0.2;
     world.solver = new CANNON.SplitSolver(solver);
-    world.gravity.set(0, -9.8, 0);
     world.broadphase = new CANNON.NaiveBroadphase();
-    const physicsMaterial = new CANNON.Material('slipperyMaterial');
-    const physicsContactMaterial = new CANNON.ContactMaterial(physicsMaterial,
-        physicsMaterial,
-        0,
-        0.2);
-    world.addContactMaterial(physicsContactMaterial);
 };
 
 const addBody = (body) => {
     world.addBody(body);
 };
 
-const update = (frameTime) => {
-    world.step(frameTime / 1000);
+const update = () => {
+    const time = performance.now() / 1000;
+    if (!lastCallTime) {
+        world.step(timeStep);
+    } else {
+        const dt = time - lastCallTime;
+        world.step(timeStep, dt);
+    }
+    lastCallTime = time;
 };
 
 const Physics = {

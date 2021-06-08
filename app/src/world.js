@@ -1,7 +1,7 @@
 import prettyJsonStringify from './dependencies/pretty-json-stringify.js';
 import { mat4, vec3 } from './dependencies/gl-matrix.js';
 import { gl, Context } from './context.js';
-import CANNON from './dependencies/cannon.js';
+import * as CANNON from './dependencies/cannon-es.js';
 import Camera from './camera.js';
 import { EntityTypes } from './entity.js';
 import Resources from './resources.js';
@@ -276,7 +276,7 @@ const pause = (doPause) => {
 
 const update = (frameTime) => {
     if (pauseUpdate) return;
-    Physics.update(frameTime);
+    Physics.update();
     entities.forEach((entity) => {
         entity.update(frameTime);
     });

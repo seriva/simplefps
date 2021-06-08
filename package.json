@@ -14,7 +14,7 @@
     "build": "microtastic prod"
   },
   "dependencies": {
-    "cannon": "^0.6.2",
+    "cannon-es": "^0.17.1",
     "gl-matrix": "^3.3.0",
     "jss": "^10.6.0",
     "jss-plugin-global": "^10.6.0",

@@ -3,7 +3,7 @@ import Camera from './camera.js';
 import MeshEntity from './meshentity.js';
 import World from './world.js';
 import Physics from './physics.js';
-import CANNON from './dependencies/cannon.js';
+import * as CANNON from './dependencies/cannon-es.js';
 import Resources from './resources.js';
 import PointlightEntity from './pointlightentity.js';
 import FpsMeshEntity from './fpsmeshentity.js';
