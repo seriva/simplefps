@@ -1,7 +1,6 @@
 {
     "recommendations": [
         "dbaeumer.vscode-eslint",
-        "boyswan.glsl-literal",
-        "msjsdiag.debugger-for-chrome"
+        "boyswan.glsl-literal"
     ]
 }
