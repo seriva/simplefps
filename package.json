@@ -15,10 +15,10 @@
   },
   "dependencies": {
     "cannon-es": "^0.18.0",
-    "gl-matrix": "^3.3.0",
-    "jss": "^10.8.0",
-    "jss-plugin-global": "^10.8.0",
-    "jss-preset-default": "^10.8.0",
+    "gl-matrix": "^3.4.3",
+    "jss": "^10.8.2",
+    "jss-plugin-global": "^10.8.2",
+    "jss-preset-default": "^10.8.2",
     "maquette": "^3.5.1",
     "pretty-json-stringify": "^0.0.2",
     "velocity-animate": "^1.5.2"
