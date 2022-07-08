@@ -1,9 +1,12 @@
 {
-  "parser": "babel-eslint",
+  "parser": "@babel/eslint-parser",
+  "parserOptions": {
+    "requireConfigFile" : false
+   },
   "extends": ["airbnb-base"],
   "env": {
     "browser": true
-  },  
+  },
   "rules": {
     "indent": ["error", 4],
     "max-len": [
@@ -29,6 +32,9 @@
     "no-bitwise": 0,
     "import/no-mutable-exports": 0,
     "import/extensions": 0,
-    "no-continue": 0
+    "no-continue": 0,
+    "no-restricted-exports": 0,
+    "function-paren-newline": 0,
+    "function-call-argument-newline": 0
   }
 }

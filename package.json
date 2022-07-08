@@ -11,23 +11,24 @@
   "scripts": {
     "prepare": "microtastic prep",
     "dev": "microtastic dev",
-    "build": "microtastic prod"
+    "build": "microtastic prod",
+    "lint": "eslint ."
   },
   "dependencies": {
-    "cannon-es": "^0.18.0",
+    "cannon-es": "^0.19.0",
     "gl-matrix": "^3.4.3",
-    "jss": "^10.8.2",
-    "jss-plugin-global": "^10.8.2",
-    "jss-preset-default": "^10.8.2",
-    "maquette": "^3.5.1",
+    "jss": "^10.9.0",
+    "jss-plugin-global": "^10.9.0",
+    "jss-preset-default": "^10.9.0",
+    "maquette": "^3.5.2",
     "pretty-json-stringify": "^0.0.2",
     "velocity-animate": "^1.5.2"
   },
   "devDependencies": {
-    "babel-eslint": "^10.1.0",
-    "eslint": "^7.32.0",
-    "eslint-config-airbnb-base": "^14.2.1",
-    "eslint-plugin-import": "^2.24.2",
-    "microtastic": "0.0.17"
+    "@babel/eslint-parser": "^7.18.2",
+    "eslint": "^8.19.0",
+    "eslint-config-airbnb-base": "^15.0.0",
+    "eslint-plugin-import": "^2.26.0",
+    "microtastic": "^0.0.20"
   }
 }
