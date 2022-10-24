@@ -20,15 +20,15 @@
     "jss": "^10.9.2",
     "jss-plugin-global": "^10.9.2",
     "jss-preset-default": "^10.9.2",
-    "maquette": "^3.5.2",
+    "maquette": "^3.5.3",
     "pretty-json-stringify": "^0.0.2",
     "velocity-animate": "^1.5.2"
   },
   "devDependencies": {
-    "@babel/eslint-parser": "^7.18.9",
-    "eslint": "^8.23.0",
+    "@babel/eslint-parser": "^7.19.1",
+    "eslint": "^8.26.0",
     "eslint-config-airbnb-base": "^15.0.0",
     "eslint-plugin-import": "^2.26.0",
-    "microtastic": "^0.0.21"
+    "microtastic": "^0.0.22"
   }
 }
