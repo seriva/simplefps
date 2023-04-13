@@ -1,2 +1,2 @@
-# Cubetastic
-Simple FPS arena shooter with with Minecraft like destructible maps.
+# SimpleFPS
+Simple FPS  written in ES6 and WebGL with random map generation.
