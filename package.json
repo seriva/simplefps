@@ -17,18 +17,18 @@
   "dependencies": {
     "cannon-es": "^0.20.0",
     "gl-matrix": "^3.4.3",
-    "jss": "^10.9.2",
-    "jss-plugin-global": "^10.9.2",
-    "jss-preset-default": "^10.9.2",
-    "maquette": "^3.5.3",
+    "jss": "^10.10.0",
+    "jss-plugin-global": "^10.10.0",
+    "jss-preset-default": "^10.10.0",
+    "maquette": "^3.6.0",
     "pretty-json-stringify": "^0.0.2",
     "velocity-animate": "^1.5.2"
   },
   "devDependencies": {
-    "@babel/eslint-parser": "^7.19.1",
-    "eslint": "^8.30.0",
+    "@babel/eslint-parser": "^7.21.3",
+    "eslint": "^8.38.0",
     "eslint-config-airbnb-base": "^15.0.0",
-    "eslint-plugin-import": "^2.26.0",
+    "eslint-plugin-import": "^2.27.5",
     "microtastic": "^0.0.23"
   }
 }
