@@ -1,12 +1,12 @@
 {
-  "name": "cubetastic",
+  "name": "simplefps",
   "version": "0.0.2",
-  "description": "Cubetastic",
+  "description": "SimpleFPS",
   "author": "Luuk van Venrooij",
   "license": "LGPL-3.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/seriva/Cubetastic.git"
+    "url": "https://github.com/seriva/SimpleFPS.git"
   },
   "scripts": {
     "prepare": "microtastic prep",

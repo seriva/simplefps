@@ -50,7 +50,7 @@ DOM.css({
 });
 
 // where will bind all the commands to eval execution
-window.cubetastic = {};
+window.simplefps = {};
 
 // local vars
 let visible = false;
@@ -216,14 +216,14 @@ const Console = {
     },
 
     registerCmd(name, value) {
-        window.cubetastic[name.toLowerCase()] = value;
+        window.simplefps[name.toLowerCase()] = value;
     },
 
     executeCmd() {
         if (command === '') return;
         try {
             Console.log(command);
-            const cmd = `cubetastic.${command}`;
+            const cmd = `simplefps.${command}`;
             if (cmd.indexOf('=') > -1) {
                 // we are dealing with a var assignement.
                 const split = cmd.split('=');

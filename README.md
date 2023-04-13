@@ -1,2 +1,2 @@
 # SimpleFPS
-Simple FPS  written in ES6 and WebGL with random map generation.
+Simple FPS with random map generation build using web-technologies with a PWA distribution target for Desktop and Android Mobile phones.
