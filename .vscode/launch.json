@@ -7,7 +7,7 @@
         {
             "name": "Launch SimpleFPS",
             "request": "launch",
-            "type": "pwa-chrome",
+            "type": "chrome",
             "url": "http://localhost:8181",
             "webRoot": "${workspaceFolder}/app/"
         }

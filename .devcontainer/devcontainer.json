@@ -10,15 +10,6 @@
 		"args": { "VARIANT": "16-bullseye" }
 	},
 
-	// Set *default* container specific settings.json values on container create.
-	"settings": {},
-
-	// Add the IDs of extensions you want installed when the container is created.
-	"extensions": [
-        "dbaeumer.vscode-eslint",
-        "boyswan.glsl-literal"
-	],
-
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
 	"forwardPorts": [8181],
 
