@@ -25,8 +25,8 @@
     "velocity-animate": "^1.5.2"
   },
   "devDependencies": {
-    "@babel/eslint-parser": "^7.21.3",
-    "eslint": "^8.38.0",
+    "@babel/eslint-parser": "^7.22.9",
+    "eslint": "^8.45.0",
     "eslint-config-airbnb-base": "^15.0.0",
     "eslint-plugin-import": "^2.27.5",
     "microtastic": "^0.0.23"
