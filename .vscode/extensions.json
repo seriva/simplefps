@@ -1,6 +1,6 @@
 {
     "recommendations": [
-        "dbaeumer.vscode-eslint",
-        "boyswan.glsl-literal"
+        // For running the vscode devcontainer.
+        "ms-vscode-remote.remote-containers"
     ]
 }

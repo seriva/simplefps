@@ -10,6 +10,11 @@
 		"args": { "VARIANT": "18-buster" }
 	},
 
+	"extensions": [
+		"dbaeumer.vscode-eslint",
+		"boyswan.glsl-literal"
+	],
+
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
 	"forwardPorts": [8181],
 
