@@ -9,11 +9,19 @@
 		// Use -bullseye variants on local arm64/Apple Silicon.
 		"args": { "VARIANT": "18-buster" }
 	},
-
-	"extensions": [
-		"dbaeumer.vscode-eslint",
-		"boyswan.glsl-literal"
-	],
+    "customizations":{
+        "vscode": {
+            "extensions": [
+				"dbaeumer.vscode-eslint",
+				"boyswan.glsl-literal"
+            ],
+			"settings": {
+				"editor.codeActionsOnSave": {
+					"source.fixAll.eslint": true
+				}
+			}
+        }
+    },
 
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
 	"forwardPorts": [8181],
