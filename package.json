@@ -21,7 +21,6 @@
     "jss-plugin-global": "^10.10.0",
     "jss-preset-default": "^10.10.0",
     "maquette": "^3.6.0",
-    "pretty-json-stringify": "^0.0.2",
     "velocity-animate": "^1.5.2"
   },
   "devDependencies": {
@@ -29,6 +28,7 @@
     "eslint": "^8.46.0",
     "eslint-config-airbnb-base": "^15.0.0",
     "eslint-plugin-import": "^2.28.0",
-    "microtastic": "^0.0.24"
+    "microtastic": "^0.0.24",
+    "pretty-json-stringify": "^0.0.2"
   }
 }

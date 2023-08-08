@@ -105,7 +105,6 @@ const Shaders = {
 
         const int MESH = 1;
         const int INSTANCED_MESHES = 2;
-        const int SKYBOX = 3;
         
         void main() {
             vPosition = vec4(aPosition, 1.0);
@@ -161,7 +160,6 @@ const Shaders = {
 
         const int MESH = 1;
         const int INSTANCED_MESHES = 2;
-        const int SKYBOX = 3;
 
         void main() {
             switch (geomType) {
@@ -169,9 +167,6 @@ const Shaders = {
             case INSTANCED_MESHES:
                 fragPosition = vPosition;
                 fragNormal = vec4(vNormal, 0.0);
-                break;
-            case SKYBOX:
-                fragNormal = vec4(0.0, 0.0, 0.0, 1.0);
                 break;
             }   
             vec4 color = texture(colorSampler, vUV);
@@ -193,7 +188,7 @@ const Shaders = {
                 vec4 semApply = texture(semApplySampler, vUV);
                 float semSum = semApply.x * semApply.y * semApply.z;
                 if (semSum > 0.2) {
-                    color =  mix(color, semColor * semApply, semMult);
+                    color = mix(color, semColor * semApply, semMult);
                 }
             }         
 
@@ -222,11 +217,11 @@ const Shaders = {
 
         layout(location=0) out vec4 fragColor;
 
-        uniform vec3 shadowAmbient;
+        uniform vec3 ambient;
 
         void main()
         {
-            fragColor = vec4(shadowAmbient, 1.0);
+            fragColor = vec4(ambient, 1.0);
         }`
     ),
     applyShadows: new Shader(
@@ -253,46 +248,6 @@ const Shaders = {
         {
             vec2 uv = vec2(gl_FragCoord.xy / viewportSize.xy);
             fragColor = texture(shadowBuffer, uv);
-        }`
-    ),
-    directionalLight: new Shader(
-        glsl`#version 300 es
-
-        precision highp float;
-
-        layout(location=0) in vec3 aPosition;
-
-        void main()
-        {
-            gl_Position = vec4(aPosition, 1.0);
-        }`,
-        glsl`#version 300 es
-
-        precision highp float; 
-
-        struct DirectionalLight 
-        { 
-            vec3 direction;
-            vec3 color;
-        }; 
-
-        layout(location=0) out vec4 fragColor;
-
-        uniform DirectionalLight directionalLight;
-        uniform vec2 viewportSize;
-        uniform sampler2D positionBuffer;
-        uniform sampler2D normalBuffer;
-        
-        void main()
-        {
-            vec2 uv = vec2(gl_FragCoord.xy / viewportSize.xy);
-            vec4 norm = texture(normalBuffer, uv);
-            vec3 normSunDir = normalize(directionalLight.direction);
-            vec3 lightIntensity = vec3(1.0);
-            if (norm.w != 1.0){
-                lightIntensity = directionalLight.color * max(dot(normalize(norm.xyz), normSunDir), 0.0);
-            }
-            fragColor = vec4(lightIntensity, 1.0);
         }`
     ),
     pointLight: new Shader(
