@@ -5,16 +5,15 @@
         "system/dirt.jpg",
 
         "meshes/materials.mat",
-        "meshes/cube.mesh",
+        "meshes/floor_ceiling.mesh",
+        "meshes/wall.mesh",
+
         "meshes/health.mesh",
         "meshes/armor.mesh",
         "meshes/ammo.mesh",
         "meshes/grenade_launcher.mesh",
-        "meshes/ball.mesh",
         "meshes/minigun.mesh",
-    
-        "skyboxes/skybox.mesh",
-        "skyboxes/1/1.mat",
+        "meshes/ball.mesh",
 
         "sounds/music.sfx",
         "sounds/shoot.sfx"

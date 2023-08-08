@@ -4,12 +4,13 @@ import Resources from './resources.js';
 import { Entity, EntityTypes } from './entity.js';
 
 class MeshEntity extends Entity {
-    constructor(position, name, updateCallback) {
+    constructor(position, name, updateCallback, scale = 1) {
         super(EntityTypes.MESH, updateCallback);
         const t = this;
         t.mesh = Resources.get(name);
         t.castShadow = false;
         mat4.translate(t.base_matrix, t.base_matrix, position);
+        mat4.scale(t.base_matrix, t.base_matrix, [scale, scale, scale]);
     }
 
     render() {
@@ -32,7 +33,7 @@ class MeshEntity extends Entity {
         mat4.getRotation(q, t.ani_matrix);
         const rm = mat4.create();
         mat4.fromQuat(rm, q);
-        mat4.translate(m, m, [0, -0.499, 0]);
+        mat4.translate(m, m, [0, -0.29, 0]);
         mat4.scale(m, m, [1, 0.001, 1]);
         mat4.multiply(m, m, rm);
         Shaders.entityShadows.setMat4('matWorld', m);

@@ -14,23 +14,23 @@ const updatePickup = (entity, frameTime) => {
     });
 };
 const createPickup = (pos, type, mesh) => {
-    const pickup = new MeshEntity(pos, mesh, updatePickup);
+    const pickup = new MeshEntity(pos, mesh, updatePickup, 2);
     pickup.castShadow = true;
     switch (type) {
     case 128:
-        pickup.addChild(new PointlightEntity(pos, 1.4, [0.752, 0, 0.035], 1.7));
+        pickup.addChild(new PointlightEntity(pos, 1.8, [0.752, 0, 0.035], 3));
         break;
     case 129:
-        pickup.addChild(new PointlightEntity(pos, 1.4, [0, 0.352, 0.662], 1.7));
+        pickup.addChild(new PointlightEntity(pos, 1.8, [0, 0.352, 0.662], 3));
         break;
     case 130:
-        pickup.addChild(new PointlightEntity(pos, 1.4, [0.623, 0.486, 0.133], 1.7));
+        pickup.addChild(new PointlightEntity(pos, 1.8, [0.623, 0.486, 0.133], 3));
         break;
     case 150:
-        pickup.addChild(new PointlightEntity(pos, 1.4, [0.2, 0.552, 0.862], 1.7));
+        pickup.addChild(new PointlightEntity(pos, 1.8, [0.2, 0.552, 0.862], 3));
         break;
     case 151:
-        pickup.addChild(new PointlightEntity(pos, 1.4, [0.752, 0, 0.035], 1.7));
+        pickup.addChild(new PointlightEntity(pos, 1.8, [0.752, 0, 0.035], 3));
         break;
     default:
         // code block

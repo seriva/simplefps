@@ -1,31 +1,29 @@
 {
-    "materials": [
+    "materials": [       
         {
-            "name": "mat_world_tiles",
+            "name": "mat_floor",
             "textures": [
-                "meshes/tiles.jpg",
-                "meshes/detail1.jpg",
-                "meshes/tiles_emissive.jpg"                
+                "meshes/floor.jpg"  
             ],
-            "geomType": 2,
-            "doEmissive": 1,
-            "doDetail": 1,
-            "detailMult": 0.85,
-            "detailUVMult": 8
+            "geomType": 1
         },
         {
-            "name": "mat_world_concrete",
+            "name": "mat_ceiling",
             "textures": [
-                "meshes/concrete.jpg",
-                "meshes/detail1.jpg",
-                "meshes/concrete_emissive.jpg"
+                "meshes/ceiling.jpg"        
             ],
-            "geomType": 2,
-            "doEmissive": 1,
-            "doDetail": 1,
-            "detailMult": 0.95,
-            "detailUVMult": 8    
-        },        
+            "geomType": 1
+        },
+        {
+            "name": "mat_wall",
+            "textures": [
+                "meshes/wall.jpg",
+                "none",
+                "meshes/wall_emissive.jpg"
+            ],
+            "geomType": 1,
+            "doEmissive": 1
+        },
         {
             "name": "mat_pickup_ammo",
             "textures": [
@@ -38,7 +36,7 @@
             "geomType": 1,
             "doEmissive": 1,
             "doSEM": 1,
-            "semMult": 0.8
+            "semMult": 0.7
         },
         {
             "name": "mat_pickup_health",
@@ -52,7 +50,7 @@
             "geomType": 1,
             "doEmissive": 1,
             "doSEM": 1,
-            "semMult": 0.8
+            "semMult": 0.7
         },
         {
             "name": "mat_pickup_armor",
@@ -66,7 +64,7 @@
             "geomType": 1,
             "doEmissive": 1,
             "doSEM": 1,
-            "semMult": 0.8
+            "semMult": 0.7
         },
         {
             "name": "mat_pickup_grenade_launcher",
@@ -80,20 +78,17 @@
             "geomType": 1,
             "doEmissive": 1,
             "doSEM": 1,
-            "semMult": 0.6
+            "semMult": 0.7
         },
         {
             "name": "mat_ball",
             "textures": [
                 "meshes/ball.jpg",
-                "meshes/detail1.jpg",
+                "none",
                 "meshes/ball.jpg"
             ],
             "geomType": 2,
-            "doDetail": 1,
-            "doEmissive": 1,
-            "detailMult": 0.85,
-            "detailUVMult": 3    
+            "doEmissive": 1  
         },
         {
             "name": "mat_pickup_minigun",
@@ -107,7 +102,7 @@
             "geomType": 1,
             "doEmissive": 1,
             "doSEM": 1,
-            "semMult": 0.6
+            "semMult": 0.7
         }
     ]
 }

@@ -16,7 +16,6 @@ import Utils from './utils.js';
     const Renderer = imp.default;
     imp = await import('./weapons.js');
     const Weapons = imp.default;
-    imp = await import('./skybox.js');
 
     await World.load('test.map');
     Weapons.load();
