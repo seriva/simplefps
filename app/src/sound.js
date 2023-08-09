@@ -39,7 +39,7 @@ class Sound {
             }
             t.cache[`${t.file}_${itr}`].play();
         } else {
-            // t.sound.play();
+            t.sound.play();
         }
     }
 

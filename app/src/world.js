@@ -69,7 +69,7 @@ const prepare = () => {
     Camera.setRotation(spawnPoint.rotation);
 
     // create static map entities
-    const wallLight = [0.2, 0.452, 0.862];
+    const wallLight = [0.2, 0.4, 0.862];
     const outer = data.length;
     for (let i = 0; i < outer; i++) {
         const inner = data[i].length;
@@ -115,7 +115,7 @@ const prepare = () => {
                 addEntities(new MeshEntity([i * cellSize, 0, j * cellSize], meshMap.get(3)));
                 addEntities(new MeshEntity([i * cellSize, 0, j * cellSize], meshMap.get(4)));
                 addEntities(new PointlightEntity([i * cellSize, 3, j * cellSize], 8, wallLight, 1.0));
-                addEntities(new PointlightEntity([i * cellSize, 1, j * cellSize], 4, wallLight, 6.0));
+                addEntities(new PointlightEntity([i * cellSize, 1, j * cellSize], 4, wallLight, 4.0));
                 break;
             default:
                 // code block
