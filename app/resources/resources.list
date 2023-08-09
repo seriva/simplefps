@@ -5,8 +5,10 @@
         "system/dirt.jpg",
 
         "meshes/materials.mat",
-        "meshes/floor_ceiling.mesh",
         "meshes/wall.mesh",
+        "meshes/floor.mesh",
+        "meshes/ceiling.mesh",
+        "meshes/lamp.mesh",
 
         "meshes/health.mesh",
         "meshes/armor.mesh",

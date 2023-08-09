@@ -1,4 +1,4 @@
-import { mat4 } from './dependencies/gl-matrix.js';
+import { mat4, glMatrix } from './dependencies/gl-matrix.js';
 import { gl, Context } from './context.js';
 import Camera from './camera.js';
 import { EntityTypes } from './entity.js';
@@ -10,23 +10,20 @@ import Loading from './loading.js';
 import Physics from './physics.js';
 import MeshEntity from './meshentity.js';
 import Entities from './entities.js';
+import PointlightEntity from './pointlightentity.js';
 
 const quad = Resources.get('system/quad.mesh');
-// const sphere = Resources.get('system/sphere.mesh');
-
-let pauseUpdate = false;
-const typeMap = new Map();
-typeMap.set(1, 'meshes/wall.mesh');
-typeMap.set(2, 'meshes/floor_ceiling.mesh');
-typeMap.set(128, 'meshes/health.mesh');
-typeMap.set(129, 'meshes/armor.mesh');
-typeMap.set(130, 'meshes/ammo.mesh');
-typeMap.set(150, 'meshes/grenade_launcher.mesh');
-typeMap.set(151, 'meshes/minigun.mesh');
-
-const lightMap = new Map();
-lightMap.set(1, [0.153, 0.643, 0.871]);
-lightMap.set(2, [0.569, 0.267, 0.722]);
+const cellSize = 3;
+const meshMap = new Map();
+meshMap.set(1, 'meshes/wall.mesh');
+meshMap.set(2, 'meshes/floor.mesh');
+meshMap.set(3, 'meshes/ceiling.mesh');
+meshMap.set(4, 'meshes/lamp.mesh');
+meshMap.set(128, 'meshes/health.mesh');
+meshMap.set(129, 'meshes/armor.mesh');
+meshMap.set(130, 'meshes/ammo.mesh');
+meshMap.set(150, 'meshes/grenade_launcher.mesh');
+meshMap.set(151, 'meshes/minigun.mesh');
 
 let data = [];
 let pickups = [];
@@ -35,7 +32,7 @@ let spawnPoint = {
     position: [0, 0, 0],
     rotation: [0, 0, 0]
 };
-
+let pauseUpdate = false;
 let entities = [];
 
 const getAmbient = () => ambient;
@@ -71,21 +68,65 @@ const prepare = () => {
     Camera.setPosition(spawnPoint.position);
     Camera.setRotation(spawnPoint.rotation);
 
-    // add static level entities
-    for (let i = 0; i < data.length; i++) {
-        const innerLength = data[i].length;
-        for (let j = 0; j < innerLength; j++) {
+    // create static map entities
+    const wallLight = [0.2, 0.452, 0.862];
+    const outer = data.length;
+    for (let i = 0; i < outer; i++) {
+        const inner = data[i].length;
+        for (let j = 0; j < inner; j++) {
             const block = data[i][j];
-            if (block > 0) {
-                addEntities(new MeshEntity([i * 3, 0, j * 3], typeMap.get(block)));
+            let entity = null;
+            switch (block) {
+            case 1:
+                if (i + 1 < outer && data[i + 1][j] > 1) {
+                    entity = new MeshEntity([(i * cellSize) + 1.505, 0, j * cellSize], meshMap.get(1));
+                    entity.addChild(new PointlightEntity([(i * cellSize) + 1.85, 0.25, (j * cellSize) - 1.25], 2, wallLight, 1.85));
+                    entity.addChild(new PointlightEntity([(i * cellSize) + 1.85, 0.25, (j * cellSize) + 1.25], 2, wallLight, 1.85));
+                    mat4.fromRotation(entity.ani_matrix, glMatrix.toRadian(-90), [0, 1, 0]);
+                    addEntities(entity);
+                }
+                if (i - 1 >= 0 && data[i - 1][j] > 1) {
+                    entity = new MeshEntity([(i * cellSize) - 1.505, 0, j * cellSize], meshMap.get(1));
+                    entity.addChild(new PointlightEntity([(i * cellSize) - 1.85, 0.25, (j * cellSize) - 1.25], 2, wallLight, 1.85));
+                    entity.addChild(new PointlightEntity([(i * cellSize) - 1.85, 0.25, (j * cellSize) + 1.25], 2, wallLight, 1.85));
+                    mat4.fromRotation(entity.ani_matrix, glMatrix.toRadian(90), [0, 1, 0]);
+                    addEntities(entity);
+                }
+                if (j + 1 < inner && data[i][j + 1] > 1) {
+                    entity = new MeshEntity([i * cellSize, 0, (j * cellSize) + 1.505], meshMap.get(1));
+                    entity.addChild(new PointlightEntity([(i * cellSize) - 1.25, 0.25, (j * cellSize) + 1.85], 2, wallLight, 1.85));
+                    entity.addChild(new PointlightEntity([(i * cellSize) + 1.25, 0.25, (j * cellSize) + 1.85], 2, wallLight, 1.85));
+                    mat4.fromRotation(entity.ani_matrix, glMatrix.toRadian(180), [0, 1, 0]);
+                    addEntities(entity);
+                }
+                if (j - 1 >= 0 && data[i][j - 1] > 1) {
+                    entity = new MeshEntity([i * cellSize, 0, (j * cellSize) - 1.505], meshMap.get(1));
+                    entity.addChild(new PointlightEntity([(i * cellSize) - 1.25, 0.25, (j * cellSize) - 1.85], 2, wallLight, 1.85));
+                    entity.addChild(new PointlightEntity([(i * cellSize) + 1.25, 0.25, (j * cellSize) - 1.85], 2, wallLight, 1.85));
+                    addEntities(entity);
+                }
+                break;
+            case 2:
+                addEntities(new MeshEntity([i * cellSize, 0, j * cellSize], meshMap.get(2)));
+                addEntities(new MeshEntity([i * cellSize, 0, j * cellSize], meshMap.get(3)));
+                break;
+            case cellSize:
+                addEntities(new MeshEntity([i * cellSize, 0, j * cellSize], meshMap.get(2)));
+                addEntities(new MeshEntity([i * cellSize, 0, j * cellSize], meshMap.get(3)));
+                addEntities(new MeshEntity([i * cellSize, 0, j * cellSize], meshMap.get(4)));
+                addEntities(new PointlightEntity([i * cellSize, 3, j * cellSize], 8, wallLight, 1.0));
+                addEntities(new PointlightEntity([i * cellSize, 1, j * cellSize], 4, wallLight, 6.0));
+                break;
+            default:
+                // code block
             }
         }
     }
 
     // add dynamic map entities
     pickups.forEach((pickup) => {
-        addEntities(Entities.createPickup([pickup[0] * 3, 0.6, pickup[1] * 3],
-            pickup[2], typeMap.get(pickup[2])));
+        addEntities(Entities.createPickup([(pickup[0] - 1) * cellSize, 0.6, (pickup[1] - 1) * cellSize],
+            pickup[2], meshMap.get(pickup[2])));
     });
 };
 

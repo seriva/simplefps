@@ -9,9 +9,6 @@ class Material {
         m.name = data.name;
         m.textures = data.textures;
         m.geomType = data.geomType;
-        m.doDetail = data.doDetail ? data.doDetail : 0;
-        m.detailMult = data.detailMult ? data.detailMult : 0;
-        m.detailUVMult = data.detailUVMult ? data.detailUVMult : 0;
         m.doEmissive = data.doEmissive ? data.doEmissive : 0;
         m.doSEM = data.doSEM ? data.doSEM : 0;
         m.semMult = data.semMult ? data.semMult : 0;
@@ -26,17 +23,13 @@ class Material {
     bind() {
         const m = this;
         Shaders.geometry.setInt('colorSampler', 0);
-        Shaders.geometry.setInt('detailSampler', 1);
-        Shaders.geometry.setInt('emissiveSampler', 2);
-        Shaders.geometry.setInt('semSampler', 3);
-        Shaders.geometry.setInt('semApplySampler', 4);
+        Shaders.geometry.setInt('emissiveSampler', 1);
+        Shaders.geometry.setInt('semSampler', 2);
+        Shaders.geometry.setInt('semApplySampler', 3);
         Shaders.geometry.setInt('geomType', m.geomType);
-        Shaders.geometry.setInt('doDetail', m.doDetail);
-        Shaders.geometry.setFloat('detailMult', m.detailMult);
-        Shaders.geometry.setFloat('detailUVMult', m.detailUVMult);
-        Shaders.geometry.setFloat('semMult', m.semMult);
         Shaders.geometry.setInt('doEmissive', m.doEmissive);
         Shaders.geometry.setInt('doSEM', m.doSEM);
+        Shaders.geometry.setFloat('semMult', m.semMult);
 
         let texUnit = 0;
         m.textures.forEach((name) => {

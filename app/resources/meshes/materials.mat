@@ -18,8 +18,16 @@
             "name": "mat_wall",
             "textures": [
                 "meshes/wall.jpg",
-                "none",
                 "meshes/wall_emissive.jpg"
+            ],
+            "geomType": 1,
+            "doEmissive": 1
+        },
+        {
+            "name": "mat_lamp",
+            "textures": [
+                "meshes/lamp.jpg",
+                "meshes/lamp_emissive.jpg"
             ],
             "geomType": 1,
             "doEmissive": 1
@@ -28,7 +36,6 @@
             "name": "mat_pickup_ammo",
             "textures": [
                 "meshes/ammo.jpg",
-                "none",
                 "meshes/ammo_emissive.jpg",
                 "meshes/spheremap1.jpg",
                 "meshes/powerup_sem.jpg"
@@ -42,7 +49,6 @@
             "name": "mat_pickup_health",
             "textures": [
                 "meshes/health.jpg",
-                "none",
                 "meshes/health_emissive.jpg",
                 "meshes/spheremap1.jpg",
                 "meshes/powerup_sem.jpg"
@@ -56,7 +62,6 @@
             "name": "mat_pickup_armor",
             "textures": [
                 "meshes/armor.jpg",
-                "none",
                 "meshes/armor_emissive.jpg",
                 "meshes/spheremap1.jpg",
                 "meshes/powerup_sem.jpg"
@@ -70,7 +75,6 @@
             "name": "mat_pickup_grenade_launcher",
             "textures": [
                 "meshes/grenade_launcher.jpg",
-                "none",
                 "meshes/grenade_launcher_emissive.jpg",
                 "meshes/spheremap1.jpg",
                 "meshes/grenade_launcher_sem.jpg"
@@ -84,7 +88,6 @@
             "name": "mat_ball",
             "textures": [
                 "meshes/ball.jpg",
-                "none",
                 "meshes/ball.jpg"
             ],
             "geomType": 2,
@@ -94,7 +97,6 @@
             "name": "mat_pickup_minigun",
             "textures": [
                 "meshes/minigun.jpg",
-                "none",
                 "meshes/minigun_emissive.jpg",
                 "meshes/spheremap1.jpg",
                 "meshes/minigun_sem.jpg"

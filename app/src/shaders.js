@@ -146,14 +146,10 @@ const Shaders = {
         layout(location=3) out vec4 fragEmissive;
 
         uniform int geomType;
-        uniform int doDetail;
         uniform int doEmissive;
         uniform int doSEM;
-        uniform float detailMult;
-        uniform float detailUVMult;
         uniform float semMult;
         uniform sampler2D colorSampler;
-        uniform sampler2D detailSampler;
         uniform sampler2D emissiveSampler;
         uniform sampler2D semSampler;
         uniform sampler2D semApplySampler;
@@ -170,13 +166,6 @@ const Shaders = {
                 break;
             }   
             vec4 color = texture(colorSampler, vUV);
-
-            if (doDetail==1)
-            {
-                vec2 dUV = vUV * detailUVMult;
-                vec4 detail = texture(detailSampler, dUV);
-                color.rgb += detail.rgb - detailMult;
-            }
 
             if (doEmissive==1) {
                 fragEmissive = texture(emissiveSampler, vUV);            
