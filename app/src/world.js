@@ -1,6 +1,7 @@
 import { mat4, glMatrix } from './dependencies/gl-matrix.js';
 import { gl, Context } from './context.js';
 import Camera from './camera.js';
+import * as CANNON from './dependencies/cannon-es.js';
 import { EntityTypes } from './entity.js';
 import Resources from './resources.js';
 import { Shaders, Shader } from './shaders.js';
@@ -9,7 +10,7 @@ import Utils from './utils.js';
 import Loading from './loading.js';
 import Physics from './physics.js';
 import MeshEntity from './meshentity.js';
-import Entities from './entities.js';
+import Pickup from './pickups.js';
 import PointlightEntity from './pointlightentity.js';
 
 const quad = Resources.get('system/quad.mesh');
@@ -68,6 +69,19 @@ const prepare = () => {
     Camera.setPosition(spawnPoint.position);
     Camera.setRotation(spawnPoint.rotation);
 
+    // create physics bodys
+    const planeShape = new CANNON.Plane();
+    const floorBody = new CANNON.Body({ mass: 0 });
+    floorBody.addShape(planeShape);
+    floorBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), -Math.PI / 2);
+    Physics.addBody(floorBody);
+    const ceilingBody = new CANNON.Body({ mass: 0 });
+    ceilingBody.addShape(planeShape);
+    ceilingBody.position.set(0, 4.2, 0);
+    ceilingBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), Math.PI / 2);
+    Physics.addBody(ceilingBody);
+    const wallShape = new CANNON.Box(new CANNON.Vec3(1.525, 4.2, 1.525));
+
     // create static map entities
     const wallLight = [0.2, 0.4, 0.862];
     const outer = data.length;
@@ -105,6 +119,11 @@ const prepare = () => {
                     entity.addChild(new PointlightEntity([(i * cellSize) + 1.25, 0.25, (j * cellSize) - 1.85], 2, wallLight, 1.85));
                     addEntities(entity);
                 }
+
+                const wallBody = new CANNON.Body({ mass: 0 });
+                wallBody.addShape(wallShape);
+                wallBody.position.set(i * cellSize, 2.05, j * cellSize);
+                Physics.addBody(wallBody);
                 break;
             case 2:
                 addEntities(new MeshEntity([i * cellSize, 0, j * cellSize], meshMap.get(2)));
@@ -125,7 +144,7 @@ const prepare = () => {
 
     // add dynamic map entities
     pickups.forEach((pickup) => {
-        addEntities(Entities.createPickup([(pickup[0] - 1) * cellSize, 0.6, (pickup[1] - 1) * cellSize],
+        addEntities(Pickup.createPickup([(pickup[0] - 1) * cellSize, 0.6, (pickup[1] - 1) * cellSize],
             pickup[2], meshMap.get(pickup[2])));
     });
 };

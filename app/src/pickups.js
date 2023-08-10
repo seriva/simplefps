@@ -38,8 +38,8 @@ const createPickup = (pos, type, mesh) => {
     return pickup;
 };
 
-const Entities = {
+const Pickup = {
     createPickup
 };
 
-export { Entities as default };
+export { Pickup as default };
