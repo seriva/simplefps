@@ -1,14 +1,14 @@
 import { glMatrix, vec3 } from './dependencies/gl-matrix.js';
-import Input from './input.js';
-import Console from './console.js';
-import Camera from './camera.js';
-import Settings from './settings.js';
+import Input from './engine/input.js';
+import Console from './engine/console.js';
+import Camera from './engine/camera.js';
+import Settings from './engine/settings.js';
 import State from './state.js';
 import UI from './ui.js';
 import Update from './update.js';
 import Translations from './translations.js';
-import Utils from './utils.js';
-import Resources from './resources.js';
+import Utils from './engine/utils.js';
+import Resources from './engine/resources.js';
 import Weapons from './weapons.js';
 
 const music = Resources.get('sounds/music.sfx');

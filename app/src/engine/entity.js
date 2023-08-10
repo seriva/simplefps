@@ -1,9 +1,10 @@
-import { mat4 } from './dependencies/gl-matrix.js';
+import { mat4 } from '../dependencies/gl-matrix.js';
 
 const EntityTypes = {
     MESH: 1,
-    POINTLIGHT: 2,
-    FPS_MESH: 3
+    FPS_MESH: 2,
+    DIRECTIONAL_LIGHT: 3,
+    POINT_LIGHT: 4
 };
 
 class Entity {
@@ -50,7 +51,7 @@ class Entity {
             t.updateCallback(t, frametime);
         }
 
-        // update enity children
+        // update entity children
         t.children.forEach((entity) => {
             entity.update(frametime);
         });

@@ -1,19 +1,19 @@
-import Resources from './resources.js';
-import Stats from './stats.js';
-import Camera from './camera.js';
-import DOM from './dom.js';
-import Utils from './utils.js';
+import Resources from './engine/resources.js';
+import Stats from './engine/stats.js';
+import Camera from './engine/camera.js';
+import DOM from './engine/dom.js';
+import Utils from './engine/utils.js';
+import Scene from './engine/scene.js';
+import Renderer from './engine/renderer.js';
 
 (async () => {
     await Resources.load(['resources.list']);
 
-    // These modules are dependant on Resources so we import them dynamicly after resource loading.
+    // These modules are dependent on resources so we import them dynamicly after resource loading.
     let imp = await import('./controls.js');
     const Controls = imp.default;
     imp = await import('./world.js');
     const World = imp.default;
-    imp = await import('./renderer.js');
-    const Renderer = imp.default;
     imp = await import('./weapons.js');
     const Weapons = imp.default;
 
@@ -45,7 +45,7 @@ import Utils from './utils.js';
         Camera.update();
 
         // update the map
-        World.update(frameTime);
+        Scene.update(frameTime);
 
         // render the actual frame
         Renderer.render();

@@ -1,7 +1,7 @@
-import Loading from './loading.js';
+import Loading from './engine/loading.js';
 import UI from './ui.js';
 import Translations from './translations.js';
-import Utils from './utils.js';
+import Utils from './engine/utils.js';
 
 let newServiceWorker = null;
 let registration = null;

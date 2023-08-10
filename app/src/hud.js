@@ -1,5 +1,5 @@
-import Utils from './utils.js';
-import DOM from './dom.js';
+import Utils from './engine/utils.js';
+import DOM from './engine/dom.js';
 
 DOM.css({
     '#hud': {

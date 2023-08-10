@@ -19,6 +19,8 @@ const Resources = {
         if (l !== 0) {
             return null;
         }
+        Loading.toggle(true);
+        Loading.update(0, paths.length);
         return new Promise((resolve) => {
             let counter = 0;
             startTime = new Date().getTime();

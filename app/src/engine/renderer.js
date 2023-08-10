@@ -2,12 +2,9 @@ import { Shaders, Shader } from './shaders.js';
 import Resources from './resources.js';
 import { Buffers, BlurSourceType } from './buffers.js';
 import Settings from './settings.js';
-import World from './world.js';
+import Scene from './scene.js';
 import Texture from './texture.js';
 import { gl, Context } from './context.js';
-
-const quad = Resources.get('system/quad.mesh');
-const dirt = Resources.get('system/dirt.jpg');
 
 const blurImage = (source, iterations, radius) => {
     Shaders.gaussianBlur.bind();
@@ -19,6 +16,7 @@ const blurImage = (source, iterations, radius) => {
         Shaders.gaussianBlur.setVec2('viewportSize', [Context.width(), Context.height()]);
         Shaders.gaussianBlur.setVec2('direction', i % 2 === 0 ? [radius, 0] : [0, radius]);
 
+        const quad = Resources.get('system/quad.mesh');
         quad.renderSingle();
     }
     Buffers.endBlurPass();
@@ -28,7 +26,7 @@ const blurImage = (source, iterations, radius) => {
 const worldGeomPass = () => {
     Buffers.startGeomPass();
 
-    World.renderWorldGeometry();
+    Scene.renderWorldGeometry();
 
     Buffers.endLightingPass();
 };
@@ -36,7 +34,7 @@ const worldGeomPass = () => {
 const shadowPass = () => {
     Buffers.startShadowPass();
 
-    World.renderShadows();
+    Scene.renderShadows();
 
     Buffers.endShadowPass();
 };
@@ -44,7 +42,7 @@ const shadowPass = () => {
 const fpsGeomPass = () => {
     Buffers.startGeomPass(true);
 
-    World.renderFPSGeometry();
+    Scene.renderFPSGeometry();
 
     Buffers.endLightingPass();
 };
@@ -57,7 +55,7 @@ const lightingPass = () => {
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.ONE, gl.ONE);
 
-    World.renderLighting();
+    Scene.renderLighting();
 
     gl.disable(gl.BLEND);
     gl.enable(gl.DEPTH_TEST);
@@ -74,6 +72,7 @@ const emissiveBlurPass = () => {
 
 const postProcessingPass = () => {
     Buffers.startPostProcessingPass();
+    const dirt = Resources.get('system/dirt.jpg');
     dirt.bind(gl.TEXTURE5);
     Shaders.postProcessing.bind();
     Shaders.postProcessing.setInt('doFXAA', Settings.doFXAA);
@@ -90,6 +89,7 @@ const postProcessingPass = () => {
     Shaders.postProcessing.setFloat('noiseSpeed', Settings.noiseSpeed);
     Shaders.postProcessing.setFloat('noiseTime', performance.now());
 
+    const quad = Resources.get('system/quad.mesh');
     quad.renderSingle();
 
     Shader.unBind();

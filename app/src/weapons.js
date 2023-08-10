@@ -1,13 +1,14 @@
 import { mat4, vec3, glMatrix } from './dependencies/gl-matrix.js';
-import Camera from './camera.js';
-import MeshEntity from './meshentity.js';
+import Camera from './engine/camera.js';
+import MeshEntity from './engine/meshentity.js';
 import World from './world.js';
-import Physics from './physics.js';
+import Physics from './engine/physics.js';
 import * as CANNON from './dependencies/cannon-es.js';
-import Resources from './resources.js';
-import PointlightEntity from './pointlightentity.js';
-import FpsMeshEntity from './fpsmeshentity.js';
-import { EntityTypes } from './entity.js';
+import Resources from './engine/resources.js';
+import PointLightEntity from './engine/pointlightentity.js';
+import FpsMeshEntity from './engine/fpsmeshentity.js';
+import { EntityTypes } from './engine/entity.js';
+import Scene from './engine/scene.js';
 
 let weaponList = [];
 let selected = -1;
@@ -80,8 +81,8 @@ const shootGrenade = () => {
         d[1] * 25,
         d[2] * 25
     );
-    ballEntity.addChild(new PointlightEntity([0, 0, 0], 2.5, [0.988, 0.31, 0.051], 1.75));
-    World.addEntities(ballEntity);
+    ballEntity.addChild(new PointLightEntity([0, 0, 0], 2.5, [0.988, 0.31, 0.051], 1.75));
+    Scene.addEntities(ballEntity);
 };
 
 const load = () => {
@@ -127,7 +128,7 @@ const load = () => {
     grenadeLauncher = new FpsMeshEntity([0, 0, 0],
         'meshes/grenade_launcher.mesh',
         updateGrenadeLauncher);
-    World.addEntities(grenadeLauncher);
+    Scene.addEntities(grenadeLauncher);
 
     // minigun
     const updateMinigun = (entity, frameTime) => {
@@ -172,10 +173,10 @@ const load = () => {
         'meshes/minigun.mesh',
         updateMinigun);
     miniGun.visible = false;
-    World.addEntities(miniGun);
+    Scene.addEntities(miniGun);
 
     // get list of weapons and select first
-    weaponList = World.getEntities(EntityTypes.FPS_MESH);
+    weaponList = Scene.getEntities(EntityTypes.FPS_MESH);
     selectNext();
 };
 

@@ -1,4 +1,4 @@
-import { mat4, quat } from './dependencies/gl-matrix.js';
+import { mat4, quat } from '../dependencies/gl-matrix.js';
 import { Shaders } from './shaders.js';
 import Resources from './resources.js';
 import { Entity, EntityTypes } from './entity.js';
@@ -9,6 +9,7 @@ class MeshEntity extends Entity {
         const t = this;
         t.mesh = Resources.get(name);
         t.castShadow = false;
+        t.shadowHeight = 1;
         mat4.translate(t.base_matrix, t.base_matrix, position);
         mat4.scale(t.base_matrix, t.base_matrix, [scale, scale, scale]);
     }
@@ -33,7 +34,7 @@ class MeshEntity extends Entity {
         mat4.getRotation(q, t.ani_matrix);
         const rm = mat4.create();
         mat4.fromQuat(rm, q);
-        mat4.translate(m, m, [0, -0.29, 0]);
+        mat4.translate(m, m, [0, t.shadowHeight, 0]);
         mat4.scale(m, m, [1, 0.001, 1]);
         mat4.multiply(m, m, rm);
         Shaders.entityShadows.setMat4('matWorld', m);

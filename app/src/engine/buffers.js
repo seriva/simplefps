@@ -1,6 +1,6 @@
 import { gl, Context } from './context.js';
 import Texture from './texture.js';
-import World from './world.js';
+import Scene from './scene.js';
 import Console from './console.js';
 
 let depth = null;
@@ -159,7 +159,7 @@ const init = (width, height) => {
 };
 
 const setWorldClearColor = () => {
-    const ambient = World.getAmbient();
+    const ambient = Scene.getAmbient();
     gl.clearColor(ambient[0], ambient[1], ambient[2], 1.0);
 };
 

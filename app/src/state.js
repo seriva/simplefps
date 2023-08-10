@@ -1,8 +1,8 @@
 import HUD from './hud.js';
-import { Context } from './context.js';
-import Input from './input.js';
+import { Context } from './engine/context.js';
+import Input from './engine/input.js';
 import UI from './ui.js';
-import World from './world.js';
+import Scene from './engine/scene.js';
 
 let State = 'MENU';
 
@@ -16,7 +16,7 @@ const setState = (s, menu) => {
         Context.toggleBlur(false);
         HUD.toggle(true);
         UI.hide();
-        World.pause(false);
+        Scene.pause(false);
         break;
     case 'MENU':
         Input.toggleVirtualInput(false);
@@ -24,7 +24,7 @@ const setState = (s, menu) => {
         Context.toggleBlur(true);
         HUD.toggle(false);
         UI.show(menu);
-        World.pause(true);
+        Scene.pause(true);
         break;
     default:
         break;

@@ -1,4 +1,4 @@
-import * as CANNON from './dependencies/cannon-es.js';
+import * as CANNON from '../dependencies/cannon-es.js';
 
 let world = null;
 let lastCallTime;

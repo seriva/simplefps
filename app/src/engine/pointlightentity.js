@@ -1,13 +1,13 @@
-import { mat4, vec3 } from './dependencies/gl-matrix.js';
+import { mat4, vec3 } from '../dependencies/gl-matrix.js';
 import { Entity, EntityTypes } from './entity.js';
 import { Shaders } from './shaders.js';
 import Resources from './resources.js';
 
 const mesh = Resources.get('system/sphere.mesh');
 
-class PointlightEntity extends Entity {
+class PointLightEntity extends Entity {
     constructor(position, size, color, intensity, updateCallback) {
-        super(EntityTypes.POINTLIGHT, updateCallback);
+        super(EntityTypes.POINT_LIGHT, updateCallback);
         const t = this;
         t.color = color;
         t.size = size;
@@ -31,4 +31,4 @@ class PointlightEntity extends Entity {
     }
 }
 
-export { PointlightEntity as default };
+export { PointLightEntity as default };

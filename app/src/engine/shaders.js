@@ -239,6 +239,46 @@ const Shaders = {
             fragColor = texture(shadowBuffer, uv);
         }`
     ),
+    directionalLight: new Shader(
+        glsl`#version 300 es
+
+        precision highp float;
+
+        layout(location=0) in vec3 aPosition;
+
+        void main()
+        {
+            gl_Position = vec4(aPosition, 1.0);
+        }`,
+        glsl`#version 300 es
+
+        precision highp float; 
+
+        struct DirectionalLight 
+        { 
+            vec3 direction;
+            vec3 color;
+        }; 
+
+        layout(location=0) out vec4 fragColor;
+
+        uniform DirectionalLight directionalLight;
+        uniform vec2 viewportSize;
+        uniform sampler2D positionBuffer;
+        uniform sampler2D normalBuffer;
+        
+        void main()
+        {
+            vec2 uv = vec2(gl_FragCoord.xy / viewportSize.xy);
+            vec4 norm = texture(normalBuffer, uv);
+            vec3 normSunDir = normalize(directionalLight.direction);
+            vec3 lightIntensity = vec3(1.0);
+            if (norm.w != 1.0){
+                lightIntensity = directionalLight.color * max(dot(normalize(norm.xyz), normSunDir), 0.0);
+            }
+            fragColor = vec4(lightIntensity, 1.0);
+        }`
+    ),
     pointLight: new Shader(
         glsl`#version 300 es
 
