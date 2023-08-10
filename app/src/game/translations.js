@@ -1,4 +1,4 @@
-import Console from './engine/console.js';
+import { Console } from '../engine/engine.js';
 
 let l = navigator.language;
 

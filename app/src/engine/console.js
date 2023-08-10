@@ -45,7 +45,8 @@ DOM.css({
         borderTop: '2px solid #fff',
         backgroundColor: '#999',
         opacity: 0.75,
-        outline: 'none'
+        outline: 'none',
+        fontWeight: 'bold'
     }
 });
 

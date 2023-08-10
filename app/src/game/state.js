@@ -1,8 +1,6 @@
+import { Context, Input, Scene } from '../engine/engine.js';
 import HUD from './hud.js';
-import { Context } from './engine/context.js';
-import Input from './engine/input.js';
 import UI from './ui.js';
-import Scene from './engine/scene.js';
 
 let State = 'MENU';
 

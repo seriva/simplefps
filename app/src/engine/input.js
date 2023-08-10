@@ -72,6 +72,7 @@ let downevents = [];
 let timeout;
 let input = null;
 let gamepad = false;
+let updateCallback = null;
 
 window.addEventListener(
     'keyup',
@@ -399,6 +400,16 @@ const Input = {
 
     isDown(keyCode) {
         return pressed[keyCode];
+    },
+
+    setUpdateCallback(callback) {
+        updateCallback = callback;
+    },
+
+    update(frameTime) {
+        if (updateCallback !== null) {
+            updateCallback(frameTime);
+        }
     }
 };
 

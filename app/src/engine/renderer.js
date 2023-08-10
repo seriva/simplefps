@@ -5,6 +5,9 @@ import Settings from './settings.js';
 import Scene from './scene.js';
 import Texture from './texture.js';
 import { gl, Context } from './context.js';
+import Utils from './utils.js';
+
+Utils.dispatchEvent('resize');
 
 const blurImage = (source, iterations, radius) => {
     Shaders.gaussianBlur.bind();

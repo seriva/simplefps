@@ -1,6 +1,5 @@
-import { mat4 } from './dependencies/gl-matrix.js';
-import MeshEntity from './engine/meshentity.js';
-import PointLightEntity from './engine/pointlightentity.js';
+import { mat4 } from '../dependencies/gl-matrix.js';
+import { MeshEntity, PointLightEntity } from '../engine/engine.js';
 
 const updatePickup = (entity, frameTime) => {
     entity.animationTime += frameTime;

@@ -1,14 +1,8 @@
-import { mat4, vec3, glMatrix } from './dependencies/gl-matrix.js';
-import Camera from './engine/camera.js';
-import MeshEntity from './engine/meshentity.js';
-import World from './world.js';
-import Physics from './engine/physics.js';
-import * as CANNON from './dependencies/cannon-es.js';
-import Resources from './engine/resources.js';
-import PointLightEntity from './engine/pointlightentity.js';
-import FpsMeshEntity from './engine/fpsmeshentity.js';
-import { EntityTypes } from './engine/entity.js';
-import Scene from './engine/scene.js';
+import { mat4, vec3, glMatrix } from '../dependencies/gl-matrix.js';
+import * as CANNON from '../dependencies/cannon-es.js';
+import {
+    Camera, Resources, Physics, Scene, EntityTypes, MeshEntity, PointLightEntity, FpsMeshEntity
+} from '../engine/engine.js';
 
 let weaponList = [];
 let selected = -1;

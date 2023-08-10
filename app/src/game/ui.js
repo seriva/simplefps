@@ -1,4 +1,4 @@
-import DOM from './engine/dom.js';
+import { DOM } from '../engine/engine.js';
 
 DOM.css({
     '#ui': {

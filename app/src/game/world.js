@@ -1,13 +1,8 @@
-import { mat4, glMatrix } from './dependencies/gl-matrix.js';
-import * as CANNON from './dependencies/cannon-es.js';
-import Console from './engine/console.js';
-import Utils from './engine/utils.js';
-import Loading from './engine/loading.js';
-import Physics from './engine/physics.js';
-import MeshEntity from './engine/meshentity.js';
-import PointLightEntity from './engine/pointlightentity.js';
-import Scene from './engine/scene.js';
-import Camera from './engine/camera.js';
+import { mat4, glMatrix } from '../dependencies/gl-matrix.js';
+import * as CANNON from '../dependencies/cannon-es.js';
+import {
+    Console, Utils, Loading, Physics, Camera, Scene, MeshEntity, PointLightEntity
+} from '../engine/engine.js';
 import Pickup from './pickups.js';
 
 const cellSize = 3;
@@ -30,7 +25,7 @@ let spawnPoint = {
     rotation: [0, 0, 0]
 };
 
-const prepare = () => {
+const createSceneFromMapData = () => {
     // spawnpoint
     Camera.setPosition(spawnPoint.position);
     Camera.setRotation(spawnPoint.rotation);
@@ -130,7 +125,7 @@ const load = async (name) => {
     pickups = world.pickups;
     Loading.update(1, 2);
 
-    prepare();
+    createSceneFromMapData();
     Loading.update(2, 2);
     Loading.toggle(false);
     Console.log(`Loaded: ${name}`);

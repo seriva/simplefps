@@ -1,6 +1,7 @@
 import Console from './console.js';
 import Settings from './settings.js';
 import DOM from './dom.js';
+import Utils from './utils.js';
 
 DOM.css({
     '#game': {
@@ -76,11 +77,9 @@ window.addEventListener(
     false
 );
 
-window.dispatchEvent(new Event('resize'));
-
 Console.registerCmd('rscale', scale => {
     Settings.renderScale = Math.min(Math.max(scale, 0.2), 1);
-    window.dispatchEvent(new Event('resize'));
+    Utils.dispatchEvent('resize');
 });
 
 const Context = {
