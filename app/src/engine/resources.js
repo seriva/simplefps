@@ -36,7 +36,7 @@ const Resources = {
                     if (!resources[path]) {
                         const response = await Utils.fetch(fullpath);
                         switch (ext) {
-                        case 'jpg': case 'png':
+                        case 'webp':
                             resources[path] = new Texture({ data: response });
                             break;
                         case 'mesh':

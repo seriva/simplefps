@@ -75,7 +75,7 @@ const emissiveBlurPass = () => {
 
 const postProcessingPass = () => {
     Buffers.startPostProcessingPass();
-    const dirt = Resources.get('system/dirt.jpg');
+    const dirt = Resources.get('system/dirt.webp');
     dirt.bind(gl.TEXTURE5);
     Shaders.postProcessing.bind();
     Shaders.postProcessing.setInt('doFXAA', Settings.doFXAA);

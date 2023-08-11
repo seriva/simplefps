@@ -2,7 +2,7 @@
     "resources": [
         "system/quad.mesh",
         "system/sphere.mesh",
-        "system/dirt.jpg",
+        "system/dirt.webp",
 
         "meshes/materials.mat",
         "meshes/wall.mesh",

@@ -19,21 +19,22 @@ const Utils = {
 
     fetch(path) {
         return new Promise((resolve, reject) => {
-            const xmlhttp = new XMLHttpRequest();
-            if (path.indexOf('jpg') !== -1) {
-                xmlhttp.responseType = 'arraybuffer';
+            const xhr = new XMLHttpRequest();
+            if (path.indexOf('webp')) {
+                console.log('blob');
+                xhr.responseType = 'blob';
             }
-            xmlhttp.onreadystatechange = () => {
-                if (xmlhttp.readyState === 4) {
-                    if (xmlhttp.status === 200) {
-                        resolve(xmlhttp.response);
+            xhr.onreadystatechange = () => {
+                if (xhr.readyState === 4) {
+                    if (xhr.status === 200) {
+                        resolve(xhr.response);
                     } else {
                         reject();
                     }
                 }
             };
-            xmlhttp.open('GET', path, true);
-            xmlhttp.send();
+            xhr.open('GET', path, true);
+            xhr.send();
         });
     },
 

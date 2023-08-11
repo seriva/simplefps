@@ -13,8 +13,10 @@ class Texture {
             // Create a texture from a file
             const image = new Image();
             image.onload = () => {
+                // Load the texture data
                 gl.bindTexture(gl.TEXTURE_2D, t.texture);
                 gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
+
                 // Trilinear filtering
                 gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
                 gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
@@ -33,11 +35,7 @@ class Texture {
                 t.setTextureWrapMode(gl.REPEAT);
                 gl.bindTexture(gl.TEXTURE_2D, null);
             };
-            const blob = new Blob([new Uint8Array(data.data)], {
-                type: 'image/jpeg'
-            });
-            const imageUrl = window.URL.createObjectURL(blob);
-            image.src = imageUrl;
+            image.src = window.URL.createObjectURL(data.data);
         } else {
             // Create a render target texture or texture from data
             gl.bindTexture(gl.TEXTURE_2D, t.texture);

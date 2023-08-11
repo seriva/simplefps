@@ -3,22 +3,22 @@
         {
             "name": "mat_floor",
             "textures": [
-                "meshes/floor.jpg"  
+                "meshes/floor.webp"
             ],
             "geomType": 1
         },
         {
             "name": "mat_ceiling",
             "textures": [
-                "meshes/ceiling.jpg"        
+                "meshes/ceiling.webp"        
             ],
             "geomType": 1
         },
         {
             "name": "mat_wall",
             "textures": [
-                "meshes/wall.jpg",
-                "meshes/wall_emissive.jpg"
+                "meshes/wall.webp",
+                "meshes/wall_emissive.webp"
             ],
             "geomType": 1,
             "doEmissive": 1
@@ -26,8 +26,8 @@
         {
             "name": "mat_lamp",
             "textures": [
-                "meshes/lamp.jpg",
-                "meshes/lamp_emissive.jpg"
+                "meshes/lamp.webp",
+                "meshes/lamp_emissive.webp"
             ],
             "geomType": 1,
             "doEmissive": 1
@@ -35,10 +35,10 @@
         {
             "name": "mat_pickup_ammo",
             "textures": [
-                "meshes/ammo.jpg",
-                "meshes/ammo_emissive.jpg",
-                "meshes/spheremap1.jpg",
-                "meshes/powerup_sem.jpg"
+                "meshes/ammo.webp",
+                "meshes/ammo_emissive.webp",
+                "meshes/spheremap1.webp",
+                "meshes/powerup_sem.webp"
             ],
             "geomType": 1,
             "doEmissive": 1,
@@ -48,10 +48,10 @@
         {
             "name": "mat_pickup_health",
             "textures": [
-                "meshes/health.jpg",
-                "meshes/health_emissive.jpg",
-                "meshes/spheremap1.jpg",
-                "meshes/powerup_sem.jpg"
+                "meshes/health.webp",
+                "meshes/health_emissive.webp",
+                "meshes/spheremap1.webp",
+                "meshes/powerup_sem.webp"
             ],
             "geomType": 1,
             "doEmissive": 1,
@@ -61,10 +61,10 @@
         {
             "name": "mat_pickup_armor",
             "textures": [
-                "meshes/armor.jpg",
-                "meshes/armor_emissive.jpg",
-                "meshes/spheremap1.jpg",
-                "meshes/powerup_sem.jpg"
+                "meshes/armor.webp",
+                "meshes/armor_emissive.webp",
+                "meshes/spheremap1.webp",
+                "meshes/powerup_sem.webp"
             ],
             "geomType": 1,
             "doEmissive": 1,
@@ -74,10 +74,10 @@
         {
             "name": "mat_pickup_grenade_launcher",
             "textures": [
-                "meshes/grenade_launcher.jpg",
-                "meshes/grenade_launcher_emissive.jpg",
-                "meshes/spheremap1.jpg",
-                "meshes/grenade_launcher_sem.jpg"
+                "meshes/grenade_launcher.webp",
+                "meshes/grenade_launcher_emissive.webp",
+                "meshes/spheremap1.webp",
+                "meshes/grenade_launcher_sem.webp"
             ],
             "geomType": 1,
             "doEmissive": 1,
@@ -87,8 +87,8 @@
         {
             "name": "mat_ball",
             "textures": [
-                "meshes/ball.jpg",
-                "meshes/ball.jpg"
+                "meshes/ball.webp",
+                "meshes/ball.webp"
             ],
             "geomType": 2,
             "doEmissive": 1  
@@ -96,10 +96,10 @@
         {
             "name": "mat_pickup_minigun",
             "textures": [
-                "meshes/minigun.jpg",
-                "meshes/minigun_emissive.jpg",
-                "meshes/spheremap1.jpg",
-                "meshes/minigun_sem.jpg"
+                "meshes/minigun.webp",
+                "meshes/minigun_emissive.webp",
+                "meshes/spheremap1.webp",
+                "meshes/minigun_sem.webp"
             ],
             "geomType": 1,
             "doEmissive": 1,
