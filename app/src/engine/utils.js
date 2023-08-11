@@ -20,8 +20,7 @@ const Utils = {
     fetch(path) {
         return new Promise((resolve, reject) => {
             const xhr = new XMLHttpRequest();
-            if (path.indexOf('webp')) {
-                console.log('blob');
+            if (path.indexOf('webp') !== -1) {
                 xhr.responseType = 'blob';
             }
             xhr.onreadystatechange = () => {
