@@ -4,7 +4,7 @@ import DOM from './dom.js';
 import Utils from './utils.js';
 
 DOM.css({
-    '#game': {
+    '#context': {
         background: '#000',
         width: '100vw',
         height: '100vh',
@@ -13,12 +13,11 @@ DOM.css({
     }
 });
 
-let doBlur = false;
-
-const canvas = DOM.h('canvas#game');
+const canvas = DOM.h('canvas#context');
 DOM.append(() => canvas);
 
 const gl = canvas.domNode.getContext('webgl2', {
+    premultipliedAlpha: false,
     antialias: false
 });
 if (!gl) {
@@ -58,24 +57,11 @@ const height = () => Math.floor(gl.canvas.clientHeight * window.devicePixelRatio
 
 const aspectRatio = () => width() / height();
 
-const toggleBlur = blur => {
-    blur === undefined ? (doBlur = !doBlur) : (doBlur = blur);
-    if (doBlur) {
-        DOM.animate(canvas.domNode, { blur: 8 }, { mobileHA: false, duration: 75, delay: 0, easing: 'linear' });
-    } else {
-        DOM.animate(canvas.domNode, { blur: 0 }, { mobileHA: false, duration: 75, delay: 0, easing: 'linear' });
-    }
-};
-
-window.addEventListener(
-    'resize',
-    () => {
-        gl.canvas.width = width();
-        gl.canvas.height = height();
-        gl.viewport(0, 0, width(), height());
-    },
-    false
-);
+const resize = () => {
+    gl.canvas.width = width();
+    gl.canvas.height = height();
+    gl.viewport(0, 0, width(), height());
+}
 
 Console.registerCmd('rscale', scale => {
     Settings.renderScale = Math.min(Math.max(scale, 0.2), 1);
@@ -83,10 +69,11 @@ Console.registerCmd('rscale', scale => {
 });
 
 const Context = {
+    canvas,
     width,
     height,
     aspectRatio,
-    toggleBlur
+    resize,
 };
 
 export { gl, afExt, Context };
