@@ -7,7 +7,9 @@
         "meshes/materials.mat",
         "meshes/wall.mesh",
         "meshes/floor.mesh",
+        "meshes/floor_conduit.mesh",
         "meshes/ceiling.mesh",
+        "meshes/ceiling_conduit.mesh",
         "meshes/lamp.mesh",
 
         "meshes/health.mesh",

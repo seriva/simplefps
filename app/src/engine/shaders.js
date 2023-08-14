@@ -182,6 +182,8 @@ const Shaders = {
             }         
 
             fragColor = color + fragEmissive;
+            if(fragColor.a < 0.5)
+                discard;
         }`
     ),
     entityShadows: new Shader(

@@ -10,8 +10,10 @@ const cellSize = 3;
 const meshMap = new Map();
 meshMap.set(1, 'meshes/wall.mesh');
 meshMap.set(2, 'meshes/floor.mesh');
-meshMap.set(3, 'meshes/ceiling.mesh');
-meshMap.set(4, 'meshes/lamp.mesh');
+meshMap.set(3, 'meshes/floor_conduit.mesh');
+meshMap.set(4, 'meshes/ceiling.mesh');
+meshMap.set(5, 'meshes/ceiling_conduit.mesh');
+meshMap.set(6, 'meshes/lamp.mesh');
 meshMap.set(128, 'meshes/health.mesh');
 meshMap.set(129, 'meshes/armor.mesh');
 meshMap.set(130, 'meshes/ammo.mesh');
@@ -83,17 +85,17 @@ const createSceneFromMapData = () => {
 
                 const wallBody = new CANNON.Body({ mass: 0 });
                 wallBody.addShape(wallShape);
-                wallBody.position.set(i * cellSize, 2.05, j * cellSize);
+                wallBody.position.set(i * cellSize, 2.2, j * cellSize);
                 Physics.addBody(wallBody);
                 break;
             case 2:
                 Scene.addEntities(new MeshEntity([i * cellSize, 0, j * cellSize], meshMap.get(2)));
-                Scene.addEntities(new MeshEntity([i * cellSize, 0, j * cellSize], meshMap.get(3)));
-                break;
-            case cellSize:
-                Scene.addEntities(new MeshEntity([i * cellSize, 0, j * cellSize], meshMap.get(2)));
-                Scene.addEntities(new MeshEntity([i * cellSize, 0, j * cellSize], meshMap.get(3)));
                 Scene.addEntities(new MeshEntity([i * cellSize, 0, j * cellSize], meshMap.get(4)));
+                break;
+            case 3:
+                Scene.addEntities(new MeshEntity([i * cellSize, 0, j * cellSize], meshMap.get(3)));
+                Scene.addEntities(new MeshEntity([i * cellSize, 0, j * cellSize], meshMap.get(5)));
+                Scene.addEntities(new MeshEntity([i * cellSize, 0, j * cellSize], meshMap.get(6)));
                 Scene.addEntities(new PointLightEntity([i * cellSize, 3, j * cellSize], 8, wallLight, 1.0));
                 Scene.addEntities(new PointLightEntity([i * cellSize, 1, j * cellSize], 4, wallLight, 4.0));
                 break;
