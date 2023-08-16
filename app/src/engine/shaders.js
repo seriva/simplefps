@@ -526,6 +526,6 @@ const Shaders = {
             }`
     )
 };
-/* eslint-disable */
+/* eslint-enable */
 
 export { Shaders, Shader };
