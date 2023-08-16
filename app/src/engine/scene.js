@@ -1,10 +1,10 @@
 import { mat4 } from '../dependencies/gl-matrix.js';
 import Physics from './physics.js';
-import Resources from './resources.js';
 import { gl, Context } from './context.js';
 import { EntityTypes } from './entity.js';
 import { Shaders, Shader } from './shaders.js';
 import Camera from './camera.js';
+import { quad } from './shapes.js';
 
 let entities = [];
 let ambient = [0.5, 0.5, 0.5];
@@ -135,7 +135,6 @@ const renderLighting = () => {
     Shaders.applyShadows.bind();
     Shaders.applyShadows.setInt('shadowBuffer', 2);
     Shaders.applyShadows.setVec2('viewportSize', [Context.width(), Context.height()]);
-    const quad = Resources.get('system/quad.mesh');
     quad.renderSingle();
     Shader.unBind();
 };

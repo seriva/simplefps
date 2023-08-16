@@ -1,7 +1,7 @@
 import { mat4, vec3 } from '../dependencies/gl-matrix.js';
 import { Entity, EntityTypes } from './entity.js';
 import { Shaders } from './shaders.js';
-import Resources from './resources.js';
+import { sphere } from './shapes.js';
 
 class PointLightEntity extends Entity {
     constructor(position, size, color, intensity, updateCallback) {
@@ -25,8 +25,7 @@ class PointLightEntity extends Entity {
         Shaders.pointLight.setVec3('pointLight.color', this.color);
         Shaders.pointLight.setFloat('pointLight.size', this.size);
         Shaders.pointLight.setFloat('pointLight.intensity', this.intensity);
-        const mesh = Resources.get('system/sphere.mesh');
-        mesh.renderSingle();
+        sphere.renderSingle();
     }
 }
 

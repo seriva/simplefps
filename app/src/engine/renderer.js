@@ -1,11 +1,12 @@
 import { Shaders, Shader } from './shaders.js';
-import Resources from './resources.js';
 import Settings from './settings.js';
 import Scene from './scene.js';
 import Texture from './texture.js';
 import { gl, Context } from './context.js';
 import Utils from './utils.js';
 import Console from './console.js';
+import { quad } from './shapes.js';
+import Resources from './resources.js';
 
 let depth = null;
 
@@ -204,7 +205,6 @@ const blurImage = (source, iterations, radius) => {
         Shaders.gaussianBlur.setVec2('viewportSize', [Context.width(), Context.height()]);
         Shaders.gaussianBlur.setVec2('direction', i % 2 === 0 ? [radius, 0] : [0, radius]);
 
-        const quad = Resources.get('system/quad.mesh');
         quad.renderSingle();
     }
     endBlurPass();
@@ -307,7 +307,6 @@ const postProcessingPass = () => {
     Shaders.postProcessing.setFloat('noiseSpeed', Settings.noiseSpeed);
     Shaders.postProcessing.setFloat('noiseTime', performance.now());
 
-    const quad = Resources.get('system/quad.mesh');
     quad.renderSingle();
 
     Shader.unBind();

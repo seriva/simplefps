@@ -1,7 +1,5 @@
 {
     "resources": [
-        "system/quad.mesh",
-        "system/sphere.mesh",
         "system/dirt.webp",
 
         "meshes/materials.mat",

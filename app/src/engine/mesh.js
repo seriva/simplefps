@@ -85,7 +85,7 @@ class Mesh {
         m.bind();
 
         m.indices.forEach((indexObj) => {
-            if (indexObj.material !== 'none' && applyMaterial) {
+            if (indexObj.material !== 'none' && applyMaterial && m.resources !== null) {
                 const mat = m.resources.get(indexObj.material);
                 mat.bind();
             }
@@ -100,7 +100,7 @@ class Mesh {
         const m = this;
 
         m.indices.forEach((indexObj) => {
-            if (indexObj.material !== 'none' && applyMaterial) {
+            if (indexObj.material !== 'none' && applyMaterial && m.resources !== null) {
                 const mat = m.resources.get(indexObj.material);
                 mat.bind();
             }
