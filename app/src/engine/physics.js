@@ -6,16 +6,12 @@ const timeStep = 1 / 60;
 
 const init = () => {
     world = new CANNON.World();
-    world = new CANNON.World({
-        gravity: new CANNON.Vec3(0, -9.82, 0), // m/s²
-    });
+    world.broadphase = new CANNON.NaiveBroadphase();
+    world.gravity.set(0, -9.82, 0);
     world.quatNormalizeSkip = 0;
     world.quatNormalizeFast = false;
-    const solver = new CANNON.GSSolver();
-    solver.iterations = 15;
-    solver.tolerance = 0.2;
-    world.solver = new CANNON.SplitSolver(solver);
-    world.broadphase = new CANNON.NaiveBroadphase();
+    world.solver.tolerance = 0.001;
+    world.solver.iterations = 15;
 };
 
 const addBody = (body) => {

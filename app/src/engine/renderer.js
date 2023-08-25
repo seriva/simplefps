@@ -5,7 +5,7 @@ import Texture from './texture.js';
 import { gl, Context } from './context.js';
 import Utils from './utils.js';
 import Console from './console.js';
-import { quad } from './shapes.js';
+import { screenQuad } from './shapes.js';
 import Resources from './resources.js';
 
 let depth = null;
@@ -205,7 +205,7 @@ const blurImage = (source, iterations, radius) => {
         Shaders.gaussianBlur.setVec2('viewportSize', [Context.width(), Context.height()]);
         Shaders.gaussianBlur.setVec2('direction', i % 2 === 0 ? [radius, 0] : [0, radius]);
 
-        quad.renderSingle();
+        screenQuad.renderSingle();
     }
     endBlurPass();
     Shader.unBind();
@@ -307,7 +307,7 @@ const postProcessingPass = () => {
     Shaders.postProcessing.setFloat('noiseSpeed', Settings.noiseSpeed);
     Shaders.postProcessing.setFloat('noiseTime', performance.now());
 
-    quad.renderSingle();
+    screenQuad.renderSingle();
 
     Shader.unBind();
     Texture.unBind(gl.TEXTURE5);
