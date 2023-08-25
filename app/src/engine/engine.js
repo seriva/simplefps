@@ -17,6 +17,7 @@ import MeshEntity from './meshentity.js';
 import FpsMeshEntity from './fpsmeshentity.js';
 import DirectionalLightEntity from './directionallightentity.js';
 import PointLightEntity from './pointlightentity.js';
+import SkyboxEntity from './skyboxentity.js';
 
 let time;
 let frameTime = 0;
@@ -72,5 +73,6 @@ export {
     MeshEntity,
     FpsMeshEntity,
     DirectionalLightEntity,
-    PointLightEntity
+    PointLightEntity,
+    SkyboxEntity
 };

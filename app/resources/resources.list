@@ -17,6 +17,8 @@
         "meshes/minigun.mesh",
         "meshes/ball.mesh",
 
+        "skybox/1.mat",        
+
         "sounds/music.sfx",
         "sounds/shoot.sfx"
     ]

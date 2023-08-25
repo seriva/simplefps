@@ -32,7 +32,8 @@ class Texture {
 
                 // Generate mipmaps
                 gl.generateMipmap(gl.TEXTURE_2D);
-                t.setTextureWrapMode(gl.REPEAT);
+                // t.setTextureWrapMode(gl.REPEAT);
+                t.setTextureWrapMode(gl.CLAMP_TO_EDGE);
                 gl.bindTexture(gl.TEXTURE_2D, null);
             };
             image.src = window.URL.createObjectURL(data.data);

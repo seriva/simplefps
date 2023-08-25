@@ -53,6 +53,11 @@ const update = (frameTime) => {
 const renderWorldGeometry = () => {
     Shaders.geometry.bind();
 
+    const skyboxEntities = getEntities(EntityTypes.SKYBOX);
+    skyboxEntities.forEach((entity) => {
+        entity.render();
+    });
+
     const matModel = mat4.create();
     mat4.identity(matModel);
     Shaders.geometry.setMat4('matViewProj', Camera.viewProjection);

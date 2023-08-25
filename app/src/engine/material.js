@@ -39,6 +39,9 @@ class Material {
             }
             const tex = m.resources.get(name);
             tex.bind(gl.TEXTURE0 + texUnit);
+            // if (m.geomType === 3) {
+            //    tex.setTextureWrapMode(gl.CLAMP_TO_EDGE);
+            // }
             texUnit++;
         });
     }

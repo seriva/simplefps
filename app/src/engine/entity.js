@@ -4,7 +4,9 @@ const EntityTypes = {
     MESH: 1,
     FPS_MESH: 2,
     DIRECTIONAL_LIGHT: 3,
-    POINT_LIGHT: 4
+    POINT_LIGHT: 4,
+    SPOT_LIGHT: 5,
+    SKYBOX: 6
 };
 
 class Entity {

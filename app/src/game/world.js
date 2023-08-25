@@ -1,7 +1,7 @@
 import { mat4, glMatrix } from '../dependencies/gl-matrix.js';
 import * as CANNON from '../dependencies/cannon-es.js';
 import {
-    Console, Utils, Loading, Physics, Camera, Scene, MeshEntity, PointLightEntity
+    Console, Utils, Loading, Physics, Camera, Scene, MeshEntity, PointLightEntity, SkyboxEntity
 } from '../engine/engine.js';
 import Pickup from './pickups.js';
 
@@ -20,6 +20,7 @@ meshMap.set(130, 'meshes/ammo.mesh');
 meshMap.set(150, 'meshes/grenade_launcher.mesh');
 meshMap.set(151, 'meshes/minigun.mesh');
 
+let skybox = 1;
 let data = [];
 let pickups = [];
 let spawnPoint = {
@@ -31,6 +32,9 @@ const createSceneFromMapData = () => {
     // spawnpoint
     Camera.setPosition(spawnPoint.position);
     Camera.setRotation(spawnPoint.rotation);
+
+    // skybox
+    Scene.addEntities(new SkyboxEntity(skybox));
 
     // create physics bodys
     const planeShape = new CANNON.Plane();
@@ -123,6 +127,7 @@ const load = async (name) => {
 
     Scene.setAmbient(world.ambient);
     spawnPoint = world.spawnpoint;
+    skybox = world.skybox;
     data = world.data;
     pickups = world.pickups;
     Loading.update(1, 2);

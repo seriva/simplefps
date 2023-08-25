@@ -105,6 +105,7 @@ const Shaders = {
 
         const int MESH = 1;
         const int INSTANCED_MESHES = 2;
+        const int SKYBOX = 3;
         
         void main() {
             vPosition = vec4(aPosition, 1.0);
@@ -156,6 +157,7 @@ const Shaders = {
 
         const int MESH = 1;
         const int INSTANCED_MESHES = 2;
+        const int SKYBOX = 3;
 
         void main() {
             switch (geomType) {
@@ -164,6 +166,9 @@ const Shaders = {
                 fragPosition = vPosition;
                 fragNormal = vec4(vNormal, 0.0);
                 break;
+            case SKYBOX:
+                fragNormal = vec4(0.0, 0.0, 0.0, 1.0);
+                break;        
             }   
             vec4 color = texture(colorSampler, vUV);
 
