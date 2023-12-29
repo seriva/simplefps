@@ -24,10 +24,10 @@
     "velocity-animate": "^1.5.2"
   },
   "devDependencies": {
-    "@babel/eslint-parser": "^7.22.15",
-    "eslint": "^8.52.0",
+    "@babel/eslint-parser": "^7.23.3",
+    "eslint": "^8.56.0",
     "eslint-config-airbnb-base": "^15.0.0",
-    "eslint-plugin-import": "^2.29.0",
+    "eslint-plugin-import": "^2.29.1",
     "microtastic": "^0.0.24",
     "pretty-json-stringify": "^0.0.2"
   }
