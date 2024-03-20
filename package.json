@@ -20,12 +20,12 @@
     "jss": "^10.10.0",
     "jss-plugin-global": "^10.10.0",
     "jss-preset-default": "^10.10.0",
-    "maquette": "^3.6.0",
+    "maquette": "^4.0.2",
     "velocity-animate": "^1.5.2"
   },
   "devDependencies": {
-    "@babel/eslint-parser": "^7.23.3",
-    "eslint": "^8.56.0",
+    "@babel/eslint-parser": "^7.24.1",
+    "eslint": "^8.57.0",
     "eslint-config-airbnb-base": "^15.0.0",
     "eslint-plugin-import": "^2.29.1",
     "microtastic": "^0.0.24",
