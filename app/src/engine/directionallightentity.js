@@ -17,4 +17,4 @@ class DirectionalLightEntity extends Entity {
     }
 }
 
-export { DirectionalLightEntity as default };
+export default DirectionalLightEntity;

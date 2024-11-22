@@ -1,72 +1,122 @@
 import { gl, afExt } from './context.js';
 import Settings from './settings.js';
 
+// Cache frequently used GL constants
+const {
+    TEXTURE_2D,
+    RGBA,
+    UNSIGNED_BYTE,
+    LINEAR,
+    LINEAR_MIPMAP_LINEAR,
+    NEAREST,
+    TEXTURE_MAG_FILTER,
+    TEXTURE_MIN_FILTER,
+    TEXTURE_WRAP_S,
+    TEXTURE_WRAP_T,
+    CLAMP_TO_EDGE,
+    UNPACK_FLIP_Y_WEBGL
+} = gl;
+
 class Texture {
     constructor(data) {
-        const t = this;
-        gl.deleteTexture(t.texture);
-        t.texture = gl.createTexture();
-        gl.bindTexture(gl.TEXTURE_2D, t.texture);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([0, 0, 0, 255]));
+        // Delete existing texture if any
+        if (this.texture) gl.deleteTexture(this.texture);
 
-        if (data.data != null) {
-            // Create a texture from a file
-            const image = new Image();
-            image.onload = () => {
-                // Load the texture data
-                gl.bindTexture(gl.TEXTURE_2D, t.texture);
-                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
+        this.texture = gl.createTexture();
+        this.init(data);
+    }
 
-                // Trilinear filtering
-                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+    init(data) {
+        gl.bindTexture(TEXTURE_2D, this.texture);
 
-                // Anisotropic filtering
-                if (afExt) {
-                    const af = Math.min(
-                        Math.max(Settings.anisotropicFiltering, 1),
-                        gl.getParameter(afExt.MAX_TEXTURE_MAX_ANISOTROPY_EXT)
-                    );
-                    gl.texParameterf(gl.TEXTURE_2D, afExt.TEXTURE_MAX_ANISOTROPY_EXT, af);
-                }
+        // Default black texture
+        gl.texImage2D(TEXTURE_2D, 0, RGBA, 1, 1, 0, RGBA, UNSIGNED_BYTE,
+            new Uint8Array([0, 0, 0, 255]));
 
-                // Generate mipmaps
-                gl.generateMipmap(gl.TEXTURE_2D);
-                // t.setTextureWrapMode(gl.REPEAT);
-                t.setTextureWrapMode(gl.CLAMP_TO_EDGE);
-                gl.bindTexture(gl.TEXTURE_2D, null);
-            };
-            image.src = window.URL.createObjectURL(data.data);
+        if (data.data) {
+            this.loadImageTexture(data.data);
         } else {
-            // Create a render target texture or texture from data
-            gl.bindTexture(gl.TEXTURE_2D, t.texture);
-            gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-            gl.texStorage2D(gl.TEXTURE_2D, 1, data.format, data.width, data.height);
-            if (data.pdata != null && data.ptype != null && data.pformat != null) {
-                gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, data.width, data.height, data.pformat, data.ptype, data.pdata);
-            }
-            t.setTextureWrapMode(gl.CLAMP_TO_EDGE);
+            this.createRenderTexture(data);
         }
+    }
+
+    static setTextureParameters(isImage) {
+        const filterType = isImage ? LINEAR : NEAREST;
+        gl.texParameteri(TEXTURE_2D, TEXTURE_MAG_FILTER, filterType);
+        gl.texParameteri(TEXTURE_2D, TEXTURE_MIN_FILTER, isImage ? LINEAR_MIPMAP_LINEAR : filterType);
+    }
+
+    loadImageTexture(imageData) {
+        const image = new Image();
+        image.onload = () => {
+            gl.bindTexture(TEXTURE_2D, this.texture);
+            gl.texImage2D(TEXTURE_2D, 0, RGBA, RGBA, UNSIGNED_BYTE, image);
+
+            // Set texture parameters
+            Texture.setTextureParameters(true);
+
+            // Apply anisotropic filtering if available
+            if (afExt) {
+                const maxAniso = gl.getParameter(afExt.MAX_TEXTURE_MAX_ANISOTROPY_EXT);
+                const af = Math.min(Math.max(Settings.anisotropicFiltering, 1), maxAniso);
+                gl.texParameterf(TEXTURE_2D, afExt.TEXTURE_MAX_ANISOTROPY_EXT, af);
+            }
+
+            gl.generateMipmap(TEXTURE_2D);
+            this.setTextureWrapMode(CLAMP_TO_EDGE);
+            gl.bindTexture(TEXTURE_2D, null);
+
+            URL.revokeObjectURL(image.src); // Clean up the blob URL
+        };
+
+        image.onerror = () => {
+            console.error('Failed to load texture');
+            gl.bindTexture(TEXTURE_2D, null);
+        };
+
+        image.src = URL.createObjectURL(imageData);
+    }
+
+    createRenderTexture(data) {
+        gl.bindTexture(TEXTURE_2D, this.texture);
+        gl.pixelStorei(UNPACK_FLIP_Y_WEBGL, false);
+
+        // Set texture parameters
+        Texture.setTextureParameters(false);
+
+        gl.texStorage2D(TEXTURE_2D, 1, data.format, data.width, data.height);
+
+        if (data.pdata && data.ptype && data.pformat) {
+            gl.texSubImage2D(TEXTURE_2D, 0, 0, 0, data.width, data.height,
+                data.pformat, data.ptype, data.pdata);
+        }
+
+        this.setTextureWrapMode(CLAMP_TO_EDGE);
     }
 
     bind(unit) {
         gl.activeTexture(unit);
-        gl.bindTexture(gl.TEXTURE_2D, this.texture);
+        gl.bindTexture(TEXTURE_2D, this.texture);
     }
 
     static unBind(unit) {
         gl.activeTexture(unit);
-        gl.bindTexture(gl.TEXTURE_2D, null);
+        gl.bindTexture(TEXTURE_2D, null);
     }
 
     setTextureWrapMode(mode) {
-        gl.bindTexture(gl.TEXTURE_2D, this.texture);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, mode);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, mode);
-        gl.bindTexture(gl.TEXTURE_2D, null);
+        gl.bindTexture(TEXTURE_2D, this.texture);
+        gl.texParameteri(TEXTURE_2D, TEXTURE_WRAP_S, mode);
+        gl.texParameteri(TEXTURE_2D, TEXTURE_WRAP_T, mode);
+        gl.bindTexture(TEXTURE_2D, null);
+    }
+
+    dispose() {
+        if (this.texture) {
+            gl.deleteTexture(this.texture);
+            this.texture = null;
+        }
     }
 }
 
-export { Texture as default };
+export default Texture;

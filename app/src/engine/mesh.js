@@ -1,113 +1,118 @@
 import { gl } from './context.js';
 
 class Mesh {
+    // Cache attribute locations
+    static ATTR_POSITIONS = 0;
+
+    static ATTR_UVS = 1;
+
+    static ATTR_NORMALS = 2;
+
     constructor(data, resources) {
-        const m = this;
-        m.resources = resources;
-        m.indices = data.indices;
-        m.vertices = data.vertices;
-        m.uvs = data.uvs && data.uvs.length > 0 ? data.uvs : [];
-        m.normals = (data.normals && data.normals.length > 0) ? data.normals : [];
-        m.initMeshBuffers();
+        this.resources = resources;
+        this.indices = data.indices;
+        this.vertices = data.vertices;
+        this.uvs = data.uvs?.length > 0 ? data.uvs : [];
+        this.normals = data.normals?.length > 0 ? data.normals : [];
+        this.initMeshBuffers();
     }
 
     static buildBuffer(type, data, itemSize) {
         const buffer = gl.createBuffer();
         const ArrayView = type === gl.ARRAY_BUFFER ? Float32Array : Uint16Array;
+        const typedArray = new ArrayView(data);
         gl.bindBuffer(type, buffer);
-        gl.bufferData(type, new ArrayView(data), gl.STATIC_DRAW);
+        gl.bufferData(type, typedArray, gl.STATIC_DRAW);
         buffer.itemSize = itemSize;
         buffer.numItems = data.length / itemSize;
         return buffer;
     }
 
     initMeshBuffers() {
-        const m = this;
-        m.indices.forEach((indexObj) => {
+        // Pre-calculate buffer data
+        this.hasUVs = this.uvs.length > 0;
+        this.hasNormals = this.normals.length > 0;
+
+        this.indices.forEach((indexObj) => {
             indexObj.indexBuffer = Mesh.buildBuffer(gl.ELEMENT_ARRAY_BUFFER, indexObj.array, 1);
         });
-        m.vertexBuffer = Mesh.buildBuffer(gl.ARRAY_BUFFER, m.vertices, 3);
-        if (m.uvs.length > 0) {
-            m.uvBuffer = Mesh.buildBuffer(gl.ARRAY_BUFFER, m.uvs, 2);
+        this.vertexBuffer = Mesh.buildBuffer(gl.ARRAY_BUFFER, this.vertices, 3);
+
+        if (this.hasUVs) {
+            this.uvBuffer = Mesh.buildBuffer(gl.ARRAY_BUFFER, this.uvs, 2);
         }
-        if (m.normals.length > 0) {
-            m.normalBuffer = Mesh.buildBuffer(gl.ARRAY_BUFFER, m.normals, 3);
+        if (this.hasNormals) {
+            this.normalBuffer = Mesh.buildBuffer(gl.ARRAY_BUFFER, this.normals, 3);
         }
     }
 
     deleteMeshBuffers() {
-        const m = this;
-        m.indices.forEach((indexObj) => {
-            gl.deleteBuffer(indexObj.indexBuffer);
-        });
-        gl.deleteBuffer(m.vertexBuffer);
-        if (m.uvs.length > 0) {
-            gl.deleteBuffer(m.uvBuffer);
-        }
-        if (m.normals.length > 0) {
-            gl.deleteBuffer(m.normalBuffer);
-        }
+        this.indices.forEach((indexObj) => gl.deleteBuffer(indexObj.indexBuffer));
+        gl.deleteBuffer(this.vertexBuffer);
+        if (this.hasUVs) gl.deleteBuffer(this.uvBuffer);
+        if (this.hasNormals) gl.deleteBuffer(this.normalBuffer);
     }
 
     bind() {
-        const m = this;
-        gl.bindBuffer(gl.ARRAY_BUFFER, m.vertexBuffer);
-        gl.vertexAttribPointer(0, m.vertexBuffer.itemSize, gl.FLOAT, false, 0, 0);
-        gl.enableVertexAttribArray(0);
-        if (m.uvs.length > 0) {
-            gl.bindBuffer(gl.ARRAY_BUFFER, m.uvBuffer);
-            gl.vertexAttribPointer(1, m.uvBuffer.itemSize, gl.FLOAT, false, 0, 0);
-            gl.enableVertexAttribArray(1);
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
+        gl.vertexAttribPointer(Mesh.ATTR_POSITIONS, this.vertexBuffer.itemSize, gl.FLOAT, false, 0, 0);
+        gl.enableVertexAttribArray(Mesh.ATTR_POSITIONS);
+
+        if (this.hasUVs) {
+            gl.bindBuffer(gl.ARRAY_BUFFER, this.uvBuffer);
+            gl.vertexAttribPointer(Mesh.ATTR_UVS, this.uvBuffer.itemSize, gl.FLOAT, false, 0, 0);
+            gl.enableVertexAttribArray(Mesh.ATTR_UVS);
         }
-        if (m.normals.length > 0) {
-            gl.bindBuffer(gl.ARRAY_BUFFER, m.normalBuffer);
-            gl.vertexAttribPointer(2, m.normalBuffer.itemSize, gl.FLOAT, false, 0, 0);
-            gl.enableVertexAttribArray(2);
+
+        if (this.hasNormals) {
+            gl.bindBuffer(gl.ARRAY_BUFFER, this.normalBuffer);
+            gl.vertexAttribPointer(Mesh.ATTR_NORMALS, this.normalBuffer.itemSize, gl.FLOAT, false, 0, 0);
+            gl.enableVertexAttribArray(Mesh.ATTR_NORMALS);
         }
     }
 
     unBind() {
-        const m = this;
         gl.bindBuffer(gl.ARRAY_BUFFER, null);
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
-        gl.disableVertexAttribArray(0);
-        if (m.uvs.length > 0) {
-            gl.disableVertexAttribArray(1);
-        }
-        if (m.normals.length > 0) {
-            gl.disableVertexAttribArray(2);
-        }
+        gl.disableVertexAttribArray(Mesh.ATTR_POSITIONS);
+        if (this.hasUVs) gl.disableVertexAttribArray(Mesh.ATTR_UVS);
+        if (this.hasNormals) gl.disableVertexAttribArray(Mesh.ATTR_NORMALS);
     }
 
     renderSingle(applyMaterial = true) {
-        const m = this;
-
-        m.bind();
-
-        m.indices.forEach((indexObj) => {
-            if (indexObj.material !== 'none' && applyMaterial && m.resources !== null) {
-                const mat = m.resources.get(indexObj.material);
-                mat.bind();
-            }
-            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexObj.indexBuffer);
-            gl.drawElements(gl.TRIANGLES, indexObj.indexBuffer.numItems, gl.UNSIGNED_SHORT, 0);
-        });
-
-        m.unBind();
+        this.bind();
+        this.renderIndices(applyMaterial);
+        this.unBind();
     }
 
     renderMany(count, applyMaterial = true) {
-        const m = this;
+        this.bind();
+        this.renderIndicesInstanced(count, applyMaterial);
+        this.unBind();
+    }
 
-        m.indices.forEach((indexObj) => {
-            if (indexObj.material !== 'none' && applyMaterial && m.resources !== null) {
-                const mat = m.resources.get(indexObj.material);
-                mat.bind();
-            }
+    // Private helper methods
+    renderIndices(applyMaterial) {
+        this.indices.forEach((indexObj) => {
+            this.bindMaterial(indexObj, applyMaterial);
+            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexObj.indexBuffer);
+            gl.drawElements(gl.TRIANGLES, indexObj.indexBuffer.numItems, gl.UNSIGNED_SHORT, 0);
+        });
+    }
+
+    renderIndicesInstanced(count, applyMaterial) {
+        this.indices.forEach((indexObj) => {
+            this.bindMaterial(indexObj, applyMaterial);
             gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexObj.indexBuffer);
             gl.drawElementsInstanced(gl.TRIANGLES, indexObj.indexBuffer.numItems, gl.UNSIGNED_SHORT, 0, count);
         });
     }
+
+    bindMaterial(indexObj, applyMaterial) {
+        if (indexObj.material !== 'none' && applyMaterial && this.resources) {
+            this.resources.get(indexObj.material).bind();
+        }
+    }
 }
 
-export { Mesh as default };
+export default Mesh;

@@ -10,7 +10,8 @@ const viewProjection = mat4.create();
 const position = vec3.fromValues(0, 0, 0);
 const rotation = vec3.fromValues(0, 0, 0);
 const direction = vec3.fromValues(0, 0, 1);
-mat4.lookAt(view, position, [0, 0, 1], [0, 1, 0]);
+const upVector = vec3.fromValues(0, 1, 0);
+const target = vec3.create();
 
 const frustumPlanes = {
     left: vec4.create(),
@@ -25,13 +26,11 @@ let fov = 45;
 let nearPlane = 0.1;
 let farPlane = 1000;
 
-window.addEventListener(
-    'resize',
-    () => {
-        mat4.perspective(projection, glMatrix.toRadian(fov), Context.aspectRatio(), nearPlane, farPlane);
-    },
-    false
-);
+const handleResize = () => {
+    mat4.perspective(projection, glMatrix.toRadian(fov), Context.aspectRatio(), nearPlane, farPlane);
+};
+
+window.addEventListener('resize', handleResize, false);
 
 const Camera = {
     position,
@@ -61,64 +60,36 @@ const Camera = {
 
     rotate(rot) {
         vec3.add(rotation, rotation, rot);
+        vec3.set(direction, 0, 0, 1);
+        vec3.rotateX(direction, direction, [0, 0, 0], rotation[0]);
+        vec3.rotateY(direction, direction, [0, 0, 0], rotation[1]);
+        vec3.rotateZ(direction, direction, [0, 0, 0], rotation[2]);
+        vec3.normalize(direction, direction);
     },
 
     update() {
-        mat4.lookAt(
-            view,
-            position,
-            [position[0] + direction[0], position[1] + direction[1], position[2] + direction[2]],
-            [0, 1, 0]
-        );
-
+        vec3.add(target, position, direction);
+        mat4.lookAt(view, position, target, upVector);
         mat4.mul(viewProjection, projection, view);
 
-        // calculate frustum
-        // Left plane
-        frustumPlanes.left[0] = viewProjection[3] + viewProjection[0];
-        frustumPlanes.left[1] = viewProjection[7] + viewProjection[4];
-        frustumPlanes.left[2] = viewProjection[11] + viewProjection[8];
-        frustumPlanes.left[3] = viewProjection[15] + viewProjection[12];
+        const m = viewProjection;
+        const extractPlane = (out, a, b, c, d) => {
+            out[0] = m[a]; out[1] = m[b];
+            out[2] = m[c]; out[3] = m[d];
+            vec4.normalize(out, out);
+        };
 
-        // Right plane
-        frustumPlanes.right[0] = viewProjection[3] - viewProjection[0];
-        frustumPlanes.right[1] = viewProjection[7] - viewProjection[4];
-        frustumPlanes.right[2] = viewProjection[11] - viewProjection[8];
-        frustumPlanes.right[3] = viewProjection[15] - viewProjection[12];
+        extractPlane(frustumPlanes.left, 3 + 0, 7 + 4, 11 + 8, 15 + 12);
+        extractPlane(frustumPlanes.right, 3 - 0, 7 - 4, 11 - 8, 15 - 12);
+        extractPlane(frustumPlanes.bottom, 3 + 1, 7 + 5, 11 + 9, 15 + 13);
+        extractPlane(frustumPlanes.top, 3 - 1, 7 - 5, 11 - 9, 15 - 13);
+        extractPlane(frustumPlanes.near, 3 + 2, 7 + 6, 11 + 10, 15 + 14);
+        extractPlane(frustumPlanes.far, 3 - 2, 7 - 6, 11 - 10, 15 - 14);
+    },
 
-        // Bottom plane
-        frustumPlanes.bottom[0] = viewProjection[3] + viewProjection[1];
-        frustumPlanes.bottom[1] = viewProjection[7] + viewProjection[5];
-        frustumPlanes.bottom[2] = viewProjection[11] + viewProjection[9];
-        frustumPlanes.bottom[3] = viewProjection[15] + viewProjection[13];
-
-        // Top plane
-        frustumPlanes.top[0] = viewProjection[3] - viewProjection[1];
-        frustumPlanes.top[1] = viewProjection[7] - viewProjection[5];
-        frustumPlanes.top[2] = viewProjection[11] - viewProjection[9];
-        frustumPlanes.top[3] = viewProjection[15] - viewProjection[13];
-
-        // Near plane
-        frustumPlanes.near[0] = viewProjection[3] + viewProjection[2];
-        frustumPlanes.near[1] = viewProjection[7] + viewProjection[6];
-        frustumPlanes.near[2] = viewProjection[11] + viewProjection[10];
-        frustumPlanes.near[3] = viewProjection[15] + viewProjection[14];
-
-        // Far plane
-        frustumPlanes.far[0] = viewProjection[3] - viewProjection[2];
-        frustumPlanes.far[1] = viewProjection[7] - viewProjection[6];
-        frustumPlanes.far[2] = viewProjection[11] - viewProjection[10];
-        frustumPlanes.far[3] = viewProjection[15] - viewProjection[14];
-
-        // Normalize the frustum plane normals
-        /* eslint-disable */
-        for (const plane in frustumPlanes) {
-            if (Object.hasOwn(frustumPlanes, plane)) {
-                vec4.normalize(frustumPlanes[plane], frustumPlanes[plane]);
-            }
-        }
-        /* eslint-enable */
+    destroy() {
+        window.removeEventListener('resize', handleResize, false);
     }
 };
 
-export { Camera as default };
+export default Camera;

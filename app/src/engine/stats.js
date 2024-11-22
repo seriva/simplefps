@@ -29,57 +29,62 @@ DOM.css({
     }
 });
 
-let fps = 0;
-let frameTime = 0;
-let memory = 0;
-let visible = true;
-let prevTime = 0;
-let frames = 0;
-
-const toggle = (show) => {
-    show === undefined ? (visible = !visible) : (visible = show);
+const state = {
+    fps: 0,
+    frameTime: 0,
+    memory: 0,
+    visible: true,
+    prevTime: 0,
+    frames: 0
 };
 
-Console.registerCmd('stats', (show) => {
-    toggle(show);
-});
-
-window.setInterval(() => {
-    fps = frames;
-    frames = 0;
-    memory = 0;
-    if (performance.memory) {
-        memory = Math.round(performance.memory.usedJSHeapSize / 1048576);
-    }
-}, 1000);
-
-DOM.append(() => DOM.h(
+const createStatsDOM = () => DOM.h(
     'div#stats',
-    visible
+    state.visible
         ? [
             DOM.h('div#stats-text', [
-                DOM.h('span.stats-info', [`${fps}fps`]),
-                DOM.h('span.stats-info', [`${Math.round(frameTime)}ms`]),
-                DOM.h('span.stats-info', [`${memory}mb`])
+                DOM.h('span.stats-info', [`${state.fps}fps`]),
+                DOM.h('span.stats-info', [`${Math.round(state.frameTime)}ms`]),
+                DOM.h('span.stats-info', [`${state.memory}mb`])
             ]),
             DOM.h('div#stats-pos', [
-                // eslint-disable-next-line
-                      `xyz: ${Math.round(Camera.position[0])},${Math.round(Camera.position[1])},${Math.round(
-                    Camera.position[2]
-                )}`
+                DOM.h('span', [
+                    `xyz: ${Math.round(Camera.position[0])},${Math.round(Camera.position[1])},${Math.round(Camera.position[2])}`
+                ])
             ])
         ]
         : []
-));
+);
+
+const toggle = (show) => {
+    state.visible = show ?? !state.visible;
+    return state.visible;
+};
+
+Console.registerCmd('stats', toggle);
+
+let lastUpdate = performance.now();
+const updateStats = () => {
+    const now = performance.now();
+    if (now - lastUpdate >= 1000) {
+        state.fps = state.frames;
+        state.frames = 0;
+        state.memory = performance.memory ? Math.round(performance.memory.usedJSHeapSize / 1048576) : 0;
+        lastUpdate = now;
+    }
+};
+
+DOM.append(createStatsDOM);
 
 const Stats = {
     toggle,
     update() {
         const now = performance.now();
-        frameTime = now - (prevTime || now);
-        prevTime = now;
-        frames++;
+        state.frameTime = now - (state.prevTime || now);
+        state.prevTime = now;
+        state.frames++;
+        updateStats();
     }
 };
 
-export { Stats as default };
+export default Stats;

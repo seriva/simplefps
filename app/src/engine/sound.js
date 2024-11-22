@@ -1,56 +1,58 @@
 import Console from './console.js';
 
-const load = (file, speed, volume, loop) => {
+const load = (file, speed = 1, volume = 1, loop = false) => {
     const sound = new Audio(file);
-    sound.playbackRate = speed;
-    sound.volume = volume;
-    sound.loop = loop;
+    Object.assign(sound, { playbackRate: speed, volume, loop });
     return sound;
 };
 
 class Sound {
-    constructor(data) {
-        const t = this;
-        t.cache = {};
-        t.cacheSize = 5;
-        t.file = data.file;
-        t.cached = data.cached;
-        t.speed = data.speed;
-        t.volume = data.volume;
-        t.loop = data.loop;
+    #cache = {};
 
-        if (t.cached) {
-            for (let i = 0; i < t.cacheSize; i++) {
-                const sound = load(t.file, t.speed, t.volume, t.loop);
-                t.cache[`${t.file}_${i}`] = sound;
+    #sound;
+
+    constructor({
+        file,
+        cached = false,
+        speed = 1,
+        volume = 1,
+        loop = false,
+        cacheSize = 5
+    }) {
+        this.file = file;
+        this.cached = cached;
+        this.cacheSize = cacheSize;
+
+        if (cached) {
+            for (let i = 0; i < cacheSize; i++) {
+                this.#cache[`${file}_${i}`] = load(file, speed, volume, loop);
             }
         } else {
-            t.sound = load(t.file, t.speed, t.volume, t.loop);
+            this.#sound = load(file, speed, volume, loop);
         }
     }
 
     play() {
-        const t = this;
-        if (t.cached) {
-            let itr = 0;
-            while (!t.cache[`${t.file}_${itr}`].paused) {
-                itr += 1;
-                if (itr > t.cacheSize - 1) return;
-            }
-            t.cache[`${t.file}_${itr}`].play();
-        } else {
-            t.sound.play();
+        if (!this.cached) {
+            this.#sound.play();
+            return;
+        }
+
+        const availableIndex = Object.keys(this.#cache)
+            .find((key) => this.#cache[key].paused);
+
+        if (availableIndex) {
+            this.#cache[availableIndex].play();
         }
     }
 
     pause() {
-        const t = this;
-        if (!t.cached) {
-            t.sound.pause();
-        } else {
-            Console.warn('Cached sound can only play.');
+        if (!this.cached) {
+            this.#sound.pause();
+            return;
         }
+        Console.warn('Cached sound can only play.');
     }
 }
 
-export { Sound as default };
+export default Sound;

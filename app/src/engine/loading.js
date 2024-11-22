@@ -1,32 +1,37 @@
 import DOM from './dom.js';
 
+// Constants for shared values
+const ZINDEX_BASE = 2000;
+const LOGO_SIZE = '30vh';
+const LOGO_OFFSET = '-15vh';
+
 DOM.css({
     '#loading': {
-        zIndex: 2000
+        zIndex: ZINDEX_BASE
     },
 
     '#loading-background': {
         width: '100%',
         height: '100%',
+        position: 'absolute',
         left: '0px',
         top: '0px',
         margin: 0,
         padding: 0,
-        position: 'absolute',
         backgroundColor: 'black',
-        zIndex: 2001
+        zIndex: ZINDEX_BASE + 1
     },
 
     '#loading-logo': {
         position: 'fixed',
-        width: '30vh',
-        height: '30vh',
+        width: LOGO_SIZE,
+        height: LOGO_SIZE,
         top: '50%',
         left: '50%',
-        marginTop: '-15vh',
-        marginLeft: '-15vh',
+        marginTop: LOGO_OFFSET,
+        marginLeft: LOGO_OFFSET,
         content: 'url(resources/logo.svg)',
-        zIndex: 2002
+        zIndex: ZINDEX_BASE + 2
     },
 
     '#loading-bar-background': {
@@ -38,7 +43,7 @@ DOM.css({
         left: '50%',
         marginLeft: '-30%',
         border: '2px solid white',
-        zIndex: 2002
+        zIndex: ZINDEX_BASE + 2
     },
 
     '#loading-bar': {
@@ -48,47 +53,60 @@ DOM.css({
     }
 });
 
-// local vars
-let isVisible = false;
-let forceUntilReload = false;
+// State management
+const state = {
+    isVisible: false,
+    forceUntilReload: false
+};
 
-// gui function
+// Memoized animation config
+const SPIN_ANIMATION = {
+    transform: ['rotateZ(360deg)', 'rotateZ(0deg)'],
+    options: {
+        duration: 3000,
+        delay: 0,
+        easing: 'linear',
+        repeat: true
+    }
+};
+
+// Cache DOM element
 const bar = DOM.h('div#loading-bar');
-DOM.append(() => DOM.h(
+
+// Optimize render function
+const renderLoading = () => DOM.h(
     'div#loading',
-    isVisible
-        ? [DOM.h('div#loading-logo', {
+    state.isVisible ? [
+        DOM.h('div#loading-logo', {
             enterAnimation: (domElement) => {
-                DOM.animate(
-                    domElement,
-                    { transform: ['rotateZ(360deg)', 'rotateZ(0deg)'] },
-                    {
-                        duration: 3000,
-                        delay: 0,
-                        easing: 'linear',
-                        repeat: true
-                    }
-                );
+                DOM.animate(domElement, SPIN_ANIMATION.transform, SPIN_ANIMATION.options);
             }
-        },), DOM.h('div#loading-bar-background', [bar]), DOM.h('div#loading-background')]
-        : []
-));
+        }),
+        DOM.h('div#loading-bar-background', [bar]),
+        DOM.h('div#loading-background')
+    ] : []
+);
+
+DOM.append(renderLoading);
 
 const Loading = {
     toggle(visible, force) {
-        if (forceUntilReload === true) return;
+        if (state.forceUntilReload) return;
 
-        isVisible = visible;
-        if (force !== undefined && force !== null) forceUntilReload = force;
+        state.isVisible = visible;
+        if (force != null) state.forceUntilReload = force;
 
         DOM.update();
     },
 
     update(step, max) {
         if (!bar.domNode) return;
-        bar.domNode.style.width = `${Math.round((step * 100) / max)}%`;
+
+        // Ensure valid numbers and prevent division by zero
+        const progress = max > 0 ? Math.min(Math.max((step * 100) / max, 0), 100) : 0;
+        bar.domNode.style.width = `${Math.round(progress)}%`;
         DOM.update();
     }
 };
 
-export { Loading as default };
+export default Loading;

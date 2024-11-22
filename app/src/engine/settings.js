@@ -25,22 +25,36 @@ const defaults = {
     lookSensitivity: 5
 };
 
-let Settings = {};
+const Settings = {};
 
-// load possible settings from local storage
-if (window.localStorage.getItem('settings') !== null) {
-    Console.log('Using stored settings');
-    const stored = JSON.parse(localStorage.getItem('settings'));
-    Settings = { ...defaults, ...stored };
-} else {
-    Console.log('Using default settings');
-    Settings = defaults;
-    localStorage.setItem('settings', JSON.stringify(Settings));
+const saveSettings = () => {
+    try {
+        localStorage.setItem('settings', JSON.stringify(Settings));
+        return true;
+    } catch (error) {
+        Console.log('Failed to save settings:', error);
+        return false;
+    }
+};
+
+// Initialize settings
+try {
+    const stored = localStorage.getItem('settings');
+    if (stored) {
+        Console.log('Using stored settings');
+        Object.assign(Settings, defaults, JSON.parse(stored));
+    } else {
+        Console.log('Using default settings');
+        Object.assign(Settings, defaults);
+        saveSettings();
+    }
+} catch (error) {
+    Console.log('Error loading settings, using defaults:', error);
+    Object.assign(Settings, defaults);
 }
 
+// Register console commands
 Console.registerCmd('settings', Settings);
-Console.registerCmd('sstore', () => {
-    localStorage.setItem('settings', JSON.stringify(Settings));
-});
+Console.registerCmd('sstore', saveSettings);
 
-export { Settings as default };
+export default Settings;
