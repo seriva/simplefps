@@ -12,14 +12,14 @@
     "customizations":{
         "vscode": {
             "extensions": [
-				"dbaeumer.vscode-eslint",
-				"boyswan.glsl-literal"
+				"boyswan.glsl-literal",
+				"biomejs.biome"
             ],
 			"settings": {
-				"editor.codeActionsOnSave": {
-					"source.fixAll.eslint": true
+				"[javascript]": {
+				  "editor.defaultFormatter": "biomejs.biome"
 				}
-			}
+			  }
         }
     },
 

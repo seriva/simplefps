@@ -1,89 +1,95 @@
-import Console from './console.js';
-import { gl } from './context.js';
+import Console from "./console.js";
+import { gl } from "./context.js";
 
 const glsl = (x) => x;
 
 class Shader {
-    constructor(vertex, fragment) {
-        const s = this;
+	constructor(vertex, fragment) {
+		this.uniformMap = {};
+		this.vertexShader = gl.createShader(gl.VERTEX_SHADER);
+		this.fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
 
-        s.uniformMap = {};
-        s.vertexShader = gl.createShader(gl.VERTEX_SHADER);
-        s.fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
+		gl.shaderSource(this.vertexShader, vertex);
+		gl.shaderSource(this.fragmentShader, fragment);
 
-        gl.shaderSource(s.vertexShader, vertex);
-        gl.shaderSource(s.fragmentShader, fragment);
+		gl.compileShader(this.vertexShader);
+		if (!gl.getShaderParameter(this.vertexShader, gl.COMPILE_STATUS)) {
+			Console.error(
+				`Error compiling vertex shader: ${gl.getShaderInfoLog(this.vertexShader)}`,
+			);
+		}
 
-        gl.compileShader(s.vertexShader);
-        if (!gl.getShaderParameter(s.vertexShader, gl.COMPILE_STATUS)) {
-            Console.error(`Error compiling vertex shader: ${gl.getShaderInfoLog(s.vertexShader)}`);
-        }
+		gl.compileShader(this.fragmentShader);
+		if (!gl.getShaderParameter(this.fragmentShader, gl.COMPILE_STATUS)) {
+			Console.error(
+				`Error compiling fragment shader: ${gl.getShaderInfoLog(this.fragmentShader)}`,
+			);
+		}
 
-        gl.compileShader(s.fragmentShader);
-        if (!gl.getShaderParameter(s.fragmentShader, gl.COMPILE_STATUS)) {
-            Console.error(`Error compiling fragment shader: ${gl.getShaderInfoLog(s.fragmentShader)}`);
-        }
+		this.program = gl.createProgram();
+		gl.attachShader(this.program, this.vertexShader);
+		gl.attachShader(this.program, this.fragmentShader);
 
-        s.program = gl.createProgram();
-        gl.attachShader(s.program, s.vertexShader);
-        gl.attachShader(s.program, s.fragmentShader);
+		gl.linkProgram(this.program);
+		if (!gl.getProgramParameter(this.program, gl.LINK_STATUS)) {
+			Console.error(
+				`Error linking program: ${gl.getProgramInfoLog(this.program)}`,
+			);
+		}
+		gl.validateProgram(this.program);
+		if (!gl.getProgramParameter(this.program, gl.VALIDATE_STATUS)) {
+			Console.error(
+				`Error validating program: ${gl.getProgramInfoLog(this.program)}`,
+			);
+		}
+	}
 
-        gl.linkProgram(s.program);
-        if (!gl.getProgramParameter(s.program, gl.LINK_STATUS)) {
-            Console.error(`Error linking program: ${gl.getProgramInfoLog(s.program)}`);
-        }
-        gl.validateProgram(s.program);
-        if (!gl.getProgramParameter(s.program, gl.VALIDATE_STATUS)) {
-            Console.error(`Error validating program: ${gl.getProgramInfoLog(s.program)}`);
-        }
-    }
+	bind() {
+		gl.useProgram(this.program);
+	}
 
-    bind() {
-        gl.useProgram(this.program);
-    }
+	static unBind() {
+		gl.useProgram(null);
+	}
 
-    static unBind() {
-        gl.useProgram(null);
-    }
+	getUniformLocation(id) {
+		if (id in this.uniformMap) {
+			return this.uniformMap[id];
+		}
+		const loc = gl.getUniformLocation(this.program, id);
+		this.uniformMap[id] = loc;
+		return loc;
+	}
 
-    getUniformLocation(id) {
-        if (id in this.uniformMap) {
-            return this.uniformMap[id];
-        }
-        const loc = gl.getUniformLocation(this.program, id);
-        this.uniformMap[id] = loc;
-        return loc;
-    }
+	setInt(id, value) {
+		gl.uniform1i(this.getUniformLocation(id), value);
+	}
 
-    setInt(id, value) {
-        gl.uniform1i(this.getUniformLocation(id), value);
-    }
+	setMat4(id, mat) {
+		gl.uniformMatrix4fv(this.getUniformLocation(id), gl.FALSE, mat);
+	}
 
-    setMat4(id, mat) {
-        gl.uniformMatrix4fv(this.getUniformLocation(id), gl.FALSE, mat);
-    }
+	setFloat(id, value) {
+		gl.uniform1f(this.getUniformLocation(id), value);
+	}
 
-    setFloat(id, value) {
-        gl.uniform1f(this.getUniformLocation(id), value);
-    }
+	setVec2(id, vec) {
+		gl.uniform2f(this.getUniformLocation(id), vec[0], vec[1]);
+	}
 
-    setVec2(id, vec) {
-        gl.uniform2f(this.getUniformLocation(id), vec[0], vec[1]);
-    }
+	setVec3(id, vec) {
+		gl.uniform3f(this.getUniformLocation(id), vec[0], vec[1], vec[2]);
+	}
 
-    setVec3(id, vec) {
-        gl.uniform3f(this.getUniformLocation(id), vec[0], vec[1], vec[2]);
-    }
-
-    setVec4(id, vec) {
-        gl.uniform4f(this.getUniformLocation(id), vec[0], vec[1], vec[2], vec[3]);
-    }
+	setVec4(id, vec) {
+		gl.uniform4f(this.getUniformLocation(id), vec[0], vec[1], vec[2], vec[3]);
+	}
 }
 
 /* eslint-disable */
 const Shaders = {
-    geometry: new Shader(
-        glsl`#version 300 es
+	geometry: new Shader(
+		glsl`#version 300 es
 
         precision highp float;
         precision highp int;
@@ -131,7 +137,7 @@ const Shaders = {
 
             gl_Position = matViewProj * vPosition;
         }`,
-        glsl`#version 300 es
+		glsl`#version 300 es
     
         precision highp float;
         precision highp int;
@@ -189,10 +195,10 @@ const Shaders = {
             fragColor = color + fragEmissive;
             if(fragColor.a < 0.5)
                 discard;
-        }`
-    ),
-    entityShadows: new Shader(
-        glsl`#version 300 es
+        }`,
+	),
+	entityShadows: new Shader(
+		glsl`#version 300 es
 
         precision highp float;
         precision highp int;
@@ -206,7 +212,7 @@ const Shaders = {
         {
             gl_Position = matViewProj * matWorld * vec4(aPosition, 1.0);
         }`,
-        glsl`#version 300 es
+		glsl`#version 300 es
 
         precision highp float;
         precision highp int;
@@ -218,10 +224,10 @@ const Shaders = {
         void main()
         {
             fragColor = vec4(ambient, 1.0);
-        }`
-    ),
-    applyShadows: new Shader(
-        glsl`#version 300 es
+        }`,
+	),
+	applyShadows: new Shader(
+		glsl`#version 300 es
 
         precision highp float;
 
@@ -231,7 +237,7 @@ const Shaders = {
         {
             gl_Position = vec4(aPosition, 1.0);
         }`,
-        glsl`#version 300 es
+		glsl`#version 300 es
 
         precision highp float;
 
@@ -244,10 +250,10 @@ const Shaders = {
         {
             vec2 uv = vec2(gl_FragCoord.xy / viewportSize.xy);
             fragColor = texture(shadowBuffer, uv);
-        }`
-    ),
-    directionalLight: new Shader(
-        glsl`#version 300 es
+        }`,
+	),
+	directionalLight: new Shader(
+		glsl`#version 300 es
 
         precision highp float;
 
@@ -257,7 +263,7 @@ const Shaders = {
         {
             gl_Position = vec4(aPosition, 1.0);
         }`,
-        glsl`#version 300 es
+		glsl`#version 300 es
 
         precision highp float; 
 
@@ -284,10 +290,10 @@ const Shaders = {
                 lightIntensity = directionalLight.color * max(dot(normalize(norm.xyz), normSunDir), 0.0);
             }
             fragColor = vec4(lightIntensity, 1.0);
-        }`
-    ),
-    pointLight: new Shader(
-        glsl`#version 300 es
+        }`,
+	),
+	pointLight: new Shader(
+		glsl`#version 300 es
 
         precision highp float;
         precision highp int;
@@ -315,7 +321,7 @@ const Shaders = {
             }     
             gl_Position = matViewProj * newMatWorld * vec4(aPosition, 1.0);
         }`,
-        glsl`#version 300 es
+		glsl`#version 300 es
 
         precision highp float;
         precision highp int;
@@ -367,10 +373,10 @@ const Shaders = {
             float nDotL = max(0.0, dot(n, l));
 
             fragColor = vec4(pointLight.color * atten * nDotL, 1.0);
-        }`
-    ),
-    gaussianBlur: new Shader(
-        glsl`#version 300 es
+        }`,
+	),
+	gaussianBlur: new Shader(
+		glsl`#version 300 es
     
             precision highp float;
     
@@ -380,7 +386,7 @@ const Shaders = {
             {
                 gl_Position = vec4(aPosition, 1.0);
             }`,
-        glsl`#version 300 es
+		glsl`#version 300 es
     
             precision highp float;
     
@@ -408,10 +414,10 @@ const Shaders = {
             {
                 vec2 uv = vec2(gl_FragCoord.xy / viewportSize.xy);
                 fragColor = blur13(colorBuffer, uv, viewportSize.xy, direction);
-            }`
-    ),
-    postProcessing: new Shader(
-        glsl`#version 300 es
+            }`,
+	),
+	postProcessing: new Shader(
+		glsl`#version 300 es
     
             precision highp float;
     
@@ -421,7 +427,7 @@ const Shaders = {
             {
                 gl_Position = vec4(aPosition, 1.0);
             }`,
-        glsl`#version 300 es
+		glsl`#version 300 es
     
             precision highp float;
 
@@ -528,8 +534,8 @@ const Shaders = {
                     applySoftLightToChannel( fragColor.a, dirt.a )
                 );
                 fragColor = vec4(pow(fragColor.rgb, 1.0 / vec3(gamma)), 1.0);
-            }`
-    )
+            }`,
+	),
 };
 /* eslint-enable */
 
