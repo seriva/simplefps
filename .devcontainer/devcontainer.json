@@ -16,10 +16,13 @@
 				"biomejs.biome"
             ],
 			"settings": {
+				"editor.codeActionsOnSave": {
+					"quickfix.biome": "explicit"
+				},
 				"[javascript]": {
-				  "editor.defaultFormatter": "biomejs.biome"
+					"editor.defaultFormatter": "biomejs.biome"
 				}
-			  }
+			}
         }
     },
 

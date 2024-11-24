@@ -11,8 +11,7 @@
   "scripts": {
     "prepare": "microtastic prep",
     "dev": "microtastic dev",
-    "build": "microtastic prod",
-    "lint": "eslint ."
+    "build": "microtastic prod"
   },
   "dependencies": {
     "cannon-es": "^0.20.0",
