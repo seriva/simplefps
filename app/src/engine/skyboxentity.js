@@ -7,34 +7,48 @@ import { skybox } from './shapes.js';
 import Resources from './resources.js';
 
 class SkyboxEntity extends Entity {
+    static FACE_NAMES = ['front', 'back', 'top', 'bottom', 'right', 'left'];
+    static shape = skybox;
+
     constructor(id, updateCallback) {
         super([0, 0, 0], updateCallback);
         this.type = EntityTypes.SKYBOX;
-        this.skybox = skybox;
-        this.skybox.resources = Resources;
-        this.skybox.indices.forEach((index, i) => {
-            index.material = `mat_skybox_${id}_${['front', 'back', 'top', 'bottom', 'right', 'left'][i]}`;
+        this.shader = Shaders.geometry;
+        
+        // Initialize shape resources once
+        if (!SkyboxEntity.shape.resources) {
+            SkyboxEntity.shape.resources = Resources;
+        }
+        
+        // Set material names
+        SkyboxEntity.shape.indices.forEach((index, i) => {
+            index.material = `mat_skybox_${id}_${SkyboxEntity.FACE_NAMES[i]}`;
         });
     }
 
     render() {
-        const depthTest = gl.getParameter(gl.DEPTH_TEST);
+        // Cache gl state
+        const depthTest = gl.isEnabled(gl.DEPTH_TEST);
         const depthMask = gl.getParameter(gl.DEPTH_WRITEMASK);
 
+        // Disable depth operations
         gl.disable(gl.DEPTH_TEST);
         gl.depthMask(false);
 
+        // Optimize matrix operation by translating directly
         mat4.translate(this.base_matrix, this.ani_matrix, Camera.position);
 
-        const shader = Shaders.geometry;
-        shader.setMat4('matWorld', this.base_matrix);
-        shader.setMat4('matViewProj', Camera.viewProjection);
+        // Set shader uniforms
+        this.shader.setMat4('matWorld', this.base_matrix);
+        this.shader.setMat4('matViewProj', Camera.viewProjection);
 
-        this.skybox.renderSingle();
+        // Render
+        SkyboxEntity.shape.renderSingle();
 
+        // Restore gl state
         if (depthTest) gl.enable(gl.DEPTH_TEST);
         if (depthMask) gl.depthMask(true);
     }
 }
 
-export { SkyboxEntity as default };
+export default SkyboxEntity;

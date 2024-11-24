@@ -123,17 +123,14 @@ const load = async (name) => {
 
     const response = await Utils.fetch(`${window.location}resources/maps/${name}`);
     const world = JSON.parse(response);
-    Loading.update(0, 2);
 
     Scene.setAmbient(world.ambient);
     spawnPoint = world.spawnpoint;
     skybox = world.skybox;
     data = world.data;
     pickups = world.pickups;
-    Loading.update(1, 2);
 
     createSceneFromMapData();
-    Loading.update(2, 2);
     Loading.toggle(false);
     Console.log(`Loaded: ${name}`);
 };

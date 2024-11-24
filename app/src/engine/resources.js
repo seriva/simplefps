@@ -6,90 +6,79 @@ import Utils from './utils.js';
 import Material from './material.js';
 import Sound from './sound.js';
 
-let paths = [];
-let startTime;
-const resources = {};
+// Constants
+const RESOURCE_TYPES = {
+    webp: (data) => new Texture({ data }),
+    mesh: (data, context) => new Mesh(JSON.parse(data), context),
+    mat: (data, context) => {
+        const matData = JSON.parse(data);
+        // Create materials and store them directly
+        let firstMaterial = null;
+        
+        for (const mat of matData.materials) {
+            const material = new Material(mat, context);
+            resources.set(mat.name, material);
+            if (!firstMaterial) firstMaterial = material;
+        }
+
+        return firstMaterial; // Return first material so resources.set() works
+    },
+    sfx: (data) => new Sound(JSON.parse(data)),
+    list: (data, context) => Resources.load(JSON.parse(data).resources)
+};
+
+const resources = new Map();
 const basepath = 'resources/';
-const re = /(?:\.([^.]+))?$/;
+const fileExtRegex = /(?:\.([^.]+))?$/;
 
 const Resources = {
-    load(p) {
-        const l = paths.length;
-        paths = paths.concat(p);
-        if (l !== 0) {
-            return null;
-        }
+    async load(paths) {
+        if (!Array.isArray(paths)) return null;
+        if (!paths.length) return Promise.resolve();
+
+        const startTime = performance.now();
         Loading.toggle(true);
-        Loading.update(0, paths.length);
-        return new Promise((resolve) => {
-            let counter = 0;
-            startTime = new Date().getTime();
-            Loading.toggle(true);
-            Loading.update(0, paths.length);
 
-            const loadNext = async () => {
-                const path = paths[counter];
+        try {
+            // Create load promises for all resources
+            const loadPromises = paths.map(async path => {
+                if (resources.has(path)) return;
+
                 const fullpath = basepath + path;
-                const ext = re.exec(path)[1];
+                const ext = fileExtRegex.exec(path)[1];
+                const resourceHandler = RESOURCE_TYPES[ext];
 
-                try {
-                    if (!resources[path]) {
+                if (resourceHandler) {
+                    try {
                         const response = await Utils.fetch(fullpath);
-                        switch (ext) {
-                        case 'webp':
-                            resources[path] = new Texture({ data: response });
-                            break;
-                        case 'mesh':
-                            resources[path] = new Mesh(JSON.parse(response), this);
-                            break;
-                        case 'mat': {
-                            JSON.parse(response).materials.forEach((data) => {
-                                resources[data.name] = new Material(data, this);
-                            });
-                            break;
-                        }
-                        case 'sfx': {
-                            resources[path] = new Sound(JSON.parse(response));
-                            break;
-                        }
-                        case 'list': {
-                            Resources.load(JSON.parse(response).resources);
-                            break;
-                        }
-                        default:
-                            break;
-                        }
-
+                        const result = await Promise.resolve(resourceHandler(response, this));
+                        if (result) resources.set(path, result);
                         Console.log(`Loaded: ${path}`);
+                    } catch (err) {
+                        Console.error(`Error loading ${path}: ${err}`);
+                        throw err;
                     }
-                    counter++;
-                    Loading.update(counter, paths.length);
-                    if (counter === paths.length) {
-                        Loading.toggle(false);
-                        paths = [];
-                        const ms = new Date().getTime() - startTime;
-                        Console.log(`Loaded resources in ${ms} ms`);
-                        resolve();
-                    } else {
-                        loadNext();
-                    }
-                } catch (err) {
-                    Console.error(`Error loading ${path}: ${err}`);
                 }
-            };
+            });
 
-            loadNext();
-        });
+            // Wait for all resources to load in parallel
+            await Promise.all(loadPromises);
+
+        } finally {
+            Loading.toggle(false);
+            const loadTime = performance.now() - startTime;
+            Console.log(`Loaded resources in ${Math.round(loadTime)} ms`);
+        }
     },
 
     get(key) {
-        const resource = resources[key];
-        if (resource) {
-            return resource;
+        const resource = resources.get(key);
+        if (!resource) {
+            Console.error(`Resource "${key}" does not exist`);
+            return null;
         }
-        Console.error(`Resource "${key}" does not exist`);
-        return null;
+        return resource;
     }
 };
 
-export { Resources as default };
+export default Resources;

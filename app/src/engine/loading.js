@@ -32,24 +32,6 @@ DOM.css({
         marginLeft: LOGO_OFFSET,
         content: 'url(resources/logo.svg)',
         zIndex: ZINDEX_BASE + 2
-    },
-
-    '#loading-bar-background': {
-        position: 'fixed',
-        width: '60%',
-        height: '15px',
-        padding: '2px',
-        top: '80%',
-        left: '50%',
-        marginLeft: '-30%',
-        border: '2px solid white',
-        zIndex: ZINDEX_BASE + 2
-    },
-
-    '#loading-bar': {
-        width: '0%',
-        height: '100%',
-        background: '#FFF'
     }
 });
 
@@ -77,12 +59,7 @@ const bar = DOM.h('div#loading-bar');
 const renderLoading = () => DOM.h(
     'div#loading',
     state.isVisible ? [
-        DOM.h('div#loading-logo', {
-            enterAnimation: (domElement) => {
-                DOM.animate(domElement, SPIN_ANIMATION.transform, SPIN_ANIMATION.options);
-            }
-        }),
-        DOM.h('div#loading-bar-background', [bar]),
+        DOM.h('div#loading-logo'),
         DOM.h('div#loading-background')
     ] : []
 );
@@ -98,15 +75,6 @@ const Loading = {
 
         DOM.update();
     },
-
-    update(step, max) {
-        if (!bar.domNode) return;
-
-        // Ensure valid numbers and prevent division by zero
-        const progress = max > 0 ? Math.min(Math.max((step * 100) / max, 0), 100) : 0;
-        bar.domNode.style.width = `${Math.round(progress)}%`;
-        DOM.update();
-    }
 };
 
 export default Loading;
