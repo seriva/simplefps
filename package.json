@@ -10,6 +10,7 @@
   },
   "scripts": {
     "prepare": "microtastic prep",
+    "dependencies": "microtastic prep",
     "dev": "microtastic dev",
     "build": "microtastic prod"
   },
@@ -24,7 +25,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "1.9.4",
-    "microtastic": "^0.0.33",
+    "microtastic": "^0.0.36",
     "pretty-json-stringify": "^0.0.2"
   }
 }

@@ -69,7 +69,7 @@ const createSceneFromMapData = () => {
 			const block = data[i][j];
 			let entity = null;
 			switch (block) {
-				case 1:
+				case 1: {
 					if (i + 1 < outer && data[i + 1][j] > 1) {
 						entity = new MeshEntity(
 							[i * cellSize + 1.505, 0, j * cellSize],
@@ -183,6 +183,7 @@ const createSceneFromMapData = () => {
 					wallBody.position.set(i * cellSize, 2.2, j * cellSize);
 					Physics.addBody(wallBody);
 					break;
+				}
 				case 2:
 					Scene.addEntities(
 						new MeshEntity([i * cellSize, 0, j * cellSize], meshMap.get(2)),
