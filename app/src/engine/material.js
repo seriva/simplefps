@@ -16,9 +16,9 @@ class Material {
 		this.doSEM = data.doSEM || 0;
 		this.semMult = data.semMult || 0;
 
-		this.textures
-			.filter((name) => name !== "none")
-			.forEach((name) => resources.load(name));
+		for (const name of this.textures.filter(name => name !== "none")) {
+			resources.load(name);
+		}
 	}
 
 	bind() {
@@ -32,18 +32,22 @@ class Material {
 		shader.setInt("doSEM", this.doSEM);
 		shader.setFloat("semMult", this.semMult);
 
-		this.textures.forEach((name, index) => {
-			if (name === "none") return;
+		let index = 0;
+		for (const name of this.textures) {
+			if (name === "none") continue;
 			const textureUnit = gl.TEXTURE0 + index;
 			this.resources.get(name).bind(textureUnit);
-		});
+			index++;
+		}
 	}
 
 	unBind() {
-		this.textures.forEach((name, index) => {
-			if (name === "none") return;
+		let index = 0;
+		for (const name of this.textures) {
+			if (name === "none") continue;
 			Texture.unBind(gl.TEXTURE0 + index);
-		});
+			index++;
+		}
 	}
 }
 

@@ -226,7 +226,7 @@ const createSceneFromMapData = () => {
 	}
 
 	// add dynamic map entities
-	pickups.forEach((pickup) => {
+	for (const pickup of pickups) {
 		Scene.addEntities(
 			Pickup.createPickup(
 				[(pickup[0] - 1) * cellSize, 0.6, (pickup[1] - 1) * cellSize],
@@ -234,7 +234,7 @@ const createSceneFromMapData = () => {
 				meshMap.get(pickup[2]),
 			),
 		);
-	});
+	}
 };
 
 const load = async (name) => {

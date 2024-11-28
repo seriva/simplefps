@@ -75,7 +75,11 @@ const updateCommand = (evt) => {
 };
 
 const toggle = (show) => {
-	show === undefined ? (visible = !visible) : (visible = show);
+	if (show === undefined) {
+		visible = !visible;
+	} else {
+		visible = show;
+	}
 };
 
 DOM.append(() =>
@@ -162,34 +166,34 @@ const convertValue = (type, value) => {
 };
 
 const deepTest = (s) => {
-	s = s.split(".");
-	let obj = window[s.shift()];
-	while (obj && s.length) obj = obj[s.shift()];
+	const s_split = s.split(".");
+	let obj = window[s_split.shift()];
+	while (obj && s_split.length) obj = obj[s_split.shift()];
 	return obj;
 };
 
 const setDeepValue = (obj, path, value) => {
 	if (typeof path === "string") {
-		path = path.split(".");
+		const path_split = path.split(".");
 	}
 
 	if (path.length > 1) {
-		const p = path.shift();
-		setDeepValue(obj[p], path, value);
+		const p = path_split.shift();
+		setDeepValue(obj[p], path_split, value);
 	} else {
-		obj[path[0]] = convertValue(typeof obj[path[0]], value);
+		obj[path_split[0]] = convertValue(typeof obj[path_split[0]], value);
 	}
 };
 
 const executeDeepFunction = (obj, path, params) => {
 	if (typeof path === "string") {
-		path = path.split(".");
+		const path_split = path.split(".");
 	}
 
 	if (path.length > 1) {
-		const p = path.shift();
-		executeDeepFunction(obj[p], path, params);
-	} else if (typeof obj[path[0]] === "function") obj[path[0]](...params);
+		const p = path_split.shift();
+		executeDeepFunction(obj[p], path_split, params);
+	} else if (typeof obj[path_split[0]] === "function") obj[path_split[0]](...params);
 	else throw new Error("Parsing of function failed");
 };
 

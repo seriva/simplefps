@@ -63,7 +63,11 @@ DOM.append(() =>
 );
 
 const toggle = (show) => {
-	show === undefined ? (visible = !visible) : (visible = show);
+	if (show === undefined) {
+		visible = !visible;
+	} else {
+		visible = show;
+	}
 };
 
 const HUD = {

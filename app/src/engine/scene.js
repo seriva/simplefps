@@ -47,7 +47,9 @@ const setupGeometryShader = () => {
 // Combine common render patterns
 const renderEntities = (entityType, renderMethod = "render") => {
 	const targetEntities = getEntities(entityType);
-	targetEntities.forEach((entity) => entity[renderMethod]());
+	for (const entity of targetEntities) {
+		entity[renderMethod]();
+	}
 };
 
 const renderWorldGeometry = () => {
@@ -108,9 +110,9 @@ const pause = (doPause) => {
 const update = (frameTime) => {
 	if (pauseUpdate) return;
 	Physics.update();
-	entities.forEach((entity) => {
+	for (const entity of entities) {
 		entity.update(frameTime);
-	});
+	}
 };
 
 const renderShadows = () => {
@@ -119,9 +121,9 @@ const renderShadows = () => {
 	Shaders.entityShadows.setVec3("ambient", ambient);
 
 	const meshEntities = getEntities(EntityTypes.MESH);
-	meshEntities.forEach((entity) => {
+	for (const entity of meshEntities) {
 		entity.renderShadow();
-	});
+	}
 
 	Shader.unBind();
 };
@@ -134,9 +136,9 @@ const renderFPSGeometry = () => {
 	Shaders.geometry.setMat4("matWorld", matModel);
 
 	const fpsMeshEntities = getEntities(EntityTypes.FPS_MESH);
-	fpsMeshEntities.forEach((entity) => {
+	for (const entity of fpsMeshEntities) {
 		entity.render();
-	});
+	}
 
 	Shader.unBind();
 };

@@ -33,13 +33,13 @@ class Mesh {
 		this.hasUVs = this.uvs.length > 0;
 		this.hasNormals = this.normals.length > 0;
 
-		this.indices.forEach((indexObj) => {
+		for (const indexObj of this.indices) {
 			indexObj.indexBuffer = Mesh.buildBuffer(
 				gl.ELEMENT_ARRAY_BUFFER,
 				indexObj.array,
 				1,
 			);
-		});
+		}
 		this.vertexBuffer = Mesh.buildBuffer(gl.ARRAY_BUFFER, this.vertices, 3);
 
 		if (this.hasUVs) {
@@ -51,7 +51,9 @@ class Mesh {
 	}
 
 	deleteMeshBuffers() {
-		this.indices.forEach((indexObj) => gl.deleteBuffer(indexObj.indexBuffer));
+		for (const indexObj of this.indices) {
+			gl.deleteBuffer(indexObj.indexBuffer);
+		}
 		gl.deleteBuffer(this.vertexBuffer);
 		if (this.hasUVs) gl.deleteBuffer(this.uvBuffer);
 		if (this.hasNormals) gl.deleteBuffer(this.normalBuffer);
@@ -118,7 +120,7 @@ class Mesh {
 
 	// Private helper methods
 	renderIndices(applyMaterial) {
-		this.indices.forEach((indexObj) => {
+		for (const indexObj of this.indices) {
 			this.bindMaterial(indexObj, applyMaterial);
 			gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexObj.indexBuffer);
 			gl.drawElements(
@@ -127,11 +129,11 @@ class Mesh {
 				gl.UNSIGNED_SHORT,
 				0,
 			);
-		});
+		}
 	}
 
 	renderIndicesInstanced(count, applyMaterial) {
-		this.indices.forEach((indexObj) => {
+		for (const indexObj of this.indices) {
 			this.bindMaterial(indexObj, applyMaterial);
 			gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexObj.indexBuffer);
 			gl.drawElementsInstanced(
@@ -141,7 +143,7 @@ class Mesh {
 				0,
 				count,
 			);
-		});
+		}
 	}
 
 	bindMaterial(indexObj, applyMaterial) {

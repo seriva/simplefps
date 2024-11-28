@@ -6,7 +6,11 @@ let State = "MENU";
 
 let doBlur = false;
 const blurGameCanvas = (blur) => {
-	blur === undefined ? (doBlur = !doBlur) : (doBlur = blur);
+	if (blur === undefined) {
+		doBlur = !doBlur;
+	} else {
+		doBlur = blur;
+	}
 	if (doBlur) {
 		DOM.animate(
 			Context.canvas.domNode,

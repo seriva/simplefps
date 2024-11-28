@@ -27,9 +27,9 @@ const setIsMoving = (value) => {
 };
 
 const hideAll = () => {
-	weaponList.forEach((entity) => {
+	for (const entity of weaponList) {
 		entity.visible = false;
-	});
+	}
 };
 
 const selectNext = () => {
@@ -55,9 +55,9 @@ const updateGrenade = (entity) => {
 		[q.x, q.y, q.z, q.w],
 		[p.x, p.y, p.z],
 	);
-	entity.children.forEach((e) => {
+	for (const e of entity.children) {
 		mat4.fromTranslation(e.ani_matrix, [p.x, p.y, p.z]);
-	});
+	}
 };
 const shootGrenade = () => {
 	if (firing) return;

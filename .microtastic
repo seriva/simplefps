@@ -1,5 +1,5 @@
 {
     "genServiceWorker": true,
     "minifyBuild": true,
-    "serverPort": 8182
+    "serverPort": 8181
 }

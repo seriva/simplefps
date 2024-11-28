@@ -360,9 +360,11 @@ const Input = {
 
 	toggleCursor(show) {
 		if (Utils.isMobile()) return;
-		show === undefined
-			? (visibleCursor = !visibleCursor)
-			: (visibleCursor = show);
+		if (show === undefined) {
+			visibleCursor = !visibleCursor;
+		} else {
+			visibleCursor = show;
+		}
 		if (visibleCursor) {
 			document.exitPointerLock();
 		} else {
@@ -372,9 +374,11 @@ const Input = {
 
 	toggleVirtualInput(show) {
 		if (!Utils.isMobile()) return;
-		show === undefined
-			? (virtualInputVisible = !virtualInputVisible)
-			: (virtualInputVisible = show);
+		if (show === undefined) {
+			virtualInputVisible = !virtualInputVisible;
+		} else {
+			virtualInputVisible = show;
+		}
 		if (virtualInputVisible && gamepad === false) {
 			input.domNode.style.visibility = "visible";
 		} else {

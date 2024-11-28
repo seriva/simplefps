@@ -12,7 +12,8 @@
     "prepare": "microtastic prep",
     "dependencies": "microtastic prep",
     "dev": "microtastic dev",
-    "build": "microtastic prod"
+    "prod": "npm run lint && microtastic prod",
+    "lint": "biome lint"
   },
   "dependencies": {
     "cannon-es": "^0.20.0",

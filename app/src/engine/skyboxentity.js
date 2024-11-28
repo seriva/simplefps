@@ -21,9 +21,9 @@ class SkyboxEntity extends Entity {
 		}
 
 		// Set material names
-		SkyboxEntity.shape.indices.forEach((index, i) => {
+		for (const [i, index] of SkyboxEntity.shape.indices.entries()) {
 			index.material = `mat_skybox_${id}_${SkyboxEntity.FACE_NAMES[i]}`;
-		});
+		}
 	}
 
 	render() {

@@ -10,10 +10,10 @@ const updatePickup = (entity, frameTime) => {
 		Math.cos(Math.PI * (entity.animationTime / 1000)) * 0.1,
 		0,
 	]);
-	entity.children.forEach((e) => {
+	for (const e of entity.children) {
 		mat4.copy(e.ani_matrix, entity.ani_matrix);
 		mat4.translate(e.ani_matrix, e.ani_matrix, [0, 0.25, 0]);
-	});
+	}
 };
 const createPickup = (pos, type, mesh) => {
 	const pickup = new MeshEntity(pos, mesh, updatePickup, 2);

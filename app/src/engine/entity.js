@@ -30,12 +30,12 @@ class Entity {
 
 	getChildren(type) {
 		let selection = [];
-		this.children.forEach((entity) => {
+		for (const entity of this.children) {
 			if (entity.type === type) {
 				selection.push(entity);
 			}
 			selection = selection.concat(entity.getChildren(type));
-		});
+		}
 		return selection;
 	}
 
@@ -50,9 +50,9 @@ class Entity {
 		}
 
 		// update entity children
-		this.children.forEach((entity) => {
+		for (const entity of this.children) {
 			entity.update(frametime);
-		});
+		}
 	}
 }
 
