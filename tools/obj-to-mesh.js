@@ -1,113 +1,139 @@
 #!/usr/bin/env node
-const fs = require('fs');
-const path = require('path');
-const prettyJSONStringify = require('pretty-json-stringify');
+import fs from 'fs';
+import path from 'path';
+import prettyJSONStringify from 'pretty-json-stringify';
 
-try {
-    if (!process.argv[2]) {
+const PATTERNS = Object.freeze({
+    VERTEX: /^v\s/,
+    NORMAL: /^vn\s/,
+    TEXTURE: /^vt\s/,
+    FACE: /^f\s/,
+    MATERIAL: /^usemtl\s/,
+    WHITESPACE: /\s+/
+});
+
+// Pre-compile test functions for better performance
+const testPatterns = Object.fromEntries(
+    Object.entries(PATTERNS).map(([key, regex]) => [key, line => regex.test(line)])
+);
+
+// Use TypedArrays for better memory efficiency and performance
+const createBuffer = size => new Float32Array(size);
+
+const processFaceElement = (element, unpacked, vertices, uvs, normals, curIndexArray) => {
+    if (element in unpacked.hashindices) {
+        unpacked.indices[curIndexArray].array.push(unpacked.hashindices[element]);
+        return;
+    }
+
+    const [vertexIndex, uvIndex, normalIndex] = element.split('/').map(n => n | 0); // Faster than Number()
+    const vertexOffset = (vertexIndex - 1) * 3;
+    const uvOffset = (uvIndex - 1) * 2;
+    const normalOffset = (normalIndex - 1) * 3;
+
+    // Unroll loops for better performance
+    unpacked.vertices[unpacked.vertexCount++] = vertices[vertexOffset];
+    unpacked.vertices[unpacked.vertexCount++] = vertices[vertexOffset + 1];
+    unpacked.vertices[unpacked.vertexCount++] = vertices[vertexOffset + 2];
+
+    if (uvs.length) {
+        unpacked.uvs[unpacked.uvCount++] = uvs[uvOffset];
+        unpacked.uvs[unpacked.uvCount++] = uvs[uvOffset + 1];
+    }
+
+    unpacked.normals[unpacked.normalCount++] = normals[normalOffset];
+    unpacked.normals[unpacked.normalCount++] = normals[normalOffset + 1];
+    unpacked.normals[unpacked.normalCount++] = normals[normalOffset + 2];
+
+    unpacked.hashindices[element] = unpacked.index;
+    unpacked.indices[curIndexArray].array.push(unpacked.index);
+    unpacked.index += 1;
+};
+
+const convertObjToMesh = () => {
+    const [,, input] = process.argv;
+
+    if (!input) {
         throw new Error('Invalid input parameter');
     }
 
-    const input = process.argv[2];
     console.log('Input: ', input);
-
     const output = `${path.basename(input, '.obj')}.mesh`;
     console.log('Output: ', output);
 
-    const VERTEX_RE = /^v\s/;
-    const NORMAL_RE = /^vn\s/;
-    const TEXTURE_RE = /^vt\s/;
-    const FACE_RE = /^f\s/;
-    const MAT_RE = /^usemtl\s/;
-    const WHITESPACE_RE = /\s+/;
+    // Read file content at once and split into lines
+    const data = fs.readFileSync(input, 'utf8').split('\n');
 
-    const vertices = [];
-    const normals = [];
-    const uvs = [];
+    // Pre-allocate arrays based on file size for better memory efficiency
+    const estimatedSize = Math.ceil(data.length * 0.4); // Rough estimate
+    const vertices = createBuffer(estimatedSize * 3);
+    const normals = createBuffer(estimatedSize * 3);
+    const uvs = createBuffer(estimatedSize * 2);
+
     const unpacked = {
-        vertices: [],
-        normals: [],
-        uvs: [],
-        hashindices: {},
+        vertices: createBuffer(estimatedSize * 3),
+        normals: createBuffer(estimatedSize * 3),
+        uvs: createBuffer(estimatedSize * 2),
+        vertexCount: 0,
+        normalCount: 0,
+        uvCount: 0,
+        hashindices: Object.create(null), // Faster than regular object
         indices: [],
         index: 0
     };
-    let curIndexArray = 0;
 
-    const data = fs.readFileSync(input).toString().split('\n');
-    data.forEach((line) => {
-        const elements = line.split(WHITESPACE_RE);
+    let curIndexArray = 0;
+    let vertexCount = 0;
+    let normalCount = 0;
+    let uvCount = 0;
+
+    // Process lines
+    for (const line of data) {
+        if (!line.trim()) continue;
+
+        const elements = line.split(PATTERNS.WHITESPACE);
+        const firstChar = elements[0];
         elements.shift();
 
-        if (VERTEX_RE.test(line)) {
-            vertices.push.apply(vertices, elements);
-        } else if (MAT_RE.test(line)) {
-            const material = line.split(' ')[1];
-            unpacked.indices.push({
-                material,
-                array: []
-            });
+        if (firstChar === 'v') {
+            vertices[vertexCount++] = +elements[0];
+            vertices[vertexCount++] = +elements[1];
+            vertices[vertexCount++] = +elements[2];
+        } else if (firstChar === 'vn') {
+            normals[normalCount++] = +elements[0];
+            normals[normalCount++] = +elements[1];
+            normals[normalCount++] = +elements[2];
+        } else if (firstChar === 'vt') {
+            uvs[uvCount++] = +elements[0];
+            uvs[uvCount++] = +elements[1];
+        } else if (firstChar === 'f') {
+            elements.forEach(element =>
+                processFaceElement(element, unpacked, vertices, uvs, normals, curIndexArray)
+            );
+        } else if (testPatterns.MATERIAL(line)) {
+            const [, material] = line.split(' ');
+            unpacked.indices.push({ material, array: [] });
             curIndexArray = unpacked.indices.length - 1;
-        } else if (NORMAL_RE.test(line)) {
-            normals.push.apply(normals, elements);
-        } else if (TEXTURE_RE.test(line)) {
-            uvs.push.apply(uvs, elements);
-        } else if (FACE_RE.test(line)) {
-            for (let j = 0, eleLen = elements.length; j < eleLen; j++) {
-                if (elements[j] in unpacked.hashindices) {
-                    unpacked.indices[curIndexArray].array.push(
-                        unpacked.hashindices[elements[j]]
-                    );
-                } else {
-                    const vertex = elements[j].split('/');
-                    // vertex position
-                    unpacked.vertices.push(+vertices[(vertex[0] - 1) * 3 + 0]);
-                    unpacked.vertices.push(+vertices[(vertex[0] - 1) * 3 + 1]);
-                    unpacked.vertices.push(+vertices[(vertex[0] - 1) * 3 + 2]);
-                    // vertex textures
-                    if (uvs.length) {
-                        unpacked.uvs.push(+uvs[(vertex[1] - 1) * 2 + 0]);
-                        unpacked.uvs.push(+uvs[(vertex[1] - 1) * 2 + 1]);
-                    }
-                    // vertex normals
-                    unpacked.normals.push(+normals[(vertex[2] - 1) * 3 + 0]);
-                    unpacked.normals.push(+normals[(vertex[2] - 1) * 3 + 1]);
-                    unpacked.normals.push(+normals[(vertex[2] - 1) * 3 + 2]);
-                    // add the newly created vertex to the list of indices
-                    unpacked.hashindices[elements[j]] = unpacked.index;
-                    unpacked.indices[curIndexArray].array.push(unpacked.index);
-                    // increment the counter
-                    unpacked.index += 1;
-                }
-            }
         }
-    });
+    }
 
+    // Trim arrays to actual size
     const mesh = {
         indices: unpacked.indices,
-        vertices: unpacked.vertices,
-        uvs: [],
-        normals: []
+        vertices: Array.from(unpacked.vertices.slice(0, unpacked.vertexCount)),
+        uvs: uvCount ? Array.from(unpacked.uvs.slice(0, unpacked.uvCount)) : [],
+        normals: normalCount ? Array.from(unpacked.normals.slice(0, unpacked.normalCount)) : []
     };
-
-    if (unpacked.uvs.length > 0) {
-        mesh.uvs = unpacked.uvs;
-    }
-    if (unpacked.normals.length > 0) {
-        mesh.normals = unpacked.normals;
-    }
 
     fs.writeFileSync(output, prettyJSONStringify(mesh, {
         spaceAfterComma: '',
-        shouldExpand: (object, level, key) => {
-            if (key === 'indices') return true;
-            if (key === 'array') return false;
-            if (key === 'vertices') return false;
-            if (key === 'uvs') return false;
-            if (key === 'normals') return false;
-            return true;
-        }
+        shouldExpand: (object, level, key) =>
+            key === 'indices' || (!['array', 'vertices', 'uvs', 'normals'].includes(key))
     }));
-} catch (e) {
-    console.error(e);
+};
+
+try {
+    convertObjToMesh();
+} catch (error) {
+    console.error(error);
 }

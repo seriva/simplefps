@@ -10,10 +10,11 @@ import Utils from "./utils.js";
 
 let depth = null;
 
-const BlurSourceType = {
+const BlurSourceType = Object.freeze({
+	SHADOW: 0,
 	LIGHTING: 1,
 	EMISSIVE: 2,
-};
+});
 
 const g = {
 	framebuffer: null,

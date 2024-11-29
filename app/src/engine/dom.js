@@ -26,4 +26,4 @@ const DOM = {
 	},
 };
 
-export { DOM as default };
+export default DOM;

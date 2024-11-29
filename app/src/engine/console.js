@@ -173,11 +173,9 @@ const deepTest = (s) => {
 };
 
 const setDeepValue = (obj, path, value) => {
-	if (typeof path === "string") {
-		const path_split = path.split(".");
-	}
+	const path_split = typeof path === "string" ? path.split(".") : path;
 
-	if (path.length > 1) {
+	if (path_split.length > 1) {
 		const p = path_split.shift();
 		setDeepValue(obj[p], path_split, value);
 	} else {
@@ -186,15 +184,16 @@ const setDeepValue = (obj, path, value) => {
 };
 
 const executeDeepFunction = (obj, path, params) => {
-	if (typeof path === "string") {
-		const path_split = path.split(".");
-	}
+	const path_split = typeof path === "string" ? path.split(".") : path;
 
-	if (path.length > 1) {
+	if (path_split.length > 1) {
 		const p = path_split.shift();
 		executeDeepFunction(obj[p], path_split, params);
-	} else if (typeof obj[path_split[0]] === "function") obj[path_split[0]](...params);
-	else throw new Error("Parsing of function failed");
+	} else if (typeof obj[path_split[0]] === "function") {
+		obj[path_split[0]](...params);
+	} else {
+		throw new Error("Parsing of function failed");
+	}
 };
 
 const Console = {

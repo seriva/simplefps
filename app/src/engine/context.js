@@ -16,6 +16,37 @@ DOM.css({
 const canvas = DOM.h("canvas#context");
 DOM.append(() => canvas);
 
+const REQUIRED_EXTENSIONS = {
+	EXT_color_buffer_float: 'EXT_color_buffer_float',
+};
+
+const OPTIONAL_EXTENSIONS = {
+	anisotropic: [
+		'EXT_texture_filter_anisotropic',
+		'MOZ_EXT_texture_filter_anisotropic',
+		'WEBKIT_EXT_texture_filter_anisotropic'
+	]
+};
+
+const checkWebGLCapabilities = (gl) => {
+	// Check required extensions
+	for (const [key, ext] of Object.entries(REQUIRED_EXTENSIONS)) {
+		const extension = gl.getExtension(ext);
+		if (!extension) {
+			Console.error(`Required WebGL extension ${ext} is not supported`);
+		}
+		gl[key] = extension;
+	}
+
+	// Check optional extensions
+	const afExt = OPTIONAL_EXTENSIONS.anisotropic.reduce((ext, name) =>
+		ext || gl.getExtension(name), null);
+
+	return { afExt };
+};
+
+let afExt = null;
+
 const gl = canvas.domNode.getContext("webgl2", {
 	premultipliedAlpha: false,
 	antialias: false,
@@ -23,44 +54,45 @@ const gl = canvas.domNode.getContext("webgl2", {
 if (!gl) {
 	Console.error("Failed to initialize WebGL 2.0 context");
 }
-if (!gl.getExtension("EXT_color_buffer_float")) {
-	Console.error(" Extension EXT_color_buffer_float is required to run");
+
+try {
+	const capabilities = checkWebGLCapabilities(gl);
+	afExt = capabilities.afExt;
+
+	// Initialize WebGL state
+	gl.clearColor(0.0, 0.0, 0.0, 1.0);
+	gl.clearDepth(1.0);
+
+	// Enable depth testing
+	gl.enable(gl.DEPTH_TEST);
+	gl.depthFunc(gl.LEQUAL);
+
+	// Enable face culling
+	gl.enable(gl.CULL_FACE);
+	gl.cullFace(gl.BACK);
+
+	// Log context information
+	Console.log("Initialized context");
+	Console.log(`Renderer: ${gl.getParameter(gl.RENDERER)}`);
+	Console.log(`Vendor: ${gl.getParameter(gl.VENDOR)}`);
+	Console.log(`WebGL version: ${gl.getParameter(gl.VERSION)}`);
+	Console.log(`GLSL version: ${gl.getParameter(gl.SHADING_LANGUAGE_VERSION)}`);
+	Console.log(
+		`Max anisotropic filtering: ${afExt ? gl.getParameter(afExt.MAX_TEXTURE_MAX_ANISOTROPY_EXT) : "Not supported"}`,
+	);
+} catch (error) {
+	Console.error(`WebGL initialization failed: ${error.message}`);
 }
 
-const afExt =
-	gl.getExtension("EXT_texture_filter_anisotropic") ||
-	gl.getExtension("MOZ_EXT_texture_filter_anisotropic") ||
-	gl.getExtension("WEBKIT_EXT_texture_filter_anisotropic");
-if (!afExt) {
-	Console.warn("Extension EXT_texture_filter_anisotropic is not present");
-}
+const getDevicePixelRatio = () => window.devicePixelRatio || 1;
 
-gl.clearColor(0.0, 0.0, 0.0, 1.0);
-gl.clearDepth(1.0);
-gl.enable(gl.DEPTH_TEST);
-gl.cullFace(gl.BACK);
-gl.enable(gl.CULL_FACE);
-gl.depthFunc(gl.LEQUAL);
-
-Console.log("Initialized context");
-Console.log(`Renderer: ${gl.getParameter(gl.RENDERER)}`);
-Console.log(`Vendor: ${gl.getParameter(gl.VENDOR)}`);
-Console.log(`WebGL version: ${gl.getParameter(gl.VERSION)}`);
-Console.log(`GLSL version: ${gl.getParameter(gl.SHADING_LANGUAGE_VERSION)}`);
-Console.log(
-	`Max anisotropic filtering: ${afExt ? gl.getParameter(afExt.MAX_TEXTURE_MAX_ANISOTROPY_EXT) : "Not supported"}`,
+const width = () => Math.floor(
+	gl.canvas.clientWidth * getDevicePixelRatio() * Settings.renderScale
 );
 
-/* eslint-disable */
-const width = () =>
-	Math.floor(
-		gl.canvas.clientWidth * window.devicePixelRatio * Settings.renderScale,
-	);
-const height = () =>
-	Math.floor(
-		gl.canvas.clientHeight * window.devicePixelRatio * Settings.renderScale,
-	);
-/* eslint-enable */
+const height = () => Math.floor(
+	gl.canvas.clientHeight * getDevicePixelRatio() * Settings.renderScale
+);
 
 const aspectRatio = () => width() / height();
 

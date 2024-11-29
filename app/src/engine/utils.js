@@ -9,20 +9,20 @@ const Utils = {
 		);
 	},
 
-	async fetch(path) {
-		try {
-			const response = await fetch(path);
-			if (!response.ok)
-				throw new Error(`HTTP error! status: ${response.status}`);
-			if (path.includes("webp")) {
-				return await response.blob();
-			}
-			return await response.text();
-		} catch (error) {
-			console.error("Fetch error:", error);
-			throw error;
-		}
-	},
+    async fetch(path) {
+        const response = await fetch(path).catch(error => {
+            console.error("Fetch error:", error);
+            throw error;
+        });
+
+        if (!response?.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        return path.includes("webp")
+            ? await response.blob()
+            : await response.text();
+    },
 
 	dispatchEvent(event) {
 		window?.dispatchEvent(new Event(event));
