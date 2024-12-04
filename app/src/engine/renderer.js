@@ -67,7 +67,7 @@ const resize = (width, height) => {
 	// depth buffer
 	// **********************************
 	depth = new Texture({
-		format: gl.DEPTH_COMPONENT16,
+		format: gl.DEPTH_COMPONENT32F,
 		width,
 		height,
 	});

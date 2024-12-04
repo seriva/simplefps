@@ -1,0 +1,25 @@
+{
+    "skybox": 1,
+    "meshes": [
+        "maps/demo/1.mesh",
+        "maps/demo/2.mesh",
+        "maps/demo/3.mesh",
+        "maps/demo/4.mesh",
+        "maps/demo/5.mesh",
+        "maps/demo/6.mesh",
+        "maps/demo/7.mesh",
+        "maps/demo/8.mesh",
+        "maps/demo/9.mesh",
+        "maps/demo/10.mesh",
+        "maps/demo/11.mesh",
+        "maps/demo/12.mesh",
+        "maps/demo/13.mesh",
+        "maps/demo/14.mesh"
+    ],
+    "spawnpoint" : {
+        "position" : [43,6,-33],
+        "rotation" : [0,0,0]
+    },
+    "ambient" : [0.0475,0.0475,0.0675],    
+    "pickups": []
+}

@@ -10,7 +10,7 @@ import { Resources, Utils, loop } from "./engine/engine.js";
 	imp = await import("./game/weapons.js");
 	const Weapons = imp.default;
 
-	await World.load("test.map");
+	await World.load("demo");
 	Weapons.load();
 
 	Utils.dispatchCustomEvent("changestate", {

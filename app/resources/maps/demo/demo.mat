@@ -1,0 +1,20 @@
+{
+    "materials": [       
+        {
+            "name": "mat_demo_pallete",
+            "textures": [
+                "maps/demo/pallete.webp"
+            ],
+            "geomType": 1
+        },
+        {
+            "name": "mat_demo_pallete_emissive",
+            "textures": [
+                "maps/demo/pallete.webp",
+                "maps/demo/pallete.webp"
+            ],
+            "geomType": 3,
+            "doEmissive": 1  
+        } 
+    ]
+}
