@@ -273,8 +273,7 @@ const ShaderSources = {
         fragment: glsl`#version 300 es
             precision highp float;
 
-            struct DirectionalLight
-            {
+            struct DirectionalLight {
                 vec3 direction;
                 vec3 color;
             };
@@ -286,15 +285,18 @@ const ShaderSources = {
             uniform sampler2D positionBuffer;
             uniform sampler2D normalBuffer;
 
-            void main()
-            {
-                vec2 uv = vec2(gl_FragCoord.xy / viewportSize.xy);
-                vec4 norm = texture(normalBuffer, uv);
-                vec3 normSunDir = normalize(directionalLight.direction);
-                vec3 lightIntensity = vec3(1.0);
-                if (norm.w != 1.0){
-                    lightIntensity = directionalLight.color * max(dot(normalize(norm.xyz), normSunDir), 0.0);
-                }
+            void main() {
+                vec2 uv = gl_FragCoord.xy / viewportSize;
+                vec3 normal = texture(normalBuffer, uv).xyz;
+                float isSkybox = texture(normalBuffer, uv).w;
+
+                // Calculate light intensity only if not a skybox
+                vec3 lightIntensity = mix(
+                    directionalLight.color * max(dot(normalize(normal), normalize(directionalLight.direction)), 0.0),
+                    vec3(1.0),
+                    isSkybox
+                );
+
                 fragColor = vec4(lightIntensity, 1.0);
             }`,
     },
@@ -308,29 +310,28 @@ const ShaderSources = {
 
             uniform mat4 matWorld;
             uniform mat4 matViewProj;
-            uniform int  lightType;
+            uniform int lightType;
 
             flat out vec3 offsetPosition;
-            const int ENTITY_LIGHT = 1;
-            const int INSTANCED_LIGHT = 2;
 
             void main()
             {
-                mat4 newMatWorld = matWorld;
-                if (lightType == INSTANCED_LIGHT) {
-                    offsetPosition = aOffset;
-                    newMatWorld[3][0] = aOffset.x;
-                    newMatWorld[3][1] = aOffset.y;
-                    newMatWorld[3][2] = aOffset.z;
-                }
-                gl_Position = matViewProj * newMatWorld * vec4(aPosition, 1.0);
+                // Combine matrix operations to avoid creating temporary matrix
+                mat4 finalMatrix = matViewProj * matWorld;
+                
+                // Use direct vector addition instead of matrix manipulation for INSTANCED_LIGHT
+                vec4 position = vec4(aPosition + (lightType == 2 ? aOffset : vec3(0.0)), 1.0);
+                
+                // Pass through offset only when needed
+                offsetPosition = aOffset * float(lightType == 2);
+                
+                gl_Position = finalMatrix * position;
             }`,
         fragment: glsl`#version 300 es
             precision highp float;
             precision highp int;
 
-            struct PointLight
-            {
+            struct PointLight {
                 vec3 position;
                 vec3 color;
                 float size;
@@ -342,40 +343,40 @@ const ShaderSources = {
             flat in vec3 offsetPosition;
 
             uniform PointLight pointLight;
-            uniform int  lightType;
+            uniform int lightType;
             uniform sampler2D positionBuffer;
             uniform sampler2D normalBuffer;
 
             const int ENTITY_LIGHT = 1;
             const int INSTANCED_LIGHT = 2;
 
-            void main()
-            {
+            void main() {
+                // Use direct ivec2 construction instead of conversion
                 ivec2 fragCoord = ivec2(gl_FragCoord.xy);
                 vec3 position = texelFetch(positionBuffer, fragCoord, 0).xyz;
 
-                vec3 lightDir;
-                switch (lightType) {
-                case ENTITY_LIGHT:
-                    lightDir = pointLight.position - position;
-                    break;
-                case INSTANCED_LIGHT:
-                    lightDir = offsetPosition - position;
-                    break;
-                }
+                // Eliminate branch by using mix()
+                vec3 lightDir = mix(
+                    pointLight.position - position,  // ENTITY_LIGHT
+                    offsetPosition - position,       // INSTANCED_LIGHT
+                    float(lightType == INSTANCED_LIGHT)
+                );
 
-                float dist = length(lightDir);
-                if (dist > pointLight.size)
-                    discard;
+                // Early distance check using squared distance (avoid sqrt)
+                float distSq = dot(lightDir, lightDir);
+                float sizeSq = pointLight.size * pointLight.size;
+                if (distSq > sizeSq) discard;
 
+                // Normalize after the distance check
                 vec3 n = normalize(texelFetch(normalBuffer, fragCoord, 0).xyz);
-                vec3 l = normalize(lightDir);
+                vec3 l = inversesqrt(distSq) * lightDir;  // Normalized direction
 
-                vec3 lDir = lightDir/pointLight.size;
-                float atten = max(0.0, 1.0 - dot(lDir, lDir))*pointLight.intensity;
+                // Simplified attenuation calculation
+                float atten = (1.0 - distSq/sizeSq) * pointLight.intensity;
                 float nDotL = max(0.0, dot(n, l));
 
-                fragColor = vec4(pointLight.color * atten * nDotL, 1.0);
+                // Combined multiplication
+                fragColor = vec4(pointLight.color * (atten * nDotL), 1.0);
             }`,
     },
     gaussianBlur: {
