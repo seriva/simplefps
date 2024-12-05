@@ -8,13 +8,17 @@ class Mesh {
 
 	static ATTR_NORMALS = 2;
 
-	constructor(data, resources) {
-		this.resources = resources;
-		this.indices = data.indices;
-		this.vertices = data.vertices;
-		this.uvs = data.uvs?.length > 0 ? data.uvs : [];
-		this.normals = data.normals?.length > 0 ? data.normals : [];
-		this.initMeshBuffers();
+	constructor(data, context) {
+		this.resources = context;
+
+		if (data instanceof Blob) {
+			this.loadFromBlob(data).then(() => {
+				this.initMeshBuffers();
+			});
+		} else {
+			this.loadFromJson(data);
+			this.initMeshBuffers();
+		}
 	}
 
 	static buildBuffer(type, data, itemSize) {
@@ -150,6 +154,85 @@ class Mesh {
 		if (indexObj.material !== "none" && applyMaterial && this.resources) {
 			this.resources.get(indexObj.material).bind();
 		}
+	}
+
+	async loadFromBlob(blob) {
+		// Convert blob to ArrayBuffer
+		const arrayBuffer = await blob.arrayBuffer();
+		const bytes = new Uint8Array(arrayBuffer);
+		let offset = 0;
+
+		// Helper function to read uint32
+		const readUint32 = () => {
+			const value = bytes[offset] | 
+						 (bytes[offset + 1] << 8) | 
+						 (bytes[offset + 2] << 16) | 
+						 (bytes[offset + 3] << 24);
+			offset += 4;
+			return value;
+		};
+
+		// Helper function to read float32 array
+		const readFloat32Array = (count) => {
+			if (count === 0) return [];
+			const floatArray = Array.from(new Float32Array(
+				bytes.buffer,
+				bytes.byteOffset + offset,
+				count
+			));
+			offset += count * 4;
+			return floatArray;
+		};
+
+		// Read header
+		const version = readUint32();
+		const vertexCount = readUint32();
+		const uvCount = readUint32();
+		const normalCount = readUint32();
+		const indexGroupCount = readUint32();
+
+		// Read data
+		this.vertices = readFloat32Array(vertexCount);
+		this.uvs = readFloat32Array(uvCount);
+		this.normals = readFloat32Array(normalCount);
+
+		// Read index groups with materials
+		this.indices = [];
+		const MATERIAL_NAME_SIZE = 64;
+
+		for (let i = 0; i < indexGroupCount; i++) {
+			// Read material name
+			const materialNameBytes = bytes.slice(offset, offset + MATERIAL_NAME_SIZE);
+			let materialName = '';
+			for (let j = 0; j < MATERIAL_NAME_SIZE && materialNameBytes[j] !== 0; j++) {
+				materialName += String.fromCharCode(materialNameBytes[j]);
+			}
+			offset += MATERIAL_NAME_SIZE;
+
+			// Read indices
+			const indexCount = readUint32();
+			if (indexCount === 0) continue;
+
+			const indexArrayBuffer = bytes.buffer.slice(
+				bytes.byteOffset + offset,
+				bytes.byteOffset + offset + indexCount * 4
+			);
+			const indexArray = Array.from(new Uint32Array(indexArrayBuffer));
+			offset += indexCount * 4;
+
+			this.indices.push({
+				array: indexArray,
+				material: materialName || 'none'
+			});
+		}
+	}
+
+	loadFromJson(data) {
+		// Your existing JSON loading logic here
+		this.vertices = data.vertices;
+		this.uvs = data.uvs?.length > 0 ? data.uvs : [];
+		this.normals = data.normals?.length > 0 ? data.normals : [];
+		this.indices = data.indices;
 	}
 }
 
