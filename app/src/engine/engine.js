@@ -27,7 +27,7 @@ const loop = () => {
 	const frame = () => {
 		// timing
 		const now = performance.now();
-		frameTime = Math.min(now - (time || now), 1000/30); // Cap max frame time
+		frameTime = Math.min(now - (time || now), 1000/60); // Cap max frame time
 		time = now;
 
 		Stats.update();

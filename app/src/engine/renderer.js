@@ -67,7 +67,7 @@ const resize = (width, height) => {
 	// depth buffer
 	// **********************************
 	depth = new Texture({
-		format: gl.DEPTH_COMPONENT16,
+		format: gl.DEPTH_COMPONENT32F,
 		width,
 		height,
 	});
@@ -355,7 +355,7 @@ const lightingPass = () => {
 	Texture.unBind(gl.TEXTURE2);
 	gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
-	blurImage(BlurSourceType.LIGHTING, 3, 1.5);
+	blurImage(BlurSourceType.LIGHTING, 4, 0.2);
 };
 
 const emissiveBlurPass = () => {
@@ -369,38 +369,28 @@ const emissiveBlurPass = () => {
 const postProcessingPass = () => {
 	g.color.bind(gl.TEXTURE0);
 	l.light.bind(gl.TEXTURE1);
-	g.position.bind(gl.TEXTURE2);
-	g.normal.bind(gl.TEXTURE3);
-	g.emissive.bind(gl.TEXTURE4);
+	g.emissive.bind(gl.TEXTURE2);
 	const dirt = Resources.get("system/dirt.webp");
-	dirt.bind(gl.TEXTURE5);
+	dirt.bind(gl.TEXTURE3);
 	Shaders.postProcessing.bind();
 	Shaders.postProcessing.setInt("doFXAA", Settings.doFXAA);
 	Shaders.postProcessing.setInt("colorBuffer", 0);
 	Shaders.postProcessing.setInt("lightBuffer", 1);
-	Shaders.postProcessing.setInt("positionBuffer", 2);
-	Shaders.postProcessing.setInt("normalBuffer", 3);
-	Shaders.postProcessing.setInt("emissiveBuffer", 4);
-	Shaders.postProcessing.setInt("dirtBuffer", 5);
+	Shaders.postProcessing.setInt("emissiveBuffer", 2);
+	Shaders.postProcessing.setInt("dirtBuffer", 3);
 	Shaders.postProcessing.setVec2("viewportSize", [
 		Context.width(),
 		Context.height(),
 	]);
 	Shaders.postProcessing.setFloat("emissiveMult", Settings.emissiveMult);
 	Shaders.postProcessing.setFloat("gamma", Settings.gamma);
-	Shaders.postProcessing.setFloat("noiseAmmount", Settings.noiseAmmount);
-	Shaders.postProcessing.setFloat("noiseSpeed", Settings.noiseSpeed);
-	Shaders.postProcessing.setFloat("noiseTime", performance.now());
-
 	screenQuad.renderSingle();
 
 	Shader.unBind();
-	Texture.unBind(gl.TEXTURE5);
 	Texture.unBind(gl.TEXTURE0);
 	Texture.unBind(gl.TEXTURE1);
 	Texture.unBind(gl.TEXTURE2);
 	Texture.unBind(gl.TEXTURE3);
-	Texture.unBind(gl.TEXTURE4);
 };
 
 window.addEventListener(

@@ -19,7 +19,7 @@ const Utils = {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
 
-        return path.includes("webp")
+        return path.includes("webp") || path.includes("bmesh")
             ? await response.blob()
             : await response.text();
     },

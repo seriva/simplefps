@@ -69,6 +69,7 @@ DOM.append(renderLoading);
 const Loading = {
 	toggle(visible, force) {
 		if (state.forceUntilReload) return;
+		if (state.isVisible && visible) return;
 
 		state.isVisible = visible;
 		if (force != null) state.forceUntilReload = force;

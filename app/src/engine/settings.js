@@ -9,10 +9,9 @@ const defaults = {
 	anisotropicFiltering: 16,
 	gamma: 1.0,
 	doFXAA: true,
-	doRadiosity: true,
-	emissiveOffset: 1.5,
-	emissiveMult: 3.0,
-	emissiveIteration: 9,
+	emissiveOffset: 1.75,
+	emissiveMult: 4,
+	emissiveIteration: 8,
 	noiseAmmount: 0.125,
 	noiseSpeed: 0.1,
 
@@ -21,7 +20,7 @@ const defaults = {
 	backwards: 83,
 	left: 65,
 	right: 68,
-	moveSpeed: 5,
+	moveSpeed: 7.5,
 	lookSensitivity: 5,
 };
 

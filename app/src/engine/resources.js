@@ -10,6 +10,7 @@ import Utils from "./utils.js";
 const RESOURCE_TYPES = {
 	webp: (data) => new Texture({ data }),
 	mesh: (data, context) => new Mesh(JSON.parse(data), context),
+	bmesh: (data, context) => new Mesh(data, context),
 	mat: (data, context) => {
 		const matData = JSON.parse(data);
 		// Create materials and store them directly

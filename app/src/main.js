@@ -5,12 +5,12 @@ import { Resources, Utils, loop } from "./engine/engine.js";
 
 	// These modules are dependent on resources so we import them dynamicly after resource loading.
 	let imp = await import("./game/controls.js");
-	imp = await import("./game/world.js");
-	const World = imp.default;
+	imp = await import("./game/arena.js");
+	const Arena = imp.default;
 	imp = await import("./game/weapons.js");
 	const Weapons = imp.default;
 
-	await World.load("test.map");
+	await Arena.load("demo");
 	Weapons.load();
 
 	Utils.dispatchCustomEvent("changestate", {

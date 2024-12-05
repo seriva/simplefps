@@ -1,37 +1,5 @@
 {
-    "materials": [       
-        {
-            "name": "mat_floor",
-            "textures": [
-                "meshes/floor.webp"
-            ],
-            "geomType": 1
-        },
-        {
-            "name": "mat_ceiling",
-            "textures": [
-                "meshes/ceiling.webp"        
-            ],
-            "geomType": 1
-        },
-        {
-            "name": "mat_wall",
-            "textures": [
-                "meshes/wall.webp",
-                "meshes/wall_emissive.webp"
-            ],
-            "geomType": 1,
-            "doEmissive": 1
-        },
-        {
-            "name": "mat_lamp",
-            "textures": [
-                "meshes/lamp.webp",
-                "meshes/lamp_emissive.webp"
-            ],
-            "geomType": 1,
-            "doEmissive": 1
-        },
+    "materials": [
         {
             "name": "mat_pickup_ammo",
             "textures": [
