@@ -404,25 +404,39 @@ const ShaderSources = {
             uniform vec2 viewportSize;
             uniform vec2 direction;
 
-            vec4 blur13(sampler2D image, vec2 uv, vec2 resolution, vec2 direction) {
-                vec4 color = vec4(0.0);
-                vec2 off1 = vec2(1.411764705882353) * direction;
-                vec2 off2 = vec2(3.2941176470588234) * direction;
-                vec2 off3 = vec2(5.176470588235294) * direction;
-                color += texture(image, uv) * 0.1964825501511404;
-                color += texture(image, uv + (off1 / resolution)) * 0.2969069646728344;
-                color += texture(image, uv - (off1 / resolution)) * 0.2969069646728344;
-                color += texture(image, uv + (off2 / resolution)) * 0.09447039785044732;
-                color += texture(image, uv - (off2 / resolution)) * 0.09447039785044732;
-                color += texture(image, uv + (off3 / resolution)) * 0.010381362401148057;
-                color += texture(image, uv - (off3 / resolution)) * 0.010381362401148057;
+            vec4 blur11(sampler2D image, vec2 uv, vec2 resolution, vec2 direction) {
+                vec2 invRes = 1.0 / resolution;
+                
+                // Adjusted weights for a tighter blur
+                const float weights[6] = float[](0.227027, 0.1945946, 0.1216216, 0.054054, 0.016216, 0.0);
+                
+                // Start with center sample
+                vec4 color = texture(image, uv) * weights[0];
+                
+                // Unrolled loop for better performance
+                vec2 offset1 = direction * invRes;
+                vec2 offset2 = 2.0 * direction * invRes;
+                vec2 offset3 = 3.0 * direction * invRes;
+                vec2 offset4 = 4.0 * direction * invRes;
+                vec2 offset5 = 5.0 * direction * invRes;
+
+                color += texture(image, uv + offset1) * weights[1];
+                color += texture(image, uv - offset1) * weights[1];
+                color += texture(image, uv + offset2) * weights[2];
+                color += texture(image, uv - offset2) * weights[2];
+                color += texture(image, uv + offset3) * weights[3];
+                color += texture(image, uv - offset3) * weights[3];
+                color += texture(image, uv + offset4) * weights[4];
+                color += texture(image, uv - offset4) * weights[4];
+                color += texture(image, uv + offset5) * weights[5];
+                color += texture(image, uv - offset5) * weights[5];
+
                 return color;
             }
 
-            void main()
-            {
-                vec2 uv = vec2(gl_FragCoord.xy / viewportSize.xy);
-                fragColor = blur13(colorBuffer, uv, viewportSize.xy, direction);
+            void main() {
+                vec2 uv = gl_FragCoord.xy * (1.0 / viewportSize.xy);
+                fragColor = blur11(colorBuffer, uv, viewportSize.xy, direction);
             }`,
     },
     postProcessing: {
