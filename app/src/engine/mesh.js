@@ -1,24 +1,22 @@
 import { gl } from "./context.js";
 
 class Mesh {
-	// Cache attribute locations
 	static ATTR_POSITIONS = 0;
-
 	static ATTR_UVS = 1;
-
 	static ATTR_NORMALS = 2;
 
 	constructor(data, context) {
 		this.resources = context;
+		this.initialize(data);
+	}
 
+	async initialize(data) {
 		if (data instanceof Blob) {
-			this.loadFromBlob(data).then(() => {
-				this.initMeshBuffers();
-			});
+			await this.loadFromBlob(data);
 		} else {
 			this.loadFromJson(data);
-			this.initMeshBuffers();
 		}
+		this.initMeshBuffers();
 	}
 
 	static buildBuffer(type, data, itemSize) {
@@ -33,16 +31,11 @@ class Mesh {
 	}
 
 	initMeshBuffers() {
-		// Pre-calculate buffer data
 		this.hasUVs = this.uvs.length > 0;
 		this.hasNormals = this.normals.length > 0;
 
 		for (const indexObj of this.indices) {
-			indexObj.indexBuffer = Mesh.buildBuffer(
-				gl.ELEMENT_ARRAY_BUFFER,
-				indexObj.array,
-				1,
-			);
+			indexObj.indexBuffer = Mesh.buildBuffer(gl.ELEMENT_ARRAY_BUFFER, indexObj.array, 1);
 		}
 		this.vertexBuffer = Mesh.buildBuffer(gl.ARRAY_BUFFER, this.vertices, 3);
 
@@ -64,42 +57,15 @@ class Mesh {
 	}
 
 	bind() {
-		gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
-		gl.vertexAttribPointer(
-			Mesh.ATTR_POSITIONS,
-			this.vertexBuffer.itemSize,
-			gl.FLOAT,
-			false,
-			0,
-			0,
-		);
-		gl.enableVertexAttribArray(Mesh.ATTR_POSITIONS);
+		this.bindBufferAndAttrib(this.vertexBuffer, Mesh.ATTR_POSITIONS, 3);
+		if (this.hasUVs) this.bindBufferAndAttrib(this.uvBuffer, Mesh.ATTR_UVS, 2);
+		if (this.hasNormals) this.bindBufferAndAttrib(this.normalBuffer, Mesh.ATTR_NORMALS, 3);
+	}
 
-		if (this.hasUVs) {
-			gl.bindBuffer(gl.ARRAY_BUFFER, this.uvBuffer);
-			gl.vertexAttribPointer(
-				Mesh.ATTR_UVS,
-				this.uvBuffer.itemSize,
-				gl.FLOAT,
-				false,
-				0,
-				0,
-			);
-			gl.enableVertexAttribArray(Mesh.ATTR_UVS);
-		}
-
-		if (this.hasNormals) {
-			gl.bindBuffer(gl.ARRAY_BUFFER, this.normalBuffer);
-			gl.vertexAttribPointer(
-				Mesh.ATTR_NORMALS,
-				this.normalBuffer.itemSize,
-				gl.FLOAT,
-				false,
-				0,
-				0,
-			);
-			gl.enableVertexAttribArray(Mesh.ATTR_NORMALS);
-		}
+	bindBufferAndAttrib(buffer, attribute, itemSize) {
+		gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+		gl.vertexAttribPointer(attribute, itemSize, gl.FLOAT, false, 0, 0);
+		gl.enableVertexAttribArray(attribute);
 	}
 
 	unBind() {
@@ -122,17 +88,11 @@ class Mesh {
 		this.unBind();
 	}
 
-	// Private helper methods
 	renderIndices(applyMaterial) {
 		for (const indexObj of this.indices) {
 			this.bindMaterial(indexObj, applyMaterial);
 			gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexObj.indexBuffer);
-			gl.drawElements(
-				gl.TRIANGLES,
-				indexObj.indexBuffer.numItems,
-				gl.UNSIGNED_SHORT,
-				0,
-			);
+			gl.drawElements(gl.TRIANGLES, indexObj.indexBuffer.numItems, gl.UNSIGNED_SHORT, 0);
 		}
 	}
 
@@ -140,13 +100,7 @@ class Mesh {
 		for (const indexObj of this.indices) {
 			this.bindMaterial(indexObj, applyMaterial);
 			gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexObj.indexBuffer);
-			gl.drawElementsInstanced(
-				gl.TRIANGLES,
-				indexObj.indexBuffer.numItems,
-				gl.UNSIGNED_SHORT,
-				0,
-				count,
-			);
+			gl.drawElementsInstanced(gl.TRIANGLES, indexObj.indexBuffer.numItems, gl.UNSIGNED_SHORT, 0, count);
 		}
 	}
 
@@ -157,51 +111,37 @@ class Mesh {
 	}
 
 	async loadFromBlob(blob) {
-		// Convert blob to ArrayBuffer
 		const arrayBuffer = await blob.arrayBuffer();
 		const bytes = new Uint8Array(arrayBuffer);
 		let offset = 0;
 
-		// Helper function to read uint32
 		const readUint32 = () => {
-			const value = bytes[offset] | 
-						 (bytes[offset + 1] << 8) | 
-						 (bytes[offset + 2] << 16) | 
-						 (bytes[offset + 3] << 24);
+			const value = bytes[offset] | (bytes[offset + 1] << 8) | (bytes[offset + 2] << 16) | (bytes[offset + 3] << 24);
 			offset += 4;
 			return value;
 		};
 
-		// Helper function to read float32 array
 		const readFloat32Array = (count) => {
 			if (count === 0) return [];
-			const floatArray = Array.from(new Float32Array(
-				bytes.buffer,
-				bytes.byteOffset + offset,
-				count
-			));
+			const floatArray = Array.from(new Float32Array(bytes.buffer, bytes.byteOffset + offset, count));
 			offset += count * 4;
 			return floatArray;
 		};
 
-		// Read header
 		const version = readUint32();
 		const vertexCount = readUint32();
 		const uvCount = readUint32();
 		const normalCount = readUint32();
 		const indexGroupCount = readUint32();
 
-		// Read data
 		this.vertices = readFloat32Array(vertexCount);
 		this.uvs = readFloat32Array(uvCount);
 		this.normals = readFloat32Array(normalCount);
 
-		// Read index groups with materials
 		this.indices = [];
 		const MATERIAL_NAME_SIZE = 64;
 
 		for (let i = 0; i < indexGroupCount; i++) {
-			// Read material name
 			const materialNameBytes = bytes.slice(offset, offset + MATERIAL_NAME_SIZE);
 			let materialName = '';
 			for (let j = 0; j < MATERIAL_NAME_SIZE && materialNameBytes[j] !== 0; j++) {
@@ -209,14 +149,10 @@ class Mesh {
 			}
 			offset += MATERIAL_NAME_SIZE;
 
-			// Read indices
 			const indexCount = readUint32();
 			if (indexCount === 0) continue;
 
-			const indexArrayBuffer = bytes.buffer.slice(
-				bytes.byteOffset + offset,
-				bytes.byteOffset + offset + indexCount * 4
-			);
+			const indexArrayBuffer = bytes.buffer.slice(bytes.byteOffset + offset, bytes.byteOffset + offset + indexCount * 4);
 			const indexArray = Array.from(new Uint32Array(indexArrayBuffer));
 			offset += indexCount * 4;
 
@@ -228,7 +164,6 @@ class Mesh {
 	}
 
 	loadFromJson(data) {
-		// Your existing JSON loading logic here
 		this.vertices = data.vertices;
 		this.uvs = data.uvs?.length > 0 ? data.uvs : [];
 		this.normals = data.normals?.length > 0 ? data.normals : [];
