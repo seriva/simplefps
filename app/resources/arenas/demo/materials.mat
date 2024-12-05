@@ -15,15 +15,6 @@
             ],
             "geomType": 3,
             "doEmissive": 1  
-        },
-        {
-            "name": "mat_demo_pallete_emissive_2",
-            "textures": [
-                "arenas/demo/pallete.webp",
-                "system/black.webp"
-            ],
-            "geomType": 3,
-            "doEmissive": 1  
-        } 
+        }
     ]
 }
