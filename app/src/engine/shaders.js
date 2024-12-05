@@ -450,11 +450,8 @@ const ShaderSources = {
             out vec4 fragColor;
 
             uniform bool doFXAA;
-            uniform bool doEmissive;
             uniform sampler2D colorBuffer;
             uniform sampler2D lightBuffer;
-            uniform sampler2D positionBuffer;
-            uniform sampler2D normalBuffer;
             uniform sampler2D emissiveBuffer;
             uniform sampler2D dirtBuffer;
             uniform vec2 viewportSize;
@@ -464,25 +461,20 @@ const ShaderSources = {
             #define FXAA_REDUCE_MIN (1.0 / 128.0)
             #define FXAA_REDUCE_MUL (1.0 / 8.0)
             #define FXAA_SPAN_MAX 8.0
-            #define SIN45 0.707107
 
-            float random(vec2 n, float offset ){
-                return .5 - fract(sin(dot(n.xy + vec2( offset, 0. ), vec2(12.9898, 78.233)))* 43758.5453);
+            float applySoftLight(float base, float blend) {
+                return (blend < 0.5) 
+                    ? (2.0 * base * blend + base * base * (1.0 - 2.0 * blend))
+                    : (sqrt(base) * (2.0 * blend - 1.0) + 2.0 * base * (1.0 - blend));
             }
 
-            float applySoftLightToChannel( float base, float blend ) {
-                return ((blend < 0.5) ? (2.0 * base * blend + base * base * (1.0 - 2.0 * blend)) : (sqrt(base) * (2.0 * blend - 1.0) + 2.0 * base * (1.0 - blend)));
-            }
-
-            vec4 applyFXAA(vec2 fragCoord)
-            {
-                vec4 color;
-                vec2 inverseVP = vec2(1.0 / viewportSize.x, 1.0 / viewportSize.y);
+            vec4 applyFXAA(vec2 fragCoord) {
+                vec2 inverseVP = 1.0 / viewportSize;
                 vec3 rgbNW = texture(colorBuffer, (fragCoord + vec2(-1.0, -1.0)) * inverseVP).xyz;
                 vec3 rgbNE = texture(colorBuffer, (fragCoord + vec2(1.0, -1.0)) * inverseVP).xyz;
                 vec3 rgbSW = texture(colorBuffer, (fragCoord + vec2(-1.0, 1.0)) * inverseVP).xyz;
                 vec3 rgbSE = texture(colorBuffer, (fragCoord + vec2(1.0, 1.0)) * inverseVP).xyz;
-                vec3 rgbM  = texture(colorBuffer, fragCoord  * inverseVP).xyz;
+                vec3 rgbM  = texture(colorBuffer, fragCoord * inverseVP).xyz;
                 vec3 luma  = vec3(0.299, 0.587, 0.114);
                 float lumaNW = dot(rgbNW, luma);
                 float lumaNE = dot(rgbNE, luma);
@@ -492,59 +484,44 @@ const ShaderSources = {
                 float lumaMin = min(lumaM, min(min(lumaNW, lumaNE), min(lumaSW, lumaSE)));
                 float lumaMax = max(lumaM, max(max(lumaNW, lumaNE), max(lumaSW, lumaSE)));
 
-                vec2 dir;
-                dir.x = -((lumaNW + lumaNE) - (lumaSW + lumaSE));
-                dir.y =  ((lumaNW + lumaSW) - (lumaNE + lumaSE));
+                vec2 dir = vec2(
+                    -((lumaNW + lumaNE) - (lumaSW + lumaSE)),
+                    ((lumaNW + lumaSW) - (lumaNE + lumaSE))
+                );
 
-                float dirReduce = max((lumaNW + lumaNE + lumaSW + lumaSE) *
-                                      (0.25 * FXAA_REDUCE_MUL), FXAA_REDUCE_MIN);
-
+                float dirReduce = max((lumaNW + lumaNE + lumaSW + lumaSE) * (0.25 * FXAA_REDUCE_MUL), FXAA_REDUCE_MIN);
                 float rcpDirMin = 1.0 / (min(abs(dir.x), abs(dir.y)) + dirReduce);
-                dir = min(vec2(FXAA_SPAN_MAX, FXAA_SPAN_MAX),
-                          max(vec2(-FXAA_SPAN_MAX, -FXAA_SPAN_MAX),
-                          dir * rcpDirMin)) * inverseVP;
+                dir = min(vec2(FXAA_SPAN_MAX), max(vec2(-FXAA_SPAN_MAX), dir * rcpDirMin)) * inverseVP;
 
                 vec3 rgbA = 0.5 * (
                     texture(colorBuffer, fragCoord * inverseVP + dir * (1.0 / 3.0 - 0.5)).xyz +
-                    texture(colorBuffer, fragCoord * inverseVP + dir * (2.0 / 3.0 - 0.5)).xyz);
+                    texture(colorBuffer, fragCoord * inverseVP + dir * (2.0 / 3.0 - 0.5)).xyz
+                );
                 vec3 rgbB = rgbA * 0.5 + 0.25 * (
                     texture(colorBuffer, fragCoord * inverseVP + dir * -0.5).xyz +
-                    texture(colorBuffer, fragCoord * inverseVP + dir * 0.5).xyz);
+                    texture(colorBuffer, fragCoord * inverseVP + dir * 0.5).xyz
+                );
 
-                float lumaB = dot(rgbB, luma);
-                if ((lumaB < lumaMin) || (lumaB > lumaMax))
-                    color = vec4(rgbA, 1.0);
-                else
-                    color = vec4(rgbB, 1.0);
-                return color;
+                return vec4((dot(rgbB, luma) < lumaMin || dot(rgbB, luma) > lumaMax) ? rgbA : rgbB, 1.0);
             }
 
-            void main()
-            {
-                vec2 uv = vec2(gl_FragCoord.xy / viewportSize.xy);
-                vec4 color, light, dirt;
-                vec4 emissive = vec4(0.0, 0.0, 0.0, 0.0);
-
-                if(doFXAA){
-                    color = applyFXAA(gl_FragCoord.xy);
-                } else {
-                    color = texture(colorBuffer, uv);
-                }
-
-                light =  texture(lightBuffer, uv);
-                emissive = texture(emissiveBuffer, uv);
-                dirt = texture(dirtBuffer, uv);
+            void main() {
+                vec2 uv = gl_FragCoord.xy / viewportSize;
+                vec4 color = doFXAA ? applyFXAA(gl_FragCoord.xy) : texture(colorBuffer, uv);
+                vec4 light = texture(lightBuffer, uv);
+                vec4 emissive = texture(emissiveBuffer, uv);
+                vec4 dirt = texture(dirtBuffer, uv);
 
                 fragColor = (color * light) + (emissive * emissiveMult);
 
-                fragColor = vec4(
-                    applySoftLightToChannel( fragColor.r, dirt.r ),
-                    applySoftLightToChannel( fragColor.g, dirt.g ),
-                    applySoftLightToChannel( fragColor.b, dirt.b ),
-                    applySoftLightToChannel( fragColor.a, dirt.a )
+                // Apply dirt using soft light blend mode
+                fragColor.rgb = vec3(
+                    applySoftLight(fragColor.r, dirt.r),
+                    applySoftLight(fragColor.g, dirt.g),
+                    applySoftLight(fragColor.b, dirt.b)
                 );
 
-                fragColor = vec4(pow(fragColor.rgb, 1.0 / vec3(gamma)), 1.0);
+                fragColor.rgb = pow(fragColor.rgb, vec3(1.0 / gamma));
             }`,
     },
 };
