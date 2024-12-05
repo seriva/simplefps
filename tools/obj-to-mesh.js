@@ -20,34 +20,42 @@ const testPatterns = Object.fromEntries(
 // Use TypedArrays for better memory efficiency and performance
 const createBuffer = size => new Float32Array(size);
 
-const processFaceElement = (element, unpacked, vertices, uvs, normals, curIndexArray) => {
-    if (element in unpacked.hashindices) {
-        unpacked.indices[curIndexArray].array.push(unpacked.hashindices[element]);
+const processFaceElement = (element, mesh, vertices, uvs, normals) => {
+    if (element in mesh.hashindices) {
+        if (!mesh.indices[0]) {
+            mesh.indices[0] = { material: 'default', array: [] };
+        }
+        mesh.indices[0].array.push(mesh.hashindices[element]);
         return;
     }
 
-    const [vertexIndex, uvIndex, normalIndex] = element.split('/').map(n => n | 0); // Faster than Number()
+    const [vertexIndex, uvIndex, normalIndex] = element.split('/').map(n => n | 0);
     const vertexOffset = (vertexIndex - 1) * 3;
     const uvOffset = (uvIndex - 1) * 2;
     const normalOffset = (normalIndex - 1) * 3;
 
-    // Unroll loops for better performance
-    unpacked.vertices[unpacked.vertexCount++] = vertices[vertexOffset];
-    unpacked.vertices[unpacked.vertexCount++] = vertices[vertexOffset + 1];
-    unpacked.vertices[unpacked.vertexCount++] = vertices[vertexOffset + 2];
+    // Add vertex data
+    mesh.vertices[mesh.vertexCount++] = vertices[vertexOffset];
+    mesh.vertices[mesh.vertexCount++] = vertices[vertexOffset + 1];
+    mesh.vertices[mesh.vertexCount++] = vertices[vertexOffset + 2];
 
-    if (uvs.length) {
-        unpacked.uvs[unpacked.uvCount++] = uvs[uvOffset];
-        unpacked.uvs[unpacked.uvCount++] = uvs[uvOffset + 1];
+    if (uvs.length && uvIndex) {
+        mesh.uvs[mesh.uvCount++] = uvs[uvOffset];
+        mesh.uvs[mesh.uvCount++] = uvs[uvOffset + 1];
     }
 
-    unpacked.normals[unpacked.normalCount++] = normals[normalOffset];
-    unpacked.normals[unpacked.normalCount++] = normals[normalOffset + 1];
-    unpacked.normals[unpacked.normalCount++] = normals[normalOffset + 2];
+    if (normalIndex) {
+        mesh.normals[mesh.normalCount++] = normals[normalOffset];
+        mesh.normals[mesh.normalCount++] = normals[normalOffset + 1];
+        mesh.normals[mesh.normalCount++] = normals[normalOffset + 2];
+    }
 
-    unpacked.hashindices[element] = unpacked.index;
-    unpacked.indices[curIndexArray].array.push(unpacked.index);
-    unpacked.index += 1;
+    mesh.hashindices[element] = mesh.index;
+    if (!mesh.indices[0]) {
+        mesh.indices[0] = { material: 'default', array: [] };
+    }
+    mesh.indices[0].array.push(mesh.index);
+    mesh.index += 1;
 };
 
 const convertObjToMesh = () => {
@@ -58,8 +66,8 @@ const convertObjToMesh = () => {
     }
 
     console.log('Input: ', input);
-    const output = `${path.basename(input, '.obj')}.mesh`;
-    console.log('Output: ', output);
+    const baseOutputName = path.basename(input, '.obj');
+    console.log('Base output name: ', baseOutputName);
 
     // Read file content at once and split into lines
     const data = fs.readFileSync(input, 'utf8').split('\n');
@@ -70,19 +78,11 @@ const convertObjToMesh = () => {
     const normals = createBuffer(estimatedSize * 3);
     const uvs = createBuffer(estimatedSize * 2);
 
-    const unpacked = {
-        vertices: createBuffer(estimatedSize * 3),
-        normals: createBuffer(estimatedSize * 3),
-        uvs: createBuffer(estimatedSize * 2),
-        vertexCount: 0,
-        normalCount: 0,
-        uvCount: 0,
-        hashindices: Object.create(null), // Faster than regular object
-        indices: [],
-        index: 0
-    };
+    const meshes = [];
+    const meshNames = [];
+    let currentMesh = createNewMesh(estimatedSize);
+    let currentGroupName = 'default';
 
-    let curIndexArray = 0;
     let vertexCount = 0;
     let normalCount = 0;
     let uvCount = 0;
@@ -95,7 +95,15 @@ const convertObjToMesh = () => {
         const firstChar = elements[0];
         elements.shift();
 
-        if (firstChar === 'v') {
+        if (firstChar === 'g') {
+            if (currentMesh.indices.length > 0) {
+                const meshName = saveMesh(currentMesh, baseOutputName, currentGroupName);
+                meshNames.push(meshName);
+                meshes.push(currentMesh);
+            }
+            currentGroupName = elements[0] || `group_${meshes.length}`;
+            currentMesh = createNewMesh(estimatedSize);
+        } else if (firstChar === 'v') {
             vertices[vertexCount++] = +elements[0];
             vertices[vertexCount++] = +elements[1];
             vertices[vertexCount++] = +elements[2];
@@ -108,28 +116,68 @@ const convertObjToMesh = () => {
             uvs[uvCount++] = +elements[1];
         } else if (firstChar === 'f') {
             elements.forEach(element =>
-                processFaceElement(element, unpacked, vertices, uvs, normals, curIndexArray)
+                processFaceElement(element, currentMesh, vertices, uvs, normals)
             );
         } else if (testPatterns.MATERIAL(line)) {
             const [, material] = line.split(' ');
-            unpacked.indices.push({ material, array: [] });
-            curIndexArray = unpacked.indices.length - 1;
+            currentMesh.indices.push({ material, array: [] });
         }
     }
 
+    // Save the last mesh if it has data
+    if (currentMesh.indices.length > 0) {
+        const meshName = saveMesh(currentMesh, baseOutputName, currentGroupName);
+        meshNames.push(meshName);
+        meshes.push(currentMesh);
+    }
+
+    // Save the list of mesh names to a text file
+    const meshListFile = `${baseOutputName}_mesh_list.txt`;
+    const formattedList = meshNames
+        .map((name, index) => 
+            index === meshNames.length - 1 ? name : `${name},`)
+        .join('\n');
+    fs.writeFileSync(meshListFile, formattedList);
+    console.log(`Mesh list saved to: ${meshListFile}`);
+
+    console.log(`Successfully created ${meshes.length} mesh files`);
+};
+
+const createNewMesh = (estimatedSize) => ({
+    indices: [],
+    vertices: createBuffer(estimatedSize * 3),
+    normals: createBuffer(estimatedSize * 3),
+    uvs: createBuffer(estimatedSize * 2),
+    vertexCount: 0,
+    normalCount: 0,
+    uvCount: 0,
+    hashindices: Object.create(null),
+    index: 0
+});
+
+const saveMesh = (mesh, baseOutputName, groupName) => {
     // Trim arrays to actual size
-    const mesh = {
-        indices: unpacked.indices,
-        vertices: Array.from(unpacked.vertices.slice(0, unpacked.vertexCount)),
-        uvs: uvCount ? Array.from(unpacked.uvs.slice(0, unpacked.uvCount)) : [],
-        normals: normalCount ? Array.from(unpacked.normals.slice(0, unpacked.normalCount)) : []
+    const finalMesh = {
+        indices: mesh.indices,
+        vertices: Array.from(mesh.vertices.slice(0, mesh.vertexCount)),
+        uvs: mesh.uvCount ? Array.from(mesh.uvs.slice(0, mesh.uvCount)) : [],
+        normals: mesh.normalCount ? Array.from(mesh.normals.slice(0, mesh.normalCount)) : []
     };
 
-    fs.writeFileSync(output, prettyJSONStringify(mesh, {
+    // Sanitize group name and remove "_Mesh" suffix if present
+    let sanitizedGroupName = groupName.replace(/[^a-zA-Z0-9-_]/g, '_');
+    sanitizedGroupName = sanitizedGroupName.replace(/_Mesh$/, '');
+    const output = `${sanitizedGroupName}.mesh`;
+    
+    console.log(`Saving mesh: ${output}`);
+    
+    fs.writeFileSync(output, prettyJSONStringify(finalMesh, {
         spaceAfterComma: '',
         shouldExpand: (object, level, key) =>
             key === 'indices' || (!['array', 'vertices', 'uvs', 'normals'].includes(key))
     }));
+
+    return output;
 };
 
 try {
