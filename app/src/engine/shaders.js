@@ -197,7 +197,11 @@ const ShaderSources = {
                     vec4 semApply = textureLod(semApplySampler, vUV, 0.0);
                     float semSum = dot(semApply.xyz, vec3(0.333333));  // Faster than multiplication
                     if (semSum > 0.2) {
-                        vec4 semColor = textureLod(semSampler, vSemUV, 0.0);
+                        vec3 viewDir = normalize(-vPosition.xyz);  // Calculate view direction
+                        vec3 r = reflect(viewDir, vNormal);  // Use view direction for reflection
+                        float m = 2.0 * sqrt(dot(r.xy, r.xy) + (r.z + 1.0) * (r.z + 1.0));
+                        vec2 semUV = r.xy / m + 0.5;
+                        vec4 semColor = textureLod(semSampler, semUV, 0.0);
                         color = mix(color, semColor * semApply, semMult);
                     }
                 }
@@ -397,39 +401,25 @@ const ShaderSources = {
             uniform vec2 viewportSize;
             uniform vec2 direction;
 
-            vec4 blur11(sampler2D image, vec2 uv, vec2 resolution, vec2 direction) {
-                vec2 invRes = 1.0 / resolution;
-                
-                // Adjusted weights for a tighter blur
-                const float weights[6] = float[](0.227027, 0.1945946, 0.1216216, 0.054054, 0.016216, 0.0);
-                
-                // Start with center sample
-                vec4 color = texture(image, uv) * weights[0];
-                
-                // Unrolled loop for better performance
-                vec2 offset1 = direction * invRes;
-                vec2 offset2 = 2.0 * direction * invRes;
-                vec2 offset3 = 3.0 * direction * invRes;
-                vec2 offset4 = 4.0 * direction * invRes;
-                vec2 offset5 = 5.0 * direction * invRes;
-
-                color += texture(image, uv + offset1) * weights[1];
-                color += texture(image, uv - offset1) * weights[1];
-                color += texture(image, uv + offset2) * weights[2];
-                color += texture(image, uv - offset2) * weights[2];
-                color += texture(image, uv + offset3) * weights[3];
-                color += texture(image, uv - offset3) * weights[3];
-                color += texture(image, uv + offset4) * weights[4];
-                color += texture(image, uv - offset4) * weights[4];
-                color += texture(image, uv + offset5) * weights[5];
-                color += texture(image, uv - offset5) * weights[5];
-
+            vec4 blur13(sampler2D image, vec2 uv, vec2 resolution, vec2 direction) {
+                vec4 color = vec4(0.0);
+                vec2 off1 = vec2(1.411764705882353) * direction;
+                vec2 off2 = vec2(3.2941176470588234) * direction;
+                vec2 off3 = vec2(5.176470588235294) * direction;
+                color += texture(image, uv) * 0.1964825501511404;
+                color += texture(image, uv + (off1 / resolution)) * 0.2969069646728344;
+                color += texture(image, uv - (off1 / resolution)) * 0.2969069646728344;
+                color += texture(image, uv + (off2 / resolution)) * 0.09447039785044732;
+                color += texture(image, uv - (off2 / resolution)) * 0.09447039785044732;
+                color += texture(image, uv + (off3 / resolution)) * 0.010381362401148057;
+                color += texture(image, uv - (off3 / resolution)) * 0.010381362401148057;
                 return color;
             }
 
-            void main() {
-                vec2 uv = gl_FragCoord.xy * (1.0 / viewportSize.xy);
-                fragColor = blur11(colorBuffer, uv, viewportSize.xy, direction);
+            void main()
+            {
+                vec2 uv = vec2(gl_FragCoord.xy / viewportSize.xy);
+                fragColor = blur13(colorBuffer, uv, viewportSize.xy, direction);
             }`,
     },
     postProcessing: {
@@ -458,9 +448,11 @@ const ShaderSources = {
             uniform float emissiveMult;
             uniform float gamma;
 
-            #define FXAA_REDUCE_MIN (1.0 / 128.0)
-            #define FXAA_REDUCE_MUL (1.0 / 8.0)
-            #define FXAA_SPAN_MAX 8.0
+            #define FXAA_EDGE_THRESHOLD_MIN 0.0312
+            #define FXAA_EDGE_THRESHOLD_MAX 0.125
+            #define FXAA_ITERATIONS 12
+            #define FXAA_SUBPIX_QUALITY 0.75
+            #define FXAA_SUBPIX_TRIM 0.5
 
             float applySoftLight(float base, float blend) {
                 return (blend < 0.5) 
@@ -470,39 +462,78 @@ const ShaderSources = {
 
             vec4 applyFXAA(vec2 fragCoord) {
                 vec2 inverseVP = 1.0 / viewportSize;
-                vec3 rgbNW = texture(colorBuffer, (fragCoord + vec2(-1.0, -1.0)) * inverseVP).xyz;
-                vec3 rgbNE = texture(colorBuffer, (fragCoord + vec2(1.0, -1.0)) * inverseVP).xyz;
-                vec3 rgbSW = texture(colorBuffer, (fragCoord + vec2(-1.0, 1.0)) * inverseVP).xyz;
-                vec3 rgbSE = texture(colorBuffer, (fragCoord + vec2(1.0, 1.0)) * inverseVP).xyz;
-                vec3 rgbM  = texture(colorBuffer, fragCoord * inverseVP).xyz;
-                vec3 luma  = vec3(0.299, 0.587, 0.114);
+                vec2 uv = fragCoord * inverseVP;
+
+                // Sample neighboring pixels
+                vec3 rgbNW = texture(colorBuffer, uv + vec2(-1.0, -1.0) * inverseVP).rgb;
+                vec3 rgbNE = texture(colorBuffer, uv + vec2(1.0, -1.0) * inverseVP).rgb;
+                vec3 rgbSW = texture(colorBuffer, uv + vec2(-1.0, 1.0) * inverseVP).rgb;
+                vec3 rgbSE = texture(colorBuffer, uv + vec2(1.0, 1.0) * inverseVP).rgb;
+                vec3 rgbM  = texture(colorBuffer, uv).rgb;
+
+                // Luma calculation with more accurate weights
+                const vec3 luma = vec3(0.2126729, 0.7151522, 0.0721750);
                 float lumaNW = dot(rgbNW, luma);
                 float lumaNE = dot(rgbNE, luma);
                 float lumaSW = dot(rgbSW, luma);
                 float lumaSE = dot(rgbSE, luma);
                 float lumaM  = dot(rgbM,  luma);
+
+                // Compute local contrast
                 float lumaMin = min(lumaM, min(min(lumaNW, lumaNE), min(lumaSW, lumaSE)));
                 float lumaMax = max(lumaM, max(max(lumaNW, lumaNE), max(lumaSW, lumaSE)));
+                float lumaRange = lumaMax - lumaMin;
 
-                vec2 dir = vec2(
-                    -((lumaNW + lumaNE) - (lumaSW + lumaSE)),
-                    ((lumaNW + lumaSW) - (lumaNE + lumaSE))
+                // Early exit if contrast is too low
+                if (lumaRange < max(FXAA_EDGE_THRESHOLD_MIN, lumaMax * FXAA_EDGE_THRESHOLD_MAX)) {
+                    return vec4(rgbM, 1.0);
+                }
+
+                // Edge detection
+                vec2 dir;
+                dir.x = -((lumaNW + lumaNE) - (lumaSW + lumaSE));
+                dir.y = ((lumaNW + lumaSW) - (lumaNE + lumaSE));
+
+                float dirReduce = max(
+                    (lumaNW + lumaNE + lumaSW + lumaSE) * (0.25 * FXAA_SUBPIX_TRIM),
+                    FXAA_EDGE_THRESHOLD_MIN
                 );
 
-                float dirReduce = max((lumaNW + lumaNE + lumaSW + lumaSE) * (0.25 * FXAA_REDUCE_MUL), FXAA_REDUCE_MIN);
                 float rcpDirMin = 1.0 / (min(abs(dir.x), abs(dir.y)) + dirReduce);
-                dir = min(vec2(FXAA_SPAN_MAX), max(vec2(-FXAA_SPAN_MAX), dir * rcpDirMin)) * inverseVP;
+                dir = min(vec2(8.0), max(vec2(-8.0), dir * rcpDirMin)) * inverseVP;
 
+                // Sample along the gradient
                 vec3 rgbA = 0.5 * (
-                    texture(colorBuffer, fragCoord * inverseVP + dir * (1.0 / 3.0 - 0.5)).xyz +
-                    texture(colorBuffer, fragCoord * inverseVP + dir * (2.0 / 3.0 - 0.5)).xyz
-                );
-                vec3 rgbB = rgbA * 0.5 + 0.25 * (
-                    texture(colorBuffer, fragCoord * inverseVP + dir * -0.5).xyz +
-                    texture(colorBuffer, fragCoord * inverseVP + dir * 0.5).xyz
+                    texture(colorBuffer, uv + dir * (1.0/3.0 - 0.5)).rgb +
+                    texture(colorBuffer, uv + dir * (2.0/3.0 - 0.5)).rgb
                 );
 
-                return vec4((dot(rgbB, luma) < lumaMin || dot(rgbB, luma) > lumaMax) ? rgbA : rgbB, 1.0);
+                vec3 rgbB = rgbA * 0.5 + 0.25 * (
+                    texture(colorBuffer, uv + dir * -0.5).rgb +
+                    texture(colorBuffer, uv + dir * 0.5).rgb
+                );
+
+                // Compute local contrast for samples
+                float lumaB = dot(rgbB, luma);
+
+                // Choose final color based on subpixel quality
+                if (lumaB < lumaMin || lumaB > lumaMax) {
+                    return vec4(rgbA, 1.0);
+                }
+
+                // Subpixel antialiasing
+                float lumaL = dot(rgbM, luma);
+                float rangeL = abs(lumaL - lumaMin);
+                float rangeH = abs(lumaL - lumaMax);
+                float range = min(rangeL, rangeH);
+                float rangeInv = 1.0/range;
+
+                // Compute subpixel blend factor
+                float blend = smoothstep(0.0, 1.0, range * rangeInv);
+                blend = mix(blend, 1.0, FXAA_SUBPIX_QUALITY);
+
+                // Final blend
+                return vec4(mix(rgbB, rgbM, blend), 1.0);
             }
 
             void main() {
