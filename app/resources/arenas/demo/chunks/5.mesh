@@ -1,7 +1,7 @@
 {
     "indices" : [
         {
-            "material" : "mat_demo_pallete_emissive_2",
+            "material" : "mat_demo_pallete_emissive_1",
             "array" : [0,1,2,3,4,5,0,6,1,3,7,4]
         }
     ],

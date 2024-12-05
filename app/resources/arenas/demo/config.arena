@@ -1,0 +1,38 @@
+{
+    "skybox": 1,
+    "lighting": {
+        "ambient" : [0.0225,0.0275,0.0375], 
+        "directional": [
+            {
+                "direction": [-0.6, 1, -0.4],
+                "color": [0.1, 0.1, 0.125]
+            },
+            {
+                "direction": [0.4, 1, 0.6],
+                "color": [0.1, 0.1, 0.125]
+            }
+        ],
+        "point": []
+    },
+    "chunks": [
+        "arenas/demo/chunks/1.mesh",
+        "arenas/demo/chunks/2.mesh",
+        "arenas/demo/chunks/3.mesh",
+        "arenas/demo/chunks/4.mesh",
+        "arenas/demo/chunks/5.mesh",
+        "arenas/demo/chunks/6.mesh",
+        "arenas/demo/chunks/7.mesh",
+        "arenas/demo/chunks/8.mesh",
+        "arenas/demo/chunks/9.mesh",
+        "arenas/demo/chunks/10.mesh",
+        "arenas/demo/chunks/11.mesh",
+        "arenas/demo/chunks/12.mesh",
+        "arenas/demo/chunks/13.mesh",
+        "arenas/demo/chunks/14.mesh"
+    ],
+    "spawnpoint" : {
+        "position" : [43,6,-33],
+        "rotation" : [0,0,0]
+    },   
+    "pickups": []
+}
