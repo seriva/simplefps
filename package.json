@@ -26,7 +26,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "1.9.4",
-    "microtastic": "^0.0.36",
+    "microtastic": "^0.0.40",
     "pretty-json-stringify": "^0.0.2"
   }
 }
