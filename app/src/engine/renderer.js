@@ -388,10 +388,6 @@ const postProcessingPass = () => {
 	]);
 	Shaders.postProcessing.setFloat("emissiveMult", Settings.emissiveMult);
 	Shaders.postProcessing.setFloat("gamma", Settings.gamma);
-	//Shaders.postProcessing.setFloat("noiseAmmount", Settings.noiseAmmount);
-	//Shaders.postProcessing.setFloat("noiseSpeed", Settings.noiseSpeed);
-	//Shaders.postProcessing.setFloat("noiseTime", performance.now());
-
 	screenQuad.renderSingle();
 
 	Shader.unBind();

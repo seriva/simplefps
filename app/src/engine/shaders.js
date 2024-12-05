@@ -453,9 +453,6 @@ const ShaderSources = {
             uniform vec2 viewportSize;
             uniform float emissiveMult;
             uniform float gamma;
-            //uniform float noiseAmmount;
-            //uniform float noiseSpeed;
-            //uniform float noiseTime;
 
             #define FXAA_REDUCE_MIN (1.0 / 128.0)
             #define FXAA_REDUCE_MUL (1.0 / 8.0)
@@ -527,8 +524,6 @@ const ShaderSources = {
                     color = texture(colorBuffer, uv);
                 }
 
-                //color += vec4( vec3( noiseAmmount * random( uv, .00001 * noiseSpeed * noiseTime ) ), 1.0 );
-
                 light =  texture(lightBuffer, uv);
                 emissive = texture(emissiveBuffer, uv);
                 dirt = texture(dirtBuffer, uv);
@@ -547,11 +542,15 @@ const ShaderSources = {
     },
 };
 
-const Shaders = Object.fromEntries(
-    Object.entries(ShaderSources).map(([name, { vertex, fragment }]) => [
-        name,
-        new Shader(vertex, fragment)
-    ])
-);
+// Initialize all shaders immediately
+const Shaders = {};
+for (const [name, { vertex, fragment }] of Object.entries(ShaderSources)) {
+    try {
+        Shaders[name] = new Shader(vertex, fragment);
+        Console.log(`Loaded shader: ${name}`);
+    } catch (error) {
+        Console.error(`Failed to load shader ${name}:`, error);
+    }
+}
 
 export { Shaders, Shader };
