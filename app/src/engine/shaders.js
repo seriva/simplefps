@@ -453,9 +453,9 @@ const ShaderSources = {
             uniform vec2 viewportSize;
             uniform float emissiveMult;
             uniform float gamma;
-            uniform float noiseAmmount;
-            uniform float noiseSpeed;
-            uniform float noiseTime;
+            //uniform float noiseAmmount;
+            //uniform float noiseSpeed;
+            //uniform float noiseTime;
 
             #define FXAA_REDUCE_MIN (1.0 / 128.0)
             #define FXAA_REDUCE_MUL (1.0 / 8.0)
@@ -527,19 +527,21 @@ const ShaderSources = {
                     color = texture(colorBuffer, uv);
                 }
 
-                color += vec4( vec3( noiseAmmount * random( uv, .00001 * noiseSpeed * noiseTime ) ), 1.0 );
+                //color += vec4( vec3( noiseAmmount * random( uv, .00001 * noiseSpeed * noiseTime ) ), 1.0 );
 
                 light =  texture(lightBuffer, uv);
                 emissive = texture(emissiveBuffer, uv);
                 dirt = texture(dirtBuffer, uv);
 
                 fragColor = (color * light) + (emissive * emissiveMult);
+
                 fragColor = vec4(
                     applySoftLightToChannel( fragColor.r, dirt.r ),
                     applySoftLightToChannel( fragColor.g, dirt.g ),
                     applySoftLightToChannel( fragColor.b, dirt.b ),
                     applySoftLightToChannel( fragColor.a, dirt.a )
                 );
+
                 fragColor = vec4(pow(fragColor.rgb, 1.0 / vec3(gamma)), 1.0);
             }`,
     },

@@ -3,7 +3,7 @@
         {
             "name": "mat_skybox_1_front",
             "textures": [
-                "skybox/black.webp"
+                "system/black.webp"
             ],
             "geomType": 3,
             "doEmissive": 0
@@ -11,7 +11,7 @@
         {
             "name": "mat_skybox_1_back",
             "textures": [
-                "skybox/black.webp"
+                "system/black.webp"
             ],
             "geomType": 3,
             "doEmissive": 0
@@ -19,7 +19,7 @@
         {
             "name": "mat_skybox_1_top",
             "textures": [
-                "skybox/black.webp"
+                "system/black.webp"
             ],
             "geomType": 3,
             "doEmissive":0   
@@ -27,7 +27,7 @@
         {
             "name": "mat_skybox_1_bottom",
             "textures": [
-                "skybox/black.webp"
+                "system/black.webp"
             ],
             "geomType": 3,
             "doEmissive": 0     
@@ -35,7 +35,7 @@
         {
             "name": "mat_skybox_1_right",
             "textures": [
-                "skybox/black.webp"
+                "system/black.webp"
             ],
             "geomType": 3,
             "doEmissive": 0     
@@ -43,7 +43,7 @@
         {
             "name": "mat_skybox_1_left",
             "textures": [
-                "skybox/black.webp"
+                "system/black.webp"
             ],
             "geomType": 3,
             "doEmissive": 0      

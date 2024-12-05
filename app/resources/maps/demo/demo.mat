@@ -8,10 +8,19 @@
             "geomType": 1
         },
         {
-            "name": "mat_demo_pallete_emissive",
+            "name": "mat_demo_pallete_emissive_1",
             "textures": [
                 "maps/demo/pallete.webp",
                 "maps/demo/pallete.webp"
+            ],
+            "geomType": 3,
+            "doEmissive": 1  
+        },
+        {
+            "name": "mat_demo_pallete_emissive_2",
+            "textures": [
+                "maps/demo/pallete.webp",
+                "system/black.webp"
             ],
             "geomType": 3,
             "doEmissive": 1  

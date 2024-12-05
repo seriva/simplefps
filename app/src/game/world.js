@@ -1,9 +1,9 @@
 import {
 	Camera,
 	Console,
+	DirectionalLightEntity,
 	Loading,
 	MeshEntity,
-	DirectionalLightEntity,
 	Scene,
 	SkyboxEntity,
 	Utils,
@@ -19,9 +19,9 @@ meshMap.set(130, "meshes/ammo.mesh");
 meshMap.set(150, "meshes/grenade_launcher.mesh");
 meshMap.set(151, "meshes/minigun.mesh");
 
-let mesh = "";
+const mesh = "";
 let skybox = 1;
-let data = [];
+const data = [];
 let pickups = [];
 let spawnPoint = {
 	position: [0, 0, 0],
@@ -43,16 +43,27 @@ const createSceneFromMapData = () => {
 		Scene.addEntities(new MeshEntity([0, 0, 0], mesh));
 	}
 
-	Scene.addEntities(new DirectionalLightEntity([-0.6, 1, -0.7], [0.1, 0.1, 0.125]));
-	Scene.addEntities(new DirectionalLightEntity([0.6, 1, 0.7], [0.1, 0.1, 0.135]));
+	Scene.addEntities(new DirectionalLightEntity([-0.6, 1, -0.4], [0.1, 0.1, 0.125]));
+	Scene.addEntities(new DirectionalLightEntity([0.4, 1, 0.6], [0.1, 0.1, 0.125]));
+
+	Scene.addEntities(
+		Pickup.createPickup(
+			[26.5, 2.69, -11],
+			128,
+			meshMap.get(128),
+		),
+	);
+
+
+
 
 	// add dynamic map entities
 	for (const pickup of pickups) {
 		Scene.addEntities(
 			Pickup.createPickup(
 				[(pickup[0] - 1) * cellSize, 0.6, (pickup[1] - 1) * cellSize],
-				pickup[2],
-				meshMap.get(pickup[2]),
+				128,
+				meshMap.get(128),
 			),
 		);
 	}

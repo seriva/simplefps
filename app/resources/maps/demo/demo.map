@@ -1,5 +1,6 @@
 {
     "skybox": 1,
+    "ambient" : [0.0225,0.0275,0.0375], 
     "meshes": [
         "maps/demo/1.mesh",
         "maps/demo/2.mesh",
@@ -19,7 +20,6 @@
     "spawnpoint" : {
         "position" : [43,6,-33],
         "rotation" : [0,0,0]
-    },
-    "ambient" : [0.0475,0.0475,0.0675],    
+    },   
     "pickups": []
 }

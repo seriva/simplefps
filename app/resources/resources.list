@@ -1,8 +1,9 @@
 {
     "resources": [
         "system/dirt.webp",
+        "system/black.webp",
+        "system/white.webp",
 
-        "skybox/black.webp",
         "skybox/1.mat",
 
         "meshes/health.webp",

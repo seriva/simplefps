@@ -355,7 +355,7 @@ const lightingPass = () => {
 	Texture.unBind(gl.TEXTURE2);
 	gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
-	blurImage(BlurSourceType.LIGHTING, 3, 1.5);
+	blurImage(BlurSourceType.LIGHTING, 4, 0.2);
 };
 
 const emissiveBlurPass = () => {
@@ -388,9 +388,9 @@ const postProcessingPass = () => {
 	]);
 	Shaders.postProcessing.setFloat("emissiveMult", Settings.emissiveMult);
 	Shaders.postProcessing.setFloat("gamma", Settings.gamma);
-	Shaders.postProcessing.setFloat("noiseAmmount", Settings.noiseAmmount);
-	Shaders.postProcessing.setFloat("noiseSpeed", Settings.noiseSpeed);
-	Shaders.postProcessing.setFloat("noiseTime", performance.now());
+	//Shaders.postProcessing.setFloat("noiseAmmount", Settings.noiseAmmount);
+	//Shaders.postProcessing.setFloat("noiseSpeed", Settings.noiseSpeed);
+	//Shaders.postProcessing.setFloat("noiseTime", performance.now());
 
 	screenQuad.renderSingle();
 

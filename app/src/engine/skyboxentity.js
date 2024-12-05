@@ -27,10 +27,6 @@ class SkyboxEntity extends Entity {
 	}
 
 	render() {
-		// Cache gl state
-		const depthTest = gl.isEnabled(gl.DEPTH_TEST);
-		const depthMask = gl.getParameter(gl.DEPTH_WRITEMASK);
-
 		// Disable depth operations
 		gl.disable(gl.DEPTH_TEST);
 		gl.depthMask(false);
@@ -46,8 +42,8 @@ class SkyboxEntity extends Entity {
 		SkyboxEntity.shape.renderSingle();
 
 		// Restore gl state
-		if (depthTest) gl.enable(gl.DEPTH_TEST);
-		if (depthMask) gl.depthMask(true);
+		gl.enable(gl.DEPTH_TEST);
+		gl.depthMask(true);
 	}
 }
 
