@@ -135,25 +135,16 @@ const ShaderSources = {
             const int SKYBOX = 3;
 
             void main() {
-                vPosition = vec4(aPosition, 1.0);
-
-                if (geomType == INSTANCED_MESHES) {
-                    vPosition = vPosition + vec4(aOffset, 0.0);
-                }
-
-                vUV = aUV;
+                vPosition = vec4(aPosition + (geomType == INSTANCED_MESHES ? aOffset : vec3(0.0)), 1.0);
                 vPosition = matWorld * vPosition;
-                vNormal = normalize((matWorld * vec4(aNormal, 0.0)).xyz);
+                
+                vUV = aUV;
+                vNormal = normalize(mat3(matWorld) * aNormal);
 
-                if (doSEM==1)
-                {
-                    vec3 r = reflect( normalize( vPosition.xyz ), vNormal );
-                    float m = 2. * sqrt(
-                      pow( r.x, 2. ) +
-                      pow( r.y, 2. ) +
-                      pow( r.z + 1., 2. )
-                    );
-                    vSemUV = r.xy / m + .5;
+                if (doSEM == 1) {
+                    vec3 r = reflect(normalize(vPosition.xyz), vNormal);
+                    float m = 2.0 * sqrt(dot(r.xy, r.xy) + (r.z + 1.0) * (r.z + 1.0));
+                    vSemUV = r.xy / m + 0.5;
                 }
 
                 gl_Position = matViewProj * vPosition;
@@ -186,35 +177,36 @@ const ShaderSources = {
             const int SKYBOX = 3;
 
             void main() {
-                switch (geomType) {
-                case MESH:
-                case INSTANCED_MESHES:
+                // Early alpha test using textureLod for better performance
+                vec4 color = textureLod(colorSampler, vUV, 0.0);
+                if(color.a < 0.5) discard;
+
+                // Initialize fragEmissive to zero
+                fragEmissive = vec4(0.0);
+
+                // Combine geomType checks to reduce branching
+                if (geomType != SKYBOX) {
                     fragPosition = vPosition;
                     fragNormal = vec4(vNormal, 0.0);
-                    break;
-                case SKYBOX:
+                } else {
                     fragNormal = vec4(0.0, 0.0, 0.0, 1.0);
-                    break;
-                }
-                vec4 color = texture(colorSampler, vUV);
-
-                if (doEmissive==1) {
-                    fragEmissive = texture(emissiveSampler, vUV);
                 }
 
-                if (doSEM==1)
-                {
-                    vec4 semColor = texture(semSampler, vSemUV);
-                    vec4 semApply = texture(semApplySampler, vUV);
-                    float semSum = semApply.x * semApply.y * semApply.z;
+                // Combine SEM and emissive calculations
+                if (doSEM == 1) {
+                    vec4 semApply = textureLod(semApplySampler, vUV, 0.0);
+                    float semSum = dot(semApply.xyz, vec3(0.333333));  // Faster than multiplication
                     if (semSum > 0.2) {
+                        vec4 semColor = textureLod(semSampler, vSemUV, 0.0);
                         color = mix(color, semColor * semApply, semMult);
                     }
                 }
 
+                if (doEmissive == 1) {
+                    fragEmissive = textureLod(emissiveSampler, vUV, 0.0);
+                }
+
                 fragColor = color + fragEmissive;
-                if(fragColor.a < 0.5)
-                    discard;
             }`,
     },
     entityShadows: {
