@@ -38,17 +38,6 @@ class Mesh {
 
 		for (const indexObj of this.indices) {
 			indexObj.indexBuffer = Mesh.buildBuffer(gl.ELEMENT_ARRAY_BUFFER, indexObj.array, 1);
-
-			// Create line indices for wireframe rendering
-			const lineIndices = [];
-			for (let i = 0; i < indexObj.array.length; i += 3) {
-				lineIndices.push(
-					indexObj.array[i], indexObj.array[i + 1],
-					indexObj.array[i + 1], indexObj.array[i + 2],
-					indexObj.array[i + 2], indexObj.array[i]
-				);
-			}
-			indexObj.lineBuffer = Mesh.buildBuffer(gl.ELEMENT_ARRAY_BUFFER, lineIndices, 1);
 		}
 		this.vertexBuffer = Mesh.buildBuffer(gl.ARRAY_BUFFER, this.vertices, 3);
 
@@ -105,13 +94,32 @@ class Mesh {
 
 	renderWireFrame() {
 		this.bind();
-		// Draw lines for each index group
+		
 		for (const indexObj of this.indices) {
-			gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexObj.lineBuffer);
-			gl.drawElements(gl.LINES, indexObj.lineBuffer.numItems, gl.UNSIGNED_SHORT, 0);
+			// Each triangle (3 indices) becomes 3 lines (6 indices)
+			const tempArray = new Uint16Array(indexObj.array.length * 2);
+			let lineCount = 0;
+			const indices = indexObj.array;
+			
+			for (let i = 0; i < indices.length; i += 3) {
+				tempArray[lineCount++] = indices[i];
+				tempArray[lineCount++] = indices[i + 1];
+				tempArray[lineCount++] = indices[i + 1];
+				tempArray[lineCount++] = indices[i + 2];
+				tempArray[lineCount++] = indices[i + 2];
+				tempArray[lineCount++] = indices[i];
+			}
+			
+			// Create and use a temporary buffer
+			const tempBuffer = gl.createBuffer();
+			gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, tempBuffer);
+			gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, tempArray.subarray(0, lineCount), gl.STREAM_DRAW);
+			gl.drawElements(gl.LINES, lineCount, gl.UNSIGNED_SHORT, 0);
+			gl.deleteBuffer(tempBuffer);
 		}
+		
 		this.unBind();
-	}	
+	}
 
 	bindMaterial(indexObj, applyMaterial) {
 		if (indexObj.material !== "none" && applyMaterial && this.resources) {
