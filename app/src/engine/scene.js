@@ -87,8 +87,7 @@ const renderLighting = () => {
 	Shaders.pointLight.bind();
 	Shaders.pointLight.setMat4("matViewProj", Camera.viewProjection);
 	Shaders.pointLight.setInt("positionBuffer", 0);
-	Shaders.pointLight.setInt("normalBuffer", 1);
-	//Shaders.pointLight.setInt("shadowBuffer", 2);
+	Shaders.pointLight.setInt("normalBuffer", 1)
 	renderEntities(EntityTypes.POINT_LIGHT);
 	Shader.unBind();
 	gl.cullFace(gl.BACK);
