@@ -13,11 +13,18 @@ const matModel = mat4.create();
 let entities = [];
 let ambient = [0.5, 0.5, 0.5];
 let pauseUpdate = false;
+
 let showBoundingBoxes = false;
 const toggleBoundingBoxes = () => {
 	showBoundingBoxes = !showBoundingBoxes;
 };
 Console.registerCmd("togglebv", toggleBoundingBoxes);
+
+let showWireframes = false;
+const toggleWireframes = () => {
+	showWireframes = !showWireframes;
+};
+Console.registerCmd("togglewf", toggleWireframes);
 
 // Memoize entity selections
 const entityCache = new Map();
@@ -151,27 +158,30 @@ const renderDebug = () => {
 	Shaders.debug.bind();
 	Shaders.debug.setMat4("matViewProj", Camera.viewProjection);
 
-	// Enable line rendering
+	// Enable wireframe mode
 	gl.lineWidth(2.0);
 	gl.disable(gl.DEPTH_TEST);
 	gl.depthMask(false);	
 
 	// Render all bounding boxes
 	if (showBoundingBoxes) {
-		Shaders.debug.setVec4("boxColor", [1, 0, 0, 1]); // Red color for boxes
+		Shaders.debug.setVec4("debugColor", [1, 0, 0, 1]);
 		for (const entity of entities) {
 			entity.renderBoundingBox();
 		}
 	}
 
-	Shaders.debug.setVec4("boxColor", [1, 1, 1, 1]);
-	for (const entity of entities) {
+	// Render wireframes
+	if (showWireframes) {
+		Shaders.debug.setVec4("debugColor", [1, 1, 1, 1]);
+		for (const entity of entities) {
 		if (entity.type === EntityTypes.MESH || entity.type === EntityTypes.FPS_MESH) {
 			entity.renderWireFrame();
+			}
 		}
 	}
 
-	// Reset line width
+	// Reset state
 	gl.lineWidth(1.0);
 	gl.enable(gl.DEPTH_TEST);
 	gl.depthMask(true);

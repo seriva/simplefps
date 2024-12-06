@@ -544,10 +544,10 @@ const ShaderSources = {
             
             layout(location=0) out vec4 fragColor;
             
-            uniform vec4 boxColor;
+            uniform vec4 debugColor;
             
             void main() {
-                fragColor = boxColor;
+                fragColor = debugColor;
             }`,
     },
 };
