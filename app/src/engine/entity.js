@@ -39,7 +39,15 @@ class Entity {
 	}
 
 	updateBoundingVolume() {
-		 // Virtual function to be overridden by child classes
+		// Virtual function to be overridden by child classes
+	}
+
+	render() {
+		// Virtual function to be overridden by child classes
+	}
+
+	renderWireFrame() {
+		// Virtual function to be overridden by child classes
 	}
 
 	renderBoundingBox() {

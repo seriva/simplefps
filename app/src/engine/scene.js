@@ -77,7 +77,6 @@ const renderLighting = () => {
 
 	// Directional lights
 	Shaders.directionalLight.bind();
-	Shaders.directionalLight.setInt("positionBuffer", 0);
 	Shaders.directionalLight.setInt("normalBuffer", 1);
 	Shaders.directionalLight.setVec2("viewportSize", viewportSize);
 	renderEntities(EntityTypes.DIRECTIONAL_LIGHT);
@@ -89,7 +88,7 @@ const renderLighting = () => {
 	Shaders.pointLight.setMat4("matViewProj", Camera.viewProjection);
 	Shaders.pointLight.setInt("positionBuffer", 0);
 	Shaders.pointLight.setInt("normalBuffer", 1);
-	Shaders.pointLight.setInt("shadowBuffer", 2);
+	//Shaders.pointLight.setInt("shadowBuffer", 2);
 	renderEntities(EntityTypes.POINT_LIGHT);
 	Shader.unBind();
 	gl.cullFace(gl.BACK);
@@ -175,9 +174,7 @@ const renderDebug = () => {
 	if (showWireframes) {
 		Shaders.debug.setVec4("debugColor", [1, 1, 1, 1]);
 		for (const entity of entities) {
-		if (entity.type === EntityTypes.MESH || entity.type === EntityTypes.FPS_MESH) {
 			entity.renderWireFrame();
-			}
 		}
 	}
 

@@ -45,6 +45,18 @@ class SkyboxEntity extends Entity {
 		gl.enable(gl.DEPTH_TEST);
 		gl.depthMask(true);
 	}
+
+	renderWireFrame() {
+		// Optimize matrix operation by translating directly
+		mat4.translate(this.base_matrix, this.ani_matrix, Camera.position);
+
+		// Set shader uniforms
+		Shaders.debug.setMat4("matWorld", this.base_matrix);
+		Shaders.debug.setMat4("matViewProj", Camera.viewProjection);
+
+		// Render
+		SkyboxEntity.shape.renderWireFrame();
+	}
 }
 
 export default SkyboxEntity;

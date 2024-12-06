@@ -282,7 +282,6 @@ const ShaderSources = {
 
             uniform DirectionalLight directionalLight;
             uniform vec2 viewportSize;
-            uniform sampler2D positionBuffer;
             uniform sampler2D normalBuffer;
 
             void main() {
