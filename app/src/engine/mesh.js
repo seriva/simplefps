@@ -38,6 +38,17 @@ class Mesh {
 
 		for (const indexObj of this.indices) {
 			indexObj.indexBuffer = Mesh.buildBuffer(gl.ELEMENT_ARRAY_BUFFER, indexObj.array, 1);
+
+			// Create line indices for wireframe rendering
+			const lineIndices = [];
+			for (let i = 0; i < indexObj.array.length; i += 3) {
+				lineIndices.push(
+					indexObj.array[i], indexObj.array[i + 1],
+					indexObj.array[i + 1], indexObj.array[i + 2],
+					indexObj.array[i + 2], indexObj.array[i]
+				);
+			}
+			indexObj.lineBuffer = Mesh.buildBuffer(gl.ELEMENT_ARRAY_BUFFER, lineIndices, 1);
 		}
 		this.vertexBuffer = Mesh.buildBuffer(gl.ARRAY_BUFFER, this.vertices, 3);
 
@@ -93,13 +104,11 @@ class Mesh {
 	}
 
 	renderWireFrame() {
-		if (!this.visible) return;
-		
 		this.bind();
 		// Draw lines for each index group
 		for (const indexObj of this.indices) {
-			gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexObj.indexBuffer);
-			gl.drawElements(gl.LINE_STRIP, indexObj.indexBuffer.numItems, gl.UNSIGNED_SHORT, 0);
+			gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexObj.lineBuffer);
+			gl.drawElements(gl.LINES, indexObj.lineBuffer.numItems, gl.UNSIGNED_SHORT, 0);
 		}
 		this.unBind();
 	}	
