@@ -23,6 +23,15 @@ class MeshEntity extends Entity {
 		this.mesh.renderSingle();
 	}
 
+	renderWireFrame() {
+		if (!this.visible) return;
+		const m = mat4.create();
+		mat4.multiply(m, this.base_matrix, this.ani_matrix);
+		Shaders.debug.setMat4("matWorld", m);
+		
+		this.mesh.renderWireFrame();
+	}	
+
 	renderShadow() {
 		if (!this.visible) return;
 		if (!this.castShadow) return;

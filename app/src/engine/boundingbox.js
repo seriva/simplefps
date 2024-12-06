@@ -117,7 +117,7 @@ class BoundingBox {
         mat4.scale(boxMatrix, boxMatrix, this.dimensions);
 
         // Set world matrix only
-        Shaders.boundingBox.setMat4("matWorld", boxMatrix);
+        Shaders.debug.setMat4("matWorld", boxMatrix);
 
         // Render the box as lines
         gl.bindBuffer(gl.ARRAY_BUFFER, BoundingBox.#boxBuffer);

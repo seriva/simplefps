@@ -1,5 +1,6 @@
 import { mat4 } from "../dependencies/gl-matrix.js";
 import Camera from "./camera.js";
+import Console from "./console.js";
 import { Context, gl } from "./context.js";
 import { EntityTypes } from "./entity.js";
 import Physics from "./physics.js";
@@ -12,6 +13,11 @@ const matModel = mat4.create();
 let entities = [];
 let ambient = [0.5, 0.5, 0.5];
 let pauseUpdate = false;
+let showBoundingBoxes = false;
+const toggleBoundingBoxes = () => {
+	showBoundingBoxes = !showBoundingBoxes;
+};
+Console.registerCmd("togglebv", toggleBoundingBoxes);
 
 // Memoize entity selections
 const entityCache = new Map();
@@ -140,23 +146,35 @@ const renderFPSGeometry = () => {
 	Shader.unBind();
 };
 
-const renderBoundingBoxes = () => {
+const renderDebug = () => {
 	// Bind shader and set common uniforms
-	Shaders.boundingBox.bind();
-	Shaders.boundingBox.setMat4("matViewProj", Camera.viewProjection);
-	Shaders.boundingBox.setVec4("boxColor", [1, 0, 0, 1]); // Red color for boxes
+	Shaders.debug.bind();
+	Shaders.debug.setMat4("matViewProj", Camera.viewProjection);
 
 	// Enable line rendering
 	gl.lineWidth(2.0);
+	gl.disable(gl.DEPTH_TEST);
+	gl.depthMask(false);	
 
 	// Render all bounding boxes
+	if (showBoundingBoxes) {
+		Shaders.debug.setVec4("boxColor", [1, 0, 0, 1]); // Red color for boxes
+		for (const entity of entities) {
+			entity.renderBoundingBox();
+		}
+	}
+
+	Shaders.debug.setVec4("boxColor", [1, 1, 1, 1]);
 	for (const entity of entities) {
-		if (entity.type === EntityTypes.FPS_MESH) continue;
-		entity.renderBoundingBox();
+		if (entity.type === EntityTypes.MESH || entity.type === EntityTypes.FPS_MESH) {
+			entity.renderWireFrame();
+		}
 	}
 
 	// Reset line width
 	gl.lineWidth(1.0);
+	gl.enable(gl.DEPTH_TEST);
+	gl.depthMask(true);
 
 	// Unbind shader
 	Shader.unBind();
@@ -174,7 +192,7 @@ const Scene = {
 	renderLighting,
 	renderShadows,
 	renderFPSGeometry,
-	renderBoundingBoxes
+	renderDebug
 };
 
 export default Scene;

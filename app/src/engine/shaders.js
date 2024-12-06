@@ -118,9 +118,7 @@ const ShaderSources = {
             layout(location=0) in vec3 aPosition;
             layout(location=1) in vec2 aUV;
             layout(location=2) in vec3 aNormal;
-            layout(location=3) in vec3 aOffset;
 
-            uniform int geomType;
             uniform int doSEM;
             uniform mat4 matWorld;
             uniform mat4 matViewProj;
@@ -131,11 +129,10 @@ const ShaderSources = {
             out vec2 vSemUV;
 
             const int MESH = 1;
-            const int INSTANCED_MESHES = 2;
-            const int SKYBOX = 3;
+            const int SKYBOX = 2;
 
             void main() {
-                vPosition = vec4(aPosition + (geomType == INSTANCED_MESHES ? aOffset : vec3(0.0)), 1.0);
+                vPosition = vec4(aPosition, 1.0);
                 vPosition = matWorld * vPosition;
                 
                 vUV = aUV;
@@ -173,8 +170,7 @@ const ShaderSources = {
             uniform sampler2D semApplySampler;
 
             const int MESH = 1;
-            const int INSTANCED_MESHES = 2;
-            const int SKYBOX = 3;
+            const int SKYBOX = 2;
 
             void main() {
                 // Early alpha test using textureLod for better performance
@@ -310,26 +306,13 @@ const ShaderSources = {
             precision highp int;
 
             layout(location=0) in vec3 aPosition;
-            layout(location=3) in vec3 aOffset;
 
             uniform mat4 matWorld;
             uniform mat4 matViewProj;
-            uniform int lightType;
-
-            flat out vec3 offsetPosition;
 
             void main()
             {
-                // Combine matrix operations to avoid creating temporary matrix
-                mat4 finalMatrix = matViewProj * matWorld;
-                
-                // Use direct vector addition instead of matrix manipulation for INSTANCED_LIGHT
-                vec4 position = vec4(aPosition + (lightType == 2 ? aOffset : vec3(0.0)), 1.0);
-                
-                // Pass through offset only when needed
-                offsetPosition = aOffset * float(lightType == 2);
-                
-                gl_Position = finalMatrix * position;
+                gl_Position = matViewProj * matWorld * vec4(aPosition, 1.0);
             }`,
         fragment: glsl`#version 300 es
             precision highp float;
@@ -344,27 +327,16 @@ const ShaderSources = {
 
             layout(location=0) out vec4 fragColor;
 
-            flat in vec3 offsetPosition;
-
             uniform PointLight pointLight;
-            uniform int lightType;
             uniform sampler2D positionBuffer;
             uniform sampler2D normalBuffer;
-
-            const int ENTITY_LIGHT = 1;
-            const int INSTANCED_LIGHT = 2;
 
             void main() {
                 // Use direct ivec2 construction instead of conversion
                 ivec2 fragCoord = ivec2(gl_FragCoord.xy);
                 vec3 position = texelFetch(positionBuffer, fragCoord, 0).xyz;
 
-                // Eliminate branch by using mix()
-                vec3 lightDir = mix(
-                    pointLight.position - position,  // ENTITY_LIGHT
-                    offsetPosition - position,       // INSTANCED_LIGHT
-                    float(lightType == INSTANCED_LIGHT)
-                );
+                vec3 lightDir = pointLight.position - position;
 
                 // Early distance check using squared distance (avoid sqrt)
                 float distSq = dot(lightDir, lightDir);
@@ -555,7 +527,7 @@ const ShaderSources = {
                 fragColor.rgb = pow(fragColor.rgb, vec3(1.0 / gamma));
             }`,
     },
-    boundingBox: {
+    debug: {
         vertex: glsl`#version 300 es
             precision highp float;
             

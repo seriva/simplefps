@@ -84,12 +84,6 @@ class Mesh {
 		this.unBind();
 	}
 
-	renderMany(count, applyMaterial = true) {
-		this.bind();
-		this.renderIndicesInstanced(count, applyMaterial);
-		this.unBind();
-	}
-
 	renderIndices(applyMaterial) {
 		for (const indexObj of this.indices) {
 			this.bindMaterial(indexObj, applyMaterial);
@@ -98,13 +92,17 @@ class Mesh {
 		}
 	}
 
-	renderIndicesInstanced(count, applyMaterial) {
+	renderWireFrame() {
+		if (!this.visible) return;
+		
+		this.bind();
+		// Draw lines for each index group
 		for (const indexObj of this.indices) {
-			this.bindMaterial(indexObj, applyMaterial);
 			gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexObj.indexBuffer);
-			gl.drawElementsInstanced(gl.TRIANGLES, indexObj.indexBuffer.numItems, gl.UNSIGNED_SHORT, 0, count);
+			gl.drawElements(gl.LINE_STRIP, indexObj.indexBuffer.numItems, gl.UNSIGNED_SHORT, 0);
 		}
-	}
+		this.unBind();
+	}	
 
 	bindMaterial(indexObj, applyMaterial) {
 		if (indexObj.material !== "none" && applyMaterial && this.resources) {

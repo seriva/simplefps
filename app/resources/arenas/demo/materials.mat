@@ -4,8 +4,7 @@
             "name": "mat_demo_pallete",
             "textures": [
                 "arenas/demo/pallete.webp"
-            ],
-            "geomType": 1
+            ]
         },
         {
             "name": "mat_demo_pallete_emissive_1",
@@ -13,7 +12,6 @@
                 "arenas/demo/pallete.webp",
                 "arenas/demo/pallete.webp"
             ],
-            "geomType": 3,
             "doEmissive": 1  
         }
     ]

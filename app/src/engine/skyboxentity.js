@@ -13,7 +13,6 @@ class SkyboxEntity extends Entity {
 	constructor(id, updateCallback) {
 		super([0, 0, 0], updateCallback);
 		this.type = EntityTypes.SKYBOX;
-		this.shader = Shaders.geometry;
 
 		// Initialize shape resources once
 		if (!SkyboxEntity.shape.resources) {
@@ -35,8 +34,9 @@ class SkyboxEntity extends Entity {
 		mat4.translate(this.base_matrix, this.ani_matrix, Camera.position);
 
 		// Set shader uniforms
-		this.shader.setMat4("matWorld", this.base_matrix);
-		this.shader.setMat4("matViewProj", Camera.viewProjection);
+		Shaders.geometry.setInt("geomType", 1);
+		Shaders.geometry.setMat4("matWorld", this.base_matrix);
+		Shaders.geometry.setMat4("matViewProj", Camera.viewProjection);
 
 		// Render
 		SkyboxEntity.shape.renderSingle();
