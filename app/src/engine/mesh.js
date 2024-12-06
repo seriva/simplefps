@@ -1,3 +1,4 @@
+import BoundingBox from "./boundingbox.js";
 import { gl } from "./context.js";
 
 class Mesh {
@@ -17,6 +18,7 @@ class Mesh {
 			this.loadFromJson(data);
 		}
 		this.initMeshBuffers();
+		this.boundingBox = this.calculateBoundingBox();
 	}
 
 	static buildBuffer(type, data, itemSize) {
@@ -168,6 +170,11 @@ class Mesh {
 		this.uvs = data.uvs?.length > 0 ? data.uvs : [];
 		this.normals = data.normals?.length > 0 ? data.normals : [];
 		this.indices = data.indices;
+	}
+
+	calculateBoundingBox() {
+		if (this.vertices.length === 0) return null;
+		return BoundingBox.fromPoints(this.vertices);
 	}
 }
 

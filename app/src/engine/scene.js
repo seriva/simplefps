@@ -20,7 +20,7 @@ const getEntities = (type) => {
 
 	const selection = entities.reduce((acc, entity) => {
 		if (entity.type === type) acc.push(entity);
-		return acc.concat(entity.getChildren(type));
+		return acc;
 	}, []);
 
 	entityCache.set(type, selection);
@@ -36,14 +36,6 @@ const addEntities = (e) => {
 	}
 };
 
-// Reuse common shader setup logic
-const setupGeometryShader = () => {
-	Shaders.geometry.bind();
-	mat4.identity(matModel);
-	Shaders.geometry.setMat4("matViewProj", Camera.viewProjection);
-	Shaders.geometry.setMat4("matWorld", matModel);
-};
-
 // Combine common render patterns
 const renderEntities = (entityType, renderMethod = "render") => {
 	const targetEntities = getEntities(entityType);
@@ -53,10 +45,15 @@ const renderEntities = (entityType, renderMethod = "render") => {
 };
 
 const renderWorldGeometry = () => {
-	setupGeometryShader();
+	Shaders.geometry.bind();
+	mat4.identity(matModel);
+	Shaders.geometry.setMat4("matViewProj", Camera.viewProjection);
+	Shaders.geometry.setMat4("matWorld", matModel);
+
 	renderEntities(EntityTypes.SKYBOX);
 	renderEntities(EntityTypes.MESH);
 	renderEntities(EntityTypes.FPS_MESH);
+
 	Shader.unBind();
 };
 
@@ -143,6 +140,28 @@ const renderFPSGeometry = () => {
 	Shader.unBind();
 };
 
+const renderBoundingBoxes = () => {
+	// Bind shader and set common uniforms
+	Shaders.boundingBox.bind();
+	Shaders.boundingBox.setMat4("matViewProj", Camera.viewProjection);
+	Shaders.boundingBox.setVec4("boxColor", [1, 0, 0, 1]); // Red color for boxes
+
+	// Enable line rendering
+	gl.lineWidth(2.0);
+
+	// Render all bounding boxes
+	for (const entity of entities) {
+		if (entity.type === EntityTypes.FPS_MESH) continue;
+		entity.renderBoundingBox();
+	}
+
+	// Reset line width
+	gl.lineWidth(1.0);
+
+	// Unbind shader
+	Shader.unBind();
+};
+
 const Scene = {
 	init,
 	pause,
@@ -155,6 +174,7 @@ const Scene = {
 	renderLighting,
 	renderShadows,
 	renderFPSGeometry,
+	renderBoundingBoxes
 };
 
 export default Scene;

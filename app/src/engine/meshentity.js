@@ -1,4 +1,5 @@
-import { mat4, quat } from "../dependencies/gl-matrix.js";
+import { mat4, quat, vec3 } from "../dependencies/gl-matrix.js";
+import BoundingBox from "./boundingbox.js";
 import { Entity, EntityTypes } from "./entity.js";
 import Resources from "./resources.js";
 import { Shaders } from "./shaders.js";
@@ -37,6 +38,13 @@ class MeshEntity extends Entity {
 		Shaders.entityShadows.setMat4("matWorld", m);
 		this.mesh.renderSingle(false);
 	}
+
+    updateBoundingVolume() {
+        // Get the mesh's transformed bounding box
+        const worldMatrix = mat4.create();
+        mat4.multiply(worldMatrix, this.base_matrix, this.ani_matrix);
+        this.boundingBox = this.mesh.boundingBox?.transform(worldMatrix);
+    }
 }
 
 export { MeshEntity as default };

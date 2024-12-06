@@ -555,6 +555,29 @@ const ShaderSources = {
                 fragColor.rgb = pow(fragColor.rgb, vec3(1.0 / gamma));
             }`,
     },
+    boundingBox: {
+        vertex: glsl`#version 300 es
+            precision highp float;
+            
+            layout(location=0) in vec3 aPosition;
+            
+            uniform mat4 matWorld;
+            uniform mat4 matViewProj;
+            
+            void main() {
+                gl_Position = matViewProj * matWorld * vec4(aPosition, 1.0);
+            }`,
+        fragment: glsl`#version 300 es
+            precision highp float;
+            
+            layout(location=0) out vec4 fragColor;
+            
+            uniform vec4 boxColor;
+            
+            void main() {
+                fragColor = boxColor;
+            }`,
+    },
 };
 
 // Initialize all shaders immediately

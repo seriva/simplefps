@@ -9,6 +9,11 @@ import Texture from "./texture.js";
 import Utils from "./utils.js";
 
 let depth = null;
+let showBoundingBoxes = false;
+const toggleBoundingBoxes = () => {
+	showBoundingBoxes = !showBoundingBoxes;
+};
+Console.registerCmd("togglebv", toggleBoundingBoxes);
 
 const BlurSourceType = Object.freeze({
 	SHADOW: 0,
@@ -393,6 +398,23 @@ const postProcessingPass = () => {
 	Texture.unBind(gl.TEXTURE3);
 };
 
+const boundingBoxesPass = () => {
+	if (!showBoundingBoxes) {
+		return;
+	}
+
+	// Disable depth testing and writing
+	gl.disable(gl.DEPTH_TEST);
+	gl.depthMask(false);
+	
+	// Draw bounding boxes over everything else
+	Scene.renderBoundingBoxes();
+	
+	// Reset depth states
+	gl.enable(gl.DEPTH_TEST);
+	gl.depthMask(true);
+};
+
 window.addEventListener(
 	"resize",
 	() => {
@@ -411,6 +433,7 @@ const Renderer = {
 		lightingPass();
 		emissiveBlurPass();
 		postProcessingPass();
+		boundingBoxesPass();
 	},
 };
 
