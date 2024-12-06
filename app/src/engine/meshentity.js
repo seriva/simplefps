@@ -18,7 +18,6 @@ class MeshEntity extends Entity {
 		if (!this.visible) return;
 		const m = mat4.create();
 		mat4.multiply(m, this.base_matrix, this.ani_matrix);
-		Shaders.geometry.setInt("geomType", 1);
 		Shaders.geometry.setMat4("matWorld", m);
 		this.mesh.renderSingle();
 	}
@@ -28,7 +27,6 @@ class MeshEntity extends Entity {
 		const m = mat4.create();
 		mat4.multiply(m, this.base_matrix, this.ani_matrix);
 		Shaders.debug.setMat4("matWorld", m);
-		
 		this.mesh.renderWireFrame();
 	}	
 

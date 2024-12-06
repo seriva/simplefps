@@ -4,37 +4,44 @@
             "name": "mat_skybox_1_front",
             "textures": [
                 "system/black.webp"
-            ]
+            ],
+            "geomType": 2
         },        
         {
             "name": "mat_skybox_1_back",
             "textures": [
                 "system/black.webp"
-            ]
+            ],
+            "geomType": 2
         },  
         {
             "name": "mat_skybox_1_top",
             "textures": [
                 "system/black.webp"
-            ] 
+            ],
+            "geomType": 2
+
         },
         {
             "name": "mat_skybox_1_bottom",
             "textures": [
                 "system/black.webp"
-            ]  
+            ],
+            "geomType": 2
         },
         {
             "name": "mat_skybox_1_right",
             "textures": [
                 "system/black.webp"
-            ]     
+            ],
+            "geomType": 2
         },
         {
             "name": "mat_skybox_1_left",
             "textures": [
                 "system/black.webp"
-            ]
+            ],
+            "geomType": 2
         } 
     ]
 }

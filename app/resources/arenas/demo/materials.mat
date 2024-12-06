@@ -12,7 +12,8 @@
                 "arenas/demo/pallete.webp",
                 "arenas/demo/pallete.webp"
             ],
-            "doEmissive": 1  
+            "doEmissive": 1, 
+            "geomType": 2
         }
     ]
 }
