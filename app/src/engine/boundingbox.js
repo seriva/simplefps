@@ -1,4 +1,5 @@
 import { mat4, vec3 } from "../dependencies/gl-matrix.js";
+import Camera from "./camera.js";
 import { gl } from "./context.js";
 import { Shaders } from "./shaders.js";
 
@@ -27,13 +28,14 @@ class BoundingBox {
     constructor(min, max) {
         this.min = vec3.clone(min);
         this.max = vec3.clone(max);
-        this.updateDerivedData();
+        this.center = vec3.scale(vec3.create(), vec3.add(vec3.create(), min, max), 0.5);
+        this.dimensions = vec3.subtract(vec3.create(), max, min);
         this.initializeBuffer();
     }
 
     static fromPoints(points) {
-        const min = vec3.fromValues(Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY , Number.POSITIVE_INFINITY );
-        const max = vec3.fromValues(-Number.POSITIVE_INFINITY , -Number.POSITIVE_INFINITY , -Number.POSITIVE_INFINITY );
+        const min = vec3.fromValues(Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY);
+        const max = vec3.fromValues(Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY);
 
         for (let i = 0; i < points.length; i += 3) {
             const x = points[i];
@@ -50,27 +52,6 @@ class BoundingBox {
         }
 
         return new BoundingBox(min, max);
-    }
-
-    static combine(boxA, boxB) {
-        if (!boxA) return boxB;
-        if (!boxB) return boxA;
-
-        const min = vec3.create();
-        const max = vec3.create();
-
-        for (let i = 0; i < 3; i++) {
-            min[i] = Math.min(boxA.min[i], boxB.min[i]);
-            max[i] = Math.max(boxA.max[i], boxB.max[i]);
-        }
-
-        return new BoundingBox(min, max);
-    }
-
-    updateDerivedData() {
-        // Calculate center and dimensions
-        this.center = vec3.scale(vec3.create(), vec3.add(vec3.create(), this.min, this.max), 0.5);
-        this.dimensions = vec3.subtract(vec3.create(), this.max, this.min);
     }
 
     transform(matrix) {
@@ -132,6 +113,41 @@ class BoundingBox {
             gl.deleteBuffer(BoundingBox.#boxBuffer);
             BoundingBox.#boxBuffer = null;
         }
+    }
+
+    isVisible() {
+        // Get the 8 corners of the bounding box
+        const corners = [
+            vec3.fromValues(this.min[0], this.min[1], this.min[2]),
+            vec3.fromValues(this.max[0], this.min[1], this.min[2]),
+            vec3.fromValues(this.min[0], this.max[1], this.min[2]),
+            vec3.fromValues(this.max[0], this.max[1], this.min[2]),
+            vec3.fromValues(this.min[0], this.min[1], this.max[2]),
+            vec3.fromValues(this.max[0], this.min[1], this.max[2]),
+            vec3.fromValues(this.min[0], this.max[1], this.max[2]),
+            vec3.fromValues(this.max[0], this.max[1], this.max[2])
+        ];
+
+        // Transform all corners to clip space using Camera.viewProjection
+        const clipSpaceCorners = corners.map(corner => {
+            const clipSpace = vec3.create();
+            vec3.transformMat4(clipSpace, corner, Camera.viewProjection);
+            return clipSpace;
+        });
+
+        // Check if any corner is inside the view frustum
+        for (const corner of clipSpaceCorners) {
+            const [x, y, z] = corner;
+            const w = -z;
+            
+            if (x >= -w && x <= w &&
+                y >= -w && y <= w &&
+                z >= -w && z <= w) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
 
