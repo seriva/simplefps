@@ -3,21 +3,21 @@
         {
             "name": "mat_skybox_1_front",
             "textures": [
-                "system/black.webp"
+                "skybox/1_front.webp"
             ],
             "geomType": 2
         },        
         {
             "name": "mat_skybox_1_back",
             "textures": [
-                "system/black.webp"
+                "skybox/1_back.webp"
             ],
             "geomType": 2
         },  
         {
             "name": "mat_skybox_1_top",
             "textures": [
-                "system/black.webp"
+                "skybox/1_top.webp"
             ],
             "geomType": 2
 
@@ -25,21 +25,21 @@
         {
             "name": "mat_skybox_1_bottom",
             "textures": [
-                "system/black.webp"
+                "skybox/1_bottom.webp"
             ],
             "geomType": 2
         },
         {
             "name": "mat_skybox_1_right",
             "textures": [
-                "system/black.webp"
+                "skybox/1_right.webp"
             ],
             "geomType": 2
         },
         {
             "name": "mat_skybox_1_left",
             "textures": [
-                "system/black.webp"
+                "skybox/1_left.webp"
             ],
             "geomType": 2
         } 
