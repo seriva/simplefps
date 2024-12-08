@@ -4,33 +4,38 @@ import { gl } from "./context.js";
 import { Shaders } from "./shaders.js";
 
 class BoundingBox {
+    static #vectorPool = Array(16).fill().map(() => vec3.create());
+    static #poolIndex = 0;
     static #boxBuffer = null;
     static #boxVertices = [
         // Front face
-        -0.5, -0.5, 0.5,  0.5, -0.5, 0.5,
-        0.5, -0.5, 0.5,   0.5,  0.5, 0.5,
-        0.5,  0.5, 0.5,  -0.5,  0.5, 0.5,
-        -0.5,  0.5, 0.5, -0.5, -0.5, 0.5,
+        -0.5, -0.5,  0.5,    0.5, -0.5,  0.5,
+         0.5, -0.5,  0.5,    0.5,  0.5,  0.5,
+         0.5,  0.5,  0.5,   -0.5,  0.5,  0.5,
+        -0.5,  0.5,  0.5,   -0.5, -0.5,  0.5,
         
         // Back face
-        -0.5, -0.5, -0.5,  0.5, -0.5, -0.5,
-        0.5, -0.5, -0.5,   0.5,  0.5, -0.5,
-        0.5,  0.5, -0.5,  -0.5,  0.5, -0.5,
-        -0.5,  0.5, -0.5, -0.5, -0.5, -0.5,
+        -0.5, -0.5, -0.5,    0.5, -0.5, -0.5,
+         0.5, -0.5, -0.5,    0.5,  0.5, -0.5,
+         0.5,  0.5, -0.5,   -0.5,  0.5, -0.5,
+        -0.5,  0.5, -0.5,   -0.5, -0.5, -0.5,
         
-        // Connecting lines
-        -0.5, -0.5, -0.5, -0.5, -0.5,  0.5,
-        0.5, -0.5, -0.5,  0.5, -0.5,  0.5,
-        0.5,  0.5, -0.5,  0.5,  0.5,  0.5,
-        -0.5,  0.5, -0.5, -0.5,  0.5,  0.5,
+        // Connecting edges
+        -0.5, -0.5, -0.5,   -0.5, -0.5,  0.5,
+         0.5, -0.5, -0.5,    0.5, -0.5,  0.5,
+         0.5,  0.5, -0.5,    0.5,  0.5,  0.5,
+        -0.5,  0.5, -0.5,   -0.5,  0.5,  0.5,
     ];
 
-    constructor(min, max) {
-        this.min = vec3.clone(min);
-        this.max = vec3.clone(max);
-        this.center = vec3.scale(vec3.create(), vec3.add(vec3.create(), min, max), 0.5);
-        this.dimensions = vec3.subtract(vec3.create(), max, min);
-        this.initializeBuffer();
+    #center = vec3.create();
+    #dimensions = vec3.create();
+    #min;
+    #max;
+
+    static #getVector() {
+        const vector = BoundingBox.#vectorPool[BoundingBox.#poolIndex];
+        BoundingBox.#poolIndex = (BoundingBox.#poolIndex + 1) % BoundingBox.#vectorPool.length;
+        return vector;
     }
 
     static fromPoints(points) {
@@ -38,74 +43,11 @@ class BoundingBox {
         const max = vec3.fromValues(Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY);
 
         for (let i = 0; i < points.length; i += 3) {
-            const x = points[i];
-            const y = points[i + 1];
-            const z = points[i + 2];
-
-            min[0] = Math.min(min[0], x);
-            min[1] = Math.min(min[1], y);
-            min[2] = Math.min(min[2], z);
-
-            max[0] = Math.max(max[0], x);
-            max[1] = Math.max(max[1], y);
-            max[2] = Math.max(max[2], z);
+            vec3.min(min, min, vec3.fromValues(points[i], points[i + 1], points[i + 2]));
+            vec3.max(max, max, vec3.fromValues(points[i], points[i + 1], points[i + 2]));
         }
 
         return new BoundingBox(min, max);
-    }
-
-    transform(matrix) {
-        const corners = [
-            vec3.fromValues(this.min[0], this.min[1], this.min[2]),
-            vec3.fromValues(this.max[0], this.min[1], this.min[2]),
-            vec3.fromValues(this.min[0], this.max[1], this.min[2]),
-            vec3.fromValues(this.max[0], this.max[1], this.min[2]),
-            vec3.fromValues(this.min[0], this.min[1], this.max[2]),
-            vec3.fromValues(this.max[0], this.min[1], this.max[2]),
-            vec3.fromValues(this.min[0], this.max[1], this.max[2]),
-            vec3.fromValues(this.max[0], this.max[1], this.max[2]),
-        ];
-
-        const transformedMin = vec3.fromValues(Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY);
-        const transformedMax = vec3.fromValues(Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY);
-
-        for (const corner of corners) {
-            vec3.transformMat4(corner, corner, matrix);
-
-            for (let i = 0; i < 3; i++) {
-                transformedMin[i] = Math.min(transformedMin[i], corner[i]);
-                transformedMax[i] = Math.max(transformedMax[i], corner[i]);
-            }
-        }
-
-        return new BoundingBox(transformedMin, transformedMax);
-    }
-
-    initializeBuffer() {
-        if (!BoundingBox.#boxBuffer) {
-            BoundingBox.#boxBuffer = gl.createBuffer();
-            gl.bindBuffer(gl.ARRAY_BUFFER, BoundingBox.#boxBuffer);
-            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(BoundingBox.#boxVertices), gl.STATIC_DRAW);
-            BoundingBox.#boxBuffer.itemSize = 3;
-            BoundingBox.#boxBuffer.numItems = BoundingBox.#boxVertices.length / 3;
-        }
-    }
-
-    render() {
-        // Create matrix that scales and positions the unit cube to match the bounding box
-        const boxMatrix = mat4.create();
-        mat4.translate(boxMatrix, boxMatrix, this.center);
-        mat4.scale(boxMatrix, boxMatrix, this.dimensions);
-
-        // Set world matrix only
-        Shaders.debug.setMat4("matWorld", boxMatrix);
-
-        // Render the box as lines
-        gl.bindBuffer(gl.ARRAY_BUFFER, BoundingBox.#boxBuffer);
-        gl.vertexAttribPointer(0, BoundingBox.#boxBuffer.itemSize, gl.FLOAT, false, 0, 0);
-        gl.enableVertexAttribArray(0);
-        gl.drawArrays(gl.LINES, 0, BoundingBox.#boxBuffer.numItems);
-        gl.disableVertexAttribArray(0);
     }
 
     static dispose() {
@@ -115,39 +57,94 @@ class BoundingBox {
         }
     }
 
-    isVisible() {
-        // Get the 8 corners of the bounding box
-        const corners = [
-            vec3.fromValues(this.min[0], this.min[1], this.min[2]),
-            vec3.fromValues(this.max[0], this.min[1], this.min[2]),
-            vec3.fromValues(this.min[0], this.max[1], this.min[2]),
-            vec3.fromValues(this.max[0], this.max[1], this.min[2]),
-            vec3.fromValues(this.min[0], this.min[1], this.max[2]),
-            vec3.fromValues(this.max[0], this.min[1], this.max[2]),
-            vec3.fromValues(this.min[0], this.max[1], this.max[2]),
-            vec3.fromValues(this.max[0], this.max[1], this.max[2])
-        ];
+    constructor(min, max) {
+        this.#min = vec3.clone(min);
+        this.#max = vec3.clone(max);
+        this.#updateCachedValues();
+        this.#initializeBuffer();
+    }
 
-        // Transform all corners to clip space using Camera.viewProjection
-        const clipSpaceCorners = corners.map(corner => {
-            const clipSpace = vec3.create();
-            vec3.transformMat4(clipSpace, corner, Camera.viewProjection);
-            return clipSpace;
-        });
+    #updateCachedValues() {
+        vec3.add(this.#center, this.#min, this.#max);
+        vec3.scale(this.#center, this.#center, 0.5);
+        vec3.subtract(this.#dimensions, this.#max, this.#min);
+    }
 
-        // Check if any corner is inside the view frustum
-        for (const corner of clipSpaceCorners) {
-            const [x, y, z] = corner;
-            const w = -z;
+    #initializeBuffer() {
+        if (!BoundingBox.#boxBuffer) {
+            BoundingBox.#boxBuffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, BoundingBox.#boxBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(BoundingBox.#boxVertices), gl.STATIC_DRAW);
+            BoundingBox.#boxBuffer.itemSize = 3;
+            BoundingBox.#boxBuffer.numItems = BoundingBox.#boxVertices.length / 3;
+        }
+    }
+
+    get min() { return this.#min; }
+    get max() { return this.#max; }
+    get center() { return this.#center; }
+    get dimensions() { return this.#dimensions; }
+
+    transform(matrix) {
+        const transformedMin = BoundingBox.#getVector();
+        const transformedMax = BoundingBox.#getVector();
+        vec3.set(transformedMin, Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY);
+        vec3.set(transformedMax, Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY);
+
+        const corner = BoundingBox.#getVector();
+        
+        for (let i = 0; i < 8; i++) {
+            vec3.set(corner,
+                (i & 1) ? this.#max[0] : this.#min[0],
+                (i & 2) ? this.#max[1] : this.#min[1],
+                (i & 4) ? this.#max[2] : this.#min[2]
+            );
             
-            if (x >= -w && x <= w &&
-                y >= -w && y <= w &&
-                z >= -w && z <= w) {
-                return true;
-            }
+            vec3.transformMat4(corner, corner, matrix);
+            vec3.min(transformedMin, transformedMin, corner);
+            vec3.max(transformedMax, transformedMax, corner);
         }
 
-        return false;
+        return new BoundingBox(transformedMin, transformedMax);
+    }
+
+    isVisible() {
+        const p = BoundingBox.#getVector();
+        const n = BoundingBox.#getVector();
+        
+        for (const plane of Object.values(Camera.frustumPlanes)) {
+            vec3.set(p,
+                plane[0] > 0 ? this.#max[0] : this.#min[0],
+                plane[1] > 0 ? this.#max[1] : this.#min[1],
+                plane[2] > 0 ? this.#max[2] : this.#min[2]
+            );
+            
+            vec3.set(n,
+                plane[0] > 0 ? this.#min[0] : this.#max[0],
+                plane[1] > 0 ? this.#min[1] : this.#max[1],
+                plane[2] > 0 ? this.#min[2] : this.#max[2]
+            );
+
+            if (vec3.dot(p, plane) + plane[3] < 0 && vec3.dot(n, plane) + plane[3] < 0) {
+                return false;
+            }
+        }
+        
+        return true;
+    }
+
+    render() {
+        const boxMatrix = mat4.create();
+        mat4.translate(boxMatrix, boxMatrix, this.#center);
+        mat4.scale(boxMatrix, boxMatrix, this.#dimensions);
+
+        Shaders.debug.setMat4("matWorld", boxMatrix);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, BoundingBox.#boxBuffer);
+        gl.vertexAttribPointer(0, BoundingBox.#boxBuffer.itemSize, gl.FLOAT, false, 0, 0);
+        gl.enableVertexAttribArray(0);
+        gl.drawArrays(gl.LINES, 0, BoundingBox.#boxBuffer.numItems);
+        gl.disableVertexAttribArray(0);
     }
 }
 

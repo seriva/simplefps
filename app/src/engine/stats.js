@@ -8,7 +8,10 @@ DOM.css({
 		padding: 0,
 		backgroundColor: "transparent",
 	},
-	"#stats-text": {
+	".stats-info": {
+		marginLeft: "5px",
+	},	
+	"#stats-basic": {
 		fontSize: "12px",
 		color: "#FFF",
 		left: "8px",
@@ -16,14 +19,19 @@ DOM.css({
 		zIndex: 2001,
 		position: "absolute",
 	},
-	".stats-info": {
-		marginLeft: "5px",
+	"#stats-scene": {
+		fontSize: "12px",
+		color: "#FFF",
+		left: "8px",
+		top: "24px",
+		zIndex: 2001,
+		position: "absolute",
 	},
 	"#stats-pos": {
 		color: "#FFF",
 		fontSize: "12px",
-		left: "13px",
-		top: "24px",
+		left: "8px",
+		top: "40px",
 		zIndex: 2001,
 		position: "absolute",
 	},
@@ -36,6 +44,9 @@ const state = {
 	visible: true,
 	prevTime: 0,
 	frames: 0,
+	visibleMeshes: 0,
+	visibleLights: 0,
+	triangles: 0
 };
 
 const createStatsDOM = () =>
@@ -43,18 +54,11 @@ const createStatsDOM = () =>
 		"div#stats",
 		state.visible
 			? [
-					DOM.h("div#stats-text", [
-						DOM.h("span.stats-info", [`${state.fps}fps`]),
-						DOM.h("span.stats-info", [`${Math.round(state.frameTime)}ms`]),
-						DOM.h("span.stats-info", [`${state.memory}mb`]),
-					]),
-					DOM.h("div#stats-pos", [
-						DOM.h("span", [
-							`xyz: ${Math.round(Camera.position[0])},${Math.round(Camera.position[1])},${Math.round(Camera.position[2])}`,
-						]),
-					]),
-				]
-			: [],
+				DOM.h("div#stats-basic", [DOM.h("span", [`${state.fps}fps - ${Math.round(state.frameTime)}ms - ${state.memory}mb`])]),
+				DOM.h("div#stats-scene", [DOM.h("span", [`m:${state.visibleMeshes} - l:${state.visibleLights} - t:${state.triangles}`])]),
+				DOM.h("div#stats-pos", [DOM.h("span", [`xyz:${Camera.position.map(v => Math.round(v)).join(',')}`])]),
+			]
+		: []
 	);
 
 const toggle = (show) => {
@@ -88,6 +92,11 @@ const Stats = {
 		state.frames++;
 		updateStats();
 	},
+	setRenderStats(meshCount, lightCount, triangleCount) {
+		state.visibleMeshes = meshCount;
+		state.visibleLights = lightCount;
+		state.triangles = triangleCount;
+	}
 };
 
 export default Stats;

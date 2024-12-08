@@ -6,6 +6,7 @@ import { EntityTypes } from "./entity.js";
 import Physics from "./physics.js";
 import { Shader, Shaders } from "./shaders.js";
 import { screenQuad } from "./shapes.js";
+import Stats from "./stats.js";
 
 // Cache commonly used values
 const viewportSize = [0, 0];
@@ -13,6 +14,14 @@ const matModel = mat4.create();
 let entities = [];
 let ambient = [0.5, 0.5, 0.5];
 let pauseUpdate = false;
+
+const visibilityCache = {
+	[EntityTypes.SKYBOX]: [],
+	[EntityTypes.MESH]: [],
+	[EntityTypes.FPS_MESH]: [],
+	[EntityTypes.DIRECTIONAL_LIGHT]: [],
+	[EntityTypes.POINT_LIGHT]: []
+};
 
 let showBoundingBoxes = false;
 const toggleBoundingBoxes = () => {
@@ -49,9 +58,34 @@ const addEntities = (e) => {
 	}
 };
 
+const init = () => {
+	entities.length = 0;
+	Physics.init();
+};
+
+const getAmbient = () => ambient;
+const setAmbient = (a) => {
+	ambient = a;
+};
+
+const pause = (doPause) => {
+	pauseUpdate = doPause;
+};
+
+const update = (frameTime) => {
+	if (pauseUpdate) return;
+	Physics.update();
+	
+	for (const entity of entities) {
+		entity.update(frameTime);
+	}
+
+	updateVisibility();
+};
+
 // Combine common render patterns
 const renderEntities = (entityType, renderMethod = "render") => {
-	const targetEntities = getEntities(entityType);
+	const targetEntities = visibilityCache[entityType];
 	for (const entity of targetEntities) {
 		entity[renderMethod]();
 	}
@@ -101,37 +135,12 @@ const renderLighting = () => {
 	Shader.unBind();
 };
 
-const init = () => {
-	entities.length = 0;
-	Physics.init();
-};
-
-const getAmbient = () => ambient;
-const setAmbient = (a) => {
-	ambient = a;
-};
-
-const pause = (doPause) => {
-	pauseUpdate = doPause;
-};
-
-const update = (frameTime) => {
-	if (pauseUpdate) return;
-	Physics.update();
-	for (const entity of entities) {
-		entity.update(frameTime);
-	}
-};
-
 const renderShadows = () => {
 	Shaders.entityShadows.bind();
 	Shaders.entityShadows.setMat4("matViewProj", Camera.viewProjection);
 	Shaders.entityShadows.setVec3("ambient", ambient);
 
-	const meshEntities = getEntities(EntityTypes.MESH);
-	for (const entity of meshEntities) {
-		entity.renderShadow();
-	}
+	renderEntities(EntityTypes.MESH, "renderShadow");
 
 	Shader.unBind();
 };
@@ -143,10 +152,7 @@ const renderFPSGeometry = () => {
 	Shaders.geometry.setMat4("matViewProj", Camera.viewProjection);
 	Shaders.geometry.setMat4("matWorld", matModel);
 
-	const fpsMeshEntities = getEntities(EntityTypes.FPS_MESH);
-	for (const entity of fpsMeshEntities) {
-		entity.render();
-	}
+	renderEntities(EntityTypes.FPS_MESH);
 
 	Shader.unBind();
 };
@@ -164,16 +170,22 @@ const renderDebug = () => {
 	// Render all bounding boxes
 	if (showBoundingBoxes) {
 		Shaders.debug.setVec4("debugColor", [1, 0, 0, 1]);
-		for (const entity of entities) {
-			entity.renderBoundingBox();
+		// Render bounding boxes for all visible entities of each type
+		for (const type in visibilityCache) {
+			for (const entity of visibilityCache[type]) {
+				entity.renderBoundingBox();
+			}
 		}
 	}
 
 	// Render wireframes
 	if (showWireframes) {
 		Shaders.debug.setVec4("debugColor", [1, 1, 1, 1]);
-		for (const entity of entities) {
-			entity.renderWireFrame();
+		// Render wireframes for all visible entities of each type
+		for (const type in visibilityCache) {
+			for (const entity of visibilityCache[type]) {
+				entity.renderWireFrame();
+			}
 		}
 	}
 
@@ -184,6 +196,40 @@ const renderDebug = () => {
 
 	// Unbind shader
 	Shader.unBind();
+};
+
+const updateVisibility = () => {
+	entityCache.clear();
+	// Reset visibility lists
+	for (const type in visibilityCache) {
+		visibilityCache[type] = [];
+	}
+	
+	let visibleMeshCount = 0;
+	let visibleLightCount = 0;
+	let triangleCount = 0;
+	
+	// Sort entities into visible/invisible lists
+	for (const entity of entities) {
+		if (!entity.boundingBox || entity.boundingBox.isVisible()) {
+			visibilityCache[entity.type].push(entity);
+			
+			switch (entity.type) {
+				case EntityTypes.MESH:
+				case EntityTypes.FPS_MESH:
+					visibleMeshCount++;
+					triangleCount += entity.mesh?.triangleCount || 0;
+					break;
+				case EntityTypes.POINT_LIGHT:
+				case EntityTypes.SPOT_LIGHT:
+				case EntityTypes.DIRECTIONAL_LIGHT:
+					visibleLightCount++;
+					break;
+			}
+		}
+	}
+	
+	Stats.setRenderStats(visibleMeshCount, visibleLightCount, triangleCount);
 };
 
 const Scene = {
@@ -198,7 +244,8 @@ const Scene = {
 	renderLighting,
 	renderShadows,
 	renderFPSGeometry,
-	renderDebug
+	renderDebug,
+	visibilityCache
 };
 
 export default Scene;

@@ -1,22 +1,34 @@
 import { Resources, Utils, loop } from "./engine/engine.js";
 
-(async () => {
-	await Resources.load(["resources.list"]);
+const MENU_DELAY = 100;
+const INITIAL_LEVEL = "demo";
 
-	// These modules are dependent on resources so we import them dynamicly after resource loading.
-	let imp = await import("./game/controls.js");
-	imp = await import("./game/arena.js");
-	const Arena = imp.default;
-	imp = await import("./game/weapons.js");
-	const Weapons = imp.default;
+// Load everything in parallel at the top level
+const [
+	_resources,
+	[_controls, { default: Arena }, { default: Weapons }]
+] = await Promise.all([
+	Resources.load(["resources.list"]),
+	Promise.all([
+		import("./game/controls.js"),
+		import("./game/arena.js"),
+		import("./game/weapons.js")
+	])
+]);
 
-	await Arena.load("demo");
-	Weapons.load();
+// Initialize game systems
+await Promise.all([
+	Arena.load(INITIAL_LEVEL),
+	Weapons.load()
+]);
 
+// Start game loop immediately
+loop();
+
+// Show menu after delay
+setTimeout(() => {
 	Utils.dispatchCustomEvent("changestate", {
 		state: "MENU",
 		menu: "MAIN_MENU",
 	});
-
-	loop();
-})();
+}, MENU_DELAY);

@@ -35,9 +35,11 @@ class Mesh {
 	initMeshBuffers() {
 		this.hasUVs = this.uvs.length > 0;
 		this.hasNormals = this.normals.length > 0;
+		this.triangleCount = 0;
 
 		for (const indexObj of this.indices) {
 			indexObj.indexBuffer = Mesh.buildBuffer(gl.ELEMENT_ARRAY_BUFFER, indexObj.array, 1);
+			this.triangleCount += indexObj.array.length / 3;
 		}
 		this.vertexBuffer = Mesh.buildBuffer(gl.ARRAY_BUFFER, this.vertices, 3);
 
