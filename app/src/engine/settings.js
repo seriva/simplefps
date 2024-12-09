@@ -9,8 +9,8 @@ const defaults = {
 	anisotropicFiltering: 16,
 	gamma: 1.0,
 	doFXAA: true,
-	emissiveOffset: 1.75,
-	emissiveMult: 4.5,
+	emissiveOffset: 1.7,
+	emissiveMult: 4.25,
 	emissiveIteration: 8,
 
 	// controls

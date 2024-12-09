@@ -24,7 +24,7 @@ const createPickup = (type, pos) => {
 	const pickup = new MeshEntity(pos, pickupMap[type].meshName, updatePickup, 1);
 	pickup.castShadow = true;
 	pickup.shadowHeight = -0.29;
-	const light = new PointLightEntity([pos[0], pos[1] + 0.5, pos[2]], 1.25, pickupMap[type].lightColor, 1.0, updatePickup);
+	const light = new PointLightEntity([pos[0], pos[1] + 0.4, pos[2]], 1, pickupMap[type].lightColor, 1.0, updatePickup);
 	return [pickup, light];
 };
 
