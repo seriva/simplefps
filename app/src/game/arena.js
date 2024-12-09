@@ -1,6 +1,7 @@
 import {
 	Camera,
 	Console,
+	PointLightEntity,
 	DirectionalLightEntity,
 	Loading,
 	MeshEntity,
@@ -21,7 +22,7 @@ const load = async (name) => {
 		`${window.location}resources/arenas/${name}/config.arena`,
 	);
 	arena = JSON.parse(response);
-	
+
 	// spawnpoint
 	Camera.setPosition(arena.spawnpoint.position);
 	Camera.setRotation(arena.spawnpoint.rotation);
@@ -40,13 +41,13 @@ const load = async (name) => {
 		Scene.addEntities(new DirectionalLightEntity(light.direction, light.color));
 	}
 	for (const light of arena.lighting.point) {
-		Scene.addEntities(new PointLightEntity(light.position, light.color));
+		Scene.addEntities(new PointLightEntity(light.position, light.size,light.color));
 	}
-	
+
 	// pickups
 	for (const pickup of arena.pickups) {
 		Scene.addEntities(
-			Pickup.createPickup(	
+			Pickup.createPickup(
 				pickup.type,
 				pickup.position
 			),

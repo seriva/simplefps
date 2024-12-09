@@ -75,7 +75,7 @@ const pause = (doPause) => {
 const update = (frameTime) => {
 	if (pauseUpdate) return;
 	Physics.update();
-	
+
 	for (const entity of entities) {
 		entity.update(frameTime);
 	}

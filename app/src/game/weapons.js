@@ -55,7 +55,7 @@ const updateGrenade = (entity) => {
 		[q.x, q.y, q.z, q.w],
 		[p.x, p.y, p.z],
 	);
-	
+
 	if (entity.data.light) {
 		mat4.fromTranslation(entity.data.light.ani_matrix, [p.x, p.y, p.z]);
 	}
@@ -75,23 +75,23 @@ const shootGrenade = () => {
 		"meshes/ball.mesh",
 		updateGrenade,
 	);
-	
+
 	const spawnPos = [
 		p[0] + d[0],
 		p[1] + d[1] + 0.2,
 		p[2] + d[2]
 	];
-	
+
 	ballEntity.physicsBody = new CANNON.Body({ mass: 0.1 });
 	ballEntity.physicsBody.position.set(...spawnPos);
 	ballEntity.physicsBody.addShape(grenadeShape);
 	Physics.addBody(ballEntity.physicsBody);
 	ballEntity.physicsBody.velocity.set(d[0] * 25, d[1] * 25, d[2] * 25);
-	
+
 	const lightEntity = new PointLightEntity([0, 0, 0], 2.5, [0.988, 0.31, 0.051], 1.75);
 	lightEntity.visible = true;
 	ballEntity.data.light = lightEntity;
-	
+
 	Scene.addEntities([ballEntity, lightEntity]);
 };
 

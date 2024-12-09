@@ -1,12 +1,13 @@
 import { mat4 } from "../dependencies/gl-matrix.js";
 import { MeshEntity, PointLightEntity } from "../engine/engine.js";
 
-const meshMap = new Map();
-meshMap.set(1, "meshes/health.mesh");
-meshMap.set(2, "meshes/armor.mesh");
-meshMap.set(3, "meshes/ammo.mesh");
-meshMap.set(4, "meshes/grenade_launcher.mesh");
-meshMap.set(5, "meshes/minigun.mesh");
+const pickupMap = {
+	"health": {meshName: "meshes/health.mesh", lightColor: [0.952, 0, 0.035]},
+	"armor": {meshName: "meshes/armor.mesh", lightColor:  [0, 0.352, 0.662]},
+	"ammo": {meshName: "meshes/ammo.mesh", lightColor: [0.623, 0.486, 0.133]},
+	"grenade_launcher": {meshName: "meshes/grenade_launcher.mesh", lightColor: [0.752, 0, 0.035]},
+	"minigun": {meshName: "meshes/minigun.mesh", lightColor: [0.752, 0, 0.035]},
+};
 
 const updatePickup = (entity, frameTime) => {
 	entity.animationTime += frameTime;
@@ -18,31 +19,12 @@ const updatePickup = (entity, frameTime) => {
 		0,
 	]);
 };
+
 const createPickup = (type, pos) => {
-	const mesh = meshMap.get(type);
-	const pickup = new MeshEntity(pos, mesh, updatePickup, 2);
+	const pickup = new MeshEntity(pos, pickupMap[type].meshName, updatePickup, 1);
 	pickup.castShadow = true;
 	pickup.shadowHeight = -0.29;
-	
-	let light;
-	switch (type) {
-		case 1:
-			light = new PointLightEntity(pos, 1.8, [0.752, 0, 0.035], 3);
-			break;
-		case 2:
-			light = new PointLightEntity(pos, 1.8, [0, 0.352, 0.662], 3);
-			break;
-		case 3:
-			light = new PointLightEntity(pos, 1.8, [0.623, 0.486, 0.133], 3);
-			break;
-		case 4:
-			light = new PointLightEntity(pos, 1.8, [0.2, 0.552, 0.862], 3);
-			break;
-		case 5:
-			light = new PointLightEntity(pos, 1.8, [0.752, 0, 0.035], 3);
-			break;
-	}
-	
+	const light = new PointLightEntity([pos[0], pos[1] + 0.5, pos[2]], 1.25, pickupMap[type].lightColor, 1.0, updatePickup);
 	return [pickup, light];
 };
 

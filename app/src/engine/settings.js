@@ -10,10 +10,8 @@ const defaults = {
 	gamma: 1.0,
 	doFXAA: true,
 	emissiveOffset: 1.75,
-	emissiveMult: 4,
+	emissiveMult: 4.5,
 	emissiveIteration: 8,
-	noiseAmmount: 0.125,
-	noiseSpeed: 0.1,
 
 	// controls
 	forward: 87,

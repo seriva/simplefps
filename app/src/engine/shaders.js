@@ -134,7 +134,7 @@ const ShaderSources = {
             void main() {
                 vPosition = vec4(aPosition, 1.0);
                 vPosition = matWorld * vPosition;
-                
+
                 vUV = aUV;
                 vNormal = normalize(mat3(matWorld) * aNormal);
 
@@ -426,7 +426,7 @@ const ShaderSources = {
             #define FXAA_SUBPIX_TRIM 0.5
 
             float applySoftLight(float base, float blend) {
-                return (blend < 0.5) 
+                return (blend < 0.5)
                     ? (2.0 * base * blend + base * base * (1.0 - 2.0 * blend))
                     : (sqrt(base) * (2.0 * blend - 1.0) + 2.0 * base * (1.0 - blend));
             }
@@ -529,22 +529,22 @@ const ShaderSources = {
     debug: {
         vertex: glsl`#version 300 es
             precision highp float;
-            
+
             layout(location=0) in vec3 aPosition;
-            
+
             uniform mat4 matWorld;
             uniform mat4 matViewProj;
-            
+
             void main() {
                 gl_Position = matViewProj * matWorld * vec4(aPosition, 1.0);
             }`,
         fragment: glsl`#version 300 es
             precision highp float;
-            
+
             layout(location=0) out vec4 fragColor;
-            
+
             uniform vec4 debugColor;
-            
+
             void main() {
                 fragColor = debugColor;
             }`,
