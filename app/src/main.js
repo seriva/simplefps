@@ -40,7 +40,7 @@ async function loadGameModules() {
 			state: "MENU",
 			menu: "MAIN_MENU",
 		});
-	}, 0);
+	}, 100);
 
 	loop();
 })();
