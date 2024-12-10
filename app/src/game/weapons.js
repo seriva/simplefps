@@ -75,7 +75,9 @@ const setIsMoving = (value) => {
 };
 
 const hideAll = () => {
-	state.list.forEach(entity => entity.visible = false);
+	for (let i = 0; i < state.list.length; i++) {
+		state.list[i].visible = false;
+	}
 };
 
 const selectNext = () => {
