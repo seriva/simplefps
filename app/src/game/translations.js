@@ -1,32 +1,33 @@
 import { Console } from "../engine/engine.js";
 
-let l = navigator.language;
+// Default language fallback
+const DEFAULT_LANGUAGE = 'en-US';
 
-const t = {
-	"en-US": {
-		YES: "Yes",
-		NO: "No",
-		CONTINUE_GAME: "Continue game",
-		MAIN_MENU: "Main Menu",
-		VERSION_CHECK: "Check for updates",
-		VERSION_NEW: "A new version is available. Do you want to update now?",
-	},
+// Translation dictionary
+const translations = {
+    "en-US": {
+        YES: "Yes",
+        NO: "No",
+        CONTINUE_GAME: "Continue game",
+        MAIN_MENU: "Main Menu",
+        VERSION_CHECK: "Check for updates",
+        VERSION_NEW: "A new version is available. Do you want to update now?",
+    },
 };
 
-// Fallback if the language does not exist
-if (!Object.prototype.hasOwnProperty.call(t, l)) {
-	l = "en-US";
-}
+// Get browser language or fallback to default
+const currentLanguage = (() => {
+    const browserLang = navigator.language;
+    return browserLang in translations ? browserLang : DEFAULT_LANGUAGE;
+})();
 
-Console.log(`Language ${l}`);
+Console.log(`Language ${currentLanguage}`);
 
 const Translations = {
-	get: (key) => {
-		if (!Object.prototype.hasOwnProperty.call(t[l], key)) {
-			return "*UNKNOWN KEY*";
-		}
-		return t[l][key];
-	},
+    get: (key) => {
+        const languageDict = translations[currentLanguage];
+        return languageDict?.[key] ?? "*UNKNOWN KEY*";
+    },
 };
 
-export { Translations as default };
+export default Translations;
