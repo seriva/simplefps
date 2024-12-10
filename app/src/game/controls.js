@@ -36,66 +36,74 @@ UI.register("MAIN_MENU", {
 	],
 });
 
-document.addEventListener(
-	"pointerlockchange",
-	() => {
-		if (document.pointerLockElement === null) {
-			if (State !== "MENU") {
-				Utils.dispatchCustomEvent("changestate", {
-					state: "MENU",
-					menu: "MAIN_MENU",
-				});
-				music.pause();
-			}
-		}
-	},
-	false,
-);
-
-document.addEventListener("pointerlockerror", () => {
-	// Workarround for Chrome where it would throw an error in some weird case.
-	Utils.dispatchCustomEvent("changestate", {
-		state: "GAME",
-	});
-});
-
-window.addEventListener(
-	"focus",
-	() => {
-		if (State !== "MENU") {
+// Group all event listeners together
+const initializeEventListeners = () => {
+	// Pointer lock events
+	document.addEventListener("pointerlockchange", () => {
+		if (document.pointerLockElement === null && State !== "MENU") {
 			Utils.dispatchCustomEvent("changestate", {
 				state: "MENU",
 				menu: "MAIN_MENU",
 			});
+			music.pause();
 		}
-	},
-	false,
-);
+	}, false);
 
-// console
-Input.addKeyDownEvent(192, () => {
-	Console.toggle();
-});
-Input.addKeyDownEvent(13, () => {
-	Console.executeCmd();
-});
+	document.addEventListener("pointerlockerror", () => {
+		Utils.dispatchCustomEvent("changestate", { state: "GAME" });
+	});
 
-// mouse buttons input
-window.addEventListener("click", (e) => {
-	if (e.button > 0) return;
-	if (e.target.tagName.toUpperCase() !== "BODY" && !Utils.isMobile()) return;
-	if (e.target.id !== "look" && Utils.isMobile()) return;
-	Weapons.shootGrenade();
-});
+	// Window focus event
+	window.addEventListener("focus", () => {
+		if (State !== "MENU") {
+			Utils.dispatchCustomEvent("changestate", {
+				state: "MENU",
+					menu: "MAIN_MENU",
+			});
+		}
+	}, false);
 
-window.addEventListener("wheel", (e) => {
-	if (State !== "GAME") return;
-	if (e.deltaY < 0) {
-		Weapons.selectNext();
-	} else if (e.deltaY > 0) {
-		Weapons.selectPrevious();
-	}
-});
+	// Weapon controls
+	window.addEventListener("click", (e) => {
+		if (e.button > 0) return;
+		if (e.target.tagName.toUpperCase() !== "BODY" && !Utils.isMobile()) return;
+		if (e.target.id !== "look" && Utils.isMobile()) return;
+		Weapons.shootGrenade();
+	});
+
+	window.addEventListener("wheel", (e) => {
+		if (State !== "GAME") return;
+		Weapons.selectNext(e.deltaY < 0);
+	});
+};
+
+// Separate console controls
+const initializeConsoleControls = () => {
+	Input.addKeyDownEvent(192, Console.toggle);
+	Input.addKeyDownEvent(13, Console.executeCmd);
+};
+
+// Camera movement logic
+const updateCamera = (frameTime) => {
+	const ft = frameTime / 1000;
+	updateCameraRotation();
+	updateCameraPosition(ft);
+};
+
+const updateCameraRotation = () => {
+	const mpos = Input.cursorMovement();
+	Camera.rotation[0] -= (mpos.x / 33.0) * Settings.lookSensitivity;
+	Camera.rotation[1] += (mpos.y / 33.0) * Settings.lookSensitivity;
+	
+	// Clamp vertical rotation
+	Camera.rotation[1] = Math.max(-89, Math.min(89, Camera.rotation[1]));
+	
+	// Wrap horizontal rotation
+	Camera.rotation[0] = ((Camera.rotation[0] % 360) + 360) % 360;
+
+	// Update camera direction
+	updateCameraDirection();
+};
 
 Input.setUpdateCallback((frameTime) => {
 	if (Console.visible() || State === "MENU") return;
@@ -170,3 +178,7 @@ Input.setUpdateCallback((frameTime) => {
 	Camera.position[2] =
 		Camera.position[2] + Camera.direction[2] * move + v[2] * strafe;
 });
+
+// Initialize all controls when the module loads
+initializeEventListeners();
+initializeConsoleControls();
