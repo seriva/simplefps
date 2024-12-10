@@ -9,22 +9,43 @@ const pickupMap = {
 	"minigun": {meshName: "meshes/minigun.mesh", lightColor: [0.752, 0, 0.035]},
 };
 
+const ROTATION_SPEED = 1000;
+const BOBBING_AMPLITUDE = 0.1;
+const LIGHT_OFFSET_Y = 0.4;
+const LIGHT_INTENSITY = 1;
+const LIGHT_RADIUS = 2.5;
+const SHADOW_HEIGHT = -0.29;
+
 const updatePickup = (entity, frameTime) => {
 	entity.animationTime += frameTime;
+	const animationTimeInSeconds = entity.animationTime / ROTATION_SPEED;
 	mat4.identity(entity.ani_matrix);
-	mat4.fromRotation(entity.ani_matrix, entity.animationTime / 1000, [0, 1, 0]);
+	mat4.fromRotation(entity.ani_matrix, animationTimeInSeconds, [0, 1, 0]);
 	mat4.translate(entity.ani_matrix, entity.ani_matrix, [
 		0,
-		Math.cos(Math.PI * (entity.animationTime / 1000)) * 0.1,
+		Math.cos(Math.PI * animationTimeInSeconds) * BOBBING_AMPLITUDE,
 		0,
 	]);
 };
 
 const createPickup = (type, pos) => {
-	const pickup = new MeshEntity(pos, pickupMap[type].meshName, updatePickup, 1);
+	if (!pickupMap[type]) {
+		throw new Error(`Invalid pickup type: ${type}`);
+	}
+
+	const { meshName, lightColor } = pickupMap[type];
+	const pickup = new MeshEntity(pos, meshName, updatePickup, 1);
 	pickup.castShadow = true;
-	pickup.shadowHeight = -0.29;
-	const light = new PointLightEntity([pos[0], pos[1] + 0.4, pos[2]], 1, pickupMap[type].lightColor, 2.5, updatePickup);
+	pickup.shadowHeight = SHADOW_HEIGHT;
+
+	const light = new PointLightEntity(
+		[pos[0], pos[1] + LIGHT_OFFSET_Y, pos[2]],
+		LIGHT_INTENSITY,
+		lightColor,
+		LIGHT_RADIUS,
+		updatePickup
+	);
+
 	return [pickup, light];
 };
 
