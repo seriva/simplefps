@@ -11,13 +11,26 @@ import {
 	Scene,
 } from "../engine/engine.js";
 
-// Constants
-const GRENADE_RADIUS = 0.095;
-const GRENADE_MASS = 0.1;
-const GRENADE_VELOCITY = 25;
-const GRENADE_LIGHT_RADIUS = 2.5;
-const GRENADE_LIGHT_INTENSITY = 1.75;
-const GRENADE_LIGHT_COLOR = [0.988, 0.31, 0.051];
+// Weapon configurations
+const WEAPONS = {
+	GRENADE_LAUNCHER: {
+		mesh: "meshes/grenade_launcher.mesh",
+		projectile: {
+			mesh: "meshes/ball.mesh",
+			radius: 0.095,
+			mass: 0.1,
+			velocity: 25,
+			light: {
+				radius: 2.5,
+				intensity: 1.75,
+				color: [0.988, 0.31, 0.051]
+			}
+		}
+	},
+	MINIGUN: {
+		mesh: "meshes/minigun.mesh"
+	}
+};
 
 const WEAPON_POSITION = {
 	x: 0.15,
@@ -44,40 +57,39 @@ const ANIMATION = {
 	}
 };
 
-// State
-let weaponList = [];
-let selected = -1;
-let grenadeLauncher = null;
-let miniGun = null;
-let firing = false;
-let firingStart = 0;
-let firingTimer = 0;
-let isMoving = false;
+const state = {
+	list: [],
+	selected: -1,
+	grenadeLauncher: null,
+	miniGun: null,
+	firing: false,
+	firingStart: 0,
+	firingTimer: 0,
+	isMoving: false
+};
 
-const grenadeShape = new CANNON.Sphere(GRENADE_RADIUS);
+const grenadeShape = new CANNON.Sphere(WEAPONS.GRENADE_LAUNCHER.projectile.radius);
 
-// Weapon management
 const setIsMoving = (value) => {
-	isMoving = value;
+	state.isMoving = value;
 };
 
 const hideAll = () => {
-	weaponList.forEach(entity => entity.visible = false);
+	state.list.forEach(entity => entity.visible = false);
 };
 
 const selectNext = () => {
 	hideAll();
-	selected = (selected + 1) % weaponList.length;
-	weaponList[selected].visible = true;
+	state.selected = (state.selected + 1) % state.list.length;
+	state.list[state.selected].visible = true;
 };
 
 const selectPrevious = () => {
 	hideAll();
-	selected = (selected - 1 + weaponList.length) % weaponList.length;
-	weaponList[selected].visible = true;
+	state.selected = (state.selected - 1 + state.list.length) % state.list.length;
+	state.list[state.selected].visible = true;
 };
 
-// Weapon updates
 const updateGrenade = (entity) => {
 	const { quaternion: q, position: p } = entity.physicsBody;
 	mat4.fromRotationTranslation(
@@ -93,35 +105,48 @@ const updateGrenade = (entity) => {
 
 const createWeaponAnimation = (entity, frameTime) => {
 	entity.animationTime += frameTime;
-	
-	// Fire animation
-	let fireAnim = 0;
-	if (firing) {
-		const dt = performance.now() - firingStart;
-		firingTimer += frameTime;
-		if (dt > ANIMATION.FIRE_DURATION) {
-			firing = false;
-		}
-		fireAnim = Math.cos(Math.PI * (firingTimer / 1000)) * ANIMATION.AMPLITUDES.FIRE;
+
+	const animations = {
+		fire: calculateFireAnimation(frameTime),
+		movement: calculateMovementAnimation(entity.animationTime),
+		idle: calculateIdleAnimation(entity.animationTime)
+	};
+
+	applyWeaponTransforms(entity, animations);
+};
+
+const calculateFireAnimation = (frameTime) => {
+	if (!state.firing) return 0;
+
+	const dt = performance.now() - state.firingStart;
+	state.firingTimer += frameTime;
+
+	if (dt > ANIMATION.FIRE_DURATION) {
+		state.firing = false;
 	}
 
-	// Movement animation
-	let moveHorizontalAnim = 0;
-	let moveVerticalAnim = 0;
-	if (isMoving) {
-		moveHorizontalAnim = Math.cos(Math.PI * (entity.animationTime / ANIMATION.HORIZONTAL_PERIOD)) 
-			* ANIMATION.AMPLITUDES.HORIZONTAL_MOVE;
-		moveVerticalAnim = -Math.cos(Math.PI * (entity.animationTime / ANIMATION.VERTICAL_PERIOD)) 
-			* ANIMATION.AMPLITUDES.VERTICAL_MOVE;
-	}
+	return Math.cos(Math.PI * (state.firingTimer / 1000)) * ANIMATION.AMPLITUDES.FIRE;
+};
 
-	// Idle animation
-	const idleHorizontal = Math.cos(Math.PI * (entity.animationTime / ANIMATION.IDLE_PERIOD.HORIZONTAL)) 
-		* ANIMATION.AMPLITUDES.IDLE.HORIZONTAL;
-	const idleVertical = Math.sin(Math.PI * (entity.animationTime / ANIMATION.IDLE_PERIOD.VERTICAL)) 
-		* ANIMATION.AMPLITUDES.IDLE.VERTICAL;
+const calculateMovementAnimation = (animationTime) => {
+	if (!state.isMoving) return { horizontal: 0, vertical: 0 };
 
-	// Camera-based positioning
+	return {
+		horizontal: Math.cos(Math.PI * (animationTime / ANIMATION.HORIZONTAL_PERIOD)) 
+			* ANIMATION.AMPLITUDES.HORIZONTAL_MOVE,
+		vertical: -Math.cos(Math.PI * (animationTime / ANIMATION.VERTICAL_PERIOD)) 
+			* ANIMATION.AMPLITUDES.VERTICAL_MOVE
+	};
+};
+
+const calculateIdleAnimation = (animationTime) => ({
+	horizontal: Math.cos(Math.PI * (animationTime / ANIMATION.IDLE_PERIOD.HORIZONTAL)) 
+		* ANIMATION.AMPLITUDES.IDLE.HORIZONTAL,
+	vertical: Math.sin(Math.PI * (animationTime / ANIMATION.IDLE_PERIOD.VERTICAL)) 
+		* ANIMATION.AMPLITUDES.IDLE.VERTICAL
+});
+
+const applyWeaponTransforms = (entity, animations) => {
 	const dir = vec3.create();
 	const pos = vec3.create();
 	vec3.copy(dir, Camera.direction);
@@ -136,73 +161,81 @@ const createWeaponAnimation = (entity, frameTime) => {
 	);
 	mat4.invert(entity.ani_matrix, entity.ani_matrix);
 	mat4.translate(entity.ani_matrix, entity.ani_matrix, [
-		WEAPON_POSITION.x + idleHorizontal + moveHorizontalAnim,
-		WEAPON_POSITION.y + idleVertical + moveVerticalAnim,
-		WEAPON_POSITION.z + fireAnim
+		WEAPON_POSITION.x + animations.idle.horizontal + animations.movement.horizontal,
+		WEAPON_POSITION.y + animations.idle.vertical + animations.movement.vertical,
+		WEAPON_POSITION.z + animations.fire
 	]);
 	mat4.rotateY(entity.ani_matrix, entity.ani_matrix, glMatrix.toRadian(180));
 	mat4.rotateX(entity.ani_matrix, entity.ani_matrix, glMatrix.toRadian(-2.5));
 };
 
 const shootGrenade = () => {
-	if (firing) return;
-	
-	firing = true;
-	firingStart = performance.now();
-	firingTimer = 0;
-	
+	if (state.firing) return;
+
+	state.firing = true;
+	state.firingStart = performance.now();
+	state.firingTimer = 0;
+
 	Resources.get("sounds/shoot.sfx").play();
-	
+
+	const projectileConfig = WEAPONS.GRENADE_LAUNCHER.projectile;
+	const spawnPosition = calculateProjectileSpawnPosition();
+	const projectile = createProjectile(spawnPosition, projectileConfig);
+
+	Scene.addEntities([projectile.entity, projectile.light]);
+};
+
+const calculateProjectileSpawnPosition = () => {
 	const p = vec3.create();
-	mat4.getTranslation(p, grenadeLauncher.ani_matrix);
+	mat4.getTranslation(p, state.grenadeLauncher.ani_matrix);
 	const d = Camera.direction;
-	
-	const ballEntity = new MeshEntity([0, 0, 0], "meshes/ball.mesh", updateGrenade);
-	const spawnPos = [p[0] + d[0], p[1] + d[1] + 0.2, p[2] + d[2]];
-	
-	// Physics setup
-	ballEntity.physicsBody = new CANNON.Body({ mass: GRENADE_MASS });
-	ballEntity.physicsBody.position.set(...spawnPos);
-	ballEntity.physicsBody.addShape(grenadeShape);
-	Physics.addBody(ballEntity.physicsBody);
-	ballEntity.physicsBody.velocity.set(
-		d[0] * GRENADE_VELOCITY,
-		d[1] * GRENADE_VELOCITY,
-		d[2] * GRENADE_VELOCITY
+	return [p[0] + d[0], p[1] + d[1] + 0.2, p[2] + d[2]];
+};
+
+const createProjectile = (spawnPos, config) => {
+	const entity = new MeshEntity([0, 0, 0], config.mesh, updateGrenade);
+
+	entity.physicsBody = new CANNON.Body({ mass: config.mass });
+	entity.physicsBody.position.set(...spawnPos);
+	entity.physicsBody.addShape(grenadeShape);
+	Physics.addBody(entity.physicsBody);
+
+	const d = Camera.direction;
+	entity.physicsBody.velocity.set(
+		d[0] * config.velocity,
+		d[1] * config.velocity,
+		d[2] * config.velocity
 	);
 
-	// Light setup
-	const lightEntity = new PointLightEntity(
+	const light = new PointLightEntity(
 		[0, 0, 0],
-		GRENADE_LIGHT_RADIUS,
-		GRENADE_LIGHT_COLOR,
-		GRENADE_LIGHT_INTENSITY
+		config.light.radius,
+		config.light.color,
+		config.light.intensity
 	);
-	lightEntity.visible = true;
-	ballEntity.data.light = lightEntity;
+	light.visible = true;
+	entity.data.light = light;
 
-	Scene.addEntities([ballEntity, lightEntity]);
+	return { entity, light };
 };
 
 const load = () => {
-	// Initialize weapons
-	grenadeLauncher = new FpsMeshEntity(
+	state.grenadeLauncher = new FpsMeshEntity(
 		[0, 0, 0],
-		"meshes/grenade_launcher.mesh",
+		WEAPONS.GRENADE_LAUNCHER.mesh,
 		createWeaponAnimation
 	);
-	Scene.addEntities(grenadeLauncher);
+	Scene.addEntities(state.grenadeLauncher);
 
-	miniGun = new FpsMeshEntity(
+	state.miniGun = new FpsMeshEntity(
 		[0, 0, 0],
-		"meshes/minigun.mesh",
+		WEAPONS.MINIGUN.mesh,
 		createWeaponAnimation
 	);
-	miniGun.visible = false;
-	Scene.addEntities(miniGun);
+	state.miniGun.visible = false;
+	Scene.addEntities(state.miniGun);
 
-	// Initialize weapon list
-	weaponList = Scene.getEntities(EntityTypes.FPS_MESH);
+	state.list = Scene.getEntities(EntityTypes.FPS_MESH);
 	selectNext();
 };
 
