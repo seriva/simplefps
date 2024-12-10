@@ -54,4 +54,4 @@ class MeshEntity extends Entity {
     }
 }
 
-export { MeshEntity as default };
+export default MeshEntity;		

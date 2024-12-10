@@ -35,4 +35,4 @@ const Physics = {
 	addBody,
 };
 
-export { Physics as default };
+export default Physics;		

@@ -422,4 +422,4 @@ const Input = {
 	},
 };
 
-export { Input as default };
+export default Input;

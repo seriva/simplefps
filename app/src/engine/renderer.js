@@ -419,4 +419,4 @@ const Renderer = {
 	},
 };
 
-export { Renderer as default };
+export default Renderer;	

@@ -8,4 +8,4 @@ class FpsMeshEntity extends MeshEntity {
 	}
 }
 
-export { FpsMeshEntity as default };
+export default FpsMeshEntity;

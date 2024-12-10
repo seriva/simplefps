@@ -48,4 +48,4 @@ class PointLightEntity extends Entity {
 	}
 }
 
-export { PointLightEntity as default };
+export default PointLightEntity;	
