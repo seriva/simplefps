@@ -95,4 +95,4 @@ const Update = {
 	},
 };
 
-export { Update as default };
+export default Update;

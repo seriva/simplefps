@@ -2,45 +2,40 @@ import { Context, DOM, Input, Scene } from "../engine/engine.js";
 import HUD from "./hud.js";
 import UI from "./ui.js";
 
-let State = "MENU";
-
-let doBlur = false;
-const blurGameCanvas = (blur) => {
-	if (blur === undefined) {
-		doBlur = !doBlur;
-	} else {
-		doBlur = blur;
-	}
-	if (doBlur) {
-		DOM.animate(
-			Context.canvas.domNode,
-			{ blur: 8 },
-			{
-				mobileHA: false,
-				duration: 25,
-				delay: 0,
-				easing: "linear",
-			},
-		);
-	} else {
-		DOM.animate(
-			Context.canvas.domNode,
-			{ blur: 0 },
-			{
-				mobileHA: false,
-				duration: 25,
-				delay: 0,
-				easing: "linear",
-			},
-		);
-	}
+const GameStates = {
+	MENU: 'MENU',
+	GAME: 'GAME'
 };
 
-const setState = (s, menu) => {
-	State = s.toUpperCase();
+let currentState = GameStates.MENU;
 
-	switch (State) {
-		case "GAME":
+let isBlurred = false;
+const blurGameCanvas = (blur) => {
+	if (blur === undefined) {
+		isBlurred = !isBlurred;
+	} else {
+		isBlurred = blur;
+	}
+
+	const blurConfig = {
+		mobileHA: false,
+		duration: 25,
+		delay: 0,
+		easing: 'linear'
+	};
+
+	DOM.animate(
+		Context.canvas.domNode,
+		{ blur: isBlurred ? 8 : 0 },
+		blurConfig
+	);
+};
+
+const setState = (newState, menu) => {
+	currentState = newState.toUpperCase();
+
+	switch (currentState) {
+		case GameStates.GAME:
 			Input.toggleVirtualInput(true);
 			Input.toggleCursor(false);
 			blurGameCanvas(false);
@@ -48,15 +43,14 @@ const setState = (s, menu) => {
 			UI.hide();
 			Scene.pause(false);
 			break;
-		case "MENU":
+
+		case GameStates.MENU:
 			Input.toggleVirtualInput(false);
 			Input.toggleCursor(true);
 			blurGameCanvas(true);
 			HUD.toggle(false);
 			UI.show(menu);
 			Scene.pause(true);
-			break;
-		default:
 			break;
 	}
 };
@@ -65,4 +59,4 @@ window.addEventListener("changestate", (e) => {
 	setState(e.detail.state, e.detail.menu);
 });
 
-export { State as default };
+export { currentState as default };

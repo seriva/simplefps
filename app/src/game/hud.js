@@ -74,4 +74,4 @@ const HUD = {
 	toggle,
 };
 
-export { HUD as default };
+export default HUD;
