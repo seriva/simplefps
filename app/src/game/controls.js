@@ -24,7 +24,7 @@ UI.register("MAIN_MENU", {
 				Utils.dispatchCustomEvent("changestate", {
 					state: "GAME",
 				});
-				music.play();
+				music.resume();
 			},
 		},
 		{
