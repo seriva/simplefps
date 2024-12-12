@@ -1,8 +1,8 @@
-import { Resources, Utils, loop } from "./engine/engine.js";
+import { Resources, Utils, Console,  loop } from "./engine/engine.js";
 
 async function loadGameModules() {
 	Utils.dispatchCustomEvent("loading", { state: "LOADING_MODULES" });
-	
+
 	const modules = await Promise.all([
 		import("./game/controls.js").catch(err => null),
 		import("./game/arena.js").catch(err => null),
@@ -12,15 +12,10 @@ async function loadGameModules() {
 	const [controls, arena, weapons] = modules;
 
 	if (!arena?.default || !weapons?.default) {
-		Utils.dispatchCustomEvent("error", { 
-			type: "LOAD_ERROR",
-			message: "Failed to load required game modules"
-		});
-		throw new Error("Failed to load required game modules");
+		Console.error("Failed to load required game modules");
 	}
 
 	return {
-		Controls: controls?.default ?? null,
 		Arena: arena.default,
 		Weapons: weapons.default
 	};
