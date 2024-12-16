@@ -331,27 +331,35 @@ const ShaderSources = {
             uniform sampler2D normalBuffer;
 
             void main() {
-                // Use direct ivec2 construction instead of conversion
                 ivec2 fragCoord = ivec2(gl_FragCoord.xy);
                 vec3 position = texelFetch(positionBuffer, fragCoord, 0).xyz;
+                vec3 normal = normalize(texelFetch(normalBuffer, fragCoord, 0).xyz);
 
                 vec3 lightDir = pointLight.position - position;
-
-                // Early distance check using squared distance (avoid sqrt)
                 float distSq = dot(lightDir, lightDir);
                 float sizeSq = pointLight.size * pointLight.size;
+
+                // Early exit if outside range
                 if (distSq > sizeSq) discard;
 
-                // Normalize after the distance check
-                vec3 n = normalize(texelFetch(normalBuffer, fragCoord, 0).xyz);
-                vec3 l = inversesqrt(distSq) * lightDir;  // Normalized direction
+                // Normalized distance (0 at light center, 1 at max radius)
+                float normalizedDist = sqrt(distSq) / pointLight.size;
 
-                // Simplified attenuation calculation
-                float atten = (1.0 - distSq/sizeSq) * pointLight.intensity;
-                float nDotL = max(0.0, dot(n, l));
+                // Smooth falloff curve
+                // Using smoothstep for a more natural falloff
+                float falloff = 1.0 - smoothstep(0.0, 1.0, normalizedDist);
 
-                // Combined multiplication
-                fragColor = vec4(pointLight.color * (atten * nDotL), 1.0);
+                // Add a quadratic component for more physically based falloff
+                falloff = falloff * falloff;
+
+                // Calculate light contribution
+                vec3 L = normalize(lightDir);
+                float nDotL = max(0.0, dot(normal, L));
+
+                // Combine all factors
+                vec3 finalColor = pointLight.color * (falloff * falloff * nDotL * pointLight.intensity);
+
+                fragColor = vec4(finalColor, 1.0);
             }`,
     },
     spotLight: {

@@ -2,7 +2,7 @@ import { mat4 } from "../dependencies/gl-matrix.js";
 import { MeshEntity, PointLightEntity } from "../engine/engine.js";
 
 const pickupMap = {
-	"health": {meshName: "meshes/health.mesh", lightColor: [0.952, 0, 0.035]},
+	"health": {meshName: "meshes/health.mesh", lightColor: [0.988, 0.31, 0.051]},
 	"armor": {meshName: "meshes/armor.mesh", lightColor:  [0, 0.352, 0.662]},
 	"ammo": {meshName: "meshes/ammo.mesh", lightColor: [0.623, 0.486, 0.133]},
 	"grenade_launcher": {meshName: "meshes/grenade_launcher.mesh", lightColor: [0.752, 0, 0.035]},
@@ -11,9 +11,9 @@ const pickupMap = {
 
 const ROTATION_SPEED = 1000;
 const BOBBING_AMPLITUDE = 0.1;
-const LIGHT_OFFSET_Y = 0.4;
-const LIGHT_INTENSITY = 1;
-const LIGHT_RADIUS = 2.5;
+const LIGHT_OFFSET_Y = 0.6;
+const LIGHT_INTENSITY = 3.5;
+const LIGHT_RADIUS = 2;
 const SHADOW_HEIGHT = -0.29;
 
 const updatePickup = (entity, frameTime) => {
@@ -27,6 +27,18 @@ const updatePickup = (entity, frameTime) => {
 		0,
 	]);
 };
+
+const updateLight = (entity, frameTime) => {
+	entity.animationTime += frameTime;
+	const animationTimeInSeconds = entity.animationTime / ROTATION_SPEED;
+	mat4.identity(entity.ani_matrix);
+	mat4.translate(entity.ani_matrix, entity.ani_matrix, [
+		0,
+		Math.cos(Math.PI * animationTimeInSeconds) * BOBBING_AMPLITUDE,
+		0,
+	]);
+};
+
 
 const createPickup = (type, pos) => {
 	if (!pickupMap[type]) {
@@ -43,7 +55,7 @@ const createPickup = (type, pos) => {
 		LIGHT_INTENSITY,
 		lightColor,
 		LIGHT_RADIUS,
-		updatePickup
+		updateLight
 	);
 
 	return [pickup, light];
