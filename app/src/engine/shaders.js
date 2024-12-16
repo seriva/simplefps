@@ -397,34 +397,29 @@ const ShaderSources = {
                 // Early exit if outside range
                 if (dist > spotLight.range) discard;
 
-                // Add near-distance fade out
-                float minDist = 0.1; // Adjust this value to control when fading starts
-                float fadeRange = 0.3; // Adjust this to control how quickly it fades
-                float nearFade = smoothstep(minDist, minDist + fadeRange, dist);
-
                 lightDir = normalize(lightDir);
 
-                // Calculate spotlight effect with smooth falloff
+                // Spot angle check with smooth falloff
                 float spotEffect = dot(lightDir, -normalize(spotLight.direction));
-                float smoothness = 0.15;
-                float spotIntensity = smoothstep(spotLight.cutoff - smoothness, 
-                                               spotLight.cutoff + smoothness, 
-                                               spotEffect);
+                if (spotEffect < spotLight.cutoff) discard;
 
-                // If outside the spotlight cone (with smooth falloff), discard
-                if (spotIntensity <= 0.0) discard;
+                // Normalize spotEffect to 0-1 range within the cone
+                float spotFalloff = (spotEffect - spotLight.cutoff) / (1.0 - spotLight.cutoff);
+                // Smoother falloff curve
+                spotFalloff = smoothstep(0.0, 1.0, spotFalloff);
 
-                // Calculate attenuation
-                float attenuation = 1.0 - (dist * dist) / (spotLight.range * spotLight.range);
-                attenuation = max(attenuation, 0.0);
+                // Less aggressive distance attenuation
+                float attenuation = 1.0 - pow(dist / spotLight.range, 1.5);
 
-                // Calculate final light contribution
-                float nDotL = max(dot(normal, lightDir), 0.0);
-                vec3 finalColor = spotLight.color * spotLight.intensity * 
-                                 attenuation * spotIntensity * nDotL * nearFade;
+                // Basic diffuse lighting
+                float nDotL = max(0.0, dot(normal, lightDir));
+
+                // Combine with higher intensity
+                vec3 finalColor = spotLight.color * (spotLight.intensity * 2.0) *
+                                 attenuation * spotFalloff * nDotL;
 
                 fragColor = vec4(finalColor, 1.0);
-            }`,
+            }`
     },
     gaussianBlur: {
         vertex: glsl`#version 300 es

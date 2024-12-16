@@ -1,4 +1,4 @@
-import { mat4, vec3 } from "../dependencies/gl-matrix.js";
+import { mat4, vec3, quat } from "../dependencies/gl-matrix.js";
 import { Entity, EntityTypes } from "./entity.js";
 import { Shaders } from "./shaders.js";
 import { spotlightVolume } from "./shapes.js";
@@ -19,27 +19,25 @@ class SpotLightEntity extends Entity {
         this.cutoff = Math.cos(angle * Math.PI / 180);
 
         // Create base transform for the light volume
+        const defaultDir = vec3.fromValues(0, 0, -1);
+
+        // Calculate rotation using quaternion
+        const rotationQuat = quat.rotationTo(quat.create(), defaultDir, this.direction);
+        const rotationMat = mat4.fromQuat(mat4.create(), rotationQuat);
+
+        // Build transformation matrix in correct order:
+        // 1. Start with identity matrix
+        this.base_matrix = mat4.create();
+
+        // 2. Apply translation first
         mat4.translate(this.base_matrix, this.base_matrix, position);
 
-        // Scale the cone based on range and angle
+        // 3. Apply rotation
+        mat4.multiply(this.base_matrix, this.base_matrix, rotationMat);
+
+        // 4. Apply scale last
         const radius = Math.tan(angle * Math.PI / 180) * range;
-        mat4.scale(this.base_matrix, this.base_matrix, [radius, range, radius]);
-
-        // Rotate the cone to match the light direction
-        const up = vec3.fromValues(0, 0, -1);
-        const dot = vec3.dot(direction, up);
-
-        if (Math.abs(Math.abs(dot) - 1.0) < 0.000001) {
-            // Special case: looking straight up/down
-            if (dot < 0) {
-                mat4.rotateX(this.base_matrix, this.base_matrix, Math.PI);
-            }
-        } else {
-            const rotationAxis = vec3.cross(vec3.create(), up, direction);
-            vec3.normalize(rotationAxis, rotationAxis);
-            const rotationAngle = Math.acos(dot);
-            mat4.rotate(this.base_matrix, this.base_matrix, rotationAngle, rotationAxis);
-        }
+        mat4.scale(this.base_matrix, this.base_matrix, [radius, radius, range]);
 
         // Create the bounding box with initial values
         this.boundingBox = new BoundingBox(vec3.clone(position), vec3.clone(position));
