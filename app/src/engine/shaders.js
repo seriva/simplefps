@@ -331,28 +331,103 @@ const ShaderSources = {
             uniform sampler2D normalBuffer;
 
             void main() {
-                // Use direct ivec2 construction instead of conversion
                 ivec2 fragCoord = ivec2(gl_FragCoord.xy);
                 vec3 position = texelFetch(positionBuffer, fragCoord, 0).xyz;
+                vec3 normal = normalize(texelFetch(normalBuffer, fragCoord, 0).xyz);
 
                 vec3 lightDir = pointLight.position - position;
-
-                // Early distance check using squared distance (avoid sqrt)
                 float distSq = dot(lightDir, lightDir);
                 float sizeSq = pointLight.size * pointLight.size;
+
+                // Early exit if outside range
                 if (distSq > sizeSq) discard;
 
-                // Normalize after the distance check
-                vec3 n = normalize(texelFetch(normalBuffer, fragCoord, 0).xyz);
-                vec3 l = inversesqrt(distSq) * lightDir;  // Normalized direction
+                // Normalized distance (0 at light center, 1 at max radius)
+                float normalizedDist = sqrt(distSq) / pointLight.size;
 
-                // Simplified attenuation calculation
-                float atten = (1.0 - distSq/sizeSq) * pointLight.intensity;
-                float nDotL = max(0.0, dot(n, l));
+                // Smooth falloff curve
+                // Using smoothstep for a more natural falloff
+                float falloff = 1.0 - smoothstep(0.0, 1.0, normalizedDist);
 
-                // Combined multiplication
-                fragColor = vec4(pointLight.color * (atten * nDotL), 1.0);
+                // Add a quadratic component for more physically based falloff
+                falloff = falloff * falloff;
+
+                // Calculate light contribution
+                vec3 L = normalize(lightDir);
+                float nDotL = max(0.0, dot(normal, L));
+
+                // Combine all factors
+                vec3 finalColor = pointLight.color * (falloff * falloff * nDotL * pointLight.intensity);
+
+                fragColor = vec4(finalColor, 1.0);
             }`,
+    },
+    spotLight: {
+        vertex: glsl`#version 300 es
+            precision highp float;
+            precision highp int;
+
+            layout(location=0) in vec3 aPosition;
+
+            uniform mat4 matWorld;
+            uniform mat4 matViewProj;
+
+            void main() {
+                gl_Position = matViewProj * matWorld * vec4(aPosition, 1.0);
+            }`,
+        fragment: glsl`#version 300 es
+            precision highp float;
+            precision highp int;
+
+            struct SpotLight {
+                vec3 position;
+                vec3 direction;
+                vec3 color;
+                float intensity;
+                float cutoff;
+                float range;
+            };
+
+            layout(location=0) out vec4 fragColor;
+
+            uniform SpotLight spotLight;
+            uniform sampler2D positionBuffer;
+            uniform sampler2D normalBuffer;
+
+            void main() {
+                ivec2 fragCoord = ivec2(gl_FragCoord.xy);
+                vec3 position = texelFetch(positionBuffer, fragCoord, 0).xyz;
+                vec3 normal = normalize(texelFetch(normalBuffer, fragCoord, 0).xyz);
+
+                vec3 lightDir = spotLight.position - position;
+                float dist = length(lightDir);
+
+                // Early exit if outside range
+                if (dist > spotLight.range) discard;
+
+                lightDir = normalize(lightDir);
+
+                // Spot angle check with smooth falloff
+                float spotEffect = dot(lightDir, -normalize(spotLight.direction));
+                if (spotEffect < spotLight.cutoff) discard;
+
+                // Normalize spotEffect to 0-1 range within the cone
+                float spotFalloff = (spotEffect - spotLight.cutoff) / (1.0 - spotLight.cutoff);
+                // Smoother falloff curve
+                spotFalloff = smoothstep(0.0, 1.0, spotFalloff);
+
+                // Less aggressive distance attenuation
+                float attenuation = 1.0 - pow(dist / spotLight.range, 1.5);
+
+                // Basic diffuse lighting
+                float nDotL = max(0.0, dot(normal, lightDir));
+
+                // Combine with higher intensity
+                vec3 finalColor = spotLight.color * (spotLight.intensity * 2.0) *
+                                 attenuation * spotFalloff * nDotL;
+
+                fragColor = vec4(finalColor, 1.0);
+            }`
     },
     gaussianBlur: {
         vertex: glsl`#version 300 es
@@ -548,7 +623,7 @@ const ShaderSources = {
             void main() {
                 fragColor = debugColor;
             }`,
-    },
+    }
 };
 
 // Initialize all shaders immediately

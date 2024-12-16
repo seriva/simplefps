@@ -28,7 +28,7 @@ class MeshEntity extends Entity {
 		mat4.multiply(m, this.base_matrix, this.ani_matrix);
 		Shaders.debug.setMat4("matWorld", m);
 		this.mesh.renderWireFrame();
-	}	
+	}
 
 	renderShadow() {
 		if (!this.visible) return;
@@ -54,4 +54,4 @@ class MeshEntity extends Entity {
     }
 }
 
-export default MeshEntity;		
+export default MeshEntity;

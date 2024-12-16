@@ -20,7 +20,8 @@ const visibilityCache = {
 	[EntityTypes.MESH]: [],
 	[EntityTypes.FPS_MESH]: [],
 	[EntityTypes.DIRECTIONAL_LIGHT]: [],
-	[EntityTypes.POINT_LIGHT]: []
+	[EntityTypes.POINT_LIGHT]: [],
+	[EntityTypes.SPOT_LIGHT]: []
 };
 
 let showBoundingBoxes = false;
@@ -117,14 +118,20 @@ const renderLighting = () => {
 	Shader.unBind();
 
 	// Pointlights
-	gl.cullFace(gl.FRONT);
 	Shaders.pointLight.bind();
 	Shaders.pointLight.setMat4("matViewProj", Camera.viewProjection);
 	Shaders.pointLight.setInt("positionBuffer", 0);
 	Shaders.pointLight.setInt("normalBuffer", 1)
 	renderEntities(EntityTypes.POINT_LIGHT);
 	Shader.unBind();
-	gl.cullFace(gl.BACK);
+
+	// Spotlights
+	Shaders.spotLight.bind();
+	Shaders.spotLight.setMat4("matViewProj", Camera.viewProjection);
+	Shaders.spotLight.setInt("positionBuffer", 0);
+	Shaders.spotLight.setInt("normalBuffer", 1);
+	renderEntities(EntityTypes.SPOT_LIGHT);
+	Shader.unBind();
 
 	// Shadows
 	gl.blendFunc(gl.DST_COLOR, gl.ZERO);
@@ -157,6 +164,16 @@ const renderFPSGeometry = () => {
 	Shader.unBind();
 };
 
+// Add debug colors for each entity type
+const boundingBoxColors = {
+	[EntityTypes.SKYBOX]: [1, 0, 0, 1],         // Blue
+	[EntityTypes.MESH]: [1, 0, 0, 1],           // Green
+	[EntityTypes.FPS_MESH]: [1, 0, 0, 1],       // Blue
+	[EntityTypes.DIRECTIONAL_LIGHT]: [1, 1, 0, 1], // Yellow
+	[EntityTypes.POINT_LIGHT]: [1, 1, 0, 1],    // Yellow
+	[EntityTypes.SPOT_LIGHT]: [1, 1, 0, 1]      // Yellow
+};
+
 const renderDebug = () => {
 	// Bind shader and set common uniforms
 	Shaders.debug.bind();
@@ -165,13 +182,13 @@ const renderDebug = () => {
 	// Enable wireframe mode
 	gl.lineWidth(2.0);
 	gl.disable(gl.DEPTH_TEST);
-	gl.depthMask(false);	
+	gl.depthMask(false);
 
 	// Render all bounding boxes
 	if (showBoundingBoxes) {
-		Shaders.debug.setVec4("debugColor", [1, 0, 0, 1]);
 		// Render bounding boxes for all visible entities of each type
 		for (const type in visibilityCache) {
+			Shaders.debug.setVec4("debugColor", boundingBoxColors[type]);
 			for (const entity of visibilityCache[type]) {
 				entity.renderBoundingBox();
 			}
@@ -204,16 +221,16 @@ const updateVisibility = () => {
 	for (const type in visibilityCache) {
 		visibilityCache[type] = [];
 	}
-	
+
 	let visibleMeshCount = 0;
 	let visibleLightCount = 0;
 	let triangleCount = 0;
-	
+
 	// Sort entities into visible/invisible lists
 	for (const entity of entities) {
 		if (!entity.boundingBox || entity.boundingBox.isVisible()) {
 			visibilityCache[entity.type].push(entity);
-			
+
 			switch (entity.type) {
 				case EntityTypes.MESH:
 				case EntityTypes.FPS_MESH:
@@ -228,7 +245,7 @@ const updateVisibility = () => {
 			}
 		}
 	}
-	
+
 	Stats.setRenderStats(visibleMeshCount, visibleLightCount, triangleCount);
 };
 

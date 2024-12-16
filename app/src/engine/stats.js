@@ -10,7 +10,7 @@ DOM.css({
 	},
 	".stats-info": {
 		marginLeft: "5px",
-	},	
+	},
 	"#stats-basic": {
 		fontSize: "12px",
 		color: "#FFF",

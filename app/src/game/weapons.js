@@ -21,8 +21,8 @@ const WEAPONS = {
 			mass: 0.1,
 			velocity: 25,
 			light: {
-				radius: 2.5,
-				intensity: 1.75,
+				radius: 4.5,
+				intensity: 3.75,
 				color: [0.988, 0.31, 0.051]
 			}
 		}
@@ -134,17 +134,17 @@ const calculateMovementAnimation = (animationTime) => {
 	if (!state.isMoving) return { horizontal: 0, vertical: 0 };
 
 	return {
-		horizontal: Math.cos(Math.PI * (animationTime / ANIMATION.HORIZONTAL_PERIOD)) 
+		horizontal: Math.cos(Math.PI * (animationTime / ANIMATION.HORIZONTAL_PERIOD))
 			* ANIMATION.AMPLITUDES.HORIZONTAL_MOVE,
-		vertical: -Math.cos(Math.PI * (animationTime / ANIMATION.VERTICAL_PERIOD)) 
+		vertical: -Math.cos(Math.PI * (animationTime / ANIMATION.VERTICAL_PERIOD))
 			* ANIMATION.AMPLITUDES.VERTICAL_MOVE
 	};
 };
 
 const calculateIdleAnimation = (animationTime) => ({
-	horizontal: Math.cos(Math.PI * (animationTime / ANIMATION.IDLE_PERIOD.HORIZONTAL)) 
+	horizontal: Math.cos(Math.PI * (animationTime / ANIMATION.IDLE_PERIOD.HORIZONTAL))
 		* ANIMATION.AMPLITUDES.IDLE.HORIZONTAL,
-	vertical: Math.sin(Math.PI * (animationTime / ANIMATION.IDLE_PERIOD.VERTICAL)) 
+	vertical: Math.sin(Math.PI * (animationTime / ANIMATION.IDLE_PERIOD.VERTICAL))
 		* ANIMATION.AMPLITUDES.IDLE.VERTICAL
 });
 

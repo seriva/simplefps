@@ -12,6 +12,16 @@
                 "color": [0.14, 0.16, 0.22]
             }
         ],
+        "spot": [
+            {
+                "position": [43, 8, -33],
+                "direction": [0, -1, 0],
+                "color": [0.988, 0.31, 0.051],
+                "intensity": 2.5,
+                "angle": 30,
+                "range": 4
+            }
+        ],
         "point": []
     },
     "chunks": [

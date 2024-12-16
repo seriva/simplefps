@@ -15,13 +15,13 @@ class BoundingBox {
          0.5, -0.5,  0.5,    0.5,  0.5,  0.5,
          0.5,  0.5,  0.5,   -0.5,  0.5,  0.5,
         -0.5,  0.5,  0.5,   -0.5, -0.5,  0.5,
-        
+
         // Back face
         -0.5, -0.5, -0.5,    0.5, -0.5, -0.5,
          0.5, -0.5, -0.5,    0.5,  0.5, -0.5,
          0.5,  0.5, -0.5,   -0.5,  0.5, -0.5,
         -0.5,  0.5, -0.5,   -0.5, -0.5, -0.5,
-        
+
         // Connecting edges
         -0.5, -0.5, -0.5,   -0.5, -0.5,  0.5,
          0.5, -0.5, -0.5,    0.5, -0.5,  0.5,
@@ -106,14 +106,14 @@ class BoundingBox {
         // Cache the transformed corners for better performance
         const corners = new Float32Array(24); // 8 corners * 3 components
         const corner = BoundingBox.#getVector();
-        
+
         for (let i = 0; i < 8; i++) {
             vec3.set(corner,
                 (i & 1) ? this.#max[0] : this.#min[0],
                 (i & 2) ? this.#max[1] : this.#min[1],
                 (i & 4) ? this.#max[2] : this.#min[2]
             );
-            
+
             vec3.transformMat4(corner, corner, matrix);
             corners[i * 3] = corner[0];
             corners[i * 3 + 1] = corner[1];
@@ -123,7 +123,7 @@ class BoundingBox {
         // Find min and max in one pass
         const transformedMin = vec3.fromValues(corners[0], corners[1], corners[2]);
         const transformedMax = vec3.fromValues(corners[0], corners[1], corners[2]);
-        
+
         for (let i = 3; i < corners.length; i += 3) {
             transformedMin[0] = Math.min(transformedMin[0], corners[i]);
             transformedMin[1] = Math.min(transformedMin[1], corners[i + 1]);
@@ -145,13 +145,13 @@ class BoundingBox {
 
         const p = BoundingBox.#getVector();
         const n = BoundingBox.#getVector();
-        
+
         for (const plane of Object.values(Camera.frustumPlanes)) {
             // Use direct array access for better performance
             p[0] = plane[0] > 0 ? this.#max[0] : this.#min[0];
             p[1] = plane[1] > 0 ? this.#max[1] : this.#min[1];
             p[2] = plane[2] > 0 ? this.#max[2] : this.#min[2];
-            
+
             n[0] = plane[0] > 0 ? this.#min[0] : this.#max[0];
             n[1] = plane[1] > 0 ? this.#min[1] : this.#max[1];
             n[2] = plane[2] > 0 ? this.#min[2] : this.#max[2];
@@ -162,7 +162,7 @@ class BoundingBox {
                 return false;
             }
         }
-        
+
         this.#lastVisibilityCheck = currentFrame;
         this.#lastVisibilityResult = true;
         return true;
