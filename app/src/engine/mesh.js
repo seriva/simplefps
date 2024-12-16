@@ -96,13 +96,13 @@ class Mesh {
 
 	renderWireFrame() {
 		this.bind();
-		
+
 		for (const indexObj of this.indices) {
 			// Each triangle (3 indices) becomes 3 lines (6 indices)
 			const tempArray = new Uint16Array(indexObj.array.length * 2);
 			let lineCount = 0;
 			const indices = indexObj.array;
-			
+
 			for (let i = 0; i < indices.length; i += 3) {
 				tempArray[lineCount++] = indices[i];
 				tempArray[lineCount++] = indices[i + 1];
@@ -111,7 +111,7 @@ class Mesh {
 				tempArray[lineCount++] = indices[i + 2];
 				tempArray[lineCount++] = indices[i];
 			}
-			
+
 			// Create and use a temporary buffer
 			const tempBuffer = gl.createBuffer();
 			gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, tempBuffer);
@@ -119,7 +119,7 @@ class Mesh {
 			gl.drawElements(gl.LINES, lineCount, gl.UNSIGNED_SHORT, 0);
 			gl.deleteBuffer(tempBuffer);
 		}
-		
+
 		this.unBind();
 	}
 

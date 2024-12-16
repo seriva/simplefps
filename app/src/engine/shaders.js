@@ -354,6 +354,78 @@ const ShaderSources = {
                 fragColor = vec4(pointLight.color * (atten * nDotL), 1.0);
             }`,
     },
+    spotLight: {
+        vertex: glsl`#version 300 es
+            precision highp float;
+            precision highp int;
+
+            layout(location=0) in vec3 aPosition;
+
+            uniform mat4 matWorld;
+            uniform mat4 matViewProj;
+
+            void main() {
+                gl_Position = matViewProj * matWorld * vec4(aPosition, 1.0);
+            }`,
+        fragment: glsl`#version 300 es
+            precision highp float;
+            precision highp int;
+
+            struct SpotLight {
+                vec3 position;
+                vec3 direction;
+                vec3 color;
+                float intensity;
+                float cutoff;
+                float range;
+            };
+
+            layout(location=0) out vec4 fragColor;
+
+            uniform SpotLight spotLight;
+            uniform sampler2D positionBuffer;
+            uniform sampler2D normalBuffer;
+
+            void main() {
+                ivec2 fragCoord = ivec2(gl_FragCoord.xy);
+                vec3 position = texelFetch(positionBuffer, fragCoord, 0).xyz;
+                vec3 normal = normalize(texelFetch(normalBuffer, fragCoord, 0).xyz);
+
+                vec3 lightDir = spotLight.position - position;
+                float dist = length(lightDir);
+
+                // Early exit if outside range
+                if (dist > spotLight.range) discard;
+
+                // Add near-distance fade out
+                float minDist = 0.1; // Adjust this value to control when fading starts
+                float fadeRange = 0.3; // Adjust this to control how quickly it fades
+                float nearFade = smoothstep(minDist, minDist + fadeRange, dist);
+
+                lightDir = normalize(lightDir);
+
+                // Calculate spotlight effect with smooth falloff
+                float spotEffect = dot(lightDir, -normalize(spotLight.direction));
+                float smoothness = 0.15;
+                float spotIntensity = smoothstep(spotLight.cutoff - smoothness, 
+                                               spotLight.cutoff + smoothness, 
+                                               spotEffect);
+
+                // If outside the spotlight cone (with smooth falloff), discard
+                if (spotIntensity <= 0.0) discard;
+
+                // Calculate attenuation
+                float attenuation = 1.0 - (dist * dist) / (spotLight.range * spotLight.range);
+                attenuation = max(attenuation, 0.0);
+
+                // Calculate final light contribution
+                float nDotL = max(dot(normal, lightDir), 0.0);
+                vec3 finalColor = spotLight.color * spotLight.intensity * 
+                                 attenuation * spotIntensity * nDotL * nearFade;
+
+                fragColor = vec4(finalColor, 1.0);
+            }`,
+    },
     gaussianBlur: {
         vertex: glsl`#version 300 es
             precision highp float;
@@ -548,7 +620,7 @@ const ShaderSources = {
             void main() {
                 fragColor = debugColor;
             }`,
-    },
+    }
 };
 
 // Initialize all shaders immediately

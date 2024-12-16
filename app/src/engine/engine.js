@@ -10,6 +10,7 @@ import Loading from "./loading.js";
 import MeshEntity from "./meshentity.js";
 import Physics from "./physics.js";
 import PointLightEntity from "./pointlightentity.js";
+import SpotLightEntity from "./spotlightentity.js";
 import Renderer from "./renderer.js";
 import Resources from "./resources.js";
 import Scene from "./scene.js";
@@ -65,5 +66,6 @@ export {
 	FpsMeshEntity,
 	DirectionalLightEntity,
 	PointLightEntity,
+	SpotLightEntity,
 	SkyboxEntity,
 };
