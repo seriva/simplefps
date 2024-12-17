@@ -15,6 +15,16 @@ let entities = [];
 let ambient = [0.5, 0.5, 0.5];
 let pauseUpdate = false;
 
+// Add debug colors for each entity type
+const boundingBoxColors = {
+	[EntityTypes.SKYBOX]: [0, 0, 1, 1],         // Blue
+	[EntityTypes.MESH]: [1, 0, 0, 1],           // Red
+	[EntityTypes.FPS_MESH]: [0, 1, 0, 1],       // Green
+	[EntityTypes.DIRECTIONAL_LIGHT]: [1, 1, 0, 1], // Yellow
+	[EntityTypes.POINT_LIGHT]: [1, 1, 0, 1],    // Yellow
+	[EntityTypes.SPOT_LIGHT]: [1, 1, 0, 1]      // Yellow
+};
+
 const visibilityCache = {
 	[EntityTypes.SKYBOX]: [],
 	[EntityTypes.MESH]: [],
@@ -24,17 +34,23 @@ const visibilityCache = {
 	[EntityTypes.SPOT_LIGHT]: []
 };
 
-let showBoundingBoxes = false;
-const toggleBoundingBoxes = () => {
-	showBoundingBoxes = !showBoundingBoxes;
+let showBoundingVolumes = false;
+const toggleBoundingVolumes = () => {
+	showBoundingVolumes = !showBoundingVolumes;
 };
-Console.registerCmd("togglebv", toggleBoundingBoxes);
+Console.registerCmd("tbv", toggleBoundingVolumes);
 
 let showWireframes = false;
 const toggleWireframes = () => {
 	showWireframes = !showWireframes;
 };
-Console.registerCmd("togglewf", toggleWireframes);
+Console.registerCmd("twf", toggleWireframes);
+
+let showLightVolumes = false;
+const toggleLightVolumes = () => {
+	showLightVolumes = !showLightVolumes;
+};
+Console.registerCmd("tlv", toggleLightVolumes);
 
 // Memoize entity selections
 const entityCache = new Map();
@@ -164,16 +180,6 @@ const renderFPSGeometry = () => {
 	Shader.unBind();
 };
 
-// Add debug colors for each entity type
-const boundingBoxColors = {
-	[EntityTypes.SKYBOX]: [1, 0, 0, 1],         // Blue
-	[EntityTypes.MESH]: [1, 0, 0, 1],           // Green
-	[EntityTypes.FPS_MESH]: [1, 0, 0, 1],       // Blue
-	[EntityTypes.DIRECTIONAL_LIGHT]: [1, 1, 0, 1], // Yellow
-	[EntityTypes.POINT_LIGHT]: [1, 1, 0, 1],    // Yellow
-	[EntityTypes.SPOT_LIGHT]: [1, 1, 0, 1]      // Yellow
-};
-
 const renderDebug = () => {
 	// Bind shader and set common uniforms
 	Shaders.debug.bind();
@@ -184,9 +190,9 @@ const renderDebug = () => {
 	gl.disable(gl.DEPTH_TEST);
 	gl.depthMask(false);
 
-	// Render all bounding boxes
-	if (showBoundingBoxes) {
-		// Render bounding boxes for all visible entities of each type
+	// Render bounding volumes
+	if (showBoundingVolumes) {
+		// Render bounding volumes for all visible entities of each type
 		for (const type in visibilityCache) {
 			Shaders.debug.setVec4("debugColor", boundingBoxColors[type]);
 			for (const entity of visibilityCache[type]) {
@@ -195,11 +201,22 @@ const renderDebug = () => {
 		}
 	}
 
-	// Render wireframes
+	// Render mesh wireframes
 	if (showWireframes) {
 		Shaders.debug.setVec4("debugColor", [1, 1, 1, 1]);
 		// Render wireframes for all visible entities of each type
 		for (const type in visibilityCache) {
+			for (const entity of visibilityCache[type]) {
+				entity.renderWireFrame();
+			}
+		}
+	}
+
+	// Render light volumes
+	if (showLightVolumes) {
+		Shaders.debug.setVec4("debugColor", [1, 1, 0, 1]);
+		const lightTypes = [EntityTypes.POINT_LIGHT, EntityTypes.SPOT_LIGHT];
+		for (const type of lightTypes) {
 			for (const entity of visibilityCache[type]) {
 				entity.renderWireFrame();
 			}

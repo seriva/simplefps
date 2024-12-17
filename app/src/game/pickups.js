@@ -11,9 +11,9 @@ const pickupMap = {
 
 const ROTATION_SPEED = 1000;
 const BOBBING_AMPLITUDE = 0.1;
-const LIGHT_OFFSET_Y = 0.6;
-const LIGHT_INTENSITY = 3.5;
-const LIGHT_RADIUS = 2;
+const LIGHT_OFFSET_Y = 0.2;
+const LIGHT_INTENSITY = 3
+const LIGHT_RADIUS = 1.8;
 const SHADOW_HEIGHT = -0.29;
 
 const updatePickup = (entity, frameTime) => {
@@ -52,9 +52,9 @@ const createPickup = (type, pos) => {
 
 	const light = new PointLightEntity(
 		[pos[0], pos[1] + LIGHT_OFFSET_Y, pos[2]],
-		LIGHT_INTENSITY,
-		lightColor,
 		LIGHT_RADIUS,
+		lightColor,
+		LIGHT_INTENSITY,
 		updateLight
 	);
 

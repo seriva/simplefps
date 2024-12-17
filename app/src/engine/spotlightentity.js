@@ -63,6 +63,14 @@ class SpotLightEntity extends Entity {
         spotlightVolume.renderSingle();
     }
 
+	renderWireFrame() {
+		if (!this.visible) return;
+		const m = mat4.create();
+		mat4.multiply(m, this.base_matrix, this.ani_matrix);
+		Shaders.debug.setMat4("matWorld", m);
+		spotlightVolume.renderWireFrame();
+	}
+
     updateBoundingVolume() {
         const unitBox = spotlightVolume.boundingBox;
         const m = mat4.create();
