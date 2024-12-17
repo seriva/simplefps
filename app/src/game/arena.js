@@ -43,8 +43,8 @@ const setupLighting = ({ ambient, directional = [], point = [], spot = [] }) => 
 		 Scene.addEntities(new DirectionalLightEntity(direction, color));
 	}
 
-	for (const { position, size, color } of point) {
-		Scene.addEntities(new PointLightEntity(position, size, color));
+	for (const { position, size, color, intensity } of point) {
+		Scene.addEntities(new PointLightEntity(position, size, color, intensity));
 	}
 
 	for (const { position, direction, color, intensity, angle, range } of spot) {

@@ -8,6 +8,11 @@ import { Shader, Shaders } from "./shaders.js";
 import { screenQuad } from "./shapes.js";
 import Stats from "./stats.js";
 
+// Add constants at the top after imports
+const DEFAULT_LINE_WIDTH = 1.0;
+const DEBUG_LINE_WIDTH = 2.0;
+const DEFAULT_AMBIENT = [0.5, 0.5, 0.5];
+
 // Cache commonly used values
 const viewportSize = [0, 0];
 const matModel = mat4.create();
@@ -67,9 +72,14 @@ const getEntities = (type) => {
 };
 
 const addEntities = (e) => {
-	entityCache.clear(); // Clear cache when entities change
+	if (!e) {
+		console.warn('Attempted to add null/undefined entity');
+		return;
+	}
+
+	entityCache.clear();
 	if (Array.isArray(e)) {
-		entities = entities.concat(e);
+		entities = entities.concat(e.filter(entity => entity != null));
 	} else {
 		entities.push(e);
 	}
@@ -82,6 +92,10 @@ const init = () => {
 
 const getAmbient = () => ambient;
 const setAmbient = (a) => {
+	if (!Array.isArray(a) || a.length !== 3 || !a.every(v => typeof v === 'number')) {
+		console.warn('Invalid ambient light values. Expected array of 3 numbers.');
+		return;
+	}
 	ambient = a;
 };
 
@@ -186,7 +200,7 @@ const renderDebug = () => {
 	Shaders.debug.setMat4("matViewProj", Camera.viewProjection);
 
 	// Enable wireframe mode
-	gl.lineWidth(2.0);
+	gl.lineWidth(DEBUG_LINE_WIDTH);
 	gl.disable(gl.DEPTH_TEST);
 	gl.depthMask(false);
 
@@ -204,8 +218,9 @@ const renderDebug = () => {
 	// Render mesh wireframes
 	if (showWireframes) {
 		Shaders.debug.setVec4("debugColor", [1, 1, 1, 1]);
-		// Render wireframes for all visible entities of each type
-		for (const type in visibilityCache) {
+		// Only render wireframes for mesh entities
+		const meshTypes = [EntityTypes.MESH, EntityTypes.FPS_MESH, EntityTypes.SKYBOX];
+		for (const type of meshTypes) {
 			for (const entity of visibilityCache[type]) {
 				entity.renderWireFrame();
 			}
@@ -224,7 +239,7 @@ const renderDebug = () => {
 	}
 
 	// Reset state
-	gl.lineWidth(1.0);
+	gl.lineWidth(DEFAULT_LINE_WIDTH);
 	gl.enable(gl.DEPTH_TEST);
 	gl.depthMask(true);
 
@@ -234,36 +249,32 @@ const renderDebug = () => {
 
 const updateVisibility = () => {
 	entityCache.clear();
-	// Reset visibility lists
-	for (const type in visibilityCache) {
-		visibilityCache[type] = [];
-	}
+	const stats = {
+		visibleMeshCount: 0,
+		visibleLightCount: 0,
+		triangleCount: 0
+	};
 
-	let visibleMeshCount = 0;
-	let visibleLightCount = 0;
-	let triangleCount = 0;
+	// Reset visibility lists
+	Object.keys(visibilityCache).forEach(type => {
+		visibilityCache[type] = [];
+	});
 
 	// Sort entities into visible/invisible lists
-	for (const entity of entities) {
+	entities.forEach(entity => {
 		if (!entity.boundingBox || entity.boundingBox.isVisible()) {
 			visibilityCache[entity.type].push(entity);
 
-			switch (entity.type) {
-				case EntityTypes.MESH:
-				case EntityTypes.FPS_MESH:
-					visibleMeshCount++;
-					triangleCount += entity.mesh?.triangleCount || 0;
-					break;
-				case EntityTypes.POINT_LIGHT:
-				case EntityTypes.SPOT_LIGHT:
-				case EntityTypes.DIRECTIONAL_LIGHT:
-					visibleLightCount++;
-					break;
+			if ([EntityTypes.MESH, EntityTypes.FPS_MESH].includes(entity.type)) {
+				stats.visibleMeshCount++;
+				stats.triangleCount += entity.mesh?.triangleCount || 0;
+			} else if ([EntityTypes.POINT_LIGHT, EntityTypes.SPOT_LIGHT, EntityTypes.DIRECTIONAL_LIGHT].includes(entity.type)) {
+				stats.visibleLightCount++;
 			}
 		}
-	}
+	});
 
-	Stats.setRenderStats(visibleMeshCount, visibleLightCount, triangleCount);
+	Stats.setRenderStats(stats.visibleMeshCount, stats.visibleLightCount, stats.triangleCount);
 };
 
 const Scene = {
