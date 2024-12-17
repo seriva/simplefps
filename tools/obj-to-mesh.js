@@ -134,7 +134,7 @@ const convertObjToMesh = () => {
     // Save the list of mesh names to a text file
     const meshListFile = `${baseOutputName}_mesh_list.txt`;
     const formattedList = meshNames
-        .map((name, index) => 
+        .map((name, index) =>
             index === meshNames.length - 1 ? name : `${name},`)
         .join('\n');
     fs.writeFileSync(meshListFile, formattedList);
@@ -168,9 +168,9 @@ const saveMesh = (mesh, baseOutputName, groupName) => {
     let sanitizedGroupName = groupName.replace(/[^a-zA-Z0-9-_]/g, '_');
     sanitizedGroupName = sanitizedGroupName.replace(/_Mesh$/, '');
     const output = `${sanitizedGroupName}.mesh`;
-    
+
     console.log(`Saving mesh: ${output}`);
-    
+
     fs.writeFileSync(output, prettyJSONStringify(finalMesh, {
         spaceAfterComma: '',
         shouldExpand: (object, level, key) =>

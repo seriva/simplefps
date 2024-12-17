@@ -16,29 +16,21 @@ const LIGHT_INTENSITY = 3
 const LIGHT_RADIUS = 1.8;
 const SHADOW_HEIGHT = -0.29;
 
-const updatePickup = (entity, frameTime) => {
+const updatePickupEntity = (entity, frameTime, shouldRotate = false) => {
 	entity.animationTime += frameTime;
 	const animationTimeInSeconds = entity.animationTime / ROTATION_SPEED;
 	mat4.identity(entity.ani_matrix);
-	mat4.fromRotation(entity.ani_matrix, animationTimeInSeconds, [0, 1, 0]);
+
+	if (shouldRotate) {
+		mat4.fromRotation(entity.ani_matrix, animationTimeInSeconds, [0, 1, 0]);
+	}
+
 	mat4.translate(entity.ani_matrix, entity.ani_matrix, [
 		0,
 		Math.cos(Math.PI * animationTimeInSeconds) * BOBBING_AMPLITUDE,
 		0,
 	]);
 };
-
-const updateLight = (entity, frameTime) => {
-	entity.animationTime += frameTime;
-	const animationTimeInSeconds = entity.animationTime / ROTATION_SPEED;
-	mat4.identity(entity.ani_matrix);
-	mat4.translate(entity.ani_matrix, entity.ani_matrix, [
-		0,
-		Math.cos(Math.PI * animationTimeInSeconds) * BOBBING_AMPLITUDE,
-		0,
-	]);
-};
-
 
 const createPickup = (type, pos) => {
 	if (!pickupMap[type]) {
@@ -46,7 +38,8 @@ const createPickup = (type, pos) => {
 	}
 
 	const { meshName, lightColor } = pickupMap[type];
-	const pickup = new MeshEntity(pos, meshName, updatePickup, 1);
+	const pickup = new MeshEntity(pos, meshName,
+		(entity, frameTime) => updatePickupEntity(entity, frameTime, true), 1);
 	pickup.castShadow = true;
 	pickup.shadowHeight = SHADOW_HEIGHT;
 
@@ -55,7 +48,7 @@ const createPickup = (type, pos) => {
 		LIGHT_RADIUS,
 		lightColor,
 		LIGHT_INTENSITY,
-		updateLight
+		(entity, frameTime) => updatePickupEntity(entity, frameTime, false)
 	);
 
 	return [pickup, light];

@@ -7,13 +7,13 @@ const MATERIAL_NAME_SIZE = 64;
 const convertMeshToBMesh = (inputPath) => {
     // Read and parse the JSON mesh file
     const meshData = JSON.parse(fs.readFileSync(inputPath, 'utf8'));
-    
+
     // Calculate buffer sizes
     const headerSize = 20; // 5 uint32 values
     const verticesSize = meshData.vertices.length * 4;
     const uvsSize = (meshData.uvs?.length || 0) * 4;
     const normalsSize = (meshData.normals?.length || 0) * 4;
-    
+
     // Calculate indices size
     let totalIndicesCount = 0;
     const materialsSize = meshData.indices.length * MATERIAL_NAME_SIZE;
@@ -90,7 +90,7 @@ const convertMeshToBMesh = (inputPath) => {
         // Write number of indices in this group
         buffer.writeUInt32LE(indexGroup.array.length, offset);
         offset += 4;
-        
+
         // Write the indices
         indexGroup.array.forEach(index => {
             buffer.writeUInt32LE(index, offset);
@@ -106,7 +106,7 @@ const convertMeshToBMesh = (inputPath) => {
 
 const processPath = (inputPath) => {
     const stats = fs.statSync(inputPath);
-    
+
     if (stats.isDirectory()) {
         console.log(`Processing directory: ${inputPath}`);
         const files = fs.readdirSync(inputPath);
@@ -153,4 +153,4 @@ if (process.argv.length > 2) {
     process.exit(1);
 }
 
-export { convertMeshToBMesh, processPath }; 
+export { convertMeshToBMesh, processPath };
