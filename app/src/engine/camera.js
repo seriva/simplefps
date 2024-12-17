@@ -74,7 +74,7 @@ const Camera = {
 		vec3.add(target, position, direction);
 		mat4.lookAt(view, position, target, upVector);
 		mat4.mul(viewProjection, projection, view);
-		
+
 		// Extract frustum planes from view-projection matrix
 		const m = viewProjection;
 

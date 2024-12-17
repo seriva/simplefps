@@ -33,8 +33,6 @@ class BoundingBox {
     #dimensions = vec3.create();
     #min;
     #max;
-    #lastVisibilityCheck = -1;
-    #lastVisibilityResult = true;
     #transformMatrix = mat4.create();
 
     static #getVector() {
@@ -137,12 +135,6 @@ class BoundingBox {
     }
 
     isVisible() {
-        // Cache visibility check results
-        const currentFrame = Camera.frameCount || 0;
-        if (this.#lastVisibilityCheck === currentFrame) {
-            return this.#lastVisibilityResult;
-        }
-
         const p = BoundingBox.#getVector();
         const n = BoundingBox.#getVector();
 
@@ -157,14 +149,10 @@ class BoundingBox {
             n[2] = plane[2] > 0 ? this.#min[2] : this.#max[2];
 
             if (vec3.dot(p, plane) + plane[3] < 0 && vec3.dot(n, plane) + plane[3] < 0) {
-                this.#lastVisibilityCheck = currentFrame;
-                this.#lastVisibilityResult = false;
                 return false;
             }
         }
 
-        this.#lastVisibilityCheck = currentFrame;
-        this.#lastVisibilityResult = true;
         return true;
     }
 
