@@ -9,15 +9,13 @@ import { screenQuad } from "./shapes.js";
 import Stats from "./stats.js";
 
 // Add constants at the top after imports
-const DEFAULT_LINE_WIDTH = 1.0;
-const DEBUG_LINE_WIDTH = 2.0;
 const DEFAULT_AMBIENT = [0.5, 0.5, 0.5];
 
 // Cache commonly used values
 const viewportSize = [0, 0];
 const matModel = mat4.create();
 let entities = [];
-let ambient = [0.5, 0.5, 0.5];
+let ambient = DEFAULT_AMBIENT;
 let pauseUpdate = false;
 
 // Add debug colors for each entity type
@@ -200,7 +198,6 @@ const renderDebug = () => {
 	Shaders.debug.setMat4("matViewProj", Camera.viewProjection);
 
 	// Enable wireframe mode
-	gl.lineWidth(DEBUG_LINE_WIDTH);
 	gl.disable(gl.DEPTH_TEST);
 	gl.depthMask(false);
 
@@ -239,7 +236,6 @@ const renderDebug = () => {
 	}
 
 	// Reset state
-	gl.lineWidth(DEFAULT_LINE_WIDTH);
 	gl.enable(gl.DEPTH_TEST);
 	gl.depthMask(true);
 
@@ -256,12 +252,13 @@ const updateVisibility = () => {
 	};
 
 	// Reset visibility lists
-	Object.keys(visibilityCache).forEach(type => {
+	for (const type of Object.keys(visibilityCache)) {
 		visibilityCache[type] = [];
-	});
+	}
 
 	// Sort entities into visible/invisible lists
-	entities.forEach(entity => {
+	for (let i = 0; i < entities.length; i++) {
+		const entity = entities[i];
 		if (!entity.boundingBox || entity.boundingBox.isVisible()) {
 			visibilityCache[entity.type].push(entity);
 
@@ -272,7 +269,7 @@ const updateVisibility = () => {
 				stats.visibleLightCount++;
 			}
 		}
-	});
+	}
 
 	Stats.setRenderStats(stats.visibleMeshCount, stats.visibleLightCount, stats.triangleCount);
 };
