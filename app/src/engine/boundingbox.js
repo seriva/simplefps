@@ -1,33 +1,10 @@
 import { mat4, vec3 } from "../dependencies/gl-matrix.js";
 import Camera from "./camera.js";
-import { gl } from "./context.js";
-import { Shaders } from "./shaders.js";
 
 class BoundingBox {
     // Increase pool size for better performance in scenes with many boxes
     static #vectorPool = Array(32).fill().map(() => vec3.create());
     static #poolIndex = 0;
-    static #boxBuffer = null;
-    // Store vertices in a typed array for better memory efficiency
-    static #boxVertices = new Float32Array([
-        // Front face
-        -0.5, -0.5,  0.5,    0.5, -0.5,  0.5,
-         0.5, -0.5,  0.5,    0.5,  0.5,  0.5,
-         0.5,  0.5,  0.5,   -0.5,  0.5,  0.5,
-        -0.5,  0.5,  0.5,   -0.5, -0.5,  0.5,
-
-        // Back face
-        -0.5, -0.5, -0.5,    0.5, -0.5, -0.5,
-         0.5, -0.5, -0.5,    0.5,  0.5, -0.5,
-         0.5,  0.5, -0.5,   -0.5,  0.5, -0.5,
-        -0.5,  0.5, -0.5,   -0.5, -0.5, -0.5,
-
-        // Connecting edges
-        -0.5, -0.5, -0.5,   -0.5, -0.5,  0.5,
-         0.5, -0.5, -0.5,    0.5, -0.5,  0.5,
-         0.5,  0.5, -0.5,    0.5,  0.5,  0.5,
-        -0.5,  0.5, -0.5,   -0.5,  0.5,  0.5,
-    ]);
 
     #center = vec3.create();
     #dimensions = vec3.create();
@@ -65,18 +42,10 @@ class BoundingBox {
         return new BoundingBox(min, max);
     }
 
-    static dispose() {
-        if (BoundingBox.#boxBuffer) {
-            gl.deleteBuffer(BoundingBox.#boxBuffer);
-            BoundingBox.#boxBuffer = null;
-        }
-    }
-
     constructor(min, max) {
         this.#min = vec3.clone(min);
         this.#max = vec3.clone(max);
         this.#updateCachedValues();
-        this.#initializeBuffer();
     }
 
     #updateCachedValues() {
@@ -85,20 +54,16 @@ class BoundingBox {
         vec3.subtract(this.#dimensions, this.#max, this.#min);
     }
 
-    #initializeBuffer() {
-        if (!BoundingBox.#boxBuffer) {
-            BoundingBox.#boxBuffer = gl.createBuffer();
-            gl.bindBuffer(gl.ARRAY_BUFFER, BoundingBox.#boxBuffer);
-            gl.bufferData(gl.ARRAY_BUFFER, BoundingBox.#boxVertices, gl.STATIC_DRAW);
-            BoundingBox.#boxBuffer.itemSize = 3;
-            BoundingBox.#boxBuffer.numItems = BoundingBox.#boxVertices.length / 3;
-        }
-    }
-
     get min() { return this.#min; }
     get max() { return this.#max; }
     get center() { return this.#center; }
     get dimensions() { return this.#dimensions; }
+    get transformMatrix() {
+        mat4.identity(this.#transformMatrix);
+        mat4.translate(this.#transformMatrix, this.#transformMatrix, this.#center);
+        mat4.scale(this.#transformMatrix, this.#transformMatrix, this.#dimensions);
+        return this.#transformMatrix;
+    }
 
     transform(matrix) {
         // Cache the transformed corners for better performance
@@ -154,20 +119,6 @@ class BoundingBox {
         }
 
         return true;
-    }
-
-    render() {
-        mat4.identity(this.#transformMatrix);
-        mat4.translate(this.#transformMatrix, this.#transformMatrix, this.#center);
-        mat4.scale(this.#transformMatrix, this.#transformMatrix, this.#dimensions);
-
-        Shaders.debug.setMat4("matWorld", this.#transformMatrix);
-
-        gl.bindBuffer(gl.ARRAY_BUFFER, BoundingBox.#boxBuffer);
-        gl.vertexAttribPointer(0, BoundingBox.#boxBuffer.itemSize, gl.FLOAT, false, 0, 0);
-        gl.enableVertexAttribArray(0);
-        gl.drawArrays(gl.LINES, 0, BoundingBox.#boxBuffer.numItems);
-        gl.disableVertexAttribArray(0);
     }
 }
 

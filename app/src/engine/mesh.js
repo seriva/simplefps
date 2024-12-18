@@ -80,17 +80,17 @@ class Mesh {
 		if (this.hasNormals) gl.disableVertexAttribArray(Mesh.ATTR_NORMALS);
 	}
 
-	renderSingle(applyMaterial = true) {
+	renderSingle(applyMaterial = true, renderMode = gl.TRIANGLES) {
 		this.bind();
-		this.renderIndices(applyMaterial);
+		this.renderIndices(applyMaterial, renderMode);
 		this.unBind();
 	}
 
-	renderIndices(applyMaterial) {
+	renderIndices(applyMaterial, renderMode = gl.TRIANGLES) {
 		for (const indexObj of this.indices) {
 			this.bindMaterial(indexObj, applyMaterial);
 			gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexObj.indexBuffer);
-			gl.drawElements(gl.TRIANGLES, indexObj.indexBuffer.numItems, gl.UNSIGNED_SHORT, 0);
+			gl.drawElements(renderMode, indexObj.indexBuffer.numItems, gl.UNSIGNED_SHORT, 0);
 		}
 	}
 

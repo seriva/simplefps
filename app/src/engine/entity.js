@@ -1,5 +1,7 @@
-import { mat4, vec3 } from "../dependencies/gl-matrix.js";
-import BoundingBox from './boundingbox.js';
+import { mat4 } from "../dependencies/gl-matrix.js";
+import { Shaders } from "./shaders.js";
+import { boundingBox } from './shapes.js';
+import { gl } from "./context.js";
 
 const EntityTypes = Object.freeze({
 	MESH: 1,
@@ -30,9 +32,7 @@ class Entity {
 		}
 
 		// update entity
-		if (this.updateCallback) {
-			this.updateCallback(this, frametime);
-		}
+		this.updateCallback?.(this, frametime);
 
 		// Update our bounding volume
 		this.updateBoundingVolume();
@@ -51,9 +51,10 @@ class Entity {
 	}
 
 	renderBoundingBox() {
-		if (this.boundingBox && this.visible) {
-			this.boundingBox.render();
-		}
+		if (!this.boundingBox || !this.visible) return;
+
+		Shaders.debug.setMat4("matWorld", this.boundingBox.transformMatrix);
+		boundingBox.renderSingle(true, gl.LINES);
 	}
 }
 

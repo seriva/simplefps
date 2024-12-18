@@ -1,6 +1,6 @@
 import Mesh from "./mesh.js";
 
-const skybox = new Mesh(
+const skyBox = new Mesh(
 	{
 		indices: [
 			{
@@ -191,4 +191,30 @@ const pointLightVolume = new Mesh({
     }]
 });
 
-export { screenQuad, skybox, pointLightVolume, spotlightVolume };
+const boundingBox = new Mesh({
+    vertices: [
+        // Front face
+        -0.5, -0.5,  0.5,    0.5, -0.5,  0.5,
+         0.5, -0.5,  0.5,    0.5,  0.5,  0.5,
+         0.5,  0.5,  0.5,   -0.5,  0.5,  0.5,
+        -0.5,  0.5,  0.5,   -0.5, -0.5,  0.5,
+
+        // Back face
+        -0.5, -0.5, -0.5,    0.5, -0.5, -0.5,
+         0.5, -0.5, -0.5,    0.5,  0.5, -0.5,
+         0.5,  0.5, -0.5,   -0.5,  0.5, -0.5,
+        -0.5,  0.5, -0.5,   -0.5, -0.5, -0.5,
+
+        // Connecting edges
+        -0.5, -0.5, -0.5,   -0.5, -0.5,  0.5,
+         0.5, -0.5, -0.5,    0.5, -0.5,  0.5,
+         0.5,  0.5, -0.5,    0.5,  0.5,  0.5,
+        -0.5,  0.5, -0.5,   -0.5,  0.5,  0.5,
+    ],
+    indices: [{
+        array: Array.from({ length: 24 }, (_, i) => i),
+        material: "none"
+    }]
+});
+
+export { screenQuad, skyBox, pointLightVolume, spotlightVolume, boundingBox };

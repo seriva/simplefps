@@ -30,7 +30,8 @@ class PointLightEntity extends Entity {
 		if (!this.visible) return;
 		const m = mat4.create();
 		mat4.multiply(m, this.base_matrix, this.ani_matrix);
-		mat4.scale(m, m, [this.size, this.size, this.size]);
+		const size = this.size*0.5;
+		mat4.scale(m, m, [size, size, size]);
 		Shaders.debug.setMat4("matWorld", m);
 		pointLightVolume.renderWireFrame();
 	}
@@ -39,7 +40,8 @@ class PointLightEntity extends Entity {
         const unitBox = pointLightVolume.boundingBox;
         const m = mat4.create();
         mat4.multiply(m, this.base_matrix, this.ani_matrix);
-		mat4.scale(m, m, [this.size, this.size, this.size]);
+		const size = this.size*0.5;
+		mat4.scale(m, m, [size, size, size]);
         this.boundingBox = unitBox.transform(m);
     }
 }

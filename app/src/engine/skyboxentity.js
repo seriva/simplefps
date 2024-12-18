@@ -4,11 +4,11 @@ import { gl } from "./context.js";
 import { Entity, EntityTypes } from "./entity.js";
 import Resources from "./resources.js";
 import { Shaders } from "./shaders.js";
-import { skybox } from "./shapes.js";
+import { skyBox } from "./shapes.js";
 
 class SkyboxEntity extends Entity {
 	static FACE_NAMES = ["front", "back", "top", "bottom", "right", "left"];
-	static shape = skybox;
+	static shape = skyBox;
 
 	constructor(id, updateCallback) {
 		super([0, 0, 0], updateCallback);
