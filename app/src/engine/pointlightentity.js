@@ -4,6 +4,16 @@ import { Shaders } from "./shaders.js";
 import { pointLightVolume } from "./shapes.js";
 
 class PointLightEntity extends Entity {
+	static SCALE_FACTOR = 0.625;
+
+	#getTransformMatrix() {
+		const m = mat4.create();
+		mat4.multiply(m, this.base_matrix, this.ani_matrix);
+		const size = this.size * PointLightEntity.SCALE_FACTOR;
+		mat4.scale(m, m, [size, size, size]);
+		return m;
+	}
+
 	constructor(position, size, color, intensity, updateCallback) {
 		super(EntityTypes.POINT_LIGHT, updateCallback);
 		this.color = color;
@@ -13,9 +23,7 @@ class PointLightEntity extends Entity {
 	}
 
 	render() {
-		const m = mat4.create();
-		mat4.multiply(m, this.base_matrix, this.ani_matrix);
-		mat4.scale(m, m, [this.size, this.size, this.size]);
+		const m = this.#getTransformMatrix();
 		const pos = vec3.create();
 		mat4.getTranslation(pos, m);
 		Shaders.pointLight.setMat4("matWorld", m);
@@ -28,22 +36,16 @@ class PointLightEntity extends Entity {
 
 	renderWireFrame() {
 		if (!this.visible) return;
-		const m = mat4.create();
-		mat4.multiply(m, this.base_matrix, this.ani_matrix);
-		const size = this.size*0.5;
-		mat4.scale(m, m, [size, size, size]);
+		const m = this.#getTransformMatrix();
 		Shaders.debug.setMat4("matWorld", m);
 		pointLightVolume.renderWireFrame();
 	}
 
-    updateBoundingVolume() {
-        const unitBox = pointLightVolume.boundingBox;
-        const m = mat4.create();
-        mat4.multiply(m, this.base_matrix, this.ani_matrix);
-		const size = this.size*0.5;
-		mat4.scale(m, m, [size, size, size]);
-        this.boundingBox = unitBox.transform(m);
-    }
+	updateBoundingVolume() {
+		const unitBox = pointLightVolume.boundingBox;
+		const m = this.#getTransformMatrix();
+		this.boundingBox = unitBox.transform(m);
+	}
 }
 
 export default PointLightEntity;
