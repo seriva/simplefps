@@ -14,10 +14,35 @@ const CONSOLE_DEFAULTS = {
 let visible = false;
 let command = '';
 const logs = [];
+const commandHistory = [];
+let historyIndex = -1;
 
 function updateCommand(event) {
+	if (event.data === '`') return;
 	command = event.target.value;
+	historyIndex = -1;
 	DOM.update();
+}
+
+function handleKeyDown(event) {
+	if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+		event.preventDefault();
+
+		if (commandHistory.length === 0) return;
+
+		if (event.key === 'ArrowUp') {
+			historyIndex = historyIndex === -1
+				? commandHistory.length - 1
+				: Math.max(0, historyIndex - 1);
+		} else {
+			historyIndex = historyIndex === -1
+				? -1
+				: Math.min(commandHistory.length - 1, historyIndex + 1);
+		}
+
+		command = historyIndex === -1 ? '' : commandHistory[historyIndex];
+		DOM.update();
+	}
 }
 
 DOM.css({
@@ -164,6 +189,7 @@ const ConsoleUI = {
 					disabled: true,
 					value: command,
 					oninput: updateCommand,
+					onkeydown: handleKeyDown,
 					afterCreate: ConsoleUI.setFocus
 				})
 			])
@@ -205,6 +231,11 @@ const Console = {
 
 		try {
 			this.log(command);
+
+			if (commandHistory.length === 0 || commandHistory[commandHistory.length - 1] !== command) {
+				commandHistory.push(command);
+			}
+
 			const cmd = `simplefps.${command}`;
 			const parsed = CommandParser.parse(cmd);
 
@@ -227,6 +258,7 @@ const Console = {
 		}
 
 		command = '';
+		historyIndex = -1;
 		DOM.update();
 	}
 };
