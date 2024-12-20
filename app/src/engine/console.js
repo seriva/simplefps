@@ -164,7 +164,9 @@ const ConsoleUI = {
 		el.focus();
 	}, 100),
 
-	setScrollPos: el => el.scrollTop = el.scrollHeight,
+	setScrollPos: el => {
+		el.scrollTop = el.scrollHeight;
+	},
 
 	renderConsole(visible, command, logs) {
 		if (!visible) return DOM.h('div#console', []);
