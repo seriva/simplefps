@@ -59,7 +59,7 @@ class Sound {
 			newSource.playbackRate.value = this.#sound.source.playbackRate.value;
 			newSource.loop = this.#sound.source.loop;
 			newSource.connect(this.#sound.gainNode);
-			
+
 			if (resume && this.#pausedAt) {
 				this.#startTime = audioContext.currentTime - this.#pausedAt;
 				newSource.start(0, this.#pausedAt);
@@ -67,7 +67,7 @@ class Sound {
 				this.#startTime = audioContext.currentTime;
 				newSource.start(0);
 			}
-			
+
 			this.#sound.source = newSource;
 			this.#isPlaying = true;
 			return;
@@ -84,7 +84,7 @@ class Sound {
 			newSource.playbackRate.value = cachedSound.source.playbackRate.value;
 			newSource.loop = cachedSound.source.loop;
 			newSource.connect(cachedSound.gainNode);
-			
+
 			if (resume && this.#pausedAt) {
 				this.#startTime = audioContext.currentTime - this.#pausedAt;
 				newSource.start(0, this.#pausedAt);
@@ -92,7 +92,7 @@ class Sound {
 				this.#startTime = audioContext.currentTime;
 				newSource.start(0);
 			}
-			
+
 			this.#cache[availableIndex].source = newSource;
 			this.#isPlaying = true;
 		}
