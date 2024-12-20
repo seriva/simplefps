@@ -94,10 +94,10 @@ const updateCameraRotation = () => {
 	const mpos = Input.cursorMovement();
 	Camera.rotation[0] -= (mpos.x / 33.0) * Settings.lookSensitivity;
 	Camera.rotation[1] += (mpos.y / 33.0) * Settings.lookSensitivity;
-	
+
 	// Clamp vertical rotation
 	Camera.rotation[1] = Math.max(-89, Math.min(89, Camera.rotation[1]));
-	
+
 	// Wrap horizontal rotation
 	Camera.rotation[0] = ((Camera.rotation[0] % 360) + 360) % 360;
 
@@ -106,7 +106,7 @@ const updateCameraRotation = () => {
 };
 
 Input.setUpdateCallback((frameTime) => {
-	if (Console.visible() || State === "MENU") return;
+	if (Console.isVisible() || State === "MENU") return;
 	const ft = frameTime / 1000;
 
 	// look

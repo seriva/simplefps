@@ -1,5 +1,25 @@
 import DOM from "./dom.js";
 
+// Constants
+const CONSOLE_DEFAULTS = {
+	HEIGHT: '35vh',
+	BACKGROUND: '#999',
+	TEXT_COLOR: '#fff',
+	WARNING_COLOR: '#FF0',
+	FONT_SIZE: '14px',
+	ANIMATION_DURATION: 150
+};
+
+// Module-level state and functions
+let visible = false;
+let command = '';
+const logs = [];
+
+function updateCommand(event) {
+	command = event.target.value;
+	DOM.update();
+}
+
 DOM.css({
 	"#console": {},
 	"#console-body": {
@@ -50,177 +70,130 @@ DOM.css({
 	},
 });
 
-// where will bind all the commands to eval execution
-window.simplefps = {};
+// Simplified command parsing
+const CommandParser = {
+	parse(cmd) {
+		if (cmd.includes('=')) {
+			const [variable, value] = cmd.split('=').map(s => s.trim());
+			return { type: 'assignment', variable, value };
+		}
 
-// local vars
-let visible = false;
-let command = "";
-const logs = [];
+		if (cmd.includes('(')) {
+			const [func, paramString] = cmd.split('(');
+			const params = JSON.parse(`[${paramString.replace(')', '')}]`);
+			return { type: 'function', func: func.trim(), params };
+		}
 
-// gui functions
-const setFocus = (el) => {
-	setTimeout(() => {
+		throw new Error('Invalid command format');
+	}
+};
+
+// Simplified object utilities
+const ObjectUtils = {
+	getPath(path) {
+		const parts = path.split('.');
+		let obj = window[parts[0]];
+
+		// Check if initial object exists
+		if (!obj) return null;
+
+		for (let i = 1; i < parts.length && obj; i++) {
+			obj = obj[parts[i]];
+			// If any part of the path is undefined, return null
+			if (obj === undefined) return null;
+		}
+		return obj;
+	},
+
+	pathExists(path) {
+		return this.getPath(path) !== null;
+	},
+
+	setValue(path, value) {
+		const parts = path.split('.');
+		const target = parts.pop();
+		const obj = this.getPath(parts.join('.'));
+
+		if (!obj) throw new Error(`Path "${path}" does not exist`);
+		obj[target] = value;
+	},
+
+	callFunction(path, params) {
+		const parts = path.split('.');
+		const funcName = parts.pop();
+		const obj = this.getPath(parts.join('.'));
+
+		if (!obj) throw new Error(`Path "${parts.join('.')}" does not exist`);
+		if (typeof obj[funcName] !== 'function') {
+			throw new Error(`"${funcName}" is not a function`);
+		}
+
+		obj[funcName](...params);
+	}
+};
+
+// Console UI components
+const ConsoleUI = {
+	setFocus: el => setTimeout(() => {
 		el.disabled = false;
 		el.focus();
-	}, 100);
-};
+	}, 100),
 
-const setScrollPos = (el) => {
-	el.scrollTop = el.scrollHeight;
-};
+	setScrollPos: el => el.scrollTop = el.scrollHeight,
 
-const updateCommand = (evt) => {
-	command = evt.target.value;
-};
+	renderConsole(visible, command, logs) {
+		if (!visible) return DOM.h('div#console', []);
 
-const toggle = (show) => {
-	if (show === undefined) {
-		visible = !visible;
-	} else {
-		visible = show;
+		return DOM.h('div#console', [
+			DOM.h('div#console-body', {
+				enterAnimation: el => DOM.animate(el,
+					{ top: 0 },
+					{ duration: CONSOLE_DEFAULTS.ANIMATION_DURATION, easing: 'ease-in-out' }
+				),
+				exitAnimation: (el, remove) => DOM.animate(el,
+					{ top: `-${CONSOLE_DEFAULTS.HEIGHT}` },
+					{ duration: CONSOLE_DEFAULTS.ANIMATION_DURATION, easing: 'ease-in-out', complete: remove }
+				)
+			}, [
+				DOM.h('div#console-content', { onchange: ConsoleUI.setScrollPos }, [
+					DOM.h('p', logs.map((log, index) =>
+						DOM.h('span', { key: index, style: `color: ${log.color}` }, [log.message, DOM.h('br')])
+					))
+				]),
+				DOM.h('input#console-input', {
+					disabled: true,
+					value: command,
+					oninput: updateCommand,
+					afterCreate: ConsoleUI.setFocus
+				})
+			])
+		]);
 	}
 };
 
-DOM.append(() =>
-	DOM.h(
-		"div#console",
-		visible
-			? [
-					DOM.h(
-						"div#console-body",
-						{
-							enterAnimation: (domElement) => {
-								DOM.animate(
-									domElement,
-									{ top: 0 },
-									{
-										duration: 150,
-										delay: 0,
-										easing: "ease-in-out",
-									},
-								);
-							},
-							exitAnimation: (domElement, removeDomNodeFunction) => {
-								DOM.animate(
-									domElement,
-									{ top: "-35vh" },
-									{
-										duration: 150,
-										delay: 0,
-										easing: "ease-in-out",
-										complete: removeDomNodeFunction,
-									},
-								);
-							},
-						},
-						[
-							DOM.h(
-								"div#console-content",
-								{
-									onchange: setScrollPos,
-								},
-								[
-									DOM.h("p", [
-										logs.map((log, index) =>
-											DOM.h(
-												"span",
-												{
-													key: index,
-													style: `color: ${log.color}`,
-												},
-												[log.message, DOM.h("br")],
-											),
-										),
-									]),
-								],
-							),
-							DOM.h("input#console-input", {
-								disabled: true,
-								value: command,
-								oninput: updateCommand,
-								afterCreate: setFocus,
-							}),
-						],
-					),
-				]
-			: [],
-	),
-);
-
-const convertValue = (type, value) => {
-	switch (type) {
-		case "string":
-			return value;
-		case "number":
-			if (Number.isNaN(Number(value))) {
-				throw new Error("Parsing of value failed");
-			}
-			return Number(value);
-		case "boolean":
-		case "object":
-			return JSON.parse(value);
-		default:
-			throw new Error("Parsing of value failed");
-	}
-};
-
-const deepTest = (s) => {
-	const s_split = s.split(".");
-	let obj = window[s_split.shift()];
-	while (obj && s_split.length) obj = obj[s_split.shift()];
-	return obj;
-};
-
-const setDeepValue = (obj, path, value) => {
-	const path_split = typeof path === "string" ? path.split(".") : path;
-
-	if (path_split.length > 1) {
-		const p = path_split.shift();
-		setDeepValue(obj[p], path_split, value);
-	} else {
-		obj[path_split[0]] = convertValue(typeof obj[path_split[0]], value);
-	}
-};
-
-const executeDeepFunction = (obj, path, params) => {
-	const path_split = typeof path === "string" ? path.split(".") : path;
-
-	if (path_split.length > 1) {
-		const p = path_split.shift();
-		executeDeepFunction(obj[p], path_split, params);
-	} else if (typeof obj[path_split[0]] === "function") {
-		obj[path_split[0]](...params);
-	} else {
-		throw new Error("Parsing of function failed");
-	}
-};
-
+// Main Console object
 const Console = {
-	visible() {
+	toggle(show) {
+		visible = show ?? !visible;
+		DOM.update();
+	},
+
+	isVisible() {
 		return visible;
 	},
 
-	toggle,
-
-	log(m) {
-		console.log(m);
-		logs.push({
-			color: "#FFF",
-			message: m,
-		});
+	log(message) {
+		console.log(message);
+		logs.push({ color: CONSOLE_DEFAULTS.TEXT_COLOR, message });
 	},
 
-	warn(m) {
-		console.warn(m);
-		logs.push({
-			color: "#FF0",
-			message: m,
-		});
+	warn(message) {
+		console.warn(message);
+		logs.push({ color: CONSOLE_DEFAULTS.WARNING_COLOR, message });
 	},
 
-	error(m) {
-		throw new Error(m);
+	error(message) {
+		throw new Error(message);
 	},
 
 	registerCmd(name, value) {
@@ -228,34 +201,39 @@ const Console = {
 	},
 
 	executeCmd() {
-		if (command === "") return;
+		if (!command) return;
+
 		try {
-			Console.log(command);
+			this.log(command);
 			const cmd = `simplefps.${command}`;
-			if (cmd.indexOf("=") > -1) {
-				// we are dealing with a var assignement.
-				const split = cmd.split("=");
-				const variable = split[0].trim();
-				const value = split[1].trim();
-				if (deepTest(variable) === undefined)
-					throw new Error("Variable does not exist");
-				setDeepValue(window, variable, value);
-			} else if (cmd.indexOf("(") > -1) {
-				const split = cmd.split("(");
-				const func = split[0].trim();
-				const params = JSON.parse(`[${split[1].trim().replace(")", "]")}`);
-				if (deepTest(func) === undefined)
-					throw new Error("Function does not exist");
-				executeDeepFunction(window, func, params);
+			const parsed = CommandParser.parse(cmd);
+
+			// Validate path exists before executing
+			if (parsed.type === 'assignment') {
+				const varPath = parsed.variable.replace('simplefps.', '');
+				if (!ObjectUtils.pathExists(`simplefps.${varPath}`)) {
+					throw new Error(`Variable "${varPath}" does not exist`);
+				}
+				ObjectUtils.setValue(parsed.variable, parsed.value);
 			} else {
-				throw new Error("Parsing command failed");
+				const pathToCheck = parsed.func.split('.').slice(0, -1).join('.');
+				if (!ObjectUtils.pathExists(pathToCheck)) {
+					throw new Error(`Function path "${pathToCheck}" does not exist`);
+				}
+				ObjectUtils.callFunction(parsed.func, parsed.params);
 			}
 		} catch (error) {
 			Console.warn(`Failed to execute command: ${error}`);
 		}
-		command = "";
+
+		command = '';
 		DOM.update();
-	},
+	}
 };
 
-export { Console as default };
+// Initialize
+window.simplefps = {};
+Console.executeCmd = Console.executeCmd.bind(Console);
+DOM.append(() => ConsoleUI.renderConsole(visible, command, logs));
+
+export default Console;
