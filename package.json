@@ -17,7 +17,7 @@
   },
   "dependencies": {
     "cannon-es": "^0.20.0",
-    "gl-matrix": "^3.4.3",
+    "gl-matrix": "^3.4.4",
     "jss": "^10.10.0",
     "jss-plugin-global": "^10.10.0",
     "jss-preset-default": "^10.10.0",
@@ -25,8 +25,8 @@
     "velocity-animate": "^1.5.2"
   },
   "devDependencies": {
-    "@biomejs/biome": "1.9.4",
-    "microtastic": "0.0.44",
+    "@biomejs/biome": "2.2.0",
+    "microtastic": "0.0.45",
     "pretty-json-stringify": "^0.0.2"
   }
 }
