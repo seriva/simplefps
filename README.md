@@ -1,2 +1,2 @@
 ## About
-Simple FPS with random map generation build using web-technologies with a PWA distribution target for Desktop and Android Mobile phones.
+Simple first person arena shooter game written in ES6 and WebGL with a PWA distribution target for Desktop, Android and iOS.
