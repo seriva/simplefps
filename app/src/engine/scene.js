@@ -20,12 +20,12 @@ let pauseUpdate = false;
 
 // Add debug colors for each entity type
 const boundingBoxColors = {
-	[EntityTypes.SKYBOX]: [0, 0, 1, 1],         // Blue
-	[EntityTypes.MESH]: [1, 0, 0, 1],           // Red
-	[EntityTypes.FPS_MESH]: [0, 1, 0, 1],       // Green
+	[EntityTypes.SKYBOX]: [0, 0, 1, 1], // Blue
+	[EntityTypes.MESH]: [1, 0, 0, 1], // Red
+	[EntityTypes.FPS_MESH]: [0, 1, 0, 1], // Green
 	[EntityTypes.DIRECTIONAL_LIGHT]: [1, 1, 0, 1], // Yellow
-	[EntityTypes.POINT_LIGHT]: [1, 1, 0, 1],    // Yellow
-	[EntityTypes.SPOT_LIGHT]: [1, 1, 0, 1]      // Yellow
+	[EntityTypes.POINT_LIGHT]: [1, 1, 0, 1], // Yellow
+	[EntityTypes.SPOT_LIGHT]: [1, 1, 0, 1], // Yellow
 };
 
 const visibilityCache = {
@@ -34,7 +34,7 @@ const visibilityCache = {
 	[EntityTypes.FPS_MESH]: [],
 	[EntityTypes.DIRECTIONAL_LIGHT]: [],
 	[EntityTypes.POINT_LIGHT]: [],
-	[EntityTypes.SPOT_LIGHT]: []
+	[EntityTypes.SPOT_LIGHT]: [],
 };
 
 let showBoundingVolumes = false;
@@ -71,13 +71,13 @@ const getEntities = (type) => {
 
 const addEntities = (e) => {
 	if (!e) {
-		console.warn('Attempted to add null/undefined entity');
+		console.warn("Attempted to add null/undefined entity");
 		return;
 	}
 
 	entityCache.clear();
 	if (Array.isArray(e)) {
-		entities = entities.concat(e.filter(entity => entity != null));
+		entities = entities.concat(e.filter((entity) => entity != null));
 	} else {
 		entities.push(e);
 	}
@@ -90,8 +90,12 @@ const init = () => {
 
 const getAmbient = () => ambient;
 const setAmbient = (a) => {
-	if (!Array.isArray(a) || a.length !== 3 || !a.every(v => typeof v === 'number')) {
-		console.warn('Invalid ambient light values. Expected array of 3 numbers.');
+	if (
+		!Array.isArray(a) ||
+		a.length !== 3 ||
+		!a.every((v) => typeof v === "number")
+	) {
+		console.warn("Invalid ambient light values. Expected array of 3 numbers.");
 		return;
 	}
 	ambient = a;
@@ -149,7 +153,7 @@ const renderLighting = () => {
 	Shaders.pointLight.bind();
 	Shaders.pointLight.setMat4("matViewProj", Camera.viewProjection);
 	Shaders.pointLight.setInt("positionBuffer", 0);
-	Shaders.pointLight.setInt("normalBuffer", 1)
+	Shaders.pointLight.setInt("normalBuffer", 1);
 	renderEntities(EntityTypes.POINT_LIGHT);
 	Shader.unBind();
 
@@ -216,7 +220,11 @@ const renderDebug = () => {
 	if (showWireframes) {
 		Shaders.debug.setVec4("debugColor", [1, 1, 1, 1]);
 		// Only render wireframes for mesh entities
-		const meshTypes = [EntityTypes.MESH, EntityTypes.FPS_MESH, EntityTypes.SKYBOX];
+		const meshTypes = [
+			EntityTypes.MESH,
+			EntityTypes.FPS_MESH,
+			EntityTypes.SKYBOX,
+		];
 		for (const type of meshTypes) {
 			for (const entity of visibilityCache[type]) {
 				entity.renderWireFrame();
@@ -248,7 +256,7 @@ const updateVisibility = () => {
 	const stats = {
 		visibleMeshCount: 0,
 		visibleLightCount: 0,
-		triangleCount: 0
+		triangleCount: 0,
 	};
 
 	// Reset visibility lists
@@ -265,13 +273,23 @@ const updateVisibility = () => {
 			if ([EntityTypes.MESH, EntityTypes.FPS_MESH].includes(entity.type)) {
 				stats.visibleMeshCount++;
 				stats.triangleCount += entity.mesh?.triangleCount || 0;
-			} else if ([EntityTypes.POINT_LIGHT, EntityTypes.SPOT_LIGHT, EntityTypes.DIRECTIONAL_LIGHT].includes(entity.type)) {
+			} else if (
+				[
+					EntityTypes.POINT_LIGHT,
+					EntityTypes.SPOT_LIGHT,
+					EntityTypes.DIRECTIONAL_LIGHT,
+				].includes(entity.type)
+			) {
 				stats.visibleLightCount++;
 			}
 		}
 	}
 
-	Stats.setRenderStats(stats.visibleMeshCount, stats.visibleLightCount, stats.triangleCount);
+	Stats.setRenderStats(
+		stats.visibleMeshCount,
+		stats.visibleLightCount,
+		stats.triangleCount,
+	);
 };
 
 const Scene = {
@@ -287,7 +305,7 @@ const Scene = {
 	renderShadows,
 	renderFPSGeometry,
 	renderDebug,
-	visibilityCache
+	visibilityCache,
 };
 
 export default Scene;

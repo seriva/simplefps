@@ -25,7 +25,8 @@ const defaults = {
 const Settings = {};
 
 const saveSettings = () => {
-	const success = localStorage?.setItem("settings", JSON.stringify(Settings)) ?? false;
+	const success =
+		localStorage?.setItem("settings", JSON.stringify(Settings)) ?? false;
 	return success;
 };
 

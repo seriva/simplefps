@@ -39,29 +39,37 @@ UI.register("MAIN_MENU", {
 // Group all event listeners together
 const initializeEventListeners = () => {
 	// Pointer lock events
-	document.addEventListener("pointerlockchange", () => {
-		if (document.pointerLockElement === null && State !== "MENU") {
-			Utils.dispatchCustomEvent("changestate", {
-				state: "MENU",
-				menu: "MAIN_MENU",
-			});
-			music.pause();
-		}
-	}, false);
+	document.addEventListener(
+		"pointerlockchange",
+		() => {
+			if (document.pointerLockElement === null && State !== "MENU") {
+				Utils.dispatchCustomEvent("changestate", {
+					state: "MENU",
+					menu: "MAIN_MENU",
+				});
+				music.pause();
+			}
+		},
+		false,
+	);
 
 	document.addEventListener("pointerlockerror", () => {
 		Utils.dispatchCustomEvent("changestate", { state: "GAME" });
 	});
 
 	// Window focus event
-	window.addEventListener("focus", () => {
-		if (State !== "MENU") {
-			Utils.dispatchCustomEvent("changestate", {
-				state: "MENU",
+	window.addEventListener(
+		"focus",
+		() => {
+			if (State !== "MENU") {
+				Utils.dispatchCustomEvent("changestate", {
+					state: "MENU",
 					menu: "MAIN_MENU",
-			});
-		}
-	}, false);
+				});
+			}
+		},
+		false,
+	);
 
 	// Weapon controls
 	window.addEventListener("click", (e) => {

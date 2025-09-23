@@ -39,7 +39,7 @@ const Camera = {
 		left: vec4.create(),
 		right: vec4.create(),
 		top: vec4.create(),
-		bottom: vec4.create()
+		bottom: vec4.create(),
 	},
 
 	setProjection(inFov, inNearPlane, inFarPlane) {
@@ -79,39 +79,63 @@ const Camera = {
 		const m = viewProjection;
 
 		// Left plane
-		vec4.set(this.frustumPlanes.left,
-			m[3] + m[0], m[7] + m[4],
-			m[11] + m[8], m[15] + m[12]);
+		vec4.set(
+			this.frustumPlanes.left,
+			m[3] + m[0],
+			m[7] + m[4],
+			m[11] + m[8],
+			m[15] + m[12],
+		);
 		vec4.normalize(this.frustumPlanes.left, this.frustumPlanes.left);
 
 		// Right plane
-		vec4.set(this.frustumPlanes.right,
-			m[3] - m[0], m[7] - m[4],
-			m[11] - m[8], m[15] - m[12]);
+		vec4.set(
+			this.frustumPlanes.right,
+			m[3] - m[0],
+			m[7] - m[4],
+			m[11] - m[8],
+			m[15] - m[12],
+		);
 		vec4.normalize(this.frustumPlanes.right, this.frustumPlanes.right);
 
 		// Bottom plane
-		vec4.set(this.frustumPlanes.bottom,
-			m[3] + m[1], m[7] + m[5],
-			m[11] + m[9], m[15] + m[13]);
+		vec4.set(
+			this.frustumPlanes.bottom,
+			m[3] + m[1],
+			m[7] + m[5],
+			m[11] + m[9],
+			m[15] + m[13],
+		);
 		vec4.normalize(this.frustumPlanes.bottom, this.frustumPlanes.bottom);
 
 		// Top plane
-		vec4.set(this.frustumPlanes.top,
-			m[3] - m[1], m[7] - m[5],
-			m[11] - m[9], m[15] - m[13]);
+		vec4.set(
+			this.frustumPlanes.top,
+			m[3] - m[1],
+			m[7] - m[5],
+			m[11] - m[9],
+			m[15] - m[13],
+		);
 		vec4.normalize(this.frustumPlanes.top, this.frustumPlanes.top);
 
 		// Near plane
-		vec4.set(this.frustumPlanes.near,
-			m[3] + m[2], m[7] + m[6],
-			m[11] + m[10], m[15] + m[14]);
+		vec4.set(
+			this.frustumPlanes.near,
+			m[3] + m[2],
+			m[7] + m[6],
+			m[11] + m[10],
+			m[15] + m[14],
+		);
 		vec4.normalize(this.frustumPlanes.near, this.frustumPlanes.near);
 
 		// Far plane
-		vec4.set(this.frustumPlanes.far,
-			m[3] - m[2], m[7] - m[6],
-			m[11] - m[10], m[15] - m[14]);
+		vec4.set(
+			this.frustumPlanes.far,
+			m[3] - m[2],
+			m[7] - m[6],
+			m[11] - m[10],
+			m[15] - m[14],
+		);
 		vec4.normalize(this.frustumPlanes.far, this.frustumPlanes.far);
 	},
 

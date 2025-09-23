@@ -1,12 +1,12 @@
-import { Resources, Utils, Console,  loop } from "./engine/engine.js";
+import { Console, loop, Resources, Utils } from "./engine/engine.js";
 
 async function loadGameModules() {
 	Utils.dispatchCustomEvent("loading", { state: "LOADING_MODULES" });
 
 	const modules = await Promise.all([
-		import("./game/controls.js").catch(err => null),
-		import("./game/arena.js").catch(err => null),
-		import("./game/weapons.js").catch(err => null)
+		import("./game/controls.js").catch((err) => null),
+		import("./game/arena.js").catch((err) => null),
+		import("./game/weapons.js").catch((err) => null),
 	]);
 
 	const [controls, arena, weapons] = modules;
@@ -17,7 +17,7 @@ async function loadGameModules() {
 
 	return {
 		Arena: arena.default,
-		Weapons: weapons.default
+		Weapons: weapons.default,
 	};
 }
 

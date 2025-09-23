@@ -4,114 +4,116 @@ import { gl } from "./context.js";
 const glsl = (x) => x;
 
 class Shader {
-    #uniformMap;
+	#uniformMap;
 
-    constructor(vertex, fragment) {
-        this.#uniformMap = new Map();
-        this.createAndCompileShaders(vertex, fragment);
-        this.createAndLinkProgram();
-    }
+	constructor(vertex, fragment) {
+		this.#uniformMap = new Map();
+		this.createAndCompileShaders(vertex, fragment);
+		this.createAndLinkProgram();
+	}
 
-    createAndCompileShaders(vertex, fragment) {
-        // Create and compile vertex shader
-        this.vertexShader = gl.createShader(gl.VERTEX_SHADER);
-        gl.shaderSource(this.vertexShader, vertex);
-        gl.compileShader(this.vertexShader);
-        this.checkShaderError(this.vertexShader, "vertex");
+	createAndCompileShaders(vertex, fragment) {
+		// Create and compile vertex shader
+		this.vertexShader = gl.createShader(gl.VERTEX_SHADER);
+		gl.shaderSource(this.vertexShader, vertex);
+		gl.compileShader(this.vertexShader);
+		this.checkShaderError(this.vertexShader, "vertex");
 
-        // Create and compile fragment shader
-        this.fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
-        gl.shaderSource(this.fragmentShader, fragment);
-        gl.compileShader(this.fragmentShader);
-        this.checkShaderError(this.fragmentShader, "fragment");
-    }
+		// Create and compile fragment shader
+		this.fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
+		gl.shaderSource(this.fragmentShader, fragment);
+		gl.compileShader(this.fragmentShader);
+		this.checkShaderError(this.fragmentShader, "fragment");
+	}
 
-    createAndLinkProgram() {
-        this.program = gl.createProgram();
-        gl.attachShader(this.program, this.vertexShader);
-        gl.attachShader(this.program, this.fragmentShader);
-        gl.linkProgram(this.program);
+	createAndLinkProgram() {
+		this.program = gl.createProgram();
+		gl.attachShader(this.program, this.vertexShader);
+		gl.attachShader(this.program, this.fragmentShader);
+		gl.linkProgram(this.program);
 
-        if (!gl.getProgramParameter(this.program, gl.LINK_STATUS)) {
-            Console.error(`Error linking program: ${gl.getProgramInfoLog(this.program)}`);
-            this.dispose();
-            return;
-        }
+		if (!gl.getProgramParameter(this.program, gl.LINK_STATUS)) {
+			Console.error(
+				`Error linking program: ${gl.getProgramInfoLog(this.program)}`,
+			);
+			this.dispose();
+			return;
+		}
 
-        // Cleanup individual shaders after linking
-        gl.detachShader(this.program, this.vertexShader);
-        gl.detachShader(this.program, this.fragmentShader);
-        gl.deleteShader(this.vertexShader);
-        gl.deleteShader(this.fragmentShader);
-    }
+		// Cleanup individual shaders after linking
+		gl.detachShader(this.program, this.vertexShader);
+		gl.detachShader(this.program, this.fragmentShader);
+		gl.deleteShader(this.vertexShader);
+		gl.deleteShader(this.fragmentShader);
+	}
 
-    checkShaderError(shader, type) {
-        if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-            const error = gl.getShaderInfoLog(shader);
-            Console.error(`Error compiling ${type} shader: ${error}`);
-            gl.deleteShader(shader);
-        }
-    }
+	checkShaderError(shader, type) {
+		if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+			const error = gl.getShaderInfoLog(shader);
+			Console.error(`Error compiling ${type} shader: ${error}`);
+			gl.deleteShader(shader);
+		}
+	}
 
-    bind() {
-        gl.useProgram(this.program);
-    }
+	bind() {
+		gl.useProgram(this.program);
+	}
 
-    static unBind() {
-        gl.useProgram(null);
-    }
+	static unBind() {
+		gl.useProgram(null);
+	}
 
-    getUniformLocation(id) {
-        let location = this.#uniformMap.get(id);
-        if (location !== undefined) return location;
+	getUniformLocation(id) {
+		let location = this.#uniformMap.get(id);
+		if (location !== undefined) return location;
 
-        location = gl.getUniformLocation(this.program, id);
-        if (location === null) {
-            Console.warn(`Uniform '${id}' not found in shader program`);
-            this.#uniformMap.set(id, null);
-            return null;
-        }
+		location = gl.getUniformLocation(this.program, id);
+		if (location === null) {
+			Console.warn(`Uniform '${id}' not found in shader program`);
+			this.#uniformMap.set(id, null);
+			return null;
+		}
 
-        this.#uniformMap.set(id, location);
-        return location;
-    }
+		this.#uniformMap.set(id, location);
+		return location;
+	}
 
-    setInt(id, value) {
-        gl.uniform1i(this.getUniformLocation(id), value);
-    }
+	setInt(id, value) {
+		gl.uniform1i(this.getUniformLocation(id), value);
+	}
 
-    setMat4(id, mat) {
-        gl.uniformMatrix4fv(this.getUniformLocation(id), gl.FALSE, mat);
-    }
+	setMat4(id, mat) {
+		gl.uniformMatrix4fv(this.getUniformLocation(id), gl.FALSE, mat);
+	}
 
-    setFloat(id, value) {
-        gl.uniform1f(this.getUniformLocation(id), value);
-    }
+	setFloat(id, value) {
+		gl.uniform1f(this.getUniformLocation(id), value);
+	}
 
-    setVec2(id, vec) {
-        gl.uniform2f(this.getUniformLocation(id), vec[0], vec[1]);
-    }
+	setVec2(id, vec) {
+		gl.uniform2f(this.getUniformLocation(id), vec[0], vec[1]);
+	}
 
-    setVec3(id, vec) {
-        gl.uniform3f(this.getUniformLocation(id), vec[0], vec[1], vec[2]);
-    }
+	setVec3(id, vec) {
+		gl.uniform3f(this.getUniformLocation(id), vec[0], vec[1], vec[2]);
+	}
 
-    setVec4(id, vec) {
-        gl.uniform4f(this.getUniformLocation(id), vec[0], vec[1], vec[2], vec[3]);
-    }
+	setVec4(id, vec) {
+		gl.uniform4f(this.getUniformLocation(id), vec[0], vec[1], vec[2], vec[3]);
+	}
 
-    dispose() {
-        if (this.program) {
-            gl.deleteProgram(this.program);
-            this.program = null;
-        }
-        this.#uniformMap.clear();
-    }
+	dispose() {
+		if (this.program) {
+			gl.deleteProgram(this.program);
+			this.program = null;
+		}
+		this.#uniformMap.clear();
+	}
 }
 
 const ShaderSources = {
-    geometry: {
-        vertex: glsl`#version 300 es
+	geometry: {
+		vertex: glsl`#version 300 es
             precision highp float;
             precision highp int;
 
@@ -146,7 +148,7 @@ const ShaderSources = {
 
                 gl_Position = matViewProj * vPosition;
             }`,
-        fragment: glsl`#version 300 es
+		fragment: glsl`#version 300 es
             precision highp float;
             precision highp int;
 
@@ -208,9 +210,9 @@ const ShaderSources = {
 
                 fragColor = color + fragEmissive;
             }`,
-    },
-    entityShadows: {
-        vertex: glsl`#version 300 es
+	},
+	entityShadows: {
+		vertex: glsl`#version 300 es
             precision highp float;
             precision highp int;
 
@@ -223,7 +225,7 @@ const ShaderSources = {
             {
                 gl_Position = matViewProj * matWorld * vec4(aPosition, 1.0);
             }`,
-        fragment: glsl`#version 300 es
+		fragment: glsl`#version 300 es
             precision highp float;
             precision highp int;
 
@@ -235,9 +237,9 @@ const ShaderSources = {
             {
                 fragColor = vec4(ambient, 1.0);
             }`,
-    },
-    applyShadows: {
-        vertex: glsl`#version 300 es
+	},
+	applyShadows: {
+		vertex: glsl`#version 300 es
             precision highp float;
 
             layout(location=0) in vec3 aPosition;
@@ -246,7 +248,7 @@ const ShaderSources = {
             {
                 gl_Position = vec4(aPosition, 1.0);
             }`,
-        fragment: glsl`#version 300 es
+		fragment: glsl`#version 300 es
             precision highp float;
 
             layout(location=0) out vec4 fragColor;
@@ -259,9 +261,9 @@ const ShaderSources = {
                 vec2 uv = vec2(gl_FragCoord.xy / viewportSize.xy);
                 fragColor = texture(shadowBuffer, uv);
             }`,
-    },
-    directionalLight: {
-        vertex: glsl`#version 300 es
+	},
+	directionalLight: {
+		vertex: glsl`#version 300 es
             precision highp float;
 
             layout(location=0) in vec3 aPosition;
@@ -270,7 +272,7 @@ const ShaderSources = {
             {
                 gl_Position = vec4(aPosition, 1.0);
             }`,
-        fragment: glsl`#version 300 es
+		fragment: glsl`#version 300 es
             precision highp float;
 
             struct DirectionalLight {
@@ -298,9 +300,9 @@ const ShaderSources = {
 
                 fragColor = vec4(lightIntensity, 1.0);
             }`,
-    },
-    pointLight: {
-        vertex: glsl`#version 300 es
+	},
+	pointLight: {
+		vertex: glsl`#version 300 es
             precision highp float;
             precision highp int;
 
@@ -313,7 +315,7 @@ const ShaderSources = {
             {
                 gl_Position = matViewProj * matWorld * vec4(aPosition, 1.0);
             }`,
-        fragment: glsl`#version 300 es
+		fragment: glsl`#version 300 es
             precision highp float;
             precision highp int;
 
@@ -350,9 +352,9 @@ const ShaderSources = {
 
                 fragColor = vec4(pointLight.color * (falloff * falloff * nDotL * pointLight.intensity), 1.0);
             }`,
-    },
-    spotLight: {
-        vertex: glsl`#version 300 es
+	},
+	spotLight: {
+		vertex: glsl`#version 300 es
             precision highp float;
             precision highp int;
 
@@ -364,7 +366,7 @@ const ShaderSources = {
             void main() {
                 gl_Position = matViewProj * matWorld * vec4(aPosition, 1.0);
             }`,
-        fragment: glsl`#version 300 es
+		fragment: glsl`#version 300 es
             precision highp float;
             precision highp int;
 
@@ -407,10 +409,10 @@ const ShaderSources = {
 
                 fragColor = vec4(spotLight.color * (spotLight.intensity * 2.0) *
                                  attenuation * spotFalloff * nDotL, 1.0);
-            }`
-    },
-    gaussianBlur: {
-        vertex: glsl`#version 300 es
+            }`,
+	},
+	gaussianBlur: {
+		vertex: glsl`#version 300 es
             precision highp float;
 
             layout(location=0) in vec3 aPosition;
@@ -419,7 +421,7 @@ const ShaderSources = {
             {
                 gl_Position = vec4(aPosition, 1.0);
             }`,
-        fragment: glsl`#version 300 es
+		fragment: glsl`#version 300 es
             precision highp float;
 
             out vec4 fragColor;
@@ -447,9 +449,9 @@ const ShaderSources = {
                 vec2 uv = vec2(gl_FragCoord.xy / viewportSize.xy);
                 fragColor = blur13(colorBuffer, uv, viewportSize.xy, direction);
             }`,
-    },
-    postProcessing: {
-        vertex: glsl`#version 300 es
+	},
+	postProcessing: {
+		vertex: glsl`#version 300 es
             precision highp float;
 
             layout(location=0) in vec3 aPosition;
@@ -458,7 +460,7 @@ const ShaderSources = {
             {
                 gl_Position = vec4(aPosition, 1.0);
             }`,
-        fragment: glsl`#version 300 es
+		fragment: glsl`#version 300 es
             precision highp float;
 
             layout(std140, column_major) uniform;
@@ -580,9 +582,9 @@ const ShaderSources = {
 
                 fragColor.rgb = pow(fragColor.rgb, vec3(1.0 / gamma));
             }`,
-    },
-    debug: {
-        vertex: glsl`#version 300 es
+	},
+	debug: {
+		vertex: glsl`#version 300 es
             precision highp float;
 
             layout(location=0) in vec3 aPosition;
@@ -593,7 +595,7 @@ const ShaderSources = {
             void main() {
                 gl_Position = matViewProj * matWorld * vec4(aPosition, 1.0);
             }`,
-        fragment: glsl`#version 300 es
+		fragment: glsl`#version 300 es
             precision highp float;
 
             layout(location=0) out vec4 fragColor;
@@ -603,18 +605,18 @@ const ShaderSources = {
             void main() {
                 fragColor = debugColor;
             }`,
-    }
+	},
 };
 
 // Initialize all shaders immediately
 const Shaders = {};
 for (const [name, { vertex, fragment }] of Object.entries(ShaderSources)) {
-    try {
-        Shaders[name] = new Shader(vertex, fragment);
-        Console.log(`Loaded shader: ${name}`);
-    } catch (error) {
-        Console.error(`Failed to load shader ${name}:`, error);
-    }
+	try {
+		Shaders[name] = new Shader(vertex, fragment);
+		Console.log(`Loaded shader: ${name}`);
+	} catch (error) {
+		Console.error(`Failed to load shader ${name}:`, error);
+	}
 }
 
 export { Shaders, Shader };

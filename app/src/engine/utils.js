@@ -9,20 +9,20 @@ const Utils = {
 		);
 	},
 
-    async fetch(path) {
-        const response = await fetch(path).catch(error => {
-            console.error("Fetch error:", error);
-            throw error;
-        });
+	async fetch(path) {
+		const response = await fetch(path).catch((error) => {
+			console.error("Fetch error:", error);
+			throw error;
+		});
 
-        if (!response?.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
+		if (!response?.ok) {
+			throw new Error(`HTTP error! status: ${response.status}`);
+		}
 
-        return path.includes("webp") || path.includes("bmesh")
-            ? await response.blob()
-            : await response.text();
-    },
+		return path.includes("webp") || path.includes("bmesh")
+			? await response.blob()
+			: await response.text();
+	},
 
 	dispatchEvent(event) {
 		window?.dispatchEvent(new Event(event));

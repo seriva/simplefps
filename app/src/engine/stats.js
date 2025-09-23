@@ -46,7 +46,7 @@ const state = {
 	frames: 0,
 	visibleMeshes: 0,
 	visibleLights: 0,
-	triangles: 0
+	triangles: 0,
 };
 
 const createStatsDOM = () =>
@@ -54,11 +54,23 @@ const createStatsDOM = () =>
 		"div#stats",
 		state.visible
 			? [
-				DOM.h("div#stats-basic", [DOM.h("span", [`${state.fps}fps - ${Math.round(state.frameTime)}ms - ${state.memory}mb`])]),
-				DOM.h("div#stats-scene", [DOM.h("span", [`m:${state.visibleMeshes} - l:${state.visibleLights} - t:${state.triangles}`])]),
-				DOM.h("div#stats-pos", [DOM.h("span", [`xyz:${Camera.position.map(v => Math.round(v)).join(',')}`])]),
-			]
-		: []
+					DOM.h("div#stats-basic", [
+						DOM.h("span", [
+							`${state.fps}fps - ${Math.round(state.frameTime)}ms - ${state.memory}mb`,
+						]),
+					]),
+					DOM.h("div#stats-scene", [
+						DOM.h("span", [
+							`m:${state.visibleMeshes} - l:${state.visibleLights} - t:${state.triangles}`,
+						]),
+					]),
+					DOM.h("div#stats-pos", [
+						DOM.h("span", [
+							`xyz:${Camera.position.map((v) => Math.round(v)).join(",")}`,
+						]),
+					]),
+				]
+			: [],
 	);
 
 const toggle = (show) => {
@@ -96,7 +108,7 @@ const Stats = {
 		state.visibleMeshes = meshCount;
 		state.visibleLights = lightCount;
 		state.triangles = triangleCount;
-	}
+	},
 };
 
 export default Stats;

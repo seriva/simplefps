@@ -74,7 +74,7 @@ class Sound {
 		}
 
 		const availableIndex = Object.keys(this.#cache).find(
-			(key) => this.#cache[key].source.buffer
+			(key) => this.#cache[key].source.buffer,
 		);
 
 		if (availableIndex) {

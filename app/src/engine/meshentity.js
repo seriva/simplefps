@@ -46,12 +46,12 @@ class MeshEntity extends Entity {
 		this.mesh.renderSingle(false);
 	}
 
-    updateBoundingVolume() {
-        // Get the mesh's transformed bounding box
-        const worldMatrix = mat4.create();
-        mat4.multiply(worldMatrix, this.base_matrix, this.ani_matrix);
-        this.boundingBox = this.mesh.boundingBox?.transform(worldMatrix);
-    }
+	updateBoundingVolume() {
+		// Get the mesh's transformed bounding box
+		const worldMatrix = mat4.create();
+		mat4.multiply(worldMatrix, this.base_matrix, this.ani_matrix);
+		this.boundingBox = this.mesh.boundingBox?.transform(worldMatrix);
+	}
 }
 
 export default MeshEntity;

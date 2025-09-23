@@ -1,5 +1,5 @@
-import jssPresetDefault from "../dependencies/jss-preset-default.js";
 import { create } from "../dependencies/jss.js";
+import jssPresetDefault from "../dependencies/jss-preset-default.js";
 import { createProjector, h } from "../dependencies/maquette.js";
 import Velocity from "../dependencies/velocity-animate.js";
 

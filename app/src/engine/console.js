@@ -2,45 +2,47 @@ import DOM from "./dom.js";
 
 // Constants
 const CONSOLE_DEFAULTS = {
-	HEIGHT: '35vh',
-	BACKGROUND: '#999',
-	TEXT_COLOR: '#fff',
-	WARNING_COLOR: '#FF0',
-	FONT_SIZE: '14px',
-	ANIMATION_DURATION: 150
+	HEIGHT: "35vh",
+	BACKGROUND: "#999",
+	TEXT_COLOR: "#fff",
+	WARNING_COLOR: "#FF0",
+	FONT_SIZE: "14px",
+	ANIMATION_DURATION: 150,
 };
 
 // Module-level state and functions
 let visible = false;
-let command = '';
+let command = "";
 const logs = [];
 const commandHistory = [];
 let historyIndex = -1;
 
 function updateCommand(event) {
-	if (event.data === '`') return;
+	if (event.data === "`") return;
 	command = event.target.value;
 	historyIndex = -1;
 	DOM.update();
 }
 
 function handleKeyDown(event) {
-	if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+	if (event.key === "ArrowUp" || event.key === "ArrowDown") {
 		event.preventDefault();
 
 		if (commandHistory.length === 0) return;
 
-		if (event.key === 'ArrowUp') {
-			historyIndex = historyIndex === -1
-				? commandHistory.length - 1
-				: Math.max(0, historyIndex - 1);
+		if (event.key === "ArrowUp") {
+			historyIndex =
+				historyIndex === -1
+					? commandHistory.length - 1
+					: Math.max(0, historyIndex - 1);
 		} else {
-			historyIndex = historyIndex === -1
-				? -1
-				: Math.min(commandHistory.length - 1, historyIndex + 1);
+			historyIndex =
+				historyIndex === -1
+					? -1
+					: Math.min(commandHistory.length - 1, historyIndex + 1);
 		}
 
-		command = historyIndex === -1 ? '' : commandHistory[historyIndex];
+		command = historyIndex === -1 ? "" : commandHistory[historyIndex];
 		DOM.update();
 	}
 }
@@ -98,25 +100,25 @@ DOM.css({
 // Simplified command parsing
 const CommandParser = {
 	parse(cmd) {
-		if (cmd.includes('=')) {
-			const [variable, value] = cmd.split('=').map(s => s.trim());
-			return { type: 'assignment', variable, value };
+		if (cmd.includes("=")) {
+			const [variable, value] = cmd.split("=").map((s) => s.trim());
+			return { type: "assignment", variable, value };
 		}
 
-		if (cmd.includes('(')) {
-			const [func, paramString] = cmd.split('(');
-			const params = JSON.parse(`[${paramString.replace(')', '')}]`);
-			return { type: 'function', func: func.trim(), params };
+		if (cmd.includes("(")) {
+			const [func, paramString] = cmd.split("(");
+			const params = JSON.parse(`[${paramString.replace(")", "")}]`);
+			return { type: "function", func: func.trim(), params };
 		}
 
-		throw new Error('Invalid command format');
-	}
+		throw new Error("Invalid command format");
+	},
 };
 
 // Simplified object utilities
 const ObjectUtils = {
 	getPath(path) {
-		const parts = path.split('.');
+		const parts = path.split(".");
 		let obj = window[parts[0]];
 
 		// Check if initial object exists
@@ -135,68 +137,90 @@ const ObjectUtils = {
 	},
 
 	setValue(path, value) {
-		const parts = path.split('.');
+		const parts = path.split(".");
 		const target = parts.pop();
-		const obj = this.getPath(parts.join('.'));
+		const obj = this.getPath(parts.join("."));
 
 		if (!obj) throw new Error(`Path "${path}" does not exist`);
 		obj[target] = value;
 	},
 
 	callFunction(path, params) {
-		const parts = path.split('.');
+		const parts = path.split(".");
 		const funcName = parts.pop();
-		const obj = this.getPath(parts.join('.'));
+		const obj = this.getPath(parts.join("."));
 
-		if (!obj) throw new Error(`Path "${parts.join('.')}" does not exist`);
-		if (typeof obj[funcName] !== 'function') {
+		if (!obj) throw new Error(`Path "${parts.join(".")}" does not exist`);
+		if (typeof obj[funcName] !== "function") {
 			throw new Error(`"${funcName}" is not a function`);
 		}
 
 		obj[funcName](...params);
-	}
+	},
 };
 
 // Console UI components
 const ConsoleUI = {
-	setFocus: el => setTimeout(() => {
-		el.disabled = false;
-		el.focus();
-	}, 100),
+	setFocus: (el) =>
+		setTimeout(() => {
+			el.disabled = false;
+			el.focus();
+		}, 100),
 
-	setScrollPos: el => {
+	setScrollPos: (el) => {
 		el.scrollTop = el.scrollHeight;
 	},
 
 	renderConsole(visible, command, logs) {
-		if (!visible) return DOM.h('div#console', []);
+		if (!visible) return DOM.h("div#console", []);
 
-		return DOM.h('div#console', [
-			DOM.h('div#console-body', {
-				enterAnimation: el => DOM.animate(el,
-					{ top: 0 },
-					{ duration: CONSOLE_DEFAULTS.ANIMATION_DURATION, easing: 'ease-in-out' }
-				),
-				exitAnimation: (el, remove) => DOM.animate(el,
-					{ top: `-${CONSOLE_DEFAULTS.HEIGHT}` },
-					{ duration: CONSOLE_DEFAULTS.ANIMATION_DURATION, easing: 'ease-in-out', complete: remove }
-				)
-			}, [
-				DOM.h('div#console-content', { onchange: ConsoleUI.setScrollPos }, [
-					DOM.h('p', logs.map((log, index) =>
-						DOM.h('span', { key: index, style: `color: ${log.color}` }, [log.message, DOM.h('br')])
-					))
-				]),
-				DOM.h('input#console-input', {
-					disabled: true,
-					value: command,
-					oninput: updateCommand,
-					onkeydown: handleKeyDown,
-					afterCreate: ConsoleUI.setFocus
-				})
-			])
+		return DOM.h("div#console", [
+			DOM.h(
+				"div#console-body",
+				{
+					enterAnimation: (el) =>
+						DOM.animate(
+							el,
+							{ top: 0 },
+							{
+								duration: CONSOLE_DEFAULTS.ANIMATION_DURATION,
+								easing: "ease-in-out",
+							},
+						),
+					exitAnimation: (el, remove) =>
+						DOM.animate(
+							el,
+							{ top: `-${CONSOLE_DEFAULTS.HEIGHT}` },
+							{
+								duration: CONSOLE_DEFAULTS.ANIMATION_DURATION,
+								easing: "ease-in-out",
+								complete: remove,
+							},
+						),
+				},
+				[
+					DOM.h("div#console-content", { onchange: ConsoleUI.setScrollPos }, [
+						DOM.h(
+							"p",
+							logs.map((log, index) =>
+								DOM.h("span", { key: index, style: `color: ${log.color}` }, [
+									log.message,
+									DOM.h("br"),
+								]),
+							),
+						),
+					]),
+					DOM.h("input#console-input", {
+						disabled: true,
+						value: command,
+						oninput: updateCommand,
+						onkeydown: handleKeyDown,
+						afterCreate: ConsoleUI.setFocus,
+					}),
+				],
+			),
 		]);
-	}
+	},
 };
 
 // Main Console object
@@ -234,7 +258,10 @@ const Console = {
 		try {
 			this.log(command);
 
-			if (commandHistory.length === 0 || commandHistory[commandHistory.length - 1] !== command) {
+			if (
+				commandHistory.length === 0 ||
+				commandHistory[commandHistory.length - 1] !== command
+			) {
 				commandHistory.push(command);
 			}
 
@@ -242,14 +269,14 @@ const Console = {
 			const parsed = CommandParser.parse(cmd);
 
 			// Validate path exists before executing
-			if (parsed.type === 'assignment') {
-				const varPath = parsed.variable.replace('simplefps.', '');
+			if (parsed.type === "assignment") {
+				const varPath = parsed.variable.replace("simplefps.", "");
 				if (!ObjectUtils.pathExists(`simplefps.${varPath}`)) {
 					throw new Error(`Variable "${varPath}" does not exist`);
 				}
 				ObjectUtils.setValue(parsed.variable, parsed.value);
 			} else {
-				const pathToCheck = parsed.func.split('.').slice(0, -1).join('.');
+				const pathToCheck = parsed.func.split(".").slice(0, -1).join(".");
 				if (!ObjectUtils.pathExists(pathToCheck)) {
 					throw new Error(`Function path "${pathToCheck}" does not exist`);
 				}
@@ -259,10 +286,10 @@ const Console = {
 			Console.warn(`Failed to execute command: ${error}`);
 		}
 
-		command = '';
+		command = "";
 		historyIndex = -1;
 		DOM.update();
-	}
+	},
 };
 
 // Initialize

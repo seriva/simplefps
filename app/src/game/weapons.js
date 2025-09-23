@@ -23,19 +23,19 @@ const WEAPONS = {
 			light: {
 				radius: 4,
 				intensity: 4,
-				color: [0.988, 0.31, 0.051]
-			}
-		}
+				color: [0.988, 0.31, 0.051],
+			},
+		},
 	},
 	MINIGUN: {
-		mesh: "meshes/minigun.mesh"
-	}
+		mesh: "meshes/minigun.mesh",
+	},
 };
 
 const WEAPON_POSITION = {
 	x: 0.15,
 	y: -0.2,
-	z: -0.3
+	z: -0.3,
 };
 
 const ANIMATION = {
@@ -44,7 +44,7 @@ const ANIMATION = {
 	VERTICAL_PERIOD: 300,
 	IDLE_PERIOD: {
 		HORIZONTAL: 1500,
-		VERTICAL: 1400
+		VERTICAL: 1400,
 	},
 	AMPLITUDES: {
 		FIRE: 0.12,
@@ -52,9 +52,9 @@ const ANIMATION = {
 		VERTICAL_MOVE: 0.002,
 		IDLE: {
 			HORIZONTAL: 0.005,
-			VERTICAL: 0.01
-		}
-	}
+			VERTICAL: 0.01,
+		},
+	},
 };
 
 const state = {
@@ -65,10 +65,12 @@ const state = {
 	firing: false,
 	firingStart: 0,
 	firingTimer: 0,
-	isMoving: false
+	isMoving: false,
 };
 
-const grenadeShape = new CANNON.Sphere(WEAPONS.GRENADE_LAUNCHER.projectile.radius);
+const grenadeShape = new CANNON.Sphere(
+	WEAPONS.GRENADE_LAUNCHER.projectile.radius,
+);
 
 const setIsMoving = (value) => {
 	state.isMoving = value;
@@ -97,7 +99,7 @@ const updateGrenade = (entity) => {
 	mat4.fromRotationTranslation(
 		entity.ani_matrix,
 		[q.x, q.y, q.z, q.w],
-		[p.x, p.y, p.z]
+		[p.x, p.y, p.z],
 	);
 
 	if (entity.data.light) {
@@ -111,7 +113,7 @@ const createWeaponAnimation = (entity, frameTime) => {
 	const animations = {
 		fire: calculateFireAnimation(frameTime),
 		movement: calculateMovementAnimation(entity.animationTime),
-		idle: calculateIdleAnimation(entity.animationTime)
+		idle: calculateIdleAnimation(entity.animationTime),
 	};
 
 	applyWeaponTransforms(entity, animations);
@@ -127,25 +129,31 @@ const calculateFireAnimation = (frameTime) => {
 		state.firing = false;
 	}
 
-	return Math.cos(Math.PI * (state.firingTimer / 1000)) * ANIMATION.AMPLITUDES.FIRE;
+	return (
+		Math.cos(Math.PI * (state.firingTimer / 1000)) * ANIMATION.AMPLITUDES.FIRE
+	);
 };
 
 const calculateMovementAnimation = (animationTime) => {
 	if (!state.isMoving) return { horizontal: 0, vertical: 0 };
 
 	return {
-		horizontal: Math.cos(Math.PI * (animationTime / ANIMATION.HORIZONTAL_PERIOD))
-			* ANIMATION.AMPLITUDES.HORIZONTAL_MOVE,
-		vertical: -Math.cos(Math.PI * (animationTime / ANIMATION.VERTICAL_PERIOD))
-			* ANIMATION.AMPLITUDES.VERTICAL_MOVE
+		horizontal:
+			Math.cos(Math.PI * (animationTime / ANIMATION.HORIZONTAL_PERIOD)) *
+			ANIMATION.AMPLITUDES.HORIZONTAL_MOVE,
+		vertical:
+			-Math.cos(Math.PI * (animationTime / ANIMATION.VERTICAL_PERIOD)) *
+			ANIMATION.AMPLITUDES.VERTICAL_MOVE,
 	};
 };
 
 const calculateIdleAnimation = (animationTime) => ({
-	horizontal: Math.cos(Math.PI * (animationTime / ANIMATION.IDLE_PERIOD.HORIZONTAL))
-		* ANIMATION.AMPLITUDES.IDLE.HORIZONTAL,
-	vertical: Math.sin(Math.PI * (animationTime / ANIMATION.IDLE_PERIOD.VERTICAL))
-		* ANIMATION.AMPLITUDES.IDLE.VERTICAL
+	horizontal:
+		Math.cos(Math.PI * (animationTime / ANIMATION.IDLE_PERIOD.HORIZONTAL)) *
+		ANIMATION.AMPLITUDES.IDLE.HORIZONTAL,
+	vertical:
+		Math.sin(Math.PI * (animationTime / ANIMATION.IDLE_PERIOD.VERTICAL)) *
+		ANIMATION.AMPLITUDES.IDLE.VERTICAL,
 });
 
 const applyWeaponTransforms = (entity, animations) => {
@@ -159,13 +167,15 @@ const applyWeaponTransforms = (entity, animations) => {
 		entity.ani_matrix,
 		pos,
 		[pos[0] + dir[0], pos[1] + dir[1], pos[2] + dir[2]],
-		[0, 1, 0]
+		[0, 1, 0],
 	);
 	mat4.invert(entity.ani_matrix, entity.ani_matrix);
 	mat4.translate(entity.ani_matrix, entity.ani_matrix, [
-		WEAPON_POSITION.x + animations.idle.horizontal + animations.movement.horizontal,
+		WEAPON_POSITION.x +
+			animations.idle.horizontal +
+			animations.movement.horizontal,
 		WEAPON_POSITION.y + animations.idle.vertical + animations.movement.vertical,
-		WEAPON_POSITION.z + animations.fire
+		WEAPON_POSITION.z + animations.fire,
 	]);
 	mat4.rotateY(entity.ani_matrix, entity.ani_matrix, glMatrix.toRadian(180));
 	mat4.rotateX(entity.ani_matrix, entity.ani_matrix, glMatrix.toRadian(-2.5));
@@ -206,14 +216,14 @@ const createProjectile = (spawnPos, config) => {
 	entity.physicsBody.velocity.set(
 		d[0] * config.velocity,
 		d[1] * config.velocity,
-		d[2] * config.velocity
+		d[2] * config.velocity,
 	);
 
 	const light = new PointLightEntity(
 		[0, 0, 0],
 		config.light.radius,
 		config.light.color,
-		config.light.intensity
+		config.light.intensity,
 	);
 	light.visible = true;
 	entity.data.light = light;
@@ -225,14 +235,14 @@ const load = () => {
 	state.grenadeLauncher = new FpsMeshEntity(
 		[0, 0, 0],
 		WEAPONS.GRENADE_LAUNCHER.mesh,
-		createWeaponAnimation
+		createWeaponAnimation,
 	);
 	Scene.addEntities(state.grenadeLauncher);
 
 	state.miniGun = new FpsMeshEntity(
 		[0, 0, 0],
 		WEAPONS.MINIGUN.mesh,
-		createWeaponAnimation
+		createWeaponAnimation,
 	);
 	state.miniGun.visible = false;
 	Scene.addEntities(state.miniGun);
