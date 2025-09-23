@@ -64,48 +64,40 @@ const baseAnimationOptions = {
 const animations = {
 	enter: {
 		properties: { opacity: 0.9 },
-		options: baseAnimationOptions
+		options: baseAnimationOptions,
 	},
 	exit: {
 		properties: { opacity: 0 },
-		options: baseAnimationOptions
-	}
+		options: baseAnimationOptions,
+	},
 };
 
 // Memoized menu base render function
 const renderMenuBase = () => {
 	const currentUI = state.uis[state.current];
-	
+
 	return DOM.h(
 		"div#menu-base",
 		{
-			enterAnimation: (el) => DOM.animate(el, animations.enter.properties, animations.enter.options),
-			exitAnimation: (el, remove) => DOM.animate(
-				el, 
-				animations.exit.properties, 
-				{ ...animations.exit.options, complete: remove }
-			),
+			enterAnimation: (el) =>
+				DOM.animate(el, animations.enter.properties, animations.enter.options),
+			exitAnimation: (el, remove) =>
+				DOM.animate(el, animations.exit.properties, {
+					...animations.exit.options,
+					complete: remove,
+				}),
 		},
 		[
 			DOM.h("div#menu-header", [currentUI.header]),
 			currentUI.controls.map(({ text, callback }) =>
-				DOM.h(
-					"div.menu-button",
-					{ key: text, onclick: callback },
-					[text]
-				),
+				DOM.h("div.menu-button", { key: text, onclick: callback }, [text]),
 			),
 		],
 	);
 };
 
 // Main UI render
-DOM.append(() =>
-	DOM.h(
-		"div#ui",
-		state.isVisible ? [renderMenuBase()] : []
-	)
-);
+DOM.append(() => DOM.h("div#ui", state.isVisible ? [renderMenuBase()] : []));
 
 // Public API
 const UI = {

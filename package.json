@@ -4,6 +4,10 @@
   "description": "SimpleFPS",
   "author": "Luuk van Venrooij",
   "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/seriva/SimpleFPS.git"
@@ -13,7 +17,8 @@
     "dependencies": "microtastic prep",
     "dev": "microtastic dev",
     "prod": "npm run lint && microtastic prod",
-    "lint": "biome lint"
+    "lint": "biome lint",
+    "check": "biome check --write"
   },
   "dependencies": {
     "cannon-es": "^0.20.0",
@@ -25,7 +30,7 @@
     "velocity-animate": "^1.5.2"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.2.0",
+    "@biomejs/biome": "2.2.4",
     "microtastic": "0.0.45",
     "pretty-json-stringify": "^0.0.2"
   }

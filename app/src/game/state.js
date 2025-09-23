@@ -3,8 +3,8 @@ import HUD from "./hud.js";
 import UI from "./ui.js";
 
 const GameStates = {
-	MENU: 'MENU',
-	GAME: 'GAME'
+	MENU: "MENU",
+	GAME: "GAME",
 };
 
 let currentState = GameStates.MENU;
@@ -21,14 +21,10 @@ const blurGameCanvas = (blur) => {
 		mobileHA: false,
 		duration: 25,
 		delay: 0,
-		easing: 'linear'
+		easing: "linear",
 	};
 
-	DOM.animate(
-		Context.canvas.domNode,
-		{ blur: isBlurred ? 8 : 0 },
-		blurConfig
-	);
+	DOM.animate(Context.canvas.domNode, { blur: isBlurred ? 8 : 0 }, blurConfig);
 };
 
 const setState = (newState, menu) => {

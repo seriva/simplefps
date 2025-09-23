@@ -38,7 +38,11 @@ class Mesh {
 		this.triangleCount = 0;
 
 		for (const indexObj of this.indices) {
-			indexObj.indexBuffer = Mesh.buildBuffer(gl.ELEMENT_ARRAY_BUFFER, indexObj.array, 1);
+			indexObj.indexBuffer = Mesh.buildBuffer(
+				gl.ELEMENT_ARRAY_BUFFER,
+				indexObj.array,
+				1,
+			);
 			this.triangleCount += indexObj.array.length / 3;
 		}
 		this.vertexBuffer = Mesh.buildBuffer(gl.ARRAY_BUFFER, this.vertices, 3);
@@ -63,7 +67,8 @@ class Mesh {
 	bind() {
 		this.bindBufferAndAttrib(this.vertexBuffer, Mesh.ATTR_POSITIONS, 3);
 		if (this.hasUVs) this.bindBufferAndAttrib(this.uvBuffer, Mesh.ATTR_UVS, 2);
-		if (this.hasNormals) this.bindBufferAndAttrib(this.normalBuffer, Mesh.ATTR_NORMALS, 3);
+		if (this.hasNormals)
+			this.bindBufferAndAttrib(this.normalBuffer, Mesh.ATTR_NORMALS, 3);
 	}
 
 	bindBufferAndAttrib(buffer, attribute, itemSize) {
@@ -90,7 +95,12 @@ class Mesh {
 		for (const indexObj of this.indices) {
 			this.bindMaterial(indexObj, applyMaterial);
 			gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexObj.indexBuffer);
-			gl.drawElements(renderMode, indexObj.indexBuffer.numItems, gl.UNSIGNED_SHORT, 0);
+			gl.drawElements(
+				renderMode,
+				indexObj.indexBuffer.numItems,
+				gl.UNSIGNED_SHORT,
+				0,
+			);
 		}
 	}
 
@@ -115,7 +125,11 @@ class Mesh {
 			// Create and use a temporary buffer
 			const tempBuffer = gl.createBuffer();
 			gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, tempBuffer);
-			gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, tempArray.subarray(0, lineCount), gl.STREAM_DRAW);
+			gl.bufferData(
+				gl.ELEMENT_ARRAY_BUFFER,
+				tempArray.subarray(0, lineCount),
+				gl.STREAM_DRAW,
+			);
 			gl.drawElements(gl.LINES, lineCount, gl.UNSIGNED_SHORT, 0);
 			gl.deleteBuffer(tempBuffer);
 		}
@@ -135,14 +149,20 @@ class Mesh {
 		let offset = 0;
 
 		const readUint32 = () => {
-			const value = bytes[offset] | (bytes[offset + 1] << 8) | (bytes[offset + 2] << 16) | (bytes[offset + 3] << 24);
+			const value =
+				bytes[offset] |
+				(bytes[offset + 1] << 8) |
+				(bytes[offset + 2] << 16) |
+				(bytes[offset + 3] << 24);
 			offset += 4;
 			return value;
 		};
 
 		const readFloat32Array = (count) => {
 			if (count === 0) return [];
-			const floatArray = Array.from(new Float32Array(bytes.buffer, bytes.byteOffset + offset, count));
+			const floatArray = Array.from(
+				new Float32Array(bytes.buffer, bytes.byteOffset + offset, count),
+			);
 			offset += count * 4;
 			return floatArray;
 		};
@@ -161,9 +181,16 @@ class Mesh {
 		const MATERIAL_NAME_SIZE = 64;
 
 		for (let i = 0; i < indexGroupCount; i++) {
-			const materialNameBytes = bytes.slice(offset, offset + MATERIAL_NAME_SIZE);
-			let materialName = '';
-			for (let j = 0; j < MATERIAL_NAME_SIZE && materialNameBytes[j] !== 0; j++) {
+			const materialNameBytes = bytes.slice(
+				offset,
+				offset + MATERIAL_NAME_SIZE,
+			);
+			let materialName = "";
+			for (
+				let j = 0;
+				j < MATERIAL_NAME_SIZE && materialNameBytes[j] !== 0;
+				j++
+			) {
 				materialName += String.fromCharCode(materialNameBytes[j]);
 			}
 			offset += MATERIAL_NAME_SIZE;
@@ -171,13 +198,16 @@ class Mesh {
 			const indexCount = readUint32();
 			if (indexCount === 0) continue;
 
-			const indexArrayBuffer = bytes.buffer.slice(bytes.byteOffset + offset, bytes.byteOffset + offset + indexCount * 4);
+			const indexArrayBuffer = bytes.buffer.slice(
+				bytes.byteOffset + offset,
+				bytes.byteOffset + offset + indexCount * 4,
+			);
 			const indexArray = Array.from(new Uint32Array(indexArrayBuffer));
 			offset += indexCount * 4;
 
 			this.indices.push({
 				array: indexArray,
-				material: materialName || 'none'
+				material: materialName || "none",
 			});
 		}
 	}

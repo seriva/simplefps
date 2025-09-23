@@ -16,7 +16,7 @@ class Material {
 		this.doSEM = data.doSEM || 0;
 		this.semMult = data.semMult || 0;
 
-		for (const name of this.textures.filter(name => name !== "none")) {
+		for (const name of this.textures.filter((name) => name !== "none")) {
 			resources.load(name);
 		}
 	}

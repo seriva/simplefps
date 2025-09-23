@@ -17,15 +17,15 @@ const canvas = DOM.h("canvas#context");
 DOM.append(() => canvas);
 
 const REQUIRED_EXTENSIONS = {
-	EXT_color_buffer_float: 'EXT_color_buffer_float',
+	EXT_color_buffer_float: "EXT_color_buffer_float",
 };
 
 const OPTIONAL_EXTENSIONS = {
 	anisotropic: [
-		'EXT_texture_filter_anisotropic',
-		'MOZ_EXT_texture_filter_anisotropic',
-		'WEBKIT_EXT_texture_filter_anisotropic'
-	]
+		"EXT_texture_filter_anisotropic",
+		"MOZ_EXT_texture_filter_anisotropic",
+		"WEBKIT_EXT_texture_filter_anisotropic",
+	],
 };
 
 const checkWebGLCapabilities = (gl) => {
@@ -39,8 +39,10 @@ const checkWebGLCapabilities = (gl) => {
 	}
 
 	// Check optional extensions
-	const afExt = OPTIONAL_EXTENSIONS.anisotropic.reduce((ext, name) =>
-		ext || gl.getExtension(name), null);
+	const afExt = OPTIONAL_EXTENSIONS.anisotropic.reduce(
+		(ext, name) => ext || gl.getExtension(name),
+		null,
+	);
 
 	return { afExt };
 };
@@ -86,13 +88,15 @@ try {
 
 const getDevicePixelRatio = () => window.devicePixelRatio || 1;
 
-const width = () => Math.floor(
-	gl.canvas.clientWidth * getDevicePixelRatio() * Settings.renderScale
-);
+const width = () =>
+	Math.floor(
+		gl.canvas.clientWidth * getDevicePixelRatio() * Settings.renderScale,
+	);
 
-const height = () => Math.floor(
-	gl.canvas.clientHeight * getDevicePixelRatio() * Settings.renderScale
-);
+const height = () =>
+	Math.floor(
+		gl.canvas.clientHeight * getDevicePixelRatio() * Settings.renderScale,
+	);
 
 const aspectRatio = () => width() / height();
 
