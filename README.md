@@ -8,10 +8,10 @@ Simple first person arena shooter game written in ES6 and WebGL with a PWA distr
 
 ## Features
 
-- **🎮 Gameplay**: Arena-based FPS with physics-based projectiles, multiple weapons (Grenade Launcher, Minigun), and cross-platform controls
-- **⚡ Performance**: Custom WebGL engine with optimized rendering, physics simulation (Cannon.js), and PWA support
-- **🏗️ Architecture**: Modular ES6 design with entity system, scene management, and comprehensive input handling
-- **📱 Cross-Platform**: Runs on Desktop, Android, and iOS with touch controls and responsive design
+- **Gameplay**: Arena-based FPS with physics-based projectiles, multiple weapons (Grenade Launcher, Minigun), and cross-platform controls
+- **Performance**: Custom WebGL engine with optimized rendering, physics simulation (Cannon.js), and PWA support
+- **Architecture**: Modular ES6 design with entity system, scene management, and comprehensive input handling
+- **Cross-Platform**: Runs on Desktop, Android, and iOS with touch controls and responsive design
 
 ## Tech Stack
 
@@ -43,15 +43,15 @@ app/
 
 ## Quick Start
 
-### 🐳 Devcontainer (Recommended)
+### Devcontainer (Recommended)
 Open in VS Code with Dev Containers extension - all dependencies are pre-configured.
 
-### 📦 Manual Setup
+### Manual Setup
 ```bash
 npm install  # Node.js >= 18.0.0, npm >= 8.0.0
 ```
 
-### 🚀 Commands
+### Commands
 ```bash
 npm run dev    # Development server
 npm run prod   # Production build  
