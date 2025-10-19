@@ -1,4 +1,5 @@
 ## About
+
 Simple first person arena shooter game written in ES6 and WebGL with a PWA distribution target for Desktop, Android and iOS.
 
 **Project Evolution** (2017-2025): Started as a basic WebGL experiment, evolved through 500+ commits to include physics simulation (Cannon.js), weapon systems, mobile touch controls, PWA capabilities, and modern development tooling with devcontainer support.
@@ -11,6 +12,13 @@ Simple first person arena shooter game written in ES6 and WebGL with a PWA distr
 - **⚡ Performance**: Custom WebGL engine with optimized rendering, physics simulation (Cannon.js), and PWA support
 - **🏗️ Architecture**: Modular ES6 design with entity system, scene management, and comprehensive input handling
 - **📱 Cross-Platform**: Runs on Desktop, Android, and iOS with touch controls and responsive design
+
+## Tech Stack
+
+**Core**: ES6 Modules, WebGL, Cannon.js (physics), gl-matrix (3D math)  
+**UI**: JSS (CSS-in-JS), Maquette (Virtual DOM)  
+**Build**: Microtastic (dev server, production builds, hot-reload)  
+**Tools**: Biome (linting), Devcontainer (development environment)
 
 ## Project Structure
 
@@ -32,13 +40,6 @@ app/
 ├── resources/            # Game assets
 └── index.html           # Main HTML file
 ```
-
-## Tech Stack
-
-**Core**: ES6 Modules, WebGL, Cannon.js (physics), gl-matrix (3D math)  
-**UI**: JSS (CSS-in-JS), Maquette (Virtual DOM)  
-**Build**: Microtastic (dev server, production builds, hot-reload)  
-**Tools**: Biome (linting), Devcontainer (development environment)
 
 ## Quick Start
 
