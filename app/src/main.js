@@ -4,12 +4,12 @@ async function loadGameModules() {
 	Utils.dispatchCustomEvent("loading", { state: "LOADING_MODULES" });
 
 	const modules = await Promise.all([
-		import("./game/controls.js").catch((err) => null),
-		import("./game/arena.js").catch((err) => null),
-		import("./game/weapons.js").catch((err) => null),
+		import("./game/controls.js").catch((_err) => null),
+		import("./game/arena.js").catch((_err) => null),
+		import("./game/weapons.js").catch((_err) => null),
 	]);
 
-	const [controls, arena, weapons] = modules;
+	const [_controls, arena, weapons] = modules;
 
 	if (!arena?.default || !weapons?.default) {
 		Console.error("Failed to load required game modules");

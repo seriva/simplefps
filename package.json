@@ -30,8 +30,8 @@
     "velocity-animate": "^1.5.2"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.2.4",
-    "microtastic": "0.0.45",
+    "@biomejs/biome": "2.3.4",
+    "microtastic": "0.0.48",
     "pretty-json-stringify": "^0.0.2"
   }
 }
