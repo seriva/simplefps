@@ -1,5 +1,4 @@
-import { mat4, quat, vec3 } from "../dependencies/gl-matrix.js";
-import BoundingBox from "./boundingbox.js";
+import { mat4, quat } from "../dependencies/gl-matrix.js";
 import { Entity, EntityTypes } from "./entity.js";
 import Resources from "./resources.js";
 import { Shaders } from "./shaders.js";

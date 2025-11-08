@@ -92,7 +92,7 @@ const initializeConsoleControls = () => {
 };
 
 // Camera movement logic
-const updateCamera = (frameTime) => {
+const _updateCamera = (frameTime) => {
 	const ft = frameTime / 1000;
 	updateCameraRotation();
 	updateCameraPosition(ft);

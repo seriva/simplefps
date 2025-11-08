@@ -167,7 +167,7 @@ class Mesh {
 			return floatArray;
 		};
 
-		const version = readUint32();
+		const _version = readUint32();
 		const vertexCount = readUint32();
 		const uvCount = readUint32();
 		const normalCount = readUint32();

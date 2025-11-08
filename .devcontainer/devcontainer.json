@@ -16,9 +16,11 @@
 				"biomejs.biome"
             ],
 			"settings": {
+				"editor.formatOnSave": true,
 				"editor.codeActionsOnSave": {
 					"quickfix.biome": "explicit",
-					"source.organizeImports.biome": "explicit"
+					"source.organizeImports.biome": "explicit",
+					"source.fixAll.biome": "explicit"
 				},
 				"[javascript]": {
 					"editor.defaultFormatter": "biomejs.biome"

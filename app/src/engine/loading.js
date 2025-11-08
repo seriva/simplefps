@@ -42,7 +42,7 @@ const state = {
 };
 
 // Memoized animation config
-const SPIN_ANIMATION = {
+const _SPIN_ANIMATION = {
 	transform: ["rotateZ(360deg)", "rotateZ(0deg)"],
 	options: {
 		duration: 3000,
@@ -53,7 +53,7 @@ const SPIN_ANIMATION = {
 };
 
 // Cache DOM element
-const bar = DOM.h("div#loading-bar");
+const _bar = DOM.h("div#loading-bar");
 
 // Optimize render function
 const renderLoading = () =>

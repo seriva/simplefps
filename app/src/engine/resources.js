@@ -25,7 +25,7 @@ const RESOURCE_TYPES = {
 		return firstMaterial; // Return first material so resources.set() works
 	},
 	sfx: (data) => new Sound(JSON.parse(data)),
-	list: (data, context) => Resources.load(JSON.parse(data).resources),
+	list: (data, _context) => Resources.load(JSON.parse(data).resources),
 };
 
 const resources = new Map();
