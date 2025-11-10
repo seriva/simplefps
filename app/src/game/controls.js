@@ -156,19 +156,19 @@ Input.setUpdateCallback((frameTime) => {
 
 	Weapons.setIsMoving(false);
 	if (Input.isDown(Settings.forward)) {
-		move += 1;
+		move += 5;
 		Weapons.setIsMoving(true);
 	}
 	if (Input.isDown(Settings.backwards)) {
-		move -= 1;
+		move -= 5;
 		Weapons.setIsMoving(true);
 	}
 	if (Input.isDown(Settings.left)) {
-		strafe -= 1;
+		strafe -= 5;
 		Weapons.setIsMoving(true);
 	}
 	if (Input.isDown(Settings.right)) {
-		strafe += 1;
+		strafe += 5;
 		Weapons.setIsMoving(true);
 	}
 

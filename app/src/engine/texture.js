@@ -14,6 +14,7 @@ const {
 	TEXTURE_WRAP_S,
 	TEXTURE_WRAP_T,
 	CLAMP_TO_EDGE,
+	REPEAT,
 	UNPACK_FLIP_Y_WEBGL,
 } = gl;
 
@@ -79,7 +80,8 @@ class Texture {
 			}
 
 			gl.generateMipmap(TEXTURE_2D);
-			this.setTextureWrapMode(CLAMP_TO_EDGE);
+			// Use REPEAT mode for tiled textures (UVs can go outside 0-1 range)
+			this.setTextureWrapMode(REPEAT);
 			gl.bindTexture(TEXTURE_2D, null);
 
 			URL.revokeObjectURL(image.src); // Clean up the blob URL
