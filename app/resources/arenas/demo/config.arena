@@ -1,59 +1,22 @@
 {
-    "skybox": 1,
-    "lighting": {
-        "ambient": [0.04, 0.05, 0.08],
-        "directional": [
+    "skybox" : 1,
+    "lighting" : {
+        "ambient" : [0.3,0.3,0.3],
+        "directional" : [
             {
-                "direction": [-0.6, 1, -0.4],
-                "color": [0.23, 0.26, 0.35]
-            },
-            {
-                "direction": [0.4, 1, 0.6],
-                "color": [0.14, 0.16, 0.22]
+                "direction" : [0.4,1,0.4],
+                "color" : [0.8,0.8,0.8]
             }
         ],
-        "spot": [],
-        "point": [
-            {
-                "position": [34, -11, -19],
-                "color": [0.888, 0.31, 0.051],
-                "intensity": 6,
-                "size": 20
-            }
-        ]
+        "spot" : [],
+        "point" : []
     },
-    "chunks": [
-        "arenas/demo/chunks/decor1.bmesh",
-        "arenas/demo/chunks/decor2.bmesh",
-        "arenas/demo/chunks/decor3.bmesh",
-        "arenas/demo/chunks/rocks1.bmesh",
-        "arenas/demo/chunks/lights.bmesh",
-        "arenas/demo/chunks/water.bmesh",
-        "arenas/demo/chunks/rocks4.bmesh",
-        "arenas/demo/chunks/rocks3.bmesh",
-        "arenas/demo/chunks/building1.bmesh",
-        "arenas/demo/chunks/rocks2.bmesh",
-        "arenas/demo/chunks/lava.bmesh",
-        "arenas/demo/chunks/building4.bmesh",
-        "arenas/demo/chunks/building2.bmesh",
-        "arenas/demo/chunks/building3.bmesh"
+    "chunks" : [
+        "arenas/demo/chunks/entity0.bmesh"
     ],
     "spawnpoint" : {
-        "position" : [43,6,-33],
+        "position" : [0,5,0],
         "rotation" : [0,0,0]
     },
-    "pickups": [
-        {
-            "type": "health",
-            "position": [26.85, 2.35, -16.75]
-        },
-        {
-            "type": "ammo",
-            "position": [26.85, 2.35, -11]
-        },
-        {
-            "type": "armor",
-            "position": [20.25, 2.35, -22.25]
-        }
-    ]
+    "pickups" : []
 }

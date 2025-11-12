@@ -1,19 +1,10 @@
 {
     "materials": [
         {
-            "name": "mat_demo_pallete",
+            "name": "concrete1",
             "textures": [
-                "arenas/demo/pallete.webp"
+                "arenas/demo/concrete1.webp"
             ]
-        },
-        {
-            "name": "mat_demo_pallete_emissive_1",
-            "textures": [
-                "arenas/demo/pallete.webp",
-                "arenas/demo/pallete.webp"
-            ],
-            "doEmissive": 1,
-            "geomType": 2
         }
     ]
 }

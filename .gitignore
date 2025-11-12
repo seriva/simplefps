@@ -108,9 +108,6 @@ dist
 public
 app/src/dependencies
 
-# tool specific
-tools/*.mesh
-tools/*.bmesh
-tools/*.obj
-tools/*.mtl
-tools/*.txt
+# tool specific - ignore everything in tools/ except import-map.js
+tools/*
+!tools/import-map.js
