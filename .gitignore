@@ -109,5 +109,5 @@ public
 app/src/dependencies
 
 # tool specific - ignore everything in tools/ except import-map.js
-tools/*
-!tools/import-map.js
+scripts/*
+!scripts/import-map.js

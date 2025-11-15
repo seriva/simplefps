@@ -1,0 +1,12 @@
+# Run code quality checks before commit
+echo "🔍 Running pre-commit checks..."
+
+# Format code
+echo "📝 Formatting code..."
+npm run format || exit 1
+
+# Check code quality
+echo "🔎 Checking code quality..."
+npm run check || exit 1
+
+echo "✅ Pre-commit checks passed!"

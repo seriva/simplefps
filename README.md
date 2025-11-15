@@ -18,7 +18,7 @@ Simple first person arena shooter game written in ES6 and WebGL with a PWA distr
 **Core**: ES6 Modules, WebGL, Cannon.js (physics), gl-matrix (3D math)  
 **UI**: JSS (CSS-in-JS), Maquette (Virtual DOM)  
 **Build**: Microtastic (dev server, production builds, hot-reload)  
-**Tools**: Biome (linting), Devcontainer (development environment)
+**Tools**: Biome (linting/formatting), Husky (git hooks), Devcontainer (development environment)
 
 ## Project Structure
 
@@ -48,12 +48,15 @@ Open in VS Code with Dev Containers extension - all dependencies are pre-configu
 
 ### Manual Setup
 ```bash
-npm install  # Node.js >= 18.0.0, npm >= 8.0.0
+npm install              # Install dependencies (Node.js >= 18.0.0, npm >= 8.0.0)
+npm run prepare          # Setup Husky git hooks + bundle dependencies
 ```
 
 ### Commands
 ```bash
-npm run dev    # Development server
-npm run prod   # Production build  
-npm run lint   # Code linting
+npm run dev          # Start development server (Microtastic)
+npm run prod         # Production build (runs linting → build)
+npm run format       # Format code with Biome
+npm run check        # Lint code with Biome
+npm run dependencies # Bundle dependencies via Microtastic
 ```

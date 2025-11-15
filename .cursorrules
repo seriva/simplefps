@@ -1,0 +1,118 @@
+## Cursor Rules: SimpleFPS (WebGL Arena Shooter)
+
+Keep it fast, simple, and performant. Minimal build tooling with Microtastic. Modular ES6 architecture for WebGL game engine.
+
+### Core Principles
+- **Default Exports**: Modules export single default class/object: `export default ModuleName`
+  - Example: `import Camera from "./camera.js"`, `import Weapons from "./weapons.js"`
+  - Engine modules use default exports consistently
+- **ES6 Modules**: Clean separation between engine (`app/src/engine/`) and game (`app/src/game/`)
+- **WebGL Performance**: Optimize rendering loops, minimize allocations, use object pooling where appropriate
+- **Physics Integration**: Cannon.js for physics simulation, gl-matrix for 3D math operations
+- **PWA Support**: Progressive Web App targeting Desktop, Android, and iOS
+
+### Architecture
+- **Engine Layer** (`app/src/engine/`): Core WebGL engine, rendering, physics, input, resources
+  - Renderer, Camera, Scene, Physics, Input, Resources, etc.
+  - Entity system with MeshEntity, FpsMeshEntity, Light entities
+- **Game Layer** (`app/src/game/`): Game-specific logic, weapons, arena, controls, UI
+  - Arena, Weapons, Controls, HUD, UI, State management
+- **Main Loop**: `loop()` function in `engine.js` handles frame timing and updates
+- **Module Loading**: Dynamic imports for game modules in `main.js`
+- **Dependencies**: Bundled via Microtastic in `app/src/dependencies/`
+
+### Module Structure
+
+**Engine Modules** (`app/src/engine/`):
+- `engine.js` - Main engine exports, game loop
+- `camera.js` - Camera system (FPS view)
+- `renderer.js` - WebGL renderer
+- `physics.js` - Cannon.js physics integration
+- `input.js` - Input handling (keyboard, mouse, touch)
+- `scene.js` - Scene management
+- `resources.js` - Asset loading
+- `entity.js` - Entity base classes and types
+- `meshentity.js`, `fpsmeshentity.js` - Mesh entity types
+- `directionallightentity.js`, `pointlightentity.js`, `spotlightentity.js` - Light entities
+- `skyboxentity.js` - Skybox rendering
+- `dom.js` - DOM manipulation (Maquette Virtual DOM)
+- `sound.js` - Audio system
+- `stats.js` - Performance stats
+- `console.js` - Debug console
+- `utils.js` - Utility functions
+- `context.js` - WebGL context management
+- `settings.js` - Game settings
+- `loading.js` - Loading screen
+- `mesh.js`, `material.js`, `texture.js`, `shaders.js`, `shapes.js` - Rendering primitives
+
+**Game Modules** (`app/src/game/`):
+- `arena.js` - Arena management and loading
+- `weapons.js` - Weapon system (Grenade Launcher, Minigun)
+- `controls.js` - Game controls
+- `hud.js` - Heads-up display
+- `ui.js` - UI system
+- `state.js` - Game state management
+- `update.js` - Game update logic
+- `pickups.js` - Pickup items
+- `translations.js` - Localization
+
+**Entry Point**:
+- `app/src/main.js` - Application initialization, resource loading, game module loading
+
+### Files & Directories
+- `app/index.html` - Main HTML entry point
+- `app/manifest.json` - PWA manifest
+- `app/src/` - All JavaScript modules
+- `app/src/engine/` - Core engine modules
+- `app/src/game/` - Game-specific modules
+- `app/src/dependencies/` - Bundled npm packages (managed by Microtastic)
+- `app/resources/` - Game assets (meshes, textures, sounds)
+- `public/` - Build output (gitignored)
+
+### Tech Stack
+- **Core**: ES6 Modules, WebGL, Cannon.js (physics), gl-matrix (3D math)
+- **UI**: JSS (CSS-in-JS), Maquette (Virtual DOM)
+- **Build**: Microtastic (dev server, production builds, hot-reload)
+- **Tools**: Biome (linting/formatting), Husky (git hooks)
+
+### Don't
+- Don't introduce frameworks or heavy build steps
+- Don't break the game loop performance (keep frame updates efficient)
+- Don't modify Microtastic config without good reason
+- Don't mix export patterns (use default exports consistently)
+- Don't allocate objects in hot paths (render loop, update loops)
+- Don't bypass the entity system for rendering
+
+### Quality Gate
+- Format: `npm run format` or `biome format --write .`
+- Lint: `npm run check` or `biome check .`
+- **All changes must pass lint checks before build**
+- Production build runs: linting → build (`npm run prod`)
+- Update `README.md` if adding features or changing setup
+
+### Key Patterns
+- **Game Loop**: `loop()` in `engine.js` - handles timing, input, camera, scene, renderer, DOM updates
+- **Entity System**: Use Entity base classes, register with Scene
+- **Physics**: Use Cannon.js bodies via Physics module, sync with render entities
+- **Resources**: Load via `Resources.load()` before using assets
+- **Input**: Use `Input` module for keyboard, mouse, touch controls
+- **Rendering**: WebGL via Renderer, use Shaders for custom effects
+- **UI**: Maquette Virtual DOM via DOM module, JSS for styling
+- **State**: Game state managed in `game/state.js`, use events for state changes
+
+### Development
+- `npm install` - install dependencies (Node.js >= 18.0.0, npm >= 8.0.0)
+- `npm run prepare` - setup husky + bundle dependencies
+- `npm run dependencies` - bundle dependencies via Microtastic
+- `npm run dev` - start dev server (Microtastic)
+- `npm run format` - format code with Biome
+- `npm run check` - lint code with Biome
+- `npm run prod` - production build (runs linting → build)
+
+### Performance Considerations
+- Minimize allocations in render/update loops
+- Use object pooling for frequently created/destroyed objects (projectiles, particles)
+- Batch WebGL draw calls where possible
+- Optimize physics body creation/destruction
+- Profile with browser DevTools Performance tab
+- Monitor frame time via Stats module

@@ -14,12 +14,12 @@
     "url": "https://github.com/seriva/SimpleFPS.git"
   },
   "scripts": {
-    "prepare": "microtastic prep",
+    "prepare": "husky && microtastic prep",
     "dependencies": "microtastic prep",
     "dev": "microtastic dev",
-    "prod": "npm run lint && microtastic prod",
-    "lint": "biome lint",
-    "check": "biome check --write"
+    "prod": "npm run check && microtastic prod",
+    "format": "biome format --write .",
+    "check": "biome check ."
   },
   "dependencies": {
     "cannon-es": "^0.20.0",
@@ -31,7 +31,8 @@
     "velocity-animate": "^1.5.2"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.3.4",
+    "@biomejs/biome": "2.3.5",
+    "husky": "^9.1.7",
     "microtastic": "0.0.48",
     "pretty-json-stringify": "^0.0.2"
   }
