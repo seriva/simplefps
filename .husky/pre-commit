@@ -5,6 +5,9 @@ echo "🔍 Running pre-commit checks..."
 echo "📝 Formatting code..."
 npm run format || exit 1
 
+# Stage formatted files (in case formatting changed anything)
+git add -u || exit 1
+
 # Check code quality
 echo "🔎 Checking code quality..."
 npm run check || exit 1
