@@ -6,8 +6,8 @@
   "license": "MIT",
   "type": "module",
   "engines": {
-		"node": ">=20.0.0",
-		"npm": ">=9.0.0"
+    "node": ">=20.0.0",
+    "npm": ">=9.0.0"
   },
   "repository": {
     "type": "git",
@@ -33,7 +33,7 @@
   "devDependencies": {
     "@biomejs/biome": "2.3.5",
     "husky": "^9.1.7",
-    "microtastic": "0.0.48",
+    "microtastic": "^0.0.50",
     "pretty-json-stringify": "^0.0.2"
   }
 }
