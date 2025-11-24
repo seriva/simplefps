@@ -4,37 +4,32 @@
 	"name": "Node.js",
 	"build": {
 		"dockerfile": "Dockerfile",
-		// Update 'VARIANT' to pick a Node version: 16, 14, 12.
-		// Append -bullseye or -buster to pin to an OS version.
-		// Use -bullseye variants on local arm64/Apple Silicon.
+		// Update 'VARIANT' to pick a Node version: 22, 20, 18.
+		// Append -bookworm, -bullseye, or -buster to pin to an OS version.
+		// Use -bookworm variants for latest Debian (recommended).
 		"args": { "VARIANT": "22-bookworm" }
 	},
-    "customizations":{
-        "vscode": {
-            "extensions": [
-				"boyswan.glsl-literal",
-				"biomejs.biome"
-            ],
+	"customizations": {
+		"vscode": {
+			"extensions": ["biomejs.biome", "tobermory.es6-string-html", "boyswan.glsl-literal"],
 			"settings": {
-				"editor.formatOnSave": true,
 				"editor.codeActionsOnSave": {
 					"quickfix.biome": "explicit",
-					"source.organizeImports.biome": "explicit",
-					"source.fixAll.biome": "explicit"
+					"source.organizeImports.biome": "explicit"
 				},
 				"[javascript]": {
 					"editor.defaultFormatter": "biomejs.biome"
 				}
 			}
-        }
-    },
+		}
+	},
 
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
 	"forwardPorts": [8181],
 
 	// Use 'portsAttributes' to set default properties for specific forwarded ports. More info: https://code.visualstudio.com/docs/remote/devcontainerjson-reference.
 	"portsAttributes": {
-		"8181": {
+		"8081": {
 			"label": "devserver",
 			"onAutoForward": "notify"
 		}
@@ -48,6 +43,6 @@
 	// Use 'postCreateCommand' to run commands after the container is created.
 	"postCreateCommand": "npm install",
 
-	// Comment out connect as root instead. More info: https://aka.ms/vscode-remote/containers/non-root.
+	// Use non-root user for better security. More info: https://aka.ms/vscode-remote/containers/non-root.
 	"remoteUser": "node"
 }

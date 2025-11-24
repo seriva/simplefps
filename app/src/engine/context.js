@@ -1,20 +1,20 @@
 import Console from "./console.js";
-import DOM from "./dom.js";
+import { css } from "./reactive.js";
 import Settings from "./settings.js";
 import Utils from "./utils.js";
 
-DOM.css({
-	"#context": {
-		background: "#000",
-		width: "100vw",
-		height: "100vh",
-		display: "block",
-		zIndex: 0,
-	},
-});
+const canvasStyle = css`
+	background: #000;
+	width: 100vw;
+	height: 100vh;
+	display: block;
+	z-index: 0;
+`;
 
-const canvas = DOM.h("canvas#context");
-DOM.append(() => canvas);
+const canvas = document.createElement("canvas");
+canvas.id = "context";
+canvas.className = canvasStyle;
+document.body.appendChild(canvas);
 
 const REQUIRED_EXTENSIONS = {
 	EXT_color_buffer_float: "EXT_color_buffer_float",
@@ -49,7 +49,7 @@ const checkWebGLCapabilities = (gl) => {
 
 let afExt = null;
 
-const gl = canvas.domNode.getContext("webgl2", {
+const gl = canvas.getContext("webgl2", {
 	premultipliedAlpha: false,
 	antialias: false,
 });

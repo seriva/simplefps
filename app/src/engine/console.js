@@ -1,4 +1,4 @@
-import DOM from "./dom.js";
+import { css, html, Reactive } from "./reactive.js";
 
 // Constants
 const CONSOLE_DEFAULTS = {
@@ -10,94 +10,173 @@ const CONSOLE_DEFAULTS = {
 	ANIMATION_DURATION: 150,
 };
 
-// Module-level state and functions
-let visible = false;
-let command = "";
-const logs = [];
-const commandHistory = [];
-let historyIndex = -1;
+// Console Component
+class ConsoleUI extends Reactive.Component {
+	constructor() {
+		super();
+		this.commandHistory = [];
+		this.historyIndex = -1;
+	}
 
-function updateCommand(event) {
-	if (event.data === "`") return;
-	command = event.target.value;
-	historyIndex = -1;
-	DOM.update();
-}
+	state() {
+		return {
+			visible: false,
+			command: "",
+			logs: [],
+		};
+	}
 
-function handleKeyDown(event) {
-	if (event.key === "ArrowUp" || event.key === "ArrowDown") {
-		event.preventDefault();
+	styles() {
+		return css`
+			.console-body {
+				display: inline-block;
+				background-color: transparent;
+				position: absolute;
+				width: 100%;
+				height: 45%;
+				left: 0;
+				top: 0;
+				overflow: hidden;
+				z-index: 2500;
+				transform: translateY(-100%);
+				pointer-events: none;
+				transition: transform ${CONSOLE_DEFAULTS.ANIMATION_DURATION}ms ease-in-out;
+			}
+			
+			.console-body.visible {
+				transform: translateY(0);
+				pointer-events: auto;
+			}
 
-		if (commandHistory.length === 0) return;
+			.console-content {
+				display: flex;
+				flex-direction: column-reverse;
+				column: nowrap;
+				border: 1px solid #999;
+				background-color: #999;
+				opacity: 0.9;
+				width: 100%;
+				height: calc(100% - 30px);
+				overflow: scroll;
+				overflow-x: hidden;
+			}
 
-		if (event.key === "ArrowUp") {
-			historyIndex =
-				historyIndex === -1
-					? commandHistory.length - 1
-					: Math.max(0, historyIndex - 1);
-		} else {
-			historyIndex =
-				historyIndex === -1
-					? -1
-					: Math.min(commandHistory.length - 1, historyIndex + 1);
+			.console-content p {
+				font-size: 14px;
+				color: #fff;
+				width: 100%;
+				white-space: nowrap;
+				margin: 0px;
+				line-height: 115%;
+			}
+
+			.console-input {
+				display: flex;
+				color: #fff;
+				font-size: 14px;
+				position: absolute;
+				bottom: 0;
+				left: 0;
+				width: 100%;
+				height: 30px;
+				border: 1px solid #999;
+				border-bottom: 2px solid #fff;
+				border-top: 2px solid #fff;
+				background-color: #999;
+				opacity: 0.75;
+				outline: none;
+				font-weight: bold;
+				box-sizing: border-box;
+			}
+		`;
+	}
+
+	handleInput(event) {
+		if (event.data === "`") return;
+		this.command.set(event.target.value);
+		this.historyIndex = -1;
+	}
+
+	handleKeyDown(event) {
+		if (event.key === "ArrowUp" || event.key === "ArrowDown") {
+			event.preventDefault();
+
+			if (this.commandHistory.length === 0) return;
+
+			if (event.key === "ArrowUp") {
+				this.historyIndex =
+					this.historyIndex === -1
+						? this.commandHistory.length - 1
+						: Math.max(0, this.historyIndex - 1);
+			} else {
+				this.historyIndex =
+					this.historyIndex === -1
+						? -1
+						: Math.min(this.commandHistory.length - 1, this.historyIndex + 1);
+			}
+
+			this.command.set(
+				this.historyIndex === -1 ? "" : this.commandHistory[this.historyIndex],
+			);
 		}
+	}
 
-		command = historyIndex === -1 ? "" : commandHistory[historyIndex];
-		DOM.update();
+	template() {
+		return html`
+			<div id="console">
+				<div class="console-body" data-class-hidden="visible" data-ref="body">
+					<div class="console-content" data-ref="content">
+						<p data-ref="logs"></p>
+					</div>
+					<input 
+						class="console-input"
+						type="text"
+						data-ref="input"
+						data-model="command"
+						data-on-input="handleInput"
+						data-on-keydown="handleKeyDown"
+					/>
+				</div>
+			</div>
+		`;
+	}
+
+	mount() {
+		// Bind visible state directly to visible class
+		this.bindClass(this.refs.body, "visible", this.visible);
+		
+		// Bind logs rendering
+		this.bind(this.refs.logs, this.logs, (currentLogs) => {
+			const logsHtml = currentLogs.map(
+				(log) =>
+					`<span style="color: ${log.color}">${log.message}<br /></span>`,
+			).join("");
+			return { __safe: true, content: logsHtml };
+		});
+
+		// Auto-focus input when visible
+		this.effect(() => {
+			if (this.visible.get() && this.refs.input) {
+				setTimeout(() => {
+					this.refs.input.disabled = false;
+					this.refs.input.focus();
+				}, 100);
+			}
+		});
+
+		// Auto-scroll content
+		this.effect(() => {
+			this.logs.get(); // Track logs changes
+			if (this.refs.content) {
+				setTimeout(() => {
+					this.refs.content.scrollTop = this.refs.content.scrollHeight;
+				}, 0);
+			}
+		});
 	}
 }
 
-DOM.css({
-	"#console": {},
-	"#console-body": {
-		display: "inline-block",
-		backgroundColor: "transparent",
-		position: "absolute",
-		width: "100%",
-		height: "35%",
-		left: 0,
-		overflow: "none",
-		zIndex: "2500",
-		top: "-35vh",
-	},
-	"#console-content": {
-		display: "flex",
-		flexDirection: "column-reverse",
-		column: "nowrap",
-		border: "1px solid #999",
-		backgroundColor: "#999",
-		opacity: 0.9,
-		width: "100%",
-		height: "100%",
-		overflow: "scroll",
-		overflowX: "hidden",
-	},
-	"#console-content p": {
-		fontSize: "14px",
-		color: "#fff",
-		width: "100%",
-		whiteSpace: "nowrap",
-		margin: "0px",
-		lineHeight: "115%",
-	},
-	"#console-input": {
-		display: "flex",
-		color: "#fff",
-		fontSize: "14px",
-		position: "absolute",
-		left: 0,
-		width: "100%",
-		border: "1px solid #999",
-		borderBottom: "2px solid #fff",
-		borderTop: "2px solid #fff",
-		backgroundColor: "#999",
-		opacity: 0.75,
-		outline: "none",
-		fontWeight: "bold",
-	},
-});
-
-// Simplified command parsing
+// Command parsing and utilities
 const CommandParser = {
 	parse(cmd) {
 		if (cmd.includes("=")) {
@@ -159,89 +238,38 @@ const ObjectUtils = {
 	},
 };
 
-// Console UI components
-const ConsoleUI = {
-	setFocus: (el) =>
-		setTimeout(() => {
-			el.disabled = false;
-			el.focus();
-		}, 100),
-
-	setScrollPos: (el) => {
-		el.scrollTop = el.scrollHeight;
-	},
-
-	renderConsole(visible, command, logs) {
-		if (!visible) return DOM.h("div#console", []);
-
-		return DOM.h("div#console", [
-			DOM.h(
-				"div#console-body",
-				{
-					enterAnimation: (el) =>
-						DOM.animate(
-							el,
-							{ top: 0 },
-							{
-								duration: CONSOLE_DEFAULTS.ANIMATION_DURATION,
-								easing: "ease-in-out",
-							},
-						),
-					exitAnimation: (el, remove) =>
-						DOM.animate(
-							el,
-							{ top: `-${CONSOLE_DEFAULTS.HEIGHT}` },
-							{
-								duration: CONSOLE_DEFAULTS.ANIMATION_DURATION,
-								easing: "ease-in-out",
-								complete: remove,
-							},
-						),
-				},
-				[
-					DOM.h("div#console-content", { onchange: ConsoleUI.setScrollPos }, [
-						DOM.h(
-							"p",
-							logs.map((log, index) =>
-								DOM.h("span", { key: index, style: `color: ${log.color}` }, [
-									log.message,
-									DOM.h("br"),
-								]),
-							),
-						),
-					]),
-					DOM.h("input#console-input", {
-						disabled: true,
-						value: command,
-						oninput: updateCommand,
-						onkeydown: handleKeyDown,
-						afterCreate: ConsoleUI.setFocus,
-					}),
-				],
-			),
-		]);
-	},
-};
+// Console instance
+let consoleUI = null;
 
 // Main Console object
 const Console = {
 	toggle(show) {
-		visible = show ?? !visible;
-		DOM.update();
+		if (!consoleUI) return;
+		consoleUI.visible.set(
+			show ?? !consoleUI.visible.get(),
+		);
 	},
 
 	isVisible() {
-		return visible;
+		return consoleUI?.visible.get() ?? false;
 	},
 
 	log(message) {
 		console.log(message);
-		logs.push({ color: CONSOLE_DEFAULTS.TEXT_COLOR, message });
+		if (!consoleUI) return;
+		consoleUI.logs.update((current) => [
+			...current,
+			{ color: CONSOLE_DEFAULTS.TEXT_COLOR, message },
+		]);
 	},
 
 	warn(message) {
 		console.warn(message);
-		logs.push({ color: CONSOLE_DEFAULTS.WARNING_COLOR, message });
+		if (!consoleUI) return;
+		consoleUI.logs.update((current) => [
+			...current,
+			{ color: CONSOLE_DEFAULTS.WARNING_COLOR, message },
+		]);
 	},
 
 	error(message) {
@@ -253,19 +281,23 @@ const Console = {
 	},
 
 	executeCmd() {
-		if (!command) return;
+		if (!consoleUI) return;
+		const currentCommand = consoleUI.command.get();
+		if (!currentCommand) return;
 
 		try {
-			this.log(command);
+			this.log(currentCommand);
 
 			if (
-				commandHistory.length === 0 ||
-				commandHistory[commandHistory.length - 1] !== command
+				consoleUI.commandHistory.length === 0 ||
+				consoleUI.commandHistory[
+					consoleUI.commandHistory.length - 1
+				] !== currentCommand
 			) {
-				commandHistory.push(command);
+				consoleUI.commandHistory.push(currentCommand);
 			}
 
-			const cmd = `simplefps.${command}`;
+			const cmd = `simplefps.${currentCommand}`;
 			const parsed = CommandParser.parse(cmd);
 
 			// Validate path exists before executing
@@ -286,15 +318,17 @@ const Console = {
 			Console.warn(`Failed to execute command: ${error}`);
 		}
 
-		command = "";
-		historyIndex = -1;
-		DOM.update();
+		consoleUI.command.set("");
+		consoleUI.historyIndex = -1;
 	},
 };
 
 // Initialize
 window.simplefps = {};
 Console.executeCmd = Console.executeCmd.bind(Console);
-DOM.append(() => ConsoleUI.renderConsole(visible, command, logs));
+
+// Mount console component
+consoleUI = new ConsoleUI();
+consoleUI.appendTo("body");
 
 export default Console;
