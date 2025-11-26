@@ -182,8 +182,6 @@ class _ConsoleUI extends Reactive.Component {
 	}
 
 	mount() {
-		this.bindClass(this.refs.body, "visible", this.visible);
-		
 		this.bind(this.refs.logs, this.logs, (logs) => ({
 			__safe: true,
 			content: logs.map((log) => `<span style="color: ${log.color}">${log.message}<br /></span>`).join(""),

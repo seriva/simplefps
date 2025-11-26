@@ -6,16 +6,16 @@
 // ===========================================
 // HTML UTILITIES
 // ===========================================
-let escapeElement;
+let _escapeElement;
 export const html = (strings, ...values) => ({
 	__safe: true,
 	content: strings.reduce((acc, str, i) => {
 		const v = values[i];
 		if (v == null) return acc + str;
 		if (v.__safe) return acc + str + v.content;
-		if (!escapeElement) escapeElement = document.createElement("div");
-		escapeElement.textContent = String(v);
-		return acc + str + escapeElement.innerHTML;
+		if (!_escapeElement) _escapeElement = document.createElement("div");
+		_escapeElement.textContent = String(v);
+		return acc + str + _escapeElement.innerHTML;
 	}, ""),
 });
 
@@ -28,7 +28,7 @@ export const join = (items, separator = "") => ({
 });
 
 // CSS-in-JS
-const styleCache = new Set();
+const _styleCache = new Set();
 export const css = (strings, ...values) => {
 	const content = strings.reduce(
 		(acc, str, i) => acc + str + (values[i] || ""),
@@ -40,8 +40,8 @@ export const css = (strings, ...values) => {
 		hash = (hash << 5) - hash + content.charCodeAt(i);
 	const className = `s-${(hash >>> 0).toString(36)}`;
 
-	if (!styleCache.has(className)) {
-		styleCache.add(className);
+	if (!_styleCache.has(className)) {
+		_styleCache.add(className);
 		// Skip style injection if document is not available (e.g., in Node.js test environment)
 		if (typeof document === "undefined") {
 			return className;
@@ -118,34 +118,54 @@ export const css = (strings, ...values) => {
 };
 
 // SIGNALS
-let activeContext = null;
-let batchPending = false;
-const batchQueue = new Set();
-const batchWrappers = new WeakMap();
+let _activeContext = null;
+let _batchPending = false;
+const _batchQueue = new Set();
+const _batchWrappers = new WeakMap();
+
+// Debug mode
+let _debugMode = false;
+export const setDebugMode = (enabled) => {
+	_debugMode = enabled;
+};
+const _debugLog = (...args) => {
+	if (_debugMode) console.log("[Reactive]", ...args);
+};
 
 // Circular dependency detection for computed values
 const _computeStack = [];
 
 export const Signals = {
-	create(value, equals = (a, b) => a === b) {
+	create(value, equals = (a, b) => a === b, name = null) {
 		const subs = new Set();
 		const signal = {
 			get() {
-				if (activeContext) activeContext.add(signal);
+				if (_activeContext) _activeContext.add(signal);
+				return value;
+			},
+			peek() {
 				return value;
 			},
 			set(newVal) {
 				if (equals(value, newVal)) return;
+				const oldVal = value;
 				value = newVal;
-				if (batchPending) {
+				_debugLog(
+					"Signal updated:",
+					name ? `[${name}]` : "",
+					oldVal,
+					"->",
+					newVal,
+				);
+				if (_batchPending) {
 					for (const fn of subs) {
 						// Get or create wrapper function for this subscriber that reads latest value
-						let wrapper = batchWrappers.get(fn);
+						let wrapper = _batchWrappers.get(fn);
 						if (!wrapper) {
 							wrapper = () => fn(signal.get());
-							batchWrappers.set(fn, wrapper);
+							_batchWrappers.set(fn, wrapper);
 						}
-						batchQueue.add(wrapper);
+						_batchQueue.add(wrapper);
 					}
 				} else {
 					for (const fn of [...subs]) fn(value);
@@ -160,27 +180,64 @@ export const Signals = {
 				subs.add(fn);
 				return () => subs.delete(fn);
 			},
+			once(fn) {
+				let called = false;
+				let unsub;
+				const wrapper = (val) => {
+					if (!called) {
+						called = true;
+						fn(val);
+						if (unsub) unsub();
+					}
+				};
+				unsub = signal.subscribe(wrapper);
+				return unsub;
+			},
 			update(fn) {
 				signal.set(fn(value));
 			},
+			toString() {
+				return name ? `Signal(${name})` : "Signal";
+			},
+			get value() {
+				return signal.get();
+			},
+			set value(newVal) {
+				signal.set(newVal);
+			},
 		};
+		if (name) signal._name = name;
 		return signal;
 	},
 
-	computed(fn) {
-		const result = Signals.create();
+	computed(fn, name = null) {
+		const result = Signals.create(undefined, undefined, name);
 		let deps = new Set();
 		const unsubs = [];
 		let computing = false;
 
 		const run = () => {
 			if (computing) return;
+
+			// Circular dependency detection
+			if (_computeStack.includes(result)) {
+				const cycle = [..._computeStack, result]
+					.map((s) => s._name || "anonymous")
+					.join(" -> ");
+				throw new Error(
+					`Circular dependency detected in computed signal: ${cycle}`,
+				);
+			}
+
 			computing = true;
-			const prev = activeContext;
-			activeContext = new Set();
+			_computeStack.push(result);
+			const prev = _activeContext;
+			_activeContext = new Set();
 			try {
-				result.set(fn());
-				const newDeps = activeContext;
+				const value = fn();
+				_debugLog("Computed updated:", name ? `[${name}]` : "", value);
+				result.set(value);
+				const newDeps = _activeContext;
 				// Remove unused
 				[...deps]
 					.filter((d) => !newDeps.has(d))
@@ -195,14 +252,22 @@ export const Signals = {
 						unsubs.push({ dep: d, unsub: d.subscribeInternal(scheduler) });
 					});
 				deps = newDeps;
+			} catch (error) {
+				console.error(
+					"[Reactive] Computed error:",
+					name ? `[${name}]` : "",
+					error,
+				);
+				throw error;
 			} finally {
-				activeContext = prev;
+				_computeStack.pop();
+				_activeContext = prev;
 				computing = false;
 			}
 		};
 
 		const scheduler = () => {
-			if (batchPending) batchQueue.add(run);
+			if (_batchPending) _batchQueue.add(run);
 			else run();
 		};
 
@@ -215,16 +280,131 @@ export const Signals = {
 		return result;
 	},
 
-	batch(fn) {
-		batchPending = true;
+	computedAsync(fn, name = null) {
+		const result = Signals.create(
+			{ status: "pending", data: undefined, error: null, loading: true },
+			undefined,
+			name,
+		);
+		let deps = new Set();
+		const unsubs = [];
+		let currentCancel = null;
+
+		const run = async () => {
+			// Cancel previous execution if still running
+			if (currentCancel) {
+				currentCancel.cancelled = true;
+			}
+
+			// Create cancellation token for this execution
+			const cancelToken = { cancelled: false };
+			currentCancel = cancelToken;
+
+			// Update state to pending
+			result.set({
+				status: "pending",
+				data: result.peek().data,
+				error: null,
+				loading: true,
+			});
+
+			// Create a dedicated context for this async execution
+			const myContext = new Set();
+			const prev = _activeContext;
+			_activeContext = myContext;
+
+			try {
+				const value = await fn(cancelToken);
+
+				// Check if this execution was cancelled
+				if (cancelToken.cancelled) {
+					_debugLog("Async computed cancelled:", name ? `[${name}]` : "");
+					_activeContext = prev;
+					return;
+				}
+
+				_debugLog("Async computed resolved:", name ? `[${name}]` : "", value);
+
+				result.set({
+					status: "resolved",
+					data: value,
+					error: null,
+					loading: false,
+				});
+
+				// Use our dedicated context (myContext) instead of whatever _activeContext is now
+				const newDeps = myContext;
+				_activeContext = prev; // Restore previous context
+
+				// Remove unused
+				[...deps]
+					.filter((d) => !newDeps.has(d))
+					.forEach((d) => {
+						const idx = unsubs.findIndex((u) => u.dep === d);
+						if (idx > -1) unsubs.splice(idx, 1)[0].unsub();
+					});
+				// Add new
+				[...newDeps]
+					.filter((d) => !deps.has(d))
+					.forEach((d) => {
+						unsubs.push({ dep: d, unsub: d.subscribeInternal(scheduler) });
+					});
+				deps = newDeps;
+			} catch (error) {
+				// Check if this execution was cancelled
+				if (cancelToken.cancelled) {
+					_activeContext = prev;
+					return;
+				}
+
+				_debugLog("Async computed error:", name ? `[${name}]` : "", error);
+
+				result.set({
+					status: "error",
+					data: result.peek().data,
+					error,
+					loading: false,
+				});
+
+				_activeContext = prev; // Restore context after error handling
+			} finally {
+				if (currentCancel === cancelToken) {
+					currentCancel = null;
+				}
+			}
+		};
+
+		const scheduler = () => {
+			if (_batchPending) _batchQueue.add(run);
+			else run();
+		};
+
+		run();
+		result.dispose = () => {
+			if (currentCancel) {
+				currentCancel.cancelled = true;
+			}
+			for (const u of unsubs) u.unsub();
+			unsubs.length = 0;
+			deps.clear();
+		};
+		return result;
+	},
+
+	effect(fn) {
+		_batchPending = true;
 		try {
 			return fn();
 		} finally {
-			batchPending = false;
-			const q = new Set(batchQueue);
-			batchQueue.clear();
+			_batchPending = false;
+			const q = new Set(_batchQueue);
+			_batchQueue.clear();
 			for (const fn of q) fn();
 		}
+	},
+
+	batch(fn) {
+		return Signals.effect(fn);
 	},
 };
 
@@ -265,6 +445,28 @@ export const Reactive = {
 			el.classList.toggle(cls, val === undefined ? sig.get() : val),
 		),
 
+	bindStyle: (el, prop, sig) =>
+		sig.subscribe((val) => {
+			el.style[prop] = val === undefined ? sig.get() : val;
+		}),
+
+	bindMultiple(el, signals, fn) {
+		if (!Array.isArray(signals)) {
+			throw new Error("bindMultiple expects an array of signals");
+		}
+		const computed = Signals.computed(() => {
+			return fn(signals.map((s) => s.get()));
+		});
+		const unsub = computed.subscribe((val) => {
+			const res = val === undefined ? computed.get() : val;
+			el.textContent = res?.__safe ? res.content : String(res);
+		});
+		return () => {
+			computed.dispose();
+			unsub();
+		};
+	},
+
 	scan(root, scope) {
 		const unsubs = [];
 		const resolve = (path) => path.split(".").reduce((o, k) => o?.[k], scope);
@@ -293,6 +495,22 @@ export const Reactive = {
 				val.subscribe((v) => {
 					el.style.display = (v === undefined ? val.get() : v) ? "" : "none";
 				}),
+			"data-if": (el, val) => {
+				const placeholder = document.createComment("if");
+				const currentEl = el;
+				el.parentNode?.insertBefore(placeholder, el);
+				return val.subscribe((v) => {
+					const show = v === undefined ? val.get() : v;
+					if (show && !currentEl.parentNode) {
+						placeholder.parentNode?.insertBefore(
+							currentEl,
+							placeholder.nextSibling,
+						);
+					} else if (!show && currentEl.parentNode) {
+						currentEl.parentNode.removeChild(currentEl);
+					}
+				});
+			},
 			"data-model": (el, val) => {
 				if (!val?.set) return;
 				unsubs.push(
@@ -347,8 +565,8 @@ export const Reactive = {
 				if (u) unsubs.push(u);
 				return u;
 			},
-			computed: (fn) => {
-				const s = Signals.computed(fn);
+			computed: (fn, name) => {
+				const s = Signals.computed(fn, name);
 				computed.push(s);
 				return s;
 			},
@@ -367,6 +585,8 @@ export const Reactive = {
 			"bindBoolAttr",
 			"bindClass",
 			"bindText",
+			"bindStyle",
+			"bindMultiple",
 		]) {
 			c[m] = (...a) => c.track(Reactive[m](...a));
 		}
@@ -383,13 +603,15 @@ export const Reactive = {
 				"bindBoolAttr",
 				"bindClass",
 				"bindText",
+				"bindStyle",
+				"bindMultiple",
 				"track",
 			]) {
 				this[m] = (...a) => this._c[m](...a);
 			}
 		}
-		signal(v) {
-			return Signals.create(v);
+		signal(v, name) {
+			return Signals.create(v, undefined, name);
 		}
 		on(target, event, handler, options) {
 			const boundHandler = (e) => this.batch(() => handler.call(this, e));
@@ -399,8 +621,8 @@ export const Reactive = {
 			);
 			return boundHandler;
 		}
-		computed(fn) {
-			return this._c.computed(fn);
+		computed(fn, name) {
+			return this._c.computed(fn, name);
 		}
 		effect(fn) {
 			return this.computed(() => {
@@ -454,15 +676,22 @@ export const Reactive = {
 				this.scan(el);
 				return el;
 			} catch (error) {
-				console.error("Component render error:", error, this.constructor.name);
+				console.error(
+					"[Reactive] Component render error:",
+					error,
+					this.constructor.name,
+				);
+				console.error("Stack trace:", error.stack);
 				const errorEl = document.createElement("div");
 				errorEl.className = "component-error";
 				errorEl.style.cssText =
-					"padding: 20px; margin: 20px; border: 2px solid #ff6b6b; border-radius: 8px; background: #ffe0e0; color: #c92a2a;";
+					"padding: 20px; margin: 20px; border: 2px solid #ff6b6b; border-radius: 8px; background: #ffe0e0; color: #c92a2a; font-family: monospace;";
 				errorEl.innerHTML = `
-					<h3 style="margin-top: 0;">Failed to render component</h3>
+					<h3 style="margin-top: 0;">⚠️ Failed to render component</h3>
 					<p><strong>Component:</strong> ${this.constructor.name}</p>
 					<p><strong>Error:</strong> ${error.message}</p>
+					<p><strong>Type:</strong> ${error.name}</p>
+					<details><summary>Stack Trace</summary><pre style="overflow: auto;">${error.stack}</pre></details>
 				`;
 				return errorEl;
 			}
@@ -470,7 +699,9 @@ export const Reactive = {
 		mountTo(containerId) {
 			const container = document.getElementById(containerId);
 			if (!container) {
-				console.warn(`Container #${containerId} not found`);
+				console.error(
+					`[Reactive] Container #${containerId} not found for component ${this.constructor.name}`,
+				);
 				return null;
 			}
 			this.initState();
