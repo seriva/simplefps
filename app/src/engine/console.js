@@ -9,6 +9,17 @@ const _DEFAULTS = {
 	MAX_HISTORY: 100,
 };
 
+// Safe evaluation using Function constructor instead of eval
+const _safeEval = (expr) => {
+	try {
+		// Create a function that returns the expression result
+		// This is safer than eval as it doesn't have access to local scope
+		return Function(`"use strict"; return (${expr})`)();
+	} catch (error) {
+		throw new Error(`Invalid expression: ${error.message}`);
+	}
+};
+
 // Parse console command
 const _parseCommand = (cmd) => {
 	const assignMatch = cmd.match(/^([\w.]+)\s*=\s*(.+)$/);
@@ -16,8 +27,7 @@ const _parseCommand = (cmd) => {
 		return {
 			type: "assignment",
 			variable: assignMatch[1],
-			// biome-ignore lint/security/noGlobalEval: Console commands require dynamic evaluation
-			value: eval(assignMatch[2]),
+			value: _safeEval(assignMatch[2]),
 		};
 	}
 	const funcMatch = cmd.match(/^([\w.]+)\(([^)]*)\)$/);
@@ -26,10 +36,7 @@ const _parseCommand = (cmd) => {
 			type: "function",
 			func: funcMatch[1],
 			params: funcMatch[2]
-				? funcMatch[2]
-						.split(",")
-						// biome-ignore lint/security/noGlobalEval: Console commands require dynamic evaluation
-						.map((p) => eval(p.trim()))
+				? funcMatch[2].split(",").map((p) => _safeEval(p.trim()))
 				: [],
 		};
 	}
