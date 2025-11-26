@@ -1,67 +1,9 @@
 import Console from "./console.js";
-import DOM from "./dom.js";
+import { css, html, Reactive } from "./reactive.js";
 import Settings from "./settings.js";
 import Utils from "./utils.js";
 
-DOM.css({
-	"#input": {
-		zIndex: 500,
-	},
-
-	"#look": {
-		width: "80%",
-		height: "100%",
-		right: "0px",
-		bottom: "0px",
-		margin: 0,
-		padding: 0,
-		position: "absolute",
-		zIndex: 502,
-	},
-
-	"#cursor": {
-		position: "absolute",
-		display: "block",
-		width: "50px",
-		height: "50px",
-		marginLeft: "-25px",
-		marginTop: "-25px",
-		background: "white",
-		opacity: 0,
-		borderRadius: "50%",
-		zIndex: 501,
-		userSelect: "none",
-	},
-
-	"#joystick-base": {
-		background: "white",
-		width: "100px",
-		height: "100px",
-		left: "35px",
-		bottom: "35px",
-		position: "absolute",
-		opacity: 0.35,
-		borderRadius: "50%",
-		zIndex: 501,
-	},
-
-	"#joystick-stick": {
-		background: "white",
-		borderRadius: "100%",
-		cursor: "pointer",
-		userSelect: "none",
-		width: "50px",
-		height: "50px",
-		left: "60px",
-		bottom: "60px",
-		position: "absolute",
-		opacity: 0.35,
-		zIndex: 502,
-	},
-});
-
 let visibleCursor = true;
-let virtualInputVisible = Utils.isMobile();
 const cursorMovement = {
 	x: 0,
 	y: 0,
@@ -70,7 +12,6 @@ let pressed = {};
 let upevents = [];
 let downevents = [];
 let timeout;
-let input = null;
 let gamepad = false;
 let updateCallback = null;
 
@@ -145,185 +86,285 @@ window.addEventListener("gamepaddisconnected", () => {
 	});
 });
 
-if (Utils.isMobile()) {
-	let cursorPos = null;
-	let lastPos = null;
-	let stickPos = null;
+// Mobile Virtual Input Component
+class _VirtualInputUI extends Reactive.Component {
+	constructor() {
+		super();
+		this._cursorPos = null;
+		this._lastPos = null;
+		this._stickPos = null;
+		this._dragStart = null;
+	}
 
-	const look = DOM.h("div#look");
-	const cursor = DOM.h("div#cursor");
-	const joystickStick = DOM.h("div#joystick-stick");
-	const joystickBase = DOM.h("div#joystick-base");
-	input = DOM.h("div#input", [joystickBase, joystickStick, look, cursor]);
-	DOM.append(() => input);
+	state() {
+		return {
+			visible: this.signal(true, "input:visible"),
+			cursorOpacity: this.signal(0, "input:cursorOpacity"),
+			cursorX: this.signal(0, "input:cursorX"),
+			cursorY: this.signal(0, "input:cursorY"),
+			stickX: this.signal(0, "input:stickX"),
+			stickY: this.signal(0, "input:stickY"),
+		};
+	}
 
-	// touch cursor/mouse
-	look.domNode.addEventListener(
-		"touchstart",
-		(ev) => {
+	styles() {
+		return css`
+			#input {
+				z-index: 500;
+				display: none;
+			}
+
+			#input.visible {
+				display: block;
+			}
+
+			#look {
+				width: 80%;
+				height: 100%;
+				right: 0;
+				bottom: 0;
+				margin: 0;
+				padding: 0;
+				position: absolute;
+				z-index: 502;
+			}
+
+			#cursor {
+				position: absolute;
+				display: block;
+				width: 50px;
+				height: 50px;
+				margin-left: -25px;
+				margin-top: -25px;
+				background: white;
+				border-radius: 50%;
+				z-index: 501;
+				user-select: none;
+				transition: opacity 100ms ease-in;
+			}
+
+			#joystick-base {
+				background: white;
+				width: 100px;
+				height: 100px;
+				left: 35px;
+				bottom: 35px;
+				position: absolute;
+				opacity: 0.35;
+				border-radius: 50%;
+				z-index: 501;
+			}
+
+			#joystick-stick {
+				background: white;
+				border-radius: 100%;
+				cursor: pointer;
+				user-select: none;
+				width: 50px;
+				height: 50px;
+				left: 60px;
+				bottom: 60px;
+				position: absolute;
+				opacity: 0.35;
+				z-index: 502;
+				transition: transform 0.2s;
+			}
+
+			#joystick-stick.dragging {
+				transition: none;
+			}
+		`;
+	}
+
+	template() {
+		return html`
+			<div id="input" data-class-visible="visible">
+				<div id="joystick-base"></div>
+				<div id="joystick-stick" data-ref="stick"></div>
+				<div id="look" data-ref="look"></div>
+				<div id="cursor" data-ref="cursor"></div>
+			</div>
+		`;
+	}
+
+	mount() {
+		// Bind cursor opacity and position
+		this.bindStyle(this.refs.cursor, "opacity", this.cursorOpacity);
+
+		// Update cursor and stick positions
+		this.effect(() => {
+			const x = this.cursorX.get();
+			const y = this.cursorY.get();
+			this.refs.cursor.style.transform = `translate3d(${x}px, ${y}px, 0px)`;
+		});
+
+		this.effect(() => {
+			const x = this.stickX.get();
+			const y = this.stickY.get();
+			this.refs.stick.style.transform = `translate3d(${x}px, ${y}px, 0px)`;
+		});
+
+		// Touch cursor/look events
+		this.on(this.refs.look, "touchstart", (ev) => {
 			if (ev.targetTouches) {
-				cursorPos = {
+				this._cursorPos = {
 					x: ev.targetTouches[0].clientX,
 					y: ev.targetTouches[0].clientY,
 				};
-				lastPos = cursorPos;
+				this._lastPos = this._cursorPos;
 			}
-			DOM.animate(
-				cursor.domNode,
-				{
-					opacity: 0.35,
-				},
-				{
-					mobileHA: false,
-					duration: 100,
-					delay: 0,
-					easing: "ease-in",
-				},
-			);
-		},
-		false,
-	);
-	look.domNode.addEventListener(
-		"touchend",
-		() => {
-			cursorPos = null;
-			lastPos = null;
+			this.cursorOpacity.set(0.35);
+		});
+
+		this.on(this.refs.look, "touchend", () => {
+			this._cursorPos = null;
+			this._lastPos = null;
 			cursorMovement.x = 0;
 			cursorMovement.y = 0;
-			DOM.animate(
-				cursor.domNode,
-				{
-					opacity: 0.0,
-				},
-				{
-					mobileHA: false,
-					duration: 100,
-					delay: 0,
-					easing: "ease-in",
-				},
-			);
-		},
-		false,
-	);
-	look.domNode.addEventListener(
-		"touchmove",
-		(ev) => {
+			this.cursorOpacity.set(0);
+		});
+
+		this.on(this.refs.look, "touchmove", (ev) => {
 			ev.preventDefault();
-			if (ev.targetTouches) {
-				cursorPos = {
+			if (ev.targetTouches && this._lastPos) {
+				this._cursorPos = {
 					x: ev.targetTouches[0].clientX,
 					y: ev.targetTouches[0].clientY,
 				};
 				setCursorMovement(
-					(cursorPos.x - lastPos.x) * Settings.lookSensitivity,
-					(cursorPos.y - lastPos.y) * Settings.lookSensitivity,
+					(this._cursorPos.x - this._lastPos.x) * Settings.lookSensitivity,
+					(this._cursorPos.y - this._lastPos.y) * Settings.lookSensitivity,
 				);
-				lastPos.x = cursorPos.x;
-				lastPos.y = cursorPos.y;
+				this._lastPos.x = this._cursorPos.x;
+				this._lastPos.y = this._cursorPos.y;
 			}
-		},
-		false,
-	);
+		});
 
-	let dragStart = null;
-
-	joystickStick.domNode.addEventListener("touchstart", (ev) => {
-		joystickStick.domNode.style.transition = "0s";
-		if (ev.targetTouches) {
-			dragStart = {
-				x: ev.targetTouches[0].clientX,
-				y: ev.targetTouches[0].clientY,
+		// Joystick events
+		this.on(this.refs.stick, "touchstart", (ev) => {
+			this.refs.stick.classList.add("dragging");
+			if (ev.targetTouches) {
+				this._dragStart = {
+					x: ev.targetTouches[0].clientX,
+					y: ev.targetTouches[0].clientY,
+				};
+				return;
+			}
+			this._dragStart = {
+				x: ev.clientX,
+				y: ev.clientY,
 			};
-			return;
-		}
-		dragStart = {
-			x: ev.clientX,
-			y: ev.clientY,
+		});
+
+		this.on(this.refs.stick, "touchend", () => {
+			if (this._dragStart === null) return;
+			this.refs.stick.classList.remove("dragging");
+			this.batch(() => {
+				this.stickX.set(0);
+				this.stickY.set(0);
+			});
+			delete pressed[Settings.forward];
+			delete pressed[Settings.backwards];
+			delete pressed[Settings.left];
+			delete pressed[Settings.right];
+			this._dragStart = null;
+			this._stickPos = null;
+		});
+
+		this.on(this.refs.stick, "touchmove", (ev) => {
+			ev.preventDefault();
+			if (this._dragStart === null) return;
+
+			if (ev.targetTouches) {
+				ev.clientX = ev.targetTouches[0].clientX;
+				ev.clientY = ev.targetTouches[0].clientY;
+			}
+
+			const xDiff = ev.clientX - this._dragStart.x;
+			const yDiff = ev.clientY - this._dragStart.y;
+			const angle = Math.atan2(yDiff, xDiff);
+			const distance = Math.min(50, Math.hypot(xDiff, yDiff));
+
+			this._stickPos = {
+				x: distance * Math.cos(angle),
+				y: distance * Math.sin(angle),
+			};
+
+			this.batch(() => {
+				this.stickX.set(this._stickPos.x);
+				this.stickY.set(this._stickPos.y);
+			});
+
+			let dAngle = angle * (180 / Math.PI);
+			if (dAngle < 0) {
+				dAngle = 360 - Math.abs(dAngle);
+			}
+
+			delete pressed[Settings.forward];
+			delete pressed[Settings.backwards];
+			delete pressed[Settings.left];
+			delete pressed[Settings.right];
+
+			if (dAngle && distance > 15) {
+				const a = dAngle;
+				if ((a >= 337.5 && a < 360) || (a >= 0 && a < 22.5)) {
+					pressed[Settings.right] = true;
+				}
+				if (a >= 22.5 && a < 67.5) {
+					pressed[Settings.right] = true;
+					pressed[Settings.backwards] = true;
+				}
+				if (a >= 67.5 && a < 112.5) {
+					pressed[Settings.backwards] = true;
+				}
+				if (a >= 112.5 && a < 157.5) {
+					pressed[Settings.backwards] = true;
+					pressed[Settings.left] = true;
+				}
+				if (a >= 157.5 && a < 202.5) {
+					pressed[Settings.left] = true;
+				}
+				if (a >= 202.5 && a < 247.5) {
+					pressed[Settings.left] = true;
+					pressed[Settings.forward] = true;
+				}
+				if (a >= 247.5 && a < 292.5) {
+					pressed[Settings.forward] = true;
+				}
+				if (a >= 292.5 && a < 337.5) {
+					pressed[Settings.forward] = true;
+					pressed[Settings.right] = true;
+				}
+			}
+		});
+
+		// Update virtual input positions
+		const updateVirtualInput = () => {
+			if (this._cursorPos !== null) {
+				this.batch(() => {
+					this.cursorX.set(this._cursorPos.x);
+					this.cursorY.set(-window.innerHeight + this._cursorPos.y);
+				});
+			}
+			window.requestAnimationFrame(updateVirtualInput);
 		};
-	});
-	joystickStick.domNode.addEventListener("touchend", () => {
-		if (dragStart === null) return;
-		joystickStick.domNode.style.transition = ".2s";
-		joystickStick.domNode.style.transform = "translate3d(0px, 0px, 0px)";
-		delete pressed[Settings.forward];
-		delete pressed[Settings.backwards];
-		delete pressed[Settings.left];
-		delete pressed[Settings.right];
-		dragStart = null;
-		stickPos = null;
-	});
-	joystickStick.domNode.addEventListener("touchmove", (ev) => {
-		ev.preventDefault();
-		if (dragStart === null) return;
-		if (ev.targetTouches) {
-			ev.clientX = ev.targetTouches[0].clientX;
-			ev.clientY = ev.targetTouches[0].clientY;
-		}
-		const xDiff = ev.clientX - dragStart.x;
-		const yDiff = ev.clientY - dragStart.y;
-		const angle = Math.atan2(yDiff, xDiff);
-		const distance = Math.min(50, Math.hypot(xDiff, yDiff));
-		stickPos = {
-			x: distance * Math.cos(angle),
-			y: distance * Math.sin(angle),
-		};
-
-		let dAngle = angle * (180 / Math.PI);
-		if (dAngle < 0) {
-			dAngle = 360 - Math.abs(dAngle);
-		}
-
-		delete pressed[Settings.forward];
-		delete pressed[Settings.backwards];
-		delete pressed[Settings.left];
-		delete pressed[Settings.right];
-
-		if (dAngle && distance > 15) {
-			const a = dAngle;
-			if ((a >= 337.5 && a < 360) || (a >= 0 && a < 22.5)) {
-				pressed[Settings.right] = true;
-			}
-			if (a >= 22.5 && a < 67.5) {
-				pressed[Settings.right] = true;
-				pressed[Settings.backwards] = true;
-			}
-			if (a >= 67.5 && a < 112.5) {
-				pressed[Settings.backwards] = true;
-			}
-			if (a >= 112.5 && a < 157.5) {
-				pressed[Settings.backwards] = true;
-				pressed[Settings.left] = true;
-			}
-			if (a >= 157.5 && a < 202.5) {
-				pressed[Settings.left] = true;
-			}
-			if (a >= 202.5 && a < 247.5) {
-				pressed[Settings.left] = true;
-				pressed[Settings.forward] = true;
-			}
-			if (a >= 247.5 && a < 292.5) {
-				pressed[Settings.forward] = true;
-			}
-			if (a >= 292.5 && a < 337.5) {
-				pressed[Settings.forward] = true;
-				pressed[Settings.right] = true;
-			}
-		}
-	});
-
-	// update virtual input
-	const updateVirtualInput = () => {
-		if (stickPos !== null) {
-			joystickStick.domNode.style.transform = `translate3d(${stickPos.x}px, ${stickPos.y}px, 0px)`;
-		}
-		if (cursorPos !== null) {
-			cursor.domNode.style.transform = `translate3d(${cursorPos.x}px, ${
-				-window.innerHeight + cursorPos.y
-			}px, 0px)`;
-		}
 		window.requestAnimationFrame(updateVirtualInput);
-	};
-	window.requestAnimationFrame(updateVirtualInput);
+	}
+
+	toggle(show) {
+		if (show === undefined) {
+			this.visible.set(!this.visible.get());
+		} else {
+			this.visible.set(show && !gamepad);
+		}
+	}
+}
+
+let _virtualInput = null;
+
+if (Utils.isMobile()) {
+	_virtualInput = new _VirtualInputUI();
+	_virtualInput.appendTo("body");
 }
 
 // update virtual input
@@ -373,17 +414,8 @@ const Input = {
 	},
 
 	toggleVirtualInput(show) {
-		if (!Utils.isMobile()) return;
-		if (show === undefined) {
-			virtualInputVisible = !virtualInputVisible;
-		} else {
-			virtualInputVisible = show;
-		}
-		if (virtualInputVisible && gamepad === false) {
-			input.domNode.style.visibility = "visible";
-		} else {
-			input.domNode.style.visibility = "hidden";
-		}
+		if (!Utils.isMobile() || !_virtualInput) return;
+		_virtualInput.toggle(show);
 	},
 
 	clearInputEvents() {

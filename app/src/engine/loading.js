@@ -9,7 +9,7 @@ class _LoadingUI extends Reactive.Component {
 
 	state() {
 		return {
-			visible: false,
+			visible: this.signal(false, "loading:visible"),
 		};
 	}
 
@@ -17,6 +17,11 @@ class _LoadingUI extends Reactive.Component {
 		return css`
 			#loading {
 				z-index: 2000;
+				display: none;
+			}
+
+			#loading.visible {
+				display: block;
 			}
 
 			#loading-background {
@@ -57,7 +62,7 @@ class _LoadingUI extends Reactive.Component {
 
 	template() {
 		return html`
-			<div id="loading" data-if="visible">
+			<div id="loading" data-class-visible="visible">
 				<div id="loading-logo"></div>
 				<div id="loading-background"></div>
 			</div>

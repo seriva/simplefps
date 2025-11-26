@@ -570,6 +570,11 @@ export const Reactive = {
 				computed.push(s);
 				return s;
 			},
+			computedAsync: (fn, name) => {
+				const s = Signals.computedAsync(fn, name);
+				computed.push(s); // Track for disposal
+				return s;
+			},
 			scan: (r, s) => c.track(Reactive.scan(r, s)),
 			cleanup: () => {
 				for (const f of unsubs) {
@@ -624,6 +629,11 @@ export const Reactive = {
 		computed(fn, name) {
 			return this._c.computed(fn, name);
 		}
+		computedAsync(fn, name) {
+			const asyncComputed = Signals.computedAsync(fn, name);
+			this.track(() => asyncComputed.dispose());
+			return asyncComputed;
+		}
 		effect(fn) {
 			return this.computed(() => {
 				fn();
@@ -635,6 +645,7 @@ export const Reactive = {
 		}
 		initState() {
 			if (this.state) this._proc(this.state(), this);
+			if (this.init) this.init();
 		}
 		_proc(obj, tgt) {
 			Object.entries(obj).forEach(([k, v]) => {
@@ -651,7 +662,12 @@ export const Reactive = {
 			});
 		}
 		scan(r) {
-			// Collect refs
+			// Collect refs - check the root element first, then descendants
+			// querySelectorAll only finds descendants, not the element itself
+			if (r.hasAttribute?.("data-ref")) {
+				const refName = r.getAttribute("data-ref");
+				if (refName) this.refs[refName] = r;
+			}
 			r.querySelectorAll("[data-ref]").forEach((el) => {
 				const refName = el.getAttribute("data-ref");
 				if (refName) this.refs[refName] = el;

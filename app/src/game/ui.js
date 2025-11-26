@@ -1,117 +1,137 @@
-import { DOM } from "../engine/engine.js";
+import { css, html, Reactive } from "../engine/reactive.js";
 
-// Consolidated styles with common properties
-const styles = {
-	"#ui": {
-		backgroundColor: "transparent",
-	},
+// Menu UI component
+class _MenuUI extends Reactive.Component {
+	constructor() {
+		super();
+		this._uis = {};
+	}
 
-	"#menu-base": {
-		transform: "translate(-50%, -50%)",
-		position: "absolute",
-		top: "50%",
-		left: "50%",
-		backgroundColor: "#999",
-		border: "2px solid #fff",
-		color: "#fff",
-		padding: "10px 10px 0",
-		fontSize: "16px",
-		maxWidth: "500px",
-		userSelect: "none",
-		zIndex: 1000,
-		display: "block",
-		opacity: 0,
-	},
+	state() {
+		return {
+			visible: this.signal(false, "ui:visible"),
+			currentMenu: this.signal("", "ui:currentMenu"),
+		};
+	}
 
-	"#menu-header": {
-		fontSize: "18px",
-		textAlign: "center",
-		marginBottom: "10px",
-	},
+	styles() {
+		return css`
+			#ui {
+				background-color: transparent;
+			}
 
-	".menu-button": {
-		textAlign: "center",
-		border: "2px solid #fff",
-		backgroundColor: "#999",
-		marginBottom: "10px",
-		padding: "10px",
-		cursor: "pointer",
-	},
+			#menu-base {
+				transform: translate(-50%, -50%);
+				position: absolute;
+				top: 50%;
+				left: 50%;
+				background-color: #999;
+				border: 2px solid #fff;
+				color: #fff;
+				padding: 10px 10px 0;
+				font-size: 16px;
+				max-width: 500px;
+				user-select: none;
+				z-index: 1000;
+				opacity: 0;
+				transition: opacity 150ms linear;
+				display: none;
+			}
 
-	".menu-button:hover": {
-		backgroundColor: "#888",
-	},
-};
+			#menu-base.visible {
+				display: block;
+				opacity: 0.9;
+			}
 
-DOM.css(styles);
+			#menu-header {
+				font-size: 18px;
+				text-align: center;
+				margin-bottom: 10px;
+			}
 
-// State management
-const state = {
-	isVisible: false,
-	current: "",
-	uis: {},
-};
+			.menu-button {
+				text-align: center;
+				border: 2px solid #fff;
+				background-color: #999;
+				margin-bottom: 10px;
+				padding: 10px;
+				cursor: pointer;
+			}
 
-// Shared animation options to reduce duplication
-const baseAnimationOptions = {
-	mobileHA: false,
-	duration: 150,
-	delay: 0,
-	easing: "linear",
-};
+			.menu-button:hover {
+				background-color: #888;
+			}
+		`;
+	}
 
-// Simplified animations object
-const animations = {
-	enter: {
-		properties: { opacity: 0.9 },
-		options: baseAnimationOptions,
-	},
-	exit: {
-		properties: { opacity: 0 },
-		options: baseAnimationOptions,
-	},
-};
+	template() {
+		return html`
+			<div id="ui">
+				<div id="menu-base" data-class-visible="visible" data-ref="menuBase">
+					<div id="menu-header" data-ref="header"></div>
+					<div data-ref="controls"></div>
+				</div>
+			</div>
+		`;
+	}
 
-// Memoized menu base render function
-const renderMenuBase = () => {
-	const currentUI = state.uis[state.current];
+	mount() {
+		// Update menu content when currentMenu or visible changes
+		this.effect(() => {
+			const menuName = this.currentMenu.get();
+			const isVisible = this.visible.get();
 
-	return DOM.h(
-		"div#menu-base",
-		{
-			enterAnimation: (el) =>
-				DOM.animate(el, animations.enter.properties, animations.enter.options),
-			exitAnimation: (el, remove) =>
-				DOM.animate(el, animations.exit.properties, {
-					...animations.exit.options,
-					complete: remove,
-				}),
-		},
-		[
-			DOM.h("div#menu-header", [currentUI.header]),
-			currentUI.controls.map(({ text, callback }) =>
-				DOM.h("div.menu-button", { key: text, onclick: callback }, [text]),
-			),
-		],
-	);
-};
+			if (!isVisible || !menuName || !this._uis[menuName]) {
+				return;
+			}
 
-// Main UI render
-DOM.append(() => DOM.h("div#ui", state.isVisible ? [renderMenuBase()] : []));
+			const menu = this._uis[menuName];
 
-// Public API
+			// Update header
+			this.refs.header.textContent = menu.header;
+
+			// Clear and rebuild controls
+			this.refs.controls.innerHTML = "";
+
+			menu.controls.forEach(({ text, callback }) => {
+				const button = document.createElement("div");
+				button.className = "menu-button";
+				button.textContent = text;
+				button.onclick = callback;
+				this.refs.controls.appendChild(button);
+			});
+		});
+	}
+
+	register(name, ui) {
+		this._uis[name] = ui;
+	}
+
+	show(name) {
+		this.batch(() => {
+			this.currentMenu.set(name);
+			this.visible.set(true);
+		});
+	}
+
+	hide() {
+		this.visible.set(false);
+	}
+}
+
+// Menu UI singleton
+const _ui = new _MenuUI();
+_ui.appendTo("body");
+
 const UI = {
-	register: (name, ui) => {
-		state.uis[name] = ui;
+	register(name, ui) {
+		_ui.register(name, ui);
 	},
-	show: (name) => {
-		state.isVisible = false;
-		DOM.update();
-		state.current = name;
-		state.isVisible = true;
+	show(name) {
+		_ui.show(name);
 	},
-	hide: () => {
-		state.isVisible = false;
+	hide() {
+		_ui.hide();
 	},
 };
 

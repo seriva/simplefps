@@ -42,7 +42,7 @@ const initializeEventListeners = () => {
 	document.addEventListener(
 		"pointerlockchange",
 		() => {
-			if (document.pointerLockElement === null && State !== "MENU") {
+			if (document.pointerLockElement === null && State.current !== "MENU") {
 				Utils.dispatchCustomEvent("changestate", {
 					state: "MENU",
 					menu: "MAIN_MENU",
@@ -61,7 +61,7 @@ const initializeEventListeners = () => {
 	window.addEventListener(
 		"focus",
 		() => {
-			if (State !== "MENU") {
+			if (State.current !== "MENU") {
 				Utils.dispatchCustomEvent("changestate", {
 					state: "MENU",
 					menu: "MAIN_MENU",
@@ -80,7 +80,7 @@ const initializeEventListeners = () => {
 	});
 
 	window.addEventListener("wheel", (e) => {
-		if (State !== "GAME") return;
+		if (State.current !== "GAME") return;
 		Weapons.selectNext(e.deltaY < 0);
 	});
 };
@@ -114,7 +114,7 @@ const updateCameraRotation = () => {
 };
 
 Input.setUpdateCallback((frameTime) => {
-	if (Console.isVisible() || State === "MENU") return;
+	if (Console.isVisible() || State.current === "MENU") return;
 	const ft = frameTime / 1000;
 
 	// look

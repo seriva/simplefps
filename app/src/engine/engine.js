@@ -2,7 +2,6 @@ import Camera from "./camera.js";
 import Console from "./console.js";
 import { Context } from "./context.js";
 import DirectionalLightEntity from "./directionallightentity.js";
-import DOM from "./dom.js";
 import { EntityTypes } from "./entity.js";
 import FpsMeshEntity from "./fpsmeshentity.js";
 import Input from "./input.js";
@@ -36,7 +35,6 @@ const loop = () => {
 		Camera.update();
 		Scene.update(frameTime);
 		Renderer.render();
-		DOM.update();
 
 		rafId = window.requestAnimationFrame(frame);
 	};
@@ -50,7 +48,6 @@ export {
 	Console,
 	Settings,
 	Utils,
-	DOM,
 	Loading,
 	Stats,
 	Input,

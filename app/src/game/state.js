@@ -1,4 +1,5 @@
-import { Context, DOM, Input, Scene } from "../engine/engine.js";
+import { Context, Input, Scene } from "../engine/engine.js";
+import { css, Signals } from "../engine/reactive.js";
 import HUD from "./hud.js";
 import UI from "./ui.js";
 
@@ -7,52 +8,62 @@ const GameStates = {
 	GAME: "GAME",
 };
 
-let currentState = GameStates.MENU;
+// Reactive game state
+const currentState = Signals.create(GameStates.MENU, undefined, "game:state");
+const isBlurred = Signals.create(true, undefined, "game:blur");
 
-let isBlurred = false;
-const blurGameCanvas = (blur) => {
-	if (blur === undefined) {
-		isBlurred = !isBlurred;
-	} else {
-		isBlurred = blur;
-	}
+// Add blur styles to canvas
+const blurStyle = css`
+	transition: filter 25ms linear;
+`;
 
-	const blurConfig = {
-		mobileHA: false,
-		duration: 25,
-		delay: 0,
-		easing: "linear",
-	};
+Context.canvas.classList.add(blurStyle);
 
-	DOM.animate(Context.canvas.domNode, { blur: isBlurred ? 8 : 0 }, blurConfig);
-};
+// Apply blur effect based on signal
+isBlurred.subscribe((blurred) => {
+	Context.canvas.style.filter = blurred ? "blur(8px)" : "blur(0px)";
+});
 
 const setState = (newState, menu) => {
-	currentState = newState.toUpperCase();
+	const state = newState.toUpperCase();
 
-	switch (currentState) {
-		case GameStates.GAME:
-			Input.toggleVirtualInput(true);
-			Input.toggleCursor(false);
-			blurGameCanvas(false);
-			HUD.toggle(true);
-			UI.hide();
-			Scene.pause(false);
-			break;
+	// Batch all state changes together
+	Signals.batch(() => {
+		currentState.set(state);
 
-		case GameStates.MENU:
-			Input.toggleVirtualInput(false);
-			Input.toggleCursor(true);
-			blurGameCanvas(true);
-			HUD.toggle(false);
-			UI.show(menu);
-			Scene.pause(true);
-			break;
-	}
+		switch (state) {
+			case GameStates.GAME:
+				Input.toggleVirtualInput(true);
+				Input.toggleCursor(false);
+				isBlurred.set(false);
+				HUD.toggle(true);
+				UI.hide();
+				Scene.pause(false);
+				break;
+
+			case GameStates.MENU:
+				Input.toggleVirtualInput(false);
+				Input.toggleCursor(true);
+				isBlurred.set(true);
+				HUD.toggle(false);
+				UI.show(menu);
+				Scene.pause(true);
+				break;
+		}
+	});
 };
 
 window.addEventListener("changestate", (e) => {
 	setState(e.detail.state, e.detail.menu);
 });
 
-export { currentState as default };
+// Export the current state getter
+const State = {
+	get current() {
+		return currentState.get();
+	},
+	signal: currentState,
+	isBlurred,
+};
+
+export default State;

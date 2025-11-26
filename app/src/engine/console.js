@@ -16,7 +16,8 @@ const _parseCommand = (cmd) => {
 		return {
 			type: "assignment",
 			variable: assignMatch[1],
-			value: eval(assignMatch[2])
+			// biome-ignore lint/security/noGlobalEval: Console commands require dynamic evaluation
+			value: eval(assignMatch[2]),
 		};
 	}
 	const funcMatch = cmd.match(/^([\w.]+)\(([^)]*)\)$/);
@@ -24,7 +25,12 @@ const _parseCommand = (cmd) => {
 		return {
 			type: "function",
 			func: funcMatch[1],
-			params: funcMatch[2] ? funcMatch[2].split(",").map(p => eval(p.trim())) : []
+			params: funcMatch[2]
+				? funcMatch[2]
+						.split(",")
+						// biome-ignore lint/security/noGlobalEval: Console commands require dynamic evaluation
+						.map((p) => eval(p.trim()))
+				: [],
 		};
 	}
 	throw new Error("Invalid command syntax");
@@ -70,9 +76,9 @@ class _ConsoleUI extends Reactive.Component {
 
 	state() {
 		return {
-			visible: false,
-			command: "",
-			logs: [],
+			visible: this.signal(false, "console:visible"),
+			command: this.signal("", "console:command"),
+			logs: this.signal([], "console:logs"),
 		};
 	}
 
@@ -152,12 +158,20 @@ class _ConsoleUI extends Reactive.Component {
 
 			const len = this._commandHistory.length;
 			if (event.key === "ArrowUp") {
-				this._historyIndex = this._historyIndex === -1 ? len - 1 : Math.max(0, this._historyIndex - 1);
+				this._historyIndex =
+					this._historyIndex === -1
+						? len - 1
+						: Math.max(0, this._historyIndex - 1);
 			} else {
-				this._historyIndex = this._historyIndex < len - 1 ? this._historyIndex + 1 : -1;
+				this._historyIndex =
+					this._historyIndex < len - 1 ? this._historyIndex + 1 : -1;
 			}
 
-			this.command.set(this._historyIndex === -1 ? "" : this._commandHistory[this._historyIndex]);
+			this.command.set(
+				this._historyIndex === -1
+					? ""
+					: this._commandHistory[this._historyIndex],
+			);
 		}
 	}
 
@@ -173,8 +187,6 @@ class _ConsoleUI extends Reactive.Component {
 						type="text"
 						data-ref="input"
 						data-model="command"
-						data-on-input="handleInput"
-						data-on-keydown="handleKeyDown"
 					/>
 				</div>
 			</div>
@@ -182,11 +194,22 @@ class _ConsoleUI extends Reactive.Component {
 	}
 
 	mount() {
+		// Bind logs with safe HTML rendering
 		this.bind(this.refs.logs, this.logs, (logs) => ({
 			__safe: true,
-			content: logs.map((log) => `<span style="color: ${log.color}">${log.message}<br /></span>`).join(""),
+			content: logs
+				.map(
+					(log) =>
+						`<span style="color: ${log.color}">${log.message}<br /></span>`,
+				)
+				.join(""),
 		}));
 
+		// Use on() method for cleaner event handling with auto-cleanup
+		this.on(this.refs.input, "input", this.handleInput);
+		this.on(this.refs.input, "keydown", this.handleKeyDown);
+
+		// Auto-focus input when console becomes visible
 		this.effect(() => {
 			if (this.visible.get()) {
 				requestAnimationFrame(() => {
@@ -196,6 +219,7 @@ class _ConsoleUI extends Reactive.Component {
 			}
 		});
 
+		// Auto-scroll to bottom when logs update
 		this.effect(() => {
 			this.logs.get();
 			requestAnimationFrame(() => {
@@ -222,7 +246,9 @@ const Console = {
 	_addLog(message, color, consoleMethod) {
 		consoleMethod(message);
 		if (!_ui) return;
-		_ui.logs.update((logs) => [...logs, { color, message }].slice(-_DEFAULTS.MAX_LOGS));
+		_ui.logs.update((logs) =>
+			[...logs, { color, message }].slice(-_DEFAULTS.MAX_LOGS),
+		);
 	},
 
 	log(message) {
@@ -246,39 +272,41 @@ const Console = {
 		const currentCommand = _ui.command.get();
 		if (!currentCommand) return;
 
-		try {
-			this.log(currentCommand);
+		_ui.batch(() => {
+			try {
+				this.log(currentCommand);
 
-			const history = _ui._commandHistory;
-			if (history[history.length - 1] !== currentCommand) {
-				history.push(currentCommand);
-				if (history.length > _DEFAULTS.MAX_HISTORY) {
-					history.shift();
+				const history = _ui._commandHistory;
+				if (history[history.length - 1] !== currentCommand) {
+					history.push(currentCommand);
+					if (history.length > _DEFAULTS.MAX_HISTORY) {
+						history.shift();
+					}
 				}
+
+				const cmd = `simplefps.${currentCommand}`;
+				const parsed = _parseCommand(cmd);
+
+				if (parsed.type === "assignment") {
+					const varPath = parsed.variable.replace("simplefps.", "");
+					if (!_getByPath(`simplefps.${varPath}`)) {
+						throw new Error(`Variable "${varPath}" does not exist`);
+					}
+					_setValue(parsed.variable, parsed.value);
+				} else {
+					const pathToCheck = parsed.func.split(".").slice(0, -1).join(".");
+					if (!_getByPath(pathToCheck)) {
+						throw new Error(`Function path "${pathToCheck}" does not exist`);
+					}
+					_callFunction(parsed.func, parsed.params);
+				}
+			} catch (error) {
+				Console.warn(`Failed to execute command: ${error}`);
 			}
 
-			const cmd = `simplefps.${currentCommand}`;
-			const parsed = _parseCommand(cmd);
-
-			if (parsed.type === "assignment") {
-				const varPath = parsed.variable.replace("simplefps.", "");
-				if (!_getByPath(`simplefps.${varPath}`)) {
-					throw new Error(`Variable "${varPath}" does not exist`);
-				}
-				_setValue(parsed.variable, parsed.value);
-			} else {
-				const pathToCheck = parsed.func.split(".").slice(0, -1).join(".");
-				if (!_getByPath(pathToCheck)) {
-					throw new Error(`Function path "${pathToCheck}" does not exist`);
-				}
-				_callFunction(parsed.func, parsed.params);
-			}
-		} catch (error) {
-			Console.warn(`Failed to execute command: ${error}`);
-		}
-
-		_ui.command.set("");
-		_ui._historyIndex = -1;
+			_ui.command.set("");
+			_ui._historyIndex = -1;
+		});
 	},
 };
 

@@ -13,13 +13,13 @@ class _StatsUI extends Reactive.Component {
 
 	state() {
 		return {
-			visible: true,
-			fps: 0,
-			frameTime: 0,
-			memory: 0,
-			visibleMeshes: 0,
-			visibleLights: 0,
-			triangles: 0,
+			visible: this.signal(true, "stats:visible"),
+			fps: this.signal(0, "stats:fps"),
+			frameTime: this.signal(0, "stats:frameTime"),
+			memory: this.signal(0, "stats:memory"),
+			visibleMeshes: this.signal(0, "stats:visibleMeshes"),
+			visibleLights: this.signal(0, "stats:visibleLights"),
+			triangles: this.signal(0, "stats:triangles"),
 		};
 	}
 
@@ -29,6 +29,14 @@ class _StatsUI extends Reactive.Component {
 				margin: 0;
 				padding: 0;
 				background-color: transparent;
+			}
+
+			.stats-item {
+				display: none;
+			}
+
+			.stats-item.visible {
+				display: block;
 			}
 
 			#stats-basic {
@@ -63,13 +71,13 @@ class _StatsUI extends Reactive.Component {
 	template() {
 		return html`
 			<div id="stats">
-				<div id="stats-basic" data-if="visible">
+				<div id="stats-basic" class="stats-item" data-class-visible="visible">
 					<span data-ref="basic"></span>
 				</div>
-				<div id="stats-scene" data-if="visible">
+				<div id="stats-scene" class="stats-item" data-class-visible="visible">
 					<span data-ref="scene"></span>
 				</div>
-				<div id="stats-pos" data-if="visible">
+				<div id="stats-pos" class="stats-item" data-class-visible="visible">
 					<span data-ref="pos"></span>
 				</div>
 			</div>
@@ -78,19 +86,24 @@ class _StatsUI extends Reactive.Component {
 
 	mount() {
 		// Use bindMultiple for cleaner multi-signal bindings
-		this.bindMultiple(this.refs.basic, [this.fps, this.frameTime, this.memory], 
-			([fps, frameTime, memory]) => `${fps}fps - ${Math.round(frameTime)}ms - ${memory}mb`
+		this.bindMultiple(
+			this.refs.basic,
+			[this.fps, this.frameTime, this.memory],
+			([fps, frameTime, memory]) =>
+				`${fps}fps - ${Math.round(frameTime)}ms - ${memory}mb`,
 		);
 
-		this.bindMultiple(this.refs.scene, [this.visibleMeshes, this.visibleLights, this.triangles], 
-			([meshes, lights, triangles]) => `m:${meshes} - l:${lights} - t:${triangles}`
+		this.bindMultiple(
+			this.refs.scene,
+			[this.visibleMeshes, this.visibleLights, this.triangles],
+			([meshes, lights, triangles]) =>
+				`m:${meshes} - l:${lights} - t:${triangles}`,
 		);
 
 		// Camera position updates on fps change (every second)
 		this.effect(() => {
 			this.fps.get();
-			this.refs.pos.textContent = 
-				`xyz:${Camera.position.map((v) => Math.round(v)).join(",")}`;
+			this.refs.pos.textContent = `xyz:${Camera.position.map((v) => Math.round(v)).join(",")}`;
 		});
 	}
 
@@ -101,19 +114,25 @@ class _StatsUI extends Reactive.Component {
 		this._frames++;
 
 		if (now - this._lastUpdate >= 1000) {
-			this.fps.set(this._frames);
-			this._frames = 0;
-			this.memory.set(
-				performance.memory ? Math.round(performance.memory.usedJSHeapSize / 1048576) : 0
-			);
-			this._lastUpdate = now;
+			this.batch(() => {
+				this.fps.set(this._frames);
+				this._frames = 0;
+				this.memory.set(
+					performance.memory
+						? Math.round(performance.memory.usedJSHeapSize / 1048576)
+						: 0,
+				);
+				this._lastUpdate = now;
+			});
 		}
 	}
 
 	setRenderStats(meshCount, lightCount, triangleCount) {
-		this.visibleMeshes.set(meshCount);
-		this.visibleLights.set(lightCount);
-		this.triangles.set(triangleCount);
+		this.batch(() => {
+			this.visibleMeshes.set(meshCount);
+			this.visibleLights.set(lightCount);
+			this.triangles.set(triangleCount);
+		});
 	}
 
 	toggle(show) {
