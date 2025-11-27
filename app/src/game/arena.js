@@ -12,37 +12,40 @@ import {
 } from "../engine/core/engine.js";
 import Pickup from "./pickups.js";
 
-const BASE_URL = `${window.location}resources/arenas/`;
-const DEFAULT_POSITION = [0, 0, 0];
-const DEFAULT_AMBIENT = [1, 1, 1];
+// ============================================================================
+// Private
+// ============================================================================
 
-const state = {
+const _BASE_URL = `${window.location}resources/arenas/`;
+const _DEFAULT_POSITION = [0, 0, 0];
+const _DEFAULT_AMBIENT = [1, 1, 1];
+
+const _state = {
 	arena: {},
 };
 
-// Core setup functions
-const setupCamera = ({ position, rotation }) => {
-	Camera.setPosition(position || DEFAULT_POSITION);
-	Camera.setRotation(rotation || DEFAULT_POSITION);
+const _setupCamera = ({ position, rotation }) => {
+	Camera.setPosition(position || _DEFAULT_POSITION);
+	Camera.setRotation(rotation || _DEFAULT_POSITION);
 };
 
-const setupEnvironment = ({ skybox, chunks = [] }) => {
+const _setupEnvironment = ({ skybox, chunks = [] }) => {
 	if (skybox) {
 		Scene.addEntities(new SkyboxEntity(skybox));
 	}
 
 	for (const chunk of chunks) {
-		Scene.addEntities(new MeshEntity(DEFAULT_POSITION, chunk));
+		Scene.addEntities(new MeshEntity(_DEFAULT_POSITION, chunk));
 	}
 };
 
-const setupLighting = ({
+const _setupLighting = ({
 	ambient,
 	directional = [],
 	point = [],
 	spot = [],
 }) => {
-	Scene.setAmbient(ambient || DEFAULT_AMBIENT);
+	Scene.setAmbient(ambient || _DEFAULT_AMBIENT);
 
 	for (const { direction, color } of directional) {
 		Scene.addEntities(new DirectionalLightEntity(direction, color));
@@ -59,7 +62,7 @@ const setupLighting = ({
 	}
 };
 
-const setupPickups = (pickups = []) => {
+const _setupPickups = (pickups = []) => {
 	for (const { type, position } of pickups) {
 		const pickup = Pickup.createPickup(type, position);
 		if (pickup) {
@@ -68,38 +71,43 @@ const setupPickups = (pickups = []) => {
 	}
 };
 
-// Main load function
-const load = async (name) => {
+const _load = async (name) => {
 	Loading.toggle(true);
 
 	try {
-		const response = await Utils.fetch(`${BASE_URL}${name}/config.arena`);
+		const response = await Utils.fetch(`${_BASE_URL}${name}/config.arena`);
 		const arenaData = JSON.parse(response);
 
 		if (!arenaData) {
 			throw new Error("Invalid arena data");
 		}
 
-		state.arena = arenaData;
+		_state.arena = arenaData;
 		Scene.init();
 
-		const { spawnpoint, lighting, pickups } = state.arena;
+		const { spawnpoint, lighting, pickups } = _state.arena;
 
-		setupCamera(spawnpoint || {});
-		setupLighting(lighting || {});
-		setupEnvironment(state.arena);
-		setupPickups(pickups);
+		_setupCamera(spawnpoint || {});
+		_setupLighting(lighting || {});
+		_setupEnvironment(_state.arena);
+		_setupPickups(pickups);
 
 		Console.log(`Loaded arena: ${name}`);
 	} catch (error) {
 		Console.log(`Failed to load arena ${name}: ${error.message}`);
-		state.arena = {};
+		_state.arena = {};
 		throw error;
 	} finally {
 		Loading.toggle(false);
 	}
 };
 
-const Arena = { load };
+// ============================================================================
+// Public API
+// ============================================================================
+
+const Arena = {
+	load: _load,
+};
 
 export default Arena;

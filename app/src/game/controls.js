@@ -13,7 +13,15 @@ import UI from "./ui.js";
 import Update from "./update.js";
 import Weapons from "./weapons.js";
 
-const music = Resources.get("sounds/music.sfx");
+// ============================================================================
+// Private
+// ============================================================================
+
+const _CAMERA_SENSITIVITY_DIVISOR = 33.0;
+const _MAX_VERTICAL_ROTATION = 89;
+const _MOVEMENT_SPEED_MULTIPLIER = 5;
+
+const _music = Resources.get("sounds/music.sfx");
 
 UI.register("MAIN_MENU", {
 	header: Translations.get("MAIN_MENU"),
@@ -24,7 +32,7 @@ UI.register("MAIN_MENU", {
 				Utils.dispatchCustomEvent("changestate", {
 					state: "GAME",
 				});
-				music.resume();
+				_music.resume();
 			},
 		},
 		{
@@ -36,8 +44,7 @@ UI.register("MAIN_MENU", {
 	],
 });
 
-// Group all event listeners together
-const initializeEventListeners = () => {
+const _initializeEventListeners = () => {
 	// Pointer lock events
 	document.addEventListener(
 		"pointerlockchange",
@@ -85,32 +92,9 @@ const initializeEventListeners = () => {
 	});
 };
 
-// Separate console controls
-const initializeConsoleControls = () => {
+const _initializeConsoleControls = () => {
 	Input.addKeyDownEvent(192, Console.toggle);
 	Input.addKeyDownEvent(13, Console.executeCmd);
-};
-
-// Camera movement logic
-const _updateCamera = (frameTime) => {
-	const ft = frameTime / 1000;
-	updateCameraRotation();
-	updateCameraPosition(ft);
-};
-
-const updateCameraRotation = () => {
-	const mpos = Input.cursorMovement();
-	Camera.rotation[0] -= (mpos.x / 33.0) * Settings.lookSensitivity;
-	Camera.rotation[1] += (mpos.y / 33.0) * Settings.lookSensitivity;
-
-	// Clamp vertical rotation
-	Camera.rotation[1] = Math.max(-89, Math.min(89, Camera.rotation[1]));
-
-	// Wrap horizontal rotation
-	Camera.rotation[0] = ((Camera.rotation[0] % 360) + 360) % 360;
-
-	// Update camera direction
-	updateCameraDirection();
 };
 
 Input.setUpdateCallback((frameTime) => {
@@ -119,13 +103,15 @@ Input.setUpdateCallback((frameTime) => {
 
 	// look
 	const mpos = Input.cursorMovement();
-	Camera.rotation[0] -= (mpos.x / 33.0) * Settings.lookSensitivity;
-	Camera.rotation[1] += (mpos.y / 33.0) * Settings.lookSensitivity;
-	if (Camera.rotation[1] > 89) {
-		Camera.rotation[1] = 89;
+	Camera.rotation[0] -=
+		(mpos.x / _CAMERA_SENSITIVITY_DIVISOR) * Settings.lookSensitivity;
+	Camera.rotation[1] +=
+		(mpos.y / _CAMERA_SENSITIVITY_DIVISOR) * Settings.lookSensitivity;
+	if (Camera.rotation[1] > _MAX_VERTICAL_ROTATION) {
+		Camera.rotation[1] = _MAX_VERTICAL_ROTATION;
 	}
-	if (Camera.rotation[1] < -89) {
-		Camera.rotation[1] = -89;
+	if (Camera.rotation[1] < -_MAX_VERTICAL_ROTATION) {
+		Camera.rotation[1] = -_MAX_VERTICAL_ROTATION;
 	}
 	if (Camera.rotation[0] < 0) {
 		Camera.rotation[0] = 360;
@@ -156,19 +142,19 @@ Input.setUpdateCallback((frameTime) => {
 
 	Weapons.setIsMoving(false);
 	if (Input.isDown(Settings.forward)) {
-		move += 5;
+		move += _MOVEMENT_SPEED_MULTIPLIER;
 		Weapons.setIsMoving(true);
 	}
 	if (Input.isDown(Settings.backwards)) {
-		move -= 5;
+		move -= _MOVEMENT_SPEED_MULTIPLIER;
 		Weapons.setIsMoving(true);
 	}
 	if (Input.isDown(Settings.left)) {
-		strafe -= 5;
+		strafe -= _MOVEMENT_SPEED_MULTIPLIER;
 		Weapons.setIsMoving(true);
 	}
 	if (Input.isDown(Settings.right)) {
-		strafe += 5;
+		strafe += _MOVEMENT_SPEED_MULTIPLIER;
 		Weapons.setIsMoving(true);
 	}
 
@@ -187,6 +173,18 @@ Input.setUpdateCallback((frameTime) => {
 		Camera.position[2] + Camera.direction[2] * move + v[2] * strafe;
 });
 
-// Initialize all controls when the module loads
-initializeEventListeners();
-initializeConsoleControls();
+// ============================================================================
+// Initialization
+// ============================================================================
+
+_initializeEventListeners();
+_initializeConsoleControls();
+
+// ============================================================================
+// Public API
+// ============================================================================
+
+// Controls module - auto-initializes, no exports needed
+const Controls = {};
+
+export default Controls;

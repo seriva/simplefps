@@ -1,7 +1,10 @@
 import { css, html, Reactive } from "../engine/utils/reactive.js";
 import Utils from "../engine/utils/utils.js";
 
-// HUD UI component
+// ============================================================================
+// Private
+// ============================================================================
+
 class _HUDUI extends Reactive.Component {
 	constructor() {
 		super();
@@ -89,6 +92,10 @@ class _HUDUI extends Reactive.Component {
 // HUD UI singleton
 const _ui = new _HUDUI();
 _ui.appendTo("body");
+
+// ============================================================================
+// Public API
+// ============================================================================
 
 const HUD = {
 	toggle(show) {

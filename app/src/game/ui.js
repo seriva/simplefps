@@ -1,6 +1,9 @@
 import { css, html, Reactive } from "../engine/utils/reactive.js";
 
-// Menu UI component
+// ============================================================================
+// Private
+// ============================================================================
+
 class _MenuUI extends Reactive.Component {
 	constructor() {
 		super();
@@ -122,6 +125,10 @@ class _MenuUI extends Reactive.Component {
 // Menu UI singleton
 const _ui = new _MenuUI();
 _ui.appendTo("body");
+
+// ============================================================================
+// Public API
+// ============================================================================
 
 const UI = {
 	register(name, ui) {

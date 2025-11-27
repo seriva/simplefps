@@ -1,7 +1,11 @@
 import { mat4 } from "../dependencies/gl-matrix.js";
 import { MeshEntity, PointLightEntity } from "../engine/core/engine.js";
 
-const pickupMap = {
+// ============================================================================
+// Private
+// ============================================================================
+
+const _PICKUP_MAP = {
 	health: { meshName: "meshes/health.mesh", lightColor: [0.988, 0.31, 0.051] },
 	armor: { meshName: "meshes/armor.mesh", lightColor: [0, 0.352, 0.662] },
 	ammo: { meshName: "meshes/ammo.mesh", lightColor: [0.623, 0.486, 0.133] },
@@ -12,16 +16,16 @@ const pickupMap = {
 	minigun: { meshName: "meshes/minigun.mesh", lightColor: [0.752, 0, 0.035] },
 };
 
-const ROTATION_SPEED = 1000;
-const BOBBING_AMPLITUDE = 0.1;
-const LIGHT_OFFSET_Y = 0.2;
-const LIGHT_INTENSITY = 3;
-const LIGHT_RADIUS = 1.8;
-const SHADOW_HEIGHT = -0.29;
+const _ROTATION_SPEED = 1000;
+const _BOBBING_AMPLITUDE = 0.1;
+const _LIGHT_OFFSET_Y = 0.2;
+const _LIGHT_INTENSITY = 3;
+const _LIGHT_RADIUS = 1.8;
+const _SHADOW_HEIGHT = -0.29;
 
-const updatePickupEntity = (entity, frameTime, shouldRotate = false) => {
+const _updatePickupEntity = (entity, frameTime, shouldRotate = false) => {
 	entity.animationTime += frameTime;
-	const animationTimeInSeconds = entity.animationTime / ROTATION_SPEED;
+	const animationTimeInSeconds = entity.animationTime / _ROTATION_SPEED;
 	mat4.identity(entity.ani_matrix);
 
 	if (shouldRotate) {
@@ -30,39 +34,43 @@ const updatePickupEntity = (entity, frameTime, shouldRotate = false) => {
 
 	mat4.translate(entity.ani_matrix, entity.ani_matrix, [
 		0,
-		Math.cos(Math.PI * animationTimeInSeconds) * BOBBING_AMPLITUDE,
+		Math.cos(Math.PI * animationTimeInSeconds) * _BOBBING_AMPLITUDE,
 		0,
 	]);
 };
 
-const createPickup = (type, pos) => {
-	if (!pickupMap[type]) {
+const _createPickup = (type, pos) => {
+	if (!_PICKUP_MAP[type]) {
 		throw new Error(`Invalid pickup type: ${type}`);
 	}
 
-	const { meshName, lightColor } = pickupMap[type];
+	const { meshName, lightColor } = _PICKUP_MAP[type];
 	const pickup = new MeshEntity(
 		pos,
 		meshName,
-		(entity, frameTime) => updatePickupEntity(entity, frameTime, true),
+		(entity, frameTime) => _updatePickupEntity(entity, frameTime, true),
 		1,
 	);
 	pickup.castShadow = true;
-	pickup.shadowHeight = SHADOW_HEIGHT;
+	pickup.shadowHeight = _SHADOW_HEIGHT;
 
 	const light = new PointLightEntity(
-		[pos[0], pos[1] + LIGHT_OFFSET_Y, pos[2]],
-		LIGHT_RADIUS,
+		[pos[0], pos[1] + _LIGHT_OFFSET_Y, pos[2]],
+		_LIGHT_RADIUS,
 		lightColor,
-		LIGHT_INTENSITY,
-		(entity, frameTime) => updatePickupEntity(entity, frameTime, false),
+		_LIGHT_INTENSITY,
+		(entity, frameTime) => _updatePickupEntity(entity, frameTime, false),
 	);
 
 	return [pickup, light];
 };
 
+// ============================================================================
+// Public API
+// ============================================================================
+
 const Pickup = {
-	createPickup,
+	createPickup: _createPickup,
 };
 
-export { Pickup as default };
+export default Pickup;
