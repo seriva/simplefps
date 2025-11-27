@@ -8,15 +8,16 @@ import { screenQuad } from "./shapes.js";
 import Texture from "./texture.js";
 import Utils from "./utils.js";
 
-let depth = null;
+// Private state - buffers
+let _depth = null;
 
-const BlurSourceType = Object.freeze({
+const _BlurSourceType = Object.freeze({
 	SHADOW: 0,
 	LIGHTING: 1,
 	EMISSIVE: 2,
 });
 
-const g = {
+const _g = {
 	framebuffer: null,
 	position: null,
 	normal: null,
@@ -24,23 +25,24 @@ const g = {
 	emissive: null,
 };
 
-const s = {
+const _s = {
 	framebuffer: null,
 	shadow: null,
 };
 
-const l = {
+const _l = {
 	framebuffer: null,
 	light: null,
 };
 
-const b = {
+const _b = {
 	framebuffer: null,
 	blur: null,
 	source: null,
 };
 
-const checkFramebufferStatus = () => {
+// Private functions
+const _checkFramebufferStatus = () => {
 	const status = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
 	switch (status) {
 		case gl.FRAMEBUFFER_COMPLETE:
@@ -62,11 +64,11 @@ const checkFramebufferStatus = () => {
 	}
 };
 
-const resize = (width, height) => {
+const _resize = (width, height) => {
 	// **********************************
 	// depth buffer
 	// **********************************
-	depth = new Texture({
+	_depth = new Texture({
 		format: gl.DEPTH_COMPONENT32F,
 		width,
 		height,
@@ -75,13 +77,13 @@ const resize = (width, height) => {
 	// **********************************
 	// geometry buffer
 	// **********************************
-	g.width = width;
-	g.height = height;
-	g.framebuffer = gl.createFramebuffer();
-	gl.bindFramebuffer(gl.FRAMEBUFFER, g.framebuffer);
+	_g.width = width;
+	_g.height = height;
+	_g.framebuffer = gl.createFramebuffer();
+	gl.bindFramebuffer(gl.FRAMEBUFFER, _g.framebuffer);
 	gl.activeTexture(gl.TEXTURE0);
 
-	g.position = new Texture({
+	_g.position = new Texture({
 		format: gl.RGBA16F,
 		width,
 		height,
@@ -90,11 +92,11 @@ const resize = (width, height) => {
 		gl.FRAMEBUFFER,
 		gl.COLOR_ATTACHMENT0,
 		gl.TEXTURE_2D,
-		g.position.texture,
+		_g.position.texture,
 		0,
 	);
 
-	g.normal = new Texture({
+	_g.normal = new Texture({
 		format: gl.RGBA16F,
 		width,
 		height,
@@ -103,11 +105,11 @@ const resize = (width, height) => {
 		gl.FRAMEBUFFER,
 		gl.COLOR_ATTACHMENT1,
 		gl.TEXTURE_2D,
-		g.normal.texture,
+		_g.normal.texture,
 		0,
 	);
 
-	g.color = new Texture({
+	_g.color = new Texture({
 		format: gl.RGBA8,
 		width,
 		height,
@@ -116,11 +118,11 @@ const resize = (width, height) => {
 		gl.FRAMEBUFFER,
 		gl.COLOR_ATTACHMENT2,
 		gl.TEXTURE_2D,
-		g.color.texture,
+		_g.color.texture,
 		0,
 	);
 
-	g.emissive = new Texture({
+	_g.emissive = new Texture({
 		format: gl.RGBA8,
 		width,
 		height,
@@ -129,7 +131,7 @@ const resize = (width, height) => {
 		gl.FRAMEBUFFER,
 		gl.COLOR_ATTACHMENT3,
 		gl.TEXTURE_2D,
-		g.emissive.texture,
+		_g.emissive.texture,
 		0,
 	);
 
@@ -137,7 +139,7 @@ const resize = (width, height) => {
 		gl.FRAMEBUFFER,
 		gl.DEPTH_ATTACHMENT,
 		gl.TEXTURE_2D,
-		depth.texture,
+		_depth.texture,
 		0,
 	);
 	gl.drawBuffers([
@@ -146,17 +148,17 @@ const resize = (width, height) => {
 		gl.COLOR_ATTACHMENT2,
 		gl.COLOR_ATTACHMENT3,
 	]);
-	checkFramebufferStatus();
+	_checkFramebufferStatus();
 	gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
 	// **********************************
 	// shadow buffer
 	// **********************************
-	s.framebuffer = gl.createFramebuffer();
-	gl.bindFramebuffer(gl.FRAMEBUFFER, s.framebuffer);
+	_s.framebuffer = gl.createFramebuffer();
+	gl.bindFramebuffer(gl.FRAMEBUFFER, _s.framebuffer);
 	gl.activeTexture(gl.TEXTURE0);
 
-	s.shadow = new Texture({
+	_s.shadow = new Texture({
 		format: gl.RGBA8,
 		width,
 		height,
@@ -165,27 +167,27 @@ const resize = (width, height) => {
 		gl.FRAMEBUFFER,
 		gl.COLOR_ATTACHMENT0,
 		gl.TEXTURE_2D,
-		s.shadow.texture,
+		_s.shadow.texture,
 		0,
 	);
 	gl.framebufferTexture2D(
 		gl.FRAMEBUFFER,
 		gl.DEPTH_ATTACHMENT,
 		gl.TEXTURE_2D,
-		depth.texture,
+		_depth.texture,
 		0,
 	);
-	checkFramebufferStatus();
+	_checkFramebufferStatus();
 	gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
 	// **********************************
 	// lighting buffer
 	// **********************************
-	l.framebuffer = gl.createFramebuffer();
-	gl.bindFramebuffer(gl.FRAMEBUFFER, l.framebuffer);
+	_l.framebuffer = gl.createFramebuffer();
+	gl.bindFramebuffer(gl.FRAMEBUFFER, _l.framebuffer);
 	gl.activeTexture(gl.TEXTURE0);
 
-	l.light = new Texture({
+	_l.light = new Texture({
 		format: gl.RGBA8,
 		width,
 		height,
@@ -194,20 +196,20 @@ const resize = (width, height) => {
 		gl.FRAMEBUFFER,
 		gl.COLOR_ATTACHMENT0,
 		gl.TEXTURE_2D,
-		l.light.texture,
+		_l.light.texture,
 		0,
 	);
-	checkFramebufferStatus();
+	_checkFramebufferStatus();
 	gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
 	// **********************************
 	// gaussianblur buffer
 	// **********************************
-	b.framebuffer = gl.createFramebuffer();
-	gl.bindFramebuffer(gl.FRAMEBUFFER, b.framebuffer);
+	_b.framebuffer = gl.createFramebuffer();
+	gl.bindFramebuffer(gl.FRAMEBUFFER, _b.framebuffer);
 	gl.activeTexture(gl.TEXTURE0);
 
-	b.blur = new Texture({
+	_b.blur = new Texture({
 		format: gl.RGBA8,
 		width,
 		height,
@@ -216,62 +218,62 @@ const resize = (width, height) => {
 		gl.FRAMEBUFFER,
 		gl.COLOR_ATTACHMENT0,
 		gl.TEXTURE_2D,
-		b.blur.texture,
+		_b.blur.texture,
 		0,
 	);
-	checkFramebufferStatus();
+	_checkFramebufferStatus();
 	gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 };
 
-const startBlurPass = (blurSource) => {
+const _startBlurPass = (blurSource) => {
 	switch (blurSource) {
-		case BlurSourceType.SHADOW:
-			b.source = s.shadow;
+		case _BlurSourceType.SHADOW:
+			_b.source = _s.shadow;
 			break;
-		case BlurSourceType.LIGHTING:
-			b.source = l.light;
+		case _BlurSourceType.LIGHTING:
+			_b.source = _l.light;
 			break;
-		case BlurSourceType.EMISSIVE:
-			b.source = g.emissive;
+		case _BlurSourceType.EMISSIVE:
+			_b.source = _g.emissive;
 			break;
 		default:
 	}
-	gl.bindFramebuffer(gl.FRAMEBUFFER, b.framebuffer);
+	gl.bindFramebuffer(gl.FRAMEBUFFER, _b.framebuffer);
 };
 
-const endBlurPass = () => {
+const _endBlurPass = () => {
 	Texture.unBind(gl.TEXTURE0);
 	gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 };
 
-const swapBlur = (i) => {
+const _swapBlur = (i) => {
 	if (i % 2 === 0) {
 		gl.framebufferTexture2D(
 			gl.FRAMEBUFFER,
 			gl.COLOR_ATTACHMENT0,
 			gl.TEXTURE_2D,
-			b.blur.texture,
+			_b.blur.texture,
 			0,
 		);
-		b.source.bind(gl.TEXTURE0);
+		_b.source.bind(gl.TEXTURE0);
 	} else {
 		gl.framebufferTexture2D(
 			gl.FRAMEBUFFER,
 			gl.COLOR_ATTACHMENT0,
 			gl.TEXTURE_2D,
-			b.source.texture,
+			_b.source.texture,
 			0,
 		);
-		b.blur.bind(gl.TEXTURE0);
+		_b.blur.bind(gl.TEXTURE0);
 	}
 	gl.clear(gl.COLOR_BUFFER_BIT);
 };
 
-const blurImage = (source, iterations, radius) => {
+const _blurImage = (source, iterations, radius) => {
 	Shaders.gaussianBlur.bind();
-	startBlurPass(source);
+	_startBlurPass(source);
 	for (let i = 0; i < iterations; i++) {
-		swapBlur(i);
+		_swapBlur(i);
 
 		Shaders.gaussianBlur.setInt("colorBuffer", 0);
 		Shaders.gaussianBlur.setVec2("viewportSize", [
@@ -285,12 +287,12 @@ const blurImage = (source, iterations, radius) => {
 
 		screenQuad.renderSingle();
 	}
-	endBlurPass();
+	_endBlurPass();
 	Shader.unBind();
 };
 
-const startGeomPass = (clearDepthOnly = false) => {
-	gl.bindFramebuffer(gl.FRAMEBUFFER, g.framebuffer);
+const _startGeomPass = (clearDepthOnly = false) => {
+	gl.bindFramebuffer(gl.FRAMEBUFFER, _g.framebuffer);
 	const ambient = Scene.getAmbient();
 	gl.clearColor(ambient[0], ambient[1], ambient[2], 1.0);
 	if (clearDepthOnly) {
@@ -300,28 +302,28 @@ const startGeomPass = (clearDepthOnly = false) => {
 	}
 };
 
-const endGeomPass = () => {
+const _endGeomPass = () => {
 	gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 };
 
-const worldGeomPass = () => {
-	startGeomPass();
+const _worldGeomPass = () => {
+	_startGeomPass();
 
 	Scene.renderWorldGeometry();
 
-	endGeomPass();
+	_endGeomPass();
 };
 
-const fpsGeomPass = () => {
-	startGeomPass(true);
+const _fpsGeomPass = () => {
+	_startGeomPass(true);
 
 	Scene.renderFPSGeometry();
 
-	endGeomPass();
+	_endGeomPass();
 };
 
-const shadowPass = () => {
-	gl.bindFramebuffer(gl.FRAMEBUFFER, s.framebuffer);
+const _shadowPass = () => {
+	gl.bindFramebuffer(gl.FRAMEBUFFER, _s.framebuffer);
 	gl.clearColor(1.0, 1.0, 1.0, 1.0);
 	gl.clear(gl.COLOR_BUFFER_BIT);
 
@@ -330,14 +332,14 @@ const shadowPass = () => {
 	gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 };
 
-const lightingPass = () => {
-	gl.bindFramebuffer(gl.FRAMEBUFFER, l.framebuffer);
+const _lightingPass = () => {
+	gl.bindFramebuffer(gl.FRAMEBUFFER, _l.framebuffer);
 	const ambient = Scene.getAmbient();
 	gl.clearColor(ambient[0], ambient[1], ambient[2], 1.0);
 	gl.clear(gl.COLOR_BUFFER_BIT);
-	g.position.bind(gl.TEXTURE0);
-	g.normal.bind(gl.TEXTURE1);
-	s.shadow.bind(gl.TEXTURE2);
+	_g.position.bind(gl.TEXTURE0);
+	_g.normal.bind(gl.TEXTURE1);
+	_s.shadow.bind(gl.TEXTURE2);
 
 	gl.enable(gl.CULL_FACE);
 	gl.disable(gl.DEPTH_TEST);
@@ -355,21 +357,21 @@ const lightingPass = () => {
 	Texture.unBind(gl.TEXTURE2);
 	gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
-	blurImage(BlurSourceType.LIGHTING, 4, 0.2);
+	_blurImage(_BlurSourceType.LIGHTING, 4, 0.2);
 };
 
-const emissiveBlurPass = () => {
-	blurImage(
-		BlurSourceType.EMISSIVE,
+const _emissiveBlurPass = () => {
+	_blurImage(
+		_BlurSourceType.EMISSIVE,
 		Settings.emissiveIteration,
 		Settings.emissiveOffset,
 	);
 };
 
-const postProcessingPass = () => {
-	g.color.bind(gl.TEXTURE0);
-	l.light.bind(gl.TEXTURE1);
-	g.emissive.bind(gl.TEXTURE2);
+const _postProcessingPass = () => {
+	_g.color.bind(gl.TEXTURE0);
+	_l.light.bind(gl.TEXTURE1);
+	_g.emissive.bind(gl.TEXTURE2);
 	const dirt = Resources.get("system/dirt.webp");
 	dirt.bind(gl.TEXTURE3);
 	Shaders.postProcessing.bind();
@@ -393,30 +395,32 @@ const postProcessingPass = () => {
 	Texture.unBind(gl.TEXTURE3);
 };
 
-const debugPass = () => {
+const _debugPass = () => {
 	Scene.renderDebug();
 };
 
-window.addEventListener(
-	"resize",
-	() => {
-		Context.resize();
-		resize(Context.width(), Context.height());
-	},
-	false,
-);
-Utils.dispatchEvent("resize");
-
+// Public Renderer API
 const Renderer = {
 	render() {
-		worldGeomPass();
-		shadowPass();
-		fpsGeomPass();
-		lightingPass();
-		emissiveBlurPass();
-		postProcessingPass();
-		debugPass();
+		_worldGeomPass();
+		_shadowPass();
+		_fpsGeomPass();
+		_lightingPass();
+		_emissiveBlurPass();
+		_postProcessingPass();
+		_debugPass();
 	},
 };
 
 export default Renderer;
+
+// Initialize on resize
+window.addEventListener(
+	"resize",
+	() => {
+		Context.resize();
+		_resize(Context.width(), Context.height());
+	},
+	false,
+);
+Utils.dispatchEvent("resize");

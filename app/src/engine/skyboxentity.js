@@ -31,8 +31,8 @@ class SkyboxEntity extends Entity {
 		gl.disable(gl.DEPTH_TEST);
 		gl.depthMask(false);
 
-		// Optimize matrix operation by translating directly
-		mat4.translate(this.base_matrix, this.ani_matrix, Camera.position);
+		// Update matrix with camera position
+		this.#updateMatrix();
 
 		// Set shader uniforms
 		this.shader.setMat4("matWorld", this.base_matrix);
@@ -47,8 +47,8 @@ class SkyboxEntity extends Entity {
 	}
 
 	renderWireFrame() {
-		// Optimize matrix operation by translating directly
-		mat4.translate(this.base_matrix, this.ani_matrix, Camera.position);
+		// Update matrix with camera position
+		this.#updateMatrix();
 
 		// Set shader uniforms
 		Shaders.debug.setMat4("matWorld", this.base_matrix);
@@ -56,6 +56,11 @@ class SkyboxEntity extends Entity {
 
 		// Render
 		SkyboxEntity.shape.renderWireFrame();
+	}
+
+	// Private method to update matrix with camera position
+	#updateMatrix() {
+		mat4.translate(this.base_matrix, this.ani_matrix, Camera.position);
 	}
 }
 

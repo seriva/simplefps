@@ -8,18 +8,18 @@ import { Shader, Shaders } from "./shaders.js";
 import { screenQuad } from "./shapes.js";
 import Stats from "./stats.js";
 
-// Add constants at the top after imports
-const DEFAULT_AMBIENT = [0.5, 0.5, 0.5];
+// Private constants
+const _DEFAULT_AMBIENT = [0.5, 0.5, 0.5];
 
-// Cache commonly used values
-const viewportSize = [0, 0];
-const matModel = mat4.create();
-let entities = [];
-let ambient = DEFAULT_AMBIENT;
-let pauseUpdate = false;
+// Private state
+const _viewportSize = [0, 0];
+const _matModel = mat4.create();
+let _entities = [];
+let _ambient = _DEFAULT_AMBIENT;
+let _pauseUpdate = false;
 
-// Add debug colors for each entity type
-const boundingBoxColors = {
+// Debug colors for each entity type
+const _boundingBoxColors = {
 	[EntityTypes.SKYBOX]: [0, 0, 1, 1], // Blue
 	[EntityTypes.MESH]: [1, 0, 0, 1], // Red
 	[EntityTypes.FPS_MESH]: [0, 1, 0, 1], // Green
@@ -28,7 +28,7 @@ const boundingBoxColors = {
 	[EntityTypes.SPOT_LIGHT]: [1, 1, 0, 1], // Yellow
 };
 
-const visibilityCache = {
+const _visibilityCache = {
 	[EntityTypes.SKYBOX]: [],
 	[EntityTypes.MESH]: [],
 	[EntityTypes.FPS_MESH]: [],
@@ -37,59 +37,62 @@ const visibilityCache = {
 	[EntityTypes.SPOT_LIGHT]: [],
 };
 
-let showBoundingVolumes = false;
-const toggleBoundingVolumes = () => {
-	showBoundingVolumes = !showBoundingVolumes;
+// Debug state
+let _showBoundingVolumes = false;
+const _toggleBoundingVolumes = () => {
+	_showBoundingVolumes = !_showBoundingVolumes;
 };
-Console.registerCmd("tbv", toggleBoundingVolumes);
+Console.registerCmd("tbv", _toggleBoundingVolumes);
 
-let showWireframes = false;
-const toggleWireframes = () => {
-	showWireframes = !showWireframes;
+let _showWireframes = false;
+const _toggleWireframes = () => {
+	_showWireframes = !_showWireframes;
 };
-Console.registerCmd("twf", toggleWireframes);
+Console.registerCmd("twf", _toggleWireframes);
 
-let showLightVolumes = false;
-const toggleLightVolumes = () => {
-	showLightVolumes = !showLightVolumes;
+let _showLightVolumes = false;
+const _toggleLightVolumes = () => {
+	_showLightVolumes = !_showLightVolumes;
 };
-Console.registerCmd("tlv", toggleLightVolumes);
+Console.registerCmd("tlv", _toggleLightVolumes);
 
-// Memoize entity selections
-const entityCache = new Map();
-const getEntities = (type) => {
-	if (entityCache.has(type)) return entityCache.get(type);
+// Private entity cache
+const _entityCache = new Map();
 
-	const selection = entities.reduce((acc, entity) => {
+// Private functions
+const _getEntities = (type) => {
+	if (_entityCache.has(type)) return _entityCache.get(type);
+
+	const selection = _entities.reduce((acc, entity) => {
 		if (entity.type === type) acc.push(entity);
 		return acc;
 	}, []);
 
-	entityCache.set(type, selection);
+	_entityCache.set(type, selection);
 	return selection;
 };
 
-const addEntities = (e) => {
+const _addEntities = (e) => {
 	if (!e) {
 		console.warn("Attempted to add null/undefined entity");
 		return;
 	}
 
-	entityCache.clear();
+	_entityCache.clear();
 	if (Array.isArray(e)) {
-		entities = entities.concat(e.filter((entity) => entity != null));
+		_entities = _entities.concat(e.filter((entity) => entity != null));
 	} else {
-		entities.push(e);
+		_entities.push(e);
 	}
 };
 
-const init = () => {
-	entities.length = 0;
+const _init = () => {
+	_entities.length = 0;
 	Physics.init();
 };
 
-const getAmbient = () => ambient;
-const setAmbient = (a) => {
+const _getAmbient = () => _ambient;
+const _setAmbient = (a) => {
 	if (
 		!Array.isArray(a) ||
 		a.length !== 3 ||
@@ -98,55 +101,55 @@ const setAmbient = (a) => {
 		console.warn("Invalid ambient light values. Expected array of 3 numbers.");
 		return;
 	}
-	ambient = a;
+	_ambient = a;
 };
 
-const pause = (doPause) => {
-	pauseUpdate = doPause;
+const _pause = (doPause) => {
+	_pauseUpdate = doPause;
 };
 
-const update = (frameTime) => {
-	if (pauseUpdate) return;
+const _update = (frameTime) => {
+	if (_pauseUpdate) return;
 	Physics.update();
 
-	for (const entity of entities) {
+	for (const entity of _entities) {
 		entity.update(frameTime);
 	}
 
-	updateVisibility();
+	_updateVisibility();
 };
 
-// Combine common render patterns
-const renderEntities = (entityType, renderMethod = "render") => {
-	const targetEntities = visibilityCache[entityType];
+// Helper to render entities
+const _renderEntities = (entityType, renderMethod = "render") => {
+	const targetEntities = _visibilityCache[entityType];
 	for (const entity of targetEntities) {
 		entity[renderMethod]();
 	}
 };
 
-const renderWorldGeometry = () => {
+const _renderWorldGeometry = () => {
 	Shaders.geometry.bind();
-	mat4.identity(matModel);
+	mat4.identity(_matModel);
 	Shaders.geometry.setMat4("matViewProj", Camera.viewProjection);
-	Shaders.geometry.setMat4("matWorld", matModel);
+	Shaders.geometry.setMat4("matWorld", _matModel);
 
-	renderEntities(EntityTypes.SKYBOX);
-	renderEntities(EntityTypes.MESH);
-	renderEntities(EntityTypes.FPS_MESH);
+	_renderEntities(EntityTypes.SKYBOX);
+	_renderEntities(EntityTypes.MESH);
+	_renderEntities(EntityTypes.FPS_MESH);
 
 	Shader.unBind();
 };
 
-const renderLighting = () => {
+const _renderLighting = () => {
 	// Update viewport size once
-	viewportSize[0] = Context.width();
-	viewportSize[1] = Context.height();
+	_viewportSize[0] = Context.width();
+	_viewportSize[1] = Context.height();
 
 	// Directional lights
 	Shaders.directionalLight.bind();
 	Shaders.directionalLight.setInt("normalBuffer", 1);
-	Shaders.directionalLight.setVec2("viewportSize", viewportSize);
-	renderEntities(EntityTypes.DIRECTIONAL_LIGHT);
+	Shaders.directionalLight.setVec2("viewportSize", _viewportSize);
+	_renderEntities(EntityTypes.DIRECTIONAL_LIGHT);
 	Shader.unBind();
 
 	// Pointlights
@@ -154,7 +157,7 @@ const renderLighting = () => {
 	Shaders.pointLight.setMat4("matViewProj", Camera.viewProjection);
 	Shaders.pointLight.setInt("positionBuffer", 0);
 	Shaders.pointLight.setInt("normalBuffer", 1);
-	renderEntities(EntityTypes.POINT_LIGHT);
+	_renderEntities(EntityTypes.POINT_LIGHT);
 	Shader.unBind();
 
 	// Spotlights
@@ -162,41 +165,41 @@ const renderLighting = () => {
 	Shaders.spotLight.setMat4("matViewProj", Camera.viewProjection);
 	Shaders.spotLight.setInt("positionBuffer", 0);
 	Shaders.spotLight.setInt("normalBuffer", 1);
-	renderEntities(EntityTypes.SPOT_LIGHT);
+	_renderEntities(EntityTypes.SPOT_LIGHT);
 	Shader.unBind();
 
 	// Shadows
 	gl.blendFunc(gl.DST_COLOR, gl.ZERO);
 	Shaders.applyShadows.bind();
 	Shaders.applyShadows.setInt("shadowBuffer", 2);
-	Shaders.applyShadows.setVec2("viewportSize", viewportSize);
+	Shaders.applyShadows.setVec2("viewportSize", _viewportSize);
 	screenQuad.renderSingle();
 	Shader.unBind();
 };
 
-const renderShadows = () => {
+const _renderShadows = () => {
 	Shaders.entityShadows.bind();
 	Shaders.entityShadows.setMat4("matViewProj", Camera.viewProjection);
-	Shaders.entityShadows.setVec3("ambient", ambient);
+	Shaders.entityShadows.setVec3("ambient", _ambient);
 
-	renderEntities(EntityTypes.MESH, "renderShadow");
+	_renderEntities(EntityTypes.MESH, "renderShadow");
 
 	Shader.unBind();
 };
 
-const renderFPSGeometry = () => {
+const _renderFPSGeometry = () => {
 	Shaders.geometry.bind();
 
-	mat4.identity(matModel);
+	mat4.identity(_matModel);
 	Shaders.geometry.setMat4("matViewProj", Camera.viewProjection);
-	Shaders.geometry.setMat4("matWorld", matModel);
+	Shaders.geometry.setMat4("matWorld", _matModel);
 
-	renderEntities(EntityTypes.FPS_MESH);
+	_renderEntities(EntityTypes.FPS_MESH);
 
 	Shader.unBind();
 };
 
-const renderDebug = () => {
+const _renderDebug = () => {
 	// Bind shader and set common uniforms
 	Shaders.debug.bind();
 	Shaders.debug.setMat4("matViewProj", Camera.viewProjection);
@@ -206,18 +209,18 @@ const renderDebug = () => {
 	gl.depthMask(false);
 
 	// Render bounding volumes
-	if (showBoundingVolumes) {
+	if (_showBoundingVolumes) {
 		// Render bounding volumes for all visible entities of each type
-		for (const type in visibilityCache) {
-			Shaders.debug.setVec4("debugColor", boundingBoxColors[type]);
-			for (const entity of visibilityCache[type]) {
+		for (const type in _visibilityCache) {
+			Shaders.debug.setVec4("debugColor", _boundingBoxColors[type]);
+			for (const entity of _visibilityCache[type]) {
 				entity.renderBoundingBox();
 			}
 		}
 	}
 
 	// Render mesh wireframes
-	if (showWireframes) {
+	if (_showWireframes) {
 		Shaders.debug.setVec4("debugColor", [1, 1, 1, 1]);
 		// Only render wireframes for mesh entities
 		const meshTypes = [
@@ -226,18 +229,18 @@ const renderDebug = () => {
 			EntityTypes.SKYBOX,
 		];
 		for (const type of meshTypes) {
-			for (const entity of visibilityCache[type]) {
+			for (const entity of _visibilityCache[type]) {
 				entity.renderWireFrame();
 			}
 		}
 	}
 
 	// Render light volumes
-	if (showLightVolumes) {
+	if (_showLightVolumes) {
 		Shaders.debug.setVec4("debugColor", [1, 1, 0, 1]);
 		const lightTypes = [EntityTypes.POINT_LIGHT, EntityTypes.SPOT_LIGHT];
 		for (const type of lightTypes) {
-			for (const entity of visibilityCache[type]) {
+			for (const entity of _visibilityCache[type]) {
 				entity.renderWireFrame();
 			}
 		}
@@ -251,8 +254,8 @@ const renderDebug = () => {
 	Shader.unBind();
 };
 
-const updateVisibility = () => {
-	entityCache.clear();
+const _updateVisibility = () => {
+	_entityCache.clear();
 	const stats = {
 		visibleMeshCount: 0,
 		visibleLightCount: 0,
@@ -260,15 +263,15 @@ const updateVisibility = () => {
 	};
 
 	// Reset visibility lists
-	for (const type of Object.keys(visibilityCache)) {
-		visibilityCache[type] = [];
+	for (const type of Object.keys(_visibilityCache)) {
+		_visibilityCache[type] = [];
 	}
 
 	// Sort entities into visible/invisible lists
-	for (let i = 0; i < entities.length; i++) {
-		const entity = entities[i];
+	for (let i = 0; i < _entities.length; i++) {
+		const entity = _entities[i];
 		if (!entity.boundingBox || entity.boundingBox.isVisible()) {
-			visibilityCache[entity.type].push(entity);
+			_visibilityCache[entity.type].push(entity);
 
 			if ([EntityTypes.MESH, EntityTypes.FPS_MESH].includes(entity.type)) {
 				stats.visibleMeshCount++;
@@ -292,20 +295,21 @@ const updateVisibility = () => {
 	);
 };
 
+// Public Scene API
 const Scene = {
-	init,
-	pause,
-	update,
-	getAmbient,
-	setAmbient,
-	addEntities,
-	getEntities,
-	renderWorldGeometry,
-	renderLighting,
-	renderShadows,
-	renderFPSGeometry,
-	renderDebug,
-	visibilityCache,
+	init: _init,
+	pause: _pause,
+	update: _update,
+	getAmbient: _getAmbient,
+	setAmbient: _setAmbient,
+	addEntities: _addEntities,
+	getEntities: _getEntities,
+	renderWorldGeometry: _renderWorldGeometry,
+	renderLighting: _renderLighting,
+	renderShadows: _renderShadows,
+	renderFPSGeometry: _renderFPSGeometry,
+	renderDebug: _renderDebug,
+	visibilityCache: _visibilityCache,
 };
 
 export default Scene;

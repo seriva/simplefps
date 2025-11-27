@@ -2,7 +2,7 @@ import Camera from "./camera.js";
 import Console from "./console.js";
 import { css, html, Reactive } from "./reactive.js";
 
-// Stats UI component
+// Private Stats UI component
 class _StatsUI extends Reactive.Component {
 	constructor() {
 		super();
@@ -141,10 +141,11 @@ class _StatsUI extends Reactive.Component {
 	}
 }
 
-// Stats UI singleton
+// Private singleton instance
 const _ui = new _StatsUI();
 _ui.appendTo("body");
 
+// Public Stats API
 const Stats = {
 	toggle(show) {
 		return _ui.toggle(show);
@@ -157,6 +158,7 @@ const Stats = {
 	},
 };
 
-Console.registerCmd("stats", Stats.toggle);
-
 export default Stats;
+
+// Register console command
+Console.registerCmd("stats", Stats.toggle);

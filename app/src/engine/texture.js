@@ -1,21 +1,21 @@
 import { afExt, gl } from "./context.js";
 import Settings from "./settings.js";
 
-// Cache frequently used GL constants
+// Private cached GL constants
 const {
-	TEXTURE_2D,
-	RGBA,
-	UNSIGNED_BYTE,
-	LINEAR,
-	LINEAR_MIPMAP_LINEAR,
-	NEAREST,
-	TEXTURE_MAG_FILTER,
-	TEXTURE_MIN_FILTER,
-	TEXTURE_WRAP_S,
-	TEXTURE_WRAP_T,
-	CLAMP_TO_EDGE,
-	REPEAT,
-	UNPACK_FLIP_Y_WEBGL,
+	TEXTURE_2D: _TEXTURE_2D,
+	RGBA: _RGBA,
+	UNSIGNED_BYTE: _UNSIGNED_BYTE,
+	LINEAR: _LINEAR,
+	LINEAR_MIPMAP_LINEAR: _LINEAR_MIPMAP_LINEAR,
+	NEAREST: _NEAREST,
+	TEXTURE_MAG_FILTER: _TEXTURE_MAG_FILTER,
+	TEXTURE_MIN_FILTER: _TEXTURE_MIN_FILTER,
+	TEXTURE_WRAP_S: _TEXTURE_WRAP_S,
+	TEXTURE_WRAP_T: _TEXTURE_WRAP_T,
+	CLAMP_TO_EDGE: _CLAMP_TO_EDGE,
+	REPEAT: _REPEAT,
+	UNPACK_FLIP_Y_WEBGL: _UNPACK_FLIP_Y_WEBGL,
 } = gl;
 
 class Texture {
@@ -28,18 +28,18 @@ class Texture {
 	}
 
 	init(data) {
-		gl.bindTexture(TEXTURE_2D, this.texture);
+		gl.bindTexture(_TEXTURE_2D, this.texture);
 
 		// Default black texture
 		gl.texImage2D(
-			TEXTURE_2D,
+			_TEXTURE_2D,
 			0,
-			RGBA,
+			_RGBA,
 			1,
 			1,
 			0,
-			RGBA,
-			UNSIGNED_BYTE,
+			_RGBA,
+			_UNSIGNED_BYTE,
 			new Uint8Array([0, 0, 0, 255]),
 		);
 
@@ -51,20 +51,20 @@ class Texture {
 	}
 
 	static setTextureParameters(isImage) {
-		const filterType = isImage ? LINEAR : NEAREST;
-		gl.texParameteri(TEXTURE_2D, TEXTURE_MAG_FILTER, filterType);
+		const filterType = isImage ? _LINEAR : _NEAREST;
+		gl.texParameteri(_TEXTURE_2D, _TEXTURE_MAG_FILTER, filterType);
 		gl.texParameteri(
-			TEXTURE_2D,
-			TEXTURE_MIN_FILTER,
-			isImage ? LINEAR_MIPMAP_LINEAR : filterType,
+			_TEXTURE_2D,
+			_TEXTURE_MIN_FILTER,
+			isImage ? _LINEAR_MIPMAP_LINEAR : filterType,
 		);
 	}
 
 	loadImageTexture(imageData) {
 		const image = new Image();
 		image.onload = () => {
-			gl.bindTexture(TEXTURE_2D, this.texture);
-			gl.texImage2D(TEXTURE_2D, 0, RGBA, RGBA, UNSIGNED_BYTE, image);
+			gl.bindTexture(_TEXTURE_2D, this.texture);
+			gl.texImage2D(_TEXTURE_2D, 0, _RGBA, _RGBA, _UNSIGNED_BYTE, image);
 
 			// Set texture parameters
 			Texture.setTextureParameters(true);
@@ -76,37 +76,37 @@ class Texture {
 					Math.max(Settings.anisotropicFiltering, 1),
 					maxAniso,
 				);
-				gl.texParameterf(TEXTURE_2D, afExt.TEXTURE_MAX_ANISOTROPY_EXT, af);
+				gl.texParameterf(_TEXTURE_2D, afExt.TEXTURE_MAX_ANISOTROPY_EXT, af);
 			}
 
-			gl.generateMipmap(TEXTURE_2D);
+			gl.generateMipmap(_TEXTURE_2D);
 			// Use REPEAT mode for tiled textures (UVs can go outside 0-1 range)
-			this.setTextureWrapMode(REPEAT);
-			gl.bindTexture(TEXTURE_2D, null);
+			this.setTextureWrapMode(_REPEAT);
+			gl.bindTexture(_TEXTURE_2D, null);
 
 			URL.revokeObjectURL(image.src); // Clean up the blob URL
 		};
 
 		image.onerror = () => {
 			console.error("Failed to load texture");
-			gl.bindTexture(TEXTURE_2D, null);
+			gl.bindTexture(_TEXTURE_2D, null);
 		};
 
 		image.src = URL.createObjectURL(imageData);
 	}
 
 	createRenderTexture(data) {
-		gl.bindTexture(TEXTURE_2D, this.texture);
-		gl.pixelStorei(UNPACK_FLIP_Y_WEBGL, false);
+		gl.bindTexture(_TEXTURE_2D, this.texture);
+		gl.pixelStorei(_UNPACK_FLIP_Y_WEBGL, false);
 
 		// Set texture parameters
 		Texture.setTextureParameters(false);
 
-		gl.texStorage2D(TEXTURE_2D, 1, data.format, data.width, data.height);
+		gl.texStorage2D(_TEXTURE_2D, 1, data.format, data.width, data.height);
 
 		if (data.pdata && data.ptype && data.pformat) {
 			gl.texSubImage2D(
-				TEXTURE_2D,
+				_TEXTURE_2D,
 				0,
 				0,
 				0,
@@ -118,24 +118,24 @@ class Texture {
 			);
 		}
 
-		this.setTextureWrapMode(CLAMP_TO_EDGE);
+		this.setTextureWrapMode(_CLAMP_TO_EDGE);
 	}
 
 	bind(unit) {
 		gl.activeTexture(unit);
-		gl.bindTexture(TEXTURE_2D, this.texture);
+		gl.bindTexture(_TEXTURE_2D, this.texture);
 	}
 
 	static unBind(unit) {
 		gl.activeTexture(unit);
-		gl.bindTexture(TEXTURE_2D, null);
+		gl.bindTexture(_TEXTURE_2D, null);
 	}
 
 	setTextureWrapMode(mode) {
-		gl.bindTexture(TEXTURE_2D, this.texture);
-		gl.texParameteri(TEXTURE_2D, TEXTURE_WRAP_S, mode);
-		gl.texParameteri(TEXTURE_2D, TEXTURE_WRAP_T, mode);
-		gl.bindTexture(TEXTURE_2D, null);
+		gl.bindTexture(_TEXTURE_2D, this.texture);
+		gl.texParameteri(_TEXTURE_2D, _TEXTURE_WRAP_S, mode);
+		gl.texParameteri(_TEXTURE_2D, _TEXTURE_WRAP_T, mode);
+		gl.bindTexture(_TEXTURE_2D, null);
 	}
 
 	dispose() {

@@ -100,6 +100,49 @@ Keep it fast, simple, and performant. Minimal build tooling with Microtastic. Mo
 - **UI**: Maquette Virtual DOM via DOM module, JSS for styling
 - **State**: Game state managed in `game/state.js`, use events for state changes
 
+### Code Organization & Naming Conventions
+- **Module-level Private Items**: Use `_` prefix for private variables, functions, and constants at module scope
+  - Example: `const _audioContext = new AudioContext();`, `function _parseCommand(cmd) { }`
+  - Private items should be placed at the top of the file under a `// Private` section comment
+  - Public API should be at the bottom under a `// Public API` section comment
+- **Class-level Private Members**: Use `#` prefix for private fields and methods inside classes
+  - Example: `#privateMethod() { }`, `#privateField = value;`
+  - Private methods should be declared at the top of the class
+  - Public methods below private methods
+- **File Structure**:
+  ```javascript
+  // Imports
+  import Module from "./module.js";
+  
+  // ============================================================================
+  // Private
+  // ============================================================================
+  
+  const _privateConst = value;
+  let _privateVar = value;
+  
+  function _privateHelper() { }
+  
+  class _PrivateClass { }
+  
+  // ============================================================================
+  // Public API
+  // ============================================================================
+  
+  class PublicClass {
+    #privateMethod() { }
+    #privateField = value;
+    
+    publicMethod() { }
+  }
+  
+  const PublicObject = {
+    method() { }
+  };
+  
+  export default PublicObject;
+  ```
+
 ### Development
 - `npm install` - install dependencies (Node.js >= 18.0.0, npm >= 8.0.0)
 - `npm run prepare` - setup husky + bundle dependencies

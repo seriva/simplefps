@@ -3,7 +3,8 @@ import { css } from "./reactive.js";
 import Settings from "./settings.js";
 import Utils from "./utils.js";
 
-const canvasStyle = css`
+// Private canvas setup
+const _canvasStyle = css`
 	background: #000;
 	width: 100vw;
 	height: 100vh;
@@ -11,16 +12,17 @@ const canvasStyle = css`
 	z-index: 0;
 `;
 
-const canvas = document.createElement("canvas");
-canvas.id = "context";
-canvas.className = canvasStyle;
-document.body.appendChild(canvas);
+const _canvas = document.createElement("canvas");
+_canvas.id = "context";
+_canvas.className = _canvasStyle;
+document.body.appendChild(_canvas);
 
-const REQUIRED_EXTENSIONS = {
+// Private WebGL extensions
+const _REQUIRED_EXTENSIONS = {
 	EXT_color_buffer_float: "EXT_color_buffer_float",
 };
 
-const OPTIONAL_EXTENSIONS = {
+const _OPTIONAL_EXTENSIONS = {
 	anisotropic: [
 		"EXT_texture_filter_anisotropic",
 		"MOZ_EXT_texture_filter_anisotropic",
@@ -28,9 +30,9 @@ const OPTIONAL_EXTENSIONS = {
 	],
 };
 
-const checkWebGLCapabilities = (gl) => {
+const _checkWebGLCapabilities = (gl) => {
 	// Check required extensions
-	for (const [key, ext] of Object.entries(REQUIRED_EXTENSIONS)) {
+	for (const [key, ext] of Object.entries(_REQUIRED_EXTENSIONS)) {
 		const extension = gl.getExtension(ext);
 		if (!extension) {
 			Console.error(`Required WebGL extension ${ext} is not supported`);
@@ -39,7 +41,7 @@ const checkWebGLCapabilities = (gl) => {
 	}
 
 	// Check optional extensions
-	const afExt = OPTIONAL_EXTENSIONS.anisotropic.reduce(
+	const afExt = _OPTIONAL_EXTENSIONS.anisotropic.reduce(
 		(ext, name) => ext || gl.getExtension(name),
 		null,
 	);
@@ -47,9 +49,10 @@ const checkWebGLCapabilities = (gl) => {
 	return { afExt };
 };
 
-let afExt = null;
+// Private WebGL context initialization
+let _afExt = null;
 
-const gl = canvas.getContext("webgl2", {
+const gl = _canvas.getContext("webgl2", {
 	premultipliedAlpha: false,
 	antialias: false,
 });
@@ -58,8 +61,8 @@ if (!gl) {
 }
 
 try {
-	const capabilities = checkWebGLCapabilities(gl);
-	afExt = capabilities.afExt;
+	const capabilities = _checkWebGLCapabilities(gl);
+	_afExt = capabilities.afExt;
 
 	// Initialize WebGL state
 	gl.clearColor(0.0, 0.0, 0.0, 1.0);
@@ -80,43 +83,48 @@ try {
 	Console.log(`WebGL version: ${gl.getParameter(gl.VERSION)}`);
 	Console.log(`GLSL version: ${gl.getParameter(gl.SHADING_LANGUAGE_VERSION)}`);
 	Console.log(
-		`Max anisotropic filtering: ${afExt ? gl.getParameter(afExt.MAX_TEXTURE_MAX_ANISOTROPY_EXT) : "Not supported"}`,
+		`Max anisotropic filtering: ${_afExt ? gl.getParameter(_afExt.MAX_TEXTURE_MAX_ANISOTROPY_EXT) : "Not supported"}`,
 	);
 } catch (error) {
 	Console.error(`WebGL initialization failed: ${error.message}`);
 }
 
-const getDevicePixelRatio = () => window.devicePixelRatio || 1;
+// Private helper functions
+const _getDevicePixelRatio = () => window.devicePixelRatio || 1;
 
-const width = () =>
+const _width = () =>
 	Math.floor(
-		gl.canvas.clientWidth * getDevicePixelRatio() * Settings.renderScale,
+		gl.canvas.clientWidth * _getDevicePixelRatio() * Settings.renderScale,
 	);
 
-const height = () =>
+const _height = () =>
 	Math.floor(
-		gl.canvas.clientHeight * getDevicePixelRatio() * Settings.renderScale,
+		gl.canvas.clientHeight * _getDevicePixelRatio() * Settings.renderScale,
 	);
 
-const aspectRatio = () => width() / height();
+const _aspectRatio = () => _width() / _height();
 
-const resize = () => {
-	gl.canvas.width = width();
-	gl.canvas.height = height();
-	gl.viewport(0, 0, width(), height());
+const _resize = () => {
+	gl.canvas.width = _width();
+	gl.canvas.height = _height();
+	gl.viewport(0, 0, _width(), _height());
 };
 
+// Console command
 Console.registerCmd("rscale", (scale) => {
 	Settings.renderScale = Math.min(Math.max(scale, 0.2), 1);
 	Utils.dispatchEvent("resize");
 });
 
+// Public Context API
 const Context = {
-	canvas,
-	width,
-	height,
-	aspectRatio,
-	resize,
+	canvas: _canvas,
+	width: _width,
+	height: _height,
+	aspectRatio: _aspectRatio,
+	resize: _resize,
 };
+
+const afExt = _afExt;
 
 export { gl, afExt, Context };

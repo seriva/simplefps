@@ -1,7 +1,9 @@
 import Console from "./console.js";
 import { gl } from "./context.js";
 
-const glsl = (x) => x;
+// ============================================================================
+// Public API
+// ============================================================================
 
 class Shader {
 	#uniformMap;
@@ -111,9 +113,15 @@ class Shader {
 	}
 }
 
-const ShaderSources = {
+// ============================================================================
+// Private
+// ============================================================================
+
+const _glsl = (x) => x;
+
+const _ShaderSources = {
 	geometry: {
-		vertex: glsl`#version 300 es
+		vertex: _glsl`#version 300 es
             precision highp float;
             precision highp int;
 
@@ -148,7 +156,7 @@ const ShaderSources = {
 
                 gl_Position = matViewProj * vPosition;
             }`,
-		fragment: glsl`#version 300 es
+		fragment: _glsl`#version 300 es
             precision highp float;
             precision highp int;
 
@@ -212,7 +220,7 @@ const ShaderSources = {
             }`,
 	},
 	entityShadows: {
-		vertex: glsl`#version 300 es
+		vertex: _glsl`#version 300 es
             precision highp float;
             precision highp int;
 
@@ -225,7 +233,7 @@ const ShaderSources = {
             {
                 gl_Position = matViewProj * matWorld * vec4(aPosition, 1.0);
             }`,
-		fragment: glsl`#version 300 es
+		fragment: _glsl`#version 300 es
             precision highp float;
             precision highp int;
 
@@ -239,7 +247,7 @@ const ShaderSources = {
             }`,
 	},
 	applyShadows: {
-		vertex: glsl`#version 300 es
+		vertex: _glsl`#version 300 es
             precision highp float;
 
             layout(location=0) in vec3 aPosition;
@@ -248,7 +256,7 @@ const ShaderSources = {
             {
                 gl_Position = vec4(aPosition, 1.0);
             }`,
-		fragment: glsl`#version 300 es
+		fragment: _glsl`#version 300 es
             precision highp float;
 
             layout(location=0) out vec4 fragColor;
@@ -263,7 +271,7 @@ const ShaderSources = {
             }`,
 	},
 	directionalLight: {
-		vertex: glsl`#version 300 es
+		vertex: _glsl`#version 300 es
             precision highp float;
 
             layout(location=0) in vec3 aPosition;
@@ -272,7 +280,7 @@ const ShaderSources = {
             {
                 gl_Position = vec4(aPosition, 1.0);
             }`,
-		fragment: glsl`#version 300 es
+		fragment: _glsl`#version 300 es
             precision highp float;
 
             struct DirectionalLight {
@@ -302,7 +310,7 @@ const ShaderSources = {
             }`,
 	},
 	pointLight: {
-		vertex: glsl`#version 300 es
+		vertex: _glsl`#version 300 es
             precision highp float;
             precision highp int;
 
@@ -315,7 +323,7 @@ const ShaderSources = {
             {
                 gl_Position = matViewProj * matWorld * vec4(aPosition, 1.0);
             }`,
-		fragment: glsl`#version 300 es
+		fragment: _glsl`#version 300 es
             precision highp float;
             precision highp int;
 
@@ -354,7 +362,7 @@ const ShaderSources = {
             }`,
 	},
 	spotLight: {
-		vertex: glsl`#version 300 es
+		vertex: _glsl`#version 300 es
             precision highp float;
             precision highp int;
 
@@ -366,7 +374,7 @@ const ShaderSources = {
             void main() {
                 gl_Position = matViewProj * matWorld * vec4(aPosition, 1.0);
             }`,
-		fragment: glsl`#version 300 es
+		fragment: _glsl`#version 300 es
             precision highp float;
             precision highp int;
 
@@ -412,7 +420,7 @@ const ShaderSources = {
             }`,
 	},
 	gaussianBlur: {
-		vertex: glsl`#version 300 es
+		vertex: _glsl`#version 300 es
             precision highp float;
 
             layout(location=0) in vec3 aPosition;
@@ -421,7 +429,7 @@ const ShaderSources = {
             {
                 gl_Position = vec4(aPosition, 1.0);
             }`,
-		fragment: glsl`#version 300 es
+		fragment: _glsl`#version 300 es
             precision highp float;
 
             out vec4 fragColor;
@@ -451,7 +459,7 @@ const ShaderSources = {
             }`,
 	},
 	postProcessing: {
-		vertex: glsl`#version 300 es
+		vertex: _glsl`#version 300 es
             precision highp float;
 
             layout(location=0) in vec3 aPosition;
@@ -460,7 +468,7 @@ const ShaderSources = {
             {
                 gl_Position = vec4(aPosition, 1.0);
             }`,
-		fragment: glsl`#version 300 es
+		fragment: _glsl`#version 300 es
             precision highp float;
 
             layout(std140, column_major) uniform;
@@ -584,7 +592,7 @@ const ShaderSources = {
             }`,
 	},
 	debug: {
-		vertex: glsl`#version 300 es
+		vertex: _glsl`#version 300 es
             precision highp float;
 
             layout(location=0) in vec3 aPosition;
@@ -595,7 +603,7 @@ const ShaderSources = {
             void main() {
                 gl_Position = matViewProj * matWorld * vec4(aPosition, 1.0);
             }`,
-		fragment: glsl`#version 300 es
+		fragment: _glsl`#version 300 es
             precision highp float;
 
             layout(location=0) out vec4 fragColor;
@@ -610,7 +618,7 @@ const ShaderSources = {
 
 // Initialize all shaders immediately
 const Shaders = {};
-for (const [name, { vertex, fragment }] of Object.entries(ShaderSources)) {
+for (const [name, { vertex, fragment }] of Object.entries(_ShaderSources)) {
 	try {
 		Shaders[name] = new Shader(vertex, fragment);
 		Console.log(`Loaded shader: ${name}`);

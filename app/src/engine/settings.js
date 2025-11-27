@@ -1,7 +1,13 @@
 import Console from "./console.js";
 import Utils from "./utils.js";
 
-const defaults = {
+// Public Settings object
+const Settings = {};
+
+export default Settings;
+
+// Private defaults
+const _defaults = {
 	// rendering
 	zNear: 1,
 	zFar: 256,
@@ -22,27 +28,24 @@ const defaults = {
 	lookSensitivity: 5,
 };
 
-const Settings = {};
-
-const saveSettings = () => {
+// Private functions
+const _saveSettings = () => {
 	const success =
 		localStorage?.setItem("settings", JSON.stringify(Settings)) ?? false;
 	return success;
 };
 
 // Initialize settings
-const stored = localStorage?.getItem("settings") ?? null;
-if (stored) {
+const _stored = localStorage?.getItem("settings") ?? null;
+if (_stored) {
 	Console.log("Using stored settings");
-	Object.assign(Settings, defaults, JSON.parse(stored));
+	Object.assign(Settings, _defaults, JSON.parse(_stored));
 } else {
 	Console.log("Using default settings");
-	Object.assign(Settings, defaults);
-	saveSettings();
+	Object.assign(Settings, _defaults);
+	_saveSettings();
 }
 
 // Register console commands
 Console.registerCmd("settings", Settings);
-Console.registerCmd("sstore", saveSettings);
-
-export default Settings;
+Console.registerCmd("sstore", _saveSettings);

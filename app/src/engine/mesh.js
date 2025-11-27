@@ -6,6 +6,18 @@ class Mesh {
 	static ATTR_UVS = 1;
 	static ATTR_NORMALS = 2;
 
+	#bindBufferAndAttrib(buffer, attribute, itemSize) {
+		gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+		gl.vertexAttribPointer(attribute, itemSize, gl.FLOAT, false, 0, 0);
+		gl.enableVertexAttribArray(attribute);
+	}
+
+	#bindMaterial(indexObj, applyMaterial) {
+		if (indexObj.material !== "none" && applyMaterial && this.resources) {
+			this.resources.get(indexObj.material).bind();
+		}
+	}
+
 	constructor(data, context) {
 		this.resources = context;
 		this.initialize(data);
@@ -65,16 +77,10 @@ class Mesh {
 	}
 
 	bind() {
-		this.bindBufferAndAttrib(this.vertexBuffer, Mesh.ATTR_POSITIONS, 3);
-		if (this.hasUVs) this.bindBufferAndAttrib(this.uvBuffer, Mesh.ATTR_UVS, 2);
+		this.#bindBufferAndAttrib(this.vertexBuffer, Mesh.ATTR_POSITIONS, 3);
+		if (this.hasUVs) this.#bindBufferAndAttrib(this.uvBuffer, Mesh.ATTR_UVS, 2);
 		if (this.hasNormals)
-			this.bindBufferAndAttrib(this.normalBuffer, Mesh.ATTR_NORMALS, 3);
-	}
-
-	bindBufferAndAttrib(buffer, attribute, itemSize) {
-		gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-		gl.vertexAttribPointer(attribute, itemSize, gl.FLOAT, false, 0, 0);
-		gl.enableVertexAttribArray(attribute);
+			this.#bindBufferAndAttrib(this.normalBuffer, Mesh.ATTR_NORMALS, 3);
 	}
 
 	unBind() {
@@ -93,7 +99,7 @@ class Mesh {
 
 	renderIndices(applyMaterial, renderMode = gl.TRIANGLES) {
 		for (const indexObj of this.indices) {
-			this.bindMaterial(indexObj, applyMaterial);
+			this.#bindMaterial(indexObj, applyMaterial);
 			gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexObj.indexBuffer);
 			gl.drawElements(
 				renderMode,
@@ -135,12 +141,6 @@ class Mesh {
 		}
 
 		this.unBind();
-	}
-
-	bindMaterial(indexObj, applyMaterial) {
-		if (indexObj.material !== "none" && applyMaterial && this.resources) {
-			this.resources.get(indexObj.material).bind();
-		}
 	}
 
 	async loadFromBlob(blob) {

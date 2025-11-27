@@ -19,29 +19,39 @@ import SpotLightEntity from "./spotlightentity.js";
 import Stats from "./stats.js";
 import Utils from "./utils.js";
 
-let time;
-let frameTime = 0;
-let rafId;
+// ============================================================================
+// Private
+// ============================================================================
 
-const loop = () => {
+let _time;
+let _frameTime = 0;
+let _rafId;
+
+const _loop = () => {
 	const frame = () => {
 		// timing
 		const now = performance.now();
-		frameTime = now - (time || now);
-		time = now;
+		_frameTime = now - (_time || now);
+		_time = now;
 
 		Stats.update();
-		Input.update(frameTime);
+		Input.update(_frameTime);
 		Camera.update();
-		Scene.update(frameTime);
+		Scene.update(_frameTime);
 		Renderer.render();
 
-		rafId = window.requestAnimationFrame(frame);
+		_rafId = window.requestAnimationFrame(frame);
 	};
 
-	rafId = window.requestAnimationFrame(frame);
-	return () => cancelAnimationFrame(rafId);
+	_rafId = window.requestAnimationFrame(frame);
+	return () => cancelAnimationFrame(_rafId);
 };
+
+// ============================================================================
+// Public API
+// ============================================================================
+
+const loop = _loop;
 
 export {
 	loop,

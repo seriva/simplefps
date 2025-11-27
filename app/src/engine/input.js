@@ -3,30 +3,34 @@ import { css, html, Reactive } from "./reactive.js";
 import Settings from "./settings.js";
 import Utils from "./utils.js";
 
-let visibleCursor = true;
-const cursorMovement = {
+// ============================================================================
+// Private
+// ============================================================================
+
+let _visibleCursor = true;
+const _cursorMovement = {
 	x: 0,
 	y: 0,
 };
-let pressed = {};
-let upevents = [];
-let downevents = [];
-let timeout;
-let gamepad = false;
-let updateCallback = null;
+let _pressed = {};
+let _upevents = [];
+let _downevents = [];
+let _timeout;
+let _gamepad = false;
+let _updateCallback = null;
 
 window.addEventListener(
 	"keyup",
 	(ev) => {
-		delete pressed[ev.keyCode];
-		for (let l = 0; l < upevents.length; l++) {
-			if (upevents[l].key === ev.keyCode) {
-				upevents[l].event();
+		delete _pressed[ev.keyCode];
+		for (let l = 0; l < _upevents.length; l++) {
+			if (_upevents[l].key === ev.keyCode) {
+				_upevents[l].event();
 			}
 		}
-		for (let l = 0; l < downevents.length; l++) {
-			if (downevents[l].pressed) {
-				downevents[l].pressed = false;
+		for (let l = 0; l < _downevents.length; l++) {
+			if (_downevents[l].pressed) {
+				_downevents[l].pressed = false;
 			}
 		}
 	},
@@ -36,33 +40,33 @@ window.addEventListener(
 window.addEventListener(
 	"keydown",
 	(ev) => {
-		pressed[ev.keyCode] = true;
-		for (let l = 0; l < downevents.length; l++) {
-			if (downevents[l].key === ev.keyCode && !downevents[l].pressed) {
-				downevents[l].event();
-				downevents[l].pressed = true;
+		_pressed[ev.keyCode] = true;
+		for (let l = 0; l < _downevents.length; l++) {
+			if (_downevents[l].key === ev.keyCode && !_downevents[l].pressed) {
+				_downevents[l].event();
+				_downevents[l].pressed = true;
 			}
 		}
 	},
 	false,
 );
 
-const setCursorMovement = (x, y) => {
-	cursorMovement.x = x;
-	cursorMovement.y = y;
-	if (timeout !== undefined) {
-		window.clearTimeout(timeout);
+const _setCursorMovement = (x, y) => {
+	_cursorMovement.x = x;
+	_cursorMovement.y = y;
+	if (_timeout !== undefined) {
+		window.clearTimeout(_timeout);
 	}
-	timeout = window.setTimeout(() => {
-		cursorMovement.x = 0;
-		cursorMovement.y = 0;
+	_timeout = window.setTimeout(() => {
+		_cursorMovement.x = 0;
+		_cursorMovement.y = 0;
 	}, 50);
 };
 
 window.addEventListener(
 	"mousemove",
 	(ev) => {
-		setCursorMovement(ev.movementX, ev.movementY);
+		_setCursorMovement(ev.movementX, ev.movementY);
 	},
 	false,
 );
@@ -70,7 +74,7 @@ window.addEventListener(
 window.addEventListener("gamepadconnected", () => {
 	const gp = navigator.getGamepads()[0];
 	Console.log(`Gamepad connected: : ${gp.id}`);
-	gamepad = true;
+	_gamepad = true;
 	Utils.dispatchCustomEvent("changestate", {
 		state: "MENU",
 		menu: "MAIN_MENU",
@@ -79,7 +83,7 @@ window.addEventListener("gamepadconnected", () => {
 
 window.addEventListener("gamepaddisconnected", () => {
 	Console.log("Gamepad disconnected");
-	gamepad = false;
+	_gamepad = false;
 	Utils.dispatchCustomEvent("changestate", {
 		state: "MENU",
 		menu: "MAIN_MENU",
@@ -219,8 +223,8 @@ class _VirtualInputUI extends Reactive.Component {
 		this.on(this.refs.look, "touchend", () => {
 			this._cursorPos = null;
 			this._lastPos = null;
-			cursorMovement.x = 0;
-			cursorMovement.y = 0;
+			_cursorMovement.x = 0;
+			_cursorMovement.y = 0;
 			this.cursorOpacity.set(0);
 		});
 
@@ -231,7 +235,7 @@ class _VirtualInputUI extends Reactive.Component {
 					x: ev.targetTouches[0].clientX,
 					y: ev.targetTouches[0].clientY,
 				};
-				setCursorMovement(
+				_setCursorMovement(
 					(this._cursorPos.x - this._lastPos.x) * Settings.lookSensitivity,
 					(this._cursorPos.y - this._lastPos.y) * Settings.lookSensitivity,
 				);
@@ -263,10 +267,10 @@ class _VirtualInputUI extends Reactive.Component {
 				this.stickX.set(0);
 				this.stickY.set(0);
 			});
-			delete pressed[Settings.forward];
-			delete pressed[Settings.backwards];
-			delete pressed[Settings.left];
-			delete pressed[Settings.right];
+			delete _pressed[Settings.forward];
+			delete _pressed[Settings.backwards];
+			delete _pressed[Settings.left];
+			delete _pressed[Settings.right];
 			this._dragStart = null;
 			this._stickPos = null;
 		});
@@ -300,40 +304,40 @@ class _VirtualInputUI extends Reactive.Component {
 				dAngle = 360 - Math.abs(dAngle);
 			}
 
-			delete pressed[Settings.forward];
-			delete pressed[Settings.backwards];
-			delete pressed[Settings.left];
-			delete pressed[Settings.right];
+			delete _pressed[Settings.forward];
+			delete _pressed[Settings.backwards];
+			delete _pressed[Settings.left];
+			delete _pressed[Settings.right];
 
 			if (dAngle && distance > 15) {
 				const a = dAngle;
 				if ((a >= 337.5 && a < 360) || (a >= 0 && a < 22.5)) {
-					pressed[Settings.right] = true;
+					_pressed[Settings.right] = true;
 				}
 				if (a >= 22.5 && a < 67.5) {
-					pressed[Settings.right] = true;
-					pressed[Settings.backwards] = true;
+					_pressed[Settings.right] = true;
+					_pressed[Settings.backwards] = true;
 				}
 				if (a >= 67.5 && a < 112.5) {
-					pressed[Settings.backwards] = true;
+					_pressed[Settings.backwards] = true;
 				}
 				if (a >= 112.5 && a < 157.5) {
-					pressed[Settings.backwards] = true;
-					pressed[Settings.left] = true;
+					_pressed[Settings.backwards] = true;
+					_pressed[Settings.left] = true;
 				}
 				if (a >= 157.5 && a < 202.5) {
-					pressed[Settings.left] = true;
+					_pressed[Settings.left] = true;
 				}
 				if (a >= 202.5 && a < 247.5) {
-					pressed[Settings.left] = true;
-					pressed[Settings.forward] = true;
+					_pressed[Settings.left] = true;
+					_pressed[Settings.forward] = true;
 				}
 				if (a >= 247.5 && a < 292.5) {
-					pressed[Settings.forward] = true;
+					_pressed[Settings.forward] = true;
 				}
 				if (a >= 292.5 && a < 337.5) {
-					pressed[Settings.forward] = true;
-					pressed[Settings.right] = true;
+					_pressed[Settings.forward] = true;
+					_pressed[Settings.right] = true;
 				}
 			}
 		});
@@ -355,7 +359,7 @@ class _VirtualInputUI extends Reactive.Component {
 		if (show === undefined) {
 			this.visible.set(!this.visible.get());
 		} else {
-			this.visible.set(show && !gamepad);
+			this.visible.set(show && !_gamepad);
 		}
 	}
 }
@@ -368,45 +372,49 @@ if (Utils.isMobile()) {
 }
 
 // update virtual input
-const updateGamepad = () => {
+const _updateGamepad = () => {
 	const gp = navigator.getGamepads()[0];
-	if (gamepad && gp) {
-		delete pressed[Settings.forward];
-		delete pressed[Settings.backwards];
-		delete pressed[Settings.left];
-		delete pressed[Settings.right];
+	if (_gamepad && gp) {
+		delete _pressed[Settings.forward];
+		delete _pressed[Settings.backwards];
+		delete _pressed[Settings.left];
+		delete _pressed[Settings.right];
 
 		if (gp.axes[0] < 0) {
-			pressed[Settings.left] = true;
+			_pressed[Settings.left] = true;
 		} else if (gp.axes[0] > 0) {
-			pressed[Settings.right] = true;
+			_pressed[Settings.right] = true;
 		}
 		if (gp.axes[1] < 0) {
-			pressed[Settings.forward] = true;
+			_pressed[Settings.forward] = true;
 		} else if (gp.axes[1] > 0) {
-			pressed[Settings.backwards] = true;
+			_pressed[Settings.backwards] = true;
 		}
 
 		// TODO: add sensitivity
-		setCursorMovement(gp.axes[2] * 15, gp.axes[3] * 15);
+		_setCursorMovement(gp.axes[2] * 15, gp.axes[3] * 15);
 	}
-	window.requestAnimationFrame(updateGamepad);
+	window.requestAnimationFrame(_updateGamepad);
 };
-window.requestAnimationFrame(updateGamepad);
+window.requestAnimationFrame(_updateGamepad);
+
+// ============================================================================
+// Public API
+// ============================================================================
 
 const Input = {
 	cursorMovement() {
-		return cursorMovement;
+		return _cursorMovement;
 	},
 
 	toggleCursor(show) {
 		if (Utils.isMobile()) return;
 		if (show === undefined) {
-			visibleCursor = !visibleCursor;
+			_visibleCursor = !_visibleCursor;
 		} else {
-			visibleCursor = show;
+			_visibleCursor = show;
 		}
-		if (visibleCursor) {
+		if (_visibleCursor) {
 			document.exitPointerLock();
 		} else {
 			document.body.requestPointerLock();
@@ -419,13 +427,13 @@ const Input = {
 	},
 
 	clearInputEvents() {
-		pressed = {};
-		upevents = [];
-		downevents = [];
+		_pressed = {};
+		_upevents = [];
+		_downevents = [];
 	},
 
 	addKeyDownEvent(key, event) {
-		downevents.push({
+		_downevents.push({
 			key,
 			event,
 			pressed: false,
@@ -433,23 +441,23 @@ const Input = {
 	},
 
 	addKeyUpEvent(key, event) {
-		upevents.push({
+		_upevents.push({
 			key,
 			event,
 		});
 	},
 
 	isDown(keyCode) {
-		return pressed[keyCode];
+		return _pressed[keyCode];
 	},
 
 	setUpdateCallback(callback) {
-		updateCallback = callback;
+		_updateCallback = callback;
 	},
 
 	update(frameTime) {
-		if (updateCallback !== null) {
-			updateCallback(frameTime);
+		if (_updateCallback !== null) {
+			_updateCallback(frameTime);
 		}
 	},
 };

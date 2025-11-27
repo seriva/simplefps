@@ -26,30 +26,13 @@ class SpotLightEntity extends Entity {
 		// Calculate cosine of cutoff angle for efficient spotlight calculations
 		this.cutoff = Math.cos((angle * Math.PI) / 180);
 
-		// Create base transform for the light volume
-		const defaultDir = vec3.fromValues(0, 0, -1);
-
-		// Calculate rotation using quaternion
-		const rotationQuat = quat.rotationTo(
-			quat.create(),
-			defaultDir,
-			this.direction,
+		// Build transformation matrix
+		this.base_matrix = this.#buildTransformMatrix(
+			position,
+			direction,
+			angle,
+			range,
 		);
-		const rotationMat = mat4.fromQuat(mat4.create(), rotationQuat);
-
-		// Build transformation matrix in correct order:
-		// 1. Start with identity matrix
-		this.base_matrix = mat4.create();
-
-		// 2. Apply translation first
-		mat4.translate(this.base_matrix, this.base_matrix, position);
-
-		// 3. Apply rotation
-		mat4.multiply(this.base_matrix, this.base_matrix, rotationMat);
-
-		// 4. Apply scale last
-		const radius = Math.tan((angle * Math.PI) / 180) * range;
-		mat4.scale(this.base_matrix, this.base_matrix, [radius, radius, range]);
 
 		// Create the bounding box with initial values
 		this.boundingBox = new BoundingBox(
@@ -59,11 +42,42 @@ class SpotLightEntity extends Entity {
 		this.updateBoundingVolume();
 	}
 
+	// Private method to build the transformation matrix
+	#buildTransformMatrix(position, direction, angle, range) {
+		const defaultDir = vec3.fromValues(0, 0, -1);
+
+		// Calculate rotation using quaternion
+		const rotationQuat = quat.rotationTo(quat.create(), defaultDir, direction);
+		const rotationMat = mat4.fromQuat(mat4.create(), rotationQuat);
+
+		// Build transformation matrix in correct order:
+		// 1. Start with identity matrix
+		const matrix = mat4.create();
+
+		// 2. Apply translation first
+		mat4.translate(matrix, matrix, position);
+
+		// 3. Apply rotation
+		mat4.multiply(matrix, matrix, rotationMat);
+
+		// 4. Apply scale last
+		const radius = Math.tan((angle * Math.PI) / 180) * range;
+		mat4.scale(matrix, matrix, [radius, radius, range]);
+
+		return matrix;
+	}
+
+	// Private helper to get world transform matrix
+	#getWorldMatrix() {
+		const m = mat4.create();
+		mat4.multiply(m, this.base_matrix, this.ani_matrix);
+		return m;
+	}
+
 	render() {
 		if (!this.visible) return;
 
-		const m = mat4.create();
-		mat4.multiply(m, this.base_matrix, this.ani_matrix);
+		const m = this.#getWorldMatrix();
 
 		// Render light volume
 		Shaders.spotLight.bind();
@@ -80,16 +94,14 @@ class SpotLightEntity extends Entity {
 
 	renderWireFrame() {
 		if (!this.visible) return;
-		const m = mat4.create();
-		mat4.multiply(m, this.base_matrix, this.ani_matrix);
+		const m = this.#getWorldMatrix();
 		Shaders.debug.setMat4("matWorld", m);
 		spotlightVolume.renderWireFrame();
 	}
 
 	updateBoundingVolume() {
 		const unitBox = spotlightVolume.boundingBox;
-		const m = mat4.create();
-		mat4.multiply(m, this.base_matrix, this.ani_matrix);
+		const m = this.#getWorldMatrix();
 		this.boundingBox = unitBox.transform(m);
 	}
 }
