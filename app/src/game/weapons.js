@@ -9,7 +9,7 @@ import {
 	PointLightEntity,
 	Resources,
 	Scene,
-} from "../engine/engine.js";
+} from "../engine/core/engine.js";
 
 // Weapon configurations
 const WEAPONS = {

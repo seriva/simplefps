@@ -1,4 +1,4 @@
-import { Loading, Utils } from "../engine/engine.js";
+import { Loading, Utils } from "../engine/core/engine.js";
 import Translations from "./translations.js";
 import UI from "./ui.js";
 

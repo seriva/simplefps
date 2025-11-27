@@ -1,4 +1,4 @@
-import { Console, loop, Resources, Utils } from "./engine/engine.js";
+import { Console, loop, Resources, Utils } from "./engine/core/engine.js";
 
 async function loadGameModules() {
 	Utils.dispatchCustomEvent("loading", { state: "LOADING_MODULES" });

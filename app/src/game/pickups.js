@@ -1,5 +1,5 @@
 import { mat4 } from "../dependencies/gl-matrix.js";
-import { MeshEntity, PointLightEntity } from "../engine/engine.js";
+import { MeshEntity, PointLightEntity } from "../engine/core/engine.js";
 
 const pickupMap = {
 	health: { meshName: "meshes/health.mesh", lightColor: [0.988, 0.31, 0.051] },

@@ -1,5 +1,5 @@
-import { css, html, Reactive } from "../engine/reactive.js";
-import Utils from "../engine/utils.js";
+import { css, html, Reactive } from "../engine/utils/reactive.js";
+import Utils from "../engine/utils/utils.js";
 
 // HUD UI component
 class _HUDUI extends Reactive.Component {

@@ -1,4 +1,4 @@
-import { Console } from "../engine/engine.js";
+import { Console } from "../engine/core/engine.js";
 
 // Default language fallback
 const DEFAULT_LANGUAGE = "en-US";

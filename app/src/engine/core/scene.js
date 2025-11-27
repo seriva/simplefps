@@ -1,12 +1,12 @@
-import { mat4 } from "../dependencies/gl-matrix.js";
+import { mat4 } from "../../dependencies/gl-matrix.js";
+import { EntityTypes } from "../entities/entity.js";
+import { Shader, Shaders } from "../rendering/shaders.js";
+import { screenQuad } from "../rendering/shapes.js";
+import Console from "../systems/console.js";
+import Physics from "../systems/physics.js";
+import Stats from "../systems/stats.js";
 import Camera from "./camera.js";
-import Console from "./console.js";
 import { Context, gl } from "./context.js";
-import { EntityTypes } from "./entity.js";
-import Physics from "./physics.js";
-import { Shader, Shaders } from "./shaders.js";
-import { screenQuad } from "./shapes.js";
-import Stats from "./stats.js";
 
 // Private constants
 const _DEFAULT_AMBIENT = [0.5, 0.5, 0.5];
@@ -74,7 +74,7 @@ const _getEntities = (type) => {
 
 const _addEntities = (e) => {
 	if (!e) {
-		console.warn("Attempted to add null/undefined entity");
+		Console.warn("Attempted to add null/undefined entity");
 		return;
 	}
 
@@ -98,7 +98,7 @@ const _setAmbient = (a) => {
 		a.length !== 3 ||
 		!a.every((v) => typeof v === "number")
 	) {
-		console.warn("Invalid ambient light values. Expected array of 3 numbers.");
+		Console.warn("Invalid ambient light values. Expected array of 3 numbers.");
 		return;
 	}
 	_ambient = a;

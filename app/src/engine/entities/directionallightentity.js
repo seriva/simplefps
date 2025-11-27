@@ -1,6 +1,6 @@
+import { Shaders } from "../rendering/shaders.js";
+import { screenQuad } from "../rendering/shapes.js";
 import { Entity, EntityTypes } from "./entity.js";
-import { Shaders } from "./shaders.js";
-import { screenQuad } from "./shapes.js";
 
 class DirectionalLightEntity extends Entity {
 	constructor(direction, color, updateCallback) {

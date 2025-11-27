@@ -1,7 +1,7 @@
+import Settings from "../core/settings.js";
+import { css, html, Reactive } from "../utils/reactive.js";
+import Utils from "../utils/utils.js";
 import Console from "./console.js";
-import { css, html, Reactive } from "./reactive.js";
-import Settings from "./settings.js";
-import Utils from "./utils.js";
 
 // ============================================================================
 // Private

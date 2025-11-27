@@ -1,23 +1,23 @@
+import DirectionalLightEntity from "../entities/directionallightentity.js";
+import { EntityTypes } from "../entities/entity.js";
+import FpsMeshEntity from "../entities/fpsmeshentity.js";
+import MeshEntity from "../entities/meshentity.js";
+import PointLightEntity from "../entities/pointlightentity.js";
+import SkyboxEntity from "../entities/skyboxentity.js";
+import SpotLightEntity from "../entities/spotlightentity.js";
+import Renderer from "../rendering/renderer.js";
+import Console from "../systems/console.js";
+import Input from "../systems/input.js";
+import Loading from "../systems/loading.js";
+import Physics from "../systems/physics.js";
+import Resources from "../systems/resources.js";
+import Sound from "../systems/sound.js";
+import Stats from "../systems/stats.js";
+import Utils from "../utils/utils.js";
 import Camera from "./camera.js";
-import Console from "./console.js";
 import { Context } from "./context.js";
-import DirectionalLightEntity from "./directionallightentity.js";
-import { EntityTypes } from "./entity.js";
-import FpsMeshEntity from "./fpsmeshentity.js";
-import Input from "./input.js";
-import Loading from "./loading.js";
-import MeshEntity from "./meshentity.js";
-import Physics from "./physics.js";
-import PointLightEntity from "./pointlightentity.js";
-import Renderer from "./renderer.js";
-import Resources from "./resources.js";
 import Scene from "./scene.js";
 import Settings from "./settings.js";
-import SkyboxEntity from "./skyboxentity.js";
-import Sound from "./sound.js";
-import SpotLightEntity from "./spotlightentity.js";
-import Stats from "./stats.js";
-import Utils from "./utils.js";
 
 // ============================================================================
 // Private

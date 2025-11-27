@@ -1,6 +1,6 @@
-import Camera from "./camera.js";
+import Camera from "../core/camera.js";
+import { css, html, Reactive } from "../utils/reactive.js";
 import Console from "./console.js";
-import { css, html, Reactive } from "./reactive.js";
 
 // Private Stats UI component
 class _StatsUI extends Reactive.Component {

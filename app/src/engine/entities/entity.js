@@ -1,7 +1,7 @@
-import { mat4 } from "../dependencies/gl-matrix.js";
-import { gl } from "./context.js";
-import { Shaders } from "./shaders.js";
-import { boundingBox } from "./shapes.js";
+import { mat4 } from "../../dependencies/gl-matrix.js";
+import { gl } from "../core/context.js";
+import { Shaders } from "../rendering/shaders.js";
+import { boundingBox } from "../rendering/shapes.js";
 
 const EntityTypes = Object.freeze({
 	MESH: 1,

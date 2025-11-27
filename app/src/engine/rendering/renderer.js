@@ -1,12 +1,12 @@
-import Console from "./console.js";
-import { Context, gl } from "./context.js";
-import Resources from "./resources.js";
-import Scene from "./scene.js";
-import Settings from "./settings.js";
+import { Context, gl } from "../core/context.js";
+import Scene from "../core/scene.js";
+import Settings from "../core/settings.js";
+import Console from "../systems/console.js";
+import Resources from "../systems/resources.js";
+import Utils from "../utils/utils.js";
 import { Shader, Shaders } from "./shaders.js";
 import { screenQuad } from "./shapes.js";
 import Texture from "./texture.js";
-import Utils from "./utils.js";
 
 // Private state - buffers
 let _depth = null;

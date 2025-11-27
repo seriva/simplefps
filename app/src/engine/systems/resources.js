@@ -1,10 +1,10 @@
+import Material from "../rendering/material.js";
+import Mesh from "../rendering/mesh.js";
+import Texture from "../rendering/texture.js";
+import Utils from "../utils/utils.js";
 import Console from "./console.js";
 import Loading from "./loading.js";
-import Material from "./material.js";
-import Mesh from "./mesh.js";
 import Sound from "./sound.js";
-import Texture from "./texture.js";
-import Utils from "./utils.js";
 
 // Public Resources API
 const Resources = {

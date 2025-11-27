@@ -1,5 +1,6 @@
-import { afExt, gl } from "./context.js";
-import Settings from "./settings.js";
+import { afExt, gl } from "../core/context.js";
+import Settings from "../core/settings.js";
+import Console from "../systems/console.js";
 
 // Private cached GL constants
 const {
@@ -88,10 +89,9 @@ class Texture {
 		};
 
 		image.onerror = () => {
-			console.error("Failed to load texture");
+			Console.error("Failed to load texture image");
 			gl.bindTexture(_TEXTURE_2D, null);
 		};
-
 		image.src = URL.createObjectURL(imageData);
 	}
 

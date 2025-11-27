@@ -1,3 +1,5 @@
+import Console from "../systems/console.js";
+
 const Utils = {
 	isMobile() {
 		if (navigator.userAgentData?.mobile !== undefined) {
@@ -11,12 +13,12 @@ const Utils = {
 
 	async fetch(path) {
 		const response = await fetch(path).catch((error) => {
-			console.error("Fetch error:", error);
+			Console.error(`Fetch error for ${path}:`, error);
 			throw error;
 		});
 
 		if (!response?.ok) {
-			throw new Error(`HTTP error! status: ${response.status}`);
+			throw new Error(`HTTP error! status: ${response.status} for ${path}`);
 		}
 
 		return path.includes("webp") || path.includes("bmesh")

@@ -1,4 +1,4 @@
-import { css, html, Reactive } from "./reactive.js";
+import { css, html, Reactive } from "../utils/reactive.js";
 
 // Loading UI component
 class _LoadingUI extends Reactive.Component {

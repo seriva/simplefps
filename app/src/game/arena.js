@@ -9,7 +9,7 @@ import {
 	SkyboxEntity,
 	SpotLightEntity,
 	Utils,
-} from "../engine/engine.js";
+} from "../engine/core/engine.js";
 import Pickup from "./pickups.js";
 
 const BASE_URL = `${window.location}resources/arenas/`;

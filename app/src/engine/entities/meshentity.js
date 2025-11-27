@@ -1,7 +1,7 @@
-import { mat4, quat } from "../dependencies/gl-matrix.js";
+import { mat4, quat } from "../../dependencies/gl-matrix.js";
+import { Shaders } from "../rendering/shaders.js";
+import Resources from "../systems/resources.js";
 import { Entity, EntityTypes } from "./entity.js";
-import Resources from "./resources.js";
-import { Shaders } from "./shaders.js";
 
 class MeshEntity extends Entity {
 	constructor(position, name, updateCallback, scale = 1) {

@@ -1,4 +1,4 @@
-import { css, html, Reactive } from "../engine/reactive.js";
+import { css, html, Reactive } from "../engine/utils/reactive.js";
 
 // Menu UI component
 class _MenuUI extends Reactive.Component {

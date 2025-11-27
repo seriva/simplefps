@@ -1,8 +1,8 @@
-import { mat4, quat, vec3 } from "../dependencies/gl-matrix.js";
-import BoundingBox from "./boundingbox.js";
+import { mat4, quat, vec3 } from "../../dependencies/gl-matrix.js";
+import { Shaders } from "../rendering/shaders.js";
+import { spotlightVolume } from "../rendering/shapes.js";
+import BoundingBox from "../utils/boundingbox.js";
 import { Entity, EntityTypes } from "./entity.js";
-import { Shaders } from "./shaders.js";
-import { spotlightVolume } from "./shapes.js";
 
 class SpotLightEntity extends Entity {
 	constructor(

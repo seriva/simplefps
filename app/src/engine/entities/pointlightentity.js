@@ -1,7 +1,7 @@
-import { mat4, vec3 } from "../dependencies/gl-matrix.js";
+import { mat4, vec3 } from "../../dependencies/gl-matrix.js";
+import { Shaders } from "../rendering/shaders.js";
+import { pointLightVolume } from "../rendering/shapes.js";
 import { Entity, EntityTypes } from "./entity.js";
-import { Shaders } from "./shaders.js";
-import { pointLightVolume } from "./shapes.js";
 
 class PointLightEntity extends Entity {
 	static SCALE_FACTOR = 0.625;

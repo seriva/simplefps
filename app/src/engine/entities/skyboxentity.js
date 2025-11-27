@@ -1,10 +1,10 @@
-import { mat4 } from "../dependencies/gl-matrix.js";
-import Camera from "./camera.js";
-import { gl } from "./context.js";
+import { mat4 } from "../../dependencies/gl-matrix.js";
+import Camera from "../core/camera.js";
+import { gl } from "../core/context.js";
+import { Shaders } from "../rendering/shaders.js";
+import { skyBox } from "../rendering/shapes.js";
+import Resources from "../systems/resources.js";
 import { Entity, EntityTypes } from "./entity.js";
-import Resources from "./resources.js";
-import { Shaders } from "./shaders.js";
-import { skyBox } from "./shapes.js";
 
 class SkyboxEntity extends Entity {
 	static FACE_NAMES = ["front", "back", "top", "bottom", "right", "left"];

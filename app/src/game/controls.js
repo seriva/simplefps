@@ -6,7 +6,7 @@ import {
 	Resources,
 	Settings,
 	Utils,
-} from "../engine/engine.js";
+} from "../engine/core/engine.js";
 import State from "./state.js";
 import Translations from "./translations.js";
 import UI from "./ui.js";

@@ -1,5 +1,5 @@
-import BoundingBox from "./boundingbox.js";
-import { gl } from "./context.js";
+import { gl } from "../core/context.js";
+import BoundingBox from "../utils/boundingbox.js";
 
 class Mesh {
 	static ATTR_POSITIONS = 0;

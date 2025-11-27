@@ -1,4 +1,4 @@
-import * as CANNON from "../dependencies/cannon-es.js";
+import * as CANNON from "../../dependencies/cannon-es.js";
 
 // Private state
 let _world = null;
