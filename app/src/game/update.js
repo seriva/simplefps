@@ -1,6 +1,5 @@
-import { Console, Loading, Utils } from "../engine/core/engine.js";
-import Translations from "./translations.js";
-import UI from "./ui.js";
+import { Console, Loading } from "../engine/core/engine.js";
+import State from "./state.js";
 
 // ============================================================================
 // Private
@@ -16,32 +15,10 @@ const _update = () => {
 			action: "skipWaiting",
 		});
 	} else {
-		Utils.dispatchCustomEvent("changestate", {
-			state: "GAME",
-		});
+		State.enterGame();
 		Console.log("SW - No new service worker found to update");
 	}
 };
-
-UI.register("UPDATE_MENU", {
-	header: Translations.get("VERSION_NEW"),
-	controls: [
-		{
-			text: Translations.get("YES"),
-			callback: () => {
-				_update();
-			},
-		},
-		{
-			text: Translations.get("NO"),
-			callback: () => {
-				Utils.dispatchCustomEvent("changestate", {
-					state: "GAME",
-				});
-			},
-		},
-	],
-});
 
 if (navigator.serviceWorker) {
 	navigator.serviceWorker
@@ -52,20 +29,14 @@ if (navigator.serviceWorker) {
 			_registration.update();
 			if (_registration.waiting) {
 				_newServiceWorker = _registration.waiting;
-				Utils.dispatchCustomEvent("changestate", {
-					state: "MENU",
-					menu: "UPDATE_MENU",
-				});
+				State.enterMenu("UPDATE_MENU");
 			} else {
 				_registration.addEventListener("updatefound", () => {
 					Console.log("SW - Service worker update found");
 					_newServiceWorker = _registration.installing;
 					_newServiceWorker.addEventListener("statechange", () => {
 						if (_newServiceWorker.state === "installed") {
-							Utils.dispatchCustomEvent("changestate", {
-								state: "MENU",
-								menu: "UPDATE_MENU",
-							});
+							State.enterMenu("UPDATE_MENU");
 						}
 					});
 				});
@@ -89,12 +60,10 @@ if (navigator.serviceWorker) {
 // ============================================================================
 
 const Update = {
+	update: _update,
 	force: () => {
 		if (_newServiceWorker !== null) {
-			Utils.dispatchCustomEvent("changestate", {
-				state: "MENU",
-				menu: "UPDATE_MENU",
-			});
+			State.enterMenu("UPDATE_MENU");
 			return;
 		}
 		if (_registration !== null) {

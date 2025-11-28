@@ -1,7 +1,6 @@
 import Settings from "../core/settings.js";
 import { css, html, Reactive } from "../utils/reactive.js";
 import Utils from "../utils/utils.js";
-import Console from "./console.js";
 
 // ============================================================================
 // Private
@@ -16,7 +15,6 @@ let _pressed = {};
 let _upevents = [];
 let _downevents = [];
 let _timeout;
-let _gamepad = false;
 let _updateCallback = null;
 
 window.addEventListener(
@@ -70,25 +68,6 @@ window.addEventListener(
 	},
 	false,
 );
-
-window.addEventListener("gamepadconnected", () => {
-	const gp = navigator.getGamepads()[0];
-	Console.log(`Gamepad connected: : ${gp.id}`);
-	_gamepad = true;
-	Utils.dispatchCustomEvent("changestate", {
-		state: "MENU",
-		menu: "MAIN_MENU",
-	});
-});
-
-window.addEventListener("gamepaddisconnected", () => {
-	Console.log("Gamepad disconnected");
-	_gamepad = false;
-	Utils.dispatchCustomEvent("changestate", {
-		state: "MENU",
-		menu: "MAIN_MENU",
-	});
-});
 
 // Mobile Virtual Input Component
 class _VirtualInputUI extends Reactive.Component {
@@ -359,7 +338,7 @@ class _VirtualInputUI extends Reactive.Component {
 		if (show === undefined) {
 			this.visible.set(!this.visible.get());
 		} else {
-			this.visible.set(show && !_gamepad);
+			this.visible.set(show);
 		}
 	}
 }
@@ -370,33 +349,6 @@ if (Utils.isMobile()) {
 	_virtualInput = new _VirtualInputUI();
 	_virtualInput.appendTo("body");
 }
-
-// update virtual input
-const _updateGamepad = () => {
-	const gp = navigator.getGamepads()[0];
-	if (_gamepad && gp) {
-		delete _pressed[Settings.forward];
-		delete _pressed[Settings.backwards];
-		delete _pressed[Settings.left];
-		delete _pressed[Settings.right];
-
-		if (gp.axes[0] < 0) {
-			_pressed[Settings.left] = true;
-		} else if (gp.axes[0] > 0) {
-			_pressed[Settings.right] = true;
-		}
-		if (gp.axes[1] < 0) {
-			_pressed[Settings.forward] = true;
-		} else if (gp.axes[1] > 0) {
-			_pressed[Settings.backwards] = true;
-		}
-
-		// TODO: add sensitivity
-		_setCursorMovement(gp.axes[2] * 15, gp.axes[3] * 15);
-	}
-	window.requestAnimationFrame(_updateGamepad);
-};
-window.requestAnimationFrame(_updateGamepad);
 
 // ============================================================================
 // Public API

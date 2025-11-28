@@ -3,14 +3,10 @@ import {
 	Camera,
 	Console,
 	Input,
-	Resources,
 	Settings,
 	Utils,
 } from "../engine/core/engine.js";
 import State from "./state.js";
-import Translations from "./translations.js";
-import UI from "./ui.js";
-import Update from "./update.js";
 import Weapons from "./weapons.js";
 
 // ============================================================================
@@ -21,47 +17,20 @@ const _CAMERA_SENSITIVITY_DIVISOR = 33.0;
 const _MAX_VERTICAL_ROTATION = 89;
 const _MOVEMENT_SPEED_MULTIPLIER = 5;
 
-const _music = Resources.get("sounds/music.sfx");
-
-UI.register("MAIN_MENU", {
-	header: Translations.get("MAIN_MENU"),
-	controls: [
-		{
-			text: Translations.get("CONTINUE_GAME"),
-			callback: () => {
-				Utils.dispatchCustomEvent("changestate", {
-					state: "GAME",
-				});
-				_music.resume();
-			},
-		},
-		{
-			text: Translations.get("VERSION_CHECK"),
-			callback: () => {
-				Update.force();
-			},
-		},
-	],
-});
-
 const _initializeEventListeners = () => {
 	// Pointer lock events
 	document.addEventListener(
 		"pointerlockchange",
 		() => {
 			if (document.pointerLockElement === null && State.current !== "MENU") {
-				Utils.dispatchCustomEvent("changestate", {
-					state: "MENU",
-					menu: "MAIN_MENU",
-				});
-				music.pause();
+				State.enterMenu("MAIN_MENU");
 			}
 		},
 		false,
 	);
 
 	document.addEventListener("pointerlockerror", () => {
-		Utils.dispatchCustomEvent("changestate", { state: "GAME" });
+		State.enterGame();
 	});
 
 	// Window focus event
@@ -69,10 +38,7 @@ const _initializeEventListeners = () => {
 		"focus",
 		() => {
 			if (State.current !== "MENU") {
-				Utils.dispatchCustomEvent("changestate", {
-					state: "MENU",
-					menu: "MAIN_MENU",
-				});
+				State.enterMenu("MAIN_MENU");
 			}
 		},
 		false,
@@ -95,6 +61,25 @@ const _initializeEventListeners = () => {
 const _initializeConsoleControls = () => {
 	Input.addKeyDownEvent(192, Console.toggle);
 	Input.addKeyDownEvent(13, Console.executeCmd);
+};
+
+const _handleEscapeKey = () => {
+	if (Console.isVisible()) return;
+
+	if (State.current === "GAME") {
+		State.enterMenu("MAIN_MENU");
+	} else if (State.current === "MENU") {
+		State.enterGame();
+	}
+};
+
+const _initializeKeyboardControls = () => {
+	window.addEventListener("keyup", (e) => {
+		if (e.key === "Escape") {
+			e.preventDefault();
+			_handleEscapeKey();
+		}
+	});
 };
 
 Input.setUpdateCallback((frameTime) => {
@@ -179,6 +164,7 @@ Input.setUpdateCallback((frameTime) => {
 
 _initializeEventListeners();
 _initializeConsoleControls();
+_initializeKeyboardControls();
 
 // ============================================================================
 // Public API

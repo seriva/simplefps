@@ -1,5 +1,6 @@
 import { css, html, Reactive } from "../engine/utils/reactive.js";
 import Utils from "../engine/utils/utils.js";
+import State from "./state.js";
 
 // ============================================================================
 // Private
@@ -72,12 +73,14 @@ class _HUDUI extends Reactive.Component {
 	mount() {
 		if (this._isMobile) {
 			this.on(this.refs.menuBtn, "click", () => {
-				Utils.dispatchCustomEvent("changestate", {
-					state: "MENU",
-					menu: "MAIN_MENU",
-				});
+				State.enterMenu("MAIN_MENU");
 			});
 		}
+
+		// Subscribe to state changes to toggle visibility
+		State.signal.subscribe((state) => {
+			this.toggle(state === "GAME");
+		});
 	}
 
 	toggle(show) {

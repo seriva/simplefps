@@ -1,4 +1,11 @@
-import { Console, loop, Resources, Utils } from "./engine/core/engine.js";
+import {
+	Console,
+	Loading,
+	loop,
+	Resources,
+	Utils,
+} from "./engine/core/engine.js";
+import State from "./game/state.js";
 
 async function loadGameModules() {
 	Utils.dispatchCustomEvent("loading", { state: "LOADING_MODULES" });
@@ -7,9 +14,10 @@ async function loadGameModules() {
 		import("./game/controls.js").catch((_err) => null),
 		import("./game/arena.js").catch((_err) => null),
 		import("./game/weapons.js").catch((_err) => null),
+		import("./game/menus.js").catch((_err) => null),
 	]);
 
-	const [_controls, arena, weapons] = modules;
+	const [_controls, arena, weapons, _menus] = modules;
 
 	if (!arena?.default || !weapons?.default) {
 		Console.error("Failed to load required game modules");
@@ -29,12 +37,11 @@ async function loadGameModules() {
 	await Arena.load("demo");
 	Weapons.load();
 
-	// Add small delay to ensure first frame renders before showing menu
+	// Give the game a moment to render, then hide loading screen and show main menu
+	State.enterGame();
 	setTimeout(() => {
-		Utils.dispatchCustomEvent("changestate", {
-			state: "MENU",
-			menu: "MAIN_MENU",
-		});
+		Loading.toggle(false);
+		State.enterMenu("MAIN_MENU");
 	}, 100);
 
 	loop();

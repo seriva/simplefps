@@ -39,7 +39,6 @@
         "arenas/demo/materials.mat",
         "arenas/demo/chunks/entity0.bmesh",
 
-        "sounds/music.sfx",
         "sounds/shoot.sfx"
     ]
 }
