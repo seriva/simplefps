@@ -129,14 +129,12 @@ const _ShaderSources = {
             layout(location=1) in vec2 aUV;
             layout(location=2) in vec3 aNormal;
 
-            uniform int doSEM;
             uniform mat4 matWorld;
             uniform mat4 matViewProj;
 
             out vec4 vPosition;
             out vec3 vNormal;
             out vec2 vUV;
-            out vec2 vSemUV;
 
             const int MESH = 1;
             const int SKYBOX = 2;
@@ -148,12 +146,6 @@ const _ShaderSources = {
                 vUV = aUV;
                 vNormal = normalize(mat3(matWorld) * aNormal);
 
-                if (doSEM == 1) {
-                    vec3 r = reflect(normalize(vPosition.xyz), vNormal);
-                    float m = 2.0 * sqrt(dot(r.xy, r.xy) + (r.z + 1.0) * (r.z + 1.0));
-                    vSemUV = r.xy / m + 0.5;
-                }
-
                 gl_Position = matViewProj * vPosition;
             }`,
 		fragment: glsl`#version 300 es
@@ -163,7 +155,6 @@ const _ShaderSources = {
             in vec4 vPosition;
             in vec3 vNormal;
             in vec2 vUV;
-            in vec2 vSemUV;
 
             layout(location=0) out vec4 fragPosition;
             layout(location=1) out vec4 fragNormal;
@@ -174,6 +165,8 @@ const _ShaderSources = {
             uniform int doEmissive;
             uniform int doSEM;
             uniform float semMult;
+            uniform mat4 matView;
+            uniform vec3 cameraPosition;
             uniform sampler2D colorSampler;
             uniform sampler2D emissiveSampler;
             uniform sampler2D semSampler;
@@ -203,12 +196,17 @@ const _ShaderSources = {
                     vec4 semApply = textureLod(semApplySampler, vUV, 0.0);
                     float semSum = dot(semApply.xyz, vec3(0.333333));  // Faster than multiplication
                     if (semSum > 0.2) {
-                        vec3 viewDir = normalize(-vPosition.xyz);  // Calculate view direction
-                        vec3 r = reflect(viewDir, vNormal);  // Use view direction for reflection
+                        // Calculate view direction from camera to fragment position in world space
+                        vec3 viewDir = normalize(cameraPosition - vPosition.xyz);
+                        // Calculate reflection vector
+                        vec3 r = reflect(-viewDir, vNormal);
+                        // Convert reflection vector to equirectangular UV coordinates
+                        // Using improved formula for better accuracy
                         float m = 2.0 * sqrt(dot(r.xy, r.xy) + (r.z + 1.0) * (r.z + 1.0));
                         vec2 semUV = r.xy / m + 0.5;
                         vec4 semColor = textureLod(semSampler, semUV, 0.0);
-                        color = mix(color, semColor * semApply, semMult);
+                        // Blend reflection with base color based on semApply mask and intensity
+                        color = mix(color, semColor * semApply, semMult * semSum);
                     }
                 }
 

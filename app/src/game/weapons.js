@@ -58,6 +58,7 @@ const _ANIMATION = {
 			VERTICAL: 0.01,
 		},
 	},
+	MOVEMENT_FADE_SPEED: 0.005,
 };
 
 const _state = {
@@ -69,6 +70,7 @@ const _state = {
 	firingStart: 0,
 	firingTimer: 0,
 	isMoving: false,
+	movementBlend: 0,
 };
 
 const _grenadeShape = new CANNON.Sphere(
@@ -114,6 +116,13 @@ const _updateGrenade = (entity) => {
 const _createWeaponAnimation = (entity, frameTime) => {
 	entity.animationTime += frameTime;
 
+	// Smoothly blend movement animation based on movement state
+	const targetBlend = _state.isMoving ? 1 : 0;
+	_state.movementBlend +=
+		(targetBlend - _state.movementBlend) *
+		_ANIMATION.MOVEMENT_FADE_SPEED *
+		frameTime;
+
 	const animations = {
 		fire: _calculateFireAnimation(frameTime),
 		movement: _calculateMovementAnimation(entity.animationTime),
@@ -139,16 +148,16 @@ const _calculateFireAnimation = (frameTime) => {
 };
 
 const _calculateMovementAnimation = (animationTime) => {
-	if (!_state.isMoving) return { horizontal: 0, vertical: 0 };
+	const horizontal =
+		Math.cos(Math.PI * (animationTime / _ANIMATION.HORIZONTAL_PERIOD)) *
+		_ANIMATION.AMPLITUDES.HORIZONTAL_MOVE *
+		_state.movementBlend;
+	const vertical =
+		-Math.cos(Math.PI * (animationTime / _ANIMATION.VERTICAL_PERIOD)) *
+		_ANIMATION.AMPLITUDES.VERTICAL_MOVE *
+		_state.movementBlend;
 
-	return {
-		horizontal:
-			Math.cos(Math.PI * (animationTime / _ANIMATION.HORIZONTAL_PERIOD)) *
-			_ANIMATION.AMPLITUDES.HORIZONTAL_MOVE,
-		vertical:
-			-Math.cos(Math.PI * (animationTime / _ANIMATION.VERTICAL_PERIOD)) *
-			_ANIMATION.AMPLITUDES.VERTICAL_MOVE,
-	};
+	return { horizontal, vertical };
 };
 
 const _calculateIdleAnimation = (animationTime) => ({
