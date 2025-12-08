@@ -15,8 +15,7 @@ Simple first person arena shooter game written in ES6 and WebGL with a PWA distr
 
 ## Tech Stack
 
-**Core**: ES6 Modules, WebGL, Cannon.js (physics), gl-matrix (3D math)  
-**UI**: JSS (CSS-in-JS), Maquette (Virtual DOM)  
+**Core**: ES6 Modules, WebGL, cannon-es (physics), gl-matrix (3D math)  
 **Build**: Microtastic (dev server, production builds, hot-reload)  
 **Tools**: Biome (linting/formatting), Husky (git hooks), Devcontainer (development environment)
 
@@ -26,11 +25,11 @@ Simple first person arena shooter game written in ES6 and WebGL with a PWA distr
 app/
 ├── src/
 │   ├── engine/           # Core engine modules
-│   │   ├── camera.js     # Camera system
-│   │   ├── renderer.js   # WebGL renderer
-│   │   ├── physics.js    # Physics integration
-│   │   ├── input.js      # Input handling
-│   │   └── ...
+│   │   ├── core/         # Scene, camera, timing
+│   │   ├── entities/     # Entity system
+│   │   ├── rendering/    # WebGL renderer, shaders
+│   │   ├── systems/      # Physics, input, audio
+│   │   └── utils/        # Helpers and utilities
 │   ├── game/             # Game-specific modules
 │   │   ├── weapons.js    # Weapon system
 │   │   ├── controls.js   # Game controls
@@ -38,7 +37,7 @@ app/
 │   │   └── ...
 │   └── main.js           # Application entry point
 ├── resources/            # Game assets
-└── index.html           # Main HTML file
+└── index.html            # Main HTML file
 ```
 
 ## Quick Start
@@ -48,7 +47,7 @@ Open in VS Code with Dev Containers extension - all dependencies are pre-configu
 
 ### Manual Setup
 ```bash
-npm install              # Install dependencies (Node.js >= 18.0.0, npm >= 8.0.0)
+npm install              # Install dependencies (Node.js >= 20.0.0, npm >= 9.0.0)
 npm run prepare          # Setup Husky git hooks + bundle dependencies
 ```
 

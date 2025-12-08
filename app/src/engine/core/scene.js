@@ -264,7 +264,7 @@ const _updateVisibility = () => {
 
 	// Reset visibility lists
 	for (const type of Object.keys(_visibilityCache)) {
-		_visibilityCache[type] = [];
+		_visibilityCache[type].length = 0;
 	}
 
 	// Sort entities into visible/invisible lists
