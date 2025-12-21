@@ -108,5 +108,7 @@ dist
 public
 app/src/dependencies
 
-# tool specific - ignore everything in tools/ except import-map.js
+# tool specific - ignore everything in tools/ except import-map.js and bsp2map.js
+scripts/*
 !scripts/import-map.js
+!scripts/bsp2map.js
