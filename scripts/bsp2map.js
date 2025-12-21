@@ -68,10 +68,25 @@ function parseVertices(buffer, lump, scale) {
         const u = buffer.readFloatLE(off + 12);
         const v = buffer.readFloatLE(off + 16);
 
+        // Read Lightmap UVs
+        const lmu = buffer.readFloatLE(off + 20);
+        const lmv = buffer.readFloatLE(off + 24);
+
         // Read Normals, rotate to Y-up
-        const nx = buffer.readFloatLE(off + 20);
-        const ny = buffer.readFloatLE(off + 24);
-        const nz = buffer.readFloatLE(off + 28);
+        // Read Normals, rotate to Y-up
+        const nx = buffer.readFloatLE(off + 28);
+        const ny = buffer.readFloatLE(off + 32);
+        const nz = buffer.readFloatLE(off + 36);
+
+        // Read color (4 bytes)
+        const r = buffer[off + 40];
+        const g = buffer[off + 41];
+        const b = buffer[off + 42];
+        const a = buffer[off + 43];
+
+        if (i < 5) {
+            console.log(`Vertex ${i} Color: ${r}, ${g}, ${b}, ${a}`);
+        }
 
         vertices.push({
             x: x,
@@ -79,6 +94,8 @@ function parseVertices(buffer, lump, scale) {
             z: -y,
             u: u,
             v: 1 - v, // Flip V
+            lmu: lmu,
+            lmv: lmv,
             nx: nx,
             ny: nz,
             nz: -ny
@@ -240,7 +257,7 @@ function convertTextures(usedTextures, textureDir, outputDir, arenaName) {
     console.log(`Converted ${convertedCount} textures.`);
 }
 
-function exportMap(vertices, meshVerts, faces, textures, outputDir, arenaName, textureDir) {
+function exportMap(vertices, meshVerts, faces, textures, outputDir, arenaName, textureDir, shaderMap) {
     fs.mkdirSync(outputDir, { recursive: true });
 
     // Group faces by texture
@@ -330,10 +347,113 @@ function exportMap(vertices, meshVerts, faces, textures, outputDir, arenaName, t
     const materialsData = {
         materials: Array.from(usedTextures).map(fullPath => {
             const name = path.basename(fullPath);
-            return {
+            const blendTextures = [];
+            let doEmissive = 0;
+
+            // 1. Check Shader Definition
+            if (shaderMap) {
+                // BSP texture names often omit extension, e.g. "textures/dsi_textures/steplight1b"
+                // Shader names usually match this exactly.
+                const shaderStages = shaderMap.get(fullPath.toLowerCase());
+
+                if (shaderStages) {
+                    // console.log(`DEBUG: Checking shader for ${fullPath}`);
+                    for (const stage of shaderStages) {
+                        const lines = stage.split('\n').map(l => l.trim());
+                        const isAdditive = lines.some(l =>
+                            /^blendfunc\s+add/i.test(l) ||
+                            /^blendfunc\s+gl_one\s+gl_one/i.test(l) ||
+                            /^blendfunc\s+gl_src_alpha\s+gl_one/i.test(l)
+                        );
+
+                        if (isAdditive) {
+                            // extracting map
+                            const mapLine = lines.find(l => /^map\s+/i.test(l));
+                            if (mapLine) {
+                                let mapPath = mapLine.split(/\s+/)[1];
+                                if (mapPath && mapPath !== '$lightmap') {
+                                    // Found an additive texture map!
+                                    // mapPath e.g. "textures/dsi_textures/steplight1.blend.tga"
+
+                                    // Convert this texture
+                                    if (textureDir) {
+                                        let relativePath = mapPath;
+                                        if (relativePath.startsWith('textures/')) {
+                                            relativePath = relativePath.substring(9);
+                                        }
+
+                                        // Try extensions
+                                        // The mapPath usually has extension in shader file
+                                        const srcFile = path.join(textureDir, relativePath);
+
+                                        // If srcFile doesn't exist, try removing/changing extension?
+                                        // Q3 shaders specifying .tga might point to .jpg on disk theoretically?
+
+                                        if (fs.existsSync(srcFile)) {
+                                            const blendBaseName = path.basename(mapPath, path.extname(mapPath)); // steplight1.blend
+                                            const blendDestName = `${blendBaseName}_blend.webp`;
+
+                                            const blendDestPath = path.join(outputDir, blendDestName);
+                                            try {
+                                                execSync(`convert "${srcFile}" -quality 90 -define webp:lossless=true "${blendDestPath}"`);
+                                                // Only add if not already added?
+                                                const existing = blendTextures.find(t => t.endsWith(blendDestName));
+                                                if (!existing) {
+                                                    const arenaPath = `${arenaName}/${blendDestName}`;
+                                                    blendTextures.push(arenaPath);
+                                                    doEmissive = 1;
+                                                    console.log(`Found shader blend texture: ${srcFile} -> ${blendDestName}`);
+                                                }
+                                            } catch (e) {
+                                                console.error(`Failed to convert shader blend texture ${srcFile}:`, e.message);
+                                            }
+                                        } else {
+                                            // console.warn(`Shader referenced texture not found: ${srcFile}`);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 2. Fallback to filename matching if shader lookeup failed?
+            // Or only rely on shader if available?
+            // Let's keep the filename check as backup but only if we haven't found valid ones yet.
+            if (textureDir && blendTextures.length === 0) {
+                // ... (existing fallback logic) ...
+                let relativePath = fullPath;
+                if (relativePath.startsWith('textures/')) {
+                    relativePath = relativePath.substring(9);
+                }
+                const blendEXT = '.blend.tga';
+                const srcFile = path.join(textureDir, relativePath + blendEXT);
+
+                if (fs.existsSync(srcFile)) {
+                    const blendDestName = `${name}_blend.webp`;
+                    const blendDestPath = path.join(outputDir, blendDestName);
+
+                    try {
+                        execSync(`convert "${srcFile}" -quality 90 -define webp:lossless=true "${blendDestPath}"`);
+                        blendTextures.push(`${arenaName}/${blendDestName}`);
+                        doEmissive = 1;
+                        console.log(`Found inferred blend texture: ${srcFile}`);
+                    } catch (e) {
+                        console.error("Failed to convert blend texture", e);
+                    }
+                }
+            }
+
+            const matDef = {
                 name: name,
-                textures: [`${arenaName}/${name}.webp`]
+                textures: [`${arenaName}/${name}.webp`, ...blendTextures]
             };
+
+            if (doEmissive) {
+                matDef.doEmissive = 1;
+            }
+            return matDef;
         })
     };
     fs.writeFileSync(path.join(outputDir, 'materials.mat'), JSON.stringify(materialsData, null, 4));
@@ -342,11 +462,15 @@ function exportMap(vertices, meshVerts, faces, textures, outputDir, arenaName, t
     const configData = {
         skybox: 1,
         lighting: {
-            ambient: [1, 1, 1],
+            ambient: [0.5, 0.5, 0.5],
             directional: [
                 {
                     direction: [-0.4, 1, -0.4],
                     color: [0.8, 0.8, 0.8]
+                },
+                {
+                    direction: [0.4, 0.5, 0.4], // Back/Fill light
+                    color: [0.3, 0.3, 0.3]
                 }
             ],
             spot: [],
@@ -365,6 +489,51 @@ function exportMap(vertices, meshVerts, faces, textures, outputDir, arenaName, t
 
     fs.writeFileSync(path.join(outputDir, 'config.arena'), JSON.stringify(configData, null, 4));
     console.log(`Wrote config.arena and materials.mat to ${outputDir}`);
+
+    // Update resources.list
+    const resourcesListPath = path.join(outputDir, '../../resources.list');
+    if (fs.existsSync(resourcesListPath)) {
+        try {
+            const resourcesData = JSON.parse(fs.readFileSync(resourcesListPath, 'utf8'));
+            const specificResources = new Set(resourcesData.resources);
+
+            // Add generated assets
+            const newAssets = [
+                `${arenaName}/materials.mat`,
+                `${arenaName}/chunks/Level.bmesh`
+            ];
+
+            // Add all textures (base + blend)
+            materialsData.materials.forEach(mat => {
+                mat.textures.forEach(tex => {
+                    newAssets.push(tex);
+                });
+            });
+
+            let addedCount = 0;
+            newAssets.forEach(asset => {
+                if (!specificResources.has(asset)) {
+                    resourcesData.resources.push(asset);
+                    addedCount++;
+                }
+            });
+
+            if (addedCount > 0) {
+                fs.writeFileSync(
+                    resourcesListPath,
+                    JSON.stringify(resourcesData, null, 4) // Standard JSON formatting
+                );
+                console.log(`Updated resources.list with ${addedCount} new assets.`);
+            } else {
+                console.log(`resources.list is already up to date.`);
+            }
+
+        } catch (e) {
+            console.error('Failed to update resources.list:', e);
+        }
+    } else {
+        console.warn(`Could not find resources.list at ${resourcesListPath}`);
+    }
 }
 
 // Run
@@ -379,14 +548,99 @@ if (!inputFile || !outputDir) {
     process.exit(1);
 }
 
+
+function parseShaderFiles(shaderDir) {
+    if (!fs.existsSync(shaderDir)) return new Map();
+
+    const shaderMap = new Map();
+    const files = fs.readdirSync(shaderDir).filter(f => f.endsWith('.shader'));
+
+    for (const file of files) {
+        const content = fs.readFileSync(path.join(shaderDir, file), 'utf8');
+        // Simple regex-based parser for Q3 shaders
+        // This is a naive implementation but sufficient for this structure
+        // Fix: Exclude } from being matched as a name
+        const blocks = content.split(/^([^\s{}]+)\s*$/m);
+
+        // Split often leaves empty first element
+        for (let i = 1; i < blocks.length; i += 2) {
+            const name = blocks[i].trim();
+            const body = blocks[i + 1];
+
+            if (name === 'textures/dsi_textures/dsiglass') {
+                console.log(`DEBUG: Found dsiglass shader. Body length: ${body.length}`);
+            }
+
+            if (!body) continue;
+
+            const stages = [];
+            let bracketDepth = 0;
+            let currentStage = '';
+
+            // Extract stages {} inside the body {}
+            // The body string starts with { and ends with } roughly
+            const innerBody = body.substring(body.indexOf('{') + 1, body.lastIndexOf('}'));
+
+            for (let j = 0; j < innerBody.length; j++) {
+                const char = innerBody[j];
+                if (char === '{') {
+                    bracketDepth++;
+                    currentStage = '';
+                } else if (char === '}') {
+                    bracketDepth--;
+                    if (bracketDepth === 0) {
+                        stages.push(currentStage.trim());
+                    }
+                } else if (bracketDepth > 0) {
+                    currentStage += char;
+                }
+            }
+
+            if (name === 'textures/dsi_textures/dsiglass') {
+                console.log(`DEBUG: dsiglass has ${stages.length} stages.`);
+                stages.forEach((s, idx) => {
+                    console.log(`  Stage ${idx}:`, s.split('\n').map(x => x.trim()).join(' | '));
+                });
+            }
+
+            shaderMap.set(name.toLowerCase(), stages);
+        }
+    }
+    console.log(`Parsed ${shaderMap.size} shaders. Keys:`, Array.from(shaderMap.keys()));
+    return shaderMap;
+}
+
+function findExampleTextures(shaderMap, shaderDir) {
+    // Debug helper
+    console.log(`Parsed ${shaderMap.size} shaders.`);
+}
+
+// ... existing code ...
+
+const shaderDir = path.join(path.dirname(inputFile), '../scripts');
+// Assuming input is scripts/test/maps/oildm1.bsp, shaders are in scripts/test/scripts/
+// Adjust path resolution logic as needed.
+
 try {
     const { buffer, lumps } = readBSP(inputFile);
+
+    // const entities = parseEntities(buffer, lumps[LUMP_ENTITIES]);
+    // console.log("Entities String Sample:", entities.substring(0, 500)); // Check worldspawn keys
+
+    // Resolve shader directory
+    // If input is scripts/test/maps/oildm1.bsp -> root = scripts/test
+    // shaders = scripts/test/scripts
+    const mapDir = path.dirname(inputFile);
+    const shaderDir = path.join(mapDir, '../scripts');
+
+    const shaderMap = parseShaderFiles(shaderDir);
+
     const vertices = parseVertices(buffer, lumps[LUMP_VERTEXES], scale);
     const meshVerts = parseMeshVerts(buffer, lumps[LUMP_MESHVERTS]);
     const faces = parseFaces(buffer, lumps[LUMP_FACES]);
     const textures = parseTextures(buffer, lumps[LUMP_TEXTURES]);
 
-    exportMap(vertices, meshVerts, faces, textures, outputDir, arenaName, textureDir);
+    exportMap(vertices, meshVerts, faces, textures, outputDir, arenaName, textureDir, shaderMap);
 } catch (e) {
     console.error('Conversion failed:', e);
 }
