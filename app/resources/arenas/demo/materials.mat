@@ -1,9 +1,81 @@
 {
     "materials": [
         {
-            "name": "concrete1",
+            "name": "cretetrimlight4",
             "textures": [
-                "arenas/demo/concrete1.webp"
+                "arenas/demo/cretetrimlight4.webp"
+            ]
+        },
+        {
+            "name": "cretebase4",
+            "textures": [
+                "arenas/demo/cretebase4.webp"
+            ]
+        },
+        {
+            "name": "steplight1b",
+            "textures": [
+                "arenas/demo/steplight1b.webp"
+            ]
+        },
+        {
+            "name": "cretewalllight01",
+            "textures": [
+                "arenas/demo/cretewalllight01.webp"
+            ]
+        },
+        {
+            "name": "cretebase",
+            "textures": [
+                "arenas/demo/cretebase.webp"
+            ]
+        },
+        {
+            "name": "cretelighttrim01",
+            "textures": [
+                "arenas/demo/cretelighttrim01.webp"
+            ]
+        },
+        {
+            "name": "cretebase2",
+            "textures": [
+                "arenas/demo/cretebase2.webp"
+            ]
+        },
+        {
+            "name": "cretebase3",
+            "textures": [
+                "arenas/demo/cretebase3.webp"
+            ]
+        },
+        {
+            "name": "cretetrimlight2",
+            "textures": [
+                "arenas/demo/cretetrimlight2.webp"
+            ]
+        },
+        {
+            "name": "cretetrimlight3",
+            "textures": [
+                "arenas/demo/cretetrimlight3.webp"
+            ]
+        },
+        {
+            "name": "weapspawn01",
+            "textures": [
+                "arenas/demo/weapspawn01.webp"
+            ]
+        },
+        {
+            "name": "dsiglass",
+            "textures": [
+                "arenas/demo/dsiglass.webp"
+            ]
+        },
+        {
+            "name": "q1_tele",
+            "textures": [
+                "arenas/demo/q1_tele.webp"
             ]
         }
     ]

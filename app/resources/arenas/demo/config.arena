@@ -1,22 +1,42 @@
 {
-    "skybox" : 1,
-    "lighting" : {
-        "ambient" : [0.3,0.3,0.3],
-        "directional" : [
+    "skybox": 1,
+    "lighting": {
+        "ambient": [
+            1,
+            1,
+            1
+        ],
+        "directional": [
             {
-                "direction" : [0.4,1,0.4],
-                "color" : [0.8,0.8,0.8]
+                "direction": [
+                    -0.4,
+                    1,
+                    -0.4
+                ],
+                "color": [
+                    0.8,
+                    0.8,
+                    0.8
+                ]
             }
         ],
-        "spot" : [],
-        "point" : []
+        "spot": [],
+        "point": []
     },
-    "chunks" : [
-        "arenas/demo/chunks/entity0.bmesh"
+    "chunks": [
+        "arenas/demo/chunks/Level.bmesh"
     ],
-    "spawnpoint" : {
-        "position" : [0,5,0],
-        "rotation" : [0,0,0]
+    "spawnpoint": {
+        "position": [
+            0,
+            0,
+            0
+        ],
+        "rotation": [
+            0,
+            0,
+            0
+        ]
     },
-    "pickups" : []
+    "pickups": []
 }
