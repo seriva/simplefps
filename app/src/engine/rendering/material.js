@@ -15,14 +15,15 @@ class Material {
 		this.doEmissive = data.doEmissive || 0;
 		this.doSEM = data.doSEM || 0;
 		this.semMult = data.semMult || 0;
+		this.translucent = data.translucent || false;
 
 		for (const name of this.textures.filter((name) => name !== "none")) {
 			resources.load([name]);
 		}
 	}
 
-	bind() {
-		const shader = Shaders.geometry;
+	bind(shader = Shaders.geometry) {
+		if (!shader) shader = Shaders.geometry;
 		shader.setInt("colorSampler", 0);
 		shader.setInt("emissiveSampler", 1);
 		shader.setInt("semSampler", 2);

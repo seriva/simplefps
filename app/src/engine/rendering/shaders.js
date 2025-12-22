@@ -632,6 +632,39 @@ const _ShaderSources = {
                 fragColor.rgb = pow(fragColor.rgb, vec3(1.0 / gamma));
             }`,
 	},
+	glass: {
+		vertex: glsl`#version 300 es
+            precision highp float;
+            precision highp int;
+
+            layout(location=0) in vec3 aPosition;
+            layout(location=1) in vec2 aUV;
+            layout(location=2) in vec3 aNormal;
+
+            uniform mat4 matWorld;
+            uniform mat4 matViewProj;
+
+            out vec2 vUV;
+
+            void main() {
+                vUV = aUV;
+                gl_Position = matViewProj * matWorld * vec4(aPosition, 1.0);
+            }`,
+		fragment: glsl`#version 300 es
+            precision highp float;
+            precision highp int;
+
+            in vec2 vUV;
+
+            layout(location=0) out vec4 fragColor;
+
+            uniform sampler2D colorSampler;
+
+            void main() {
+                vec4 color = texture(colorSampler, vUV);
+                fragColor = color;
+            }`,
+	},
 	debug: {
 		vertex: glsl`#version 300 es
             precision highp float;

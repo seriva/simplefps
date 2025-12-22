@@ -130,10 +130,15 @@ const _update = (frameTime) => {
 };
 
 // Helper to render entities
-const _renderEntities = (entityType, renderMethod = "render") => {
+const _renderEntities = (
+	entityType,
+	renderMethod = "render",
+	filter = null,
+	shader = Shaders.geometry,
+) => {
 	const targetEntities = _visibilityCache[entityType];
 	for (const entity of targetEntities) {
-		entity[renderMethod]();
+		entity[renderMethod](filter, shader);
 	}
 };
 
@@ -168,9 +173,27 @@ const _renderWorldGeometry = () => {
 		}
 	}
 
+	// filter out translucent materials
+	const opaqueFilter = (material) => !material || !material.translucent;
+
 	_renderEntities(EntityTypes.SKYBOX);
-	_renderEntities(EntityTypes.MESH);
-	_renderEntities(EntityTypes.FPS_MESH);
+	_renderEntities(EntityTypes.MESH, "render", opaqueFilter);
+	_renderEntities(EntityTypes.FPS_MESH, "render", opaqueFilter);
+
+	Shader.unBind();
+};
+
+const _renderGlass = () => {
+	Shaders.glass.bind();
+	mat4.identity(_matModel);
+	Shaders.glass.setMat4("matViewProj", Camera.viewProjection);
+
+	Shaders.glass.setMat4("matWorld", _matModel);
+	Shaders.glass.setInt("colorSampler", 0);
+
+	const glassFilter = (material) => material?.translucent;
+
+	_renderEntities(EntityTypes.MESH, "render", glassFilter, Shaders.glass);
 
 	Shader.unBind();
 };
@@ -343,6 +366,7 @@ const Scene = {
 	addEntities: _addEntities,
 	getEntities: _getEntities,
 	renderWorldGeometry: _renderWorldGeometry,
+	renderGlass: _renderGlass,
 	renderLighting: _renderLighting,
 	renderShadows: _renderShadows,
 	renderFPSGeometry: _renderFPSGeometry,

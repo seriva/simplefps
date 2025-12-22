@@ -488,8 +488,8 @@ function exportMap(vertices, meshVerts, faces, textures, lightmaps, outputDir, a
     for (const face of faces) {
         if (face.type === 1 || face.type === 3) {
             const texName = textures[face.texture];
-            // Filter out sky and glass surfaces
-            if (texName.toLowerCase().includes('sky') || texName.toLowerCase().includes('glass')) {
+            // Filter out sky surfaces
+            if (texName.toLowerCase().includes('sky')) {
                 continue;
             }
 
@@ -676,6 +676,10 @@ function exportMap(vertices, meshVerts, faces, textures, lightmaps, outputDir, a
 
             if (doEmissive) {
                 matDef.doEmissive = 1;
+            }
+
+            if (name.toLowerCase().includes('glass')) {
+                matDef.translucent = true;
             }
 
             return matDef;

@@ -13,9 +13,9 @@ class Mesh {
 		gl.enableVertexAttribArray(attribute);
 	}
 
-	#bindMaterial(indexObj, applyMaterial) {
+	#bindMaterial(indexObj, applyMaterial, shader) {
 		if (indexObj.material !== "none" && applyMaterial && this.resources) {
-			this.resources.get(indexObj.material).bind();
+			this.resources.get(indexObj.material).bind(shader);
 		}
 	}
 
@@ -114,15 +114,32 @@ class Mesh {
 			gl.disableVertexAttribArray(Mesh.ATTR_LIGHTMAP_UVS);
 	}
 
-	renderSingle(applyMaterial = true, renderMode = gl.TRIANGLES) {
+	renderSingle(
+		applyMaterial = true,
+		renderMode = gl.TRIANGLES,
+		filter = null,
+		shader = null,
+	) {
 		this.bind();
-		this.renderIndices(applyMaterial, renderMode);
+		this.renderIndices(applyMaterial, renderMode, filter, shader);
 		this.unBind();
 	}
 
-	renderIndices(applyMaterial, renderMode = gl.TRIANGLES) {
+	renderIndices(
+		applyMaterial,
+		renderMode = gl.TRIANGLES,
+		filter = null,
+		shader = null,
+	) {
 		for (const indexObj of this.indices) {
-			this.#bindMaterial(indexObj, applyMaterial);
+			if (filter) {
+				const material =
+					this.resources && indexObj.material !== "none"
+						? this.resources.get(indexObj.material)
+						: null;
+				if (!filter(material)) continue;
+			}
+			this.#bindMaterial(indexObj, applyMaterial, shader);
 			gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexObj.indexBuffer);
 			gl.drawElements(
 				renderMode,

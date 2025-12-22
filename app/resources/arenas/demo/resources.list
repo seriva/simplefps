@@ -18,6 +18,8 @@
         "arenas/demo/textures/cretetrimlight3.webp",
         "arenas/demo/textures/weapspawn01.webp",
         "arenas/demo/textures/weapspawn01.blend.webp",
-        "arenas/demo/textures/q1_tele.webp"
+        "arenas/demo/textures/q1_tele.webp",
+        "arenas/demo/textures/dsiglass.webp",
+        "arenas/demo/textures/dsitinfx.webp"
     ]
 }

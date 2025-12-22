@@ -199,6 +199,13 @@ const _resize = (width, height) => {
 		_l.light.texture,
 		0,
 	);
+	gl.framebufferTexture2D(
+		gl.FRAMEBUFFER,
+		gl.DEPTH_ATTACHMENT,
+		gl.TEXTURE_2D,
+		_depth.texture,
+		0,
+	);
 	_checkFramebufferStatus();
 	gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
@@ -307,19 +314,24 @@ const _endGeomPass = () => {
 };
 
 const _worldGeomPass = () => {
+	gl.depthRange(0.1, 1.0);
 	_startGeomPass();
 
 	Scene.renderWorldGeometry();
 
 	_endGeomPass();
+	gl.depthRange(0.0, 1.0);
 };
 
 const _fpsGeomPass = () => {
-	_startGeomPass(true);
+	// Don't clear depth, just use a closer depth range so it draws on top
+	gl.depthRange(0.0, 0.1);
+	gl.bindFramebuffer(gl.FRAMEBUFFER, _g.framebuffer);
 
 	Scene.renderFPSGeometry();
 
-	_endGeomPass();
+	gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+	gl.depthRange(0.0, 1.0);
 };
 
 const _shadowPass = () => {
@@ -368,6 +380,33 @@ const _emissiveBlurPass = () => {
 	);
 };
 
+const _glassPass = () => {
+	gl.bindFramebuffer(gl.FRAMEBUFFER, _l.framebuffer);
+
+	// Match the depth range of the world geometry pass so depth comparisons are valid
+	gl.depthRange(0.1, 1.0);
+
+	// Glass pass uses the existing depth buffer for testing but not writing (handled by Scene.renderGlass internal setup usually, but we should be explicit here if needed)
+	// We want to blend glass on top of lighting buffer
+	gl.enable(gl.BLEND);
+	gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+
+	// Ensure we read depth but don't write it (standard for transparency)
+	gl.enable(gl.DEPTH_TEST);
+	gl.depthFunc(gl.LEQUAL);
+	gl.depthMask(false);
+	gl.disable(gl.CULL_FACE);
+
+	Scene.renderGlass();
+
+	gl.enable(gl.CULL_FACE);
+	gl.depthMask(true);
+	gl.disable(gl.BLEND);
+
+	gl.depthRange(0.0, 1.0);
+	gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+};
+
 const _postProcessingPass = () => {
 	_g.color.bind(gl.TEXTURE0);
 	_l.light.bind(gl.TEXTURE1);
@@ -410,6 +449,7 @@ const Renderer = {
 		_shadowPass();
 		_fpsGeomPass();
 		_lightingPass();
+		_glassPass();
 		_emissiveBlurPass();
 		_postProcessingPass();
 		_debugPass();

@@ -1,4 +1,5 @@
 import { mat4, quat } from "../../dependencies/gl-matrix.js";
+import { gl } from "../core/context.js";
 import { Shaders } from "../rendering/shaders.js";
 import Resources from "../systems/resources.js";
 import { Entity, EntityTypes } from "./entity.js";
@@ -13,12 +14,12 @@ class MeshEntity extends Entity {
 		mat4.scale(this.base_matrix, this.base_matrix, [scale, scale, scale]);
 	}
 
-	render() {
+	render(filter = null, shader = Shaders.geometry) {
 		if (!this.visible) return;
 		const m = mat4.create();
 		mat4.multiply(m, this.base_matrix, this.ani_matrix);
-		Shaders.geometry.setMat4("matWorld", m);
-		this.mesh.renderSingle();
+		shader.setMat4("matWorld", m);
+		this.mesh.renderSingle(true, gl.TRIANGLES, filter, shader);
 	}
 
 	renderWireFrame() {
