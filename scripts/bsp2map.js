@@ -762,8 +762,13 @@ function exportMap(vertices, meshVerts, faces, textures, lightmaps, outputDir, a
         skybox: 1,
         lightmap: atlasName ? `${arenaName}/${atlasName}` : null,
         lighting: {
-            ambient: [1.0, 1.0, 1.0],
-            directional: [],
+            ambient: [0.01, 0.01, 0.01],
+            directional: [
+                {
+                    direction: [0.3, -0.8, 0.5],
+                    color: [0.4, 0.5, 0.6]
+                }
+            ],
             spot: [],
             point: []
         },
@@ -800,42 +805,25 @@ function exportMap(vertices, meshVerts, faces, textures, lightmaps, outputDir, a
     const uniqueMapAssets = [...new Set(mapAssets)];
     const added = updateResourceList(path.join(outputDir, 'resources.list'), uniqueMapAssets);
     console.log(`Updated ${arenaName}/resources.list with ${added} new assets.`);
-
-    // Update main resources.list to include the map's list
-    const mainResourcesListPath = path.join(outputDir, '../../resources.list');
-    if (fs.existsSync(mainResourcesListPath)) {
-        try {
-            const mainListRef = `${arenaName}/resources.list`;
-            const mainAddedCount = updateResourceList(mainResourcesListPath, [mainListRef]);
-
-            if (mainAddedCount > 0) {
-                console.log(`Updated main resources.list linked to ${mainListRef}`);
-            } else {
-                console.log(`Main resources.list already links to ${mainListRef}`);
-            }
-        } catch (e) {
-            console.error('Failed to update main resources.list:', e);
-        }
-    } else {
-        console.warn(`Could not find resources.list at ${mainResourcesListPath}`);
-    }
 }
 
 // Parse command line arguments
 if (process.argv.length < 6) {
-    console.log('Usage: node bsp2map.js <input.bsp> <output_dir> <arena_name> <scale> [texture_dir] [lightmap_scale] [overbright]');
+    console.log('Usage: node bsp2map.js <input.bsp> <output_dir> <arena_name> [texture_dir] [scale] [lightmap_scale] [overbright]');
+    console.log('  texture_dir: Optional path to textures directory');
+    console.log('  scale: Optional scale factor for geometry (default: 0.03)');
     console.log('  lightmap_scale: Optional upscale factor for lightmaps (default: 2, range: 1-4)');
-    console.log('  overbright: Optional brightness multiplier for lightmaps (default: 4, Quake 3 standard)');
+    console.log('  overbright: Optional brightness multiplier for lightmaps (default: 5.7)');
     process.exit(1);
 }
 
 const bspFile = process.argv[2];
 const outputDir = process.argv[3];
 const arenaName = process.argv[4];
-const scale = parseFloat(process.argv[5]);
-const textureDir = process.argv[6] || null;
-const lightmapScale = process.argv[7] ? parseInt(process.argv[7]) : 2; // Default 2x upscale
-const overbright = process.argv[8] ? parseFloat(process.argv[8]) : 4; // Default 4x overbright (Q3 standard)
+const textureDir = process.argv[5] || null;
+const scale = process.argv[6] ? parseFloat(process.argv[6]) : 0.03;
+const lightmapScale = process.argv[7] ? parseInt(process.argv[7]) : 2;
+const overbright = process.argv[8] ? parseFloat(process.argv[8]) : 5.7;
 
 try {
     const { buffer, lumps } = readBSP(bspFile);

@@ -371,21 +371,24 @@ const _emissiveBlurPass = () => {
 const _postProcessingPass = () => {
 	_g.color.bind(gl.TEXTURE0);
 	_l.light.bind(gl.TEXTURE1);
-	_g.emissive.bind(gl.TEXTURE2);
+	_g.normal.bind(gl.TEXTURE2);
+	_g.emissive.bind(gl.TEXTURE3);
 	const dirt = Resources.get("system/dirt.webp");
-	dirt.bind(gl.TEXTURE3);
+	dirt.bind(gl.TEXTURE4);
 	Shaders.postProcessing.bind();
 	Shaders.postProcessing.setInt("doFXAA", Settings.doFXAA);
 	Shaders.postProcessing.setInt("colorBuffer", 0);
 	Shaders.postProcessing.setInt("lightBuffer", 1);
-	Shaders.postProcessing.setInt("emissiveBuffer", 2);
-	Shaders.postProcessing.setInt("dirtBuffer", 3);
+	Shaders.postProcessing.setInt("normalBuffer", 2);
+	Shaders.postProcessing.setInt("emissiveBuffer", 3);
+	Shaders.postProcessing.setInt("dirtBuffer", 4);
 	Shaders.postProcessing.setVec2("viewportSize", [
 		Context.width(),
 		Context.height(),
 	]);
 	Shaders.postProcessing.setFloat("emissiveMult", Settings.emissiveMult);
 	Shaders.postProcessing.setFloat("gamma", Settings.gamma);
+	Shaders.postProcessing.setVec3("ambient", Scene.getAmbient());
 	screenQuad.renderSingle();
 
 	Shader.unBind();
@@ -393,6 +396,7 @@ const _postProcessingPass = () => {
 	Texture.unBind(gl.TEXTURE1);
 	Texture.unBind(gl.TEXTURE2);
 	Texture.unBind(gl.TEXTURE3);
+	Texture.unBind(gl.TEXTURE4);
 };
 
 const _debugPass = () => {

@@ -185,8 +185,8 @@ const _ShaderSources = {
                 vec4 color = textureLod(colorSampler, vUV, 0.0);
                 if(color.a < 0.5) discard;
                 
-                // Use lightmap if available, otherwise default to white
-                if (hasLightmap == 1) {
+                // Use lightmap if available, but NOT for skybox
+                if (hasLightmap == 1 && geomType != SKYBOX) {
                     color *= textureLod(lightmapSampler, vLightmapUV, 0.0);
                 }
 
@@ -196,7 +196,10 @@ const _ShaderSources = {
                 // Combine geomType checks to reduce branching
                 if (geomType != SKYBOX) {
                     fragPosition = vPosition;
-                    fragNormal = vec4(vNormal, 0.0);
+                    // Store lightmap flag in normal.w for post-processing
+                    // 0.0 = use deferred lighting, 1.0 = has lightmap
+                    float lightmapFlag = float(hasLightmap);
+                    fragNormal = vec4(vNormal, lightmapFlag);
                 } else {
                     fragNormal = vec4(0.0, 0.0, 0.0, 1.0);
                 }
@@ -304,13 +307,22 @@ const _ShaderSources = {
 
             void main() {
                 vec2 uv = gl_FragCoord.xy / viewportSize;
-                vec3 normal = texture(normalBuffer, uv).xyz;
-                float isSkybox = texture(normalBuffer, uv).w;
+                vec4 normalData = texture(normalBuffer, uv);
+                vec3 normal = normalData.xyz;
+                float lightmapFlag = normalData.w;
+                float isSkybox = normalData.w;
 
-                // Calculate light intensity only if not a skybox
+                // Skip lightmapped surfaces (lightmapFlag > 0.5)
+                // Directional lights should only affect dynamic objects
+                if (lightmapFlag > 0.5) {
+                    fragColor = vec4(0.0, 0.0, 0.0, 1.0);
+                    return;
+                }
+
+                // Calculate light intensity only if not a skybox and not lightmapped
                 vec3 lightIntensity = mix(
                     directionalLight.color * max(dot(normalize(normal), normalize(directionalLight.direction)), 0.0),
-                    vec3(1.0),
+                    vec3(0.0),
                     isSkybox
                 );
 
@@ -486,11 +498,13 @@ const _ShaderSources = {
             uniform bool doFXAA;
             uniform sampler2D colorBuffer;
             uniform sampler2D lightBuffer;
+            uniform sampler2D normalBuffer;
             uniform sampler2D emissiveBuffer;
             uniform sampler2D dirtBuffer;
             uniform vec2 viewportSize;
             uniform float emissiveMult;
             uniform float gamma;
+            uniform vec3 ambient;
 
             #define FXAA_EDGE_THRESHOLD_MIN 0.0312
             #define FXAA_EDGE_THRESHOLD_MAX 0.125
@@ -584,10 +598,29 @@ const _ShaderSources = {
                 vec2 uv = gl_FragCoord.xy / viewportSize;
                 vec4 color = doFXAA ? applyFXAA(gl_FragCoord.xy) : texture(colorBuffer, uv);
                 vec4 light = texture(lightBuffer, uv);
+                vec4 normal = texture(normalBuffer, uv);
                 vec4 emissive = texture(emissiveBuffer, uv);
                 vec4 dirt = texture(dirtBuffer, uv);
 
-                fragColor = (color * light) + (emissive * emissiveMult);
+                // Read lightmap flag from normal.w
+                // 1.0 = has lightmap (additive lighting), 0.0 = dynamic object (multiplicative lighting)
+                float hasLightmap = normal.w;
+
+                // Hybrid blending:
+                // - Lightmapped surfaces: color already has (albedo * lightmap), add dynamic lights
+                // - Dynamic objects: color has albedo only, multiply by total lighting
+                if (hasLightmap > 0.5) {
+                    // Lightmapped surface: add dynamic lights on top of baked lighting
+                    // Subtract ambient so we only add the dynamic contribution
+                    vec3 dynamicLight = max(light.rgb - ambient, vec3(0.0));
+                    fragColor = vec4(color.rgb + dynamicLight, color.a);
+                } else {
+                    // Dynamic object: standard deferred lighting
+                    fragColor = color * light;
+                }
+                
+                // Add emissive
+                fragColor += emissive * emissiveMult;
 
                 // Apply dirt using soft light blend mode
                 fragColor.rgb = vec3(

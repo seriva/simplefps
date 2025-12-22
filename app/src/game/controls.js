@@ -15,7 +15,7 @@ import Weapons from "./weapons.js";
 
 const _CAMERA_SENSITIVITY_DIVISOR = 33.0;
 const _MAX_VERTICAL_ROTATION = 89;
-const _MOVEMENT_SPEED_MULTIPLIER = 5;
+const _MOVEMENT_SPEED_MULTIPLIER = 1.5;
 
 const _initializeEventListeners = () => {
 	// Pointer lock events
