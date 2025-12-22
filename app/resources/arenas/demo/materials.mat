@@ -3,87 +3,87 @@
         {
             "name": "cretetrimlight4",
             "textures": [
-                "arenas/demo/cretetrimlight4.webp",
-                "arenas/demo/cretelighttrim01.blend_blend.webp"
+                "arenas/demo/textures/cretetrimlight4.webp",
+                "arenas/demo/textures/cretelighttrim01.blend.webp"
             ],
             "doEmissive": 1
         },
         {
             "name": "cretebase4",
             "textures": [
-                "arenas/demo/cretebase4.webp"
+                "arenas/demo/textures/cretebase4.webp"
             ]
         },
         {
             "name": "steplight1b",
             "textures": [
-                "arenas/demo/steplight1b.webp",
-                "arenas/demo/steplight1.blend_blend.webp"
+                "arenas/demo/textures/steplight1b.webp",
+                "arenas/demo/textures/steplight1.blend.webp"
             ],
             "doEmissive": 1
         },
         {
             "name": "cretewalllight01",
             "textures": [
-                "arenas/demo/cretewalllight01.webp",
-                "arenas/demo/cretewalllight01.blend_blend.webp"
+                "arenas/demo/textures/cretewalllight01.webp",
+                "arenas/demo/textures/cretewalllight01.blend.webp"
             ],
             "doEmissive": 1
         },
         {
             "name": "cretebase",
             "textures": [
-                "arenas/demo/cretebase.webp"
+                "arenas/demo/textures/cretebase.webp"
             ]
         },
         {
             "name": "cretelighttrim01",
             "textures": [
-                "arenas/demo/cretelighttrim01.webp",
-                "arenas/demo/cretelighttrim01.blend_blend.webp"
+                "arenas/demo/textures/cretelighttrim01.webp",
+                "arenas/demo/textures/cretelighttrim01.blend.webp"
             ],
             "doEmissive": 1
         },
         {
             "name": "cretebase2",
             "textures": [
-                "arenas/demo/cretebase2.webp"
+                "arenas/demo/textures/cretebase2.webp"
             ]
         },
         {
             "name": "cretebase3",
             "textures": [
-                "arenas/demo/cretebase3.webp"
+                "arenas/demo/textures/cretebase3.webp"
             ]
         },
         {
             "name": "cretetrimlight2",
             "textures": [
-                "arenas/demo/cretetrimlight2.webp",
-                "arenas/demo/cretelighttrim01.blend_blend.webp"
+                "arenas/demo/textures/cretetrimlight2.webp",
+                "arenas/demo/textures/cretelighttrim01.blend.webp"
             ],
             "doEmissive": 1
         },
         {
             "name": "cretetrimlight3",
             "textures": [
-                "arenas/demo/cretetrimlight3.webp",
-                "arenas/demo/cretelighttrim01.blend_blend.webp"
+                "arenas/demo/textures/cretetrimlight3.webp",
+                "arenas/demo/textures/cretelighttrim01.blend.webp"
             ],
             "doEmissive": 1
         },
         {
             "name": "weapspawn01",
             "textures": [
-                "arenas/demo/weapspawn01.webp",
-                "arenas/demo/weapspawn01.blend_blend.webp"
+                "arenas/demo/textures/weapspawn01.webp",
+                "arenas/demo/textures/weapspawn01.blend.webp"
             ],
             "doEmissive": 1
         },
         {
             "name": "q1_tele",
             "textures": [
-                "arenas/demo/q1_tele.webp"
+                "arenas/demo/textures/q1_tele.webp"
             ]
         }
     ]

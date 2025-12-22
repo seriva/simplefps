@@ -363,9 +363,13 @@ function exportMap(vertices, meshVerts, faces, textures, outputDir, arenaName, t
     writeBMesh(meshData, path.join(chunksDir, 'level.bmesh'));
     console.log(`Wrote level.bmesh with ${flatVertices.length / 3} vertices and ${indicesGroups.length} material groups.`);
 
+    // Create textures directory
+    const texturesOutputDir = path.join(outputDir, 'textures');
+    fs.mkdirSync(texturesOutputDir, { recursive: true });
+
     // Convert Textures
     if (textureDir) {
-        convertTextures(usedTextures, textureDir, outputDir, arenaName);
+        convertTextures(usedTextures, textureDir, texturesOutputDir, arenaName);
     }
 
     // Write materials.mat
@@ -416,15 +420,15 @@ function exportMap(vertices, meshVerts, faces, textures, outputDir, arenaName, t
 
                                         if (fs.existsSync(srcFile)) {
                                             const blendBaseName = path.basename(mapPath, path.extname(mapPath)); // steplight1.blend
-                                            const blendDestName = `${blendBaseName}_blend.webp`;
+                                            const blendDestName = `${blendBaseName}.webp`;
 
-                                            const blendDestPath = path.join(outputDir, blendDestName);
+                                            const blendDestPath = path.join(texturesOutputDir, blendDestName);
                                             try {
                                                 execSync(`convert "${srcFile}" -quality 90 -define webp:lossless=true "${blendDestPath}"`);
                                                 // Only add if not already added?
                                                 const existing = blendTextures.find(t => t.endsWith(blendDestName));
                                                 if (!existing) {
-                                                    const arenaPath = `${arenaName}/${blendDestName}`;
+                                                    const arenaPath = `${arenaName}/textures/${blendDestName}`;
                                                     blendTextures.push(arenaPath);
                                                     doEmissive = 1;
                                                     console.log(`Found shader blend texture: ${srcFile} -> ${blendDestName}`);
@@ -456,12 +460,12 @@ function exportMap(vertices, meshVerts, faces, textures, outputDir, arenaName, t
                 const srcFile = path.join(textureDir, relativePath + blendEXT);
 
                 if (fs.existsSync(srcFile)) {
-                    const blendDestName = `${name}_blend.webp`;
-                    const blendDestPath = path.join(outputDir, blendDestName);
+                    const blendDestName = `${name}.blend.webp`;
+                    const blendDestPath = path.join(texturesOutputDir, blendDestName);
 
                     try {
                         execSync(`convert "${srcFile}" -quality 90 -define webp:lossless=true "${blendDestPath}"`);
-                        blendTextures.push(`${arenaName}/${blendDestName}`);
+                        blendTextures.push(`${arenaName}/textures/${blendDestName}`);
                         doEmissive = 1;
                         console.log(`Found inferred blend texture: ${srcFile}`);
                     } catch (e) {
@@ -472,7 +476,7 @@ function exportMap(vertices, meshVerts, faces, textures, outputDir, arenaName, t
 
             const matDef = {
                 name: name,
-                textures: [`${arenaName}/${name}.webp`, ...blendTextures]
+                textures: [`${arenaName}/textures/${name}.webp`, ...blendTextures]
             };
 
             if (doEmissive) {

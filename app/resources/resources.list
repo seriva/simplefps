@@ -3,7 +3,6 @@
         "system/dirt.webp",
         "system/black.webp",
         "system/white.webp",
-        
         "skybox/1.mat",
         "skybox/1_front.webp",
         "skybox/1_back.webp",
@@ -11,7 +10,6 @@
         "skybox/1_bottom.webp",
         "skybox/1_left.webp",
         "skybox/1_right.webp",
-
         "meshes/health.webp",
         "meshes/health_emissive.webp",
         "meshes/armor.webp",
@@ -20,7 +18,7 @@
         "meshes/ammo_emissive.webp",
         "meshes/grenade_launcher.webp",
         "meshes/grenade_launcher_emissive.webp",
-        "meshes/grenade_launcher_sem.webp",   
+        "meshes/grenade_launcher_sem.webp",
         "meshes/minigun.webp",
         "meshes/minigun_emissive.webp",
         "meshes/minigun_sem.webp",
@@ -35,7 +33,6 @@
         "meshes/minigun.mesh",
         "meshes/ball.mesh",
         "sounds/shoot.sfx",
-
         "arenas/demo/resources.list"
     ]
 }
