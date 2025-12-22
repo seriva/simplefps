@@ -623,11 +623,11 @@ const _ShaderSources = {
                 fragColor += emissive * emissiveMult;
 
                 // Apply dirt using soft light blend mode
-                fragColor.rgb = vec3(
-                    applySoftLight(fragColor.r, dirt.r),
-                    applySoftLight(fragColor.g, dirt.g),
-                    applySoftLight(fragColor.b, dirt.b)
-                );
+                // fragColor.rgb = vec3(
+                //     applySoftLight(fragColor.r, dirt.r),
+                //     applySoftLight(fragColor.g, dirt.g),
+                //     applySoftLight(fragColor.b, dirt.b)
+                // );
 
                 fragColor.rgb = pow(fragColor.rgb, vec3(1.0 / gamma));
             }`,
@@ -645,24 +645,52 @@ const _ShaderSources = {
             uniform mat4 matViewProj;
 
             out vec2 vUV;
+            out vec3 vNormal;
+            out vec4 vPosition;
 
             void main() {
                 vUV = aUV;
-                gl_Position = matViewProj * matWorld * vec4(aPosition, 1.0);
+                vPosition = matWorld * vec4(aPosition, 1.0);
+                vNormal = normalize(mat3(matWorld) * aNormal);
+                gl_Position = matViewProj * vPosition;
             }`,
 		fragment: glsl`#version 300 es
             precision highp float;
             precision highp int;
 
             in vec2 vUV;
+            in vec3 vNormal;
+            in vec4 vPosition;
 
             layout(location=0) out vec4 fragColor;
 
             uniform sampler2D colorSampler;
             uniform float opacity;
+            
+            // SEM uniforms
+            uniform int doSEM;
+            uniform float semMult;
+            uniform sampler2D semSampler;
+            uniform sampler2D semApplySampler;
+            uniform vec3 cameraPosition;
 
             void main() {
                 vec4 color = texture(colorSampler, vUV);
+                
+                // Apply SEM if enabled
+                if (doSEM == 1) {
+                    vec4 semApply = textureLod(semApplySampler, vUV, 0.0);
+                    float semSum = dot(semApply.xyz, vec3(0.333333));
+                    if (semSum > 0.1) { // Slightly lowered threshold
+                        vec3 viewDir = normalize(cameraPosition - vPosition.xyz);
+                        vec3 r = reflect(-viewDir, vNormal);
+                        float m = 2.0 * sqrt(dot(r.xy, r.xy) + (r.z + 1.0) * (r.z + 1.0));
+                        vec2 semUV = r.xy / m + 0.5;
+                        vec4 semColor = textureLod(semSampler, semUV, 0.0);
+                        color = mix(color, semColor * semApply, semMult * semSum);
+                    }
+                }
+
                 fragColor = vec4(color.rgb, color.a * opacity);
             }`,
 	},

@@ -191,6 +191,7 @@ const _renderGlass = () => {
 
 	Shaders.glass.setMat4("matWorld", _matModel);
 	Shaders.glass.setInt("colorSampler", 0);
+	Shaders.glass.setVec3("cameraPosition", Camera.position); // Required for SEM logic
 
 	_renderEntities(EntityTypes.MESH, "render", "translucent", Shaders.glass);
 

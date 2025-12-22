@@ -84,17 +84,26 @@
             "name": "dsiglass",
             "textures": [
                 "arenas/demo/textures/dsiglass.webp",
-                "arenas/demo/textures/dsitinfx.webp"
+                "arenas/demo/textures/dsitinfx.webp",
+                "arenas/demo/textures/spheremap.webp",
+                "arenas/demo/textures/dsiglass.webp"
             ],
             "doEmissive": 1,
             "translucent": true,
-            "opacity": 0.8
+            "opacity": 0.8,
+            "doSEM": 1,
+            "semMult": 0.8
         },
         {
             "name": "q1_tele",
             "textures": [
-                "arenas/demo/textures/q1_tele.webp"
-            ]
+                "arenas/demo/textures/q1_tele.webp",
+                "none",
+                "arenas/demo/textures/spheremap.webp",
+                "system/white.webp"
+            ],
+            "doSEM": 1,
+            "semMult": 0.5
         }
     ]
 }

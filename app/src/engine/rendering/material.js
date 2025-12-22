@@ -27,35 +27,34 @@ class Material {
 		if (!shader) shader = Shaders.geometry;
 		shader.setInt("colorSampler", 0);
 
+		// Common uniforms for both Geometry and Glass shaders
+		shader.setInt("semSampler", 2);
+		shader.setInt("semApplySampler", 3);
+		shader.setInt("doSEM", this.doSEM);
+		shader.setFloat("semMult", this.semMult);
+
 		if (shader !== Shaders.glass) {
 			shader.setInt("emissiveSampler", 1);
-			shader.setInt("semSampler", 2);
-			shader.setInt("semApplySampler", 3);
 			shader.setInt("lightmapSampler", 4);
 			shader.setInt("geomType", this.geomType);
 			shader.setInt("doEmissive", this.doEmissive);
-			shader.setInt("doSEM", this.doSEM);
-			// hasLightmap is set globally by Scene, don't override it here
-			shader.setFloat("semMult", this.semMult);
 		} else {
 			shader.setFloat("opacity", this.opacity);
 		}
 
-		let index = 0;
-		for (const name of this.textures) {
+		for (let i = 0; i < this.textures.length; i++) {
+			const name = this.textures[i];
 			if (name === "none") continue;
-			const textureUnit = gl.TEXTURE0 + index;
+			const textureUnit = gl.TEXTURE0 + i;
 			this.resources.get(name).bind(textureUnit);
-			index++;
 		}
 	}
 
 	unBind() {
-		let index = 0;
-		for (const name of this.textures) {
+		for (let i = 0; i < this.textures.length; i++) {
+			const name = this.textures[i];
 			if (name === "none") continue;
-			Texture.unBind(gl.TEXTURE0 + index);
-			index++;
+			Texture.unBind(gl.TEXTURE0 + i);
 		}
 	}
 }
