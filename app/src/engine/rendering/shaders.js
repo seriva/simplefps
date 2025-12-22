@@ -128,8 +128,7 @@ const _ShaderSources = {
             layout(location=0) in vec3 aPosition;
             layout(location=1) in vec2 aUV;
             layout(location=2) in vec3 aNormal;
-            layout(location=3) in vec4 aColor;
-            layout(location=4) in vec2 aLightmapUV;
+            layout(location=3) in vec2 aLightmapUV;
 
             uniform mat4 matWorld;
             uniform mat4 matViewProj;
@@ -137,20 +136,17 @@ const _ShaderSources = {
             out vec4 vPosition;
             out vec3 vNormal;
             out vec2 vUV;
-            out vec4 vColor;
             out vec2 vLightmapUV;
 
             const int MESH = 1;
             const int SKYBOX = 2;
 
             void main() {
-                vPosition = vec4(aPosition, 1.0);
-                vPosition = matWorld * vPosition;
+                vPosition = matWorld * vec4(aPosition, 1.0);
 
                 vUV = aUV;
                 vLightmapUV = aLightmapUV;
                 vNormal = normalize(mat3(matWorld) * aNormal);
-                vColor = aColor;
 
                 gl_Position = matViewProj * vPosition;
             }`,
@@ -161,7 +157,6 @@ const _ShaderSources = {
             in vec4 vPosition;
             in vec3 vNormal;
             in vec2 vUV;
-            in vec4 vColor;
             in vec2 vLightmapUV;
 
             layout(location=0) out vec4 fragPosition;
@@ -190,11 +185,9 @@ const _ShaderSources = {
                 vec4 color = textureLod(colorSampler, vUV, 0.0);
                 if(color.a < 0.5) discard;
                 
-                // Use lightmap if available, otherwise vertex color
+                // Use lightmap if available, otherwise default to white
                 if (hasLightmap == 1) {
                     color *= textureLod(lightmapSampler, vLightmapUV, 0.0);
-                } else {
-                    color *= vColor;
                 }
 
                 // Initialize fragEmissive to zero

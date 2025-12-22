@@ -1,6 +1,6 @@
 {
     "skybox": 1,
-    "lightmap": "arenas/demo/lightmaps/lightmap_atlas.webp",
+    "lightmap": "arenas/demo/lightmaps.webp",
     "lighting": {
         "ambient": [
             1,
@@ -12,7 +12,7 @@
         "point": []
     },
     "chunks": [
-        "arenas/demo/chunks/level.bmesh"
+        "arenas/demo/geometry.bmesh"
     ],
     "spawnpoints": [
         {

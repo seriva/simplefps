@@ -70,45 +70,36 @@ function parseVertices(buffer, lump, scale) {
     for (let i = 0; i < count; i++) {
         const off = lump.offset + i * VERTEX_SIZE;
 
-        // Read pos, rotate to Y-up, and scale
+        // Position (scaled and coordinate system transformed)
         const x = buffer.readFloatLE(off) * scale;
         const y = buffer.readFloatLE(off + 4) * scale;
         const z = buffer.readFloatLE(off + 8) * scale;
 
-        // Read UVs
+        // Texture UVs
         const u = buffer.readFloatLE(off + 12);
         const v = buffer.readFloatLE(off + 16);
 
-        // Read Lightmap UVs
+        // Lightmap UVs (flipped V coordinate)
         const lmu = buffer.readFloatLE(off + 20);
         const lmv = buffer.readFloatLE(off + 24);
 
-        // Read Normals
+        // Normal
         const nx = buffer.readFloatLE(off + 28);
         const ny = buffer.readFloatLE(off + 32);
         const nz = buffer.readFloatLE(off + 36);
 
-        // Read color with Quake 3 overbright amplification
-        const r = Math.min(1.0, (buffer[off + 40] * COLOR_AMPLIFICATION) / 255.0);
-        const g = Math.min(1.0, (buffer[off + 41] * COLOR_AMPLIFICATION) / 255.0);
-        const b = Math.min(1.0, (buffer[off + 42] * COLOR_AMPLIFICATION) / 255.0);
-        const a = buffer[off + 43] / 255.0;
-
+        // Store vertex (Q3 Z-up -> Engine Y-up coordinate system)
         vertices.push({
             x: x,
             y: z,
             z: -y,
             u: u,
-            v: 1 - v, // Flip V
+            v: 1 - v,
             lmu: lmu,
-            lmv: 1 - lmv, // Flip lightmap V too
+            lmv: 1 - lmv,
             nx: nx,
             ny: nz,
-            nz: -ny,
-            r: r,
-            g: g,
-            b: b,
-            a: a
+            nz: -ny
         });
     }
     return vertices;
@@ -204,7 +195,7 @@ function parseEntities(buffer, lump) {
     return entities;
 }
 
-function writeBMesh(meshData, outputPath) {
+function writeBMesh(outputPath, meshData) {
     let totalIndicesCount = 0;
     for (const group of meshData.indices) {
         totalIndicesCount += group.array.length;
@@ -329,9 +320,6 @@ function exportLightmaps(lightmaps, outputDir) {
         return { atlasName: null, gridSize: 0 };
     }
 
-    const lightmapDir = path.join(outputDir, 'lightmaps');
-    fs.mkdirSync(lightmapDir, { recursive: true });
-
     // Calculate dynamic atlas grid size (next integer that fits all lightmaps in a square)
     const gridSize = Math.ceil(Math.sqrt(lightmaps.length));
     const atlasSize = gridSize * LIGHTMAP_SIZE;
@@ -367,10 +355,10 @@ function exportLightmaps(lightmaps, outputDir) {
         }
     }
 
-    // Export atlas as WebP
-    const atlasName = 'lightmap_atlas.webp';
-    const outputPath = path.join(lightmapDir, atlasName);
-    const tempPPM = path.join(lightmapDir, 'temp_atlas.ppm');
+    // Export atlas as WebP to arena root
+    const atlasName = 'lightmaps.webp';
+    const outputPath = path.join(outputDir, atlasName);
+    const tempPPM = path.join(outputDir, 'temp_atlas.ppm');
     const ppmHeader = `P6\n${atlasSize} ${atlasSize}\n255\n`;
     const ppmData = Buffer.concat([Buffer.from(ppmHeader), Buffer.from(atlasPixels)]);
 
@@ -559,10 +547,8 @@ function exportMap(vertices, meshVerts, faces, textures, lightmaps, outputDir, a
         });
     }
 
-    // Write level.bmesh
-    const chunksDir = path.join(outputDir, 'chunks');
-    fs.mkdirSync(chunksDir, { recursive: true });
-
+    // Write level.bmesh to arena root
+    // Write geometry.bmesh to arena root
     const meshData = {
         vertices: flatVertices,
         uvs: flatUVs,
@@ -571,8 +557,9 @@ function exportMap(vertices, meshVerts, faces, textures, lightmaps, outputDir, a
         indices: indicesGroups
     };
 
-    writeBMesh(meshData, path.join(chunksDir, 'level.bmesh'));
-    console.log(`Wrote level.bmesh with ${flatVertices.length / 3} vertices and ${indicesGroups.length} material groups.`);
+    const meshPath = path.join(outputDir, 'geometry.bmesh');
+    writeBMesh(meshPath, meshData);
+    console.log(`Wrote geometry.bmesh with ${flatVertices.length / 3} vertices and ${indicesGroups.length} material groups.`);
 
     // Create textures directory
     const texturesOutputDir = path.join(outputDir, 'textures');
@@ -717,17 +704,17 @@ function exportMap(vertices, meshVerts, faces, textures, lightmaps, outputDir, a
         });
     }
 
-    // Write config.arena with lightmap atlas reference
+    // Write config.arena with simplified paths
     const configData = {
         skybox: 1,
-        lightmap: atlasName ? `${arenaName}/lightmaps/${atlasName}` : null,
+        lightmap: atlasName ? `${arenaName}/${atlasName}` : null,
         lighting: {
             ambient: [1.0, 1.0, 1.0],
             directional: [],
             spot: [],
             point: []
         },
-        chunks: [`${arenaName}/chunks/level.bmesh`],
+        chunks: [`${arenaName}/geometry.bmesh`],
         spawnpoints: spawnpoints,
         pickups: []
     };
@@ -741,12 +728,12 @@ function exportMap(vertices, meshVerts, faces, textures, lightmaps, outputDir, a
     // Collect all assets for this map
     const mapAssets = [
         `${arenaName}/materials.mat`,
-        `${arenaName}/chunks/level.bmesh`
+        `${arenaName}/geometry.bmesh`
     ];
 
     // Add lightmap atlas if present
     if (atlasName) {
-        mapAssets.push(`${arenaName}/lightmaps/${atlasName}`);
+        mapAssets.push(`${arenaName}/${atlasName}`);
     }
 
     // Add all textures (base + blend)

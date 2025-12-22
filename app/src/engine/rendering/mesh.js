@@ -5,8 +5,7 @@ class Mesh {
 	static ATTR_POSITIONS = 0;
 	static ATTR_UVS = 1;
 	static ATTR_NORMALS = 2;
-	static ATTR_COLORS = 3;
-	static ATTR_LIGHTMAP_UVS = 4;
+	static ATTR_LIGHTMAP_UVS = 3;
 
 	#bindBufferAndAttrib(buffer, attribute, itemSize) {
 		gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
@@ -49,7 +48,6 @@ class Mesh {
 	initMeshBuffers() {
 		this.hasUVs = this.uvs.length > 0;
 		this.hasNormals = this.normals.length > 0;
-		this.hasColors = this.colors && this.colors.length > 0;
 		this.hasLightmapUVs = this.lightmapUVs && this.lightmapUVs.length > 0;
 		this.triangleCount = 0;
 
@@ -69,9 +67,6 @@ class Mesh {
 		if (this.hasNormals) {
 			this.normalBuffer = Mesh.buildBuffer(gl.ARRAY_BUFFER, this.normals, 3);
 		}
-		if (this.hasColors) {
-			this.colorBuffer = Mesh.buildBuffer(gl.ARRAY_BUFFER, this.colors, 4);
-		}
 		if (this.hasLightmapUVs) {
 			this.lightmapUVBuffer = Mesh.buildBuffer(
 				gl.ARRAY_BUFFER,
@@ -88,7 +83,6 @@ class Mesh {
 		gl.deleteBuffer(this.vertexBuffer);
 		if (this.hasUVs) gl.deleteBuffer(this.uvBuffer);
 		if (this.hasNormals) gl.deleteBuffer(this.normalBuffer);
-		if (this.hasColors) gl.deleteBuffer(this.colorBuffer);
 		if (this.hasLightmapUVs) gl.deleteBuffer(this.lightmapUVBuffer);
 	}
 
@@ -97,12 +91,6 @@ class Mesh {
 		if (this.hasUVs) this.#bindBufferAndAttrib(this.uvBuffer, Mesh.ATTR_UVS, 2);
 		if (this.hasNormals)
 			this.#bindBufferAndAttrib(this.normalBuffer, Mesh.ATTR_NORMALS, 3);
-		if (this.hasColors) {
-			this.#bindBufferAndAttrib(this.colorBuffer, Mesh.ATTR_COLORS, 4);
-		} else {
-			gl.disableVertexAttribArray(Mesh.ATTR_COLORS);
-			gl.vertexAttrib4f(Mesh.ATTR_COLORS, 1.0, 1.0, 1.0, 1.0);
-		}
 		if (this.hasLightmapUVs) {
 			this.#bindBufferAndAttrib(
 				this.lightmapUVBuffer,
@@ -122,7 +110,6 @@ class Mesh {
 		gl.disableVertexAttribArray(Mesh.ATTR_POSITIONS);
 		if (this.hasUVs) gl.disableVertexAttribArray(Mesh.ATTR_UVS);
 		if (this.hasNormals) gl.disableVertexAttribArray(Mesh.ATTR_NORMALS);
-		if (this.hasColors) gl.disableVertexAttribArray(Mesh.ATTR_COLORS);
 		if (this.hasLightmapUVs)
 			gl.disableVertexAttribArray(Mesh.ATTR_LIGHTMAP_UVS);
 	}
@@ -207,15 +194,12 @@ class Mesh {
 		const vertexCount = readUint32();
 		const uvCount = readUint32();
 
-		// v2 format includes lightmapUVs instead of colors
+		// BMesh v2: has lightmapUVs, BMesh v1 (or unversioned): no lightmapUVs
 		let lightmapUVCount = 0;
-		let colorCount = 0;
-
 		if (version === 2) {
 			lightmapUVCount = readUint32();
 		} else {
-			// v1 format (backward compatibility)
-			colorCount = readUint32();
+			readUint32(); // Skip old colorCount field from v1
 		}
 
 		const normalCount = readUint32();
@@ -226,14 +210,9 @@ class Mesh {
 
 		if (version === 2) {
 			this.lightmapUVs = readFloat32Array(lightmapUVCount);
-			this.colors = []; // No colors in v2
 			console.log(`Loaded BMesh v2 with ${lightmapUVCount / 2} lightmap UVs`);
 		} else {
-			this.colors = readFloat32Array(colorCount);
 			this.lightmapUVs = []; // No lightmap UVs in v1
-			if (this.colors.length > 0) {
-				console.log("Loaded mesh colors:", this.colors.length / 4, "vertices");
-			}
 		}
 
 		this.normals = readFloat32Array(normalCount);

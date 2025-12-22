@@ -1,8 +1,8 @@
 {
     "resources": [
         "arenas/demo/materials.mat",
-        "arenas/demo/chunks/level.bmesh",
-        "arenas/demo/lightmaps/lightmap_atlas.webp",
+        "arenas/demo/geometry.bmesh",
+        "arenas/demo/lightmaps.webp",
         "arenas/demo/textures/cretetrimlight4.webp",
         "arenas/demo/textures/cretelighttrim01.blend.webp",
         "arenas/demo/textures/cretebase4.webp",
