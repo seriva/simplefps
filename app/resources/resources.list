@@ -3,6 +3,7 @@
         "system/dirt.webp",
         "system/black.webp",
         "system/white.webp",
+        
         "skybox/1.mat",
         "skybox/1_front.webp",
         "skybox/1_back.webp",
@@ -10,6 +11,7 @@
         "skybox/1_bottom.webp",
         "skybox/1_left.webp",
         "skybox/1_right.webp",
+
         "meshes/health.webp",
         "meshes/health_emissive.webp",
         "meshes/armor.webp",
@@ -18,7 +20,7 @@
         "meshes/ammo_emissive.webp",
         "meshes/grenade_launcher.webp",
         "meshes/grenade_launcher_emissive.webp",
-        "meshes/grenade_launcher_sem.webp",
+        "meshes/grenade_launcher_sem.webp",   
         "meshes/minigun.webp",
         "meshes/minigun_emissive.webp",
         "meshes/minigun_sem.webp",
@@ -32,24 +34,8 @@
         "meshes/grenade_launcher.mesh",
         "meshes/minigun.mesh",
         "meshes/ball.mesh",
-        "arenas/demo/cretebase.webp",
-        "arenas/demo/cretebase2.webp",
-        "arenas/demo/cretebase3.webp",
-        "arenas/demo/cretebase4.webp",
-        "arenas/demo/cretelighttrim01.webp",
-        "arenas/demo/cretetrimlight2.webp",
-        "arenas/demo/cretetrimlight3.webp",
-        "arenas/demo/cretetrimlight4.webp",
-        "arenas/demo/cretewalllight01.webp",
-        "arenas/demo/steplight1b.webp",
-        "arenas/demo/weapspawn01.webp",
-        "arenas/demo/q1_tele.webp",
-        "arenas/demo/materials.mat",
-        "arenas/demo/chunks/level.bmesh",
         "sounds/shoot.sfx",
-        "arenas/demo/cretewalllight01.blend_blend.webp",
-        "arenas/demo/cretelighttrim01.blend_blend.webp",
-        "arenas/demo/weapspawn01.blend_blend.webp",
-        "arenas/demo/steplight1.blend_blend.webp"
+
+        "arenas/demo/resources.list"
     ]
 }

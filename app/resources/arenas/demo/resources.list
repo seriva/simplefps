@@ -1,0 +1,25 @@
+{
+    "resources": [
+        "arenas/demo/materials.mat",
+        "arenas/demo/chunks/level.bmesh",
+        "arenas/demo/cretetrimlight4.webp",
+        "arenas/demo/cretelighttrim01.blend_blend.webp",
+        "arenas/demo/cretebase4.webp",
+        "arenas/demo/steplight1b.webp",
+        "arenas/demo/steplight1.blend_blend.webp",
+        "arenas/demo/cretewalllight01.webp",
+        "arenas/demo/cretewalllight01.blend_blend.webp",
+        "arenas/demo/cretebase.webp",
+        "arenas/demo/cretelighttrim01.webp",
+        "arenas/demo/cretelighttrim01.blend_blend.webp",
+        "arenas/demo/cretebase2.webp",
+        "arenas/demo/cretebase3.webp",
+        "arenas/demo/cretetrimlight2.webp",
+        "arenas/demo/cretelighttrim01.blend_blend.webp",
+        "arenas/demo/cretetrimlight3.webp",
+        "arenas/demo/cretelighttrim01.blend_blend.webp",
+        "arenas/demo/weapspawn01.webp",
+        "arenas/demo/weapspawn01.blend_blend.webp",
+        "arenas/demo/q1_tele.webp"
+    ]
+}

@@ -131,7 +131,7 @@ const _renderWorldGeometry = () => {
 	Shaders.geometry.bind();
 	mat4.identity(_matModel);
 	Shaders.geometry.setMat4("matViewProj", Camera.viewProjection);
-	Shaders.geometry.setMat4("matView", Camera.view);
+
 	Shaders.geometry.setMat4("matWorld", _matModel);
 	Shaders.geometry.setVec3("cameraPosition", Camera.position);
 
@@ -194,7 +194,7 @@ const _renderFPSGeometry = () => {
 
 	mat4.identity(_matModel);
 	Shaders.geometry.setMat4("matViewProj", Camera.viewProjection);
-	Shaders.geometry.setMat4("matView", Camera.view);
+
 	Shaders.geometry.setMat4("matWorld", _matModel);
 	Shaders.geometry.setVec3("cameraPosition", Camera.position);
 

@@ -169,7 +169,7 @@ const _ShaderSources = {
             uniform int doEmissive;
             uniform int doSEM;
             uniform float semMult;
-            uniform mat4 matView;
+
             uniform vec3 cameraPosition;
             uniform sampler2D colorSampler;
             uniform sampler2D emissiveSampler;

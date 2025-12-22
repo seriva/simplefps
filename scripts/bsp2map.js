@@ -549,49 +549,70 @@ function exportMap(vertices, meshVerts, faces, textures, outputDir, arenaName, t
     fs.writeFileSync(path.join(outputDir, 'config.arena'), JSON.stringify(configData, null, 4));
     console.log(`Wrote config.arena and materials.mat to ${outputDir}`);
 
-    // Update resources.list
-    const resourcesListPath = path.join(outputDir, '../../resources.list');
-    if (fs.existsSync(resourcesListPath)) {
+    // Write helper function to update or create a resource list
+    function updateResourceList(listPath, newResources) {
+        let data = { resources: [] };
+        if (fs.existsSync(listPath)) {
+            try {
+                data = JSON.parse(fs.readFileSync(listPath, 'utf8'));
+            } catch (e) {
+                console.error(`Error reading ${listPath}, starting fresh.`);
+            }
+        }
+
+        const set = new Set(data.resources);
+        let added = 0;
+        for (const res of newResources) {
+            if (!set.has(res)) {
+                data.resources.push(res);
+                added++;
+            }
+        }
+
+        if (added > 0) {
+            fs.writeFileSync(listPath, JSON.stringify(data, null, 4));
+        }
+        return added;
+    }
+
+    // 1. Generate map-specific resources.list
+    const mapResourcesListPath = path.join(outputDir, 'resources.list');
+
+    // Collect all assets for this map
+    const mapAssets = [
+        `${arenaName}/materials.mat`,
+        `${arenaName}/chunks/level.bmesh`
+    ];
+
+    // Add all textures (base + blend)
+    materialsData.materials.forEach(mat => {
+        mat.textures.forEach(tex => {
+            mapAssets.push(tex);
+        });
+    });
+
+    const mapAddedCount = updateResourceList(mapResourcesListPath, mapAssets);
+    console.log(`Updated ${arenaName}/resources.list with ${mapAddedCount} new assets.`);
+
+
+    // 2. Update main resources.list to include the map's list
+    const mainResourcesListPath = path.join(outputDir, '../../resources.list');
+    if (fs.existsSync(mainResourcesListPath)) {
         try {
-            const resourcesData = JSON.parse(fs.readFileSync(resourcesListPath, 'utf8'));
-            const specificResources = new Set(resourcesData.resources);
+            const mainListRef = `${arenaName}/resources.list`;
+            const mainAddedCount = updateResourceList(mainResourcesListPath, [mainListRef]);
 
-            // Add generated assets
-            const newAssets = [
-                `${arenaName}/materials.mat`,
-                `${arenaName}/chunks/level.bmesh`
-            ];
-
-            // Add all textures (base + blend)
-            materialsData.materials.forEach(mat => {
-                mat.textures.forEach(tex => {
-                    newAssets.push(tex);
-                });
-            });
-
-            let addedCount = 0;
-            newAssets.forEach(asset => {
-                if (!specificResources.has(asset)) {
-                    resourcesData.resources.push(asset);
-                    addedCount++;
-                }
-            });
-
-            if (addedCount > 0) {
-                fs.writeFileSync(
-                    resourcesListPath,
-                    JSON.stringify(resourcesData, null, 4) // Standard JSON formatting
-                );
-                console.log(`Updated resources.list with ${addedCount} new assets.`);
+            if (mainAddedCount > 0) {
+                console.log(`Updated main resources.list linked to ${mainListRef}`);
             } else {
-                console.log(`resources.list is already up to date.`);
+                console.log(`Main resources.list already links to ${mainListRef}`);
             }
 
         } catch (e) {
-            console.error('Failed to update resources.list:', e);
+            console.error('Failed to update main resources.list:', e);
         }
     } else {
-        console.warn(`Could not find resources.list at ${resourcesListPath}`);
+        console.warn(`Could not find resources.list at ${mainResourcesListPath}`);
     }
 }
 
