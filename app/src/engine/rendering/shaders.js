@@ -659,10 +659,11 @@ const _ShaderSources = {
             layout(location=0) out vec4 fragColor;
 
             uniform sampler2D colorSampler;
+            uniform float opacity;
 
             void main() {
                 vec4 color = texture(colorSampler, vUV);
-                fragColor = color;
+                fragColor = vec4(color.rgb, color.a * opacity);
             }`,
 	},
 	debug: {

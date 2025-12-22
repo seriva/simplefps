@@ -87,7 +87,8 @@
                 "arenas/demo/textures/dsitinfx.webp"
             ],
             "doEmissive": 1,
-            "translucent": true
+            "translucent": true,
+            "opacity": 0.8
         },
         {
             "name": "q1_tele",

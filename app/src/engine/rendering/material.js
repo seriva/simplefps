@@ -16,6 +16,7 @@ class Material {
 		this.doSEM = data.doSEM || 0;
 		this.semMult = data.semMult || 0;
 		this.translucent = data.translucent || false;
+		this.opacity = data.opacity !== undefined ? data.opacity : 1.0;
 
 		for (const name of this.textures.filter((name) => name !== "none")) {
 			resources.load([name]);
@@ -25,15 +26,20 @@ class Material {
 	bind(shader = Shaders.geometry) {
 		if (!shader) shader = Shaders.geometry;
 		shader.setInt("colorSampler", 0);
-		shader.setInt("emissiveSampler", 1);
-		shader.setInt("semSampler", 2);
-		shader.setInt("semApplySampler", 3);
-		shader.setInt("lightmapSampler", 4);
-		shader.setInt("geomType", this.geomType);
-		shader.setInt("doEmissive", this.doEmissive);
-		shader.setInt("doSEM", this.doSEM);
-		// hasLightmap is set globally by Scene, don't override it here
-		shader.setFloat("semMult", this.semMult);
+
+		if (shader !== Shaders.glass) {
+			shader.setInt("emissiveSampler", 1);
+			shader.setInt("semSampler", 2);
+			shader.setInt("semApplySampler", 3);
+			shader.setInt("lightmapSampler", 4);
+			shader.setInt("geomType", this.geomType);
+			shader.setInt("doEmissive", this.doEmissive);
+			shader.setInt("doSEM", this.doSEM);
+			// hasLightmap is set globally by Scene, don't override it here
+			shader.setFloat("semMult", this.semMult);
+		} else {
+			shader.setFloat("opacity", this.opacity);
+		}
 
 		let index = 0;
 		for (const name of this.textures) {
