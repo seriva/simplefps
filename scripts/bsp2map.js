@@ -145,29 +145,63 @@ function parseFaces(buffer, lump) {
     return faces;
 }
 
-function parseLightmaps(buffer, lump) {
+function parseLightmaps(buffer, lump, overbright = 4) {
     const count = lump.length / LIGHTMAP_BYTES;
     const lightmaps = [];
 
-    console.log(`Extracting ${count} lightmaps...`);
-
     for (let i = 0; i < count; i++) {
-        const off = lump.offset + i * LIGHTMAP_BYTES;
+        const offset = lump.offset + i * LIGHTMAP_BYTES;
         const pixels = new Uint8Array(LIGHTMAP_BYTES);
 
-        // Copy RGB data with overbright correction
+        // Extract RGB data with configurable overbright correction
         for (let j = 0; j < LIGHTMAP_SIZE * LIGHTMAP_SIZE; j++) {
-            const pixelOff = off + j * 3;
-            // Apply overbright correction (Q3 lightmaps use 0-255 but often need brightening)
-            pixels[j * 3] = Math.min(255, buffer[pixelOff] * 4);
-            pixels[j * 3 + 1] = Math.min(255, buffer[pixelOff + 1] * 4);
-            pixels[j * 3 + 2] = Math.min(255, buffer[pixelOff + 2] * 4);
+            const baseIdx = offset + j * 3;
+            const pixelIdx = j * 3;
+
+            // Apply overbright multiplier and clamp to 255
+            pixels[pixelIdx] = Math.min(255, buffer[baseIdx] * overbright);
+            pixels[pixelIdx + 1] = Math.min(255, buffer[baseIdx + 1] * overbright);
+            pixels[pixelIdx + 2] = Math.min(255, buffer[baseIdx + 2] * overbright);
         }
 
         lightmaps.push(pixels);
     }
 
+    console.log(`Extracting ${count} lightmaps (${overbright}x overbright)...`);
     return lightmaps;
+}
+
+function upscaleLightmap(pixels, scale, outputDir) {
+    if (scale === 1) return { pixels, size: LIGHTMAP_SIZE };
+
+    const upscaledSize = LIGHTMAP_SIZE * scale;
+    const tempInput = path.join(outputDir, 'temp_lightmap_in.ppm');
+    const tempOutput = path.join(outputDir, 'temp_lightmap_out.ppm');
+
+    // Write original lightmap as PPM
+    const ppmHeader = `P6\n${LIGHTMAP_SIZE} ${LIGHTMAP_SIZE}\n255\n`;
+    const ppmData = Buffer.concat([Buffer.from(ppmHeader), Buffer.from(pixels)]);
+    fs.writeFileSync(tempInput, ppmData);
+
+    // Upscale using ImageMagick with Mitchell filter
+    try {
+        execSync(`convert "${tempInput}" -filter Mitchell -resize ${upscaledSize}x${upscaledSize} "${tempOutput}"`);
+
+        // Read upscaled PPM
+        const upscaledPPM = fs.readFileSync(tempOutput);
+        const headerEnd = upscaledPPM.indexOf('255\n') + 4;
+        const upscaledPixels = new Uint8Array(upscaledPPM.slice(headerEnd));
+
+        // Clean up temp files
+        fs.unlinkSync(tempInput);
+        fs.unlinkSync(tempOutput);
+
+        return { pixels: upscaledPixels, size: upscaledSize };
+    } catch (e) {
+        console.error('Failed to upscale lightmap:', e.message);
+        fs.unlinkSync(tempInput);
+        return { pixels, size: LIGHTMAP_SIZE };
+    }
 }
 
 function parseEntities(buffer, lump) {
@@ -314,38 +348,53 @@ function convertTextures(usedTextures, textureDir, outputDir, arenaName) {
     console.log(`Converted ${convertedCount} textures.`);
 }
 
-function exportLightmaps(lightmaps, outputDir) {
+function exportLightmaps(lightmaps, outputDir, lightmapScale = 1) {
     if (!lightmaps || lightmaps.length === 0) {
         console.log('No lightmaps to export.');
         return { atlasName: null, gridSize: 0 };
     }
 
-    // Calculate dynamic atlas grid size (next integer that fits all lightmaps in a square)
-    const gridSize = Math.ceil(Math.sqrt(lightmaps.length));
-    const atlasSize = gridSize * LIGHTMAP_SIZE;
+    // Upscale lightmaps if needed
+    const upscaledLightmaps = [];
+    let lightmapSize = LIGHTMAP_SIZE;
 
-    console.log(`Creating lightmap atlas from ${lightmaps.length} lightmaps (${gridSize}x${gridSize} grid, ${atlasSize}x${atlasSize}px)...`);
+    if (lightmapScale > 1) {
+        console.log(`Upscaling ${lightmaps.length} lightmaps with ${lightmapScale}x Mitchell filter...`);
+        for (let i = 0; i < lightmaps.length; i++) {
+            const { pixels, size } = upscaleLightmap(lightmaps[i], lightmapScale, outputDir);
+            upscaledLightmaps.push(pixels);
+            lightmapSize = size;
+        }
+    } else {
+        upscaledLightmaps.push(...lightmaps);
+    }
+
+    // Calculate dynamic atlas grid size
+    const gridSize = Math.ceil(Math.sqrt(upscaledLightmaps.length));
+    const atlasSize = gridSize * lightmapSize;
+
+    console.log(`Creating lightmap atlas from ${upscaledLightmaps.length} lightmaps (${gridSize}x${gridSize} grid, ${atlasSize}x${atlasSize}px)...`);
 
     // Create atlas buffer
     const atlasPixels = new Uint8Array(atlasSize * atlasSize * 3);
     atlasPixels.fill(0); // Initialize to black
 
     // Copy each lightmap into the atlas
-    for (let i = 0; i < lightmaps.length; i++) {
+    for (let i = 0; i < upscaledLightmaps.length; i++) {
         const gridX = i % gridSize;
         const gridY = Math.floor(i / gridSize);
-        const offsetX = gridX * LIGHTMAP_SIZE;
-        const offsetY = gridY * LIGHTMAP_SIZE;
+        const offsetX = gridX * lightmapSize;
+        const offsetY = gridY * lightmapSize;
 
-        const lightmap = lightmaps[i];
+        const lightmap = upscaledLightmaps[i];
 
         // Copy pixels row by row
-        for (let y = 0; y < LIGHTMAP_SIZE; y++) {
-            for (let x = 0; x < LIGHTMAP_SIZE; x++) {
-                const srcIdx = (y * LIGHTMAP_SIZE + x) * 3;
+        for (let y = 0; y < lightmapSize; y++) {
+            for (let x = 0; x < lightmapSize; x++) {
+                const srcIdx = (y * lightmapSize + x) * 3;
                 const dstX = offsetX + x;
                 // Flip Y when copying to atlas
-                const dstY = offsetY + (LIGHTMAP_SIZE - 1 - y);
+                const dstY = offsetY + (lightmapSize - 1 - y);
                 const dstIdx = (dstY * atlasSize + dstX) * 3;
 
                 atlasPixels[dstIdx] = lightmap[srcIdx];
@@ -444,11 +493,11 @@ function updateResourceList(listPath, newResources) {
     return added;
 }
 
-function exportMap(vertices, meshVerts, faces, textures, lightmaps, outputDir, arenaName, textureDir, shaderMap, entities, scale) {
+function exportMap(vertices, meshVerts, faces, textures, lightmaps, outputDir, arenaName, textureDir, shaderMap, entities, scale, lightmapScale) {
     fs.mkdirSync(outputDir, { recursive: true });
 
     // Export lightmaps and get atlas info
-    const { atlasName, gridSize } = exportLightmaps(lightmaps, outputDir);
+    const { atlasName, gridSize } = exportLightmaps(lightmaps, outputDir, lightmapScale);
 
     // Group faces by BOTH texture AND lightmap
     const facesByMaterial = new Map();
@@ -570,8 +619,7 @@ function exportMap(vertices, meshVerts, faces, textures, lightmaps, outputDir, a
         convertTextures(usedTextures, textureDir, texturesOutputDir, arenaName);
     }
 
-    // Write materials.mat
-    // Build unique materials from indicesGroups (which have lightmap info)
+    // Write materials.mat (deduplicate based on name + textures combination)
     const materialsData = {
         materials: indicesGroups.map((group, idx) => {
             const fullPath = textures.find(t => path.basename(t) === group.material) || group.material;
@@ -653,7 +701,12 @@ function exportMap(vertices, meshVerts, faces, textures, lightmaps, outputDir, a
             if (doEmissive) {
                 matDef.doEmissive = 1;
             }
+
             return matDef;
+        }).filter((mat, index, self) => {
+            // Deduplicate: only keep first occurrence of each unique material
+            const matKey = JSON.stringify(mat);
+            return index === self.findIndex(m => JSON.stringify(m) === matKey);
         })
     };
     fs.writeFileSync(path.join(outputDir, 'materials.mat'), JSON.stringify(materialsData, null, 4));
@@ -743,8 +796,10 @@ function exportMap(vertices, meshVerts, faces, textures, lightmaps, outputDir, a
         });
     });
 
-    const mapAddedCount = updateResourceList(mapResourcesListPath, mapAssets);
-    console.log(`Updated ${arenaName}/resources.list with ${mapAddedCount} new assets.`);
+    // Update resources.list (deduplicate entries)
+    const uniqueMapAssets = [...new Set(mapAssets)];
+    const added = updateResourceList(path.join(outputDir, 'resources.list'), uniqueMapAssets);
+    console.log(`Updated ${arenaName}/resources.list with ${added} new assets.`);
 
     // Update main resources.list to include the map's list
     const mainResourcesListPath = path.join(outputDir, '../../resources.list');
@@ -766,20 +821,24 @@ function exportMap(vertices, meshVerts, faces, textures, lightmaps, outputDir, a
     }
 }
 
-// Main execution
-const inputFile = process.argv[2];
-const outputDir = process.argv[3];
-const arenaName = process.argv[4] || 'arenas/demo';
-const scale = parseFloat(process.argv[5]) || 0.03;
-const textureDir = process.argv[6] || 'scripts/test/textures';
-
-if (!inputFile || !outputDir) {
-    console.error('Usage: node bsp2map.js <input.bsp> <output_dir> [arena_name_prefix] [scale] [texture_source_dir]');
+// Parse command line arguments
+if (process.argv.length < 6) {
+    console.log('Usage: node bsp2map.js <input.bsp> <output_dir> <arena_name> <scale> [texture_dir] [lightmap_scale] [overbright]');
+    console.log('  lightmap_scale: Optional upscale factor for lightmaps (default: 2, range: 1-4)');
+    console.log('  overbright: Optional brightness multiplier for lightmaps (default: 4, Quake 3 standard)');
     process.exit(1);
 }
 
+const bspFile = process.argv[2];
+const outputDir = process.argv[3];
+const arenaName = process.argv[4];
+const scale = parseFloat(process.argv[5]);
+const textureDir = process.argv[6] || null;
+const lightmapScale = process.argv[7] ? parseInt(process.argv[7]) : 2; // Default 2x upscale
+const overbright = process.argv[8] ? parseFloat(process.argv[8]) : 4; // Default 4x overbright (Q3 standard)
+
 try {
-    const { buffer, lumps } = readBSP(inputFile);
+    const { buffer, lumps } = readBSP(bspFile);
 
     const entities = parseEntities(buffer, lumps[LUMP_ENTITIES]);
     console.log(`Entities Parsed: ${entities.length}`);
@@ -787,18 +846,17 @@ try {
         console.log("First 5 entities:", entities.slice(0, 5).map(e => e.classname));
     }
 
-    // Resolve shader directory
-    const mapDir = path.dirname(inputFile);
-    const shaderDir = path.join(mapDir, '../scripts');
-    const shaderMap = parseShaderFiles(shaderDir);
+    // Resolve shader directory (sibling to textures directory)
+    const shaderDir = textureDir ? path.join(path.dirname(textureDir), 'scripts') : null;
+    const shaderMap = shaderDir ? parseShaderFiles(shaderDir) : new Map();
 
     const vertices = parseVertices(buffer, lumps[LUMP_VERTEXES], scale);
     const meshVerts = parseMeshVerts(buffer, lumps[LUMP_MESHVERTS]);
     const faces = parseFaces(buffer, lumps[LUMP_FACES]);
     const textures = parseTextures(buffer, lumps[LUMP_TEXTURES]);
-    const lightmaps = parseLightmaps(buffer, lumps[LUMP_LIGHTMAPS]);
+    const lightmaps = parseLightmaps(buffer, lumps[LUMP_LIGHTMAPS], overbright);
 
-    exportMap(vertices, meshVerts, faces, textures, lightmaps, outputDir, arenaName, textureDir, shaderMap, entities, scale);
+    exportMap(vertices, meshVerts, faces, textures, lightmaps, outputDir, arenaName, textureDir, shaderMap, entities, scale, lightmapScale);
 } catch (e) {
     console.error('Conversion failed:', e);
 }
