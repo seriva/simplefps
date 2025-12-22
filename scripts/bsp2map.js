@@ -6,21 +6,10 @@ import { execSync } from 'child_process';
 // Quake 3 BSP Constants
 const LUMP_ENTITIES = 0;
 const LUMP_TEXTURES = 1;
-const LUMP_PLANES = 2;
-const LUMP_NODES = 3;
-const LUMP_LEAFS = 4;
-const LUMP_LEAFFACES = 5;
-const LUMP_LEAFBRUSHES = 6;
-const LUMP_MODELS = 7;
-const LUMP_BRUSHES = 8;
-const LUMP_BRUSHSIDES = 9;
 const LUMP_VERTEXES = 10;
 const LUMP_MESHVERTS = 11;
-const LUMP_EFFECTS = 12;
 const LUMP_FACES = 13;
 const LUMP_LIGHTMAPS = 14;
-const LUMP_LIGHTVOLS = 15;
-const LUMP_VISDATA = 16;
 
 const HEADER_SIZE = 144; // 4 magic + 4 version + 17 * 8 lumps
 const MATERIAL_NAME_SIZE = 64;
@@ -34,7 +23,7 @@ const LIGHTMAP_SIZE = 128; // Quake 3 lightmaps are 128x128
 const LIGHTMAP_BYTES = LIGHTMAP_SIZE * LIGHTMAP_SIZE * 3; // RGB format
 
 // Color amplification for Quake 3 overbright bits
-const COLOR_AMPLIFICATION = 12.0;
+
 
 function readBSP(filename) {
     const fd = fs.openSync(filename, 'r');
@@ -90,14 +79,14 @@ function parseVertices(buffer, lump, scale) {
 
         // Store vertex (Q3 Z-up -> Engine Y-up coordinate system)
         vertices.push({
-            x: x,
+            x,
             y: z,
             z: -y,
-            u: u,
+            u,
             v: 1 - v,
-            lmu: lmu,
+            lmu,
             lmv: 1 - lmv,
-            nx: nx,
+            nx,
             ny: nz,
             nz: -ny
         });
@@ -230,10 +219,7 @@ function parseEntities(buffer, lump) {
 }
 
 function writeBMesh(outputPath, meshData) {
-    let totalIndicesCount = 0;
-    for (const group of meshData.indices) {
-        totalIndicesCount += group.array.length;
-    }
+    const totalIndicesCount = meshData.indices.reduce((sum, g) => sum + g.array.length, 0);
 
     const buffer = Buffer.alloc(
         24 +
@@ -306,7 +292,7 @@ function convertSingleTexture(srcFile, destFile) {
     }
 }
 
-function findAndConvertTexture(relativePath, textureDir, outputDir, arenaName) {
+function findAndConvertTexture(relativePath, textureDir, outputDir) {
     const extensions = ['.tga', '.jpg', '.jpeg', '.png'];
     const baseName = path.basename(relativePath);
     const destFile = path.join(outputDir, `${baseName}.webp`);
@@ -314,10 +300,10 @@ function findAndConvertTexture(relativePath, textureDir, outputDir, arenaName) {
     for (const ext of extensions) {
         const srcFile = path.join(textureDir, relativePath + ext);
         if (fs.existsSync(srcFile)) {
-            if (convertSingleTexture(srcFile, destFile)) {
-                return { found: true, destName: `${baseName}.webp` };
-            }
-            return { found: false };
+            return {
+                found: convertSingleTexture(srcFile, destFile),
+                destName: `${baseName}.webp`
+            };
         }
     }
 
@@ -325,7 +311,7 @@ function findAndConvertTexture(relativePath, textureDir, outputDir, arenaName) {
     return { found: false };
 }
 
-function convertTextures(usedTextures, textureDir, outputDir, arenaName) {
+function convertTextures(usedTextures, textureDir, outputDir) {
     if (!textureDir || !fs.existsSync(textureDir)) {
         console.log('No texture directory provided or found. Skipping texture conversion.');
         return;
@@ -335,12 +321,8 @@ function convertTextures(usedTextures, textureDir, outputDir, arenaName) {
     let convertedCount = 0;
 
     for (const texPath of usedTextures) {
-        let relativePath = texPath;
-        if (relativePath.startsWith('textures/')) {
-            relativePath = relativePath.substring(9);
-        }
-
-        const result = findAndConvertTexture(relativePath, textureDir, outputDir, arenaName);
+        const relativePath = texPath.replace(/^textures\//, '');
+        const result = findAndConvertTexture(relativePath, textureDir, outputDir);
         if (result.found) {
             convertedCount++;
         }
@@ -616,7 +598,7 @@ function exportMap(vertices, meshVerts, faces, textures, lightmaps, outputDir, a
 
     // Convert Textures
     if (textureDir) {
-        convertTextures(usedTextures, textureDir, texturesOutputDir, arenaName);
+        convertTextures(usedTextures, textureDir, texturesOutputDir);
     }
 
     // Write materials.mat (deduplicate based on name + textures combination)
@@ -643,10 +625,7 @@ function exportMap(vertices, meshVerts, faces, textures, lightmaps, outputDir, a
                             if (mapLine) {
                                 let mapPath = mapLine.split(/\s+/)[1];
                                 if (mapPath && mapPath !== '$lightmap' && textureDir) {
-                                    let relativePath = mapPath;
-                                    if (relativePath.startsWith('textures/')) {
-                                        relativePath = relativePath.substring(9);
-                                    }
+                                    const relativePath = mapPath.replace(/^textures\//, '');
 
                                     const srcFile = path.join(textureDir, relativePath);
 
@@ -674,10 +653,7 @@ function exportMap(vertices, meshVerts, faces, textures, lightmaps, outputDir, a
 
             // Fallback to filename matching if shader lookup failed
             if (textureDir && blendTextures.length === 0) {
-                let relativePath = fullPath;
-                if (relativePath.startsWith('textures/')) {
-                    relativePath = relativePath.substring(9);
-                }
+                const relativePath = fullPath.replace(/^textures\//, '');
                 const blendEXT = '.blend.tga';
                 const srcFile = path.join(textureDir, relativePath + blendEXT);
 

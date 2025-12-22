@@ -24,7 +24,7 @@ const _WEAPONS = {
 			mass: 0.1,
 			velocity: 25,
 			light: {
-				radius: 4,
+				radius: 4.5,
 				intensity: 4,
 				color: [0.988, 0.31, 0.051],
 			},
