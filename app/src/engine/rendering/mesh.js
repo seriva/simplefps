@@ -114,31 +114,78 @@ class Mesh {
 			gl.disableVertexAttribArray(Mesh.ATTR_LIGHTMAP_UVS);
 	}
 
+	#groupedIndices = null;
+
 	renderSingle(
 		applyMaterial = true,
 		renderMode = gl.TRIANGLES,
-		filter = null,
+		mode = "all",
 		shader = null,
 	) {
 		this.bind();
-		this.renderIndices(applyMaterial, renderMode, filter, shader);
+		this.renderIndices(applyMaterial, renderMode, mode, shader);
 		this.unBind();
 	}
 
 	renderIndices(
 		applyMaterial,
 		renderMode = gl.TRIANGLES,
-		filter = null,
+		mode = "all",
 		shader = null,
 	) {
-		for (const indexObj of this.indices) {
-			if (filter) {
+		// Lazy initialization of grouped indices
+		if (!this.#groupedIndices && this.resources) {
+			this.#groupedIndices = {
+				opaque: [],
+				translucent: [],
+				all: this.indices,
+			};
+
+			for (const indexObj of this.indices) {
+				const material =
+					indexObj.material !== "none"
+						? this.resources.get(indexObj.material)
+						: null;
+
+				if (material && material.translucent) {
+					this.#groupedIndices.translucent.push(indexObj);
+				} else {
+					this.#groupedIndices.opaque.push(indexObj);
+				}
+			}
+		}
+
+		// Use grouped list if available (and resources exist), otherwise fallback to all
+		// If mode is a filter function (legacy support during transition), we handle that too for safety,
+		// though we aim to replace it.
+		let targets = this.indices;
+
+		if (typeof mode === "function") {
+			// Legacy filter support
+			for (const indexObj of this.indices) {
 				const material =
 					this.resources && indexObj.material !== "none"
 						? this.resources.get(indexObj.material)
 						: null;
-				if (!filter(material)) continue;
+				if (!mode(material)) continue;
+
+				this.#bindMaterial(indexObj, applyMaterial, shader);
+				gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexObj.indexBuffer);
+				gl.drawElements(
+					renderMode,
+					indexObj.indexBuffer.numItems,
+					gl.UNSIGNED_SHORT,
+					0,
+				);
 			}
+			return;
+		}
+
+		if (this.#groupedIndices && this.#groupedIndices[mode]) {
+			targets = this.#groupedIndices[mode];
+		}
+
+		for (const indexObj of targets) {
 			this.#bindMaterial(indexObj, applyMaterial, shader);
 			gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexObj.indexBuffer);
 			gl.drawElements(

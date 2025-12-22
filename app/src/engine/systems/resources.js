@@ -44,7 +44,7 @@ const Resources = {
 		} finally {
 			Loading.toggle(false);
 			const loadTime = performance.now() - startTime;
-			Console.log(`Loaded resources in ${Math.round(loadTime)} ms`);
+			// Console.log(`Loaded resources in ${Math.round(loadTime)} ms`);
 		}
 	},
 
