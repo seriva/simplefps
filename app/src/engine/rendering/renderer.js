@@ -1,3 +1,4 @@
+import Camera from "../core/camera.js";
 import { Context, gl } from "../core/context.js";
 import Scene from "../core/scene.js";
 import Settings from "../core/settings.js";
@@ -40,6 +41,16 @@ const _b = {
 	blur: null,
 	source: null,
 };
+
+const _ao = {
+	framebuffer: null,
+	ssao: null,
+	noise: null,
+};
+
+// SSAO sample kernel and noise data
+let _ssaoKernel = [];
+let _ssaoNoiseData = [];
 
 // Private functions
 const _checkFramebufferStatus = () => {
@@ -230,6 +241,34 @@ const _resize = (width, height) => {
 	);
 	_checkFramebufferStatus();
 	gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+	// **********************************
+	// SSAO buffer
+	// **********************************
+	_ao.framebuffer = gl.createFramebuffer();
+	gl.bindFramebuffer(gl.FRAMEBUFFER, _ao.framebuffer);
+	gl.activeTexture(gl.TEXTURE0);
+
+	_ao.ssao = new Texture({
+		format: gl.RGBA8,
+		width,
+		height,
+	});
+	gl.framebufferTexture2D(
+		gl.FRAMEBUFFER,
+		gl.COLOR_ATTACHMENT0,
+		gl.TEXTURE_2D,
+		_ao.ssao.texture,
+		0,
+	);
+	_checkFramebufferStatus();
+	gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+	// Initialize SSAO noise texture (only once, doesn't need resize)
+	if (!_ao.noise) {
+		_generateSSAOKernel();
+		_generateSSAONoise();
+	}
 };
 
 const _startBlurPass = (blurSource) => {
@@ -298,6 +337,74 @@ const _blurImage = (source, iterations, radius) => {
 	Shader.unBind();
 };
 
+const _generateSSAOKernel = () => {
+	_ssaoKernel = [];
+	for (let i = 0; i < 64; ++i) {
+		// Generate random samples in a hemisphere
+		const sample = [
+			Math.random() * 2.0 - 1.0,
+			Math.random() * 2.0 - 1.0,
+			Math.random(),
+		];
+		// Normalize
+		const length = Math.sqrt(
+			sample[0] * sample[0] + sample[1] * sample[1] + sample[2] * sample[2],
+		);
+		sample[0] /= length;
+		sample[1] /= length;
+		sample[2] /= length;
+
+		// Scale samples so they're more aligned to center of kernel
+		let scale = i / 64.0;
+		scale = 0.1 + scale * scale * 0.9; // Lerp between 0.1 and 1.0
+		sample[0] *= scale;
+		sample[1] *= scale;
+		sample[2] *= scale;
+
+		_ssaoKernel.push(sample);
+	}
+};
+
+const _generateSSAONoise = () => {
+	_ssaoNoiseData = [];
+	for (let i = 0; i < 16; i++) {
+		// Random vectors in tangent space
+		_ssaoNoiseData.push(
+			Math.random() * 2.0 - 1.0,
+			Math.random() * 2.0 - 1.0,
+			0.0,
+			1.0,
+		);
+	}
+
+	// Create noise texture (4x4)
+	const noiseData = [];
+	for (let i = 0; i < 16; i++) {
+		// Convert random values from [-1, 1] to [0, 255] for RGBA
+		const x = _ssaoNoiseData[i * 4];
+		const y = _ssaoNoiseData[i * 4 + 1];
+		const z = _ssaoNoiseData[i * 4 + 2];
+		noiseData.push(
+			((x * 0.5 + 0.5) * 255) | 0,
+			((y * 0.5 + 0.5) * 255) | 0,
+			((z * 0.5 + 0.5) * 255) | 0,
+			255,
+		);
+	}
+
+	_ao.noise = new Texture({
+		format: gl.RGBA8,
+		width: 4,
+		height: 4,
+		pdata: new Uint8Array(noiseData),
+		pformat: gl.RGBA,
+		ptype: gl.UNSIGNED_BYTE,
+	});
+
+	// Set wrap mode to REPEAT
+	_ao.noise.setTextureWrapMode(gl.REPEAT);
+};
+
 const _startGeomPass = (clearDepthOnly = false) => {
 	gl.bindFramebuffer(gl.FRAMEBUFFER, _g.framebuffer);
 	const ambient = Scene.getAmbient();
@@ -344,6 +451,54 @@ const _shadowPass = () => {
 	gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 };
 
+const _ssaoPass = () => {
+	gl.bindFramebuffer(gl.FRAMEBUFFER, _ao.framebuffer);
+	gl.clearColor(1.0, 1.0, 1.0, 1.0);
+	gl.clear(gl.COLOR_BUFFER_BIT);
+
+	// Bind G-buffer textures
+	_g.position.bind(gl.TEXTURE0);
+	_g.normal.bind(gl.TEXTURE1);
+	_ao.noise.bind(gl.TEXTURE2);
+
+	// Setup SSAO shader
+	Shaders.ssao.bind();
+	Shaders.ssao.setInt("positionBuffer", 0);
+	Shaders.ssao.setInt("normalBuffer", 1);
+	Shaders.ssao.setInt("noiseTexture", 2);
+
+	// Set SSAO kernel samples
+	for (let i = 0; i < _ssaoKernel.length; i++) {
+		const location = gl.getUniformLocation(
+			Shaders.ssao.program,
+			`samples[${i}]`,
+		);
+		if (location) {
+			gl.uniform3fv(location, _ssaoKernel[i]);
+		}
+	}
+
+	// Set view-projection matrix
+	Shaders.ssao.setMat4("matProj", Camera.viewProjection);
+	Shaders.ssao.setVec2("viewportSize", [Context.width(), Context.height()]);
+	Shaders.ssao.setVec2("noiseScale", [
+		Context.width() / 4.0,
+		Context.height() / 4.0,
+	]);
+	Shaders.ssao.setFloat("radius", Settings.ssaoRadius);
+	Shaders.ssao.setFloat("bias", Settings.ssaoBias);
+
+	gl.disable(gl.DEPTH_TEST);
+	screenQuad.renderSingle();
+	gl.enable(gl.DEPTH_TEST);
+
+	Shader.unBind();
+	Texture.unBind(gl.TEXTURE0);
+	Texture.unBind(gl.TEXTURE1);
+	Texture.unBind(gl.TEXTURE2);
+	gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+};
+
 const _lightingPass = () => {
 	gl.bindFramebuffer(gl.FRAMEBUFFER, _l.framebuffer);
 	const ambient = Scene.getAmbient();
@@ -380,6 +535,51 @@ const _emissiveBlurPass = () => {
 	);
 };
 
+const _ssaoBlurPass = () => {
+	// Blur SSAO directly by setting up a special blur source
+	gl.bindFramebuffer(gl.FRAMEBUFFER, _b.framebuffer);
+
+	// Ping-pong blur for SSAO
+	for (let i = 0; i < Settings.ssaoBlurIterations; i++) {
+		if (i % 2 === 0) {
+			gl.framebufferTexture2D(
+				gl.FRAMEBUFFER,
+				gl.COLOR_ATTACHMENT0,
+				gl.TEXTURE_2D,
+				_b.blur.texture,
+				0,
+			);
+			_ao.ssao.bind(gl.TEXTURE0);
+		} else {
+			gl.framebufferTexture2D(
+				gl.FRAMEBUFFER,
+				gl.COLOR_ATTACHMENT0,
+				gl.TEXTURE_2D,
+				_ao.ssao.texture,
+				0,
+			);
+			_b.blur.bind(gl.TEXTURE0);
+		}
+		gl.clear(gl.COLOR_BUFFER_BIT);
+
+		Shaders.gaussianBlur.bind();
+		Shaders.gaussianBlur.setInt("colorBuffer", 0);
+		Shaders.gaussianBlur.setVec2("viewportSize", [
+			Context.width(),
+			Context.height(),
+		]);
+		Shaders.gaussianBlur.setVec2(
+			"direction",
+			i % 2 === 0 ? [1.0, 0] : [0, 1.0],
+		);
+		screenQuad.renderSingle();
+		Shader.unBind();
+	}
+
+	Texture.unBind(gl.TEXTURE0);
+	gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+};
+
 const _glassPass = () => {
 	gl.bindFramebuffer(gl.FRAMEBUFFER, _l.framebuffer);
 
@@ -414,6 +614,7 @@ const _postProcessingPass = () => {
 	_g.emissive.bind(gl.TEXTURE3);
 	const dirt = Resources.get("system/dirt.webp");
 	dirt.bind(gl.TEXTURE4);
+	_ao.ssao.bind(gl.TEXTURE5);
 	Shaders.postProcessing.bind();
 	Shaders.postProcessing.setInt("doFXAA", Settings.doFXAA);
 	Shaders.postProcessing.setInt("colorBuffer", 0);
@@ -421,12 +622,17 @@ const _postProcessingPass = () => {
 	Shaders.postProcessing.setInt("normalBuffer", 2);
 	Shaders.postProcessing.setInt("emissiveBuffer", 3);
 	Shaders.postProcessing.setInt("dirtBuffer", 4);
+	Shaders.postProcessing.setInt("aoBuffer", 5);
 	Shaders.postProcessing.setVec2("viewportSize", [
 		Context.width(),
 		Context.height(),
 	]);
 	Shaders.postProcessing.setFloat("emissiveMult", Settings.emissiveMult);
 	Shaders.postProcessing.setFloat("gamma", Settings.gamma);
+	Shaders.postProcessing.setFloat(
+		"ssaoStrength",
+		Settings.doSSAO ? Settings.ssaoStrength : 0.0,
+	);
 	Shaders.postProcessing.setVec3("ambient", Scene.getAmbient());
 	screenQuad.renderSingle();
 
@@ -436,6 +642,7 @@ const _postProcessingPass = () => {
 	Texture.unBind(gl.TEXTURE2);
 	Texture.unBind(gl.TEXTURE3);
 	Texture.unBind(gl.TEXTURE4);
+	Texture.unBind(gl.TEXTURE5);
 };
 
 const _debugPass = () => {
@@ -446,6 +653,10 @@ const _debugPass = () => {
 const Renderer = {
 	render() {
 		_worldGeomPass();
+		if (Settings.doSSAO) {
+			_ssaoPass();
+			_ssaoBlurPass();
+		}
 		_shadowPass();
 		_fpsGeomPass();
 		_lightingPass();

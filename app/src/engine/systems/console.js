@@ -296,7 +296,9 @@ const Console = {
 
 				if (parsed.type === "assignment") {
 					const varPath = parsed.variable.replace("simplefps.", "");
-					if (!_getByPath(`simplefps.${varPath}`)) {
+					const currentValue = _getByPath(`simplefps.${varPath}`);
+					// Check for null specifically (null = doesn't exist, but false/0/"" are valid)
+					if (currentValue === null) {
 						throw new Error(`Variable "${varPath}" does not exist`);
 					}
 					_setValue(parsed.variable, parsed.value);

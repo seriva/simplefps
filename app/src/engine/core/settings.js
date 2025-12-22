@@ -19,6 +19,13 @@ const _defaults = {
 	emissiveMult: 4.25,
 	emissiveIteration: 8,
 
+	// SSAO settings
+	doSSAO: true,
+	ssaoRadius: 1.0,
+	ssaoBias: 0.025,
+	ssaoStrength: 0.7,
+	ssaoBlurIterations: 8,
+
 	// controls
 	forward: 87,
 	backwards: 83,
@@ -39,7 +46,14 @@ const _saveSettings = () => {
 const _stored = localStorage?.getItem("settings") ?? null;
 if (_stored) {
 	Console.log("Using stored settings");
+	// Merge stored settings into defaults (so new defaults get added)
 	Object.assign(Settings, _defaults, JSON.parse(_stored));
+	// Ensure new properties from defaults exist
+	for (const key in _defaults) {
+		if (!(key in Settings)) {
+			Settings[key] = _defaults[key];
+		}
+	}
 } else {
 	Console.log("Using default settings");
 	Object.assign(Settings, _defaults);

@@ -501,9 +501,11 @@ const _ShaderSources = {
             uniform sampler2D normalBuffer;
             uniform sampler2D emissiveBuffer;
             uniform sampler2D dirtBuffer;
+            uniform sampler2D aoBuffer;
             uniform vec2 viewportSize;
             uniform float emissiveMult;
             uniform float gamma;
+            uniform float ssaoStrength;
             uniform vec3 ambient;
 
             #define FXAA_EDGE_THRESHOLD_MIN 0.0312
@@ -601,6 +603,7 @@ const _ShaderSources = {
                 vec4 normal = texture(normalBuffer, uv);
                 vec4 emissive = texture(emissiveBuffer, uv);
                 vec4 dirt = texture(dirtBuffer, uv);
+                vec4 ao = texture(aoBuffer, uv);
 
                 // Read lightmap flag from normal.w
                 // 1.0 = has lightmap (additive lighting), 0.0 = dynamic object (multiplicative lighting)
@@ -618,6 +621,10 @@ const _ShaderSources = {
                     // Dynamic object: standard deferred lighting
                     fragColor = color * light;
                 }
+                
+                // Apply SSAO with configurable strength (blend between full brightness and AO)
+                float aoFactor = mix(1.0, ao.r, ssaoStrength);
+                fragColor.rgb *= aoFactor;
                 
                 // Add emissive
                 fragColor += emissive * emissiveMult;
@@ -692,6 +699,80 @@ const _ShaderSources = {
                 }
 
                 fragColor = vec4(color.rgb, color.a * opacity);
+            }`,
+	},
+	ssao: {
+		vertex: glsl`#version 300 es
+            precision highp float;
+
+            layout(location=0) in vec3 aPosition;
+
+            void main()
+            {
+                gl_Position = vec4(aPosition, 1.0);
+            }`,
+		fragment: glsl`#version 300 es
+            precision highp float;
+
+            layout(location=0) out vec4 fragColor;
+
+            uniform sampler2D positionBuffer;
+            uniform sampler2D normalBuffer;
+            uniform sampler2D noiseTexture;
+            uniform vec3 samples[64];
+            uniform mat4 matProj;
+            uniform vec2 viewportSize;
+            uniform vec2 noiseScale;
+            uniform float radius;
+            uniform float bias;
+
+            void main()
+            {
+                vec2 uv = gl_FragCoord.xy / viewportSize;
+                
+                // Sample G-buffer (world space)
+                vec3 fragPos = texture(positionBuffer, uv).xyz;
+                vec3 normal = normalize(texture(normalBuffer, uv).xyz);
+                vec3 randomVec = normalize(texture(noiseTexture, uv * noiseScale).xyz * 2.0 - 1.0);
+                
+                // Create TBN matrix in world space
+                vec3 tangent = normalize(randomVec - normal * dot(randomVec, normal));
+                vec3 bitangent = cross(normal, tangent);
+                mat3 TBN = mat3(tangent, bitangent, normal);
+                
+                // Iterate over the sample kernel and calculate occlusion factor
+                float occlusion = 0.0;
+                int validSamples = 0;
+                
+                for(int i = 0; i < 64; ++i)
+                {
+                    // Get sample position in world space
+                    vec3 samplePos = fragPos + TBN * samples[i] * radius;
+                    
+                    // Project sample position to screen space
+                    vec4 offset = matProj * vec4(samplePos, 1.0);
+                    offset.xyz /= offset.w;
+                    offset.xyz = offset.xyz * 0.5 + 0.5;
+                    
+                    // Skip samples outside screen
+                    if(offset.x < 0.0 || offset.x > 1.0 || offset.y < 0.0 || offset.y > 1.0) continue;
+                    
+                    // Get sample depth (world space)
+                    vec3 sampleWorldPos = texture(positionBuffer, offset.xy).xyz;
+                    float sampleDist = length(sampleWorldPos - fragPos);
+                    float actualDist = length(samplePos - fragPos);
+                    
+                    // Range check & accumulate
+                    float rangeCheck = smoothstep(0.0, 1.0, radius / abs(sampleDist - actualDist));
+                    occlusion += (sampleDist < actualDist - bias ? 1.0 : 0.0) * rangeCheck;
+                    validSamples++;
+                }
+                
+                // Normalize by valid samples
+                occlusion = validSamples > 0 ? (occlusion / float(validSamples)) : 0.0;
+                occlusion = 1.0 - occlusion;
+                
+                fragColor = vec4(occlusion, occlusion, occlusion, 1.0);
             }`,
 	},
 	debug: {

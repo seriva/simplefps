@@ -147,7 +147,7 @@ class Mesh {
 						? this.resources.get(indexObj.material)
 						: null;
 
-				if (material && material.translucent) {
+				if (material?.translucent) {
 					this.#groupedIndices.translucent.push(indexObj);
 				} else {
 					this.#groupedIndices.opaque.push(indexObj);
@@ -181,7 +181,7 @@ class Mesh {
 			return;
 		}
 
-		if (this.#groupedIndices && this.#groupedIndices[mode]) {
+		if (this.#groupedIndices?.[mode]) {
 			targets = this.#groupedIndices[mode];
 		}
 

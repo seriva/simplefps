@@ -43,7 +43,7 @@ const Resources = {
 			await Promise.all(loadPromises);
 		} finally {
 			Loading.toggle(false);
-			const loadTime = performance.now() - startTime;
+			const _loadTime = performance.now() - startTime;
 			// Console.log(`Loaded resources in ${Math.round(loadTime)} ms`);
 		}
 	},
