@@ -85,6 +85,11 @@ const _load = async (name) => {
 		_state.arena = arenaData;
 		Scene.init();
 
+		// Load lightmap atlas if present
+		if (_state.arena.lightmap) {
+			Scene.setLightmap(_state.arena.lightmap);
+		}
+
 		const { spawnpoint, spawnpoints, lighting, pickups } = _state.arena;
 
 		let startSpawn = spawnpoint || {};

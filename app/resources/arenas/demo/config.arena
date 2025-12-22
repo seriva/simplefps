@@ -1,5 +1,6 @@
 {
     "skybox": 1,
+    "lightmap": "arenas/demo/lightmaps/lightmap_atlas.webp",
     "lighting": {
         "ambient": [
             1,

@@ -17,7 +17,7 @@ class Material {
 		this.semMult = data.semMult || 0;
 
 		for (const name of this.textures.filter((name) => name !== "none")) {
-			resources.load(name);
+			resources.load([name]);
 		}
 	}
 
@@ -27,9 +27,11 @@ class Material {
 		shader.setInt("emissiveSampler", 1);
 		shader.setInt("semSampler", 2);
 		shader.setInt("semApplySampler", 3);
+		shader.setInt("lightmapSampler", 4);
 		shader.setInt("geomType", this.geomType);
 		shader.setInt("doEmissive", this.doEmissive);
 		shader.setInt("doSEM", this.doSEM);
+		// hasLightmap is set globally by Scene, don't override it here
 		shader.setFloat("semMult", this.semMult);
 
 		let index = 0;

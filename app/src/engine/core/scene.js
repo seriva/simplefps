@@ -4,6 +4,7 @@ import { Shader, Shaders } from "../rendering/shaders.js";
 import { screenQuad } from "../rendering/shapes.js";
 import Console from "../systems/console.js";
 import Physics from "../systems/physics.js";
+import Resources from "../systems/resources.js";
 import Stats from "../systems/stats.js";
 import Camera from "./camera.js";
 import { Context, gl } from "./context.js";
@@ -17,6 +18,7 @@ const _matModel = mat4.create();
 let _entities = [];
 let _ambient = _DEFAULT_AMBIENT;
 let _pauseUpdate = false;
+let _lightmapAtlas = null; // Lightmap atlas resource name
 
 // Debug colors for each entity type
 const _boundingBoxColors = {
@@ -104,6 +106,14 @@ const _setAmbient = (a) => {
 	_ambient = a;
 };
 
+const _setLightmap = (lightmapPath) => {
+	_lightmapAtlas = lightmapPath;
+	if (_lightmapAtlas) {
+		Resources.load([_lightmapAtlas]);
+		Console.log(`Loaded lightmap atlas: ${_lightmapAtlas}`);
+	}
+};
+
 const _pause = (doPause) => {
 	_pauseUpdate = doPause;
 };
@@ -127,6 +137,8 @@ const _renderEntities = (entityType, renderMethod = "render") => {
 	}
 };
 
+let _hasLoggedLightmap = false;
+
 const _renderWorldGeometry = () => {
 	Shaders.geometry.bind();
 	mat4.identity(_matModel);
@@ -134,6 +146,27 @@ const _renderWorldGeometry = () => {
 
 	Shaders.geometry.setMat4("matWorld", _matModel);
 	Shaders.geometry.setVec3("cameraPosition", Camera.position);
+
+	// Bind lightmap atlas if available
+	if (_lightmapAtlas) {
+		try {
+			Resources.get(_lightmapAtlas).bind(gl.TEXTURE0 + 4);
+			Shaders.geometry.setInt("hasLightmap", 1);
+			if (!_hasLoggedLightmap) {
+				Console.log(`Lightmap atlas bound: ${_lightmapAtlas}, hasLightmap=1`);
+				_hasLoggedLightmap = true;
+			}
+		} catch (e) {
+			Console.error(`Failed to bind lightmap atlas: ${e.message}`);
+			Shaders.geometry.setInt("hasLightmap", 0);
+		}
+	} else {
+		Shaders.geometry.setInt("hasLightmap", 0);
+		if (!_hasLoggedLightmap) {
+			Console.log(`No lightmap atlas, hasLightmap=0`);
+			_hasLoggedLightmap = true;
+		}
+	}
 
 	_renderEntities(EntityTypes.SKYBOX);
 	_renderEntities(EntityTypes.MESH);
@@ -306,6 +339,7 @@ const Scene = {
 	update: _update,
 	getAmbient: _getAmbient,
 	setAmbient: _setAmbient,
+	setLightmap: _setLightmap,
 	addEntities: _addEntities,
 	getEntities: _getEntities,
 	renderWorldGeometry: _renderWorldGeometry,
