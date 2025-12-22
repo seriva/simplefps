@@ -85,9 +85,18 @@ const _load = async (name) => {
 		_state.arena = arenaData;
 		Scene.init();
 
-		const { spawnpoint, lighting, pickups } = _state.arena;
+		const { spawnpoint, spawnpoints, lighting, pickups } = _state.arena;
 
-		_setupCamera(spawnpoint || {});
+		let startSpawn = spawnpoint || {};
+		if (spawnpoints && spawnpoints.length > 0) {
+			const randomIndex = Math.floor(Math.random() * spawnpoints.length);
+			startSpawn = spawnpoints[randomIndex];
+			Console.log(
+				`Selected spawn point ${randomIndex} from ${spawnpoints.length} available.`,
+			);
+		}
+
+		_setupCamera(startSpawn);
 		_setupLighting(lighting || {});
 		_setupEnvironment(_state.arena);
 		_setupPickups(pickups);

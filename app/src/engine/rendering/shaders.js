@@ -128,6 +128,7 @@ const _ShaderSources = {
             layout(location=0) in vec3 aPosition;
             layout(location=1) in vec2 aUV;
             layout(location=2) in vec3 aNormal;
+            layout(location=3) in vec4 aColor;
 
             uniform mat4 matWorld;
             uniform mat4 matViewProj;
@@ -135,6 +136,7 @@ const _ShaderSources = {
             out vec4 vPosition;
             out vec3 vNormal;
             out vec2 vUV;
+            out vec4 vColor;
 
             const int MESH = 1;
             const int SKYBOX = 2;
@@ -145,6 +147,7 @@ const _ShaderSources = {
 
                 vUV = aUV;
                 vNormal = normalize(mat3(matWorld) * aNormal);
+                vColor = aColor;
 
                 gl_Position = matViewProj * vPosition;
             }`,
@@ -155,6 +158,7 @@ const _ShaderSources = {
             in vec4 vPosition;
             in vec3 vNormal;
             in vec2 vUV;
+            in vec4 vColor;
 
             layout(location=0) out vec4 fragPosition;
             layout(location=1) out vec4 fragNormal;
@@ -179,6 +183,9 @@ const _ShaderSources = {
                 // Early alpha test using textureLod for better performance
                 vec4 color = textureLod(colorSampler, vUV, 0.0);
                 if(color.a < 0.5) discard;
+                
+                // Multiply with vertex color (baked lighting)
+                color *= vColor;
 
                 // Initialize fragEmissive to zero
                 fragEmissive = vec4(0.0);

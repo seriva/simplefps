@@ -41,23 +41,15 @@
         "arenas/demo/cretetrimlight3.webp",
         "arenas/demo/cretetrimlight4.webp",
         "arenas/demo/cretewalllight01.webp",
-        "arenas/demo/dsiglass.webp",
         "arenas/demo/steplight1b.webp",
         "arenas/demo/weapspawn01.webp",
         "arenas/demo/q1_tele.webp",
         "arenas/demo/materials.mat",
-        "arenas/demo/chunks/Level.bmesh",
+        "arenas/demo/chunks/level.bmesh",
         "sounds/shoot.sfx",
-        "arenas/demo/cretewalllight01_blend.webp",
-        "arenas/demo/cretelighttrim01_blend.webp",
-        "arenas/demo/weapspawn01_blend.webp",
-        "arenas/demo/dsitinfx_blend.webp",
-        "arenas/demo/cretelighttrim01.blend_blend.webp",
-        "arenas/demo/steplight1.blend_blend.webp",
         "arenas/demo/cretewalllight01.blend_blend.webp",
         "arenas/demo/cretelighttrim01.blend_blend.webp",
-        "arenas/demo/cretelighttrim01.blend_blend.webp",
-        "arenas/demo/cretelighttrim01.blend_blend.webp",
-        "arenas/demo/weapspawn01.blend_blend.webp"
+        "arenas/demo/weapspawn01.blend_blend.webp",
+        "arenas/demo/steplight1.blend_blend.webp"
     ]
 }

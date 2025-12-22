@@ -81,14 +81,6 @@
             "doEmissive": 1
         },
         {
-            "name": "dsiglass",
-            "textures": [
-                "arenas/demo/dsiglass.webp",
-                "arenas/demo/dsitinfx_blend.webp"
-            ],
-            "doEmissive": 1
-        },
-        {
             "name": "q1_tele",
             "textures": [
                 "arenas/demo/q1_tele.webp"

@@ -79,13 +79,17 @@ function parseVertices(buffer, lump, scale) {
         const nz = buffer.readFloatLE(off + 36);
 
         // Read color (4 bytes)
-        const r = buffer[off + 40];
-        const g = buffer[off + 41];
-        const b = buffer[off + 42];
-        const a = buffer[off + 43];
+        // Quake 3 uses overbright bits. Raw values are often dark.
+        // We amplify by 12.0 to bring them into visible range.
+        const r = Math.min(1.0, (buffer[off + 40] * 12.0) / 255.0);
+        const g = Math.min(1.0, (buffer[off + 41] * 12.0) / 255.0);
+        const b = Math.min(1.0, (buffer[off + 42] * 12.0) / 255.0);
+        const a = buffer[off + 43] / 255.0;
+
+
 
         if (i < 5) {
-            console.log(`Vertex ${i} Color: ${r}, ${g}, ${b}, ${a}`);
+            console.log(`Vertex ${i} Color: ${r.toFixed(2)}, ${g.toFixed(2)}, ${b.toFixed(2)}, ${a.toFixed(2)}`);
         }
 
         vertices.push({
@@ -98,7 +102,11 @@ function parseVertices(buffer, lump, scale) {
             lmv: lmv,
             nx: nx,
             ny: nz,
-            nz: -ny
+            nz: -ny,
+            r: r,
+            g: g,
+            b: b,
+            a: a
         });
     }
     return vertices;
@@ -151,10 +159,11 @@ function writeBMesh(meshData, outputPath) {
     }
 
     const buffer = Buffer.alloc(
-        20 +
+        24 +
         meshData.vertices.length * 4 +
         (meshData.uvs?.length || 0) * 4 +
         (meshData.normals?.length || 0) * 4 +
+        (meshData.colors?.length || 0) * 4 +
         (meshData.indices.length * MATERIAL_NAME_SIZE) +
         (meshData.indices.length * 4) +
         (totalIndicesCount * 4)
@@ -165,6 +174,7 @@ function writeBMesh(meshData, outputPath) {
     buffer.writeUInt32LE(meshData.vertices.length, offset); offset += 4;
     buffer.writeUInt32LE(meshData.uvs?.length || 0, offset); offset += 4;
     buffer.writeUInt32LE(meshData.normals?.length || 0, offset); offset += 4;
+    buffer.writeUInt32LE(meshData.colors?.length || 0, offset); offset += 4; // Colors Count
     buffer.writeUInt32LE(meshData.indices.length, offset); offset += 4;
 
     for (let i = 0; i < meshData.vertices.length; i++) {
@@ -182,6 +192,13 @@ function writeBMesh(meshData, outputPath) {
     if (meshData.normals?.length) {
         for (let i = 0; i < meshData.normals.length; i++) {
             buffer.writeFloatLE(meshData.normals[i], offset);
+            offset += 4;
+        }
+    }
+
+    if (meshData.colors?.length) {
+        for (let i = 0; i < meshData.colors.length; i++) {
+            buffer.writeFloatLE(meshData.colors[i], offset);
             offset += 4;
         }
     }
@@ -257,7 +274,7 @@ function convertTextures(usedTextures, textureDir, outputDir, arenaName) {
     console.log(`Converted ${convertedCount} textures.`);
 }
 
-function exportMap(vertices, meshVerts, faces, textures, outputDir, arenaName, textureDir, shaderMap) {
+function exportMap(vertices, meshVerts, faces, textures, outputDir, arenaName, textureDir, shaderMap, entities) {
     fs.mkdirSync(outputDir, { recursive: true });
 
     // Group faces by texture
@@ -269,6 +286,11 @@ function exportMap(vertices, meshVerts, faces, textures, outputDir, arenaName, t
             const texName = textures[face.texture];
             // Filter out sky surfaces
             if (texName.toLowerCase().includes('sky')) {
+                continue;
+            }
+
+            // Filter out glass surfaces (per user request)
+            if (texName.toLowerCase().includes('glass')) {
                 continue;
             }
 
@@ -289,12 +311,14 @@ function exportMap(vertices, meshVerts, faces, textures, outputDir, arenaName, t
     const flatVertices = [];
     const flatUVs = [];
     const flatNormals = [];
+    const flatColors = [];
 
     // Copy all vertices to flat arrays
     for (const v of vertices) {
         flatVertices.push(v.x, v.y, v.z);
         flatUVs.push(v.u, v.v);
         flatNormals.push(v.nx, v.ny, v.nz);
+        flatColors.push(v.r, v.g, v.b, v.a);
     }
 
     // Build Index Groups
@@ -324,7 +348,7 @@ function exportMap(vertices, meshVerts, faces, textures, outputDir, arenaName, t
         });
     }
 
-    // Write Level.bmesh
+    // Write level.bmesh
     const chunksDir = path.join(outputDir, 'chunks');
     fs.mkdirSync(chunksDir, { recursive: true });
 
@@ -332,11 +356,12 @@ function exportMap(vertices, meshVerts, faces, textures, outputDir, arenaName, t
         vertices: flatVertices, // Float32Array or array
         uvs: flatUVs,
         normals: flatNormals,
+        colors: flatColors,
         indices: indicesGroups
     };
 
-    writeBMesh(meshData, path.join(chunksDir, 'Level.bmesh'));
-    console.log(`Wrote Level.bmesh with ${flatVertices.length / 3} vertices and ${indicesGroups.length} material groups.`);
+    writeBMesh(meshData, path.join(chunksDir, 'level.bmesh'));
+    console.log(`Wrote level.bmesh with ${flatVertices.length / 3} vertices and ${indicesGroups.length} material groups.`);
 
     // Convert Textures
     if (textureDir) {
@@ -458,34 +483,68 @@ function exportMap(vertices, meshVerts, faces, textures, outputDir, arenaName, t
     };
     fs.writeFileSync(path.join(outputDir, 'materials.mat'), JSON.stringify(materialsData, null, 4));
 
+    // Check for spawn points
+    const spawnpoints = [];
+
+    if (entities) {
+        // Look for info_player_deathmatch first, then info_player_start
+        const spawns = entities.filter(e => e.classname === 'info_player_deathmatch');
+        const backups = entities.filter(e => e.classname === 'info_player_start');
+
+        const validSpawns = [...spawns, ...backups];
+
+        if (validSpawns.length > 0) {
+            console.log(`Processing ${validSpawns.length} spawn points...`);
+
+            for (const spawn of validSpawns) {
+                if (spawn.origin) {
+                    const parts = spawn.origin.split(' ').map(Number);
+                    if (parts.length === 3) {
+                        const x = parts[0] * scale;
+                        const y = parts[1] * scale;
+                        const z = parts[2] * scale;
+
+                        // Transform: Q3 Z-up -> Engine Y-up
+                        const position = [x, z, -y];
+                        let rotation = [0, 0, 0];
+
+                        // Angle
+                        if (spawn.angle) {
+                            const angle = parseFloat(spawn.angle);
+                            rotation = [0, (angle - 90) * (Math.PI / 180), 0];
+                        }
+
+                        spawnpoints.push({
+                            position: position,
+                            rotation: rotation
+                        });
+                    }
+                }
+            }
+        }
+    }
+
+    // Fallback if no spawns found
+    if (spawnpoints.length === 0) {
+        spawnpoints.push({
+            position: [0, 5, 0],
+            rotation: [0, 0, 0]
+        });
+    }
+
     // Write config.arena
     const configData = {
         skybox: 1,
         lighting: {
-            ambient: [0.5, 0.5, 0.5],
-            directional: [
-                {
-                    direction: [-0.4, 1, -0.4],
-                    color: [0.8, 0.8, 0.8]
-                },
-                {
-                    direction: [0.4, 0.5, 0.4], // Back/Fill light
-                    color: [0.3, 0.3, 0.3]
-                }
-            ],
+            ambient: [1.0, 1.0, 1.0],
+            directional: [],
             spot: [],
             point: []
         },
-        chunks: [`${arenaName}/chunks/Level.bmesh`],
-        spawnpoint: {
-            position: [0, 0, 0],
-            rotation: [0, 0, 0]
-        },
+        chunks: [`${arenaName}/chunks/level.bmesh`],
+        spawnpoints: spawnpoints,
         pickups: []
     };
-
-    // Check if spawn points exist (Entity lump parsing optional but good)
-    // For now, defaults.
 
     fs.writeFileSync(path.join(outputDir, 'config.arena'), JSON.stringify(configData, null, 4));
     console.log(`Wrote config.arena and materials.mat to ${outputDir}`);
@@ -500,7 +559,7 @@ function exportMap(vertices, meshVerts, faces, textures, outputDir, arenaName, t
             // Add generated assets
             const newAssets = [
                 `${arenaName}/materials.mat`,
-                `${arenaName}/chunks/Level.bmesh`
+                `${arenaName}/chunks/level.bmesh`
             ];
 
             // Add all textures (base + blend)
@@ -617,6 +676,36 @@ function findExampleTextures(shaderMap, shaderDir) {
 
 // ... existing code ...
 
+// ... existing code ...
+
+function parseEntities(buffer, lump) {
+    const data = buffer.slice(lump.offset, lump.offset + lump.length).toString('utf8');
+    const entities = [];
+    let currentEntity = null;
+
+    // Simple parser for { key "value" } format
+    const lines = data.split('\n');
+    for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed === '{') {
+            currentEntity = {};
+        } else if (trimmed === '}') {
+            if (currentEntity) {
+                entities.push(currentEntity);
+                currentEntity = null;
+            }
+        } else if (currentEntity && trimmed.length > 0) {
+            // Parse "key" "value"
+            // Handles complex cases like "key" "val ue"
+            const match = trimmed.match(/"([^"]+)"\s+"([^"]*)"/);
+            if (match) {
+                currentEntity[match[1]] = match[2];
+            }
+        }
+    }
+    return entities;
+}
+
 const shaderDir = path.join(path.dirname(inputFile), '../scripts');
 // Assuming input is scripts/test/maps/oildm1.bsp, shaders are in scripts/test/scripts/
 // Adjust path resolution logic as needed.
@@ -624,8 +713,19 @@ const shaderDir = path.join(path.dirname(inputFile), '../scripts');
 try {
     const { buffer, lumps } = readBSP(inputFile);
 
-    // const entities = parseEntities(buffer, lumps[LUMP_ENTITIES]);
-    // console.log("Entities String Sample:", entities.substring(0, 500)); // Check worldspawn keys
+    const entities = parseEntities(buffer, lumps[LUMP_ENTITIES]);
+    console.log(`Entities Parsed: ${entities.length}`);
+    if (entities.length > 0) {
+        console.log("First 5 entities:", entities.slice(0, 5).map(e => e.classname));
+
+        const teleports = entities.filter(e => e.classname === 'trigger_teleport');
+        if (teleports.length > 0) {
+            console.log("Found trigger_teleport entities:");
+            teleports.forEach((t, i) => {
+                console.log(`  Teleport ${i}:`, JSON.stringify(t));
+            });
+        }
+    }
 
     // Resolve shader directory
     // If input is scripts/test/maps/oildm1.bsp -> root = scripts/test
@@ -640,7 +740,7 @@ try {
     const faces = parseFaces(buffer, lumps[LUMP_FACES]);
     const textures = parseTextures(buffer, lumps[LUMP_TEXTURES]);
 
-    exportMap(vertices, meshVerts, faces, textures, outputDir, arenaName, textureDir, shaderMap);
+    exportMap(vertices, meshVerts, faces, textures, outputDir, arenaName, textureDir, shaderMap, entities);
 } catch (e) {
     console.error('Conversion failed:', e);
 }

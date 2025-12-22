@@ -5,6 +5,7 @@ class Mesh {
 	static ATTR_POSITIONS = 0;
 	static ATTR_UVS = 1;
 	static ATTR_NORMALS = 2;
+	static ATTR_COLORS = 3;
 
 	#bindBufferAndAttrib(buffer, attribute, itemSize) {
 		gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
@@ -47,6 +48,7 @@ class Mesh {
 	initMeshBuffers() {
 		this.hasUVs = this.uvs.length > 0;
 		this.hasNormals = this.normals.length > 0;
+		this.hasColors = this.colors && this.colors.length > 0;
 		this.triangleCount = 0;
 
 		for (const indexObj of this.indices) {
@@ -65,6 +67,9 @@ class Mesh {
 		if (this.hasNormals) {
 			this.normalBuffer = Mesh.buildBuffer(gl.ARRAY_BUFFER, this.normals, 3);
 		}
+		if (this.hasColors) {
+			this.colorBuffer = Mesh.buildBuffer(gl.ARRAY_BUFFER, this.colors, 4);
+		}
 	}
 
 	deleteMeshBuffers() {
@@ -74,6 +79,7 @@ class Mesh {
 		gl.deleteBuffer(this.vertexBuffer);
 		if (this.hasUVs) gl.deleteBuffer(this.uvBuffer);
 		if (this.hasNormals) gl.deleteBuffer(this.normalBuffer);
+		if (this.hasColors) gl.deleteBuffer(this.colorBuffer);
 	}
 
 	bind() {
@@ -81,6 +87,12 @@ class Mesh {
 		if (this.hasUVs) this.#bindBufferAndAttrib(this.uvBuffer, Mesh.ATTR_UVS, 2);
 		if (this.hasNormals)
 			this.#bindBufferAndAttrib(this.normalBuffer, Mesh.ATTR_NORMALS, 3);
+		if (this.hasColors) {
+			this.#bindBufferAndAttrib(this.colorBuffer, Mesh.ATTR_COLORS, 4);
+		} else {
+			gl.disableVertexAttribArray(Mesh.ATTR_COLORS);
+			gl.vertexAttrib4f(Mesh.ATTR_COLORS, 1.0, 1.0, 1.0, 1.0);
+		}
 	}
 
 	unBind() {
@@ -89,6 +101,7 @@ class Mesh {
 		gl.disableVertexAttribArray(Mesh.ATTR_POSITIONS);
 		if (this.hasUVs) gl.disableVertexAttribArray(Mesh.ATTR_UVS);
 		if (this.hasNormals) gl.disableVertexAttribArray(Mesh.ATTR_NORMALS);
+		if (this.hasColors) gl.disableVertexAttribArray(Mesh.ATTR_COLORS);
 	}
 
 	renderSingle(applyMaterial = true, renderMode = gl.TRIANGLES) {
@@ -171,11 +184,26 @@ class Mesh {
 		const vertexCount = readUint32();
 		const uvCount = readUint32();
 		const normalCount = readUint32();
+		const colorCount = readUint32();
 		const indexGroupCount = readUint32();
 
 		this.vertices = readFloat32Array(vertexCount);
 		this.uvs = readFloat32Array(uvCount);
 		this.normals = readFloat32Array(normalCount);
+		this.colors = readFloat32Array(colorCount);
+
+		if (this.colors.length > 0) {
+			console.log("Loaded mesh colors:", this.colors.length / 4, "vertices");
+			console.log(
+				"First color:",
+				this.colors[0],
+				this.colors[1],
+				this.colors[2],
+				this.colors[3],
+			);
+		} else {
+			console.log("No colors loaded for mesh.");
+		}
 
 		this.indices = [];
 		const MATERIAL_NAME_SIZE = 64;
