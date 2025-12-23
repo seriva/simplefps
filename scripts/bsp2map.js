@@ -788,8 +788,9 @@ function exportMap(vertices, meshVerts, faces, textures, lightmaps, outputDir, a
 }
 
 // Parse command line arguments
-if (process.argv.length < 6) {
-    console.log('Usage: node bsp2map.js <input.bsp> <output_dir> <arena_name> [texture_dir] [scale] [lightmap_scale] [overbright]');
+if (process.argv.length < 4) {
+    console.log('Usage: node bsp2map.js <input.bsp> <output_dir> [texture_dir] [scale] [lightmap_scale] [overbright]');
+    console.log('  output_dir: Output directory (arena name auto-derived from path)');
     console.log('  texture_dir: Optional path to textures directory');
     console.log('  scale: Optional scale factor for geometry (default: 0.03)');
     console.log('  lightmap_scale: Optional upscale factor for lightmaps (default: 2, range: 1-4)');
@@ -799,11 +800,24 @@ if (process.argv.length < 6) {
 
 const bspFile = process.argv[2];
 const outputDir = process.argv[3];
-const arenaName = process.argv[4];
-const textureDir = process.argv[5] || null;
-const scale = process.argv[6] ? parseFloat(process.argv[6]) : 0.03;
-const lightmapScale = process.argv[7] ? parseInt(process.argv[7]) : 2;
-const overbright = process.argv[8] ? parseFloat(process.argv[8]) : 5.7;
+
+// Auto-derive arena name from output directory
+// Strip 'app/resources/' prefix if present, otherwise use the last two path segments
+let arenaName = outputDir;
+if (arenaName.startsWith('app/resources/')) {
+    arenaName = arenaName.substring('app/resources/'.length);
+} else if (arenaName.includes('/')) {
+    // Fallback: use last two path segments (e.g., "arenas/demo")
+    const parts = arenaName.split('/').filter(p => p.length > 0);
+    arenaName = parts.slice(-2).join('/');
+}
+
+const textureDir = process.argv[4] || null;
+const scale = process.argv[5] ? parseFloat(process.argv[5]) : 0.03;
+const lightmapScale = process.argv[6] ? parseInt(process.argv[6]) : 2;
+const overbright = process.argv[7] ? parseFloat(process.argv[7]) : 5.7;
+
+console.log(`Auto-derived arena name: ${arenaName}`);
 
 try {
     const { buffer, lumps } = readBSP(bspFile);

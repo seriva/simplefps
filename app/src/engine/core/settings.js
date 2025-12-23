@@ -20,7 +20,7 @@ const _defaults = {
 	emissiveIteration: 8,
 
 	// SSAO settings
-	doSSAO: true,
+	doSSAO: Utils.isMobile() ? false : true,
 	ssaoRadius: 1.0,
 	ssaoBias: 0.025,
 	ssaoStrength: 0.7,
