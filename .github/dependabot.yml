@@ -1,0 +1,27 @@
+# Dependabot configuration for automated dependency updates
+# https://docs.github.com/en/code-security/dependabot/dependabot-version-updates
+
+version: 2
+updates:
+  # Monitor npm dependencies
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    # Group all patch updates together
+    groups:
+      patch-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "patch"
+    # Auto-merge minor and patch updates (optional - can remove if you want manual review)
+    labels:
+      - "dependencies"
+      - "automated"
+    # Semantic versioning prefix
+    commit-message:
+      prefix: "chore"
+      include: "scope"

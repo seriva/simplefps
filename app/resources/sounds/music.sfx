@@ -1,7 +1,0 @@
-{
-    "file"   : "resources/sounds/music.ogg",
-    "cached" : false,
-    "speed"  : 1,
-    "volume" : 0.75,
-    "loop"   : true
-}

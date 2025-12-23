@@ -1,58 +1,92 @@
-import { Context, DOM, Input, Scene } from "../engine/engine.js";
-import HUD from "./hud.js";
+import { Context, Input, Scene } from "../engine/core/engine.js";
+import { css, Signals } from "../engine/utils/reactive.js";
 import UI from "./ui.js";
 
-const GameStates = {
+// ============================================================================
+// Private
+// ============================================================================
+
+const _GameStates = Object.freeze({
 	MENU: "MENU",
 	GAME: "GAME",
-};
+});
 
-let currentState = GameStates.MENU;
+const _currentState = Signals.create(_GameStates.MENU, undefined, "game:state");
+const _isBlurred = Signals.create(true, undefined, "game:blur");
 
-let isBlurred = false;
-const blurGameCanvas = (blur) => {
-	if (blur === undefined) {
-		isBlurred = !isBlurred;
-	} else {
-		isBlurred = blur;
-	}
+const _blurStyle = css`
+	transition: filter 25ms linear;
+`;
 
-	const blurConfig = {
-		mobileHA: false,
-		duration: 25,
-		delay: 0,
-		easing: "linear",
-	};
+Context.canvas.classList.add(_blurStyle);
+// Initialize blur immediately to avoid white flash on load
+Context.canvas.style.filter = "blur(8px)";
 
-	DOM.animate(Context.canvas.domNode, { blur: isBlurred ? 8 : 0 }, blurConfig);
-};
+_isBlurred.subscribe((blurred) => {
+	Context.canvas.style.filter = blurred ? "blur(8px)" : "blur(0px)";
+});
 
-const setState = (newState, menu) => {
-	currentState = newState.toUpperCase();
-
-	switch (currentState) {
-		case GameStates.GAME:
+// Subscribe to state changes to orchestrate system transitions
+_currentState.subscribe((state) => {
+	switch (state) {
+		case _GameStates.GAME:
 			Input.toggleVirtualInput(true);
 			Input.toggleCursor(false);
-			blurGameCanvas(false);
-			HUD.toggle(true);
-			UI.hide();
+			_isBlurred.set(false);
 			Scene.pause(false);
 			break;
 
-		case GameStates.MENU:
+		case _GameStates.MENU:
 			Input.toggleVirtualInput(false);
 			Input.toggleCursor(true);
-			blurGameCanvas(true);
-			HUD.toggle(false);
-			UI.show(menu);
+			_isBlurred.set(true);
 			Scene.pause(true);
 			break;
 	}
-};
-
-window.addEventListener("changestate", (e) => {
-	setState(e.detail.state, e.detail.menu);
 });
 
-export { currentState as default };
+// Listen for changestate events from engine layer (avoids circular dependencies)
+window.addEventListener("changestate", (e) => {
+	const stateUpper = e.detail.state.toUpperCase();
+	if (stateUpper === _GameStates.MENU) {
+		State.enterMenu(e.detail.menu);
+	} else if (stateUpper === _GameStates.GAME) {
+		State.enterGame();
+	}
+});
+
+// ============================================================================
+// Public API
+// ============================================================================
+
+const State = {
+	get current() {
+		return _currentState.get();
+	},
+
+	/**
+	 * Transitions to the main menu state
+	 * @param {string} [menu] - Optional specific menu to show
+	 */
+	enterMenu(menu) {
+		Signals.batch(() => {
+			_currentState.set(_GameStates.MENU);
+			UI.show(menu);
+		});
+	},
+
+	/**
+	 * Transitions to the in-game state
+	 */
+	enterGame() {
+		Signals.batch(() => {
+			_currentState.set(_GameStates.GAME);
+			UI.hide();
+		});
+	},
+
+	signal: _currentState,
+	isBlurred: _isBlurred,
+};
+
+export default State;
