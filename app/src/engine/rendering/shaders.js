@@ -506,6 +506,7 @@ const _ShaderSources = {
             uniform float emissiveMult;
             uniform float gamma;
             uniform float ssaoStrength;
+            uniform float dirtIntensity;
             uniform vec3 ambient;
 
             #define FXAA_EDGE_THRESHOLD_MIN 0.0312
@@ -629,12 +630,22 @@ const _ShaderSources = {
                 // Add emissive
                 fragColor += emissive * emissiveMult;
 
-                // Apply dirt using soft light blend mode
-                // fragColor.rgb = vec3(
-                //     applySoftLight(fragColor.r, dirt.r),
-                //     applySoftLight(fragColor.g, dirt.g),
-                //     applySoftLight(fragColor.b, dirt.b)
-                // );
+                // Apply dirt effect with emissive protection
+                if (dirtIntensity > 0.0) {
+                    // Protect emissive materials from dirt overlay
+                    float emissiveStrength = length(emissive.rgb);
+                    float emissiveMask = 1.0 - clamp(emissiveStrength * 10.0, 0.0, 1.0);
+                    
+                    // Invert dirt texture (darker = more dirt) and scale by intensity
+                    vec3 dirtAmount = (1.0 - dirt.rgb) * dirtIntensity;
+                    dirtAmount = clamp(dirtAmount, 0.0, 1.0);
+                    
+                    // Apply dirt by darkening
+                    vec3 dirtened = fragColor.rgb * (1.0 - dirtAmount);
+                    
+                    // Mix based on emissive mask (0 = emissive/no dirt, 1 = apply dirt)
+                    fragColor.rgb = mix(fragColor.rgb, dirtened, emissiveMask);
+                }
 
                 fragColor.rgb = pow(fragColor.rgb, vec3(1.0 / gamma));
             }`,

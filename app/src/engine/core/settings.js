@@ -20,11 +20,15 @@ const _defaults = {
 	emissiveIteration: 8,
 
 	// SSAO settings
-	doSSAO: Utils.isMobile() ? false : true,
+	doSSAO: !Utils.isMobile(),
 	ssaoRadius: 1.0,
 	ssaoBias: 0.025,
 	ssaoStrength: 0.7,
 	ssaoBlurIterations: 8,
+
+	// Dirt/vignette effect
+	doDirt: true,
+	dirtIntensity: 0.25, // 0.0 = none, 1.0 = full dirt darkening
 
 	// controls
 	forward: 87,

@@ -633,6 +633,10 @@ const _postProcessingPass = () => {
 		"ssaoStrength",
 		Settings.doSSAO ? Settings.ssaoStrength : 0.0,
 	);
+	Shaders.postProcessing.setFloat(
+		"dirtIntensity",
+		Settings.doDirt ? Settings.dirtIntensity : 0.0,
+	);
 	Shaders.postProcessing.setVec3("ambient", Scene.getAmbient());
 	screenQuad.renderSingle();
 
