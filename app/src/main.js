@@ -15,6 +15,7 @@ async function loadGameModules() {
 		import("./game/arena.js").catch((_err) => null),
 		import("./game/weapons.js").catch((_err) => null),
 		import("./game/menus.js").catch((_err) => null),
+		import("./game/hud.js").catch((_err) => null),
 	]);
 
 	const [_controls, arena, weapons, _menus] = modules;
