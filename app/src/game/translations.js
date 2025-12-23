@@ -1,10 +1,12 @@
-import { Console } from "../engine/engine.js";
+import { Console } from "../engine/core/engine.js";
 
-// Default language fallback
-const DEFAULT_LANGUAGE = "en-US";
+// ============================================================================
+// Private
+// ============================================================================
 
-// Translation dictionary
-const translations = {
+const _DEFAULT_LANGUAGE = "en-US";
+
+const _translations = {
 	"en-US": {
 		YES: "Yes",
 		NO: "No",
@@ -15,17 +17,20 @@ const translations = {
 	},
 };
 
-// Get browser language or fallback to default
-const currentLanguage = (() => {
+const _currentLanguage = (() => {
 	const browserLang = navigator.language;
-	return browserLang in translations ? browserLang : DEFAULT_LANGUAGE;
+	return browserLang in _translations ? browserLang : _DEFAULT_LANGUAGE;
 })();
 
-Console.log(`Language ${currentLanguage}`);
+Console.log(`Language ${_currentLanguage}`);
+
+// ============================================================================
+// Public API
+// ============================================================================
 
 const Translations = {
 	get: (key) => {
-		const languageDict = translations[currentLanguage];
+		const languageDict = _translations[_currentLanguage];
 		return languageDict?.[key] ?? "*UNKNOWN KEY*";
 	},
 };

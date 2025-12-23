@@ -108,9 +108,5 @@ dist
 public
 app/src/dependencies
 
-# tool specific
-tools/*.mesh
-tools/*.bmesh
-tools/*.obj
-tools/*.mtl
-tools/*.txt
+# content specific
+content

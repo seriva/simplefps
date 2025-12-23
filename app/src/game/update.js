@@ -1,96 +1,73 @@
-import { Loading, Utils } from "../engine/engine.js";
-import Translations from "./translations.js";
-import UI from "./ui.js";
+import { Console, Loading } from "../engine/core/engine.js";
+import State from "./state.js";
 
-let newServiceWorker = null;
-let registration = null;
+// ============================================================================
+// Private
+// ============================================================================
 
-const update = () => {
-	if (newServiceWorker !== null) {
+let _newServiceWorker = null;
+let _registration = null;
+
+const _update = () => {
+	if (_newServiceWorker !== null) {
 		Loading.toggle(true, true);
-		newServiceWorker.postMessage({
+		_newServiceWorker.postMessage({
 			action: "skipWaiting",
 		});
 	} else {
-		Utils.dispatchCustomEvent("changestate", {
-			state: "GAME",
-		});
-		console.log("SW - No new service worker found to update");
+		State.enterGame();
+		Console.log("SW - No new service worker found to update");
 	}
 };
-
-UI.register("UPDATE_MENU", {
-	header: Translations.get("VERSION_NEW"),
-	controls: [
-		{
-			text: Translations.get("YES"),
-			callback: () => {
-				update();
-			},
-		},
-		{
-			text: Translations.get("NO"),
-			callback: () => {
-				Utils.dispatchCustomEvent("changestate", {
-					state: "GAME",
-				});
-			},
-		},
-	],
-});
 
 if (navigator.serviceWorker) {
 	navigator.serviceWorker
 		.register("./sw.js")
 		.then((reg) => {
-			console.log("SW - Registered: ", reg);
-			registration = reg;
-			registration.update();
-			if (registration.waiting) {
-				newServiceWorker = registration.waiting;
-				Utils.dispatchCustomEvent("changestate", {
-					state: "MENU",
-					menu: "UPDATE_MENU",
-				});
+			Console.log("SW - Registered: ", reg);
+			_registration = reg;
+			_registration.update();
+			if (_registration.waiting) {
+				_newServiceWorker = _registration.waiting;
+				State.enterMenu("UPDATE_MENU");
 			} else {
-				registration.addEventListener("updatefound", () => {
-					console.log("SW - Service worker update found");
-					newServiceWorker = registration.installing;
-					newServiceWorker.addEventListener("statechange", () => {
-						if (newServiceWorker.state === "installed") {
-							Utils.dispatchCustomEvent("changestate", {
-								state: "MENU",
-								menu: "UPDATE_MENU",
-							});
+				_registration.addEventListener("updatefound", () => {
+					Console.log("SW - Service worker update found");
+					_newServiceWorker = _registration.installing;
+					_newServiceWorker.addEventListener("statechange", () => {
+						if (_newServiceWorker.state === "installed") {
+							State.enterMenu("UPDATE_MENU");
 						}
 					});
 				});
 			}
 		})
 		.catch((error) => {
-			console.log("SW - Registration failed: ", error);
+			Console.error("SW - Registration failed: ", error);
 		});
 
 	let refreshing;
 	navigator.serviceWorker.addEventListener("controllerchange", () => {
 		if (refreshing) return;
-		console.log("SW - Refreshing to load new version");
+		Console.log("SW - Refreshing to load new version");
 		window.location.reload();
 		refreshing = true;
 	});
 }
 
+// ============================================================================
+// Public API
+// ============================================================================
+
 const Update = {
+	update: _update,
 	force: () => {
-		if (newServiceWorker !== null) {
-			Utils.dispatchCustomEvent("changestate", {
-				state: "MENU",
-				menu: "UPDATE_MENU",
-			});
+		if (_newServiceWorker !== null) {
+			State.enterMenu("UPDATE_MENU");
 			return;
 		}
-		if (registration !== null) {
-			registration.update();
+		if (_registration !== null) {
+			_registration.update();
 		}
 	},
 };

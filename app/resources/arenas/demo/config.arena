@@ -1,59 +1,105 @@
 {
     "skybox": 1,
+    "lightmap": "arenas/demo/lightmaps.webp",
     "lighting": {
-        "ambient": [0.04, 0.05, 0.08],
+        "ambient": [
+            0.01,
+            0.01,
+            0.01
+        ],
         "directional": [
             {
-                "direction": [-0.6, 1, -0.4],
-                "color": [0.23, 0.26, 0.35]
-            },
-            {
-                "direction": [0.4, 1, 0.6],
-                "color": [0.14, 0.16, 0.22]
+                "direction": [
+                    0.3,
+                    -0.8,
+                    0.5
+                ],
+                "color": [
+                    0.4,
+                    0.5,
+                    0.6
+                ]
             }
         ],
         "spot": [],
-        "point": [
-            {
-                "position": [34, -11, -19],
-                "color": [0.888, 0.31, 0.051],
-                "intensity": 6,
-                "size": 20
-            }
-        ]
+        "point": []
     },
     "chunks": [
-        "arenas/demo/chunks/decor1.bmesh",
-        "arenas/demo/chunks/decor2.bmesh",
-        "arenas/demo/chunks/decor3.bmesh",
-        "arenas/demo/chunks/rocks1.bmesh",
-        "arenas/demo/chunks/lights.bmesh",
-        "arenas/demo/chunks/water.bmesh",
-        "arenas/demo/chunks/rocks4.bmesh",
-        "arenas/demo/chunks/rocks3.bmesh",
-        "arenas/demo/chunks/building1.bmesh",
-        "arenas/demo/chunks/rocks2.bmesh",
-        "arenas/demo/chunks/lava.bmesh",
-        "arenas/demo/chunks/building4.bmesh",
-        "arenas/demo/chunks/building2.bmesh",
-        "arenas/demo/chunks/building3.bmesh"
+        "arenas/demo/geometry.bmesh"
     ],
-    "spawnpoint" : {
-        "position" : [43,6,-33],
-        "rotation" : [0,0,0]
-    },
-    "pickups": [
+    "spawnpoints": [
         {
-            "type": "health",
-            "position": [26.85, 2.35, -16.75]
+            "position": [
+                36.96,
+                0.72,
+                8.64
+            ],
+            "rotation": [
+                0,
+                1.5707963267948966,
+                0
+            ]
         },
         {
-            "type": "ammo",
-            "position": [26.85, 2.35, -11]
+            "position": [
+                39.6,
+                0.72,
+                21.84
+            ],
+            "rotation": [
+                0,
+                -0.7853981633974483,
+                0
+            ]
         },
         {
-            "type": "armor",
-            "position": [20.25, 2.35, -22.25]
+            "position": [
+                47.76,
+                6.4799999999999995,
+                2.16
+            ],
+            "rotation": [
+                0,
+                -3.9269908169872414,
+                0
+            ]
+        },
+        {
+            "position": [
+                23.759999999999998,
+                6.4799999999999995,
+                -7.92
+            ],
+            "rotation": [
+                0,
+                0,
+                0
+            ]
+        },
+        {
+            "position": [
+                16.56,
+                0.48,
+                -25.2
+            ],
+            "rotation": [
+                0,
+                -3.141592653589793,
+                0
+            ]
+        },
+        {
+            "position": [
+                19.2,
+                -5.279999999999999,
+                14.879999999999999
+            ],
+            "rotation": [
+                0,
+                -0.7853981633974483,
+                0
+            ]
         }
-    ]
+    ],
+    "pickups": []
 }
