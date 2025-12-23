@@ -158,7 +158,6 @@ const _renderWorldGeometry = () => {
 			Resources.get(_lightmapAtlas).bind(gl.TEXTURE0 + 4);
 			Shaders.geometry.setInt("hasLightmap", 1);
 			if (!_hasLoggedLightmap) {
-				Console.log(`Lightmap atlas bound: ${_lightmapAtlas}, hasLightmap=1`);
 				_hasLoggedLightmap = true;
 			}
 		} catch (e) {
