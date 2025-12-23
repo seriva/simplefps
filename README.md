@@ -9,7 +9,8 @@ Simple first person arena shooter game written in ES6 and WebGL with a PWA distr
 ## Features
 
 - **Gameplay**: Arena-based FPS with physics-based projectiles, multiple weapons (Grenade Launcher, Minigun), and cross-platform controls
-- **Performance**: Custom WebGL engine with optimized rendering, physics simulation (Cannon.js), and PWA support
+- **Rendering**: Custom WebGL engine with SSAO, emissive materials, post-processing pipeline, and lightmap support
+- **Performance**: Optimized rendering, physics simulation (Cannon.js), and PWA support
 - **Architecture**: Modular ES6 design with entity system, scene management, and comprehensive input handling
 - **Cross-Platform**: Runs on Desktop, Android, and iOS with touch controls and responsive design
 
@@ -38,6 +39,8 @@ app/
 │   └── main.js           # Application entry point
 ├── resources/            # Game assets
 └── index.html            # Main HTML file
+scripts/
+└── bsp2map.js            # Quake 3 BSP to game format converter
 ```
 
 ## Quick Start
