@@ -507,7 +507,7 @@ const _ShaderSources = {
             uniform float gamma;
             uniform float ssaoStrength;
             uniform float dirtIntensity;
-            uniform vec3 ambient;
+            uniform vec3 uAmbient;
 
             #define FXAA_EDGE_THRESHOLD_MIN 0.0312
             #define FXAA_EDGE_THRESHOLD_MAX 0.125
@@ -615,12 +615,14 @@ const _ShaderSources = {
                 // - Dynamic objects: color has albedo only, multiply by total lighting
                 if (hasLightmap > 0.5) {
                     // Lightmapped surface: add dynamic lights on top of baked lighting
-                    // Subtract ambient so we only add the dynamic contribution
-                    vec3 dynamicLight = max(light.rgb - ambient, vec3(0.0));
+                    vec3 dynamicLight = max(light.rgb - uAmbient, vec3(0.0));
                     fragColor = vec4(color.rgb + dynamicLight, color.a);
                 } else {
-                    // Dynamic object: standard deferred lighting
-                    fragColor = color * light;
+                    // Non-lightmapped object (FPS mesh):
+                    // Use additive lighting model here too to preserve "fullbright" look for weapons
+                    // This matches the behavior before refactoring where they were incorrectly treated as lightmapped
+                    vec3 dynamicLight = max(light.rgb - uAmbient, vec3(0.0));
+                    fragColor = vec4(color.rgb + dynamicLight, color.a);
                 }
                 
                 // Apply SSAO with configurable strength (blend between full brightness and AO)
@@ -693,7 +695,7 @@ const _ShaderSources = {
             uniform vec3 cameraPosition;
 
             // Lighting uniforms
-            uniform vec3 ambient;
+            // uniform vec3 uAmbient; // Removed to avoid unused uniform warning
             
             // Point lights (max 8)
             #define MAX_POINT_LIGHTS 8

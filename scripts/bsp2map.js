@@ -669,9 +669,20 @@ function exportMap(vertices, meshVerts, faces, textures, lightmaps, outputDir, a
                 }
             }
 
+            // Build textures array: [color, emissive, sem, semApply, lightmap]
+            // Pad with "none" to fill empty slots up to lightmap at index 4
+            const texturesList = [`${arenaName}/textures/${name}.webp`, ...blendTextures];
+            while (texturesList.length < 4) {
+                texturesList.push("none");
+            }
+            // Add lightmap at index 4
+            if (atlasName) {
+                texturesList.push(`${arenaName}/${atlasName}`);
+            }
+
             const matDef = {
                 name: name,
-                textures: [`${arenaName}/textures/${name}.webp`, ...blendTextures]
+                textures: texturesList
             };
 
             if (doEmissive) {
@@ -740,7 +751,6 @@ function exportMap(vertices, meshVerts, faces, textures, lightmaps, outputDir, a
     // Write config.arena with simplified paths
     const configData = {
         skybox: 1,
-        lightmap: atlasName ? `${arenaName}/${atlasName}` : null,
         lighting: {
             ambient: [0.01, 0.01, 0.01],
             directional: [

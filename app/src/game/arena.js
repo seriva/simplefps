@@ -80,7 +80,6 @@ const _setupCollision = (chunks, spawnPosition) => {
 			const mesh = Resources.get(chunkPath);
 			if (mesh && mesh.vertices && mesh.indices) {
 				Physics.addTrimesh(mesh.vertices, mesh.indices);
-				Console.log(`Created collision for ${chunkPath}`);
 			}
 		} catch (e) {
 			Console.warn(`Failed to create collision for ${chunkPath}: ${e.message}`);
@@ -89,7 +88,6 @@ const _setupCollision = (chunks, spawnPosition) => {
 
 	// Create player physics body at spawn position
 	Physics.createPlayerBody(spawnPosition);
-	Console.log(`Created player physics body at ${spawnPosition}`);
 };
 
 const _load = async (name) => {
@@ -106,10 +104,7 @@ const _load = async (name) => {
 		_state.arena = arenaData;
 		Scene.init();
 
-		// Load lightmap atlas if present
-		if (_state.arena.lightmap) {
-			Scene.setLightmap(_state.arena.lightmap);
-		}
+		// Lightmap is now handled per-material in Material class
 
 		const { spawnpoint, spawnpoints, lighting, pickups } = _state.arena;
 

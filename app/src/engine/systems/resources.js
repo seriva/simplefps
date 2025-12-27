@@ -20,22 +20,36 @@ const Resources = {
 			const loadPromises = paths.map(async (path) => {
 				if (_resources.has(path)) return;
 
-				const fullpath = _basepath + path;
-				const ext = _fileExtRegex.exec(path)[1];
-				const resourceHandler = _RESOURCE_TYPES[ext];
+				if (_loadingPromises.has(path)) {
+					return _loadingPromises.get(path);
+				}
 
-				if (resourceHandler) {
-					try {
-						const response = await Utils.fetch(fullpath);
-						const result = await Promise.resolve(
-							resourceHandler(response, this),
-						);
-						if (result) _resources.set(path, result);
-						Console.log(`Loaded: ${path}`);
-					} catch (err) {
-						Console.error(`Error loading ${path}: ${err}`);
-						throw err;
+				const loadPromise = (async () => {
+					const fullpath = _basepath + path;
+					const ext = _fileExtRegex.exec(path)[1];
+					const resourceHandler = _RESOURCE_TYPES[ext];
+
+					if (resourceHandler) {
+						try {
+							const response = await Utils.fetch(fullpath);
+							const result = await Promise.resolve(
+								resourceHandler(response, this),
+							);
+							if (result) _resources.set(path, result);
+							Console.log(`Loaded: ${path}`);
+						} catch (err) {
+							Console.error(`Error loading ${path}: ${err}`);
+							throw err;
+						}
 					}
+				})();
+
+				_loadingPromises.set(path, loadPromise);
+
+				try {
+					await loadPromise;
+				} finally {
+					_loadingPromises.delete(path);
 				}
 			});
 
@@ -62,6 +76,7 @@ export default Resources;
 
 // Private state
 const _resources = new Map();
+const _loadingPromises = new Map();
 const _basepath = "resources/";
 const _fileExtRegex = /(?:\.([^.]+))?$/;
 

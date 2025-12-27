@@ -10,7 +10,7 @@ class Material {
 
 		this.resources = resources;
 		this.name = data.name;
-		this.textures = data.textures;
+		this.textures = data.textures; // Index 4 is lightmap if present
 		this.geomType = data.geomType || 1;
 		this.doEmissive = data.doEmissive || 0;
 		this.doSEM = data.doSEM || 0;
@@ -38,6 +38,11 @@ class Material {
 			shader.setInt("lightmapSampler", 4);
 			shader.setInt("geomType", this.geomType);
 			shader.setInt("doEmissive", this.doEmissive);
+
+			// Check if lightmap present at index 4
+			// Materials with <5 textures or "none" at index 4 have no lightmap
+			const hasLightmap = this.textures[4] && this.textures[4] !== "none";
+			shader.setInt("hasLightmap", hasLightmap ? 1 : 0);
 		} else {
 			shader.setFloat("opacity", this.opacity);
 		}
@@ -53,7 +58,7 @@ class Material {
 	unBind() {
 		for (let i = 0; i < this.textures.length; i++) {
 			const name = this.textures[i];
-			if (name === "none") continue;
+			//if (name === "none") continue;
 			Texture.unBind(gl.TEXTURE0 + i);
 		}
 	}
