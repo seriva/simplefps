@@ -16,7 +16,7 @@ const _gravityBodies = new Set(); // Bodies that need manual gravity
 
 const _init = () => {
 	_world = new CANNON.World();
-	_world.broadphase = new CANNON.NaiveBroadphase();
+	_world.broadphase = new CANNON.SAPBroadphase(_world);
 	_world.gravity.set(0, 0, 0); // No world gravity - apply manually to objects that need it
 	_world.quatNormalizeSkip = 0;
 	_world.quatNormalizeFast = false;

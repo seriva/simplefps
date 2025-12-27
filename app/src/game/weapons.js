@@ -235,7 +235,7 @@ const _createProjectile = (spawnPos, config) => {
 
 	// Enable CCD to prevent tunneling through walls at high speed
 	entity.physicsBody.ccdSpeedThreshold = 1;
-	entity.physicsBody.ccdIterations = 50;
+	entity.physicsBody.ccdIterations = 10;
 
 	// Use addBodyWithGravity so grenades fall
 	Physics.addBodyWithGravity(entity.physicsBody);
