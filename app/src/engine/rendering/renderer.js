@@ -637,7 +637,7 @@ const _postProcessingPass = () => {
 		"dirtIntensity",
 		Settings.doDirt ? Settings.dirtIntensity : 0.0,
 	);
-	Shaders.postProcessing.setVec3("ambient", Scene.getAmbient());
+	Shaders.postProcessing.setVec3("uAmbient", Scene.getAmbient());
 	screenQuad.renderSingle();
 
 	Shader.unBind();
