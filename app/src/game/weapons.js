@@ -20,8 +20,8 @@ const _WEAPONS = {
 		mesh: "meshes/grenade_launcher.mesh",
 		projectile: {
 			mesh: "meshes/ball.mesh",
-			radius: 0.095,
-			mass: 0.1,
+			radius: 0.15,
+			mass: 2,
 			velocity: 25,
 			light: {
 				radius: 4.5,
@@ -76,6 +76,10 @@ const _state = {
 const _grenadeShape = new CANNON.Sphere(
 	_WEAPONS.GRENADE_LAUNCHER.projectile.radius,
 );
+
+// Create bouncy material for grenades
+const _grenadeMaterial = new CANNON.Material("grenade");
+_grenadeMaterial.restitution = 0.8; // High bounciness (0-1)
 
 const _setIsMoving = (value) => {
 	_state.isMoving = value;
@@ -222,10 +226,19 @@ const _calculateProjectileSpawnPosition = () => {
 const _createProjectile = (spawnPos, config) => {
 	const entity = new MeshEntity([0, 0, 0], config.mesh, _updateGrenade);
 
-	entity.physicsBody = new CANNON.Body({ mass: config.mass });
+	entity.physicsBody = new CANNON.Body({
+		mass: config.mass,
+		material: _grenadeMaterial, // Bouncy material
+	});
 	entity.physicsBody.position.set(...spawnPos);
 	entity.physicsBody.addShape(_grenadeShape);
-	Physics.addBody(entity.physicsBody);
+
+	// Enable CCD to prevent tunneling through walls at high speed
+	entity.physicsBody.ccdSpeedThreshold = 1;
+	entity.physicsBody.ccdIterations = 50;
+
+	// Use addBodyWithGravity so grenades fall
+	Physics.addBodyWithGravity(entity.physicsBody);
 
 	const d = Camera.direction;
 	entity.physicsBody.velocity.set(

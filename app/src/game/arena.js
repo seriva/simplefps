@@ -4,7 +4,9 @@ import {
 	DirectionalLightEntity,
 	Loading,
 	MeshEntity,
+	Physics,
 	PointLightEntity,
+	Resources,
 	Scene,
 	SkyboxEntity,
 	SpotLightEntity,
@@ -71,6 +73,25 @@ const _setupPickups = (pickups = []) => {
 	}
 };
 
+const _setupCollision = (chunks, spawnPosition) => {
+	// Create collision bodies for each map chunk
+	for (const chunkPath of chunks) {
+		try {
+			const mesh = Resources.get(chunkPath);
+			if (mesh && mesh.vertices && mesh.indices) {
+				Physics.addTrimesh(mesh.vertices, mesh.indices);
+				Console.log(`Created collision for ${chunkPath}`);
+			}
+		} catch (e) {
+			Console.warn(`Failed to create collision for ${chunkPath}: ${e.message}`);
+		}
+	}
+
+	// Create player physics body at spawn position
+	Physics.createPlayerBody(spawnPosition);
+	Console.log(`Created player physics body at ${spawnPosition}`);
+};
+
 const _load = async (name) => {
 	Loading.toggle(true);
 
@@ -105,6 +126,10 @@ const _load = async (name) => {
 		_setupLighting(lighting || {});
 		_setupEnvironment(_state.arena);
 		_setupPickups(pickups);
+		_setupCollision(
+			_state.arena.chunks || [],
+			startSpawn.position || _DEFAULT_POSITION,
+		);
 
 		Console.log(`Loaded arena: ${name}`);
 	} catch (error) {
