@@ -319,6 +319,7 @@ class Mesh {
 		this.vertices = data.vertices;
 		this.uvs = data.uvs?.length > 0 ? data.uvs : [];
 		this.normals = data.normals?.length > 0 ? data.normals : [];
+		this.lightmapUVs = data.lightmapUVs?.length > 0 ? data.lightmapUVs : [];
 		this.indices = data.indices;
 	}
 
