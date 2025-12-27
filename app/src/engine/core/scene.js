@@ -187,10 +187,45 @@ const _renderGlass = () => {
 
 	Shaders.glass.setMat4("matWorld", _matModel);
 	Shaders.glass.setInt("colorSampler", 0);
+	Shaders.glass.setVec3("cameraPosition", Camera.position);
 
-	Shaders.glass.setMat4("matWorld", _matModel);
-	Shaders.glass.setInt("colorSampler", 0);
-	Shaders.glass.setVec3("cameraPosition", Camera.position); // Required for SEM logic
+	// Set ambient lighting
+	Shaders.glass.setVec3("ambient", _ambient);
+
+	// Collect and pass point lights (max 8)
+	const MAX_POINT_LIGHTS = 8;
+	const visiblePointLights = _visibilityCache[EntityTypes.POINT_LIGHT];
+	const numPointLights = Math.min(visiblePointLights.length, MAX_POINT_LIGHTS);
+	Shaders.glass.setInt("numPointLights", numPointLights);
+
+	for (let i = 0; i < numPointLights; i++) {
+		const light = visiblePointLights[i];
+		// Extract world position from the light's full transform (base + animation)
+		const m = mat4.create();
+		mat4.multiply(m, light.base_matrix, light.ani_matrix);
+		const pos = [0, 0, 0];
+		mat4.getTranslation(pos, m);
+		Shaders.glass.setVec3(`pointLightPositions[${i}]`, pos);
+		Shaders.glass.setVec3(`pointLightColors[${i}]`, light.color);
+		Shaders.glass.setFloat(`pointLightSizes[${i}]`, light.size);
+		Shaders.glass.setFloat(`pointLightIntensities[${i}]`, light.intensity);
+	}
+
+	// Collect and pass spot lights (max 4)
+	const MAX_SPOT_LIGHTS = 4;
+	const visibleSpotLights = _visibilityCache[EntityTypes.SPOT_LIGHT];
+	const numSpotLights = Math.min(visibleSpotLights.length, MAX_SPOT_LIGHTS);
+	Shaders.glass.setInt("numSpotLights", numSpotLights);
+
+	for (let i = 0; i < numSpotLights; i++) {
+		const light = visibleSpotLights[i];
+		Shaders.glass.setVec3(`spotLightPositions[${i}]`, light.position);
+		Shaders.glass.setVec3(`spotLightDirections[${i}]`, light.direction);
+		Shaders.glass.setVec3(`spotLightColors[${i}]`, light.color);
+		Shaders.glass.setFloat(`spotLightIntensities[${i}]`, light.intensity);
+		Shaders.glass.setFloat(`spotLightCutoffs[${i}]`, light.cutoff);
+		Shaders.glass.setFloat(`spotLightRanges[${i}]`, light.range);
+	}
 
 	_renderEntities(EntityTypes.MESH, "render", "translucent", Shaders.glass);
 

@@ -692,16 +692,77 @@ const _ShaderSources = {
             uniform sampler2D semApplySampler;
             uniform vec3 cameraPosition;
 
+            // Lighting uniforms
+            uniform vec3 ambient;
+            
+            // Point lights (max 8)
+            #define MAX_POINT_LIGHTS 8
+            uniform int numPointLights;
+            uniform vec3 pointLightPositions[MAX_POINT_LIGHTS];
+            uniform vec3 pointLightColors[MAX_POINT_LIGHTS];
+            uniform float pointLightSizes[MAX_POINT_LIGHTS];
+            uniform float pointLightIntensities[MAX_POINT_LIGHTS];
+            
+            // Spot lights (max 4)
+            #define MAX_SPOT_LIGHTS 4
+            uniform int numSpotLights;
+            uniform vec3 spotLightPositions[MAX_SPOT_LIGHTS];
+            uniform vec3 spotLightDirections[MAX_SPOT_LIGHTS];
+            uniform vec3 spotLightColors[MAX_SPOT_LIGHTS];
+            uniform float spotLightIntensities[MAX_SPOT_LIGHTS];
+            uniform float spotLightCutoffs[MAX_SPOT_LIGHTS];
+            uniform float spotLightRanges[MAX_SPOT_LIGHTS];
+
+            vec3 calculatePointLight(int i, vec3 normal, vec3 fragPos) {
+                vec3 lightDir = pointLightPositions[i] - fragPos;
+                float distSq = dot(lightDir, lightDir);
+                float sizeSq = pointLightSizes[i] * pointLightSizes[i];
+                
+                if (distSq > sizeSq) return vec3(0.0);
+                
+                float normalizedDist = sqrt(distSq) / pointLightSizes[i];
+                float falloff = 1.0 - smoothstep(0.0, 1.0, normalizedDist);
+                falloff = falloff * falloff;
+                
+                vec3 L = normalize(lightDir);
+                float nDotL = max(0.0, dot(normal, L));
+                
+                return pointLightColors[i] * (falloff * falloff * nDotL * pointLightIntensities[i]);
+            }
+
+            vec3 calculateSpotLight(int i, vec3 normal, vec3 fragPos) {
+                vec3 lightDir = spotLightPositions[i] - fragPos;
+                float dist = length(lightDir);
+                
+                if (dist > spotLightRanges[i]) return vec3(0.0);
+                
+                lightDir = normalize(lightDir);
+                
+                float spotEffect = dot(lightDir, -normalize(spotLightDirections[i]));
+                if (spotEffect < spotLightCutoffs[i]) return vec3(0.0);
+                
+                float spotFalloff = (spotEffect - spotLightCutoffs[i]) / (1.0 - spotLightCutoffs[i]);
+                spotFalloff = smoothstep(0.0, 1.0, spotFalloff);
+                
+                float attenuation = 1.0 - pow(dist / spotLightRanges[i], 1.5);
+                
+                float nDotL = max(0.0, dot(normal, lightDir));
+                
+                return spotLightColors[i] * (spotLightIntensities[i] * 2.0) * attenuation * spotFalloff * nDotL;
+            }
+
             void main() {
                 vec4 color = texture(colorSampler, vUV);
+                vec3 normal = normalize(vNormal);
+                vec3 fragPos = vPosition.xyz;
                 
                 // Apply SEM if enabled
                 if (doSEM == 1) {
                     vec4 semApply = textureLod(semApplySampler, vUV, 0.0);
                     float semSum = dot(semApply.xyz, vec3(0.333333));
-                    if (semSum > 0.1) { // Slightly lowered threshold
-                        vec3 viewDir = normalize(cameraPosition - vPosition.xyz);
-                        vec3 r = reflect(-viewDir, vNormal);
+                    if (semSum > 0.1) {
+                        vec3 viewDir = normalize(cameraPosition - fragPos);
+                        vec3 r = reflect(-viewDir, normal);
                         float m = 2.0 * sqrt(dot(r.xy, r.xy) + (r.z + 1.0) * (r.z + 1.0));
                         vec2 semUV = r.xy / m + 0.5;
                         vec4 semColor = textureLod(semSampler, semUV, 0.0);
@@ -709,7 +770,23 @@ const _ShaderSources = {
                     }
                 }
 
-                fragColor = vec4(color.rgb, color.a * opacity);
+                // Calculate dynamic lighting contribution (additive on top of base)
+                vec3 dynamicLighting = vec3(0.0);
+                
+                // Add point lights contribution
+                for (int i = 0; i < MAX_POINT_LIGHTS; i++) {
+                    if (i >= numPointLights) break;
+                    dynamicLighting += calculatePointLight(i, normal, fragPos);
+                }
+                
+                // Add spot lights contribution
+                for (int i = 0; i < MAX_SPOT_LIGHTS; i++) {
+                    if (i >= numSpotLights) break;
+                    dynamicLighting += calculateSpotLight(i, normal, fragPos);
+                }
+
+                // Apply base color with dynamic lighting added on top
+                fragColor = vec4(color.rgb + color.rgb * dynamicLighting, color.a * opacity);
             }`,
 	},
 	ssao: {
