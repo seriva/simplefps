@@ -274,7 +274,6 @@ class Mesh {
 
 		if (version === 2) {
 			this.lightmapUVs = readFloat32Array(lightmapUVCount);
-			console.log(`Loaded BMesh v2 with ${lightmapUVCount / 2} lightmap UVs`);
 		} else {
 			this.lightmapUVs = []; // No lightmap UVs in v1
 		}
