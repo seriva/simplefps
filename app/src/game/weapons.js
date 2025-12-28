@@ -229,13 +229,18 @@ const _createProjectile = (spawnPos, config) => {
 	entity.physicsBody = new CANNON.Body({
 		mass: config.mass,
 		material: _grenadeMaterial, // Bouncy material
+		allowSleep: true, // Allow grenades to sleep when stationary
+		sleepSpeedLimit: 0.5, // Sleep threshold
+		sleepTimeLimit: 1, // Seconds before sleeping
+		collisionFilterGroup: 4, // PROJECTILE group
+		collisionFilterMask: 1, // Only collide with WORLD (not other projectiles)
 	});
 	entity.physicsBody.position.set(...spawnPos);
 	entity.physicsBody.addShape(_grenadeShape);
 
 	// Enable CCD to prevent tunneling through walls at high speed
 	entity.physicsBody.ccdSpeedThreshold = 1;
-	entity.physicsBody.ccdIterations = 10;
+	entity.physicsBody.ccdIterations = 20; // Higher for better tunneling prevention
 
 	// Use addBodyWithGravity so grenades fall
 	Physics.addBodyWithGravity(entity.physicsBody);
