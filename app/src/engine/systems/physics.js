@@ -3,13 +3,20 @@ import * as CANNON from "../../dependencies/cannon-es.js";
 // Private state
 let _world = null;
 let _lastCallTime;
-const _timeStep = 1 / 120; // Higher frequency for better fast-object collision
+const _timeStep = 1 / 120; // 120Hz for better fast-object collision
 
 // Player physics
 let _playerBody = null;
 const _PLAYER_RADIUS = 0.8; // Larger radius to prevent clipping through walls
 const _PLAYER_HEIGHT = 1.7;
 const _PLAYER_MASS = 80;
+
+// Collision groups for filtering
+const _COLLISION_GROUPS = {
+	WORLD: 1,
+	PLAYER: 2,
+	PROJECTILE: 4,
+};
 
 // Private functions
 const _gravityBodies = new Set(); // Bodies that need manual gravity
@@ -18,10 +25,11 @@ const _init = () => {
 	_world = new CANNON.World();
 	_world.broadphase = new CANNON.SAPBroadphase(_world);
 	_world.gravity.set(0, 0, 0); // No world gravity - apply manually to objects that need it
+	_world.allowSleep = true; // Enable sleeping for inactive bodies
 	_world.quatNormalizeSkip = 0;
 	_world.quatNormalizeFast = false;
 	_world.solver.tolerance = 0.001;
-	_world.solver.iterations = 15;
+	_world.solver.iterations = 10; // Balanced accuracy vs performance
 	_playerBody = null;
 	_gravityBodies.clear();
 
