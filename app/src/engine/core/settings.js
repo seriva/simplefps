@@ -9,8 +9,8 @@ export default Settings;
 // Private defaults
 const _defaults = {
 	// rendering
-	zNear: 1,
-	zFar: 256,
+	zNear: 0.1,
+	zFar: 8192,
 	renderScale: Utils.isMobile() ? 0.5 : 1.0,
 	anisotropicFiltering: 16,
 	gamma: 1.0,
@@ -21,21 +21,21 @@ const _defaults = {
 
 	// SSAO settings
 	doSSAO: !Utils.isMobile(),
-	ssaoRadius: 1.0,
-	ssaoBias: 0.025,
+	ssaoRadius: 33,
+	ssaoBias: 0.8,
 	ssaoStrength: 0.7,
 	ssaoBlurIterations: 8,
 
 	// Dirt/vignette effect
 	doDirt: true,
-	dirtIntensity: 0.25, // 0.0 = none, 1.0 = full dirt darkening
+	dirtIntensity: 0.25,
 
 	// controls
 	forward: 87,
 	backwards: 83,
 	left: 65,
 	right: 68,
-	moveSpeed: 7.5,
+	moveSpeed: 250,
 	lookSensitivity: 5,
 };
 

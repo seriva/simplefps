@@ -1,6 +1,7 @@
 import { glMatrix, mat4, vec3, vec4 } from "../../dependencies/gl-matrix.js";
 import Utils from "../utils/utils.js";
 import { Context } from "./context.js";
+import Settings from "./settings.js";
 
 // Public Camera API
 const Camera = {
@@ -128,8 +129,8 @@ const _upVector = vec3.fromValues(0, 1, 0);
 const _target = vec3.create();
 
 let _fov = 45;
-let _nearPlane = 0.1;
-let _farPlane = 1000;
+let _nearPlane = null;
+let _farPlane = null;
 
 // Private functions
 const _handleResize = () => {
@@ -137,8 +138,8 @@ const _handleResize = () => {
 		_projection,
 		glMatrix.toRadian(_fov),
 		Context.aspectRatio(),
-		_nearPlane,
-		_farPlane,
+		_nearPlane ?? Settings.zNear,
+		_farPlane ?? Settings.zFar,
 	);
 };
 

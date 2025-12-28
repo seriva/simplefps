@@ -3,12 +3,12 @@ import * as CANNON from "../../dependencies/cannon-es.js";
 // Private state
 let _world = null;
 let _lastCallTime;
-const _timeStep = 1 / 120; // 120Hz for better fast-object collision
+const _timeStep = 1 / 120;
 
 // Player physics
 let _playerBody = null;
-const _PLAYER_RADIUS = 0.8; // Larger radius to prevent clipping through walls
-const _PLAYER_HEIGHT = 1.7;
+const _PLAYER_RADIUS = 26;
+const _PLAYER_HEIGHT = 56;
 const _PLAYER_MASS = 80;
 
 // Collision groups for filtering
@@ -19,24 +19,24 @@ const _COLLISION_GROUPS = {
 };
 
 // Private functions
-const _gravityBodies = new Set(); // Bodies that need manual gravity
+const _gravityBodies = new Set();
 
 const _init = () => {
 	_world = new CANNON.World();
 	_world.broadphase = new CANNON.SAPBroadphase(_world);
-	_world.gravity.set(0, 0, 0); // No world gravity - apply manually to objects that need it
-	_world.allowSleep = true; // Enable sleeping for inactive bodies
+	_world.gravity.set(0, 0, 0);
+	_world.allowSleep = true;
 	_world.quatNormalizeSkip = 0;
 	_world.quatNormalizeFast = false;
 	_world.solver.tolerance = 0.001;
-	_world.solver.iterations = 10; // Balanced accuracy vs performance
+	_world.solver.iterations = 10;
 	_playerBody = null;
 	_gravityBodies.clear();
 
 	// Apply gravity to registered bodies each step
 	_world.addEventListener("preStep", () => {
 		for (const body of _gravityBodies) {
-			body.applyForce(new CANNON.Vec3(0, -9.82 * body.mass, 0));
+			body.applyForce(new CANNON.Vec3(0, -9.82 * 33 * body.mass, 0));
 		}
 	});
 };
@@ -60,8 +60,8 @@ const _createPlayerBody = (position) => {
 			position[1] + _PLAYER_HEIGHT / 2,
 			position[2],
 		),
-		fixedRotation: true, // Prevent player from tipping over
-		linearDamping: 0.9, // Add some friction/drag
+		fixedRotation: true,
+		linearDamping: 0.9,
 	});
 
 	// Prevent player from sleeping

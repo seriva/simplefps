@@ -20,11 +20,12 @@ const _WEAPONS = {
 		mesh: "meshes/grenade_launcher.mesh",
 		projectile: {
 			mesh: "meshes/ball.mesh",
-			radius: 0.15,
-			mass: 2,
-			velocity: 25,
+			meshScale: 33,
+			radius: 5,
+			mass: 1,
+			velocity: 700,
 			light: {
-				radius: 4.5,
+				radius: 150,
 				intensity: 4,
 				color: [0.988, 0.31, 0.051],
 			},
@@ -79,7 +80,7 @@ const _grenadeShape = new CANNON.Sphere(
 
 // Create bouncy material for grenades
 const _grenadeMaterial = new CANNON.Material("grenade");
-_grenadeMaterial.restitution = 0.8; // High bounciness (0-1)
+_grenadeMaterial.restitution = 1; // High bounciness (0-1)
 
 const _setIsMoving = (value) => {
 	_state.isMoving = value;
@@ -106,11 +107,18 @@ const _selectPrevious = () => {
 
 const _updateGrenade = (entity) => {
 	const { quaternion: q, position: p } = entity.physicsBody;
+	const scale = entity.data.meshScale || 1;
+
+	// Build transform: position + rotation + scale
 	mat4.fromRotationTranslation(
 		entity.ani_matrix,
 		[q.x, q.y, q.z, q.w],
 		[p.x, p.y, p.z],
 	);
+	mat4.scale(entity.ani_matrix, entity.ani_matrix, [scale, scale, scale]);
+
+	// Reset base_matrix to identity
+	mat4.identity(entity.base_matrix);
 
 	if (entity.data.light) {
 		mat4.fromTranslation(entity.data.light.ani_matrix, [p.x, p.y, p.z]);
@@ -217,14 +225,28 @@ const _shootGrenade = () => {
 };
 
 const _calculateProjectileSpawnPosition = () => {
-	const p = vec3.create();
-	mat4.getTranslation(p, _state.grenadeLauncher.ani_matrix);
+	const p = Camera.position;
 	const d = Camera.direction;
-	return [p[0] + d[0], p[1] + d[1] + 0.2, p[2] + d[2]];
+
+	// Calculate right vector for offset (cross product of direction and up)
+	const right = vec3.create();
+	vec3.cross(right, d, [0, 1, 0]);
+	vec3.normalize(right, right);
+
+	// Offset to the right to match weapon barrel position
+	const barrelOffset = 8; // Units to the right
+
+	// Spawn further in front of camera to avoid collision with player/nearby geometry
+	return [
+		p[0] + d[0] * 30 + right[0] * barrelOffset,
+		p[1] + d[1] * 30 - 5,
+		p[2] + d[2] * 30 + right[2] * barrelOffset,
+	];
 };
 
 const _createProjectile = (spawnPos, config) => {
 	const entity = new MeshEntity([0, 0, 0], config.mesh, _updateGrenade);
+	entity.data.meshScale = config.meshScale || 1; // Store scale for update callback
 
 	entity.physicsBody = new CANNON.Body({
 		mass: config.mass,
@@ -234,6 +256,7 @@ const _createProjectile = (spawnPos, config) => {
 		sleepTimeLimit: 1, // Seconds before sleeping
 		collisionFilterGroup: 4, // PROJECTILE group
 		collisionFilterMask: 1, // Only collide with WORLD (not other projectiles)
+		isTrigger: false, // Normal collision
 	});
 	entity.physicsBody.position.set(...spawnPos);
 	entity.physicsBody.addShape(_grenadeShape);
@@ -242,15 +265,21 @@ const _createProjectile = (spawnPos, config) => {
 	entity.physicsBody.ccdSpeedThreshold = 1;
 	entity.physicsBody.ccdIterations = 20; // Higher for better tunneling prevention
 
-	// Use addBodyWithGravity so grenades fall
+	// Add to physics world with gravity
 	Physics.addBodyWithGravity(entity.physicsBody);
 
-	const d = Camera.direction;
-	entity.physicsBody.velocity.set(
-		d[0] * config.velocity,
-		d[1] * config.velocity,
-		d[2] * config.velocity,
+	// Set velocity AFTER adding to physics world
+	const dx = Camera.direction[0];
+	const dy = Camera.direction[1];
+	const dz = Camera.direction[2];
+
+	// Apply impulse for more powerful launch
+	const impulse = new CANNON.Vec3(
+		dx * config.velocity * config.mass,
+		dy * config.velocity * config.mass,
+		dz * config.velocity * config.mass,
 	);
+	entity.physicsBody.applyImpulse(impulse, new CANNON.Vec3(0, 0, 0));
 
 	const light = new PointLightEntity(
 		[0, 0, 0],
