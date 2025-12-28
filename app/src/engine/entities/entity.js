@@ -31,11 +31,13 @@ class Entity {
 			return;
 		}
 
-		// update entity
-		this.updateCallback?.(this, frametime);
+		// update entity and return the result (for removal signaling)
+		const result = this.updateCallback?.(this, frametime);
 
 		// Update our bounding volume
 		this.updateBoundingVolume();
+
+		return result;
 	}
 
 	updateBoundingVolume() {
