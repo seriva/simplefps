@@ -5,12 +5,6 @@ let _world = null;
 let _lastCallTime;
 const _timeStep = 1 / 120;
 
-// Player physics
-let _playerBody = null;
-const _PLAYER_RADIUS = 26;
-const _PLAYER_HEIGHT = 56;
-const _PLAYER_MASS = 80;
-
 // Collision groups for filtering (exported for use in other modules)
 const COLLISION_GROUPS = {
 	WORLD: 1,
@@ -19,7 +13,10 @@ const COLLISION_GROUPS = {
 };
 
 // Gravity scale constant
-const _GRAVITY_SCALE = 33;
+const _GRAVITY_SCALE = 80;
+
+// Shared world material for all static geometry
+const _worldMaterial = new CANNON.Material("world");
 
 // Private functions
 const _gravityBodies = new Set();
@@ -33,14 +30,20 @@ const _init = () => {
 	_world.quatNormalizeFast = false;
 	_world.solver.tolerance = 0.001;
 	_world.solver.iterations = 10;
-	_playerBody = null;
 	_gravityBodies.clear();
 
 	// Apply gravity to registered bodies each step
 	_world.addEventListener("preStep", () => {
 		for (const body of _gravityBodies) {
+			// Use custom gravity scale if defined, otherwise use default (1.0)
+			const gravityScale =
+				body.gravityScale !== undefined ? body.gravityScale : 1.0;
 			body.applyForce(
-				new CANNON.Vec3(0, -9.82 * _GRAVITY_SCALE * body.mass, 0),
+				new CANNON.Vec3(
+					0,
+					-9.82 * _GRAVITY_SCALE * body.mass * gravityScale,
+					0,
+				),
 			);
 		}
 	});
@@ -78,32 +81,6 @@ const _onCollision = (bodyA, bodyB, callback) => {
 	return handler;
 };
 
-const _createPlayerBody = (position) => {
-	if (_playerBody) {
-		_world.removeBody(_playerBody);
-	}
-
-	// Use a sphere for simple collision
-	const shape = new CANNON.Sphere(_PLAYER_RADIUS);
-	_playerBody = new CANNON.Body({
-		mass: _PLAYER_MASS,
-		shape: shape,
-		position: new CANNON.Vec3(
-			position[0],
-			position[1] + _PLAYER_HEIGHT / 2,
-			position[2],
-		),
-		fixedRotation: true,
-		linearDamping: 0.9,
-	});
-
-	// Prevent player from sleeping
-	_playerBody.allowSleep = false;
-
-	_world.addBody(_playerBody);
-	return _playerBody;
-};
-
 const _addTrimesh = (vertices, indices) => {
 	// Convert flat vertex array to CANNON format
 	const cannonVertices = [];
@@ -129,6 +106,7 @@ const _addTrimesh = (vertices, indices) => {
 	const body = new CANNON.Body({
 		mass: 0, // Static body
 		type: CANNON.Body.STATIC,
+		material: _worldMaterial, // Apply world material
 	});
 	body.addShape(trimesh);
 	_world.addBody(body);
@@ -140,13 +118,6 @@ const _setPlayerVelocity = (x, y, z) => {
 	_playerBody.velocity.x = x;
 	_playerBody.velocity.y = y;
 	_playerBody.velocity.z = z;
-};
-
-const _getPlayerPosition = () => {
-	if (!_playerBody) return [0, 0, 0];
-	const p = _playerBody.position;
-	// Offset Y down since body center is at player middle
-	return [p.x, p.y - _PLAYER_HEIGHT / 2 + _PLAYER_RADIUS, p.z];
 };
 
 const _MAX_SUBSTEPS = 10; // More substeps for fast-moving objects
@@ -176,9 +147,8 @@ const Physics = {
 	addContactMaterial: _addContactMaterial,
 	onCollision: _onCollision,
 	addTrimesh: _addTrimesh,
-	createPlayerBody: _createPlayerBody,
-	setPlayerVelocity: _setPlayerVelocity,
-	getPlayerPosition: _getPlayerPosition,
+	getWorld: () => _world, // Expose world for raycasting
+	getWorldMaterial: () => _worldMaterial, // Expose world material
 	COLLISION_GROUPS,
 };
 

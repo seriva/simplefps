@@ -1,0 +1,233 @@
+import * as CANNON from "../dependencies/cannon-es.js";
+import { vec3 } from "../dependencies/gl-matrix.js";
+import { Camera, Physics } from "../engine/core/engine.js";
+
+class FPSController {
+	constructor(position, config = {}) {
+		this.config = {
+			radius: config.radius || 35,
+			height: config.height || 60,
+			eyeHeight: config.eyeHeight || 56,
+			mass: config.mass || 80,
+			linearDamping: config.linearDamping || 0, // No physics damping - we apply horizontal damping manually
+			gravity: config.gravity || 800,
+			jumpVelocity: config.jumpVelocity || 350,
+			groundAcceleration: config.groundAcceleration || 550000, // High value for stair climbing
+			airAcceleration: config.airAcceleration || 800, // Very limited air control (about 0.13% of ground)
+			friction: config.friction || 450,
+			maxSpeed: config.maxSpeed || 300,
+		};
+
+		const shape = new CANNON.Sphere(this.config.radius);
+		this.body = new CANNON.Body({
+			mass: this.config.mass,
+			shape: shape,
+			position: new CANNON.Vec3(
+				position[0],
+				position[1] + this.config.height / 2,
+				position[2],
+			),
+			fixedRotation: true,
+			linearDamping: this.config.linearDamping,
+		});
+
+		// Set up player material
+		this.body.material = new CANNON.Material("player");
+
+		this.body.allowSleep = false;
+
+		Physics.addBodyWithGravity(this.body);
+
+		// Set up contact material between player and world
+		const worldMaterial = Physics.getWorldMaterial();
+		Physics.addContactMaterial(this.body.material, worldMaterial, {
+			friction: 0.0, // No friction on walls (allows sliding)
+			restitution: 0.0, // No bouncing
+			contactEquationStiffness: 1e8,
+			contactEquationRelaxation: 3,
+		});
+
+		// Track last wish direction for direction change detection
+		this.lastWishDir = vec3.create();
+		this.directionChangeTimer = 0;
+	}
+
+	isGrounded() {
+		// If moving upward fast (jumping), definitely not grounded
+		// More forgiving threshold allows jump buffering
+		if (this.body.velocity.y > 10) {
+			return false;
+		}
+
+		// Use a forgiving raycast downward to detect ground
+		const rayLength = this.config.radius + 5; // Extended distance for more forgiving detection
+		const from = new CANNON.Vec3(
+			this.body.position.x,
+			this.body.position.y,
+			this.body.position.z,
+		);
+		const to = new CANNON.Vec3(
+			this.body.position.x,
+			this.body.position.y - rayLength,
+			this.body.position.z,
+		);
+
+		const result = new CANNON.RaycastResult();
+		const world = Physics.getWorld();
+		const options = {
+			skipBackfaces: true, // Don't hit backfaces
+		};
+		world.raycastClosest(from, to, options, result);
+
+		// Make sure we didn't hit our own body
+		return result.hasHit && result.body !== this.body;
+	}
+
+	update(frameTime) {
+		// Gravity is now handled by the physics system
+
+		// Only apply horizontal damping when grounded (friction with ground)
+		if (this.isGrounded()) {
+			const horizontalDamping = 0.98; // 98% damping per second for fast stopping
+			const dampingFactorXZ = Math.pow(1 - horizontalDamping, frameTime);
+			this.body.velocity.x *= dampingFactorXZ;
+			this.body.velocity.z *= dampingFactorXZ;
+		}
+
+		// Apply slight damping to Y axis (same as grenades) for air resistance
+		const verticalDamping = 0.01; // 1% damping like grenades
+		const dampingFactorY = Math.pow(1 - verticalDamping, frameTime);
+		this.body.velocity.y *= dampingFactorY;
+	}
+
+	jump() {
+		if (this.isGrounded()) {
+			this.body.velocity.y = this.config.jumpVelocity;
+		}
+	}
+
+	move(inputX, inputZ, cameraForward, cameraRight, frameTime) {
+		const grounded = this.isGrounded();
+
+		// Calculate wish direction from input
+		const wishDir = vec3.create();
+		vec3.scaleAndAdd(wishDir, wishDir, cameraForward, inputZ);
+		vec3.scaleAndAdd(wishDir, wishDir, cameraRight, inputX);
+		wishDir[1] = 0;
+
+		const wishDirLength = vec3.length(wishDir);
+		if (wishDirLength > 0.001) {
+			vec3.scale(wishDir, wishDir, 1 / wishDirLength);
+		}
+
+		// Detect rapid direction changes (WASD mashing)
+		const directionDot = vec3.dot(wishDir, this.lastWishDir);
+		// If direction change is significant (angle > 90 degrees), it's likely WASD mashing
+		if (directionDot < 0 && wishDirLength > 0.1) {
+			this.directionChangeTimer = 0.15; // Reduce acceleration for 150ms
+		}
+		vec3.copy(this.lastWishDir, wishDir);
+
+		// Decay the timer
+		this.directionChangeTimer = Math.max(
+			0,
+			this.directionChangeTimer - frameTime,
+		);
+
+		// Clamp to 1.0 to prevent diagonal movement from being faster
+		const clampedLength = Math.min(wishDirLength, 1.0);
+		const wishSpeed = this.config.maxSpeed * clampedLength;
+
+		if (grounded) {
+			this._applyGroundMovement(wishDir, wishSpeed, frameTime);
+		} else {
+			this._applyAirMovement(wishDir, wishSpeed, frameTime);
+		}
+	}
+
+	_applyGroundMovement(wishDir, wishSpeed, frameTime) {
+		// If no input, stop immediately
+		if (wishSpeed < 0.1) {
+			this.body.velocity.x = 0;
+			this.body.velocity.z = 0;
+			return;
+		}
+
+		// Reduce acceleration if rapidly changing direction
+		let acceleration = this.config.groundAcceleration;
+		if (this.directionChangeTimer > 0) {
+			acceleration *= 0.3; // 30% acceleration during direction changes
+		}
+
+		// Accelerate
+		this._accelerate(wishDir, wishSpeed, acceleration, frameTime);
+	}
+
+	_applyAirMovement(wishDir, wishSpeed, frameTime) {
+		this._accelerate(
+			wishDir,
+			wishSpeed,
+			this.config.airAcceleration,
+			frameTime,
+		);
+	}
+
+	_accelerate(wishDir, wishSpeed, acceleration, frameTime) {
+		const vel = this.body.velocity;
+		const currentVel = vec3.fromValues(vel.x, vel.y, vel.z);
+
+		// Current velocity in wish direction
+		const currentSpeed = vec3.dot(currentVel, wishDir);
+
+		// How much to add
+		const addSpeed = wishSpeed - currentSpeed;
+		if (addSpeed <= 0) return;
+
+		// How much acceleration to add
+		let accelSpeed = acceleration * frameTime;
+		if (accelSpeed > addSpeed) {
+			accelSpeed = addSpeed;
+		}
+
+		// Cap maximum velocity change per frame to prevent spikes from rapid key presses
+		const maxVelocityChangePerFrame = 50; // Units per frame
+		if (accelSpeed > maxVelocityChangePerFrame) {
+			accelSpeed = maxVelocityChangePerFrame;
+		}
+
+		// Add acceleration
+		vel.x += wishDir[0] * accelSpeed;
+		vel.z += wishDir[2] * accelSpeed;
+	}
+
+	setVelocity(x, y, z) {
+		this.body.velocity.x = x;
+		this.body.velocity.y = y;
+		this.body.velocity.z = z;
+	}
+
+	getPosition() {
+		const p = this.body.position;
+		return [p.x, p.y - this.config.height / 2 + this.config.eyeHeight, p.z];
+	}
+
+	getVelocity() {
+		const v = this.body.velocity;
+		return [v.x, v.y, v.z];
+	}
+
+	syncCamera() {
+		const pos = this.getPosition();
+		if (pos[0] !== 0 || pos[1] !== 0 || pos[2] !== 0) {
+			Camera.position[0] = pos[0];
+			Camera.position[1] = pos[1];
+			Camera.position[2] = pos[2];
+		}
+	}
+
+	destroy() {
+		Physics.removeBody(this.body);
+	}
+}
+
+export default FPSController;

@@ -22,7 +22,7 @@ const _WEAPONS = {
 			mesh: "meshes/ball.mesh",
 			meshScale: 33,
 			radius: 5,
-			mass: 1,
+			mass: 0.5,
 			velocity: 700,
 			light: {
 				radius: 150,
@@ -202,12 +202,25 @@ const _applyWeaponTransforms = (entity, animations) => {
 	vec3.copy(dir, Camera.direction);
 	vec3.copy(pos, Camera.position);
 
+	// Calculate a safe up vector that avoids singularity when looking straight up/down
+	// When camera direction is nearly vertical, use a different reference vector
+	const up = vec3.create();
+	const verticalDot = Math.abs(dir[1]);
+
+	if (verticalDot > 0.99) {
+		// Nearly vertical - use forward/back vector as up reference instead
+		vec3.set(up, 0, 0, dir[1] > 0 ? 1 : -1);
+	} else {
+		// Normal case - use standard up vector
+		vec3.set(up, 0, 1, 0);
+	}
+
 	mat4.identity(entity.ani_matrix);
 	mat4.lookAt(
 		entity.ani_matrix,
 		pos,
 		[pos[0] + dir[0], pos[1] + dir[1], pos[2] + dir[2]],
-		[0, 1, 0],
+		up,
 	);
 	mat4.invert(entity.ani_matrix, entity.ani_matrix);
 	mat4.translate(entity.ani_matrix, entity.ani_matrix, [
@@ -272,7 +285,10 @@ const _createProjectile = (spawnPos, config) => {
 		collisionFilterGroup: 4, // PROJECTILE group
 		collisionFilterMask: 1, // Only collide with WORLD (not other projectiles)
 		isTrigger: false, // Normal collision
+		linearDamping: 0.0, // Very low air resistance for fast projectile flight
 	});
+	// Custom gravity scale for longer flight distance
+	entity.physicsBody.gravityScale = 0.4; // 40% of normal gravity
 	entity.physicsBody.position.set(...spawnPos);
 	entity.physicsBody.addShape(_grenadeShape);
 
@@ -288,7 +304,7 @@ const _createProjectile = (spawnPos, config) => {
 	const dy = Camera.direction[1];
 	const dz = Camera.direction[2];
 
-	// Apply impulse for more powerful launch
+	// Apply impulse for launch
 	const impulse = new CANNON.Vec3(
 		dx * config.velocity * config.mass,
 		dy * config.velocity * config.mass,
