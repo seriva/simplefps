@@ -12,6 +12,7 @@ import {
 	SpotLightEntity,
 	Utils,
 } from "../engine/core/engine.js";
+import FPSController from "./fpscontroller.js";
 import Pickup from "./pickups.js";
 
 // ============================================================================
@@ -24,6 +25,7 @@ const _DEFAULT_AMBIENT = [1, 1, 1];
 
 const _state = {
 	arena: {},
+	fpsController: null,
 };
 
 const _setupCamera = ({ position, rotation }) => {
@@ -86,8 +88,8 @@ const _setupCollision = (chunks, spawnPosition) => {
 		}
 	}
 
-	// Create player physics body at spawn position
-	Physics.createPlayerBody(spawnPosition);
+	// Create FPS controller at spawn position
+	_state.fpsController = new FPSController(spawnPosition);
 };
 
 const _load = async (name) => {
@@ -140,6 +142,7 @@ const _load = async (name) => {
 
 const Arena = {
 	load: _load,
+	getController: () => _state.fpsController,
 };
 
 export default Arena;

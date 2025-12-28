@@ -3,10 +3,10 @@ import {
 	Camera,
 	Console,
 	Input,
-	Physics,
 	Settings,
 	Utils,
 } from "../engine/core/engine.js";
+import Arena from "./arena.js";
 import State from "./state.js";
 import Weapons from "./weapons.js";
 
@@ -81,6 +81,21 @@ const _initializeKeyboardControls = () => {
 			_handleEscapeKey();
 		}
 	});
+
+	// Jump on spacebar
+	window.addEventListener("keydown", (e) => {
+		if (
+			e.code === "Space" &&
+			State.current === "GAME" &&
+			!Console.isVisible()
+		) {
+			e.preventDefault();
+			const controller = Arena.getController();
+			if (controller) {
+				controller.jump();
+			}
+		}
+	});
 };
 
 Input.setUpdateCallback((frameTime) => {
@@ -144,31 +159,19 @@ Input.setUpdateCallback((frameTime) => {
 		Weapons.setIsMoving(true);
 	}
 
-	// calculate movement direction (full 3D for flying)
-	const forwardDir = vec3.clone(Camera.direction);
-
-	// get strafe direction (perpendicular, horizontal only)
+	// Get strafe direction (perpendicular to horizontal forward)
 	const horizontalForward = vec3.clone(Camera.direction);
 	horizontalForward[1] = 0;
 	vec3.normalize(horizontalForward, horizontalForward);
 	const strafeDir = vec3.create();
 	vec3.rotateY(strafeDir, horizontalForward, [0, 0, 0], glMatrix.toRadian(-90));
 
-	// calculate velocity (forward includes Y, strafe is horizontal only)
-	const speed = Settings.moveSpeed;
-	const velX = (forwardDir[0] * move + strafeDir[0] * strafe) * speed;
-	const velY = forwardDir[1] * move * speed;
-	const velZ = (forwardDir[2] * move + strafeDir[2] * strafe) * speed;
-
-	// Set velocity on physics body
-	Physics.setPlayerVelocity(velX, velY, velZ);
-
-	// Sync camera position from physics
-	const physPos = Physics.getPlayerPosition();
-	if (physPos[0] !== 0 || physPos[1] !== 0 || physPos[2] !== 0) {
-		Camera.position[0] = physPos[0];
-		Camera.position[1] = physPos[1];
-		Camera.position[2] = physPos[2];
+	// Update FPS controller
+	const controller = Arena.getController();
+	if (controller) {
+		controller.update(ft);
+		controller.move(strafe, move, horizontalForward, strafeDir, ft);
+		controller.syncCamera();
 	}
 });
 
