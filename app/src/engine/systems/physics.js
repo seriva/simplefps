@@ -11,12 +11,15 @@ const _PLAYER_RADIUS = 26;
 const _PLAYER_HEIGHT = 56;
 const _PLAYER_MASS = 80;
 
-// Collision groups for filtering
-const _COLLISION_GROUPS = {
+// Collision groups for filtering (exported for use in other modules)
+const COLLISION_GROUPS = {
 	WORLD: 1,
 	PLAYER: 2,
 	PROJECTILE: 4,
 };
+
+// Gravity scale constant
+const _GRAVITY_SCALE = 33;
 
 // Private functions
 const _gravityBodies = new Set();
@@ -36,13 +39,43 @@ const _init = () => {
 	// Apply gravity to registered bodies each step
 	_world.addEventListener("preStep", () => {
 		for (const body of _gravityBodies) {
-			body.applyForce(new CANNON.Vec3(0, -9.82 * 33 * body.mass, 0));
+			body.applyForce(
+				new CANNON.Vec3(0, -9.82 * _GRAVITY_SCALE * body.mass, 0),
+			);
 		}
 	});
 };
 
 const _addBody = (body) => {
 	_world.addBody(body);
+};
+
+const _removeBody = (body) => {
+	_world.removeBody(body);
+	_gravityBodies.delete(body);
+};
+
+const _addContactMaterial = (materialA, materialB, options) => {
+	const contactMaterial = new CANNON.ContactMaterial(
+		materialA,
+		materialB,
+		options,
+	);
+	_world.addContactMaterial(contactMaterial);
+	return contactMaterial;
+};
+
+const _onCollision = (bodyA, bodyB, callback) => {
+	const handler = (event) => {
+		if (
+			(event.body === bodyA && event.target === bodyB) ||
+			(event.body === bodyB && event.target === bodyA)
+		) {
+			callback(event);
+		}
+	};
+	bodyA.addEventListener("collide", handler);
+	return handler;
 };
 
 const _createPlayerBody = (position) => {
@@ -135,14 +168,18 @@ const Physics = {
 	init: _init,
 	update: _update,
 	addBody: _addBody,
+	removeBody: _removeBody,
 	addBodyWithGravity: (body) => {
 		_world.addBody(body);
 		_gravityBodies.add(body);
 	},
+	addContactMaterial: _addContactMaterial,
+	onCollision: _onCollision,
 	addTrimesh: _addTrimesh,
 	createPlayerBody: _createPlayerBody,
 	setPlayerVelocity: _setPlayerVelocity,
 	getPlayerPosition: _getPlayerPosition,
+	COLLISION_GROUPS,
 };
 
 export default Physics;

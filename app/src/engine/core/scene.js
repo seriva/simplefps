@@ -87,6 +87,21 @@ const _addEntities = (e) => {
 	}
 };
 
+const _removeEntity = (entity) => {
+	if (!entity) return;
+
+	const index = _entities.indexOf(entity);
+	if (index !== -1) {
+		_entities.splice(index, 1);
+		_entityCache.clear();
+
+		// Remove physics body if it exists
+		if (entity.physicsBody) {
+			Physics.removeBody(entity.physicsBody);
+		}
+	}
+};
+
 const _init = () => {
 	_entities.length = 0;
 	Physics.init();
@@ -113,8 +128,20 @@ const _update = (frameTime) => {
 	if (_pauseUpdate) return;
 	Physics.update();
 
+	// Track entities to remove
+	const entitiesToRemove = [];
+
 	for (const entity of _entities) {
-		entity.update(frameTime);
+		const result = entity.update(frameTime);
+		// If update returns false, mark for removal
+		if (result === false) {
+			entitiesToRemove.push(entity);
+		}
+	}
+
+	// Remove entities that returned false
+	for (const entity of entitiesToRemove) {
+		_removeEntity(entity);
 	}
 
 	_updateVisibility();
@@ -368,6 +395,7 @@ const Scene = {
 	getAmbient: _getAmbient,
 	setAmbient: _setAmbient,
 	addEntities: _addEntities,
+	removeEntity: _removeEntity,
 	getEntities: _getEntities,
 	renderWorldGeometry: _renderWorldGeometry,
 	renderGlass: _renderGlass,

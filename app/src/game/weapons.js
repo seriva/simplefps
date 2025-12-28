@@ -80,7 +80,10 @@ const _grenadeShape = new CANNON.Sphere(
 
 // Create bouncy material for grenades
 const _grenadeMaterial = new CANNON.Material("grenade");
-_grenadeMaterial.restitution = 1; // High bounciness (0-1)
+_grenadeMaterial.restitution = 1;
+
+// Create world material for BSP geometry
+const _worldMaterial = new CANNON.Material("world");
 
 const _setIsMoving = (value) => {
 	_state.isMoving = value;
@@ -105,9 +108,19 @@ const _selectPrevious = () => {
 	_state.list[_state.selected].visible = true;
 };
 
-const _updateGrenade = (entity) => {
+const _updateGrenade = (entity, frameTime) => {
 	const { quaternion: q, position: p } = entity.physicsBody;
 	const scale = entity.data.meshScale || 1;
+
+	// Check lifetime and signal removal if expired
+	const LIFETIME = 15000; // 15 seconds
+	if (performance.now() - entity.data.createdAt > LIFETIME) {
+		// Remove linked light
+		if (entity.linkedLight) {
+			Scene.removeEntity(entity.linkedLight);
+		}
+		return false; // Signal this entity should be removed
+	}
 
 	// Build transform: position + rotation + scale
 	mat4.fromRotationTranslation(
@@ -120,9 +133,11 @@ const _updateGrenade = (entity) => {
 	// Reset base_matrix to identity
 	mat4.identity(entity.base_matrix);
 
-	if (entity.data.light) {
-		mat4.fromTranslation(entity.data.light.ani_matrix, [p.x, p.y, p.z]);
+	if (entity.linkedLight) {
+		mat4.fromTranslation(entity.linkedLight.ani_matrix, [p.x, p.y, p.z]);
 	}
+
+	return true; // Continue existing
 };
 
 const _createWeaponAnimation = (entity, frameTime) => {
@@ -288,12 +303,23 @@ const _createProjectile = (spawnPos, config) => {
 		config.light.intensity,
 	);
 	light.visible = true;
-	entity.data.light = light;
+
+	// Link light to entity for cleanup
+	entity.linkedLight = light;
+
+	// Store creation time for lifetime tracking
+	entity.data.createdAt = performance.now();
 
 	return { entity, light };
 };
 
 const _load = () => {
+	// Register contact material between grenades and world
+	Physics.addContactMaterial(_grenadeMaterial, _worldMaterial, {
+		restitution: 0.95,
+		friction: 0.3,
+	});
+
 	_state.grenadeLauncher = new FpsMeshEntity(
 		[0, 0, 0],
 		_WEAPONS.GRENADE_LAUNCHER.mesh,
