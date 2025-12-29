@@ -1,6 +1,7 @@
 import { Context } from "../engine/core/context.js";
 import Scene from "../engine/core/scene.js";
 import Input from "../engine/systems/input.js";
+import Physics from "../engine/systems/physics.js";
 import { css, Signals } from "../engine/utils/reactive.js";
 import UI from "./ui.js";
 
@@ -36,6 +37,7 @@ _currentState.subscribe((state) => {
 			Input.toggleCursor(false);
 			_isBlurred.set(false);
 			Scene.pause(false);
+			Physics.pause(false);
 			break;
 
 		case _GameStates.MENU:
@@ -43,6 +45,7 @@ _currentState.subscribe((state) => {
 			Input.toggleCursor(true);
 			_isBlurred.set(true);
 			Scene.pause(true);
+			Physics.pause(true);
 			break;
 	}
 });

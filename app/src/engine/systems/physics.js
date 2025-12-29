@@ -2,7 +2,7 @@ import * as CANNON from "../../dependencies/cannon-es.js";
 
 // Private state
 let _world = null;
-let _lastCallTime;
+let _paused = false;
 const _timeStep = 1 / 120;
 
 // Collision groups for filtering (exported for use in other modules)
@@ -113,31 +113,24 @@ const _addTrimesh = (vertices, indices) => {
 	return body;
 };
 
-const _setPlayerVelocity = (x, y, z) => {
-	if (!_playerBody) return;
-	_playerBody.velocity.x = x;
-	_playerBody.velocity.y = y;
-	_playerBody.velocity.z = z;
-};
-
 const _MAX_SUBSTEPS = 10; // More substeps for fast-moving objects
 
-const _update = () => {
-	const time = performance.now() / 1000;
-	if (!_lastCallTime) {
-		_world.step(_timeStep);
-	} else {
-		// Cap dt to prevent physics glitches when tab loses focus
-		const dt = Math.min(time - _lastCallTime, _timeStep * _MAX_SUBSTEPS);
-		_world.step(_timeStep, dt, _MAX_SUBSTEPS);
-	}
-	_lastCallTime = time;
+const _update = (dt) => {
+	if (_paused) return;
+
+	// Use fixed time step for physics simulation
+	// The physics engine needs to run at a fixed step size (_timeStep)
+	// We use the passed deltaTime (dt) determines how much time has passed to simulate
+	_world.step(_timeStep, dt, _MAX_SUBSTEPS);
 };
 
 // Public Physics API
 const Physics = {
 	init: _init,
 	update: _update,
+	pause: (p) => {
+		_paused = p;
+	},
 	addBody: _addBody,
 	removeBody: _removeBody,
 	addBodyWithGravity: (body) => {
