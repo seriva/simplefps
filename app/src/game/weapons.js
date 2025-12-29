@@ -74,6 +74,14 @@ const _state = {
 	movementBlend: 0,
 };
 
+// Pre-allocated vectors to avoid per-frame allocations
+const _weaponDir = vec3.create();
+const _weaponPos = vec3.create();
+const _weaponUp = vec3.create();
+const _lookTarget = vec3.create();
+const _projectileRight = vec3.create();
+const _worldUp = [0, 1, 0];
+
 const _grenadeShape = new CANNON.Sphere(
 	_WEAPONS.GRENADE_LAUNCHER.projectile.radius,
 );
@@ -108,7 +116,7 @@ const _selectPrevious = () => {
 	_state.list[_state.selected].visible = true;
 };
 
-const _updateGrenade = (entity, frameTime) => {
+const _updateGrenade = (entity, _frameTime) => {
 	const { quaternion: q, position: p } = entity.physicsBody;
 	const scale = entity.data.meshScale || 1;
 
@@ -197,31 +205,30 @@ const _calculateIdleAnimation = (animationTime) => ({
 });
 
 const _applyWeaponTransforms = (entity, animations) => {
-	const dir = vec3.create();
-	const pos = vec3.create();
-	vec3.copy(dir, Camera.direction);
-	vec3.copy(pos, Camera.position);
+	// Use pre-allocated vectors to avoid per-frame GC pressure
+	vec3.copy(_weaponDir, Camera.direction);
+	vec3.copy(_weaponPos, Camera.position);
 
 	// Calculate a safe up vector that avoids singularity when looking straight up/down
 	// When camera direction is nearly vertical, use a different reference vector
-	const up = vec3.create();
-	const verticalDot = Math.abs(dir[1]);
+	const verticalDot = Math.abs(_weaponDir[1]);
 
 	if (verticalDot > 0.99) {
 		// Nearly vertical - use forward/back vector as up reference instead
-		vec3.set(up, 0, 0, dir[1] > 0 ? 1 : -1);
+		vec3.set(_weaponUp, 0, 0, _weaponDir[1] > 0 ? 1 : -1);
 	} else {
 		// Normal case - use standard up vector
-		vec3.set(up, 0, 1, 0);
+		vec3.set(_weaponUp, 0, 1, 0);
 	}
 
 	mat4.identity(entity.ani_matrix);
-	mat4.lookAt(
-		entity.ani_matrix,
-		pos,
-		[pos[0] + dir[0], pos[1] + dir[1], pos[2] + dir[2]],
-		up,
+	vec3.set(
+		_lookTarget,
+		_weaponPos[0] + _weaponDir[0],
+		_weaponPos[1] + _weaponDir[1],
+		_weaponPos[2] + _weaponDir[2],
 	);
+	mat4.lookAt(entity.ani_matrix, _weaponPos, _lookTarget, _weaponUp);
 	mat4.invert(entity.ani_matrix, entity.ani_matrix);
 	mat4.translate(entity.ani_matrix, entity.ani_matrix, [
 		_WEAPON_POSITION.x +
@@ -257,18 +264,18 @@ const _calculateProjectileSpawnPosition = () => {
 	const d = Camera.direction;
 
 	// Calculate right vector for offset (cross product of direction and up)
-	const right = vec3.create();
-	vec3.cross(right, d, [0, 1, 0]);
-	vec3.normalize(right, right);
+	// Use pre-allocated vector
+	vec3.cross(_projectileRight, d, _worldUp);
+	vec3.normalize(_projectileRight, _projectileRight);
 
 	// Offset to the right to match weapon barrel position
 	const barrelOffset = 8; // Units to the right
 
 	// Spawn further in front of camera to avoid collision with player/nearby geometry
 	return [
-		p[0] + d[0] * 30 + right[0] * barrelOffset,
+		p[0] + d[0] * 30 + _projectileRight[0] * barrelOffset,
 		p[1] + d[1] * 30 - 5,
-		p[2] + d[2] * 30 + right[2] * barrelOffset,
+		p[2] + d[2] * 30 + _projectileRight[2] * barrelOffset,
 	];
 };
 

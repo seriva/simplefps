@@ -4,7 +4,6 @@ import { Shader, Shaders } from "../rendering/shaders.js";
 import { screenQuad } from "../rendering/shapes.js";
 import Console from "../systems/console.js";
 import Physics from "../systems/physics.js";
-import Resources from "../systems/resources.js";
 import Stats from "../systems/stats.js";
 import Camera from "./camera.js";
 import { Context, gl } from "./context.js";

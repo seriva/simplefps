@@ -57,7 +57,7 @@ class Material {
 
 	unBind() {
 		for (let i = 0; i < this.textures.length; i++) {
-			const name = this.textures[i];
+			const _name = this.textures[i];
 			//if (name === "none") continue;
 			Texture.unBind(gl.TEXTURE0 + i);
 		}

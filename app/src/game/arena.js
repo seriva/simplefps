@@ -80,7 +80,7 @@ const _setupCollision = (chunks, spawnPosition) => {
 	for (const chunkPath of chunks) {
 		try {
 			const mesh = Resources.get(chunkPath);
-			if (mesh && mesh.vertices && mesh.indices) {
+			if (mesh?.vertices && mesh.indices) {
 				Physics.addTrimesh(mesh.vertices, mesh.indices);
 			}
 		} catch (e) {

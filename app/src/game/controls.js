@@ -18,6 +18,11 @@ const _CAMERA_SENSITIVITY_DIVISOR = 33.0;
 const _MAX_VERTICAL_ROTATION = 89;
 const _MOVEMENT_SPEED_MULTIPLIER = 1.1;
 
+const _horizontalForward = vec3.create();
+const _strafeDir = vec3.create();
+const _origin = [0, 0, 0];
+let _cachedController = null;
+
 const _initializeEventListeners = () => {
 	// Pointer lock events
 	document.addEventListener(
@@ -141,37 +146,35 @@ Input.setUpdateCallback((frameTime) => {
 	let move = 0;
 	let strafe = 0;
 
-	Weapons.setIsMoving(false);
 	if (Input.isDown(Settings.forward)) {
 		move += _MOVEMENT_SPEED_MULTIPLIER;
-		Weapons.setIsMoving(true);
 	}
 	if (Input.isDown(Settings.backwards)) {
 		move -= _MOVEMENT_SPEED_MULTIPLIER;
-		Weapons.setIsMoving(true);
 	}
 	if (Input.isDown(Settings.left)) {
 		strafe -= _MOVEMENT_SPEED_MULTIPLIER;
-		Weapons.setIsMoving(true);
 	}
 	if (Input.isDown(Settings.right)) {
 		strafe += _MOVEMENT_SPEED_MULTIPLIER;
-		Weapons.setIsMoving(true);
 	}
 
-	// Get strafe direction (perpendicular to horizontal forward)
-	const horizontalForward = vec3.clone(Camera.direction);
-	horizontalForward[1] = 0;
-	vec3.normalize(horizontalForward, horizontalForward);
-	const strafeDir = vec3.create();
-	vec3.rotateY(strafeDir, horizontalForward, [0, 0, 0], glMatrix.toRadian(-90));
+	// Set movement flag once after all checks
+	Weapons.setIsMoving(move !== 0 || strafe !== 0);
 
-	// Update FPS controller
-	const controller = Arena.getController();
-	if (controller) {
-		controller.update(ft);
-		controller.move(strafe, move, horizontalForward, strafeDir, ft);
-		controller.syncCamera();
+	// Get strafe direction (perpendicular to horizontal forward)
+	// Reuse pre-allocated vectors to avoid GC pressure
+	vec3.copy(_horizontalForward, Camera.direction);
+	_horizontalForward[1] = 0;
+	vec3.normalize(_horizontalForward, _horizontalForward);
+	vec3.rotateY(_strafeDir, _horizontalForward, _origin, glMatrix.toRadian(-90));
+
+	// Update FPS controller (cache lookup to avoid repeated calls)
+	_cachedController = Arena.getController();
+	if (_cachedController) {
+		_cachedController.update(ft);
+		_cachedController.move(strafe, move, _horizontalForward, _strafeDir, ft);
+		_cachedController.syncCamera();
 	}
 });
 
