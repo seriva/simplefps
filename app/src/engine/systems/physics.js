@@ -147,8 +147,8 @@ const Physics = {
 	addContactMaterial: _addContactMaterial,
 	onCollision: _onCollision,
 	addTrimesh: _addTrimesh,
-	getWorld: () => _world, // Expose world for raycasting
-	getWorldMaterial: () => _worldMaterial, // Expose world material
+	getWorld: () => _world,
+	getWorldMaterial: () => _worldMaterial,
 	COLLISION_GROUPS,
 };
 

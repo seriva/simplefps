@@ -1,16 +1,16 @@
 import * as CANNON from "../dependencies/cannon-es.js";
 import { vec3 } from "../dependencies/gl-matrix.js";
-import { Camera, Physics } from "../engine/core/engine.js";
+import { Camera, Console, Physics } from "../engine/core/engine.js";
 
-// Pre-allocated objects to avoid per-frame allocations in isGrounded()
 const _rayFrom = new CANNON.Vec3();
 const _rayTo = new CANNON.Vec3();
 const _rayResult = new CANNON.RaycastResult();
 const _rayOptions = { skipBackfaces: true };
-
-// Pre-allocated vectors for movement calculations
 const _wishDir = vec3.create();
 const _currentVel = vec3.create();
+
+let _noclip = false;
+const _NOCLIP_SPEED = 500;
 
 class FPSController {
 	constructor(position, config = {}) {
@@ -19,11 +19,11 @@ class FPSController {
 			height: config.height || 60,
 			eyeHeight: config.eyeHeight || 56,
 			mass: config.mass || 80,
-			linearDamping: config.linearDamping || 0, // No physics damping - we apply horizontal damping manually
+			linearDamping: config.linearDamping || 0,
 			gravity: config.gravity || 800,
 			jumpVelocity: config.jumpVelocity || 350,
-			groundAcceleration: config.groundAcceleration || 550000, // High value for stair climbing
-			airAcceleration: config.airAcceleration || 800, // Very limited air control (about 0.13% of ground)
+			groundAcceleration: config.groundAcceleration || 550000,
+			airAcceleration: config.airAcceleration || 800,
 			friction: config.friction || 450,
 			maxSpeed: config.maxSpeed || 300,
 		};
@@ -98,6 +98,9 @@ class FPSController {
 	}
 
 	update(frameTime) {
+		// Skip physics updates in noclip mode
+		if (_noclip) return;
+
 		// Gravity is now handled by the physics system
 
 		// Only apply horizontal damping when grounded (friction with ground)
@@ -121,6 +124,12 @@ class FPSController {
 	}
 
 	move(inputX, inputZ, cameraForward, cameraRight, frameTime) {
+		// Noclip mode: free-fly movement
+		if (_noclip) {
+			this._noclipMove(inputX, inputZ, cameraForward, cameraRight, frameTime);
+			return;
+		}
+
 		const grounded = this.isGrounded();
 
 		// Calculate wish direction from input
@@ -233,6 +242,9 @@ class FPSController {
 	}
 
 	syncCamera() {
+		// In noclip mode, camera is moved directly - don't sync from physics body
+		if (_noclip) return;
+
 		const pos = this.getPosition();
 		if (pos[0] !== 0 || pos[1] !== 0 || pos[2] !== 0) {
 			Camera.position[0] = pos[0];
@@ -244,6 +256,27 @@ class FPSController {
 	destroy() {
 		Physics.removeBody(this.body);
 	}
+
+	_noclipMove(inputX, inputZ, _cameraForward, cameraRight, frameTime) {
+		const moveDir = vec3.create();
+		vec3.scaleAndAdd(moveDir, moveDir, Camera.direction, inputZ);
+		vec3.scaleAndAdd(moveDir, moveDir, cameraRight, inputX);
+
+		const len = vec3.length(moveDir);
+		if (len > 0.001) {
+			vec3.scale(moveDir, moveDir, 1 / len);
+		}
+
+		const speed = _NOCLIP_SPEED * frameTime;
+		Camera.position[0] += moveDir[0] * speed;
+		Camera.position[1] += moveDir[1] * speed;
+		Camera.position[2] += moveDir[2] * speed;
+	}
 }
+
+Console.registerCmd("tnc", () => {
+	_noclip = !_noclip;
+	Console.log(`Noclip: ${_noclip ? "ON" : "OFF"}`);
+});
 
 export default FPSController;
