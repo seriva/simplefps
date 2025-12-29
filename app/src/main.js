@@ -12,19 +12,21 @@ async function loadGameModules() {
 
 	const modules = await Promise.all([
 		import("./game/controls.js").catch((_err) => null),
+		import("./game/game.js").catch((_err) => null),
 		import("./game/arena.js").catch((_err) => null),
 		import("./game/weapons.js").catch((_err) => null),
 		import("./game/menus.js").catch((_err) => null),
 		import("./game/hud.js").catch((_err) => null),
 	]);
 
-	const [_controls, arena, weapons, _menus] = modules;
+	const [_controls, game, arena, weapons, _menus] = modules;
 
-	if (!arena?.default || !weapons?.default) {
+	if (!game?.default || !arena?.default || !weapons?.default) {
 		Console.error("Failed to load required game modules");
 	}
 
 	return {
+		Game: game.default,
 		Arena: arena.default,
 		Weapons: weapons.default,
 	};
@@ -33,9 +35,10 @@ async function loadGameModules() {
 (async () => {
 	await Resources.load(["resources.list"]);
 
-	const { Arena, Weapons } = await loadGameModules();
+	const { Game, Arena, Weapons } = await loadGameModules();
 
 	await Arena.load("demo");
+	Game.init(Arena.getSpawnPoint());
 	Weapons.load();
 
 	// Give the game a moment to render, then hide loading screen and show main menu

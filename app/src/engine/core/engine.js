@@ -1,3 +1,4 @@
+import Game from "../../game/game.js";
 import DirectionalLightEntity from "../entities/directionallightentity.js";
 import { EntityTypes } from "../entities/entity.js";
 import FpsMeshEntity from "../entities/fpsmeshentity.js";
@@ -35,7 +36,10 @@ const _loop = () => {
 		_time = now;
 
 		Stats.update();
-		Input.update(_frameTime);
+		Input.update();
+		Game.update(_frameTime);
+		Physics.update();
+		Game.postPhysicsUpdate();
 		Camera.update();
 		Scene.update(_frameTime);
 		Renderer.render();

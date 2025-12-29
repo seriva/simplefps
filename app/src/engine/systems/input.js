@@ -11,11 +11,13 @@ const _cursorMovement = {
 	x: 0,
 	y: 0,
 };
+const _cursorDelta = {
+	x: 0,
+	y: 0,
+};
 let _pressed = {};
 let _upevents = [];
 let _downevents = [];
-let _timeout;
-let _updateCallback = null;
 
 window.addEventListener(
 	"keyup",
@@ -50,15 +52,9 @@ window.addEventListener(
 );
 
 const _setCursorMovement = (x, y) => {
-	_cursorMovement.x = x;
-	_cursorMovement.y = y;
-	if (_timeout !== undefined) {
-		window.clearTimeout(_timeout);
-	}
-	_timeout = window.setTimeout(() => {
-		_cursorMovement.x = 0;
-		_cursorMovement.y = 0;
-	}, 50);
+	// Accumulate mouse delta between frames (consumed in update)
+	_cursorDelta.x += x;
+	_cursorDelta.y += y;
 };
 
 window.addEventListener(
@@ -403,14 +399,12 @@ const Input = {
 		return _pressed[keyCode];
 	},
 
-	setUpdateCallback(callback) {
-		_updateCallback = callback;
-	},
-
-	update(frameTime) {
-		if (_updateCallback !== null) {
-			_updateCallback(frameTime);
-		}
+	update() {
+		// Consume accumulated mouse delta for this frame
+		_cursorMovement.x = _cursorDelta.x;
+		_cursorMovement.y = _cursorDelta.y;
+		_cursorDelta.x = 0;
+		_cursorDelta.y = 0;
 	},
 };
 

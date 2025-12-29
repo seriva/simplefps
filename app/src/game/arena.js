@@ -12,7 +12,6 @@ import {
 	SpotLightEntity,
 	Utils,
 } from "../engine/core/engine.js";
-import FPSController from "./fpscontroller.js";
 import Pickup from "./pickups.js";
 
 // ============================================================================
@@ -25,7 +24,6 @@ const _DEFAULT_AMBIENT = [1, 1, 1];
 
 const _state = {
 	arena: {},
-	fpsController: null,
 };
 
 const _setupCamera = ({ position, rotation }) => {
@@ -75,7 +73,7 @@ const _setupPickups = (pickups = []) => {
 	}
 };
 
-const _setupCollision = (chunks, spawnPosition) => {
+const _setupCollision = (chunks, _spawnPosition) => {
 	// Create collision bodies for each map chunk
 	for (const chunkPath of chunks) {
 		try {
@@ -87,9 +85,6 @@ const _setupCollision = (chunks, spawnPosition) => {
 			Console.warn(`Failed to create collision for ${chunkPath}: ${e.message}`);
 		}
 	}
-
-	// Create FPS controller at spawn position
-	_state.fpsController = new FPSController(spawnPosition);
 };
 
 const _load = async (name) => {
@@ -142,7 +137,10 @@ const _load = async (name) => {
 
 const Arena = {
 	load: _load,
-	getController: () => _state.fpsController,
+	getSpawnPoint: () => {
+		const { spawnpoint, spawnpoints } = _state.arena;
+		return spawnpoint || (spawnpoints ? spawnpoints[0] : null) || {};
+	},
 };
 
 export default Arena;

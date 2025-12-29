@@ -1,4 +1,6 @@
-import { Context, Input, Scene } from "../engine/core/engine.js";
+import { Context } from "../engine/core/context.js";
+import Scene from "../engine/core/scene.js";
+import Input from "../engine/systems/input.js";
 import { css, Signals } from "../engine/utils/reactive.js";
 import UI from "./ui.js";
 
