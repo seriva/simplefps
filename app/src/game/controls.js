@@ -87,10 +87,10 @@ const _initializeKeyboardControls = () => {
 		}
 	});
 
-	// Jump on spacebar
+	// Jump on configurable key (default: Space)
 	window.addEventListener("keydown", (e) => {
 		if (
-			e.code === "Space" &&
+			e.keyCode === Settings.jump &&
 			State.current === "GAME" &&
 			!Console.isVisible()
 		) {
