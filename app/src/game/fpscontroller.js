@@ -19,6 +19,7 @@ const _LAND_TIME_THRESHOLD = 0.15;
 const _DIRECTION_CHANGE_TIME = 0.15;
 const _MAX_VELOCITY_CHANGE = 50;
 const _ACCEL_REDUCTION = 0.3;
+const _COYOTE_TIME = 0.2;
 
 class FPSController {
 	constructor(position, config = {}) {
@@ -143,9 +144,10 @@ class FPSController {
 	}
 
 	jump() {
-		if (this.isGrounded()) {
+		if (this.isGrounded() || this.airTime < _COYOTE_TIME) {
 			this.body.velocity.y = this.config.jumpVelocity;
 			this.config.onJump();
+			this.airTime = _COYOTE_TIME; // Consume coyote time to prevent double jump
 		}
 	}
 

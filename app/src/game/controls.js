@@ -78,6 +78,7 @@ const _initializeKeyboardControls = () => {
 			State.current === "GAME" &&
 			!Console.isVisible()
 		) {
+			if (e.repeat) return;
 			e.preventDefault();
 			const controller = Game.getController();
 			if (controller) {
