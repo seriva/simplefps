@@ -53,8 +53,10 @@ window.addEventListener(
 
 const _setCursorMovement = (x, y) => {
 	// Accumulate mouse delta between frames (consumed in update)
-	_cursorDelta.x += x;
-	_cursorDelta.y += y;
+	// Clamp delta to prevent massive jumps from browser artifacts
+	const clamp = 300;
+	_cursorDelta.x += Math.max(-clamp, Math.min(clamp, x));
+	_cursorDelta.y += Math.max(-clamp, Math.min(clamp, y));
 };
 
 window.addEventListener(
