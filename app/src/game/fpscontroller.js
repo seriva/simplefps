@@ -8,11 +8,17 @@ const _rayResult = new CANNON.RaycastResult();
 const _rayOptions = { skipBackfaces: true };
 const _wishDir = vec3.create();
 const _currentVel = vec3.create();
+const _moveDir = vec3.create();
 const _positionArray = [0, 0, 0];
 const _velocityArray = [0, 0, 0];
 
 let _noclip = false;
 const _NOCLIP_SPEED = 500;
+const _JUMP_THRESHOLD = 10;
+const _LAND_TIME_THRESHOLD = 0.15;
+const _DIRECTION_CHANGE_TIME = 0.15;
+const _MAX_VELOCITY_CHANGE = 50;
+const _ACCEL_REDUCTION = 0.3;
 
 class FPSController {
 	constructor(position, config = {}) {
@@ -71,7 +77,7 @@ class FPSController {
 	isGrounded() {
 		// If moving upward fast (jumping), definitely not grounded
 		// More forgiving threshold allows jump buffering
-		if (this.body.velocity.y > 10) {
+		if (this.body.velocity.y > _JUMP_THRESHOLD) {
 			return false;
 		}
 
@@ -115,7 +121,7 @@ class FPSController {
 		if (grounded) {
 			// Trigger landing animation if we were airborne for a noticeable time (>150ms)
 			// This prevents constant triggering while walking down slopes or over small bumps
-			if (!this.wasGrounded && this.airTime > 0.15) {
+			if (!this.wasGrounded && this.airTime > _LAND_TIME_THRESHOLD) {
 				this.config.onLand();
 			}
 			this.airTime = 0;
@@ -168,7 +174,7 @@ class FPSController {
 		const directionDot = vec3.dot(_wishDir, this.lastWishDir);
 		// If direction change is significant (angle > 90 degrees), it's likely WASD mashing
 		if (directionDot < 0 && wishDirLength > 0.1) {
-			this.directionChangeTimer = 0.15; // Reduce acceleration for 150ms
+			this.directionChangeTimer = _DIRECTION_CHANGE_TIME; // Reduce acceleration for 150ms
 		}
 		vec3.copy(this.lastWishDir, _wishDir);
 
@@ -200,7 +206,7 @@ class FPSController {
 		// Reduce acceleration if rapidly changing direction
 		let acceleration = this.config.groundAcceleration;
 		if (this.directionChangeTimer > 0) {
-			acceleration *= 0.3; // 30% acceleration during direction changes
+			acceleration *= _ACCEL_REDUCTION; // 30% acceleration during direction changes
 		}
 
 		// Accelerate
@@ -235,7 +241,7 @@ class FPSController {
 		}
 
 		// Cap maximum velocity change per frame to prevent spikes from rapid key presses
-		const maxVelocityChangePerFrame = 50; // Units per frame
+		const maxVelocityChangePerFrame = _MAX_VELOCITY_CHANGE; // Units per frame
 		if (accelSpeed > maxVelocityChangePerFrame) {
 			accelSpeed = maxVelocityChangePerFrame;
 		}
@@ -284,19 +290,19 @@ class FPSController {
 	}
 
 	_noclipMove(inputX, inputZ, _cameraForward, cameraRight, frameTime) {
-		const moveDir = vec3.create();
-		vec3.scaleAndAdd(moveDir, moveDir, Camera.direction, inputZ);
-		vec3.scaleAndAdd(moveDir, moveDir, cameraRight, inputX);
+		vec3.zero(_moveDir);
+		vec3.scaleAndAdd(_moveDir, _moveDir, Camera.direction, inputZ);
+		vec3.scaleAndAdd(_moveDir, _moveDir, cameraRight, inputX);
 
-		const len = vec3.length(moveDir);
+		const len = vec3.length(_moveDir);
 		if (len > 0.001) {
-			vec3.scale(moveDir, moveDir, 1 / len);
+			vec3.scale(_moveDir, _moveDir, 1 / len);
 		}
 
 		const speed = _NOCLIP_SPEED * frameTime;
-		Camera.position[0] += moveDir[0] * speed;
-		Camera.position[1] += moveDir[1] * speed;
-		Camera.position[2] += moveDir[2] * speed;
+		Camera.position[0] += _moveDir[0] * speed;
+		Camera.position[1] += _moveDir[1] * speed;
+		Camera.position[2] += _moveDir[2] * speed;
 	}
 }
 
