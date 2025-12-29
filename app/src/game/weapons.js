@@ -75,6 +75,7 @@ const _state = {
 	firingStart: 0,
 	firingTimer: 0,
 	isMoving: false,
+	isGrounded: true,
 	movementBlend: 0,
 	recoil: { pos: 0, vel: 0 },
 };
@@ -100,6 +101,10 @@ const _worldMaterial = new CANNON.Material("world");
 
 const _setIsMoving = (value) => {
 	_state.isMoving = value;
+};
+
+const _setIsGrounded = (value) => {
+	_state.isGrounded = value;
 };
 
 const _hideAll = () => {
@@ -165,7 +170,8 @@ const _createWeaponAnimation = (entity, frameTime) => {
 	entity.animationTime += frameTime;
 
 	// Smoothly blend movement animation based on movement state
-	const targetBlend = _state.isMoving ? 1 : 0;
+	// If airborne, force movement blend to 0 to stop sway
+	const targetBlend = _state.isMoving && _state.isGrounded ? 1 : 0;
 	_state.movementBlend +=
 		(targetBlend - _state.movementBlend) *
 		_ANIMATION.MOVEMENT_FADE_SPEED *
@@ -393,6 +399,7 @@ const _load = () => {
 const Weapons = {
 	load: _load,
 	setIsMoving: _setIsMoving,
+	setIsGrounded: _setIsGrounded,
 	shootGrenade: _shootGrenade,
 	selectNext: _selectNext,
 	selectPrevious: _selectPrevious,
