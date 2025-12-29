@@ -117,10 +117,6 @@ const _MAX_SUBSTEPS = 10; // More substeps for fast-moving objects
 
 const _update = (dt) => {
 	if (_paused) return;
-
-	// Use fixed time step for physics simulation
-	// The physics engine needs to run at a fixed step size (_timeStep)
-	// We use the passed deltaTime (dt) determines how much time has passed to simulate
 	_world.step(_timeStep, dt, _MAX_SUBSTEPS);
 };
 
