@@ -35,7 +35,7 @@ const _defaults = {
 	backwards: 83,
 	left: 65,
 	right: 68,
-	moveSpeed: 250,
+	jump: 32,
 	lookSensitivity: 5,
 };
 
