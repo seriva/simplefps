@@ -122,7 +122,7 @@
             "textures": [
                 "arenas/demo/textures/dsiglass.webp",
                 "arenas/demo/textures/dsitinfx.webp",
-                "arenas/demo/textures/spheremap.webp",
+                "arenas/demo/textures/spheremap1.webp",
                 "arenas/demo/textures/dsiglass.webp"
             ],
             "doEmissive": 1,
@@ -136,7 +136,7 @@
             "textures": [
                 "arenas/demo/textures/q1_tele.webp",
                 "none",
-                "arenas/demo/textures/spheremap.webp",
+                "arenas/demo/textures/spheremap2.webp",
                 "system/white.webp"
             ],
             "doSEM": 1,

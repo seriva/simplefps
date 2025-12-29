@@ -139,8 +139,7 @@ class _ConsoleUI extends Reactive.Component {
 				border: 1px solid #999;
 				border-bottom: 2px solid #fff;
 				border-top: 2px solid #fff;
-				background-color: #999;
-				opacity: 0.75;
+				background-color: rgba(153, 153, 153, 0.75);
 				outline: none;
 				box-sizing: border-box;
 			}

@@ -33,18 +33,15 @@ const _init = () => {
 	_gravityBodies.clear();
 
 	// Apply gravity to registered bodies each step
+	const _gravityVec = new CANNON.Vec3(0, 0, 0);
 	_world.addEventListener("preStep", () => {
 		for (const body of _gravityBodies) {
 			// Use custom gravity scale if defined, otherwise use default (1.0)
 			const gravityScale =
 				body.gravityScale !== undefined ? body.gravityScale : 1.0;
-			body.applyForce(
-				new CANNON.Vec3(
-					0,
-					-9.82 * _GRAVITY_SCALE * body.mass * gravityScale,
-					0,
-				),
-			);
+
+			_gravityVec.y = -9.82 * _GRAVITY_SCALE * body.mass * gravityScale;
+			body.applyForce(_gravityVec, body.position);
 		}
 	});
 };
