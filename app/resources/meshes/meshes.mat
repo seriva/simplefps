@@ -1,80 +1,64 @@
 {
     "materials": [
         {
-            "name": "mat_pickup_ammo",
-            "textures": [
-                "meshes/ammo.webp",
-                "meshes/ammo_emissive.webp",
-                "meshes/spheremap1.webp",
-                "meshes/powerup_sem.webp",
-                "none"
-            ],
+            "name": "powerup_base",
+            "textures": {
+                "sem": "meshes/spheremap1.webp",
+                "semApply": "meshes/powerup_sem.webp"
+            },
             "doEmissive": 1,
             "doSEM": 1,
             "semMult": 0.7
+        },
+        {
+            "name": "mat_pickup_ammo",
+            "base": "powerup_base",
+            "textures": {
+                "albedo": "meshes/ammo.webp",
+                "emissive": "meshes/ammo_emissive.webp"
+            }
         },
         {
             "name": "mat_pickup_health",
-            "textures": [
-                "meshes/health.webp",
-                "meshes/health_emissive.webp",
-                "meshes/spheremap1.webp",
-                "meshes/powerup_sem.webp",
-                "none"
-            ],
-            "doEmissive": 1,
-            "doSEM": 1,
-            "semMult": 0.7
+            "base": "powerup_base",
+            "textures": {
+                "albedo": "meshes/health.webp",
+                "emissive": "meshes/health_emissive.webp"
+            }
         },
         {
             "name": "mat_pickup_armor",
-            "textures": [
-                "meshes/armor.webp",
-                "meshes/armor_emissive.webp",
-                "meshes/spheremap1.webp",
-                "meshes/powerup_sem.webp",
-                "none"
-            ],
-            "doEmissive": 1,
-            "doSEM": 1,
-            "semMult": 0.7
+            "base": "powerup_base",
+            "textures": {
+                "albedo": "meshes/armor.webp",
+                "emissive": "meshes/armor_emissive.webp"
+            }
         },
         {
             "name": "mat_pickup_grenade_launcher",
-            "textures": [
-                "meshes/grenade_launcher.webp",
-                "meshes/grenade_launcher_emissive.webp",
-                "meshes/spheremap1.webp",
-                "meshes/grenade_launcher_sem.webp",
-                "none"
-            ],
-            "doEmissive": 1,
-            "doSEM": 1,
-            "semMult": 0.7
+            "base": "powerup_base",
+            "textures": {
+                "albedo": "meshes/grenade_launcher.webp",
+                "emissive": "meshes/grenade_launcher_emissive.webp",
+                "semApply": "meshes/grenade_launcher_sem.webp"
+            }
         },
         {
             "name": "mat_ball",
-            "textures": [
-                "meshes/ball.webp",
-                "meshes/ball.webp",
-                "none",
-                "none",
-                "none"
-            ],
-            "doEmissive": 1  
+            "textures": {
+                "albedo": "meshes/ball.webp",
+                "emissive": "meshes/ball.webp"
+            },
+            "doEmissive": 1
         },
         {
             "name": "mat_pickup_minigun",
-            "textures": [
-                "meshes/minigun.webp",
-                "meshes/minigun_emissive.webp",
-                "meshes/spheremap1.webp",
-                "meshes/minigun_sem.webp",
-                "none"
-            ],
-            "doEmissive": 1,
-            "doSEM": 1,
-            "semMult": 0.7
+            "base": "powerup_base",
+            "textures": {
+                "albedo": "meshes/minigun.webp",
+                "emissive": "meshes/minigun_emissive.webp",
+                "semApply": "meshes/minigun_sem.webp"
+            }
         }
     ]
 }
