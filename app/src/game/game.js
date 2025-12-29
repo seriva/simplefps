@@ -46,6 +46,10 @@ const Game = {
 		// Set movement flag for weapon bobbing
 		Weapons.setIsMoving(move !== 0 || strafe !== 0);
 
+		if (_controller) {
+			Weapons.setIsGrounded(_controller.isGrounded());
+		}
+
 		// Get strafe direction (perpendicular to horizontal forward)
 		vec3.copy(_horizontalForward, Camera.direction);
 		_horizontalForward[1] = 0;
