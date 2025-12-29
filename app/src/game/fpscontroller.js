@@ -2,6 +2,16 @@ import * as CANNON from "../dependencies/cannon-es.js";
 import { vec3 } from "../dependencies/gl-matrix.js";
 import { Camera, Physics } from "../engine/core/engine.js";
 
+// Pre-allocated objects to avoid per-frame allocations in isGrounded()
+const _rayFrom = new CANNON.Vec3();
+const _rayTo = new CANNON.Vec3();
+const _rayResult = new CANNON.RaycastResult();
+const _rayOptions = { skipBackfaces: true };
+
+// Pre-allocated vectors for movement calculations
+const _wishDir = vec3.create();
+const _currentVel = vec3.create();
+
 class FPSController {
 	constructor(position, config = {}) {
 		this.config = {
@@ -60,27 +70,31 @@ class FPSController {
 		}
 
 		// Use a forgiving raycast downward to detect ground
-		const rayLength = this.config.radius + 5; // Extended distance for more forgiving detection
-		const from = new CANNON.Vec3(
+		// Reuse pre-allocated vectors to avoid GC pressure
+		const rayLength = this.config.radius + 5;
+		_rayFrom.set(
 			this.body.position.x,
 			this.body.position.y,
 			this.body.position.z,
 		);
-		const to = new CANNON.Vec3(
+		_rayTo.set(
 			this.body.position.x,
 			this.body.position.y - rayLength,
 			this.body.position.z,
 		);
 
-		const result = new CANNON.RaycastResult();
-		const world = Physics.getWorld();
-		const options = {
-			skipBackfaces: true, // Don't hit backfaces
-		};
-		world.raycastClosest(from, to, options, result);
+		// Reset result for reuse
+		_rayResult.reset();
+
+		Physics.getWorld().raycastClosest(
+			_rayFrom,
+			_rayTo,
+			_rayOptions,
+			_rayResult,
+		);
 
 		// Make sure we didn't hit our own body
-		return result.hasHit && result.body !== this.body;
+		return _rayResult.hasHit && _rayResult.body !== this.body;
 	}
 
 	update(frameTime) {
@@ -89,14 +103,14 @@ class FPSController {
 		// Only apply horizontal damping when grounded (friction with ground)
 		if (this.isGrounded()) {
 			const horizontalDamping = 0.98; // 98% damping per second for fast stopping
-			const dampingFactorXZ = Math.pow(1 - horizontalDamping, frameTime);
+			const dampingFactorXZ = (1 - horizontalDamping) ** frameTime;
 			this.body.velocity.x *= dampingFactorXZ;
 			this.body.velocity.z *= dampingFactorXZ;
 		}
 
 		// Apply slight damping to Y axis (same as grenades) for air resistance
 		const verticalDamping = 0.01; // 1% damping like grenades
-		const dampingFactorY = Math.pow(1 - verticalDamping, frameTime);
+		const dampingFactorY = (1 - verticalDamping) ** frameTime;
 		this.body.velocity.y *= dampingFactorY;
 	}
 
@@ -110,23 +124,24 @@ class FPSController {
 		const grounded = this.isGrounded();
 
 		// Calculate wish direction from input
-		const wishDir = vec3.create();
-		vec3.scaleAndAdd(wishDir, wishDir, cameraForward, inputZ);
-		vec3.scaleAndAdd(wishDir, wishDir, cameraRight, inputX);
-		wishDir[1] = 0;
+		// Use pre-allocated vector to avoid GC pressure
+		vec3.zero(_wishDir);
+		vec3.scaleAndAdd(_wishDir, _wishDir, cameraForward, inputZ);
+		vec3.scaleAndAdd(_wishDir, _wishDir, cameraRight, inputX);
+		_wishDir[1] = 0;
 
-		const wishDirLength = vec3.length(wishDir);
+		const wishDirLength = vec3.length(_wishDir);
 		if (wishDirLength > 0.001) {
-			vec3.scale(wishDir, wishDir, 1 / wishDirLength);
+			vec3.scale(_wishDir, _wishDir, 1 / wishDirLength);
 		}
 
 		// Detect rapid direction changes (WASD mashing)
-		const directionDot = vec3.dot(wishDir, this.lastWishDir);
+		const directionDot = vec3.dot(_wishDir, this.lastWishDir);
 		// If direction change is significant (angle > 90 degrees), it's likely WASD mashing
 		if (directionDot < 0 && wishDirLength > 0.1) {
 			this.directionChangeTimer = 0.15; // Reduce acceleration for 150ms
 		}
-		vec3.copy(this.lastWishDir, wishDir);
+		vec3.copy(this.lastWishDir, _wishDir);
 
 		// Decay the timer
 		this.directionChangeTimer = Math.max(
@@ -139,9 +154,9 @@ class FPSController {
 		const wishSpeed = this.config.maxSpeed * clampedLength;
 
 		if (grounded) {
-			this._applyGroundMovement(wishDir, wishSpeed, frameTime);
+			this._applyGroundMovement(_wishDir, wishSpeed, frameTime);
 		} else {
-			this._applyAirMovement(wishDir, wishSpeed, frameTime);
+			this._applyAirMovement(_wishDir, wishSpeed, frameTime);
 		}
 	}
 
@@ -174,10 +189,11 @@ class FPSController {
 
 	_accelerate(wishDir, wishSpeed, acceleration, frameTime) {
 		const vel = this.body.velocity;
-		const currentVel = vec3.fromValues(vel.x, vel.y, vel.z);
+		// Use pre-allocated vector to avoid GC pressure
+		vec3.set(_currentVel, vel.x, vel.y, vel.z);
 
 		// Current velocity in wish direction
-		const currentSpeed = vec3.dot(currentVel, wishDir);
+		const currentSpeed = vec3.dot(_currentVel, wishDir);
 
 		// How much to add
 		const addSpeed = wishSpeed - currentSpeed;
