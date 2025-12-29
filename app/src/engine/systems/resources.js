@@ -87,16 +87,41 @@ const _RESOURCE_TYPES = {
 	bmesh: (data, context) => new Mesh(data, context),
 	mat: (data, context) => {
 		const matData = JSON.parse(data);
-		// Create materials and store them directly
-		let firstMaterial = null;
+		const materials = matData.materials;
 
-		for (const mat of matData.materials) {
+		// Build lookup map for inheritance resolution
+		const matLookup = new Map();
+		for (const mat of materials) {
+			matLookup.set(mat.name, mat);
+		}
+
+		// Resolve inheritance for each material
+		for (const mat of materials) {
+			if (mat.base) {
+				const baseMat = matLookup.get(mat.base);
+				if (baseMat) {
+					// Merge textures (child overrides base)
+					mat.textures = { ...baseMat.textures, ...mat.textures };
+					// Inherit other properties if not defined
+					mat.doEmissive ??= baseMat.doEmissive;
+					mat.doSEM ??= baseMat.doSEM;
+					mat.semMult ??= baseMat.semMult;
+					mat.translucent ??= baseMat.translucent;
+					mat.opacity ??= baseMat.opacity;
+					mat.geomType ??= baseMat.geomType;
+				}
+			}
+		}
+
+		// Create materials and store them
+		let firstMaterial = null;
+		for (const mat of materials) {
 			const material = new Material(mat, context);
 			_resources.set(mat.name, material);
 			if (!firstMaterial) firstMaterial = material;
 		}
 
-		return firstMaterial; // Return first material so resources.set() works
+		return firstMaterial;
 	},
 	sfx: (data) => new Sound(JSON.parse(data)),
 	list: (data, _context) => Resources.load(JSON.parse(data).resources),

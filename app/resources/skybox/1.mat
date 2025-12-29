@@ -1,47 +1,50 @@
 {
     "materials": [
         {
-            "name": "mat_skybox_1_front",
-            "textures": [
-                "skybox/1_front.webp"
-            ],
+            "name": "skybox_base",
             "geomType": 2
-        },        
+        },
+        {
+            "name": "mat_skybox_1_front",
+            "base": "skybox_base",
+            "textures": {
+                "albedo": "skybox/1_front.webp"
+            }
+        },
         {
             "name": "mat_skybox_1_back",
-            "textures": [
-                "skybox/1_back.webp"
-            ],
-            "geomType": 2
-        },  
+            "base": "skybox_base",
+            "textures": {
+                "albedo": "skybox/1_back.webp"
+            }
+        },
         {
             "name": "mat_skybox_1_top",
-            "textures": [
-                "skybox/1_top.webp"
-            ],
-            "geomType": 2
-
+            "base": "skybox_base",
+            "textures": {
+                "albedo": "skybox/1_top.webp"
+            }
         },
         {
             "name": "mat_skybox_1_bottom",
-            "textures": [
-                "skybox/1_bottom.webp"
-            ],
-            "geomType": 2
+            "base": "skybox_base",
+            "textures": {
+                "albedo": "skybox/1_bottom.webp"
+            }
         },
         {
             "name": "mat_skybox_1_right",
-            "textures": [
-                "skybox/1_right.webp"
-            ],
-            "geomType": 2
+            "base": "skybox_base",
+            "textures": {
+                "albedo": "skybox/1_right.webp"
+            }
         },
         {
             "name": "mat_skybox_1_left",
-            "textures": [
-                "skybox/1_left.webp"
-            ],
-            "geomType": 2
-        } 
+            "base": "skybox_base",
+            "textures": {
+                "albedo": "skybox/1_left.webp"
+            }
+        }
     ]
 }
