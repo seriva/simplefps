@@ -214,8 +214,8 @@ const _ShaderSources = {
                         // Calculate reflection vector
                         vec3 r = reflect(-viewDir, vNormal);
                         // Convert reflection vector to equirectangular UV coordinates
-                        // Using improved formula for better accuracy
-                        float m = 2.0 * sqrt(dot(r.xy, r.xy) + (r.z + 1.0) * (r.z + 1.0));
+                        // Using improved formula for better accuracy with epsilon for singularity
+                        float m = 2.0 * sqrt(dot(r.xy, r.xy) + (r.z + 1.0) * (r.z + 1.0)) + 0.00001;
                         vec2 semUV = r.xy / m + 0.5;
                         vec4 semColor = textureLod(semSampler, semUV, 0.0);
                         // Blend reflection with base color based on semApply mask and intensity
@@ -765,7 +765,8 @@ const _ShaderSources = {
                     if (semSum > 0.1) {
                         vec3 viewDir = normalize(cameraPosition - fragPos);
                         vec3 r = reflect(-viewDir, normal);
-                        float m = 2.0 * sqrt(dot(r.xy, r.xy) + (r.z + 1.0) * (r.z + 1.0));
+                        // Add epsilon to prevent singularity at r.z = -1
+                        float m = 2.0 * sqrt(dot(r.xy, r.xy) + (r.z + 1.0) * (r.z + 1.0)) + 0.00001;
                         vec2 semUV = r.xy / m + 0.5;
                         vec4 semColor = textureLod(semSampler, semUV, 0.0);
                         color = mix(color, semColor * semApply, semMult * semSum);

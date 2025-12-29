@@ -14,6 +14,8 @@ const _DEFAULT_AMBIENT = [0.5, 0.5, 0.5];
 // Private state
 const _viewportSize = [0, 0];
 const _matModel = mat4.create();
+const _lightMatrix = mat4.create();
+const _lightPos = [0, 0, 0];
 let _entities = [];
 let _ambient = _DEFAULT_AMBIENT;
 let _pauseUpdate = false;
@@ -35,6 +37,12 @@ const _visibilityCache = {
 	[EntityTypes.DIRECTIONAL_LIGHT]: [],
 	[EntityTypes.POINT_LIGHT]: [],
 	[EntityTypes.SPOT_LIGHT]: [],
+};
+
+const _renderStats = {
+	visibleMeshCount: 0,
+	visibleLightCount: 0,
+	triangleCount: 0,
 };
 
 // Debug state
@@ -197,11 +205,9 @@ const _renderGlass = () => {
 	for (let i = 0; i < numPointLights; i++) {
 		const light = visiblePointLights[i];
 		// Extract world position from the light's full transform (base + animation)
-		const m = mat4.create();
-		mat4.multiply(m, light.base_matrix, light.ani_matrix);
-		const pos = [0, 0, 0];
-		mat4.getTranslation(pos, m);
-		Shaders.glass.setVec3(`pointLightPositions[${i}]`, pos);
+		mat4.multiply(_lightMatrix, light.base_matrix, light.ani_matrix);
+		mat4.getTranslation(_lightPos, _lightMatrix);
+		Shaders.glass.setVec3(`pointLightPositions[${i}]`, _lightPos);
 		Shaders.glass.setVec3(`pointLightColors[${i}]`, light.color);
 		Shaders.glass.setFloat(`pointLightSizes[${i}]`, light.size);
 		Shaders.glass.setFloat(`pointLightIntensities[${i}]`, light.intensity);
@@ -346,11 +352,10 @@ const _renderDebug = () => {
 
 const _updateVisibility = () => {
 	_entityCache.clear();
-	const stats = {
-		visibleMeshCount: 0,
-		visibleLightCount: 0,
-		triangleCount: 0,
-	};
+	const stats = _renderStats;
+	stats.visibleMeshCount = 0;
+	stats.visibleLightCount = 0;
+	stats.triangleCount = 0;
 
 	// Reset visibility lists
 	for (const type of Object.keys(_visibilityCache)) {
