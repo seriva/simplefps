@@ -87,6 +87,17 @@ const _weaponUp = vec3.create();
 const _lookTarget = vec3.create();
 const _projectileRight = vec3.create();
 const _worldUp = [0, 1, 0];
+const _translationVec = [0, 0, 0]; // Simple array for vec3 operations that don't need glMatrix
+
+// Reuse animation objects to avoid GC
+const _movementAni = { horizontal: 0, vertical: 0 };
+const _idleAni = { horizontal: 0, vertical: 0 };
+const _aniValues = {
+	fire: 0,
+	movement: _movementAni,
+	idle: _idleAni,
+	land: 0,
+};
 
 const _grenadeShape = new CANNON.Sphere(
 	_WEAPONS.GRENADE_LAUNCHER.projectile.radius,
@@ -186,14 +197,13 @@ const _createWeaponAnimation = (entity, frameTime) => {
 	_state.recoil.vel += accel * dt;
 	_state.recoil.pos += _state.recoil.vel * dt;
 
-	const animations = {
-		fire: _calculateFireAnimation(frameTime),
-		movement: _calculateMovementAnimation(entity.animationTime),
-		idle: _calculateIdleAnimation(entity.animationTime),
-		land: _state.recoil.pos,
-	};
+	// Update reused animation state object
+	_aniValues.fire = _calculateFireAnimation(frameTime);
+	_calculateMovementAnimation(entity.animationTime); // Updates _movementAni
+	_calculateIdleAnimation(entity.animationTime); // Updates _idleAni
+	_aniValues.land = _state.recoil.pos;
 
-	_applyWeaponTransforms(entity, animations);
+	_applyWeaponTransforms(entity, _aniValues);
 };
 
 const _calculateFireAnimation = (frameTime) => {
@@ -212,26 +222,28 @@ const _calculateFireAnimation = (frameTime) => {
 };
 
 const _calculateMovementAnimation = (animationTime) => {
-	const horizontal =
+	_movementAni.horizontal =
 		Math.cos(Math.PI * (animationTime / _ANIMATION.HORIZONTAL_PERIOD)) *
 		_ANIMATION.AMPLITUDES.HORIZONTAL_MOVE *
 		_state.movementBlend;
-	const vertical =
+	_movementAni.vertical =
 		-Math.cos(Math.PI * (animationTime / _ANIMATION.VERTICAL_PERIOD)) *
 		_ANIMATION.AMPLITUDES.VERTICAL_MOVE *
 		_state.movementBlend;
 
-	return { horizontal, vertical };
+	return _movementAni;
 };
 
-const _calculateIdleAnimation = (animationTime) => ({
-	horizontal:
+const _calculateIdleAnimation = (animationTime) => {
+	_idleAni.horizontal =
 		Math.cos(Math.PI * (animationTime / _ANIMATION.IDLE_PERIOD.HORIZONTAL)) *
-		_ANIMATION.AMPLITUDES.IDLE.HORIZONTAL,
-	vertical:
+		_ANIMATION.AMPLITUDES.IDLE.HORIZONTAL;
+	_idleAni.vertical =
 		Math.sin(Math.PI * (animationTime / _ANIMATION.IDLE_PERIOD.VERTICAL)) *
-		_ANIMATION.AMPLITUDES.IDLE.VERTICAL,
-});
+		_ANIMATION.AMPLITUDES.IDLE.VERTICAL;
+
+	return _idleAni;
+};
 
 const _applyWeaponTransforms = (entity, animations) => {
 	// Use pre-allocated vectors to avoid per-frame GC pressure
@@ -259,16 +271,20 @@ const _applyWeaponTransforms = (entity, animations) => {
 	);
 	mat4.lookAt(entity.ani_matrix, _weaponPos, _lookTarget, _weaponUp);
 	mat4.invert(entity.ani_matrix, entity.ani_matrix);
-	mat4.translate(entity.ani_matrix, entity.ani_matrix, [
+
+	// Update reusable translation vector
+	_translationVec[0] =
 		_WEAPON_POSITION.x +
-			animations.idle.horizontal +
-			animations.movement.horizontal,
+		animations.idle.horizontal +
+		animations.movement.horizontal;
+	_translationVec[1] =
 		_WEAPON_POSITION.y +
-			animations.idle.vertical +
-			animations.movement.vertical +
-			animations.land,
-		_WEAPON_POSITION.z + animations.fire,
-	]);
+		animations.idle.vertical +
+		animations.movement.vertical +
+		animations.land;
+	_translationVec[2] = _WEAPON_POSITION.z + animations.fire;
+
+	mat4.translate(entity.ani_matrix, entity.ani_matrix, _translationVec);
 	mat4.rotateY(entity.ani_matrix, entity.ani_matrix, glMatrix.toRadian(180));
 	mat4.rotateX(entity.ani_matrix, entity.ani_matrix, glMatrix.toRadian(-2.5));
 };

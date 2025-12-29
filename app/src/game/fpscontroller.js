@@ -8,6 +8,8 @@ const _rayResult = new CANNON.RaycastResult();
 const _rayOptions = { skipBackfaces: true };
 const _wishDir = vec3.create();
 const _currentVel = vec3.create();
+const _positionArray = [0, 0, 0];
+const _velocityArray = [0, 0, 0];
 
 let _noclip = false;
 const _NOCLIP_SPEED = 500;
@@ -251,12 +253,18 @@ class FPSController {
 
 	getPosition() {
 		const p = this.body.position;
-		return [p.x, p.y - this.config.height / 2 + this.config.eyeHeight, p.z];
+		_positionArray[0] = p.x;
+		_positionArray[1] = p.y - this.config.height / 2 + this.config.eyeHeight;
+		_positionArray[2] = p.z;
+		return _positionArray;
 	}
 
 	getVelocity() {
 		const v = this.body.velocity;
-		return [v.x, v.y, v.z];
+		_velocityArray[0] = v.x;
+		_velocityArray[1] = v.y;
+		_velocityArray[2] = v.z;
+		return _velocityArray;
 	}
 
 	syncCamera() {
