@@ -48,13 +48,13 @@ const Camera = {
 		this.rotation[1] += dy;
 
 		// Clamp vertical rotation
-		const MAX_VERTICAL = 89;
+		// Limit to 88 degrees to avoid gimbal lock singularity at 90
+		const MAX_VERTICAL = 88.0;
 		if (this.rotation[0] > MAX_VERTICAL) this.rotation[0] = MAX_VERTICAL;
 		if (this.rotation[0] < -MAX_VERTICAL) this.rotation[0] = -MAX_VERTICAL;
 
 		// Wrap horizontal rotation
-		if (this.rotation[1] > 360) this.rotation[1] -= 360;
-		if (this.rotation[1] < 0) this.rotation[1] += 360;
+		this.rotation[1] = ((this.rotation[1] % 360) + 360) % 360;
 
 		this._updateDirection();
 	},
