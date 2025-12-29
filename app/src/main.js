@@ -3,6 +3,7 @@ import {
 	Loading,
 	loop,
 	Resources,
+	setGameLoop,
 	Utils,
 } from "./engine/core/engine.js";
 import State from "./game/state.js";
@@ -39,6 +40,10 @@ async function loadGameModules() {
 
 	await Arena.load("demo");
 	Game.init(Arena.getSpawnPoint());
+
+	// Bind Game logic to Engine loop
+	setGameLoop(Game.update, Game.postPhysicsUpdate);
+
 	Weapons.load();
 
 	// Give the game a moment to render, then hide loading screen and show main menu

@@ -1,4 +1,3 @@
-import Game from "../../game/game.js";
 import DirectionalLightEntity from "../entities/directionallightentity.js";
 import { EntityTypes } from "../entities/entity.js";
 import FpsMeshEntity from "../entities/fpsmeshentity.js";
@@ -24,6 +23,8 @@ import Settings from "./settings.js";
 // Private
 // ============================================================================
 
+let _gameUpdate;
+let _gamePostPhysics;
 let _time;
 let _frameTime = 0;
 let _rafId;
@@ -37,9 +38,9 @@ const _loop = () => {
 
 		Stats.update();
 		Input.update();
-		Game.update(_frameTime);
-		Physics.update();
-		Game.postPhysicsUpdate();
+		if (_gameUpdate) _gameUpdate(_frameTime);
+		Physics.update(_frameTime / 1000);
+		if (_gamePostPhysics) _gamePostPhysics();
 		Camera.update();
 		Scene.update(_frameTime);
 		Renderer.render();
@@ -57,8 +58,14 @@ const _loop = () => {
 
 const loop = _loop;
 
+const setGameLoop = (update, postPhysics) => {
+	_gameUpdate = update;
+	_gamePostPhysics = postPhysics;
+};
+
 export {
 	loop,
+	setGameLoop,
 	Console,
 	Settings,
 	Utils,
