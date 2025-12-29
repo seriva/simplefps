@@ -213,7 +213,7 @@ const _applyWeaponTransforms = (entity, animations) => {
 	// When camera direction is nearly vertical, use a different reference vector
 	const verticalDot = Math.abs(_weaponDir[1]);
 
-	if (verticalDot > 0.99) {
+	if (verticalDot > 0.9999) {
 		// Nearly vertical - use forward/back vector as up reference instead
 		vec3.set(_weaponUp, 0, 0, _weaponDir[1] > 0 ? 1 : -1);
 	} else {

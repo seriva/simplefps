@@ -36,7 +36,7 @@ const _defaults = {
 	left: 65,
 	right: 68,
 	jump: 32,
-	lookSensitivity: 5,
+	lookSensitivity: 0.25,
 };
 
 // Private functions

@@ -125,7 +125,6 @@ const _pause = (doPause) => {
 
 const _update = (frameTime) => {
 	if (_pauseUpdate) return;
-	Physics.update();
 
 	// Track entities to remove
 	const entitiesToRemove = [];

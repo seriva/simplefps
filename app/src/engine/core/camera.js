@@ -40,10 +40,39 @@ const Camera = {
 
 	rotate(rot) {
 		vec3.add(this.rotation, this.rotation, rot);
+		this._updateDirection();
+	},
+
+	addRotation(dx, dy) {
+		this.rotation[0] += dx;
+		this.rotation[1] += dy;
+
+		// Clamp vertical rotation
+		const MAX_VERTICAL = 89;
+		if (this.rotation[0] > MAX_VERTICAL) this.rotation[0] = MAX_VERTICAL;
+		if (this.rotation[0] < -MAX_VERTICAL) this.rotation[0] = -MAX_VERTICAL;
+
+		// Wrap horizontal rotation
+		if (this.rotation[1] > 360) this.rotation[1] -= 360;
+		if (this.rotation[1] < 0) this.rotation[1] += 360;
+
+		this._updateDirection();
+	},
+
+	_updateDirection() {
 		vec3.set(this.direction, 0, 0, 1);
-		vec3.rotateX(this.direction, this.direction, [0, 0, 0], this.rotation[0]);
-		vec3.rotateY(this.direction, this.direction, [0, 0, 0], this.rotation[1]);
-		vec3.rotateZ(this.direction, this.direction, [0, 0, 0], this.rotation[2]);
+		vec3.rotateX(
+			this.direction,
+			this.direction,
+			[0, 0, 0],
+			glMatrix.toRadian(this.rotation[0]),
+		);
+		vec3.rotateY(
+			this.direction,
+			this.direction,
+			[0, 0, 0],
+			glMatrix.toRadian(this.rotation[1]),
+		);
 		vec3.normalize(this.direction, this.direction);
 	},
 
