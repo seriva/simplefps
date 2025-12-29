@@ -60,6 +60,10 @@ const _ANIMATION = {
 		},
 	},
 	MOVEMENT_FADE_SPEED: 0.005,
+	LAND_SPRING_STIFFNESS: 60.0,
+	LAND_SPRING_DAMPING: 8.0,
+	LAND_IMPULSE: -0.6,
+	JUMP_IMPULSE: 0.35,
 };
 
 const _state = {
@@ -72,6 +76,7 @@ const _state = {
 	firingTimer: 0,
 	isMoving: false,
 	movementBlend: 0,
+	recoil: { pos: 0, vel: 0 },
 };
 
 // Pre-allocated vectors to avoid per-frame allocations
@@ -116,6 +121,14 @@ const _selectPrevious = () => {
 	_state.list[_state.selected].visible = true;
 };
 
+const _onLand = () => {
+	_state.recoil.vel += _ANIMATION.LAND_IMPULSE;
+};
+
+const _onJump = () => {
+	_state.recoil.vel += _ANIMATION.JUMP_IMPULSE;
+};
+
 const _updateGrenade = (entity, _frameTime) => {
 	const { quaternion: q, position: p } = entity.physicsBody;
 	const scale = entity.data.meshScale || 1;
@@ -158,10 +171,20 @@ const _createWeaponAnimation = (entity, frameTime) => {
 		_ANIMATION.MOVEMENT_FADE_SPEED *
 		frameTime;
 
+	// Simulate spring physics for recoil/landing
+	const dt = frameTime / 1000;
+	const force =
+		-_ANIMATION.LAND_SPRING_STIFFNESS * _state.recoil.pos -
+		_ANIMATION.LAND_SPRING_DAMPING * _state.recoil.vel;
+	const accel = force; // mass = 1
+	_state.recoil.vel += accel * dt;
+	_state.recoil.pos += _state.recoil.vel * dt;
+
 	const animations = {
 		fire: _calculateFireAnimation(frameTime),
 		movement: _calculateMovementAnimation(entity.animationTime),
 		idle: _calculateIdleAnimation(entity.animationTime),
+		land: _state.recoil.pos,
 	};
 
 	_applyWeaponTransforms(entity, animations);
@@ -236,7 +259,8 @@ const _applyWeaponTransforms = (entity, animations) => {
 			animations.movement.horizontal,
 		_WEAPON_POSITION.y +
 			animations.idle.vertical +
-			animations.movement.vertical,
+			animations.movement.vertical +
+			animations.land,
 		_WEAPON_POSITION.z + animations.fire,
 	]);
 	mat4.rotateY(entity.ani_matrix, entity.ani_matrix, glMatrix.toRadian(180));
@@ -372,6 +396,8 @@ const Weapons = {
 	shootGrenade: _shootGrenade,
 	selectNext: _selectNext,
 	selectPrevious: _selectPrevious,
+	onLand: _onLand,
+	onJump: _onJump,
 };
 
 export { Weapons as default };

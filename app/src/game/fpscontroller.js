@@ -26,6 +26,8 @@ class FPSController {
 			airAcceleration: config.airAcceleration || 800,
 			friction: config.friction || 450,
 			maxSpeed: config.maxSpeed || 300,
+			onLand: config.onLand || (() => {}),
+			onJump: config.onJump || (() => {}),
 		};
 
 		const shape = new CANNON.Sphere(this.config.radius);
@@ -60,6 +62,8 @@ class FPSController {
 		// Track last wish direction for direction change detection
 		this.lastWishDir = vec3.create();
 		this.directionChangeTimer = 0;
+		this.wasGrounded = true;
+		this.airTime = 0;
 	}
 
 	isGrounded() {
@@ -104,12 +108,25 @@ class FPSController {
 		// Gravity is now handled by the physics system
 
 		// Only apply horizontal damping when grounded (friction with ground)
-		if (this.isGrounded()) {
+		// Only apply horizontal damping when grounded (friction with ground)
+		const grounded = this.isGrounded();
+		if (grounded) {
+			// Trigger landing animation if we were airborne for a noticeable time (>150ms)
+			// This prevents constant triggering while walking down slopes or over small bumps
+			if (!this.wasGrounded && this.airTime > 0.15) {
+				this.config.onLand();
+			}
+			this.airTime = 0;
+
 			const horizontalDamping = 0.98; // 98% damping per second for fast stopping
 			const dampingFactorXZ = (1 - horizontalDamping) ** frameTime;
 			this.body.velocity.x *= dampingFactorXZ;
 			this.body.velocity.z *= dampingFactorXZ;
+		} else {
+			this.airTime += frameTime;
 		}
+
+		this.wasGrounded = grounded;
 
 		// Apply slight damping to Y axis (same as grenades) for air resistance
 		const verticalDamping = 0.01; // 1% damping like grenades
@@ -120,6 +137,7 @@ class FPSController {
 	jump() {
 		if (this.isGrounded()) {
 			this.body.velocity.y = this.config.jumpVelocity;
+			this.config.onJump();
 		}
 	}
 
