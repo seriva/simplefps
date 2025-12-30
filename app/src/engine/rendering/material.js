@@ -6,8 +6,8 @@ import Texture from "./texture.js";
 const TEXTURE_SLOTS = {
 	albedo: { unit: 0, sampler: "colorSampler" },
 	emissive: { unit: 1, sampler: "emissiveSampler" },
-	sem: { unit: 2, sampler: "semSampler" },
-	semApply: { unit: 3, sampler: "semApplySampler" },
+	reflection: { unit: 2, sampler: "reflectionSampler" },
+	reflectionMask: { unit: 3, sampler: "reflectionMaskSampler" },
 	lightmap: { unit: 4, sampler: "lightmapSampler" },
 };
 
@@ -21,9 +21,7 @@ class Material {
 		this.name = data.name;
 		this.textures = data.textures || {};
 		this.geomType = data.geomType || 1;
-		this.doEmissive = data.doEmissive || 0;
-		this.doSEM = data.doSEM || 0;
-		this.semMult = data.semMult || 0;
+		this.reflectionStrength = data.reflectionStrength ?? 1.0;
 		this.translucent = data.translucent || false;
 		this.opacity = data.opacity !== undefined ? data.opacity : 1.0;
 
@@ -47,13 +45,17 @@ class Material {
 			}
 		}
 
+		// Infer flags from texture presence
+		const hasReflection = this.textures.reflection ? 1 : 0;
+		const hasEmissive = this.textures.emissive ? 1 : 0;
+
 		// Material-specific uniforms
-		shader.setInt("doSEM", this.doSEM);
-		shader.setFloat("semMult", this.semMult);
+		shader.setInt("doReflection", hasReflection);
+		shader.setFloat("reflectionStrength", this.reflectionStrength);
 
 		if (shader !== Shaders.glass) {
 			shader.setInt("geomType", this.geomType);
-			shader.setInt("doEmissive", this.doEmissive);
+			shader.setInt("doEmissive", hasEmissive);
 			shader.setInt("hasLightmap", this.textures.lightmap ? 1 : 0);
 		} else {
 			shader.setFloat("opacity", this.opacity);

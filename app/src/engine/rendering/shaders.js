@@ -166,16 +166,16 @@ const _ShaderSources = {
 
             uniform int geomType;
             uniform int doEmissive;
-            uniform int doSEM;
+            uniform int doReflection;
             uniform int hasLightmap;
-            uniform float semMult;
+            uniform float reflectionStrength;
 
             uniform vec3 cameraPosition;
             uniform sampler2D colorSampler;
             uniform sampler2D emissiveSampler;
             uniform sampler2D lightmapSampler;
-            uniform sampler2D semSampler;
-            uniform sampler2D semApplySampler;
+            uniform sampler2D reflectionSampler;
+            uniform sampler2D reflectionMaskSampler;
 
             const int MESH = 1;
             const int SKYBOX = 2;
@@ -204,11 +204,11 @@ const _ShaderSources = {
                     fragNormal = vec4(0.0, 0.0, 0.0, 1.0);
                 }
 
-                // Combine SEM and emissive calculations
-                if (doSEM == 1) {
-                    vec4 semApply = textureLod(semApplySampler, vUV, 0.0);
-                    float semSum = dot(semApply.xyz, vec3(0.333333));  // Faster than multiplication
-                    if (semSum > 0.2) {
+                // Apply reflection if enabled
+                if (doReflection == 1) {
+                    vec4 reflMask = textureLod(reflectionMaskSampler, vUV, 0.0);
+                    float maskSum = dot(reflMask.xyz, vec3(0.333333));  // Faster than multiplication
+                    if (maskSum > 0.2) {
                         // Calculate view direction from camera to fragment position in world space
                         vec3 viewDir = normalize(cameraPosition - vPosition.xyz);
                         // Calculate reflection vector
@@ -216,10 +216,10 @@ const _ShaderSources = {
                         // Convert reflection vector to equirectangular UV coordinates
                         // Using improved formula for better accuracy with epsilon for singularity
                         float m = 2.0 * sqrt(dot(r.xy, r.xy) + (r.z + 1.0) * (r.z + 1.0)) + 0.00001;
-                        vec2 semUV = r.xy / m + 0.5;
-                        vec4 semColor = textureLod(semSampler, semUV, 0.0);
-                        // Blend reflection with base color based on semApply mask and intensity
-                        color = mix(color, semColor * semApply, semMult * semSum);
+                        vec2 reflUV = r.xy / m + 0.5;
+                        vec4 reflColor = textureLod(reflectionSampler, reflUV, 0.0);
+                        // Blend reflection with base color based on mask and intensity
+                        color = mix(color, reflColor * reflMask, reflectionStrength * maskSum);
                     }
                 }
 
@@ -687,11 +687,11 @@ const _ShaderSources = {
             uniform sampler2D colorSampler;
             uniform float opacity;
             
-            // SEM uniforms
-            uniform int doSEM;
-            uniform float semMult;
-            uniform sampler2D semSampler;
-            uniform sampler2D semApplySampler;
+            // Reflection uniforms
+            uniform int doReflection;
+            uniform float reflectionStrength;
+            uniform sampler2D reflectionSampler;
+            uniform sampler2D reflectionMaskSampler;
             uniform vec3 cameraPosition;
 
             // Lighting uniforms
@@ -758,18 +758,18 @@ const _ShaderSources = {
                 vec3 normal = normalize(vNormal);
                 vec3 fragPos = vPosition.xyz;
                 
-                // Apply SEM if enabled
-                if (doSEM == 1) {
-                    vec4 semApply = textureLod(semApplySampler, vUV, 0.0);
-                    float semSum = dot(semApply.xyz, vec3(0.333333));
-                    if (semSum > 0.1) {
+                // Apply reflection if enabled
+                if (doReflection == 1) {
+                    vec4 reflMask = textureLod(reflectionMaskSampler, vUV, 0.0);
+                    float maskSum = dot(reflMask.xyz, vec3(0.333333));
+                    if (maskSum > 0.1) {
                         vec3 viewDir = normalize(cameraPosition - fragPos);
                         vec3 r = reflect(-viewDir, normal);
                         // Add epsilon to prevent singularity at r.z = -1
                         float m = 2.0 * sqrt(dot(r.xy, r.xy) + (r.z + 1.0) * (r.z + 1.0)) + 0.00001;
-                        vec2 semUV = r.xy / m + 0.5;
-                        vec4 semColor = textureLod(semSampler, semUV, 0.0);
-                        color = mix(color, semColor * semApply, semMult * semSum);
+                        vec2 reflUV = r.xy / m + 0.5;
+                        vec4 reflColor = textureLod(reflectionSampler, reflUV, 0.0);
+                        color = mix(color, reflColor * reflMask, reflectionStrength * maskSum);
                     }
                 }
 

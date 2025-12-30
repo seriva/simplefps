@@ -103,9 +103,7 @@ const _RESOURCE_TYPES = {
 					// Merge textures (child overrides base)
 					mat.textures = { ...baseMat.textures, ...mat.textures };
 					// Inherit other properties if not defined
-					mat.doEmissive ??= baseMat.doEmissive;
-					mat.doSEM ??= baseMat.doSEM;
-					mat.semMult ??= baseMat.semMult;
+					mat.reflectionStrength ??= baseMat.reflectionStrength;
 					mat.translucent ??= baseMat.translucent;
 					mat.opacity ??= baseMat.opacity;
 					mat.geomType ??= baseMat.geomType;
