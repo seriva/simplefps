@@ -193,7 +193,7 @@ const _renderTransparent = () => {
 	Shaders.glass.setInt("colorSampler", 0);
 	Shaders.glass.setVec3("cameraPosition", Camera.position);
 
-	// Ambient lighting not used in glass shader (it's additive)
+	// Ambient lighting
 	// Shaders.glass.setVec3("uAmbient", _ambient);
 
 	// Collect and pass point lights (max 8)
@@ -242,7 +242,6 @@ const _renderLighting = () => {
 	// Directional lights
 	Shaders.directionalLight.bind();
 	Shaders.directionalLight.setInt("normalBuffer", 1);
-	Shaders.directionalLight.setVec2("viewportSize", _viewportSize);
 	_renderEntities(EntityTypes.DIRECTIONAL_LIGHT);
 	Shader.unBind();
 
