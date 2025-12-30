@@ -74,9 +74,51 @@ class Mesh {
 				2,
 			);
 		}
+
+		// Create VAO and capture vertex attribute state
+		this.vao = gl.createVertexArray();
+		gl.bindVertexArray(this.vao);
+
+		// Position attribute
+		gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
+		gl.vertexAttribPointer(Mesh.ATTR_POSITIONS, 3, gl.FLOAT, false, 0, 0);
+		gl.enableVertexAttribArray(Mesh.ATTR_POSITIONS);
+
+		// UV attribute
+		if (this.hasUVs) {
+			gl.bindBuffer(gl.ARRAY_BUFFER, this.uvBuffer);
+			gl.vertexAttribPointer(Mesh.ATTR_UVS, 2, gl.FLOAT, false, 0, 0);
+			gl.enableVertexAttribArray(Mesh.ATTR_UVS);
+		}
+
+		// Normal attribute
+		if (this.hasNormals) {
+			gl.bindBuffer(gl.ARRAY_BUFFER, this.normalBuffer);
+			gl.vertexAttribPointer(Mesh.ATTR_NORMALS, 3, gl.FLOAT, false, 0, 0);
+			gl.enableVertexAttribArray(Mesh.ATTR_NORMALS);
+		}
+
+		// Lightmap UV attribute
+		if (this.hasLightmapUVs) {
+			gl.bindBuffer(gl.ARRAY_BUFFER, this.lightmapUVBuffer);
+			gl.vertexAttribPointer(Mesh.ATTR_LIGHTMAP_UVS, 2, gl.FLOAT, false, 0, 0);
+			gl.enableVertexAttribArray(Mesh.ATTR_LIGHTMAP_UVS);
+		} else {
+			// Provide default lightmap UVs (0,0) when not available
+			gl.disableVertexAttribArray(Mesh.ATTR_LIGHTMAP_UVS);
+			gl.vertexAttrib2f(Mesh.ATTR_LIGHTMAP_UVS, 0.0, 0.0);
+		}
+
+		// Unbind VAO (state is now captured)
+		gl.bindVertexArray(null);
+		gl.bindBuffer(gl.ARRAY_BUFFER, null);
 	}
 
 	deleteMeshBuffers() {
+		if (this.vao) {
+			gl.deleteVertexArray(this.vao);
+			this.vao = null;
+		}
 		for (const indexObj of this.indices) {
 			gl.deleteBuffer(indexObj.indexBuffer);
 		}
@@ -87,31 +129,12 @@ class Mesh {
 	}
 
 	bind() {
-		this.#bindBufferAndAttrib(this.vertexBuffer, Mesh.ATTR_POSITIONS, 3);
-		if (this.hasUVs) this.#bindBufferAndAttrib(this.uvBuffer, Mesh.ATTR_UVS, 2);
-		if (this.hasNormals)
-			this.#bindBufferAndAttrib(this.normalBuffer, Mesh.ATTR_NORMALS, 3);
-		if (this.hasLightmapUVs) {
-			this.#bindBufferAndAttrib(
-				this.lightmapUVBuffer,
-				Mesh.ATTR_LIGHTMAP_UVS,
-				2,
-			);
-		} else {
-			// Provide default lightmap UVs (0,0) when not available
-			gl.disableVertexAttribArray(Mesh.ATTR_LIGHTMAP_UVS);
-			gl.vertexAttrib2f(Mesh.ATTR_LIGHTMAP_UVS, 0.0, 0.0);
-		}
+		// With VAO, we just bind it and all vertex attribute state is restored
+		gl.bindVertexArray(this.vao);
 	}
 
 	unBind() {
-		gl.bindBuffer(gl.ARRAY_BUFFER, null);
-		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
-		gl.disableVertexAttribArray(Mesh.ATTR_POSITIONS);
-		if (this.hasUVs) gl.disableVertexAttribArray(Mesh.ATTR_UVS);
-		if (this.hasNormals) gl.disableVertexAttribArray(Mesh.ATTR_NORMALS);
-		if (this.hasLightmapUVs)
-			gl.disableVertexAttribArray(Mesh.ATTR_LIGHTMAP_UVS);
+		gl.bindVertexArray(null);
 	}
 
 	#groupedIndices = null;
