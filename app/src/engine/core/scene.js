@@ -184,7 +184,7 @@ const _renderWorldGeometry = () => {
 	Shader.unBind();
 };
 
-const _renderGlass = () => {
+const _renderTransparent = () => {
 	Shaders.glass.bind();
 	mat4.identity(_matModel);
 	Shaders.glass.setMat4("matViewProj", Camera.viewProjection);
@@ -249,16 +249,20 @@ const _renderLighting = () => {
 	// Pointlights
 	Shaders.pointLight.bind();
 	Shaders.pointLight.setMat4("matViewProj", Camera.viewProjection);
-	Shaders.pointLight.setInt("positionBuffer", 0);
+	Shaders.pointLight.setMat4("matInvViewProj", Camera.inverseViewProjection);
+	Shaders.pointLight.setInt("depthBuffer", 0);
 	Shaders.pointLight.setInt("normalBuffer", 1);
+	Shaders.pointLight.setVec2("viewportSize", _viewportSize);
 	_renderEntities(EntityTypes.POINT_LIGHT);
 	Shader.unBind();
 
 	// Spotlights
 	Shaders.spotLight.bind();
 	Shaders.spotLight.setMat4("matViewProj", Camera.viewProjection);
-	Shaders.spotLight.setInt("positionBuffer", 0);
+	Shaders.spotLight.setMat4("matInvViewProj", Camera.inverseViewProjection);
+	Shaders.spotLight.setInt("depthBuffer", 0);
 	Shaders.spotLight.setInt("normalBuffer", 1);
+	Shaders.spotLight.setVec2("viewportSize", _viewportSize);
 	_renderEntities(EntityTypes.SPOT_LIGHT);
 	Shader.unBind();
 
@@ -401,7 +405,7 @@ const Scene = {
 	removeEntity: _removeEntity,
 	getEntities: _getEntities,
 	renderWorldGeometry: _renderWorldGeometry,
-	renderGlass: _renderGlass,
+	renderTransparent: _renderTransparent,
 	renderLighting: _renderLighting,
 	renderShadows: _renderShadows,
 	renderFPSGeometry: _renderFPSGeometry,

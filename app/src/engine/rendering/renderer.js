@@ -94,19 +94,6 @@ const _resize = (width, height) => {
 	gl.bindFramebuffer(gl.FRAMEBUFFER, _g.framebuffer);
 	gl.activeTexture(gl.TEXTURE0);
 
-	_g.position = new Texture({
-		format: gl.RGBA16F,
-		width,
-		height,
-	});
-	gl.framebufferTexture2D(
-		gl.FRAMEBUFFER,
-		gl.COLOR_ATTACHMENT0,
-		gl.TEXTURE_2D,
-		_g.position.texture,
-		0,
-	);
-
 	_g.normal = new Texture({
 		format: gl.RGBA16F,
 		width,
@@ -114,7 +101,7 @@ const _resize = (width, height) => {
 	});
 	gl.framebufferTexture2D(
 		gl.FRAMEBUFFER,
-		gl.COLOR_ATTACHMENT1,
+		gl.COLOR_ATTACHMENT0,
 		gl.TEXTURE_2D,
 		_g.normal.texture,
 		0,
@@ -127,7 +114,7 @@ const _resize = (width, height) => {
 	});
 	gl.framebufferTexture2D(
 		gl.FRAMEBUFFER,
-		gl.COLOR_ATTACHMENT2,
+		gl.COLOR_ATTACHMENT1,
 		gl.TEXTURE_2D,
 		_g.color.texture,
 		0,
@@ -140,7 +127,7 @@ const _resize = (width, height) => {
 	});
 	gl.framebufferTexture2D(
 		gl.FRAMEBUFFER,
-		gl.COLOR_ATTACHMENT3,
+		gl.COLOR_ATTACHMENT2,
 		gl.TEXTURE_2D,
 		_g.emissive.texture,
 		0,
@@ -154,7 +141,7 @@ const _resize = (width, height) => {
 	});
 	gl.framebufferTexture2D(
 		gl.FRAMEBUFFER,
-		gl.COLOR_ATTACHMENT4,
+		gl.COLOR_ATTACHMENT3,
 		gl.TEXTURE_2D,
 		_g.linearDepth.texture,
 		0,
@@ -172,7 +159,6 @@ const _resize = (width, height) => {
 		gl.COLOR_ATTACHMENT1,
 		gl.COLOR_ATTACHMENT2,
 		gl.COLOR_ATTACHMENT3,
-		gl.COLOR_ATTACHMENT4,
 	]);
 	_checkFramebufferStatus();
 	gl.bindFramebuffer(gl.FRAMEBUFFER, null);
@@ -225,13 +211,7 @@ const _resize = (width, height) => {
 		_l.light.texture,
 		0,
 	);
-	gl.framebufferTexture2D(
-		gl.FRAMEBUFFER,
-		gl.DEPTH_ATTACHMENT,
-		gl.TEXTURE_2D,
-		_depth.texture,
-		0,
-	);
+
 	_checkFramebufferStatus();
 	gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
@@ -473,16 +453,14 @@ const _ssaoPass = () => {
 
 	// Bind G-buffer textures
 	_g.normal.bind(gl.TEXTURE0);
-	_g.linearDepth.bind(gl.TEXTURE1);
+	_depth.bind(gl.TEXTURE1); // Use hardware depth for reconstruction
 	_ao.noise.bind(gl.TEXTURE2);
-	_g.position.bind(gl.TEXTURE3);
 
 	// Setup SSAO shader
 	Shaders.ssao.bind();
 	Shaders.ssao.setInt("normalBuffer", 0);
 	Shaders.ssao.setInt("depthBuffer", 1);
 	Shaders.ssao.setInt("noiseTexture", 2);
-	Shaders.ssao.setInt("positionBuffer", 3);
 
 	// Set uniforms
 	Shaders.ssao.setVec2("viewportSize", [Context.width(), Context.height()]);
@@ -493,6 +471,7 @@ const _ssaoPass = () => {
 	Shaders.ssao.setFloat("radius", Settings.ssaoRadius);
 	Shaders.ssao.setFloat("bias", Settings.ssaoBias);
 	Shaders.ssao.setMat4("matViewProj", Camera.viewProjection);
+	Shaders.ssao.setMat4("matInvViewProj", Camera.inverseViewProjection);
 	Shaders.ssao.setVec3("cameraPosition", Camera.position);
 	Shaders.ssao.setVec3Array("uKernel", new Float32Array(_ssaoKernel));
 
@@ -504,16 +483,26 @@ const _ssaoPass = () => {
 	Texture.unBind(gl.TEXTURE0);
 	Texture.unBind(gl.TEXTURE1);
 	Texture.unBind(gl.TEXTURE2);
-	Texture.unBind(gl.TEXTURE3);
 	gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 };
 
 const _lightingPass = () => {
 	gl.bindFramebuffer(gl.FRAMEBUFFER, _l.framebuffer);
+
+	// Explicitly detach depth buffer to allow reading it as a texture
+	gl.framebufferTexture2D(
+		gl.FRAMEBUFFER,
+		gl.DEPTH_ATTACHMENT,
+		gl.TEXTURE_2D,
+		null,
+		0,
+	);
+
 	const ambient = Scene.getAmbient();
 	gl.clearColor(ambient[0], ambient[1], ambient[2], 1.0);
 	gl.clear(gl.COLOR_BUFFER_BIT);
-	_g.position.bind(gl.TEXTURE0);
+	gl.clear(gl.COLOR_BUFFER_BIT);
+	_depth.bind(gl.TEXTURE0);
 	_g.normal.bind(gl.TEXTURE1);
 	_s.shadow.bind(gl.TEXTURE2);
 
@@ -589,8 +578,17 @@ const _ssaoBlurPass = () => {
 	gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 };
 
-const _glassPass = () => {
+const _transparentPass = () => {
 	gl.bindFramebuffer(gl.FRAMEBUFFER, _l.framebuffer);
+
+	// Re-attach depth buffer for correct depth testing
+	gl.framebufferTexture2D(
+		gl.FRAMEBUFFER,
+		gl.DEPTH_ATTACHMENT,
+		gl.TEXTURE_2D,
+		_depth.texture,
+		0,
+	);
 
 	// Match the depth range of the world geometry pass so depth comparisons are valid
 	gl.depthRange(0.1, 1.0);
@@ -606,7 +604,7 @@ const _glassPass = () => {
 	gl.depthMask(false);
 	gl.disable(gl.CULL_FACE);
 
-	Scene.renderGlass();
+	Scene.renderTransparent();
 
 	gl.enable(gl.CULL_FACE);
 	gl.depthMask(true);
@@ -634,7 +632,7 @@ const _postProcessingPass = () => {
 	Shaders.postProcessing.setInt("emissiveBuffer", 3);
 	Shaders.postProcessing.setInt("dirtBuffer", 4);
 	Shaders.postProcessing.setInt("aoBuffer", 5);
-	Shaders.postProcessing.setInt("linearDepthBuffer", 6);
+
 	Shaders.postProcessing.setVec2("viewportSize", [
 		Context.width(),
 		Context.height(),
@@ -676,7 +674,7 @@ const Renderer = {
 		_shadowPass();
 		_fpsGeomPass();
 		_lightingPass();
-		_glassPass();
+		_transparentPass();
 		_emissiveBlurPass();
 		_postProcessingPass();
 		_debugPass();

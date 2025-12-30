@@ -10,6 +10,7 @@ const Camera = {
 	direction: vec3.fromValues(0, 0, 1),
 	view: mat4.create(),
 	viewProjection: mat4.create(),
+	inverseViewProjection: mat4.create(),
 	frustumPlanes: {
 		near: vec4.create(),
 		far: vec4.create(),
@@ -143,6 +144,8 @@ const Camera = {
 			m[15] - m[14],
 		);
 		vec4.normalize(this.frustumPlanes.far, this.frustumPlanes.far);
+
+		mat4.invert(this.inverseViewProjection, this.viewProjection);
 	},
 
 	destroy() {
