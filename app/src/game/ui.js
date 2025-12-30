@@ -25,7 +25,7 @@ class _MenuUI extends Reactive.Component {
 			}
 
 			#menu-base {
-				transform: translate(-50%, -50%);
+				transform: translate(-50%, -50%) scale(0.95);
 				position: absolute;
 				top: 50%;
 				left: 50%;
@@ -41,15 +41,18 @@ class _MenuUI extends Reactive.Component {
 				user-select: none;
 				z-index: 1000;
 				opacity: 0;
-				transition: opacity 200ms ease-out, transform 200ms ease-out;
-				display: none;
+				visibility: hidden;
+				transition: opacity 200ms ease-out, transform 200ms ease-out, visibility 0s 200ms;
 				backdrop-filter: blur(10px);
+				pointer-events: none;
 			}
 
 			#menu-base.visible {
-				display: block;
 				opacity: 1;
+				visibility: visible;
 				transform: translate(-50%, -50%) scale(1);
+				transition: opacity 200ms ease-out, transform 200ms ease-out, visibility 0s 0s;
+				pointer-events: auto;
 			}
 
 			#menu-header {
@@ -233,10 +236,30 @@ class _MenuUI extends Reactive.Component {
 	}
 
 	show(name) {
-		this.batch(() => {
-			this.currentMenu.set(name);
-			this.visible.set(true);
-		});
+		const currentMenu = this.currentMenu.get();
+		const isVisible = this.visible.get();
+
+		// If already showing a different menu, fade out first, then switch
+		if (isVisible && currentMenu && currentMenu !== name) {
+			// Fade out
+			this.refs.menuBase.classList.remove("visible");
+
+			// Wait for fade-out transition, then switch content and fade in
+			setTimeout(() => {
+				this.batch(() => {
+					this.currentMenu.set(name);
+					// Force reflow to ensure transition works
+					void this.refs.menuBase.offsetWidth;
+					this.refs.menuBase.classList.add("visible");
+				});
+			}, 200); // Match CSS transition duration
+		} else {
+			// Just show the menu normally
+			this.batch(() => {
+				this.currentMenu.set(name);
+				this.visible.set(true);
+			});
+		}
 	}
 
 	hide() {
