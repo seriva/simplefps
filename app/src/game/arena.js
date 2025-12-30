@@ -24,6 +24,7 @@ const _DEFAULT_AMBIENT = [1, 1, 1];
 
 const _state = {
 	arena: {},
+	currentSpawnPoint: null,
 };
 
 const _setupCamera = ({ position, rotation }) => {
@@ -114,6 +115,8 @@ const _load = async (name) => {
 			);
 		}
 
+		_state.currentSpawnPoint = startSpawn;
+
 		_setupCamera(startSpawn);
 		_setupLighting(lighting || {});
 		_setupEnvironment(_state.arena);
@@ -140,8 +143,7 @@ const _load = async (name) => {
 const Arena = {
 	load: _load,
 	getSpawnPoint: () => {
-		const { spawnpoint, spawnpoints } = _state.arena;
-		return spawnpoint || (spawnpoints ? spawnpoints[0] : null) || {};
+		return _state.currentSpawnPoint || {};
 	},
 };
 

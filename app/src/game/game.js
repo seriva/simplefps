@@ -21,6 +21,13 @@ const Game = {
 			onLand: Weapons.onLand,
 			onJump: Weapons.onJump,
 		});
+
+		if (spawnPoint.rotation) {
+			const yawRadians = spawnPoint.rotation[1];
+			// Convert to degrees for Camera (glMatrix.toRadian is used internally by Camera, so it expects degrees)
+			const yawDegrees = yawRadians * (180 / Math.PI);
+			Camera.setRotation([0, yawDegrees, 0]);
+		}
 	},
 
 	update(frameTime) {
