@@ -603,45 +603,55 @@ function exportMap(vertices, meshVerts, faces, textures, lightmaps, outputDir, a
 
     // Write materials.mat (deduplicate based on name + textures combination)
     const materialsData = {
-        materials: indicesGroups.map((group, idx) => {
-            const fullPath = textures.find(t => path.basename(t) === group.material) || group.material;
-            const name = group.material;
-            const blendTextures = [];
-            let doEmissive = 0;
+        materials: []
+    };
 
-            // Check Shader Definition
-            if (shaderMap) {
-                const shaderStages = shaderMap.get(fullPath.toLowerCase());
+    // Add base material if using lightmaps
+    if (atlasName) {
+        materialsData.materials.push({
+            name: "lightmapped",
+            textures: {
+                lightmap: `${arenaName}/${atlasName}`
+            }
+        });
+    }
 
-                if (shaderStages) {
-                    for (const stage of shaderStages) {
-                        const lines = stage.split('\n').map(l => l.trim());
-                        const isAdditive = lines.some(l =>
-                            /^blendfunc\s+(add|gl_one\s+gl_one|gl_src_alpha\s+gl_one)/i.test(l)
-                        );
+    const generatedMaterials = indicesGroups.map((group, idx) => {
+        const fullPath = textures.find(t => path.basename(t) === group.material) || group.material;
+        const name = group.material;
+        let blendTexture = null;
+        let doEmissive = 0;
 
-                        if (isAdditive) {
-                            const mapLine = lines.find(l => /^map\s+/i.test(l));
-                            if (mapLine) {
-                                let mapPath = mapLine.split(/\s+/)[1];
-                                if (mapPath && mapPath !== '$lightmap' && textureDir) {
-                                    const relativePath = mapPath.replace(/^textures\//, '');
+        // Check Shader Definition
+        if (shaderMap) {
+            const shaderStages = shaderMap.get(fullPath.toLowerCase());
 
-                                    const srcFile = path.join(textureDir, relativePath);
+            if (shaderStages) {
+                for (const stage of shaderStages) {
+                    const lines = stage.split('\n').map(l => l.trim());
+                    const isAdditive = lines.some(l =>
+                        /^blendfunc\s+(add|gl_one\s+gl_one|gl_src_alpha\s+gl_one)/i.test(l)
+                    );
 
-                                    if (fs.existsSync(srcFile)) {
-                                        const blendBaseName = path.basename(mapPath, path.extname(mapPath));
-                                        const blendDestName = `${blendBaseName}.webp`;
-                                        const blendDestPath = path.join(texturesOutputDir, blendDestName);
+                    if (isAdditive) {
+                        const mapLine = lines.find(l => /^map\s+/i.test(l));
+                        if (mapLine) {
+                            let mapPath = mapLine.split(/\s+/)[1];
+                            if (mapPath && mapPath !== '$lightmap' && textureDir) {
+                                const relativePath = mapPath.replace(/^textures\//, '');
 
-                                        if (convertSingleTexture(srcFile, blendDestPath)) {
-                                            const existing = blendTextures.find(t => t.endsWith(blendDestName));
-                                            if (!existing) {
-                                                const arenaPath = `${arenaName}/textures/${blendDestName}`;
-                                                blendTextures.push(arenaPath);
-                                                doEmissive = 1;
-                                                console.log(`Found shader blend texture: ${srcFile} -> ${blendDestName}`);
-                                            }
+                                const srcFile = path.join(textureDir, relativePath);
+
+                                if (fs.existsSync(srcFile)) {
+                                    const blendBaseName = path.basename(mapPath, path.extname(mapPath));
+                                    const blendDestName = `${blendBaseName}.webp`;
+                                    const blendDestPath = path.join(texturesOutputDir, blendDestName);
+
+                                    if (convertSingleTexture(srcFile, blendDestPath)) {
+                                        if (!blendTexture) { // Only take first blend texture for now
+                                            blendTexture = `${arenaName}/textures/${blendDestName}`;
+                                            doEmissive = 1;
+                                            console.log(`Found shader blend texture: ${srcFile} -> ${blendDestName}`);
                                         }
                                     }
                                 }
@@ -650,56 +660,62 @@ function exportMap(vertices, meshVerts, faces, textures, lightmaps, outputDir, a
                     }
                 }
             }
+        }
 
-            // Fallback to filename matching if shader lookup failed
-            if (textureDir && blendTextures.length === 0) {
-                const relativePath = fullPath.replace(/^textures\//, '');
-                const blendEXT = '.blend.tga';
-                const srcFile = path.join(textureDir, relativePath + blendEXT);
+        // Fallback to filename matching if shader lookup failed
+        if (textureDir && !blendTexture) {
+            const relativePath = fullPath.replace(/^textures\//, '');
+            const blendEXT = '.blend.tga';
+            const srcFile = path.join(textureDir, relativePath + blendEXT);
 
-                if (fs.existsSync(srcFile)) {
-                    const blendDestName = `${name}.blend.webp`;
-                    const blendDestPath = path.join(texturesOutputDir, blendDestName);
+            if (fs.existsSync(srcFile)) {
+                const blendDestName = `${name}.blend.webp`;
+                const blendDestPath = path.join(texturesOutputDir, blendDestName);
 
-                    if (convertSingleTexture(srcFile, blendDestPath)) {
-                        blendTextures.push(`${arenaName}/textures/${blendDestName}`);
-                        doEmissive = 1;
-                        console.log(`Found inferred blend texture: ${srcFile}`);
-                    }
+                if (convertSingleTexture(srcFile, blendDestPath)) {
+                    blendTexture = `${arenaName}/textures/${blendDestName}`;
+                    doEmissive = 1;
+                    console.log(`Found inferred blend texture: ${srcFile}`);
                 }
             }
+        }
 
-            // Build textures array: [color, emissive, sem, semApply, lightmap]
-            // Pad with "none" to fill empty slots up to lightmap at index 4
-            const texturesList = [`${arenaName}/textures/${name}.webp`, ...blendTextures];
-            while (texturesList.length < 4) {
-                texturesList.push("none");
-            }
-            // Add lightmap at index 4
-            if (atlasName) {
-                texturesList.push(`${arenaName}/${atlasName}`);
-            }
+        // Build Material Definition
+        const matDef = {
+            name: name
+        };
 
-            const matDef = {
-                name: name,
-                textures: texturesList
-            };
+        // If we have an atlas, inherit from 'lightmapped' base
+        if (atlasName) {
+            matDef.base = "lightmapped";
+        }
 
-            if (doEmissive) {
-                matDef.doEmissive = 1;
-            }
+        matDef.textures = {
+            albedo: `${arenaName}/textures/${name}.webp`
+        };
 
-            if (name.toLowerCase().includes('glass')) {
-                matDef.translucent = true;
-            }
+        if (blendTexture) {
+            matDef.textures.emissive = blendTexture;
+            // doEmissive flag is not strictly needed in new system if texture is present, 
+            // but we can keep it if the engine uses it for optimization. 
+            // (Based on materials.mat example, 'doEmissive' is NOT present, just the texture key)
+        }
 
-            return matDef;
-        }).filter((mat, index, self) => {
-            // Deduplicate: only keep first occurrence of each unique material
-            const matKey = JSON.stringify(mat);
-            return index === self.findIndex(m => JSON.stringify(m) === matKey);
-        })
-    };
+        // Check for glass/transparency
+        if (name.toLowerCase().includes('glass')) {
+            matDef.translucent = true;
+            // Optional: set default opacity if needed
+            // matDef.opacity = 0.5;
+        }
+
+        return matDef;
+    }).filter((mat, index, self) => {
+        // Deduplicate: only keep first occurrence of each unique material name
+        // (Assumes same name = same material properties)
+        return index === self.findIndex(m => m.name === mat.name);
+    });
+
+    materialsData.materials.push(...generatedMaterials);
     fs.writeFileSync(path.join(outputDir, 'materials.mat'), JSON.stringify(materialsData, null, 4));
 
     // Extract spawn points
