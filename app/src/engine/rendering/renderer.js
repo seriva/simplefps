@@ -52,6 +52,13 @@ const _ao = {
 let _ssaoKernel = [];
 let _ssaoNoiseData = [];
 
+// Debug flags
+let _debugSSAO = false;
+Console.registerCmd("ssao_debug", () => {
+	_debugSSAO = !_debugSSAO;
+	Console.log(`SSAO debug: ${_debugSSAO}`);
+});
+
 // Private functions
 const _checkFramebufferStatus = () => {
 	const status = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
@@ -80,7 +87,7 @@ const _resize = (width, height) => {
 	// depth buffer
 	// **********************************
 	_depth = new Texture({
-		format: gl.DEPTH_COMPONENT32F,
+		format: gl.DEPTH_COMPONENT24,
 		width,
 		height,
 	});
@@ -95,7 +102,7 @@ const _resize = (width, height) => {
 	gl.activeTexture(gl.TEXTURE0);
 
 	_g.normal = new Texture({
-		format: gl.RGBA16F,
+		format: gl.RGBA8,
 		width,
 		height,
 	});
@@ -625,6 +632,7 @@ const _postProcessingPass = () => {
 	_g.linearDepth.bind(gl.TEXTURE6);
 	Shaders.postProcessing.bind();
 	Shaders.postProcessing.setInt("doFXAA", Settings.doFXAA);
+	Shaders.postProcessing.setInt("debugSSAO", _debugSSAO);
 
 	Shaders.postProcessing.setInt("colorBuffer", 0);
 	Shaders.postProcessing.setInt("lightBuffer", 1);

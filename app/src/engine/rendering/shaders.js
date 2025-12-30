@@ -202,11 +202,12 @@ const _ShaderSources = {
                     // Store lightmap flag in normal.w for post-processing
                     // 0.0 = use deferred lighting, 1.0 = has lightmap
                     float lightmapFlag = float(hasLightmap);
-                    fragNormal = vec4(vNormal, lightmapFlag);
+                    // Pack normal from [-1,1] to [0,1] for RGBA8 storage
+                    fragNormal = vec4(vNormal * 0.5 + 0.5, lightmapFlag);
                     // Linear depth for SSAO (camera-relative distance)
                     fragLinearDepth = length(vPosition.xyz - cameraPosition);
                 } else {
-                    fragNormal = vec4(0.0, 0.0, 0.0, 1.0);
+                    fragNormal = vec4(0.5, 0.5, 0.5, 1.0); // Packed zero normal
                     fragLinearDepth = 10000.0; // Far away for skybox
                 }
 
@@ -312,9 +313,10 @@ const _ShaderSources = {
             uniform sampler2D normalBuffer;
 
             void main() {
-                vec2 uv = gl_FragCoord.xy / viewportSize;
-                vec4 normalData = texture(normalBuffer, uv);
-                vec3 normal = normalData.xyz;
+                ivec2 fragCoord = ivec2(gl_FragCoord.xy);
+                vec4 normalData = texelFetch(normalBuffer, fragCoord, 0);
+                // Unpack normal from [0,1] to [-1,1]
+                vec3 normal = normalData.xyz * 2.0 - 1.0;
                 float lightmapFlag = normalData.w;
                 float isSkybox = normalData.w;
 
@@ -378,9 +380,10 @@ const _ShaderSources = {
                 vec2 uv = gl_FragCoord.xy / viewportSize;
                 ivec2 fragCoord = ivec2(gl_FragCoord.xy);
                 
-                float depth = texture(depthBuffer, uv).r;
+                float depth = texelFetch(depthBuffer, fragCoord, 0).r;
                 vec3 position = reconstructPosition(uv, depth);
-                vec3 normal = normalize(texelFetch(normalBuffer, fragCoord, 0).xyz);
+                // Unpack normal from [0,1] to [-1,1]
+                vec3 normal = normalize(texelFetch(normalBuffer, fragCoord, 0).xyz * 2.0 - 1.0);
 
                 vec3 lightDir = pointLight.position - position;
                 float distSq = dot(lightDir, lightDir);
@@ -442,9 +445,10 @@ const _ShaderSources = {
                 vec2 uv = gl_FragCoord.xy / viewportSize;
                 ivec2 fragCoord = ivec2(gl_FragCoord.xy);
                 
-                float depth = texture(depthBuffer, uv).r;
+                float depth = texelFetch(depthBuffer, fragCoord, 0).r;
                 vec3 position = reconstructPosition(uv, depth);
-                vec3 normal = normalize(texelFetch(normalBuffer, fragCoord, 0).xyz);
+                // Unpack normal from [0,1] to [-1,1]
+                vec3 normal = normalize(texelFetch(normalBuffer, fragCoord, 0).xyz * 2.0 - 1.0);
 
                 vec3 lightDir = spotLight.position - position;
                 float dist = length(lightDir);
@@ -524,6 +528,7 @@ const _ShaderSources = {
             out vec4 fragColor;
 
             uniform bool doFXAA;
+            uniform bool debugSSAO;
             uniform sampler2D colorBuffer;
             uniform sampler2D lightBuffer;
             uniform sampler2D normalBuffer;
@@ -602,14 +607,24 @@ const _ShaderSources = {
 
             void main() {
                 vec2 uv = gl_FragCoord.xy / viewportSize;
+                ivec2 fragCoord = ivec2(gl_FragCoord.xy);
                 
-                
-                vec4 color = doFXAA ? applyFXAA(gl_FragCoord.xy) : texture(colorBuffer, uv);
-                vec4 light = texture(lightBuffer, uv);
-                vec4 normal = texture(normalBuffer, uv);
-                vec4 emissive = texture(emissiveBuffer, uv);
-                vec4 dirt = texture(dirtBuffer, uv);
-                vec4 ao = texture(aoBuffer, uv);
+                // Use texelFetch for G-buffer reads (no filtering needed)
+                vec4 color = doFXAA ? applyFXAA(gl_FragCoord.xy) : texelFetch(colorBuffer, fragCoord, 0);
+                vec4 light = texelFetch(lightBuffer, fragCoord, 0);
+                // Unpack normal from [0,1] to [-1,1] (w component is still lightmap flag [0,1])
+                vec4 normalData = texelFetch(normalBuffer, fragCoord, 0);
+                vec3 normalVec = normalData.xyz * 2.0 - 1.0;
+                vec4 normal = vec4(normalVec, normalData.w); // Keep w component as is
+                vec4 emissive = texelFetch(emissiveBuffer, fragCoord, 0);
+                vec4 dirt = texture(dirtBuffer, uv); // Dirt uses tiled texture, needs filtering
+                vec4 ao = texelFetch(aoBuffer, fragCoord, 0);
+
+                // Debug mode: show raw SSAO buffer
+                if (debugSSAO) {
+                    fragColor = vec4(ao.rgb, 1.0);
+                    return;
+                }
 
                 // Read lightmap flag from normal.w
                 // 1.0 = has lightmap (additive lighting), 0.0 = dynamic object (multiplicative lighting)
@@ -838,18 +853,20 @@ const _ShaderSources = {
             void main()
             {
                 vec2 uv = gl_FragCoord.xy / viewportSize;
+                ivec2 fragCoord = ivec2(gl_FragCoord.xy);
                 
-                // Use explicit LOD 0 to avoid artifacts on edges
-                vec4 normalData = textureLod(normalBuffer, uv, 0.0);
-                vec3 normal = normalData.xyz;
+                // Use texelFetch for normal buffer (no filtering needed)
+                vec4 normalData = texelFetch(normalBuffer, fragCoord, 0);
+                // Unpack normal from [0,1] to [-1,1]
+                vec3 normal = normalData.xyz * 2.0 - 1.0;
                 float hasLightmap = normalData.w;
                 
                 // Get depth and reconstruct world position
-                float depth = textureLod(depthBuffer, uv, 0.0).r;
+                float depth = texelFetch(depthBuffer, fragCoord, 0).r;
                 
-                // Skip skybox (far depth) or non-lightmapped objects if desired
-                // Using 1.0 as far plane in standard depth buffer (usually)
-                if (length(normal) < 0.1 || hasLightmap < 0.5 || depth > 0.9999) {
+                // Skip skybox (packed zero normal) or non-lightmapped objects
+                // We rely on normal length (skybox=0) and lightmap flag (void=0) to filter invalid pixels
+                if (length(normal) < 0.1 || hasLightmap < 0.5) {
                     fragColor = vec4(1.0);
                     return;
                 }
@@ -882,8 +899,9 @@ const _ShaderSources = {
                     offset.xyz /= offset.w; // Perspective divide
                     offset.xy = offset.xy * 0.5 + 0.5; // Transform to 0.0 - 1.0
                     
-                    // sample depth at offset
-                    float sampleDepth = textureLod(depthBuffer, offset.xy, 0.0).r;
+                    // sample depth at offset - need to use texture() here since offset.xy is computed
+                    ivec2 sampleCoord = ivec2(offset.xy * viewportSize);
+                    float sampleDepth = texelFetch(depthBuffer, sampleCoord, 0).r;
                     
                     // Reconstruct sample position to get its distance
                     vec3 reconstructedSamplePos = reconstructPosition(offset.xy, sampleDepth);

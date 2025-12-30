@@ -23,7 +23,7 @@ const _defaults = {
 	doSSAO: false,
 	ssaoRadius: 20,
 	ssaoBias: 2.0,
-	ssaoStrength: 0.7,
+	ssaoStrength: 0.9,
 	ssaoBlurIterations: 6,
 
 	// Dirt/vignette effect
