@@ -456,6 +456,11 @@ const Input = {
 		_virtualInput.toggle(show);
 	},
 
+	resetDelta() {
+		_cursorDelta.x = 0;
+		_cursorDelta.y = 0;
+	},
+
 	clearInputEvents() {
 		_pressed = {};
 		_upevents = [];
