@@ -29,34 +29,41 @@ let _time;
 let _frameTime = 0;
 let _rafId;
 
-const _loop = () => {
-	const frame = () => {
-		// timing
-		const now = performance.now();
-		_frameTime = now - (_time || now);
-		_time = now;
+const _frame = () => {
+	// timing
+	const now = performance.now();
+	_frameTime = now - (_time || now);
+	_time = now;
 
-		Stats.update();
-		Input.update();
-		if (_gameUpdate) _gameUpdate(_frameTime);
-		Physics.update(_frameTime / 1000);
-		if (_gamePostPhysics) _gamePostPhysics();
-		Camera.update();
-		Scene.update(_frameTime);
-		Renderer.render();
+	Stats.update();
+	Input.update();
+	if (_gameUpdate) _gameUpdate(_frameTime);
+	Physics.update(_frameTime / 1000);
+	if (_gamePostPhysics) _gamePostPhysics();
+	Camera.update();
+	Scene.update(_frameTime);
+	Renderer.render();
 
-		_rafId = window.requestAnimationFrame(frame);
-	};
-
-	_rafId = window.requestAnimationFrame(frame);
-	return () => cancelAnimationFrame(_rafId);
+	_rafId = window.requestAnimationFrame(_frame);
 };
 
-// ============================================================================
-// Public API
-// ============================================================================
+const pause = () => {
+	if (_rafId) {
+		window.cancelAnimationFrame(_rafId);
+		_rafId = null;
+	}
+};
 
-const loop = _loop;
+const resume = () => {
+	if (!_rafId) {
+		Input.resetDelta();
+		_time = null;
+		_rafId = window.requestAnimationFrame(_frame);
+	}
+	return pause;
+};
+
+const loop = resume;
 
 const setGameLoop = (update, postPhysics) => {
 	_gameUpdate = update;
@@ -65,6 +72,8 @@ const setGameLoop = (update, postPhysics) => {
 
 export {
 	loop,
+	pause,
+	resume,
 	setGameLoop,
 	Console,
 	Settings,

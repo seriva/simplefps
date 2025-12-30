@@ -69,7 +69,7 @@ const _settingsMenu = {
 			},
 			min: 0.5,
 			max: 1.0,
-			step: 0.1,
+			step: 0.05,
 		},
 		{
 			type: "slider",
