@@ -169,10 +169,9 @@ const _renderEntities = (
 const _renderWorldGeometry = () => {
 	Shaders.geometry.bind();
 	mat4.identity(_matModel);
-	Shaders.geometry.setMat4("matViewProj", Camera.viewProjection);
+	// matViewProj and cameraPosition now in FrameData UBO
 
 	Shaders.geometry.setMat4("matWorld", _matModel);
-	Shaders.geometry.setVec3("cameraPosition", Camera.position);
 
 	// Lightmap is now handled per-material in Material.bind()
 
@@ -187,14 +186,10 @@ const _renderWorldGeometry = () => {
 const _renderTransparent = () => {
 	Shaders.glass.bind();
 	mat4.identity(_matModel);
-	Shaders.glass.setMat4("matViewProj", Camera.viewProjection);
+	// matViewProj and cameraPosition now in FrameData UBO
 
 	Shaders.glass.setMat4("matWorld", _matModel);
 	Shaders.glass.setInt("colorSampler", 0);
-	Shaders.glass.setVec3("cameraPosition", Camera.position);
-
-	// Ambient lighting
-	// Shaders.glass.setVec3("uAmbient", _ambient);
 
 	// Collect and pass point lights (max 8)
 	const MAX_POINT_LIGHTS = 8;
@@ -247,21 +242,17 @@ const _renderLighting = () => {
 
 	// Pointlights
 	Shaders.pointLight.bind();
-	Shaders.pointLight.setMat4("matViewProj", Camera.viewProjection);
-	Shaders.pointLight.setMat4("matInvViewProj", Camera.inverseViewProjection);
+	// matViewProj, matInvViewProj, viewportSize now in FrameData UBO
 	Shaders.pointLight.setInt("depthBuffer", 0);
 	Shaders.pointLight.setInt("normalBuffer", 1);
-	Shaders.pointLight.setVec2("viewportSize", _viewportSize);
 	_renderEntities(EntityTypes.POINT_LIGHT);
 	Shader.unBind();
 
 	// Spotlights
 	Shaders.spotLight.bind();
-	Shaders.spotLight.setMat4("matViewProj", Camera.viewProjection);
-	Shaders.spotLight.setMat4("matInvViewProj", Camera.inverseViewProjection);
+	// matViewProj, matInvViewProj, viewportSize now in FrameData UBO
 	Shaders.spotLight.setInt("depthBuffer", 0);
 	Shaders.spotLight.setInt("normalBuffer", 1);
-	Shaders.spotLight.setVec2("viewportSize", _viewportSize);
 	_renderEntities(EntityTypes.SPOT_LIGHT);
 	Shader.unBind();
 
@@ -269,14 +260,14 @@ const _renderLighting = () => {
 	gl.blendFunc(gl.DST_COLOR, gl.ZERO);
 	Shaders.applyShadows.bind();
 	Shaders.applyShadows.setInt("shadowBuffer", 2);
-	Shaders.applyShadows.setVec2("viewportSize", _viewportSize);
+	// viewportSize now in FrameData UBO
 	screenQuad.renderSingle();
 	Shader.unBind();
 };
 
 const _renderShadows = () => {
 	Shaders.entityShadows.bind();
-	Shaders.entityShadows.setMat4("matViewProj", Camera.viewProjection);
+	// matViewProj now in FrameData UBO
 	Shaders.entityShadows.setVec3("ambient", _ambient);
 
 	_renderEntities(EntityTypes.MESH, "renderShadow");
@@ -288,10 +279,9 @@ const _renderFPSGeometry = () => {
 	Shaders.geometry.bind();
 
 	mat4.identity(_matModel);
-	Shaders.geometry.setMat4("matViewProj", Camera.viewProjection);
+	// matViewProj and cameraPosition now in FrameData UBO
 
 	Shaders.geometry.setMat4("matWorld", _matModel);
-	Shaders.geometry.setVec3("cameraPosition", Camera.position);
 
 	_renderEntities(EntityTypes.FPS_MESH);
 
@@ -301,7 +291,7 @@ const _renderFPSGeometry = () => {
 const _renderDebug = () => {
 	// Bind shader and set common uniforms
 	Shaders.debug.bind();
-	Shaders.debug.setMat4("matViewProj", Camera.viewProjection);
+	// matViewProj now in FrameData UBO
 
 	// Enable wireframe mode
 	gl.disable(gl.DEPTH_TEST);

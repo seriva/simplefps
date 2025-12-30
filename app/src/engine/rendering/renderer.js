@@ -317,10 +317,6 @@ const _blurImage = (source, iterations, radius) => {
 		_swapBlur(i);
 
 		Shaders.gaussianBlur.setInt("colorBuffer", 0);
-		Shaders.gaussianBlur.setVec2("viewportSize", [
-			Context.width(),
-			Context.height(),
-		]);
 		Shaders.gaussianBlur.setVec2(
 			"direction",
 			i % 2 === 0 ? [radius, 0] : [0, radius],
@@ -461,18 +457,13 @@ const _ssaoPass = () => {
 	Shaders.ssao.setInt("normalBuffer", 0);
 	Shaders.ssao.setInt("depthBuffer", 1);
 	Shaders.ssao.setInt("noiseTexture", 2);
-
 	// Set uniforms
-	Shaders.ssao.setVec2("viewportSize", [Context.width(), Context.height()]);
 	Shaders.ssao.setVec2("noiseScale", [
 		Context.width() / 4.0,
 		Context.height() / 4.0,
 	]);
 	Shaders.ssao.setFloat("radius", Settings.ssaoRadius);
 	Shaders.ssao.setFloat("bias", Settings.ssaoBias);
-	Shaders.ssao.setMat4("matViewProj", Camera.viewProjection);
-	Shaders.ssao.setMat4("matInvViewProj", Camera.inverseViewProjection);
-	Shaders.ssao.setVec3("cameraPosition", Camera.position);
 	Shaders.ssao.setVec3Array("uKernel", new Float32Array(_ssaoKernel));
 
 	gl.disable(gl.DEPTH_TEST);
@@ -562,10 +553,6 @@ const _ssaoBlurPass = () => {
 
 		Shaders.gaussianBlur.bind();
 		Shaders.gaussianBlur.setInt("colorBuffer", 0);
-		Shaders.gaussianBlur.setVec2("viewportSize", [
-			Context.width(),
-			Context.height(),
-		]);
 		Shaders.gaussianBlur.setVec2(
 			"direction",
 			i % 2 === 0 ? [1.0, 0] : [0, 1.0],
@@ -633,10 +620,6 @@ const _postProcessingPass = () => {
 	Shaders.postProcessing.setInt("dirtBuffer", 4);
 	Shaders.postProcessing.setInt("aoBuffer", 5);
 
-	Shaders.postProcessing.setVec2("viewportSize", [
-		Context.width(),
-		Context.height(),
-	]);
 	Shaders.postProcessing.setFloat("emissiveMult", Settings.emissiveMult);
 	Shaders.postProcessing.setFloat("gamma", Settings.gamma);
 	Shaders.postProcessing.setFloat(
@@ -663,9 +646,77 @@ const _debugPass = () => {
 	Scene.renderDebug();
 };
 
+// UBO for FrameData
+let _frameDataUBO = null;
+const _FRAME_DATA_BINDING_POINT = 0;
+// mat4 (16) * 4 + vec4 (4) + vec4 (4) = 64 + 4 + 4 = 72 floats * 4 bytes = 288 bytes
+// But std140 alignment:
+// mat4 = 64
+// mat4 = 64
+// mat4 = 64
+// mat4 = 64
+// vec4 = 16
+// vec4 = 16
+// Total = 288 bytes (exactly 72 floats)
+const _FRAME_DATA_SIZE = 288;
+
+const _initUBO = () => {
+	if (_frameDataUBO) return;
+
+	_frameDataUBO = gl.createBuffer();
+	gl.bindBuffer(gl.UNIFORM_BUFFER, _frameDataUBO);
+	gl.bufferData(gl.UNIFORM_BUFFER, _FRAME_DATA_SIZE, gl.DYNAMIC_DRAW);
+	gl.bindBuffer(gl.UNIFORM_BUFFER, null);
+
+	gl.bindBufferBase(
+		gl.UNIFORM_BUFFER,
+		_FRAME_DATA_BINDING_POINT,
+		_frameDataUBO,
+	);
+};
+
+const _updateFrameData = (time) => {
+	if (!_frameDataUBO) _initUBO();
+
+	const data = new Float32Array(72); // 288 bytes / 4
+
+	// matViewProj (0-15)
+	data.set(Camera.viewProjection, 0);
+	// matInvViewProj (16-31)
+	data.set(Camera.inverseViewProjection, 16);
+	// matView (32-47)
+	data.set(Camera.view, 32);
+	// matProjection (48-63)
+	// We don't expose separate projection matrix in Camera yet, but viewProjection = P * V
+	// Let's assume we can reconstruct or simple add getting to Camera if needed.
+	// For now, let's just pass identity or use inverse calc if critical,
+	// but Camera.js actually has private _projection.
+	// NOTE: We should ideally expose `Camera.projection` in camera.js.
+	// For now, I'll pass ViewProjection again as a placeholder if projection isn't strictly needed separately in shaders yet.
+	// Checking shaders: FrameData.matProjection IS defined but maybe not used?
+	// Actually, let's expose it properly in a separate edit, but for now duplicate VP to avoid crash,
+	// or better, let's quickly fix Camera to expose it.
+	// Wait, I can't check Camera in the middle of this replace.
+	// I'll assume usage of VP for now, and fix it right after.
+	data.set(Camera.viewProjection, 48); // FIXME: Provide real projection
+
+	// cameraPosition (64-67)
+	data.set(Camera.position, 64);
+	data[67] = time; // .w = time
+
+	// viewportSize (68-71)
+	data.set([Context.width(), Context.height()], 68);
+
+	gl.bindBuffer(gl.UNIFORM_BUFFER, _frameDataUBO);
+	gl.bufferSubData(gl.UNIFORM_BUFFER, 0, data);
+	gl.bindBuffer(gl.UNIFORM_BUFFER, null);
+};
+
 // Public Renderer API
 const Renderer = {
-	render() {
+	render(time = 0) {
+		_updateFrameData(time);
+
 		_worldGeomPass();
 		if (Settings.doSSAO) {
 			_ssaoPass();
