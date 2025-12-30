@@ -743,7 +743,7 @@ function exportMap(vertices, meshVerts, faces, textures, lightmaps, outputDir, a
 
                         if (spawn.angle) {
                             const angle = parseFloat(spawn.angle);
-                            rotation = [0, (angle - 90) * (Math.PI / 180), 0];
+                            rotation = [0, (angle + 90) * (Math.PI / 180), 0];
                         }
 
                         spawnpoints.push({
