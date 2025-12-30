@@ -24,8 +24,31 @@ class _MenuUI extends Reactive.Component {
 				font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 			}
 
+			#menu-backdrop {
+				position: fixed;
+				top: 0;
+				left: 0;
+				width: 100vw;
+				height: 100vh;
+				background-size: cover;
+				background-position: center;
+				filter: blur(8px) brightness(0.7);
+				transform: scale(1.05);
+				z-index: 1;
+				opacity: 0;
+				visibility: hidden;
+				transition: opacity 200ms ease-out, visibility 0s 200ms;
+				pointer-events: none;
+			}
+
+			#menu-backdrop.visible {
+				opacity: 1;
+				visibility: visible;
+				transition: opacity 200ms ease-out, visibility 0s 0s;
+			}
+
 			#menu-base {
-				transform: translate(-50%, -50%) scale(0.95);
+				transform: translate(-50%, -50%);
 				position: absolute;
 				top: 50%;
 				left: 50%;
@@ -41,18 +64,14 @@ class _MenuUI extends Reactive.Component {
 				user-select: none;
 				z-index: 1000;
 				opacity: 0;
-				visibility: hidden;
-				transition: opacity 200ms ease-out, transform 200ms ease-out, visibility 0s 200ms;
-				backdrop-filter: blur(10px);
-				pointer-events: none;
+				transition: opacity 200ms ease-out, transform 200ms ease-out;
+				display: none;
 			}
 
 			#menu-base.visible {
+				display: block;
 				opacity: 1;
-				visibility: visible;
 				transform: translate(-50%, -50%) scale(1);
-				transition: opacity 200ms ease-out, transform 200ms ease-out, visibility 0s 0s;
-				pointer-events: auto;
 			}
 
 			#menu-header {
@@ -151,6 +170,7 @@ class _MenuUI extends Reactive.Component {
 	template() {
 		return html`
 			<div id="ui">
+				<div id="menu-backdrop" data-ref="backdrop"></div>
 				<div id="menu-base" data-class-visible="visible" data-ref="menuBase">
 					<div id="menu-header" data-ref="header"></div>
 					<div data-ref="controls"></div>
@@ -239,20 +259,28 @@ class _MenuUI extends Reactive.Component {
 		const currentMenu = this.currentMenu.get();
 		const isVisible = this.visible.get();
 
+		// Capture canvas snapshot for backdrop (only when first showing menu)
+		if (!isVisible) {
+			const canvas = document.getElementById("context");
+			if (canvas) {
+				this.refs.backdrop.style.backgroundImage = `url(${canvas.toDataURL("image/jpeg", 0.8)})`;
+			}
+			this.refs.backdrop.classList.add("visible");
+		}
+
 		// If already showing a different menu, fade out first, then switch
 		if (isVisible && currentMenu && currentMenu !== name) {
-			// Fade out
+			// Fade out menu only (keep backdrop)
 			this.refs.menuBase.classList.remove("visible");
 
 			// Wait for fade-out transition, then switch content and fade in
 			setTimeout(() => {
 				this.batch(() => {
 					this.currentMenu.set(name);
-					// Force reflow to ensure transition works
 					void this.refs.menuBase.offsetWidth;
 					this.refs.menuBase.classList.add("visible");
 				});
-			}, 200); // Match CSS transition duration
+			}, 200);
 		} else {
 			// Just show the menu normally
 			this.batch(() => {
@@ -264,6 +292,7 @@ class _MenuUI extends Reactive.Component {
 
 	hide() {
 		this.visible.set(false);
+		this.refs.backdrop.classList.remove("visible");
 	}
 }
 
