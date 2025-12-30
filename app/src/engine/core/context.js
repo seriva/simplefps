@@ -55,6 +55,7 @@ let _afExt = null;
 const gl = _canvas.getContext("webgl2", {
 	premultipliedAlpha: false,
 	antialias: false,
+	preserveDrawingBuffer: true,
 });
 if (!gl) {
 	Console.error("Failed to initialize WebGL 2.0 context");
