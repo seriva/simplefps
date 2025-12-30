@@ -15,16 +15,16 @@ const _defaults = {
 	anisotropicFiltering: 16,
 	gamma: 1.0,
 	doFXAA: true,
-	emissiveOffset: 1.7,
+	emissiveOffset: 2.0,
 	emissiveMult: 4.25,
-	emissiveIteration: 8,
+	emissiveIteration: 6,
 
 	// SSAO settings
 	doSSAO: false,
-	ssaoRadius: 33,
-	ssaoBias: 0.8,
+	ssaoRadius: 20,
+	ssaoBias: 2.0,
 	ssaoStrength: 0.7,
-	ssaoBlurIterations: 8,
+	ssaoBlurIterations: 6,
 
 	// Dirt/vignette effect
 	doDirt: true,

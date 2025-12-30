@@ -104,6 +104,10 @@ class Shader {
 		gl.uniform4f(this.getUniformLocation(id), vec[0], vec[1], vec[2], vec[3]);
 	}
 
+	setVec3Array(id, array) {
+		gl.uniform3fv(this.getUniformLocation(id), array);
+	}
+
 	dispose() {
 		if (this.program) {
 			gl.deleteProgram(this.program);
@@ -163,6 +167,7 @@ const _ShaderSources = {
             layout(location=1) out vec4 fragNormal;
             layout(location=2) out vec4 fragColor;
             layout(location=3) out vec4 fragEmissive;
+            layout(location=4) out float fragLinearDepth;
 
             uniform int geomType;
             uniform int doEmissive;
@@ -200,8 +205,11 @@ const _ShaderSources = {
                     // 0.0 = use deferred lighting, 1.0 = has lightmap
                     float lightmapFlag = float(hasLightmap);
                     fragNormal = vec4(vNormal, lightmapFlag);
+                    // Linear depth for SSAO (camera-relative distance)
+                    fragLinearDepth = length(vPosition.xyz - cameraPosition);
                 } else {
                     fragNormal = vec4(0.0, 0.0, 0.0, 1.0);
+                    fragLinearDepth = 10000.0; // Far away for skybox
                 }
 
                 // Apply reflection if enabled
@@ -502,6 +510,7 @@ const _ShaderSources = {
             uniform sampler2D emissiveBuffer;
             uniform sampler2D dirtBuffer;
             uniform sampler2D aoBuffer;
+            uniform sampler2D linearDepthBuffer;
             uniform vec2 viewportSize;
             uniform float emissiveMult;
             uniform float gamma;
@@ -521,28 +530,29 @@ const _ShaderSources = {
                     : (sqrt(base) * (2.0 * blend - 1.0) + 2.0 * base * (1.0 - blend));
             }
 
+            // Simplified FXAA - 5 texture samples instead of 9+
             vec4 applyFXAA(vec2 fragCoord) {
                 vec2 inverseVP = 1.0 / viewportSize;
                 vec2 uv = fragCoord * inverseVP;
 
-                // Sample neighboring pixels
-                vec3 rgbNW = texture(colorBuffer, uv + vec2(-1.0, -1.0) * inverseVP).rgb;
-                vec3 rgbNE = texture(colorBuffer, uv + vec2(1.0, -1.0) * inverseVP).rgb;
-                vec3 rgbSW = texture(colorBuffer, uv + vec2(-1.0, 1.0) * inverseVP).rgb;
-                vec3 rgbSE = texture(colorBuffer, uv + vec2(1.0, 1.0) * inverseVP).rgb;
-                vec3 rgbM  = texture(colorBuffer, uv).rgb;
+                // Sample center and 4 neighbors
+                vec3 rgbM = texture(colorBuffer, uv).rgb;
+                vec3 rgbN = texture(colorBuffer, uv + vec2(0.0, -1.0) * inverseVP).rgb;
+                vec3 rgbS = texture(colorBuffer, uv + vec2(0.0, 1.0) * inverseVP).rgb;
+                vec3 rgbE = texture(colorBuffer, uv + vec2(1.0, 0.0) * inverseVP).rgb;
+                vec3 rgbW = texture(colorBuffer, uv + vec2(-1.0, 0.0) * inverseVP).rgb;
 
-                // Luma calculation with more accurate weights
-                const vec3 luma = vec3(0.2126729, 0.7151522, 0.0721750);
-                float lumaNW = dot(rgbNW, luma);
-                float lumaNE = dot(rgbNE, luma);
-                float lumaSW = dot(rgbSW, luma);
-                float lumaSE = dot(rgbSE, luma);
-                float lumaM  = dot(rgbM,  luma);
+                // Luma calculation
+                const vec3 luma = vec3(0.299, 0.587, 0.114);
+                float lumaM = dot(rgbM, luma);
+                float lumaN = dot(rgbN, luma);
+                float lumaS = dot(rgbS, luma);
+                float lumaE = dot(rgbE, luma);
+                float lumaW = dot(rgbW, luma);
 
                 // Compute local contrast
-                float lumaMin = min(lumaM, min(min(lumaNW, lumaNE), min(lumaSW, lumaSE)));
-                float lumaMax = max(lumaM, max(max(lumaNW, lumaNE), max(lumaSW, lumaSE)));
+                float lumaMin = min(lumaM, min(min(lumaN, lumaS), min(lumaE, lumaW)));
+                float lumaMax = max(lumaM, max(max(lumaN, lumaS), max(lumaE, lumaW)));
                 float lumaRange = lumaMax - lumaMin;
 
                 // Early exit if contrast is too low
@@ -550,55 +560,31 @@ const _ShaderSources = {
                     return vec4(rgbM, 1.0);
                 }
 
-                // Edge detection
-                vec2 dir;
-                dir.x = -((lumaNW + lumaNE) - (lumaSW + lumaSE));
-                dir.y = ((lumaNW + lumaSW) - (lumaNE + lumaSE));
+                // Determine edge direction
+                float edgeH = abs(lumaN + lumaS - 2.0 * lumaM);
+                float edgeV = abs(lumaE + lumaW - 2.0 * lumaM);
+                bool isHorizontal = edgeH > edgeV;
 
-                float dirReduce = max(
-                    (lumaNW + lumaNE + lumaSW + lumaSE) * (0.25 * FXAA_SUBPIX_TRIM),
-                    FXAA_EDGE_THRESHOLD_MIN
-                );
+                // Choose blend direction
+                float luma1 = isHorizontal ? lumaN : lumaW;
+                float luma2 = isHorizontal ? lumaS : lumaE;
+                float gradient1 = abs(luma1 - lumaM);
+                float gradient2 = abs(luma2 - lumaM);
+                
+                vec2 stepDir = isHorizontal ? vec2(0.0, inverseVP.y) : vec2(inverseVP.x, 0.0);
+                if (gradient1 < gradient2) stepDir = -stepDir;
 
-                float rcpDirMin = 1.0 / (min(abs(dir.x), abs(dir.y)) + dirReduce);
-                dir = min(vec2(8.0), max(vec2(-8.0), dir * rcpDirMin)) * inverseVP;
-
-                // Sample along the gradient
-                vec3 rgbA = 0.5 * (
-                    texture(colorBuffer, uv + dir * (1.0/3.0 - 0.5)).rgb +
-                    texture(colorBuffer, uv + dir * (2.0/3.0 - 0.5)).rgb
-                );
-
-                vec3 rgbB = rgbA * 0.5 + 0.25 * (
-                    texture(colorBuffer, uv + dir * -0.5).rgb +
-                    texture(colorBuffer, uv + dir * 0.5).rgb
-                );
-
-                // Compute local contrast for samples
-                float lumaB = dot(rgbB, luma);
-
-                // Choose final color based on subpixel quality
-                if (lumaB < lumaMin || lumaB > lumaMax) {
-                    return vec4(rgbA, 1.0);
-                }
-
-                // Subpixel antialiasing
-                float lumaL = dot(rgbM, luma);
-                float rangeL = abs(lumaL - lumaMin);
-                float rangeH = abs(lumaL - lumaMax);
-                float range = min(rangeL, rangeH);
-                float rangeInv = 1.0/range;
-
-                // Compute subpixel blend factor
-                float blend = smoothstep(0.0, 1.0, range * rangeInv);
-                blend = mix(blend, 1.0, FXAA_SUBPIX_QUALITY);
-
-                // Final blend
-                return vec4(mix(rgbB, rgbM, blend), 1.0);
+                // Blend along edge
+                vec3 rgbBlend = texture(colorBuffer, uv + stepDir * 0.5).rgb;
+                float blendFactor = smoothstep(0.0, 1.0, lumaRange / lumaMax);
+                
+                return vec4(mix(rgbM, rgbBlend, blendFactor * 0.5), 1.0);
             }
 
             void main() {
                 vec2 uv = gl_FragCoord.xy / viewportSize;
+                
+                
                 vec4 color = doFXAA ? applyFXAA(gl_FragCoord.xy) : texture(colorBuffer, uv);
                 vec4 light = texture(lightBuffer, uv);
                 vec4 normal = texture(normalBuffer, uv);
@@ -809,60 +795,68 @@ const _ShaderSources = {
 
             uniform sampler2D positionBuffer;
             uniform sampler2D normalBuffer;
+            uniform sampler2D depthBuffer;
             uniform sampler2D noiseTexture;
-            uniform vec3 samples[64];
-            uniform mat4 matProj;
             uniform vec2 viewportSize;
             uniform vec2 noiseScale;
             uniform float radius;
             uniform float bias;
+            uniform mat4 matViewProj;
+            uniform vec3 cameraPosition;
+            uniform vec3 uKernel[16];
 
             void main()
             {
                 vec2 uv = gl_FragCoord.xy / viewportSize;
                 
-                // Sample G-buffer (world space)
-                vec3 fragPos = texture(positionBuffer, uv).xyz;
-                vec3 normal = normalize(texture(normalBuffer, uv).xyz);
-                vec3 randomVec = normalize(texture(noiseTexture, uv * noiseScale).xyz * 2.0 - 1.0);
+                // Use explicit LOD 0 to avoid artifacts on edges
+                vec4 normalData = textureLod(normalBuffer, uv, 0.0);
+                vec3 normal = normalData.xyz;
+                float hasLightmap = normalData.w;
+                float fragLinearDepth = textureLod(depthBuffer, uv, 0.0).r;
                 
-                // Create TBN matrix in world space
+                // Skip skybox (zero normal or very far), non-lightmapped objects, etc.
+                if (length(normal) < 0.1 || hasLightmap < 0.5 || fragLinearDepth > 9000.0) {
+                    fragColor = vec4(1.0);
+                    return;
+                }
+                
+                vec3 fragPos = textureLod(positionBuffer, uv, 0.0).xyz;
+
+                // Random vector for rotation
+                vec3 randomVec = texture(noiseTexture, uv * noiseScale).xyz; // texture is 0..1
+                randomVec = randomVec * 2.0 - 1.0; // map to -1..1
+                
+                // Create TBN matrix
                 vec3 tangent = normalize(randomVec - normal * dot(randomVec, normal));
                 vec3 bitangent = cross(normal, tangent);
                 mat3 TBN = mat3(tangent, bitangent, normal);
                 
-                // Iterate over the sample kernel and calculate occlusion factor
                 float occlusion = 0.0;
-                int validSamples = 0;
                 
-                for(int i = 0; i < 64; ++i)
+                for(int i = 0; i < 16; ++i)
                 {
-                    // Get sample position in world space
-                    vec3 samplePos = fragPos + TBN * samples[i] * radius;
+                    // get sample position
+                    vec3 samplePos = TBN * uKernel[i]; // From tangent to world-space
+                    samplePos = fragPos + samplePos * radius; 
                     
-                    // Project sample position to screen space
-                    vec4 offset = matProj * vec4(samplePos, 1.0);
-                    offset.xyz /= offset.w;
-                    offset.xyz = offset.xyz * 0.5 + 0.5;
+                    // project sample position (to sample texture)
+                    vec4 offset = vec4(samplePos, 1.0);
+                    offset = matViewProj * offset; // World to Clip
+                    offset.xyz /= offset.w; // Perspective divide
+                    offset.xy = offset.xy * 0.5 + 0.5; // Transform to 0.0 - 1.0
                     
-                    // Skip samples outside screen
-                    if(offset.x < 0.0 || offset.x > 1.0 || offset.y < 0.0 || offset.y > 1.0) continue;
-                    
-                    // Get sample depth (world space)
-                    vec3 sampleWorldPos = texture(positionBuffer, offset.xy).xyz;
-                    float sampleDist = length(sampleWorldPos - fragPos);
-                    float actualDist = length(samplePos - fragPos);
-                    
-                    // Range check & accumulate
-                    float rangeCheck = smoothstep(0.0, 1.0, radius / abs(sampleDist - actualDist));
-                    occlusion += (sampleDist < actualDist - bias ? 1.0 : 0.0) * rangeCheck;
-                    validSamples++;
+                    // sample depth at offset
+                    float sampleDepth = textureLod(depthBuffer, offset.xy, 0.0).r;
+                    float sampleDist = length(samplePos - cameraPosition);
+
+                    // If sampleDepth (occluder) is smaller than sampleDist (current sample), it means there is something in front
+                    // range check & accumulate
+                    float rangeCheck = smoothstep(0.0, 1.0, radius / abs(fragLinearDepth - sampleDepth));
+                    occlusion += (sampleDepth <= sampleDist - bias ? 1.0 : 0.0) * rangeCheck;
                 }
                 
-                // Normalize by valid samples
-                occlusion = validSamples > 0 ? (occlusion / float(validSamples)) : 0.0;
-                occlusion = 1.0 - occlusion;
-                
+                occlusion = 1.0 - (occlusion / 16.0);
                 fragColor = vec4(occlusion, occlusion, occlusion, 1.0);
             }`,
 	},

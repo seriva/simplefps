@@ -146,6 +146,20 @@ const _resize = (width, height) => {
 		0,
 	);
 
+	// Linear depth buffer for SSAO (camera-relative depth)
+	_g.linearDepth = new Texture({
+		format: gl.R16F,
+		width,
+		height,
+	});
+	gl.framebufferTexture2D(
+		gl.FRAMEBUFFER,
+		gl.COLOR_ATTACHMENT4,
+		gl.TEXTURE_2D,
+		_g.linearDepth.texture,
+		0,
+	);
+
 	gl.framebufferTexture2D(
 		gl.FRAMEBUFFER,
 		gl.DEPTH_ATTACHMENT,
@@ -158,6 +172,7 @@ const _resize = (width, height) => {
 		gl.COLOR_ATTACHMENT1,
 		gl.COLOR_ATTACHMENT2,
 		gl.COLOR_ATTACHMENT3,
+		gl.COLOR_ATTACHMENT4,
 	]);
 	_checkFramebufferStatus();
 	gl.bindFramebuffer(gl.FRAMEBUFFER, null);
@@ -339,7 +354,7 @@ const _blurImage = (source, iterations, radius) => {
 
 const _generateSSAOKernel = () => {
 	_ssaoKernel = [];
-	for (let i = 0; i < 64; ++i) {
+	for (let i = 0; i < 16; ++i) {
 		// Generate random samples in a hemisphere
 		const sample = [
 			Math.random() * 2.0 - 1.0,
@@ -355,13 +370,13 @@ const _generateSSAOKernel = () => {
 		sample[2] /= length;
 
 		// Scale samples so they're more aligned to center of kernel
-		let scale = i / 64.0;
+		let scale = i / 16.0;
 		scale = 0.1 + scale * scale * 0.9; // Lerp between 0.1 and 1.0
 		sample[0] *= scale;
 		sample[1] *= scale;
 		sample[2] *= scale;
 
-		_ssaoKernel.push(sample);
+		_ssaoKernel.push(sample[0], sample[1], sample[2]);
 	}
 };
 
@@ -457,29 +472,19 @@ const _ssaoPass = () => {
 	gl.clear(gl.COLOR_BUFFER_BIT);
 
 	// Bind G-buffer textures
-	_g.position.bind(gl.TEXTURE0);
-	_g.normal.bind(gl.TEXTURE1);
+	_g.normal.bind(gl.TEXTURE0);
+	_g.linearDepth.bind(gl.TEXTURE1);
 	_ao.noise.bind(gl.TEXTURE2);
+	_g.position.bind(gl.TEXTURE3);
 
 	// Setup SSAO shader
 	Shaders.ssao.bind();
-	Shaders.ssao.setInt("positionBuffer", 0);
-	Shaders.ssao.setInt("normalBuffer", 1);
+	Shaders.ssao.setInt("normalBuffer", 0);
+	Shaders.ssao.setInt("depthBuffer", 1);
 	Shaders.ssao.setInt("noiseTexture", 2);
+	Shaders.ssao.setInt("positionBuffer", 3);
 
-	// Set SSAO kernel samples
-	for (let i = 0; i < _ssaoKernel.length; i++) {
-		const location = gl.getUniformLocation(
-			Shaders.ssao.program,
-			`samples[${i}]`,
-		);
-		if (location) {
-			gl.uniform3fv(location, _ssaoKernel[i]);
-		}
-	}
-
-	// Set view-projection matrix
-	Shaders.ssao.setMat4("matProj", Camera.viewProjection);
+	// Set uniforms
 	Shaders.ssao.setVec2("viewportSize", [Context.width(), Context.height()]);
 	Shaders.ssao.setVec2("noiseScale", [
 		Context.width() / 4.0,
@@ -487,6 +492,9 @@ const _ssaoPass = () => {
 	]);
 	Shaders.ssao.setFloat("radius", Settings.ssaoRadius);
 	Shaders.ssao.setFloat("bias", Settings.ssaoBias);
+	Shaders.ssao.setMat4("matViewProj", Camera.viewProjection);
+	Shaders.ssao.setVec3("cameraPosition", Camera.position);
+	Shaders.ssao.setVec3Array("uKernel", new Float32Array(_ssaoKernel));
 
 	gl.disable(gl.DEPTH_TEST);
 	screenQuad.renderSingle();
@@ -496,6 +504,7 @@ const _ssaoPass = () => {
 	Texture.unBind(gl.TEXTURE0);
 	Texture.unBind(gl.TEXTURE1);
 	Texture.unBind(gl.TEXTURE2);
+	Texture.unBind(gl.TEXTURE3);
 	gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 };
 
@@ -615,14 +624,17 @@ const _postProcessingPass = () => {
 	const dirt = Resources.get("system/dirt.webp");
 	dirt.bind(gl.TEXTURE4);
 	_ao.ssao.bind(gl.TEXTURE5);
+	_g.linearDepth.bind(gl.TEXTURE6);
 	Shaders.postProcessing.bind();
 	Shaders.postProcessing.setInt("doFXAA", Settings.doFXAA);
+
 	Shaders.postProcessing.setInt("colorBuffer", 0);
 	Shaders.postProcessing.setInt("lightBuffer", 1);
 	Shaders.postProcessing.setInt("normalBuffer", 2);
 	Shaders.postProcessing.setInt("emissiveBuffer", 3);
 	Shaders.postProcessing.setInt("dirtBuffer", 4);
 	Shaders.postProcessing.setInt("aoBuffer", 5);
+	Shaders.postProcessing.setInt("linearDepthBuffer", 6);
 	Shaders.postProcessing.setVec2("viewportSize", [
 		Context.width(),
 		Context.height(),
