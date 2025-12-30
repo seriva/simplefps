@@ -46,20 +46,32 @@ class Material {
 		}
 
 		// Infer flags from texture presence
-		const hasReflection = this.textures.reflection ? 1 : 0;
-		const hasEmissive = this.textures.emissive ? 1 : 0;
 
-		// Material-specific uniforms
-		shader.setInt("doReflection", hasReflection);
-		shader.setFloat("reflectionStrength", this.reflectionStrength);
+		// Material UBO (Binding Point 1)
+		// Layout std140:
+		// ivec4 flags;  // 16 bytes (type, doEmissive, doReflection, hasLightmap)
+		// vec4 params;  // 16 bytes (reflectionStrength, opacity, pad, pad)
+		// Total: 32 bytes
+		if (!this.ubo) {
+			this.ubo = gl.createBuffer();
+			const data = new Int32Array(8); // 32 bytes
+			// Flags
+			data[0] = this.geomType;
+			data[1] = this.textures.emissive ? 1 : 0;
+			data[2] = this.textures.reflection ? 1 : 0;
+			data[3] = this.textures.lightmap ? 1 : 0;
 
-		if (shader !== Shaders.glass) {
-			shader.setInt("geomType", this.geomType);
-			shader.setInt("doEmissive", hasEmissive);
-			shader.setInt("hasLightmap", this.textures.lightmap ? 1 : 0);
-		} else {
-			shader.setFloat("opacity", this.opacity);
+			// Params (cast to float view)
+			const floatView = new Float32Array(data.buffer);
+			floatView[4] = this.reflectionStrength;
+			floatView[5] = this.opacity;
+
+			gl.bindBuffer(gl.UNIFORM_BUFFER, this.ubo);
+			gl.bufferData(gl.UNIFORM_BUFFER, data, gl.STATIC_DRAW);
+			gl.bindBuffer(gl.UNIFORM_BUFFER, null);
 		}
+
+		gl.bindBufferBase(gl.UNIFORM_BUFFER, 1, this.ubo);
 	}
 
 	unBind() {

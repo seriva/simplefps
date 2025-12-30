@@ -35,11 +35,26 @@ class Shader {
 		gl.linkProgram(this.program);
 
 		if (!gl.getProgramParameter(this.program, gl.LINK_STATUS)) {
-			Console.error(
-				`Error linking program: ${gl.getProgramInfoLog(this.program)}`,
-			);
+			const info = gl.getProgramInfoLog(this.program);
+			Console.error(`Error linking program: ${info}`);
+			// Don't dispose immediately, allow caller to see error?
+			// Actually console.error might throw, so we stop here.
 			this.dispose();
 			return;
+		}
+
+		// Automatic UBO Binding
+		const frameDataIndex = gl.getUniformBlockIndex(this.program, "FrameData");
+		if (frameDataIndex !== gl.INVALID_INDEX) {
+			gl.uniformBlockBinding(this.program, frameDataIndex, 0);
+		}
+
+		const materialDataIndex = gl.getUniformBlockIndex(
+			this.program,
+			"MaterialData",
+		);
+		if (materialDataIndex !== gl.INVALID_INDEX) {
+			gl.uniformBlockBinding(this.program, materialDataIndex, 1);
 		}
 
 		// Cleanup individual shaders after linking
@@ -134,8 +149,16 @@ const _ShaderSources = {
             layout(location=2) in vec3 aNormal;
             layout(location=3) in vec2 aLightmapUV;
 
+            layout(std140) uniform FrameData {
+                mat4 matViewProj;
+                mat4 matInvViewProj;
+                mat4 matView;
+                mat4 matProjection;
+                vec4 cameraPosition; // .w = time
+                vec4 viewportSize;   // .zw = unused
+            };
+
             uniform mat4 matWorld;
-            uniform mat4 matViewProj;
 
             out vec4 vPosition;
             out vec3 vNormal;
@@ -168,13 +191,20 @@ const _ShaderSources = {
             layout(location=2) out vec4 fragEmissive;
             layout(location=3) out float fragLinearDepth;
 
-            uniform int geomType;
-            uniform int doEmissive;
-            uniform int doReflection;
-            uniform int hasLightmap;
-            uniform float reflectionStrength;
+            layout(std140) uniform FrameData {
+                mat4 matViewProj;
+                mat4 matInvViewProj;
+                mat4 matView;
+                mat4 matProjection;
+                vec4 cameraPosition; // .w = time
+                vec4 viewportSize;   // .zw = unused
+            };
 
-            uniform vec3 cameraPosition;
+            layout(std140) uniform MaterialData {
+                ivec4 flags; // type, doEmissive, doReflection, hasLightmap
+                vec4 params; // reflectionStrength, opacity, pad, pad
+            };
+
             uniform sampler2D colorSampler;
             uniform sampler2D emissiveSampler;
             uniform sampler2D lightmapSampler;
@@ -190,34 +220,34 @@ const _ShaderSources = {
                 if(color.a < 0.5) discard;
                 
                 // Use lightmap if available, but NOT for skybox
-                if (hasLightmap == 1 && geomType != SKYBOX) {
+                if (flags.w == 1 && flags.x != SKYBOX) {
                     color *= textureLod(lightmapSampler, vLightmapUV, 0.0);
                 }
 
                 // Initialize fragEmissive to zero
                 fragEmissive = vec4(0.0);
 
-                // Combine geomType checks to reduce branching
-                if (geomType != SKYBOX) {
+                // Combine type checks to reduce branching
+                if (flags.x != SKYBOX) {
                     // Store lightmap flag in normal.w for post-processing
                     // 0.0 = use deferred lighting, 1.0 = has lightmap
-                    float lightmapFlag = float(hasLightmap);
+                    float lightmapFlag = float(flags.w);
                     // Pack normal from [-1,1] to [0,1] for RGBA8 storage
                     fragNormal = vec4(vNormal * 0.5 + 0.5, lightmapFlag);
                     // Linear depth for SSAO (camera-relative distance)
-                    fragLinearDepth = length(vPosition.xyz - cameraPosition);
+                    fragLinearDepth = length(vPosition.xyz - cameraPosition.xyz);
                 } else {
                     fragNormal = vec4(0.5, 0.5, 0.5, 1.0); // Packed zero normal
                     fragLinearDepth = 10000.0; // Far away for skybox
                 }
 
                 // Apply reflection if enabled
-                if (doReflection == 1) {
+                if (flags.z == 1) {
                     vec4 reflMask = textureLod(reflectionMaskSampler, vUV, 0.0);
                     float maskSum = dot(reflMask.xyz, vec3(0.333333));  // Faster than multiplication
                     if (maskSum > 0.2) {
                         // Calculate view direction from camera to fragment position in world space
-                        vec3 viewDir = normalize(cameraPosition - vPosition.xyz);
+                        vec3 viewDir = normalize(cameraPosition.xyz - vPosition.xyz);
                         // Calculate reflection vector
                         vec3 r = reflect(-viewDir, vNormal);
                         // Convert reflection vector to equirectangular UV coordinates
@@ -226,11 +256,11 @@ const _ShaderSources = {
                         vec2 reflUV = r.xy / m + 0.5;
                         vec4 reflColor = textureLod(reflectionSampler, reflUV, 0.0);
                         // Blend reflection with base color based on mask and intensity
-                        color = mix(color, reflColor * reflMask, reflectionStrength * maskSum);
+                        color = mix(color, reflColor * reflMask, params.x * maskSum);
                     }
                 }
 
-                if (doEmissive == 1) {
+                if (flags.y == 1) {
                     fragEmissive = textureLod(emissiveSampler, vUV, 0.0);
                 }
 
@@ -244,8 +274,16 @@ const _ShaderSources = {
 
             layout(location=0) in vec3 aPosition;
 
+            layout(std140) uniform FrameData {
+                mat4 matViewProj;
+                mat4 matInvViewProj;
+                mat4 matView;
+                mat4 matProjection;
+                vec4 cameraPosition;
+                vec4 viewportSize;
+            };
+
             uniform mat4 matWorld;
-            uniform mat4 matViewProj;
 
             void main()
             {
@@ -279,7 +317,15 @@ const _ShaderSources = {
 
             layout(location=0) out vec4 fragColor;
 
-            uniform vec2 viewportSize;
+            layout(std140) uniform FrameData {
+                mat4 matViewProj;
+                mat4 matInvViewProj;
+                mat4 matView;
+                mat4 matProjection;
+                vec4 cameraPosition;
+                vec4 viewportSize;
+            };
+
             uniform sampler2D shadowBuffer;
 
             void main()
@@ -343,8 +389,16 @@ const _ShaderSources = {
 
             layout(location=0) in vec3 aPosition;
 
+            layout(std140) uniform FrameData {
+                mat4 matViewProj;
+                mat4 matInvViewProj;
+                mat4 matView;
+                mat4 matProjection;
+                vec4 cameraPosition;
+                vec4 viewportSize;
+            };
+
             uniform mat4 matWorld;
-            uniform mat4 matViewProj;
 
             void main()
             {
@@ -354,7 +408,7 @@ const _ShaderSources = {
             precision highp float;
             precision highp int;
 
-            struct PointLight {
+			struct PointLight {
                 vec3 position;
                 vec3 color;
                 float size;
@@ -363,11 +417,18 @@ const _ShaderSources = {
 
             layout(location=0) out vec4 fragColor;
 
+            layout(std140) uniform FrameData {
+                mat4 matViewProj;
+                mat4 matInvViewProj;
+                mat4 matView;
+                mat4 matProjection;
+                vec4 cameraPosition;
+                vec4 viewportSize;
+            };
+
             uniform PointLight pointLight;
             uniform sampler2D depthBuffer;
             uniform sampler2D normalBuffer;
-            uniform mat4 matInvViewProj;
-            uniform vec2 viewportSize;
 
             vec3 reconstructPosition(vec2 uv, float depth) {
                 vec4 clipPos = vec4(uv * 2.0 - 1.0, depth * 2.0 - 1.0, 1.0);
@@ -376,7 +437,7 @@ const _ShaderSources = {
             }
 
             void main() {
-                vec2 uv = gl_FragCoord.xy / viewportSize;
+                vec2 uv = gl_FragCoord.xy / viewportSize.xy;
                 ivec2 fragCoord = ivec2(gl_FragCoord.xy);
                 
                 float depth = texelFetch(depthBuffer, fragCoord, 0).r;
@@ -407,8 +468,16 @@ const _ShaderSources = {
 
             layout(location=0) in vec3 aPosition;
 
+            layout(std140) uniform FrameData {
+                mat4 matViewProj;
+                mat4 matInvViewProj;
+                mat4 matView;
+                mat4 matProjection;
+                vec4 cameraPosition;
+                vec4 viewportSize;
+            };
+
             uniform mat4 matWorld;
-            uniform mat4 matViewProj;
 
             void main() {
                 gl_Position = matViewProj * matWorld * vec4(aPosition, 1.0);
@@ -417,7 +486,7 @@ const _ShaderSources = {
             precision highp float;
             precision highp int;
 
-            struct SpotLight {
+			struct SpotLight {
                 vec3 position;
                 vec3 direction;
                 vec3 color;
@@ -428,11 +497,18 @@ const _ShaderSources = {
 
             layout(location=0) out vec4 fragColor;
 
+            layout(std140) uniform FrameData {
+                mat4 matViewProj;
+                mat4 matInvViewProj;
+                mat4 matView;
+                mat4 matProjection;
+                vec4 cameraPosition;
+                vec4 viewportSize;
+            };
+
             uniform SpotLight spotLight;
             uniform sampler2D depthBuffer;
             uniform sampler2D normalBuffer;
-            uniform mat4 matInvViewProj;
-            uniform vec2 viewportSize;
 
             vec3 reconstructPosition(vec2 uv, float depth) {
                 vec4 clipPos = vec4(uv * 2.0 - 1.0, depth * 2.0 - 1.0, 1.0);
@@ -441,7 +517,7 @@ const _ShaderSources = {
             }
 
             void main() {
-                vec2 uv = gl_FragCoord.xy / viewportSize;
+                vec2 uv = gl_FragCoord.xy / viewportSize.xy;
                 ivec2 fragCoord = ivec2(gl_FragCoord.xy);
                 
                 float depth = texelFetch(depthBuffer, fragCoord, 0).r;
@@ -484,8 +560,17 @@ const _ShaderSources = {
             precision highp float;
 
             out vec4 fragColor;
+
+            layout(std140) uniform FrameData {
+                mat4 matViewProj;
+                mat4 matInvViewProj;
+                mat4 matView;
+                mat4 matProjection;
+                vec4 cameraPosition;
+                vec4 viewportSize;
+            };
+
             uniform sampler2D colorBuffer;
-            uniform vec2 viewportSize;
             uniform vec2 direction;
 
             vec4 blur13(sampler2D image, vec2 uv, vec2 resolution, vec2 direction) {
@@ -526,6 +611,15 @@ const _ShaderSources = {
 
             out vec4 fragColor;
 
+            layout(std140) uniform FrameData {
+                mat4 matViewProj;
+                mat4 matInvViewProj;
+                mat4 matView;
+                mat4 matProjection;
+                vec4 cameraPosition;
+                vec4 viewportSize;
+            };
+
             uniform bool doFXAA;
             uniform sampler2D colorBuffer;
             uniform sampler2D lightBuffer;
@@ -533,7 +627,6 @@ const _ShaderSources = {
             uniform sampler2D emissiveBuffer;
             uniform sampler2D dirtBuffer;
             uniform sampler2D aoBuffer;
-            uniform vec2 viewportSize;
             uniform float emissiveMult;
             uniform float gamma;
             uniform float ssaoStrength;
@@ -554,7 +647,7 @@ const _ShaderSources = {
 
             // Simplified FXAA - 5 texture samples instead of 9+
             vec4 applyFXAA(vec2 fragCoord) {
-                vec2 inverseVP = 1.0 / viewportSize;
+                vec2 inverseVP = 1.0 / viewportSize.xy;
                 vec2 uv = fragCoord * inverseVP;
 
                 // Sample center and 4 neighbors
@@ -604,7 +697,7 @@ const _ShaderSources = {
             }
 
             void main() {
-                vec2 uv = gl_FragCoord.xy / viewportSize;
+                vec2 uv = gl_FragCoord.xy / viewportSize.xy;
                 ivec2 fragCoord = ivec2(gl_FragCoord.xy);
                 
                 // Use texelFetch for G-buffer reads (no filtering needed)
@@ -617,8 +710,6 @@ const _ShaderSources = {
                 vec4 emissive = texelFetch(emissiveBuffer, fragCoord, 0);
                 vec4 dirt = texture(dirtBuffer, uv); // Dirt uses tiled texture, needs filtering
                 vec4 ao = texelFetch(aoBuffer, fragCoord, 0);
-
-
 
                 // Read lightmap flag from normal.w
                 // 1.0 = has lightmap (additive lighting), 0.0 = dynamic object (multiplicative lighting)
@@ -675,8 +766,16 @@ const _ShaderSources = {
             layout(location=1) in vec2 aUV;
             layout(location=2) in vec3 aNormal;
 
+            layout(std140) uniform FrameData {
+                mat4 matViewProj;
+                mat4 matInvViewProj;
+                mat4 matView;
+                mat4 matProjection;
+                vec4 cameraPosition;
+                vec4 viewportSize;
+            };
+
             uniform mat4 matWorld;
-            uniform mat4 matViewProj;
 
             out vec2 vUV;
             out vec3 vNormal;
@@ -698,19 +797,26 @@ const _ShaderSources = {
 
             layout(location=0) out vec4 fragColor;
 
+            layout(std140) uniform FrameData {
+                mat4 matViewProj;
+                mat4 matInvViewProj;
+                mat4 matView;
+                mat4 matProjection;
+                vec4 cameraPosition;
+                vec4 viewportSize;
+            };
+
+            layout(std140) uniform MaterialData {
+                ivec4 flags; // type, doEmissive, doReflection, hasLightmap
+                vec4 params; // reflectionStrength, opacity, pad, pad
+            };
+
             uniform sampler2D colorSampler;
             uniform sampler2D emissiveSampler; 
-            uniform float opacity;
             
             // Reflection uniforms
-            uniform int doReflection;
-            uniform float reflectionStrength;
             uniform sampler2D reflectionSampler;
             uniform sampler2D reflectionMaskSampler;
-            uniform vec3 cameraPosition;
-
-            // Lighting uniforms
-            // uniform vec3 uAmbient;
             
             // Point lights (max 8)
             #define MAX_POINT_LIGHTS 8
@@ -773,22 +879,23 @@ const _ShaderSources = {
                 vec4 emissive = texture(emissiveSampler, vUV);
                 // Simple additive emissive for now, or just to keep uniform active
                 color.rgb += emissive.rgb;
+                color.a *= params.y; // opacity
 
                 vec3 normal = normalize(vNormal);
                 vec3 fragPos = vPosition.xyz;
                 
                 // Apply reflection if enabled
-                if (doReflection == 1) {
+                if (flags.z == 1) { // doReflection
                     vec4 reflMask = textureLod(reflectionMaskSampler, vUV, 0.0);
                     float maskSum = dot(reflMask.xyz, vec3(0.333333));
                     if (maskSum > 0.1) {
-                        vec3 viewDir = normalize(cameraPosition - fragPos);
+                        vec3 viewDir = normalize(cameraPosition.xyz - fragPos);
                         vec3 r = reflect(-viewDir, normal);
                         // Add epsilon to prevent singularity at r.z = -1
                         float m = 2.0 * sqrt(dot(r.xy, r.xy) + (r.z + 1.0) * (r.z + 1.0)) + 0.00001;
                         vec2 reflUV = r.xy / m + 0.5;
                         vec4 reflColor = textureLod(reflectionSampler, reflUV, 0.0);
-                        color = mix(color, reflColor * reflMask, reflectionStrength * maskSum);
+                        color = mix(color, reflColor * reflMask, params.x * maskSum); // reflectionStrength
                     }
                 }
 
@@ -809,7 +916,7 @@ const _ShaderSources = {
 
                 // Apply base color with dynamic lighting added on top
                 // Hardcoded ambient approximation (0.5) to avoid uniform issues and fix brightness
-                fragColor = vec4(color.rgb * 0.5 + color.rgb * dynamicLighting, color.a * opacity);
+                fragColor = vec4(color.rgb * 0.5 + color.rgb * dynamicLighting, color.a);
             }`,
 	},
 	ssao: {
@@ -827,17 +934,22 @@ const _ShaderSources = {
 
             layout(location=0) out vec4 fragColor;
             
+            layout(std140) uniform FrameData {
+                mat4 matViewProj;
+                mat4 matInvViewProj;
+                mat4 matView;
+                mat4 matProjection;
+                vec4 cameraPosition;
+                vec4 viewportSize;
+            };
+
             uniform sampler2D normalBuffer;
             uniform sampler2D depthBuffer;
             uniform sampler2D noiseTexture;
-            uniform vec2 viewportSize;
             uniform vec2 noiseScale;
             uniform float radius;
             uniform float bias;
-            uniform mat4 matViewProj;
-            uniform vec3 cameraPosition;
             uniform vec3 uKernel[16];
-            uniform mat4 matInvViewProj; 
 
             vec3 reconstructPosition(vec2 uv, float depth) {
                 vec4 clipPos = vec4(uv * 2.0 - 1.0, depth * 2.0 - 1.0, 1.0);
@@ -847,7 +959,7 @@ const _ShaderSources = {
 
             void main()
             {
-                vec2 uv = gl_FragCoord.xy / viewportSize;
+                vec2 uv = gl_FragCoord.xy / viewportSize.xy;
                 ivec2 fragCoord = ivec2(gl_FragCoord.xy);
                 
                 // Use texelFetch for normal buffer (no filtering needed)
@@ -869,7 +981,7 @@ const _ShaderSources = {
                 vec3 fragPos = reconstructPosition(uv, depth);
                 
                 // Calculate linear depth from reconstructed position for range checks
-                float currentLinearDepth = length(fragPos - cameraPosition);
+                float currentLinearDepth = length(fragPos - cameraPosition.xyz);
 
                 // Random vector for rotation
                 vec3 randomVec = texture(noiseTexture, uv * noiseScale).xyz; // texture is 0..1
@@ -895,14 +1007,14 @@ const _ShaderSources = {
                     offset.xy = offset.xy * 0.5 + 0.5; // Transform to 0.0 - 1.0
                     
                     // sample depth at offset - need to use texture() here since offset.xy is computed
-                    ivec2 sampleCoord = ivec2(offset.xy * viewportSize);
+                    ivec2 sampleCoord = ivec2(offset.xy * viewportSize.xy);
                     float sampleDepth = texelFetch(depthBuffer, sampleCoord, 0).r;
                     
                     // Reconstruct sample position to get its distance
                     vec3 reconstructedSamplePos = reconstructPosition(offset.xy, sampleDepth);
-                    float sampleLinearDepth = length(reconstructedSamplePos - cameraPosition);
+                    float sampleLinearDepth = length(reconstructedSamplePos - cameraPosition.xyz);
                     
-                    float sampleDist = length(samplePos - cameraPosition);
+                    float sampleDist = length(samplePos - cameraPosition.xyz);
 
                     // Range check
                     float rangeCheck = smoothstep(0.0, 1.0, radius / abs(currentLinearDepth - sampleLinearDepth));
@@ -922,8 +1034,16 @@ const _ShaderSources = {
 
             layout(location=0) in vec3 aPosition;
 
+            layout(std140) uniform FrameData {
+                mat4 matViewProj;
+                mat4 matInvViewProj;
+                mat4 matView;
+                mat4 matProjection;
+                vec4 cameraPosition;
+                vec4 viewportSize;
+            };
+
             uniform mat4 matWorld;
-            uniform mat4 matViewProj;
 
             void main() {
                 gl_Position = matViewProj * matWorld * vec4(aPosition, 1.0);
@@ -948,7 +1068,10 @@ for (const [name, { vertex, fragment }] of Object.entries(_ShaderSources)) {
 		Shaders[name] = new Shader(vertex, fragment);
 		Console.log(`Loaded shader: ${name}`);
 	} catch (error) {
-		Console.error(`Failed to load shader ${name}:`, error);
+		Console.error(
+			`Failed to load shader ${name}. Linker/Compiler Error might be above.`,
+		);
+		console.error(error); // Ensure it goes to browser console too
 	}
 }
 
