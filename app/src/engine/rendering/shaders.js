@@ -163,11 +163,10 @@ const _ShaderSources = {
             in vec2 vUV;
             in vec2 vLightmapUV;
 
-            layout(location=0) out vec4 fragPosition;
-            layout(location=1) out vec4 fragNormal;
-            layout(location=2) out vec4 fragColor;
-            layout(location=3) out vec4 fragEmissive;
-            layout(location=4) out float fragLinearDepth;
+            layout(location=0) out vec4 fragNormal;
+            layout(location=1) out vec4 fragColor;
+            layout(location=2) out vec4 fragEmissive;
+            layout(location=3) out float fragLinearDepth;
 
             uniform int geomType;
             uniform int doEmissive;
@@ -200,7 +199,6 @@ const _ShaderSources = {
 
                 // Combine geomType checks to reduce branching
                 if (geomType != SKYBOX) {
-                    fragPosition = vPosition;
                     // Store lightmap flag in normal.w for post-processing
                     // 0.0 = use deferred lighting, 1.0 = has lightmap
                     float lightmapFlag = float(hasLightmap);
@@ -365,12 +363,23 @@ const _ShaderSources = {
             layout(location=0) out vec4 fragColor;
 
             uniform PointLight pointLight;
-            uniform sampler2D positionBuffer;
+            uniform sampler2D depthBuffer;
             uniform sampler2D normalBuffer;
+            uniform mat4 matInvViewProj;
+            uniform vec2 viewportSize;
+
+            vec3 reconstructPosition(vec2 uv, float depth) {
+                vec4 clipPos = vec4(uv * 2.0 - 1.0, depth * 2.0 - 1.0, 1.0);
+                vec4 worldPos = matInvViewProj * clipPos;
+                return worldPos.xyz / worldPos.w;
+            }
 
             void main() {
+                vec2 uv = gl_FragCoord.xy / viewportSize;
                 ivec2 fragCoord = ivec2(gl_FragCoord.xy);
-                vec3 position = texelFetch(positionBuffer, fragCoord, 0).xyz;
+                
+                float depth = texture(depthBuffer, uv).r;
+                vec3 position = reconstructPosition(uv, depth);
                 vec3 normal = normalize(texelFetch(normalBuffer, fragCoord, 0).xyz);
 
                 vec3 lightDir = pointLight.position - position;
@@ -418,12 +427,23 @@ const _ShaderSources = {
             layout(location=0) out vec4 fragColor;
 
             uniform SpotLight spotLight;
-            uniform sampler2D positionBuffer;
+            uniform sampler2D depthBuffer;
             uniform sampler2D normalBuffer;
+            uniform mat4 matInvViewProj;
+            uniform vec2 viewportSize;
+
+            vec3 reconstructPosition(vec2 uv, float depth) {
+                vec4 clipPos = vec4(uv * 2.0 - 1.0, depth * 2.0 - 1.0, 1.0);
+                vec4 worldPos = matInvViewProj * clipPos;
+                return worldPos.xyz / worldPos.w;
+            }
 
             void main() {
+                vec2 uv = gl_FragCoord.xy / viewportSize;
                 ivec2 fragCoord = ivec2(gl_FragCoord.xy);
-                vec3 position = texelFetch(positionBuffer, fragCoord, 0).xyz;
+                
+                float depth = texture(depthBuffer, uv).r;
+                vec3 position = reconstructPosition(uv, depth);
                 vec3 normal = normalize(texelFetch(normalBuffer, fragCoord, 0).xyz);
 
                 vec3 lightDir = spotLight.position - position;
@@ -510,7 +530,6 @@ const _ShaderSources = {
             uniform sampler2D emissiveBuffer;
             uniform sampler2D dirtBuffer;
             uniform sampler2D aoBuffer;
-            uniform sampler2D linearDepthBuffer;
             uniform vec2 viewportSize;
             uniform float emissiveMult;
             uniform float gamma;
@@ -671,6 +690,7 @@ const _ShaderSources = {
             layout(location=0) out vec4 fragColor;
 
             uniform sampler2D colorSampler;
+            uniform sampler2D emissiveSampler; 
             uniform float opacity;
             
             // Reflection uniforms
@@ -741,6 +761,10 @@ const _ShaderSources = {
 
             void main() {
                 vec4 color = texture(colorSampler, vUV);
+                vec4 emissive = texture(emissiveSampler, vUV);
+                // Simple additive emissive for now, or just to keep uniform active
+                color.rgb += emissive.rgb;
+
                 vec3 normal = normalize(vNormal);
                 vec3 fragPos = vPosition.xyz;
                 
@@ -792,8 +816,7 @@ const _ShaderSources = {
             precision highp float;
 
             layout(location=0) out vec4 fragColor;
-
-            uniform sampler2D positionBuffer;
+            
             uniform sampler2D normalBuffer;
             uniform sampler2D depthBuffer;
             uniform sampler2D noiseTexture;
@@ -804,6 +827,13 @@ const _ShaderSources = {
             uniform mat4 matViewProj;
             uniform vec3 cameraPosition;
             uniform vec3 uKernel[16];
+            uniform mat4 matInvViewProj; 
+
+            vec3 reconstructPosition(vec2 uv, float depth) {
+                vec4 clipPos = vec4(uv * 2.0 - 1.0, depth * 2.0 - 1.0, 1.0);
+                vec4 worldPos = matInvViewProj * clipPos;
+                return worldPos.xyz / worldPos.w;
+            }
 
             void main()
             {
@@ -813,15 +843,21 @@ const _ShaderSources = {
                 vec4 normalData = textureLod(normalBuffer, uv, 0.0);
                 vec3 normal = normalData.xyz;
                 float hasLightmap = normalData.w;
-                float fragLinearDepth = textureLod(depthBuffer, uv, 0.0).r;
                 
-                // Skip skybox (zero normal or very far), non-lightmapped objects, etc.
-                if (length(normal) < 0.1 || hasLightmap < 0.5 || fragLinearDepth > 9000.0) {
+                // Get depth and reconstruct world position
+                float depth = textureLod(depthBuffer, uv, 0.0).r;
+                
+                // Skip skybox (far depth) or non-lightmapped objects if desired
+                // Using 1.0 as far plane in standard depth buffer (usually)
+                if (length(normal) < 0.1 || hasLightmap < 0.5 || depth > 0.9999) {
                     fragColor = vec4(1.0);
                     return;
                 }
                 
-                vec3 fragPos = textureLod(positionBuffer, uv, 0.0).xyz;
+                vec3 fragPos = reconstructPosition(uv, depth);
+                
+                // Calculate linear depth from reconstructed position for range checks
+                float currentLinearDepth = length(fragPos - cameraPosition);
 
                 // Random vector for rotation
                 vec3 randomVec = texture(noiseTexture, uv * noiseScale).xyz; // texture is 0..1
@@ -848,12 +884,19 @@ const _ShaderSources = {
                     
                     // sample depth at offset
                     float sampleDepth = textureLod(depthBuffer, offset.xy, 0.0).r;
+                    
+                    // Reconstruct sample position to get its distance
+                    vec3 reconstructedSamplePos = reconstructPosition(offset.xy, sampleDepth);
+                    float sampleLinearDepth = length(reconstructedSamplePos - cameraPosition);
+                    
                     float sampleDist = length(samplePos - cameraPosition);
 
-                    // If sampleDepth (occluder) is smaller than sampleDist (current sample), it means there is something in front
-                    // range check & accumulate
-                    float rangeCheck = smoothstep(0.0, 1.0, radius / abs(fragLinearDepth - sampleDepth));
-                    occlusion += (sampleDepth <= sampleDist - bias ? 1.0 : 0.0) * rangeCheck;
+                    // Range check
+                    float rangeCheck = smoothstep(0.0, 1.0, radius / abs(currentLinearDepth - sampleLinearDepth));
+                    
+                    // Check if sample is occluded
+                    // If sampleLinearDepth is smaller (closer) than sampleDist, it occludes
+                    occlusion += (sampleLinearDepth <= sampleDist - bias ? 1.0 : 0.0) * rangeCheck;
                 }
                 
                 occlusion = 1.0 - (occlusion / 16.0);
