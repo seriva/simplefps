@@ -52,6 +52,35 @@ const _ao = {
 let _ssaoKernel = [];
 let _ssaoNoiseData = [];
 
+// Dispose old resources to prevent memory leaks on resize
+const _disposeResources = () => {
+	if (_depth) _depth.dispose();
+	if (_g.framebuffer) {
+		gl.deleteFramebuffer(_g.framebuffer);
+		if (_g.normal) _g.normal.dispose();
+		if (_g.color) _g.color.dispose();
+		if (_g.emissive) _g.emissive.dispose();
+		if (_g.linearDepth) _g.linearDepth.dispose();
+	}
+	if (_s.framebuffer) {
+		gl.deleteFramebuffer(_s.framebuffer);
+		if (_s.shadow) _s.shadow.dispose();
+	}
+	if (_l.framebuffer) {
+		gl.deleteFramebuffer(_l.framebuffer);
+		if (_l.light) _l.light.dispose();
+	}
+	if (_b.framebuffer) {
+		gl.deleteFramebuffer(_b.framebuffer);
+		if (_b.blur) _b.blur.dispose();
+	}
+	if (_ao.framebuffer) {
+		gl.deleteFramebuffer(_ao.framebuffer);
+		if (_ao.ssao) _ao.ssao.dispose();
+		// Note: _ao.noise is NOT disposed - it's reusable across resizes
+	}
+};
+
 // Private functions
 const _checkFramebufferStatus = () => {
 	const status = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
@@ -76,6 +105,9 @@ const _checkFramebufferStatus = () => {
 };
 
 const _resize = (width, height) => {
+	// Dispose old resources first to prevent memory leaks
+	_disposeResources();
+
 	// **********************************
 	// depth buffer
 	// **********************************
@@ -492,7 +524,6 @@ const _lightingPass = () => {
 	const ambient = Scene.getAmbient();
 	gl.clearColor(ambient[0], ambient[1], ambient[2], 1.0);
 	gl.clear(gl.COLOR_BUFFER_BIT);
-	gl.clear(gl.COLOR_BUFFER_BIT);
 	_depth.bind(gl.TEXTURE0);
 	_g.normal.bind(gl.TEXTURE1);
 	_s.shadow.bind(gl.TEXTURE2);
@@ -687,18 +718,7 @@ const _updateFrameData = (time) => {
 	// matView (32-47)
 	data.set(Camera.view, 32);
 	// matProjection (48-63)
-	// We don't expose separate projection matrix in Camera yet, but viewProjection = P * V
-	// Let's assume we can reconstruct or simple add getting to Camera if needed.
-	// For now, let's just pass identity or use inverse calc if critical,
-	// but Camera.js actually has private _projection.
-	// NOTE: We should ideally expose `Camera.projection` in camera.js.
-	// For now, I'll pass ViewProjection again as a placeholder if projection isn't strictly needed separately in shaders yet.
-	// Checking shaders: FrameData.matProjection IS defined but maybe not used?
-	// Actually, let's expose it properly in a separate edit, but for now duplicate VP to avoid crash,
-	// or better, let's quickly fix Camera to expose it.
-	// Wait, I can't check Camera in the middle of this replace.
-	// I'll assume usage of VP for now, and fix it right after.
-	data.set(Camera.viewProjection, 48); // FIXME: Provide real projection
+	data.set(Camera.projection, 48);
 
 	// cameraPosition (64-67)
 	data.set(Camera.position, 64);

@@ -215,13 +215,15 @@ class _ConsoleUI extends Reactive.Component {
 		this.on(this.refs.input, "input", this.handleInput);
 		this.on(this.refs.input, "keydown", this.handleKeyDown);
 
-		// Auto-focus input when console becomes visible
+		// Auto-focus input when console becomes visible, blur when hidden
 		this.effect(() => {
 			if (this.visible.get()) {
 				requestAnimationFrame(() => {
 					this.refs.input.disabled = false;
 					this.refs.input.focus();
 				});
+			} else {
+				this.refs.input.blur();
 			}
 		});
 

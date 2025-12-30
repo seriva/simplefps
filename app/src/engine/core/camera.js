@@ -11,6 +11,9 @@ const Camera = {
 	view: mat4.create(),
 	viewProjection: mat4.create(),
 	inverseViewProjection: mat4.create(),
+	get projection() {
+		return _projection;
+	},
 	frustumPlanes: {
 		near: vec4.create(),
 		far: vec4.create(),
