@@ -21,6 +21,7 @@ class _MenuUI extends Reactive.Component {
 		return css`
 			#ui {
 				background-color: transparent;
+				font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 			}
 
 			#menu-base {
@@ -28,41 +29,118 @@ class _MenuUI extends Reactive.Component {
 				position: absolute;
 				top: 50%;
 				left: 50%;
-				background-color: #999;
-				border: 2px solid #fff;
+				background: linear-gradient(135deg, rgba(40, 40, 40, 0.95), rgba(20, 20, 20, 0.98));
+				border: 1px solid rgba(255, 255, 255, 0.1);
+				border-radius: 8px;
+				box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05);
 				color: #fff;
-				padding: 10px 10px 0;
+				padding: 20px;
 				font-size: 16px;
-				max-width: 500px;
+				width: 400px;
+				max-width: 90vw;
 				user-select: none;
 				z-index: 1000;
 				opacity: 0;
-				transition: opacity 150ms linear;
+				transition: opacity 200ms ease-out, transform 200ms ease-out;
 				display: none;
+				backdrop-filter: blur(10px);
 			}
 
 			#menu-base.visible {
 				display: block;
-				opacity: 0.9;
+				opacity: 1;
+				transform: translate(-50%, -50%) scale(1);
 			}
 
 			#menu-header {
-				font-size: 18px;
+				font-size: 24px;
+				font-weight: 300;
 				text-align: center;
-				margin-bottom: 10px;
+				margin-bottom: 25px;
+				letter-spacing: 2px;
+				text-transform: uppercase;
+				color: rgba(255, 255, 255, 0.9);
+				border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+				padding-bottom: 15px;
 			}
 
 			.menu-button {
 				text-align: center;
-				border: 2px solid #fff;
-				background-color: #999;
+				background: rgba(40, 40, 40, 0.6);
+				border: 1px solid rgba(255, 255, 255, 0.2);
+				border-radius: 4px;
 				margin-bottom: 10px;
-				padding: 10px;
+				padding: 12px;
 				cursor: pointer;
+				transition: all 0.2s ease;
+				text-transform: uppercase;
+				font-size: 14px;
+				letter-spacing: 1px;
+				color: rgba(255, 255, 255, 0.9);
+				box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 			}
 
 			.menu-button:hover {
-				background-color: #888;
+				background: rgba(60, 60, 60, 0.8);
+				border-color: rgba(255, 255, 255, 0.4);
+				transform: translateY(-1px);
+				box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+			}
+
+			.menu-button:active {
+				transform: translateY(1px);
+				background: rgba(255, 255, 255, 0.1);
+			}
+
+			.menu-row {
+				display: flex;
+				justify-content: space-between;
+				align-items: center;
+				background: transparent;
+				margin-bottom: 8px;
+				padding: 8px 4px;
+				color: rgba(255, 255, 255, 0.8);
+				font-size: 14px;
+			}
+
+			.menu-panel {
+				background: rgba(0, 0, 0, 0.2);
+				border-radius: 6px;
+				margin-bottom: 20px;
+				padding: 15px;
+				border: 1px solid rgba(255, 255, 255, 0.05);
+			}
+
+			.menu-slider {
+				width: 50%;
+				accent-color: #fff;
+				cursor: pointer;
+			}
+
+				accent-color: #fff;
+				cursor: pointer;
+			}
+
+			@media (max-width: 768px) {
+				#menu-base {
+					width: 90vw;
+					padding: 15px;
+				}
+
+				.menu-button {
+					padding: 15px;
+					font-size: 16px;
+				}
+
+				.menu-row {
+					padding: 12px 6px;
+					font-size: 16px;
+				}
+
+				.menu-checkbox {
+					width: 24px;
+					height: 24px;
+				}
 			}
 		`;
 	}
@@ -96,12 +174,56 @@ class _MenuUI extends Reactive.Component {
 			// Clear and rebuild controls
 			this.refs.controls.innerHTML = "";
 
-			menu.controls.forEach(({ text, callback }) => {
-				const button = document.createElement("div");
-				button.className = "menu-button";
-				button.textContent = text;
-				button.onclick = callback;
-				this.refs.controls.appendChild(button);
+			let currentPanel = null;
+
+			menu.controls.forEach((control) => {
+				const isButton = !control.type || control.type === "button";
+
+				if (!isButton) {
+					// It's a setting control (slider side checkbox)
+					if (!currentPanel) {
+						currentPanel = document.createElement("div");
+						currentPanel.className = "menu-panel";
+						this.refs.controls.appendChild(currentPanel);
+					}
+
+					const row = document.createElement("div");
+					row.className = "menu-row";
+
+					const label = document.createElement("span");
+					label.textContent = control.text;
+					row.appendChild(label);
+
+					if (control.type === "slider") {
+						const slider = document.createElement("input");
+						slider.type = "range";
+						slider.className = "menu-slider";
+						slider.min = control.min;
+						slider.max = control.max;
+						slider.step = control.step;
+						slider.value = control.value();
+						slider.oninput = (e) => control.set(e.target.value);
+						row.appendChild(slider);
+					} else if (control.type === "checkbox") {
+						const checkbox = document.createElement("input");
+						checkbox.type = "checkbox";
+						checkbox.className = "menu-checkbox";
+						checkbox.checked = control.value();
+						checkbox.onchange = (e) => control.set(e.target.checked);
+						row.appendChild(checkbox);
+					}
+					currentPanel.appendChild(row);
+				} else {
+					// It's a button
+					// Close current panel if exists (by nulling it, it's already appended)
+					currentPanel = null;
+
+					const button = document.createElement("div");
+					button.className = "menu-button";
+					button.textContent = control.text;
+					button.onclick = control.callback;
+					this.refs.controls.appendChild(button);
+				}
 			});
 		});
 	}

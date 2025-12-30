@@ -34,17 +34,37 @@ class _HUDUI extends Reactive.Component {
 
 			#button-menu {
 				border-radius: 50%;
-				border: 2px solid #fff;
-				background-color: #999;
-				right: 15px;
-				top: 15px;
-				width: 50px;
-				height: 50px;
+				right: 25px;
+				top: 25px;
+				width: 80px;
+				height: 80px;
 				position: absolute;
-				opacity: 0.6;
 				z-index: 1001;
-				content: url(resources/menu.png);
 				cursor: pointer;
+				
+				background: rgba(40, 40, 40, 0.6);
+				border: 1px solid rgba(255, 255, 255, 0.2);
+				box-sizing: border-box; /* Ensure border doesn't add to size */
+				box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+				backdrop-filter: blur(4px);
+				color: rgba(255, 255, 255, 0.9);
+				
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				transition: transform 0.1s ease, background 0.2s;
+			}
+			
+			#button-menu:active {
+				transform: scale(0.95);
+				background: rgba(60, 60, 60, 0.8);
+				border-color: rgba(255, 255, 255, 0.4);
+			}
+
+			#button-menu svg {
+				width: 32px;
+				height: 32px;
+				fill: currentColor;
 			}
 
 			#crosshair {
@@ -64,7 +84,14 @@ class _HUDUI extends Reactive.Component {
 	template() {
 		return html`
 			<div id="hud" data-class-visible="visible">
-				${this._isMobile ? html`<div id="button-menu" data-ref="menuBtn"></div>` : html``}
+				${
+					this._isMobile
+						? html`
+					<div id="button-menu" data-ref="menuBtn">
+						<svg viewBox="0 0 24 24"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
+					</div>`
+						: html``
+				}
 				<div id="crosshair"></div>
 			</div>
 		`;

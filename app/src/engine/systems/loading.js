@@ -5,6 +5,7 @@ class _LoadingUI extends Reactive.Component {
 	constructor() {
 		super();
 		this._forceUntilReload = false;
+		this._loadingCount = 0;
 	}
 
 	state() {
@@ -32,7 +33,7 @@ class _LoadingUI extends Reactive.Component {
 				top: 0;
 				margin: 0;
 				padding: 0;
-				background-color: black;
+				background-color: #000;
 				z-index: 2001;
 			}
 
@@ -46,16 +47,6 @@ class _LoadingUI extends Reactive.Component {
 				margin-left: -15vh;
 				content: url(resources/logo.svg);
 				z-index: 2002;
-				animation: spin 3s linear infinite;
-			}
-
-			@keyframes spin {
-				from {
-					transform: rotateZ(0deg);
-				}
-				to {
-					transform: rotateZ(360deg);
-				}
 			}
 		`;
 	}
@@ -71,9 +62,19 @@ class _LoadingUI extends Reactive.Component {
 
 	toggle(visible, force) {
 		if (this._forceUntilReload) return;
-		if (this.visible.get() && visible) return;
 
-		this.visible.set(visible);
+		if (visible) {
+			this._loadingCount++;
+		} else {
+			this._loadingCount = Math.max(0, this._loadingCount - 1);
+		}
+
+		const shouldBeVisible = this._loadingCount > 0;
+
+		if (this.visible.get() !== shouldBeVisible) {
+			this.visible.set(shouldBeVisible);
+		}
+
 		if (force != null) this._forceUntilReload = force;
 	}
 }

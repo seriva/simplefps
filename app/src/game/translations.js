@@ -14,6 +14,14 @@ const _translations = {
 		MAIN_MENU: "Main Menu",
 		VERSION_CHECK: "Check for updates",
 		VERSION_NEW: "A new version is available. Do you want to update now?",
+		SETTINGS: "Settings",
+		BACK: "Back",
+		RENDER_SCALE: "Render Scale",
+		GAMMA: "Gamma",
+		FXAA: "FXAA",
+		SSAO: "SSAO",
+		DIRT: "Dirt",
+		SHOW_STATS: "Show Render Stats",
 	},
 };
 

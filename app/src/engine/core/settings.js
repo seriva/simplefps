@@ -2,7 +2,9 @@ import Console from "../systems/console.js";
 import Utils from "../utils/utils.js";
 
 // Public Settings object
-const Settings = {};
+const Settings = {
+	save: () => _saveSettings(),
+};
 
 export default Settings;
 
@@ -18,6 +20,7 @@ const _defaults = {
 	emissiveOffset: 2.0,
 	emissiveMult: 4.25,
 	emissiveIteration: 6,
+	showStats: false,
 
 	// SSAO settings
 	doSSAO: false,

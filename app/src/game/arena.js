@@ -128,6 +128,8 @@ const _load = async (name) => {
 		Console.log(`Failed to load arena ${name}: ${error.message}`);
 		_state.arena = {};
 		throw error;
+	} finally {
+		Loading.toggle(false);
 	}
 };
 
