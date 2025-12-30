@@ -309,7 +309,6 @@ const _ShaderSources = {
             layout(location=0) out vec4 fragColor;
 
             uniform DirectionalLight directionalLight;
-            uniform vec2 viewportSize;
             uniform sampler2D normalBuffer;
 
             void main() {
@@ -528,7 +527,6 @@ const _ShaderSources = {
             out vec4 fragColor;
 
             uniform bool doFXAA;
-            uniform bool debugSSAO;
             uniform sampler2D colorBuffer;
             uniform sampler2D lightBuffer;
             uniform sampler2D normalBuffer;
@@ -620,11 +618,7 @@ const _ShaderSources = {
                 vec4 dirt = texture(dirtBuffer, uv); // Dirt uses tiled texture, needs filtering
                 vec4 ao = texelFetch(aoBuffer, fragCoord, 0);
 
-                // Debug mode: show raw SSAO buffer
-                if (debugSSAO) {
-                    fragColor = vec4(ao.rgb, 1.0);
-                    return;
-                }
+
 
                 // Read lightmap flag from normal.w
                 // 1.0 = has lightmap (additive lighting), 0.0 = dynamic object (multiplicative lighting)
@@ -716,7 +710,7 @@ const _ShaderSources = {
             uniform vec3 cameraPosition;
 
             // Lighting uniforms
-            // uniform vec3 uAmbient; // Removed to avoid unused uniform warning
+            // uniform vec3 uAmbient;
             
             // Point lights (max 8)
             #define MAX_POINT_LIGHTS 8
@@ -814,7 +808,8 @@ const _ShaderSources = {
                 }
 
                 // Apply base color with dynamic lighting added on top
-                fragColor = vec4(color.rgb + color.rgb * dynamicLighting, color.a * opacity);
+                // Hardcoded ambient approximation (0.5) to avoid uniform issues and fix brightness
+                fragColor = vec4(color.rgb * 0.5 + color.rgb * dynamicLighting, color.a * opacity);
             }`,
 	},
 	ssao: {
