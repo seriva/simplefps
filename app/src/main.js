@@ -34,6 +34,7 @@ async function loadGameModules() {
 }
 
 (async () => {
+	Loading.toggle(true);
 	await Resources.load(["resources.list"]);
 
 	const { Game, Arena, Weapons } = await loadGameModules();

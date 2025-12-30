@@ -1,4 +1,5 @@
 import Camera from "../core/camera.js";
+import Settings from "../core/settings.js";
 import { css, html, Reactive } from "../utils/reactive.js";
 import Console from "./console.js";
 
@@ -13,7 +14,7 @@ class _StatsUI extends Reactive.Component {
 
 	state() {
 		return {
-			visible: this.signal(true, "stats:visible"),
+			visible: this.signal(Settings.showStats, "stats:visible"),
 			fps: this.signal(0, "stats:fps"),
 			frameTime: this.signal(0, "stats:frameTime"),
 			memory: this.signal(0, "stats:memory"),

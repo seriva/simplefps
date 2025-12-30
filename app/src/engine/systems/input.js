@@ -117,42 +117,95 @@ class _VirtualInputUI extends Reactive.Component {
 				height: 50px;
 				margin-left: -25px;
 				margin-top: -25px;
-				background: white;
 				border-radius: 50%;
 				z-index: 501;
 				user-select: none;
 				transition: opacity 100ms ease-in;
+				pointer-events: none;
+
+				background: rgba(40, 40, 40, 0.6);
+				border: 1px solid rgba(255, 255, 255, 0.2);
+				box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+				backdrop-filter: blur(4px);
 			}
 
 			#joystick-base {
-				background: white;
-				width: 100px;
-				height: 100px;
-				left: 35px;
-				bottom: 35px;
+				width: 120px;
+				height: 120px;
+				left: 50px;
+				bottom: 50px;
 				position: absolute;
-				opacity: 0.35;
 				border-radius: 50%;
 				z-index: 501;
+
+				background: rgba(40, 40, 40, 0.6);
+				border: 1px solid rgba(255, 255, 255, 0.2);
+				box-sizing: border-box; /* Ensure border doesn't add to size */
+				box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+				backdrop-filter: blur(4px);
 			}
 
 			#joystick-stick {
-				background: white;
+				background: rgba(255, 255, 255, 0.2);
+				border: 1px solid rgba(255, 255, 255, 0.3);
+				box-shadow: 0 2px 2px rgba(0,0,0,0.2);
 				border-radius: 100%;
 				cursor: pointer;
 				user-select: none;
-				width: 50px;
-				height: 50px;
-				left: 60px;
-				bottom: 60px;
+				width: 60px;
+				height: 60px;
+				left: 80px;
+				bottom: 80px;
 				position: absolute;
-				opacity: 0.35;
 				z-index: 502;
 				transition: transform 0.2s;
 			}
 
 			#joystick-stick.dragging {
 				transition: none;
+			}
+
+			.action-btn {
+				width: 80px;
+				height: 80px;
+				border-radius: 50%;
+				position: absolute;
+				z-index: 503;
+				pointer-events: auto;
+				
+				background: rgba(40, 40, 40, 0.6);
+				border: 1px solid rgba(255, 255, 255, 0.2);
+				box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+				backdrop-filter: blur(4px);
+				color: rgba(255, 255, 255, 0.9);
+				
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				transition: transform 0.1s ease, background 0.2s;
+			}
+			
+			.action-btn:active {
+				transform: scale(0.95);
+				background: rgba(60, 60, 60, 0.8);
+				border-color: rgba(255, 255, 255, 0.4);
+			}
+
+			.action-btn svg {
+				width: 32px;
+				height: 32px;
+				fill: currentColor;
+				pointer-events: none;
+			}
+
+			#btn-shoot {
+				bottom: 60px;
+				right: 150px;
+			}
+
+			#btn-jump {
+				bottom: 160px;
+				right: 50px;
 			}
 		`;
 	}
@@ -162,6 +215,15 @@ class _VirtualInputUI extends Reactive.Component {
 			<div id="input" data-class-visible="visible">
 				<div id="joystick-base"></div>
 				<div id="joystick-stick" data-ref="stick"></div>
+				
+				<div id="btn-shoot" class="action-btn" data-ref="btnShoot">
+					<svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/><circle cx="12" cy="12" r="5"/></svg>
+				</div>
+				
+				<div id="btn-jump" class="action-btn" data-ref="btnJump">
+					<svg viewBox="0 0 24 24"><path d="M12 4l-8 8h6v8h4v-8h6z"/></svg>
+				</div>
+
 				<div id="look" data-ref="look"></div>
 				<div id="cursor" data-ref="cursor"></div>
 			</div>
@@ -252,71 +314,89 @@ class _VirtualInputUI extends Reactive.Component {
 			this._stickPos = null;
 		});
 
-		this.on(this.refs.stick, "touchmove", (ev) => {
+		this.on(
+			this.refs.stick,
+			"touchmove",
+			(ev) => {
+				ev.preventDefault();
+				if (this._dragStart === null) return;
+
+				if (ev.targetTouches) {
+					ev.clientX = ev.targetTouches[0].clientX;
+					ev.clientY = ev.targetTouches[0].clientY;
+				}
+
+				const xDiff = ev.clientX - this._dragStart.x;
+				const yDiff = ev.clientY - this._dragStart.y;
+				const angle = Math.atan2(yDiff, xDiff);
+				const distance = Math.min(50, Math.hypot(xDiff, yDiff));
+
+				this._stickPos = {
+					x: distance * Math.cos(angle),
+					y: distance * Math.sin(angle),
+				};
+
+				this.batch(() => {
+					this.stickX.set(this._stickPos.x);
+					this.stickY.set(this._stickPos.y);
+				});
+
+				let dAngle = angle * (180 / Math.PI);
+				if (dAngle < 0) {
+					dAngle = 360 - Math.abs(dAngle);
+				}
+
+				delete _pressed[Settings.forward];
+				delete _pressed[Settings.backwards];
+				delete _pressed[Settings.left];
+				delete _pressed[Settings.right];
+
+				if (dAngle && distance > 15) {
+					const a = dAngle;
+					if ((a >= 337.5 && a < 360) || (a >= 0 && a < 22.5)) {
+						_pressed[Settings.right] = true;
+					}
+					if (a >= 22.5 && a < 67.5) {
+						_pressed[Settings.right] = true;
+						_pressed[Settings.backwards] = true;
+					}
+					if (a >= 67.5 && a < 112.5) {
+						_pressed[Settings.backwards] = true;
+					}
+					if (a >= 112.5 && a < 157.5) {
+						_pressed[Settings.backwards] = true;
+						_pressed[Settings.left] = true;
+					}
+					if (a >= 157.5 && a < 202.5) {
+						_pressed[Settings.left] = true;
+					}
+					if (a >= 202.5 && a < 247.5) {
+						_pressed[Settings.left] = true;
+						_pressed[Settings.forward] = true;
+					}
+					if (a >= 247.5 && a < 292.5) {
+						_pressed[Settings.forward] = true;
+					}
+					if (a >= 292.5 && a < 337.5) {
+						_pressed[Settings.forward] = true;
+						_pressed[Settings.right] = true;
+					}
+				}
+			},
+			{ passive: false },
+		);
+
+		// Button events
+		this.on(this.refs.btnShoot, "touchstart", (ev) => {
+			ev.preventDefault(); // Prevent click emulation which might trigger weapon firing via other listeners
+			ev.stopPropagation(); // Stop propagation to look area
+			Utils.dispatchCustomEvent("game:shoot");
+		});
+
+		this.on(this.refs.btnJump, "touchstart", (ev) => {
 			ev.preventDefault();
-			if (this._dragStart === null) return;
-
-			if (ev.targetTouches) {
-				ev.clientX = ev.targetTouches[0].clientX;
-				ev.clientY = ev.targetTouches[0].clientY;
-			}
-
-			const xDiff = ev.clientX - this._dragStart.x;
-			const yDiff = ev.clientY - this._dragStart.y;
-			const angle = Math.atan2(yDiff, xDiff);
-			const distance = Math.min(50, Math.hypot(xDiff, yDiff));
-
-			this._stickPos = {
-				x: distance * Math.cos(angle),
-				y: distance * Math.sin(angle),
-			};
-
-			this.batch(() => {
-				this.stickX.set(this._stickPos.x);
-				this.stickY.set(this._stickPos.y);
-			});
-
-			let dAngle = angle * (180 / Math.PI);
-			if (dAngle < 0) {
-				dAngle = 360 - Math.abs(dAngle);
-			}
-
-			delete _pressed[Settings.forward];
-			delete _pressed[Settings.backwards];
-			delete _pressed[Settings.left];
-			delete _pressed[Settings.right];
-
-			if (dAngle && distance > 15) {
-				const a = dAngle;
-				if ((a >= 337.5 && a < 360) || (a >= 0 && a < 22.5)) {
-					_pressed[Settings.right] = true;
-				}
-				if (a >= 22.5 && a < 67.5) {
-					_pressed[Settings.right] = true;
-					_pressed[Settings.backwards] = true;
-				}
-				if (a >= 67.5 && a < 112.5) {
-					_pressed[Settings.backwards] = true;
-				}
-				if (a >= 112.5 && a < 157.5) {
-					_pressed[Settings.backwards] = true;
-					_pressed[Settings.left] = true;
-				}
-				if (a >= 157.5 && a < 202.5) {
-					_pressed[Settings.left] = true;
-				}
-				if (a >= 202.5 && a < 247.5) {
-					_pressed[Settings.left] = true;
-					_pressed[Settings.forward] = true;
-				}
-				if (a >= 247.5 && a < 292.5) {
-					_pressed[Settings.forward] = true;
-				}
-				if (a >= 292.5 && a < 337.5) {
-					_pressed[Settings.forward] = true;
-					_pressed[Settings.right] = true;
-				}
-			}
+			ev.stopPropagation();
+			Utils.dispatchCustomEvent("game:jump");
 		});
 
 		// Update virtual input positions

@@ -35,11 +35,26 @@ const _initializeEventListeners = () => {
 	);
 
 	// Weapon controls
+	// Weapon controls
 	window.addEventListener("click", (e) => {
 		if (e.button > 0) return;
-		if (e.target.tagName.toUpperCase() !== "BODY" && !Utils.isMobile()) return;
-		if (e.target.id !== "look" && Utils.isMobile()) return;
+		if (Utils.isMobile()) return; // Disable tap to shoot on mobile
+		if (e.target.tagName.toUpperCase() !== "BODY") return;
 		Weapons.shootGrenade();
+	});
+
+	// Virtual button events
+	window.addEventListener("game:shoot", () => {
+		Weapons.shootGrenade();
+	});
+
+	window.addEventListener("game:jump", () => {
+		if (State.current === "GAME" && !Console.isVisible()) {
+			const controller = Game.getController();
+			if (controller) {
+				controller.jump();
+			}
+		}
 	});
 
 	window.addEventListener("wheel", (e) => {
