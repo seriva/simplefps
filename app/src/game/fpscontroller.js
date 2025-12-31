@@ -50,6 +50,8 @@ class FPSController {
 			),
 			fixedRotation: true,
 			linearDamping: this.config.linearDamping,
+			collisionFilterGroup: 2, // PLAYER group
+			collisionFilterMask: 1, // Only collide with WORLD
 		});
 
 		// Set up player material

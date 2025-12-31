@@ -21,9 +21,9 @@ const _WEAPONS = {
 		projectile: {
 			mesh: "meshes/ball.mesh",
 			meshScale: 33,
-			radius: 5,
+			radius: 2,
 			mass: 0.5,
-			velocity: 700,
+			velocity: 900,
 			light: {
 				radius: 150,
 				intensity: 4,
@@ -89,6 +89,71 @@ const _projectileRight = vec3.create();
 const _worldUp = [0, 1, 0];
 const _translationVec = [0, 0, 0]; // Simple array for vec3 operations that don't need glMatrix
 
+// Raycast helpers for projectile anti-tunneling
+const _rayFrom = new CANNON.Vec3();
+const _rayTo = new CANNON.Vec3();
+const _rayResult = new CANNON.RaycastResult();
+
+// Track active projectiles for pre-step raycast checking
+const _activeProjectiles = new Set();
+
+// Pre-step raycast check - runs BEFORE physics moves bodies
+const _preStepRaycast = () => {
+	for (const body of _activeProjectiles) {
+		const p = body.position;
+		const v = body.velocity;
+		const speed = Math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
+
+		if (speed < 10) continue; // Skip slow-moving projectiles
+
+		const radius = _WEAPONS.GRENADE_LAUNCHER.projectile.radius;
+		// At 900 velocity and 120hz physics, grenade moves 7.5 units/step
+		// Check ahead by 2x that distance to catch tunneling
+		const lookAhead = Math.max(radius * 3, speed / 60);
+
+		// Normalize velocity direction
+		const dirX = v.x / speed;
+		const dirY = v.y / speed;
+		const dirZ = v.z / speed;
+
+		// Ray from current position in velocity direction
+		_rayFrom.set(p.x, p.y, p.z);
+		_rayTo.set(
+			p.x + dirX * lookAhead,
+			p.y + dirY * lookAhead,
+			p.z + dirZ * lookAhead,
+		);
+
+		_rayResult.reset();
+		// Only raycast against WORLD (group 1), skip player (group 2) and projectiles (group 4)
+		Physics.getWorld().raycastClosest(
+			_rayFrom,
+			_rayTo,
+			{ skipBackfaces: false, collisionFilterMask: 1 },
+			_rayResult,
+		);
+
+		if (_rayResult.hasHit && _rayResult.body !== body) {
+			// Will hit something before next step - stop and bounce
+			const hitNormal = _rayResult.hitNormalWorld;
+			const hitPoint = _rayResult.hitPointWorld;
+
+			// Position at hit point, offset by radius
+			p.x = hitPoint.x + hitNormal.x * radius;
+			p.y = hitPoint.y + hitNormal.y * radius;
+			p.z = hitPoint.z + hitNormal.z * radius;
+
+			// Reflect velocity: v' = v - 2(v·n)n
+			const dot = v.x * hitNormal.x + v.y * hitNormal.y + v.z * hitNormal.z;
+			const restitution = 0.6;
+
+			v.x = (v.x - 2 * dot * hitNormal.x) * restitution;
+			v.y = (v.y - 2 * dot * hitNormal.y) * restitution;
+			v.z = (v.z - 2 * dot * hitNormal.z) * restitution;
+		}
+	}
+};
+
 // Reuse animation objects to avoid GC
 const _movementAni = { horizontal: 0, vertical: 0 };
 const _idleAni = { horizontal: 0, vertical: 0 };
@@ -146,7 +211,8 @@ const _onJump = () => {
 };
 
 const _updateGrenade = (entity, _frameTime) => {
-	const { quaternion: q, position: p } = entity.physicsBody;
+	const body = entity.physicsBody;
+	const { quaternion: q, position: p } = body;
 	const scale = entity.data.meshScale || 1;
 
 	// Check lifetime and signal removal if expired
@@ -156,6 +222,8 @@ const _updateGrenade = (entity, _frameTime) => {
 		if (entity.linkedLight) {
 			Scene.removeEntity(entity.linkedLight);
 		}
+		// Unregister from pre-step raycast
+		_activeProjectiles.delete(body);
 		return false; // Signal this entity should be removed
 	}
 
@@ -345,12 +413,11 @@ const _createProjectile = (spawnPos, config) => {
 	entity.physicsBody.position.set(...spawnPos);
 	entity.physicsBody.addShape(_grenadeShape);
 
-	// Enable CCD to prevent tunneling through walls at high speed
-	entity.physicsBody.ccdSpeedThreshold = 1;
-	entity.physicsBody.ccdIterations = 20; // Higher for better tunneling prevention
-
 	// Add to physics world with gravity
 	Physics.addBodyWithGravity(entity.physicsBody);
+
+	// Register for pre-step raycast anti-tunneling
+	_activeProjectiles.add(entity.physicsBody);
 
 	// Set velocity AFTER adding to physics world
 	const dx = Camera.direction[0];
@@ -383,6 +450,9 @@ const _createProjectile = (spawnPos, config) => {
 };
 
 const _load = () => {
+	// Register pre-step raycast callback for anti-tunneling
+	Physics.getWorld().addEventListener("preStep", _preStepRaycast);
+
 	// Register contact material between grenades and world
 	Physics.addContactMaterial(_grenadeMaterial, _worldMaterial, {
 		restitution: 0.95,
