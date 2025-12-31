@@ -84,7 +84,6 @@
         },
         {
             "name": "weapspawn01",
-            "base": "lightmapped",
             "textures": {
                 "albedo": "arenas/demo/textures/weapspawn01.webp",
                 "emissive": "arenas/demo/textures/weapspawn01.blend.webp"
