@@ -546,7 +546,7 @@ const _ShaderSources = {
                                  attenuation * spotFalloff * nDotL, 1.0);
             }`,
 	},
-	gaussianBlur: {
+	kawaseBlur: {
 		vertex: glsl`#version 300 es
             precision highp float;
 
@@ -571,27 +571,24 @@ const _ShaderSources = {
             };
 
             uniform sampler2D colorBuffer;
-            uniform vec2 direction;
-
-            vec4 blur13(sampler2D image, vec2 uv, vec2 resolution, vec2 direction) {
-                vec4 color = vec4(0.0);
-                vec2 off1 = vec2(1.411764705882353) * direction;
-                vec2 off2 = vec2(3.2941176470588234) * direction;
-                vec2 off3 = vec2(5.176470588235294) * direction;
-                color += texture(image, uv) * 0.1964825501511404;
-                color += texture(image, uv + (off1 / resolution)) * 0.2969069646728344;
-                color += texture(image, uv - (off1 / resolution)) * 0.2969069646728344;
-                color += texture(image, uv + (off2 / resolution)) * 0.09447039785044732;
-                color += texture(image, uv - (off2 / resolution)) * 0.09447039785044732;
-                color += texture(image, uv + (off3 / resolution)) * 0.010381362401148057;
-                color += texture(image, uv - (off3 / resolution)) * 0.010381362401148057;
-                return color;
-            }
+            uniform float offset;
 
             void main()
             {
-                vec2 uv = vec2(gl_FragCoord.xy / viewportSize.xy);
-                fragColor = blur13(colorBuffer, uv, viewportSize.xy, direction);
+                vec2 texelSize = 1.0 / viewportSize.xy;
+                vec2 uv = gl_FragCoord.xy * texelSize;
+                
+                // Kawase blur: sample center + 4 diagonal corners
+                // This gives a pleasing blur with only 5 texture samples
+                float o = offset + 0.5; // Add 0.5 to leverage bilinear filtering
+                
+                vec4 color = texture(colorBuffer, uv);
+                color += texture(colorBuffer, uv + vec2(-o, -o) * texelSize);
+                color += texture(colorBuffer, uv + vec2( o, -o) * texelSize);
+                color += texture(colorBuffer, uv + vec2(-o,  o) * texelSize);
+                color += texture(colorBuffer, uv + vec2( o,  o) * texelSize);
+                
+                fragColor = color * 0.2; // Average of 5 samples
             }`,
 	},
 	postProcessing: {

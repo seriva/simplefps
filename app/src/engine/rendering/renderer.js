@@ -343,16 +343,14 @@ const _swapBlur = (i) => {
 };
 
 const _blurImage = (source, iterations, radius) => {
-	Shaders.gaussianBlur.bind();
+	Shaders.kawaseBlur.bind();
 	_startBlurPass(source);
 	for (let i = 0; i < iterations; i++) {
 		_swapBlur(i);
 
-		Shaders.gaussianBlur.setInt("colorBuffer", 0);
-		Shaders.gaussianBlur.setVec2(
-			"direction",
-			i % 2 === 0 ? [radius, 0] : [0, radius],
-		);
+		Shaders.kawaseBlur.setInt("colorBuffer", 0);
+		// Kawase blur uses progressive offsets: each iteration increases spread
+		Shaders.kawaseBlur.setFloat("offset", (i + 1) * radius);
 
 		screenQuad.renderSingle();
 	}
@@ -582,12 +580,9 @@ const _ssaoBlurPass = () => {
 		}
 		gl.clear(gl.COLOR_BUFFER_BIT);
 
-		Shaders.gaussianBlur.bind();
-		Shaders.gaussianBlur.setInt("colorBuffer", 0);
-		Shaders.gaussianBlur.setVec2(
-			"direction",
-			i % 2 === 0 ? [1.0, 0] : [0, 1.0],
-		);
+		Shaders.kawaseBlur.bind();
+		Shaders.kawaseBlur.setInt("colorBuffer", 0);
+		Shaders.kawaseBlur.setFloat("offset", i + 1.0);
 		screenQuad.renderSingle();
 		Shader.unBind();
 	}
