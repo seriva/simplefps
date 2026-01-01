@@ -136,7 +136,43 @@ class Shader {
 // Private
 // ============================================================================
 
-const glsl = (x) => x;
+// GLSL template tag with #include preprocessing
+const glsl = (strings, ...values) => {
+	let result = String.raw({ raw: strings }, ...values);
+	// Replace #include "name" with actual code
+	result = result.replace(/#include\s+"(\w+)"/g, (_, name) => {
+		if (_ShaderIncludes[name]) {
+			return _ShaderIncludes[name];
+		}
+		Console.error(`Unknown shader include: "${name}"`);
+		return `// ERROR: Unknown include "${name}"`;
+	});
+	return result;
+};
+
+// Shared shader code snippets for #include preprocessing
+const _ShaderIncludes = {
+	frameDataUBO: glsl`
+layout(std140) uniform FrameData {
+    mat4 matViewProj;
+    mat4 matInvViewProj;
+    mat4 matView;
+    mat4 matProjection;
+    vec4 cameraPosition; // .w = time
+    vec4 viewportSize;   // .zw = unused
+};`,
+	materialDataUBO: glsl`
+layout(std140) uniform MaterialData {
+    ivec4 flags; // type, doEmissive, doReflection, hasLightmap
+    vec4 params; // reflectionStrength, opacity, pad, pad
+};`,
+	reconstructPosition: glsl`
+vec3 reconstructPosition(vec2 uv, float depth) {
+    vec4 clipPos = vec4(uv * 2.0 - 1.0, depth * 2.0 - 1.0, 1.0);
+    vec4 worldPos = matInvViewProj * clipPos;
+    return worldPos.xyz / worldPos.w;
+}`,
+};
 
 const _ShaderSources = {
 	geometry: {
@@ -149,14 +185,7 @@ const _ShaderSources = {
             layout(location=2) in vec3 aNormal;
             layout(location=3) in vec2 aLightmapUV;
 
-            layout(std140) uniform FrameData {
-                mat4 matViewProj;
-                mat4 matInvViewProj;
-                mat4 matView;
-                mat4 matProjection;
-                vec4 cameraPosition; // .w = time
-                vec4 viewportSize;   // .zw = unused
-            };
+            #include "frameDataUBO"
 
             uniform mat4 matWorld;
 
@@ -191,19 +220,9 @@ const _ShaderSources = {
             layout(location=2) out vec4 fragEmissive;
             layout(location=3) out float fragLinearDepth;
 
-            layout(std140) uniform FrameData {
-                mat4 matViewProj;
-                mat4 matInvViewProj;
-                mat4 matView;
-                mat4 matProjection;
-                vec4 cameraPosition; // .w = time
-                vec4 viewportSize;   // .zw = unused
-            };
+            #include "frameDataUBO"
 
-            layout(std140) uniform MaterialData {
-                ivec4 flags; // type, doEmissive, doReflection, hasLightmap
-                vec4 params; // reflectionStrength, opacity, pad, pad
-            };
+            #include "materialDataUBO"
 
             uniform sampler2D colorSampler;
             uniform sampler2D emissiveSampler;
@@ -274,14 +293,7 @@ const _ShaderSources = {
 
             layout(location=0) in vec3 aPosition;
 
-            layout(std140) uniform FrameData {
-                mat4 matViewProj;
-                mat4 matInvViewProj;
-                mat4 matView;
-                mat4 matProjection;
-                vec4 cameraPosition;
-                vec4 viewportSize;
-            };
+            #include "frameDataUBO"
 
             uniform mat4 matWorld;
 
@@ -317,14 +329,7 @@ const _ShaderSources = {
 
             layout(location=0) out vec4 fragColor;
 
-            layout(std140) uniform FrameData {
-                mat4 matViewProj;
-                mat4 matInvViewProj;
-                mat4 matView;
-                mat4 matProjection;
-                vec4 cameraPosition;
-                vec4 viewportSize;
-            };
+            #include "frameDataUBO"
 
             uniform sampler2D shadowBuffer;
 
@@ -389,14 +394,7 @@ const _ShaderSources = {
 
             layout(location=0) in vec3 aPosition;
 
-            layout(std140) uniform FrameData {
-                mat4 matViewProj;
-                mat4 matInvViewProj;
-                mat4 matView;
-                mat4 matProjection;
-                vec4 cameraPosition;
-                vec4 viewportSize;
-            };
+            #include "frameDataUBO"
 
             uniform mat4 matWorld;
 
@@ -417,24 +415,13 @@ const _ShaderSources = {
 
             layout(location=0) out vec4 fragColor;
 
-            layout(std140) uniform FrameData {
-                mat4 matViewProj;
-                mat4 matInvViewProj;
-                mat4 matView;
-                mat4 matProjection;
-                vec4 cameraPosition;
-                vec4 viewportSize;
-            };
+            #include "frameDataUBO"
 
             uniform PointLight pointLight;
             uniform sampler2D depthBuffer;
             uniform sampler2D normalBuffer;
 
-            vec3 reconstructPosition(vec2 uv, float depth) {
-                vec4 clipPos = vec4(uv * 2.0 - 1.0, depth * 2.0 - 1.0, 1.0);
-                vec4 worldPos = matInvViewProj * clipPos;
-                return worldPos.xyz / worldPos.w;
-            }
+            #include "reconstructPosition"
 
             void main() {
                 vec2 uv = gl_FragCoord.xy / viewportSize.xy;
@@ -468,14 +455,7 @@ const _ShaderSources = {
 
             layout(location=0) in vec3 aPosition;
 
-            layout(std140) uniform FrameData {
-                mat4 matViewProj;
-                mat4 matInvViewProj;
-                mat4 matView;
-                mat4 matProjection;
-                vec4 cameraPosition;
-                vec4 viewportSize;
-            };
+            #include "frameDataUBO"
 
             uniform mat4 matWorld;
 
@@ -497,24 +477,13 @@ const _ShaderSources = {
 
             layout(location=0) out vec4 fragColor;
 
-            layout(std140) uniform FrameData {
-                mat4 matViewProj;
-                mat4 matInvViewProj;
-                mat4 matView;
-                mat4 matProjection;
-                vec4 cameraPosition;
-                vec4 viewportSize;
-            };
+            #include "frameDataUBO"
 
             uniform SpotLight spotLight;
             uniform sampler2D depthBuffer;
             uniform sampler2D normalBuffer;
 
-            vec3 reconstructPosition(vec2 uv, float depth) {
-                vec4 clipPos = vec4(uv * 2.0 - 1.0, depth * 2.0 - 1.0, 1.0);
-                vec4 worldPos = matInvViewProj * clipPos;
-                return worldPos.xyz / worldPos.w;
-            }
+            #include "reconstructPosition"
 
             void main() {
                 vec2 uv = gl_FragCoord.xy / viewportSize.xy;
@@ -561,14 +530,7 @@ const _ShaderSources = {
 
             out vec4 fragColor;
 
-            layout(std140) uniform FrameData {
-                mat4 matViewProj;
-                mat4 matInvViewProj;
-                mat4 matView;
-                mat4 matProjection;
-                vec4 cameraPosition;
-                vec4 viewportSize;
-            };
+            #include "frameDataUBO"
 
             uniform sampler2D colorBuffer;
             uniform float offset;
@@ -608,14 +570,7 @@ const _ShaderSources = {
 
             out vec4 fragColor;
 
-            layout(std140) uniform FrameData {
-                mat4 matViewProj;
-                mat4 matInvViewProj;
-                mat4 matView;
-                mat4 matProjection;
-                vec4 cameraPosition;
-                vec4 viewportSize;
-            };
+            #include "frameDataUBO"
 
             uniform bool doFXAA;
             uniform sampler2D colorBuffer;
@@ -763,14 +718,7 @@ const _ShaderSources = {
             layout(location=1) in vec2 aUV;
             layout(location=2) in vec3 aNormal;
 
-            layout(std140) uniform FrameData {
-                mat4 matViewProj;
-                mat4 matInvViewProj;
-                mat4 matView;
-                mat4 matProjection;
-                vec4 cameraPosition;
-                vec4 viewportSize;
-            };
+            #include "frameDataUBO"
 
             uniform mat4 matWorld;
 
@@ -794,19 +742,9 @@ const _ShaderSources = {
 
             layout(location=0) out vec4 fragColor;
 
-            layout(std140) uniform FrameData {
-                mat4 matViewProj;
-                mat4 matInvViewProj;
-                mat4 matView;
-                mat4 matProjection;
-                vec4 cameraPosition;
-                vec4 viewportSize;
-            };
+            #include "frameDataUBO"
 
-            layout(std140) uniform MaterialData {
-                ivec4 flags; // type, doEmissive, doReflection, hasLightmap
-                vec4 params; // reflectionStrength, opacity, pad, pad
-            };
+            #include "materialDataUBO"
 
             uniform sampler2D colorSampler;
             uniform sampler2D emissiveSampler; 
@@ -931,14 +869,7 @@ const _ShaderSources = {
 
             layout(location=0) out vec4 fragColor;
             
-            layout(std140) uniform FrameData {
-                mat4 matViewProj;
-                mat4 matInvViewProj;
-                mat4 matView;
-                mat4 matProjection;
-                vec4 cameraPosition;
-                vec4 viewportSize;
-            };
+            #include "frameDataUBO"
 
             uniform sampler2D normalBuffer;
             uniform sampler2D depthBuffer;
@@ -948,11 +879,7 @@ const _ShaderSources = {
             uniform float bias;
             uniform vec3 uKernel[16];
 
-            vec3 reconstructPosition(vec2 uv, float depth) {
-                vec4 clipPos = vec4(uv * 2.0 - 1.0, depth * 2.0 - 1.0, 1.0);
-                vec4 worldPos = matInvViewProj * clipPos;
-                return worldPos.xyz / worldPos.w;
-            }
+            #include "reconstructPosition"
 
             void main()
             {
@@ -1031,14 +958,7 @@ const _ShaderSources = {
 
             layout(location=0) in vec3 aPosition;
 
-            layout(std140) uniform FrameData {
-                mat4 matViewProj;
-                mat4 matInvViewProj;
-                mat4 matView;
-                mat4 matProjection;
-                vec4 cameraPosition;
-                vec4 viewportSize;
-            };
+            #include "frameDataUBO"
 
             uniform mat4 matWorld;
 

@@ -501,9 +501,7 @@ const _ssaoPass = () => {
 	gl.enable(gl.DEPTH_TEST);
 
 	Shader.unBind();
-	Texture.unBind(gl.TEXTURE0);
-	Texture.unBind(gl.TEXTURE1);
-	Texture.unBind(gl.TEXTURE2);
+	Texture.unBindRange(gl.TEXTURE0, 3);
 	gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 };
 
@@ -537,9 +535,7 @@ const _lightingPass = () => {
 	gl.enable(gl.DEPTH_TEST);
 	gl.enable(gl.CULL_FACE);
 
-	Texture.unBind(gl.TEXTURE0);
-	Texture.unBind(gl.TEXTURE1);
-	Texture.unBind(gl.TEXTURE2);
+	Texture.unBindRange(gl.TEXTURE0, 3);
 	gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
 	_blurImage(_BlurSourceType.LIGHTING, 4, 0.2);
@@ -660,12 +656,7 @@ const _postProcessingPass = () => {
 	screenQuad.renderSingle();
 
 	Shader.unBind();
-	Texture.unBind(gl.TEXTURE0);
-	Texture.unBind(gl.TEXTURE1);
-	Texture.unBind(gl.TEXTURE2);
-	Texture.unBind(gl.TEXTURE3);
-	Texture.unBind(gl.TEXTURE4);
-	Texture.unBind(gl.TEXTURE5);
+	Texture.unBindRange(gl.TEXTURE0, 6);
 };
 
 const _debugPass = () => {
