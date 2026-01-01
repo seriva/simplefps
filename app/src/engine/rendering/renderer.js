@@ -686,6 +686,9 @@ const _FRAME_DATA_BINDING_POINT = 0;
 // Total = 288 bytes (exactly 72 floats)
 const _FRAME_DATA_SIZE = 288;
 
+// Pre-allocate UBO data array to avoid per-frame allocation
+const _frameData = new Float32Array(72);
+
 const _initUBO = () => {
 	if (_frameDataUBO) return;
 
@@ -704,26 +707,25 @@ const _initUBO = () => {
 const _updateFrameData = (time) => {
 	if (!_frameDataUBO) _initUBO();
 
-	const data = new Float32Array(72); // 288 bytes / 4
-
 	// matViewProj (0-15)
-	data.set(Camera.viewProjection, 0);
+	_frameData.set(Camera.viewProjection, 0);
 	// matInvViewProj (16-31)
-	data.set(Camera.inverseViewProjection, 16);
+	_frameData.set(Camera.inverseViewProjection, 16);
 	// matView (32-47)
-	data.set(Camera.view, 32);
+	_frameData.set(Camera.view, 32);
 	// matProjection (48-63)
-	data.set(Camera.projection, 48);
+	_frameData.set(Camera.projection, 48);
 
 	// cameraPosition (64-67)
-	data.set(Camera.position, 64);
-	data[67] = time; // .w = time
+	_frameData.set(Camera.position, 64);
+	_frameData[67] = time; // .w = time
 
 	// viewportSize (68-71)
-	data.set([Context.width(), Context.height()], 68);
+	_frameData[68] = Context.width();
+	_frameData[69] = Context.height();
 
 	gl.bindBuffer(gl.UNIFORM_BUFFER, _frameDataUBO);
-	gl.bufferSubData(gl.UNIFORM_BUFFER, 0, data);
+	gl.bufferSubData(gl.UNIFORM_BUFFER, 0, _frameData);
 	gl.bindBuffer(gl.UNIFORM_BUFFER, null);
 };
 
