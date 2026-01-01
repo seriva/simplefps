@@ -754,7 +754,7 @@ const _ShaderSources = {
                 fragColor.rgb = pow(fragColor.rgb, vec3(1.0 / gamma));
             }`,
 	},
-	glass: {
+	transparent: {
 		vertex: glsl`#version 300 es
             precision highp float;
             precision highp int;

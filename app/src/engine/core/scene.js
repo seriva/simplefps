@@ -183,47 +183,55 @@ const _renderWorldGeometry = () => {
 };
 
 const _renderTransparent = () => {
-	Shaders.glass.bind();
+	Shaders.transparent.bind();
 	mat4.identity(_matModel);
 	// matViewProj and cameraPosition now in FrameData UBO
 
-	Shaders.glass.setMat4("matWorld", _matModel);
-	Shaders.glass.setInt("colorSampler", 0);
+	Shaders.transparent.setMat4("matWorld", _matModel);
+	Shaders.transparent.setInt("colorSampler", 0);
 
 	// Collect and pass point lights (max 8)
 	const MAX_POINT_LIGHTS = 8;
 	const visiblePointLights = _visibilityCache[EntityTypes.POINT_LIGHT];
 	const numPointLights = Math.min(visiblePointLights.length, MAX_POINT_LIGHTS);
-	Shaders.glass.setInt("numPointLights", numPointLights);
+	Shaders.transparent.setInt("numPointLights", numPointLights);
 
 	for (let i = 0; i < numPointLights; i++) {
 		const light = visiblePointLights[i];
 		// Extract world position from the light's full transform (base + animation)
 		mat4.multiply(_lightMatrix, light.base_matrix, light.ani_matrix);
 		mat4.getTranslation(_lightPos, _lightMatrix);
-		Shaders.glass.setVec3(`pointLightPositions[${i}]`, _lightPos);
-		Shaders.glass.setVec3(`pointLightColors[${i}]`, light.color);
-		Shaders.glass.setFloat(`pointLightSizes[${i}]`, light.size);
-		Shaders.glass.setFloat(`pointLightIntensities[${i}]`, light.intensity);
+		Shaders.transparent.setVec3(`pointLightPositions[${i}]`, _lightPos);
+		Shaders.transparent.setVec3(`pointLightColors[${i}]`, light.color);
+		Shaders.transparent.setFloat(`pointLightSizes[${i}]`, light.size);
+		Shaders.transparent.setFloat(
+			`pointLightIntensities[${i}]`,
+			light.intensity,
+		);
 	}
 
 	// Collect and pass spot lights (max 4)
 	const MAX_SPOT_LIGHTS = 4;
 	const visibleSpotLights = _visibilityCache[EntityTypes.SPOT_LIGHT];
 	const numSpotLights = Math.min(visibleSpotLights.length, MAX_SPOT_LIGHTS);
-	Shaders.glass.setInt("numSpotLights", numSpotLights);
+	Shaders.transparent.setInt("numSpotLights", numSpotLights);
 
 	for (let i = 0; i < numSpotLights; i++) {
 		const light = visibleSpotLights[i];
-		Shaders.glass.setVec3(`spotLightPositions[${i}]`, light.position);
-		Shaders.glass.setVec3(`spotLightDirections[${i}]`, light.direction);
-		Shaders.glass.setVec3(`spotLightColors[${i}]`, light.color);
-		Shaders.glass.setFloat(`spotLightIntensities[${i}]`, light.intensity);
-		Shaders.glass.setFloat(`spotLightCutoffs[${i}]`, light.cutoff);
-		Shaders.glass.setFloat(`spotLightRanges[${i}]`, light.range);
+		Shaders.transparent.setVec3(`spotLightPositions[${i}]`, light.position);
+		Shaders.transparent.setVec3(`spotLightDirections[${i}]`, light.direction);
+		Shaders.transparent.setVec3(`spotLightColors[${i}]`, light.color);
+		Shaders.transparent.setFloat(`spotLightIntensities[${i}]`, light.intensity);
+		Shaders.transparent.setFloat(`spotLightCutoffs[${i}]`, light.cutoff);
+		Shaders.transparent.setFloat(`spotLightRanges[${i}]`, light.range);
 	}
 
-	_renderEntities(EntityTypes.MESH, "render", "translucent", Shaders.glass);
+	_renderEntities(
+		EntityTypes.MESH,
+		"render",
+		"translucent",
+		Shaders.transparent,
+	);
 
 	Shader.unBind();
 };
