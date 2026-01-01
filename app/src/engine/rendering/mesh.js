@@ -7,12 +7,6 @@ class Mesh {
 	static ATTR_NORMALS = 2;
 	static ATTR_LIGHTMAP_UVS = 3;
 
-	#bindBufferAndAttrib(buffer, attribute, itemSize) {
-		gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-		gl.vertexAttribPointer(attribute, itemSize, gl.FLOAT, false, 0, 0);
-		gl.enableVertexAttribArray(attribute);
-	}
-
 	#bindMaterial(indexObj, applyMaterial, shader) {
 		if (indexObj.material !== "none" && applyMaterial && this.resources) {
 			this.resources.get(indexObj.material).bind(shader);

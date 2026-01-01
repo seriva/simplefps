@@ -312,7 +312,6 @@ class FPSController {
 
 Console.registerCmd("tnc", () => {
 	_noclip = !_noclip;
-	Console.log(`Noclip: ${_noclip ? "ON" : "OFF"}`);
 });
 
 export default FPSController;
