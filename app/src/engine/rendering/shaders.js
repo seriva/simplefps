@@ -172,6 +172,46 @@ vec3 reconstructPosition(vec2 uv, float depth) {
     vec4 worldPos = matInvViewProj * clipPos;
     return worldPos.xyz / worldPos.w;
 }`,
+	// Point light falloff calculation - shared between deferred and forward paths
+	// Returns vec2(falloff, nDotL) to allow caller to combine with color/intensity
+	pointLightCalc: glsl`
+vec2 calcPointLight(vec3 lightPos, float lightSize, vec3 fragPos, vec3 normal) {
+    vec3 lightDir = lightPos - fragPos;
+    float distSq = dot(lightDir, lightDir);
+    float sizeSq = lightSize * lightSize;
+    if (distSq > sizeSq) return vec2(0.0);
+    
+    float normalizedDist = sqrt(distSq) / lightSize;
+    float falloff = 1.0 - smoothstep(0.0, 1.0, normalizedDist);
+    falloff = falloff * falloff;
+    
+    vec3 L = normalize(lightDir);
+    float nDotL = max(0.0, dot(normal, L));
+    
+    return vec2(falloff * falloff, nDotL);
+}`,
+	// Spot light attenuation calculation - shared between deferred and forward paths
+	// Returns vec3(attenuation, spotFalloff, nDotL) to allow caller to combine
+	spotLightCalc: glsl`
+vec3 calcSpotLight(vec3 lightPos, vec3 lightDir, float cutoff, float range, vec3 fragPos, vec3 normal) {
+    vec3 toLight = lightPos - fragPos;
+    float dist = length(toLight);
+    if (dist > range) return vec3(0.0);
+    
+    toLight = normalize(toLight);
+    
+    float spotEffect = dot(toLight, -normalize(lightDir));
+    if (spotEffect < cutoff) return vec3(0.0);
+    
+    float spotFalloff = (spotEffect - cutoff) / (1.0 - cutoff);
+    spotFalloff = smoothstep(0.0, 1.0, spotFalloff);
+    
+    float attenuation = 1.0 - pow(dist / range, 1.5);
+    
+    float nDotL = max(0.0, dot(normal, toLight));
+    
+    return vec3(attenuation, spotFalloff, nDotL);
+}`,
 };
 
 const _ShaderSources = {
@@ -422,6 +462,7 @@ const _ShaderSources = {
             uniform sampler2D normalBuffer;
 
             #include "reconstructPosition"
+            #include "pointLightCalc"
 
             void main() {
                 vec2 uv = gl_FragCoord.xy / viewportSize.xy;
@@ -432,20 +473,9 @@ const _ShaderSources = {
                 // Unpack normal from [0,1] to [-1,1]
                 vec3 normal = normalize(texelFetch(normalBuffer, fragCoord, 0).xyz * 2.0 - 1.0);
 
-                vec3 lightDir = pointLight.position - position;
-                float distSq = dot(lightDir, lightDir);
-                float sizeSq = pointLight.size * pointLight.size;
-
-                if (distSq > sizeSq) discard;
-
-                float normalizedDist = sqrt(distSq) / pointLight.size;
-                float falloff = 1.0 - smoothstep(0.0, 1.0, normalizedDist);
-                falloff = falloff * falloff;
-
-                vec3 L = normalize(lightDir);
-                float nDotL = max(0.0, dot(normal, L));
-
-                fragColor = vec4(pointLight.color * (falloff * falloff * nDotL * pointLight.intensity), 1.0);
+                vec2 pl = calcPointLight(pointLight.position, pointLight.size, position, normal);
+                if (pl.x <= 0.0) discard;
+                fragColor = vec4(pointLight.color * (pl.x * pl.y * pointLight.intensity), 1.0);
             }`,
 	},
 	spotLight: {
@@ -484,6 +514,7 @@ const _ShaderSources = {
             uniform sampler2D normalBuffer;
 
             #include "reconstructPosition"
+            #include "spotLightCalc"
 
             void main() {
                 vec2 uv = gl_FragCoord.xy / viewportSize.xy;
@@ -494,25 +525,9 @@ const _ShaderSources = {
                 // Unpack normal from [0,1] to [-1,1]
                 vec3 normal = normalize(texelFetch(normalBuffer, fragCoord, 0).xyz * 2.0 - 1.0);
 
-                vec3 lightDir = spotLight.position - position;
-                float dist = length(lightDir);
-
-                if (dist > spotLight.range) discard;
-
-                lightDir = normalize(lightDir);
-
-                float spotEffect = dot(lightDir, -normalize(spotLight.direction));
-                if (spotEffect < spotLight.cutoff) discard;
-
-                float spotFalloff = (spotEffect - spotLight.cutoff) / (1.0 - spotLight.cutoff);
-                spotFalloff = smoothstep(0.0, 1.0, spotFalloff);
-
-                float attenuation = 1.0 - pow(dist / spotLight.range, 1.5);
-
-                float nDotL = max(0.0, dot(normal, lightDir));
-
-                fragColor = vec4(spotLight.color * (spotLight.intensity * 2.0) *
-                                 attenuation * spotFalloff * nDotL, 1.0);
+                vec3 sl = calcSpotLight(spotLight.position, spotLight.direction, spotLight.cutoff, spotLight.range, position, normal);
+                if (sl.x <= 0.0) discard;
+                fragColor = vec4(spotLight.color * (spotLight.intensity * 2.0) * sl.x * sl.y * sl.z, 1.0);
             }`,
 	},
 	kawaseBlur: {
@@ -771,42 +786,17 @@ const _ShaderSources = {
             uniform float spotLightCutoffs[MAX_SPOT_LIGHTS];
             uniform float spotLightRanges[MAX_SPOT_LIGHTS];
 
+            #include "pointLightCalc"
+            #include "spotLightCalc"
+
             vec3 calculatePointLight(int i, vec3 normal, vec3 fragPos) {
-                vec3 lightDir = pointLightPositions[i] - fragPos;
-                float distSq = dot(lightDir, lightDir);
-                float sizeSq = pointLightSizes[i] * pointLightSizes[i];
-                
-                if (distSq > sizeSq) return vec3(0.0);
-                
-                float normalizedDist = sqrt(distSq) / pointLightSizes[i];
-                float falloff = 1.0 - smoothstep(0.0, 1.0, normalizedDist);
-                falloff = falloff * falloff;
-                
-                vec3 L = normalize(lightDir);
-                float nDotL = max(0.0, dot(normal, L));
-                
-                return pointLightColors[i] * (falloff * falloff * nDotL * pointLightIntensities[i]);
+                vec2 pl = calcPointLight(pointLightPositions[i], pointLightSizes[i], fragPos, normal);
+                return pointLightColors[i] * (pl.x * pl.y * pointLightIntensities[i]);
             }
 
             vec3 calculateSpotLight(int i, vec3 normal, vec3 fragPos) {
-                vec3 lightDir = spotLightPositions[i] - fragPos;
-                float dist = length(lightDir);
-                
-                if (dist > spotLightRanges[i]) return vec3(0.0);
-                
-                lightDir = normalize(lightDir);
-                
-                float spotEffect = dot(lightDir, -normalize(spotLightDirections[i]));
-                if (spotEffect < spotLightCutoffs[i]) return vec3(0.0);
-                
-                float spotFalloff = (spotEffect - spotLightCutoffs[i]) / (1.0 - spotLightCutoffs[i]);
-                spotFalloff = smoothstep(0.0, 1.0, spotFalloff);
-                
-                float attenuation = 1.0 - pow(dist / spotLightRanges[i], 1.5);
-                
-                float nDotL = max(0.0, dot(normal, lightDir));
-                
-                return spotLightColors[i] * (spotLightIntensities[i] * 2.0) * attenuation * spotFalloff * nDotL;
+                vec3 sl = calcSpotLight(spotLightPositions[i], spotLightDirections[i], spotLightCutoffs[i], spotLightRanges[i], fragPos, normal);
+                return spotLightColors[i] * (spotLightIntensities[i] * 2.0) * sl.x * sl.y * sl.z;
             }
 
             void main() {
@@ -816,7 +806,9 @@ const _ShaderSources = {
                 color.rgb += emissive.rgb;
                 color.a *= params.y; // opacity
 
+                // Two-sided lighting: flip normal for backfaces
                 vec3 normal = normalize(vNormal);
+                if (!gl_FrontFacing) normal = -normal;
                 vec3 fragPos = vPosition.xyz;
                 
                 // Apply reflection if enabled
