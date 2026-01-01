@@ -131,6 +131,13 @@ class Texture {
 		gl.bindTexture(_TEXTURE_2D, null);
 	}
 
+	static unBindRange(startUnit, count) {
+		for (let i = 0; i < count; i++) {
+			gl.activeTexture(startUnit + i);
+			gl.bindTexture(_TEXTURE_2D, null);
+		}
+	}
+
 	setTextureWrapMode(mode) {
 		gl.bindTexture(_TEXTURE_2D, this.texture);
 		gl.texParameteri(_TEXTURE_2D, _TEXTURE_WRAP_S, mode);
