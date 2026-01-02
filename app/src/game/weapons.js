@@ -48,9 +48,15 @@ const _WEAPONS = {
 };
 
 const _WEAPON_POSITION = {
-	x: 0.15,
-	y: -0.2,
-	z: -0.3,
+	x: 0.19,
+	y: -0.25,
+	z: -0.45,
+};
+
+const _WEAPON_SCALE = {
+	x: 1.2,
+	y: 1.2,
+	z: 0.6, // Squash depth to hide backfaces
 };
 
 const _ANIMATION = {
@@ -422,6 +428,11 @@ const _applyWeaponTransforms = (entity, animations) => {
 	mat4.translate(entity.ani_matrix, entity.ani_matrix, _translationVec);
 	mat4.rotateY(entity.ani_matrix, entity.ani_matrix, glMatrix.toRadian(180));
 	mat4.rotateX(entity.ani_matrix, entity.ani_matrix, glMatrix.toRadian(-2.5));
+	mat4.scale(entity.ani_matrix, entity.ani_matrix, [
+		_WEAPON_SCALE.x,
+		_WEAPON_SCALE.y,
+		_WEAPON_SCALE.z,
+	]);
 };
 
 const _shootGrenade = () => {
