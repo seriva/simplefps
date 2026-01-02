@@ -41,6 +41,7 @@
         "meshes/pulse_cannon/pulse_cannon.bmesh",
         "meshes/ball.webp",
         "meshes/spheremap1.webp",
+        "meshes/spheremap_neutral.webp",
         "meshes/powerup_sem.webp",
         "meshes/meshes.mat",
         "meshes/health.mesh",

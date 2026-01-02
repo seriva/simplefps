@@ -75,6 +75,8 @@ const _ANIMATION = {
 	LAND_SPRING_DAMPING: 8.0,
 	LAND_IMPULSE: -0.6,
 	JUMP_IMPULSE: 0.35,
+	SWITCH_DURATION: 150, // ms for one phase (lower or raise)
+	SWITCH_LOWER_Y: -0.4, // Units to lower the weapon
 };
 
 const _state = {
@@ -92,6 +94,12 @@ const _state = {
 	isGrounded: true,
 	movementBlend: 0,
 	recoil: { pos: 0, vel: 0 },
+	switchState: {
+		active: false,
+		phase: "NONE", // 'LOWER', 'RAISE'
+		startTime: 0,
+		nextIndex: -1,
+	},
 };
 
 // Pre-allocated vectors to avoid per-frame allocations
@@ -176,6 +184,7 @@ const _aniValues = {
 	movement: _movementAni,
 	idle: _idleAni,
 	land: 0,
+	switch: 0,
 };
 
 const _grenadeShape = new CANNON.Sphere(_PROJECTILE.radius);
@@ -201,17 +210,23 @@ const _hideAll = () => {
 	}
 };
 
+const _startSwitch = (nextIndex) => {
+	if (_state.switchState.active || nextIndex === _state.selected) return;
+
+	_state.switchState.active = true;
+	_state.switchState.phase = "LOWER";
+	_state.switchState.startTime = performance.now();
+	_state.switchState.nextIndex = nextIndex;
+};
+
 const _selectNext = () => {
-	_hideAll();
-	_state.selected = (_state.selected + 1) % _state.list.length;
-	_state.list[_state.selected].visible = true;
+	const next = (_state.selected + 1) % _state.list.length;
+	_startSwitch(next);
 };
 
 const _selectPrevious = () => {
-	_hideAll();
-	_state.selected =
-		(_state.selected - 1 + _state.list.length) % _state.list.length;
-	_state.list[_state.selected].visible = true;
+	const next = (_state.selected - 1 + _state.list.length) % _state.list.length;
+	_startSwitch(next);
 };
 
 const _onLand = () => {
@@ -277,11 +292,50 @@ const _createWeaponAnimation = (entity, frameTime) => {
 	_state.recoil.vel += accel * dt;
 	_state.recoil.pos += _state.recoil.vel * dt;
 
+	// Handle Switching Logic
+	let switchOffset = 0;
+	if (_state.switchState.active) {
+		const now = performance.now();
+		const dt = now - _state.switchState.startTime;
+		const progress = Math.min(dt / _ANIMATION.SWITCH_DURATION, 1.0);
+
+		// Simple ease-in/out
+		const ease = progress * progress * (3 - 2 * progress);
+
+		if (_state.switchState.phase === "LOWER") {
+			switchOffset = ease * _ANIMATION.SWITCH_LOWER_Y;
+
+			if (progress >= 1.0) {
+				// Finish lowering, swap models
+				_state.list[_state.selected].visible = false;
+				_state.selected = _state.switchState.nextIndex;
+				_state.list[_state.selected].visible = true;
+
+				// Start raising
+				_state.switchState.phase = "RAISE";
+				_state.switchState.startTime = now;
+
+				// Reset recoil/movement for new weapon
+				_state.recoil.pos = 0;
+				_state.recoil.vel = 0;
+				entity.animationTime = 0;
+			}
+		} else if (_state.switchState.phase === "RAISE") {
+			switchOffset = (1.0 - ease) * _ANIMATION.SWITCH_LOWER_Y;
+
+			if (progress >= 1.0) {
+				_state.switchState.active = false;
+				_state.switchState.phase = "NONE";
+			}
+		}
+	}
+
 	// Update reused animation state object
 	_aniValues.fire = _calculateFireAnimation(frameTime);
 	_calculateMovementAnimation(entity.animationTime); // Updates _movementAni
 	_calculateIdleAnimation(entity.animationTime); // Updates _idleAni
 	_aniValues.land = _state.recoil.pos;
+	_aniValues.switch = switchOffset;
 
 	_applyWeaponTransforms(entity, _aniValues);
 };
@@ -361,7 +415,8 @@ const _applyWeaponTransforms = (entity, animations) => {
 		_WEAPON_POSITION.y +
 		animations.idle.vertical +
 		animations.movement.vertical +
-		animations.land;
+		animations.land +
+		animations.switch;
 	_translationVec[2] = _WEAPON_POSITION.z + animations.fire;
 
 	mat4.translate(entity.ani_matrix, entity.ani_matrix, _translationVec);
