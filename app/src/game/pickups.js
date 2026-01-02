@@ -9,10 +9,6 @@ const _PICKUP_MAP = {
 	health: { meshName: "meshes/health.mesh", lightColor: [0.988, 0.31, 0.051] },
 	armor: { meshName: "meshes/armor.mesh", lightColor: [0, 0.352, 0.662] },
 	ammo: { meshName: "meshes/ammo.mesh", lightColor: [0.623, 0.486, 0.133] },
-	grenade_launcher: {
-		meshName: "meshes/grenade_launcher.mesh",
-		lightColor: [0.752, 0, 0.035],
-	},
 	rocket_launcher: {
 		meshName: "meshes/rocket_launcher/rocket_launcher.bmesh",
 		lightColor: [0.752, 0, 0.035],

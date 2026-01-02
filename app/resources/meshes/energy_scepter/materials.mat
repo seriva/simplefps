@@ -1,0 +1,10 @@
+{
+    "materials": [
+        {
+            "name": "Energy_Sceptre",
+            "textures": {
+                "albedo": "meshes/energy_scepter/energy_scepter_diffuse.webp"
+            }
+        }
+    ]
+}

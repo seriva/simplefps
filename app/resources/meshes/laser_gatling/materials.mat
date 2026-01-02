@@ -1,0 +1,10 @@
+{
+    "materials": [
+        {
+            "name": "Laser_Gatling",
+            "textures": {
+                "albedo": "meshes/laser_gatling/laser_gatling_diffuse.webp"
+            }
+        }
+    ]
+}

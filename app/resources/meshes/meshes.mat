@@ -33,15 +33,6 @@
             }
         },
         {
-            "name": "mat_pickup_grenade_launcher",
-            "base": "powerup_base",
-            "textures": {
-                "albedo": "meshes/grenade_launcher.webp",
-                "emissive": "meshes/grenade_launcher_emissive.webp",
-                "reflectionMask": "meshes/grenade_launcher_sem.webp"
-            }
-        },
-        {
             "name": "mat_ball",
             "textures": {
                 "albedo": "meshes/ball.webp",
