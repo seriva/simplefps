@@ -1,5 +1,5 @@
 import Camera from "../core/camera.js";
-import { Context, gl } from "../core/context.js";
+import { afExt, Context, gl } from "../core/context.js";
 import Scene from "../core/scene.js";
 import Settings from "../core/settings.js";
 import Console from "../systems/console.js";
@@ -47,6 +47,8 @@ const _ao = {
 	ssao: null,
 	noise: null,
 };
+
+let _detailNoise = null;
 
 // SSAO sample kernel and noise data
 let _ssaoKernel = [];
@@ -296,6 +298,10 @@ const _resize = (width, height) => {
 		_generateSSAOKernel();
 		_generateSSAONoise();
 	}
+
+	if (!_detailNoise) {
+		_generateDetailNoise();
+	}
 };
 
 const _startBlurPass = (blurSource) => {
@@ -426,6 +432,45 @@ const _generateSSAONoise = () => {
 	_ao.noise.setTextureWrapMode(gl.REPEAT);
 };
 
+const _generateDetailNoise = () => {
+	const size = 256;
+	const data = new Uint8Array(size * size * 4);
+	for (let i = 0; i < size * size; i++) {
+		const val = Math.floor(Math.random() * 255);
+		data[i * 4] = val; // R
+		data[i * 4 + 1] = val; // G
+		data[i * 4 + 2] = val; // B
+		data[i * 4 + 3] = 255; // A
+	}
+
+	_detailNoise = new Texture({
+		format: gl.RGBA8,
+		width: size,
+		height: size,
+		pdata: data,
+		pformat: gl.RGBA,
+		ptype: gl.UNSIGNED_BYTE,
+	});
+
+	_detailNoise.bind(gl.TEXTURE0);
+	gl.texParameteri(
+		gl.TEXTURE_2D,
+		gl.TEXTURE_MIN_FILTER,
+		gl.LINEAR_MIPMAP_LINEAR,
+	);
+	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+
+	if (afExt) {
+		const maxAniso = gl.getParameter(afExt.MAX_TEXTURE_MAX_ANISOTROPY_EXT);
+		const af = Math.min(Math.max(Settings.anisotropicFiltering, 1), maxAniso);
+		gl.texParameterf(gl.TEXTURE_2D, afExt.TEXTURE_MAX_ANISOTROPY_EXT, af);
+	}
+
+	gl.generateMipmap(gl.TEXTURE_2D);
+};
+
 const _startGeomPass = (clearDepthOnly = false) => {
 	gl.bindFramebuffer(gl.FRAMEBUFFER, _g.framebuffer);
 	const ambient = Scene.getAmbient();
@@ -445,6 +490,7 @@ const _worldGeomPass = () => {
 	gl.depthRange(0.1, 1.0);
 	_startGeomPass();
 
+	if (_detailNoise) _detailNoise.bind(gl.TEXTURE5); // Bind noise to unit 5
 	Scene.renderWorldGeometry();
 
 	_endGeomPass();
@@ -456,6 +502,7 @@ const _fpsGeomPass = () => {
 	gl.depthRange(0.0, 0.1);
 	gl.bindFramebuffer(gl.FRAMEBUFFER, _g.framebuffer);
 
+	if (_detailNoise) _detailNoise.bind(gl.TEXTURE5); // Bind noise to unit 5
 	Scene.renderFPSGeometry();
 
 	gl.bindFramebuffer(gl.FRAMEBUFFER, null);

@@ -17,6 +17,7 @@ const _defaults = {
 	anisotropicFiltering: 16,
 	gamma: 1.0,
 	doFXAA: true,
+	detailTexture: true,
 	emissiveOffset: 1.35,
 	emissiveMult: 1.75,
 	emissiveIteration: 6,

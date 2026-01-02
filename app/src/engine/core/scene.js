@@ -6,6 +6,7 @@ import Console from "../systems/console.js";
 import Physics from "../systems/physics.js";
 import Stats from "../systems/stats.js";
 import { Context, gl } from "./context.js";
+import Settings from "./settings.js";
 
 // Private constants
 const _DEFAULT_AMBIENT = [0.5, 0.5, 0.5];
@@ -170,6 +171,8 @@ const _renderWorldGeometry = () => {
 	mat4.identity(_matModel);
 	// matViewProj and cameraPosition now in FrameData UBO
 
+	Shaders.geometry.setInt("detailNoise", 5);
+	Shaders.geometry.setInt("doDetailTexture", Settings.detailTexture ? 1 : 0);
 	Shaders.geometry.setMat4("matWorld", _matModel);
 
 	// Lightmap is now handled per-material in Material.bind()
@@ -288,6 +291,8 @@ const _renderFPSGeometry = () => {
 	mat4.identity(_matModel);
 	// matViewProj and cameraPosition now in FrameData UBO
 
+	Shaders.geometry.setInt("detailNoise", 5);
+	Shaders.geometry.setInt("doDetailTexture", Settings.detailTexture ? 1 : 0);
 	Shaders.geometry.setMat4("matWorld", _matModel);
 
 	_renderEntities(EntityTypes.FPS_MESH);

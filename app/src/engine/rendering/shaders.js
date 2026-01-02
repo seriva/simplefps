@@ -269,6 +269,8 @@ const _ShaderSources = {
             uniform sampler2D lightmapSampler;
             uniform sampler2D reflectionSampler;
             uniform sampler2D reflectionMaskSampler;
+            uniform sampler2D detailNoise;
+            uniform bool doDetailTexture;
 
             const int MESH = 1;
             const int SKYBOX = 2;
@@ -288,6 +290,13 @@ const _ShaderSources = {
 
                 // Combine type checks to reduce branching
                 if (flags.x != SKYBOX) {
+                    // Apply Detail Noise
+                    if (doDetailTexture) {
+                        float noise = texture(detailNoise, vUV * 4.0).r;
+                        // Modulate color (0.9 to 1.1 range based on noise)
+                        color.rgb *= (0.9 + 0.2 * noise);
+                    }
+
                     // Store lightmap flag in normal.w for post-processing
                     // 0.0 = use deferred lighting, 1.0 = has lightmap
                     float lightmapFlag = float(flags.w);
