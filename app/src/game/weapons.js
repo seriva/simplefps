@@ -2,6 +2,7 @@ import * as CANNON from "../dependencies/cannon-es.js";
 import { glMatrix, mat4, vec3 } from "../dependencies/gl-matrix.js";
 import {
 	Camera,
+	Context,
 	EntityTypes,
 	FpsMeshEntity,
 	MeshEntity,
@@ -38,6 +39,7 @@ const _WEAPONS = {
 	},
 	LASER_GATLING: {
 		mesh: "meshes/laser_gatling/laser_gatling.bmesh",
+		positionOffset: { x: 0, y: -0.05, z: 0 },
 	},
 	PLASMA_PISTOL: {
 		mesh: "meshes/plasma_pistol/plasma_pistol.bmesh",
@@ -54,9 +56,9 @@ const _WEAPON_POSITION = {
 };
 
 const _WEAPON_SCALE = {
-	x: 1.2,
-	y: 1.2,
-	z: 0.6, // Squash depth to hide backfaces
+	x: 1.05,
+	y: 1.05,
+	z: 0.7, // Squash depth to hide backfaces
 };
 
 const _ANIMATION = {
@@ -413,17 +415,26 @@ const _applyWeaponTransforms = (entity, animations) => {
 	mat4.invert(entity.ani_matrix, entity.ani_matrix);
 
 	// Update reusable translation vector
+	// Correct for aspect ratio (pull closer to center on wide screens to avoid distortion)
+	// We mix the correction 50% so it's not too aggressive
+	const aspect = Context.aspectRatio();
+	const targetFactor = 1.8 / Math.max(1.8, aspect);
+	const aspectFactor = 0.5 + targetFactor * 0.5;
+
+	const offset = entity.weaponConfig?.positionOffset || { x: 0, y: 0, z: 0 };
+
 	_translationVec[0] =
-		_WEAPON_POSITION.x +
+		(_WEAPON_POSITION.x + offset.x) * aspectFactor +
 		animations.idle.horizontal +
 		animations.movement.horizontal;
 	_translationVec[1] =
 		_WEAPON_POSITION.y +
+		offset.y +
 		animations.idle.vertical +
 		animations.movement.vertical +
 		animations.land +
 		animations.switch;
-	_translationVec[2] = _WEAPON_POSITION.z + animations.fire;
+	_translationVec[2] = _WEAPON_POSITION.z + offset.z + animations.fire;
 
 	mat4.translate(entity.ani_matrix, entity.ani_matrix, _translationVec);
 	mat4.rotateY(entity.ani_matrix, entity.ani_matrix, glMatrix.toRadian(180));
@@ -558,6 +569,7 @@ const _load = () => {
 		_WEAPONS.LASER_GATLING.mesh,
 		_createWeaponAnimation,
 	);
+	_state.laserGatling.weaponConfig = _WEAPONS.LASER_GATLING;
 	_state.laserGatling.visible = false;
 	Scene.addEntities(_state.laserGatling);
 
