@@ -2,8 +2,11 @@
     "materials": [
         {
             "name": "Laser_Gatling",
+            "reflectionStrength": 2.5,
             "textures": {
-                "albedo": "meshes/laser_gatling/laser_gatling_diffuse.webp"
+                "albedo": "meshes/laser_gatling/laser_gatling_diffuse.webp",
+                "reflection": "meshes/spheremap1.webp",
+                "reflectionMask": "meshes/laser_gatling/laser_gatling_spec.webp"
             }
         }
     ]

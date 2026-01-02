@@ -2,8 +2,11 @@
     "materials": [
         {
             "name": "Plasma_Pistol",
+            "reflectionStrength": 2.5,
             "textures": {
-                "albedo": "meshes/plasma_pistol/plasma_pistol.webp"
+                "albedo": "meshes/plasma_pistol/plasma_pistol.webp",
+                "reflection": "meshes/spheremap1.webp",
+                "reflectionMask": "meshes/plasma_pistol/plasma_pistol_spec.webp"
             }
         }
     ]
