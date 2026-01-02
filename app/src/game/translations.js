@@ -19,6 +19,7 @@ const _translations = {
 		RENDER_SCALE: "Render Scale",
 		GAMMA: "Gamma",
 		FXAA: "FXAA",
+		DETAIL_TEXTURE: "Detail Textures",
 		SSAO: "SSAO",
 		DIRT: "Dirt",
 		SHOW_STATS: "Show Render Stats",

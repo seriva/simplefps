@@ -94,6 +94,15 @@ const _settingsMenu = {
 		},
 		{
 			type: "checkbox",
+			text: Translations.get("DETAIL_TEXTURE"),
+			value: () => Settings.detailTexture,
+			set: (v) => {
+				Settings.detailTexture = v;
+				Settings.save();
+			},
+		},
+		{
+			type: "checkbox",
 			text: Translations.get("SSAO"),
 			value: () => Settings.doSSAO,
 			set: (v) => {
