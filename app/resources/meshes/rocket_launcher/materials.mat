@@ -1,0 +1,16 @@
+{
+    "materials": [
+        {
+            "name": "Rocket_Launcher",
+            "textures": {
+                "albedo": "meshes/rocket_launcher/rocket_launcher_diffuse.webp"
+            }
+        },
+        {
+            "name": "Rocket",
+            "textures": {
+                "albedo": "meshes/rocket_launcher/rocket_diffuse.webp"
+            }
+        }
+    ]
+}

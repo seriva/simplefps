@@ -13,7 +13,10 @@ const _PICKUP_MAP = {
 		meshName: "meshes/grenade_launcher.mesh",
 		lightColor: [0.752, 0, 0.035],
 	},
-	minigun: { meshName: "meshes/minigun.mesh", lightColor: [0.752, 0, 0.035] },
+	rocket_launcher: {
+		meshName: "meshes/rocket_launcher/rocket_launcher.bmesh",
+		lightColor: [0.752, 0, 0.035],
+	},
 };
 
 const _ROTATION_SPEED = 1000;

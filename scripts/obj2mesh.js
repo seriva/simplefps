@@ -1,10 +1,9 @@
 #!/usr/bin/env node
 import fs from 'fs';
 import path from 'path';
-import prettyJSONStringify from 'pretty-json-stringify';
+import { execSync } from 'child_process';
 
 const MATERIAL_NAME_SIZE = 64;
-
 const WHITESPACE = /\s+/;
 const createBuffer = size => new Float32Array(size);
 
@@ -21,7 +20,7 @@ const processFaceElement = (element, mesh, vertices, uvs, normals, materialIndex
     const vertexIndex = parts[0] | 0;
     const uvIndexStr = parts[1];
     const normalIndex = parts[2] | 0;
-    
+
     const vertexOffset = (vertexIndex - 1) * 3;
     const normalOffset = (normalIndex - 1) * 3;
 
@@ -60,7 +59,7 @@ const processFaceElement = (element, mesh, vertices, uvs, normals, materialIndex
 };
 
 const processFace = (faceElements, mesh, vertices, uvs, normals, materialIndex) => {
-    const elements = faceElements.filter(el => el.trim().length > 0);
+    const elements = faceElements.filter(el => el.length > 0);
     if (elements.length < 3) return;
 
     if (elements.length === 3) {
@@ -133,11 +132,11 @@ const parseMTLFile = (mtlPath) => {
 const convertObjToMesh = (inputPath, outputMesh = false, outputBMesh = true, scale = 1.0) => {
     const inputDir = path.dirname(inputPath);
     const inputBase = path.basename(inputPath, '.obj');
-    const arenaOutputDir = path.join(inputDir, inputBase);
-    fs.mkdirSync(arenaOutputDir, { recursive: true });
+    const outputDir = path.join(inputDir, inputBase);
+    fs.mkdirSync(outputDir, { recursive: true });
 
     const objLines = fs.readFileSync(inputPath, 'utf8').split('\n');
-    
+
     let materials = [];
     const materialNames = new Set();
     for (const line of objLines) {
@@ -163,7 +162,7 @@ const convertObjToMesh = (inputPath, outputMesh = false, outputBMesh = true, sca
     const meshNames = [];
     let currentMesh = createNewMesh(estimatedSize);
     let currentEntityName = null;
-    const chunksDir = ensureChunksDir(arenaOutputDir);
+    const meshOutputDir = outputDir;
 
     let vertexCount = 0;
     let normalCount = 0;
@@ -182,7 +181,7 @@ const convertObjToMesh = (inputPath, outputMesh = false, outputBMesh = true, sca
             const entityName = extractEntityName(elements[0] || '');
             if (currentEntityName !== null && entityName !== currentEntityName) {
                 if (currentMesh.indices.length > 0 || currentMesh.vertexCount > 0) {
-                    meshNames.push(saveMesh(currentMesh, currentEntityName, outputMesh, outputBMesh, chunksDir));
+                    meshNames.push(saveMesh(currentMesh, currentEntityName, outputMesh, outputBMesh, meshOutputDir));
                     meshes.push(currentMesh);
                 }
                 currentMesh = createNewMesh(estimatedSize);
@@ -222,23 +221,17 @@ const convertObjToMesh = (inputPath, outputMesh = false, outputBMesh = true, sca
     }
 
     if (currentMesh.indices.length > 0 || currentMesh.vertexCount > 0) {
-        meshNames.push(saveMesh(currentMesh, currentEntityName || 'default', outputMesh, outputBMesh, chunksDir));
+        meshNames.push(saveMesh(currentMesh, currentEntityName || 'default', outputMesh, outputBMesh, meshOutputDir));
         meshes.push(currentMesh);
     }
 
     if (meshes.length > 0) {
-        createArenaStructure(arenaOutputDir, inputBase, meshNames, materials);
+        writeMaterialsFile(outputDir, materials, inputDir);
     }
     return meshes;
 };
 
-const ensureChunksDir = (arenaOutputDir) => {
-    const chunksDir = path.join(arenaOutputDir, 'chunks');
-    fs.mkdirSync(chunksDir, { recursive: true });
-    return chunksDir;
-};
-
-const saveMesh = (mesh, groupName, outputMesh, outputBMesh, chunksDir) => {
+const saveMesh = (mesh, groupName, outputMesh, outputBMesh, meshOutputDir) => {
     const finalMesh = {
         indices: mesh.indices.filter(m => m.array.length > 0),
         vertices: Array.from(mesh.vertices.slice(0, mesh.vertexCount)),
@@ -246,114 +239,132 @@ const saveMesh = (mesh, groupName, outputMesh, outputBMesh, chunksDir) => {
         normals: mesh.normalCount ? Array.from(mesh.normals.slice(0, mesh.normalCount)) : []
     };
 
-    const baseName = groupName.replace(/[^a-zA-Z0-9-_]/g, '_').replace(/_Mesh$/, '');
-    const relativePath = `chunks/${baseName}`;
+    const baseName = groupName.replace(/[^a-zA-Z0-9-_]/g, '_').replace(/_Mesh$/, '').toLowerCase();
 
     if (outputMesh) {
-        fs.writeFileSync(path.join(chunksDir, `${baseName}.mesh`), prettyJSONStringify(finalMesh, {
-            spaceAfterComma: '',
-            shouldExpand: (o, l, k) => k === 'indices' || !['array', 'vertices', 'uvs', 'normals'].includes(k)
-        }));
+        fs.writeFileSync(path.join(meshOutputDir, `${baseName}.mesh`), JSON.stringify(finalMesh, null, 2));
     }
     if (outputBMesh) {
-        convertMeshToBMeshData(finalMesh, path.join(chunksDir, `${baseName}.bmesh`));
-        return relativePath + '.bmesh';
+        convertMeshToBMeshData(finalMesh, path.join(meshOutputDir, `${baseName}.bmesh`));
+        return baseName + '.bmesh';
     }
-    return relativePath + '.mesh';
+    return baseName + '.mesh';
 };
 
-const createArenaStructure = (outputDir, arenaName, meshNames, materials) => {
-    const matPath = path.join(outputDir, 'materials.mat');
-    fs.writeFileSync(matPath, JSON.stringify({
-        materials: materials.map(mat => ({
-            name: mat.name,
-            textures: mat.textures.map(tex => `${arenaName}/${tex}.webp`)
-        }))
-    }, null, 4));
+const convertSingleTexture = (srcFile, destFile) => {
+    try {
+        execSync(`convert "${srcFile}" -quality 90 -define webp:lossless=true "${destFile}"`);
+        return true;
+    } catch (e) {
+        console.error(`Failed to convert ${srcFile}:`, e.message);
+        return false;
+    }
+};
 
-    // Create config.arena file
-    const configData = {
-        skybox: 1,
-        lighting: {
-            ambient: [0.3, 0.3, 0.3],
-            directional: [
-                {
-                    direction: [-0.4, 1, -0.4],
-                    color: [0.8, 0.8, 0.8]
-                }
-            ],
-            spot: [],
-            point: []
-        },
-        chunks: meshNames.filter(n => n.endsWith('.bmesh')).map(n => `${arenaName}/${n}`),
-        spawnpoint: {
-            position: [0, 0, 0],
-            rotation: [0, 0, 0]
-        },
-        pickups: []
+const findAndConvertTexture = (textureBaseName, textureDir, outputDir) => {
+    const extensions = ['.tga', '.jpg', '.jpeg', '.png'];
+    const lowerBaseName = textureBaseName.toLowerCase();
+    const destFile = path.join(outputDir, `${lowerBaseName}.webp`);
+
+    for (const ext of extensions) {
+        let srcFile = path.join(textureDir, textureBaseName + ext);
+        if (fs.existsSync(srcFile)) {
+            convertSingleTexture(srcFile, destFile);
+            return { found: true, destName: `${lowerBaseName}.webp` };
+        }
+
+        srcFile = path.join(textureDir, 'textures', textureBaseName + ext);
+        if (fs.existsSync(srcFile)) {
+            convertSingleTexture(srcFile, destFile);
+            return { found: true, destName: `${lowerBaseName}.webp` };
+        }
+    }
+
+    console.warn(`Texture not found: ${textureBaseName} (searched in ${textureDir})`);
+    return { found: false };
+};
+
+const writeMaterialsFile = (outputDir, materials, inputDir) => {
+    // Map texture suffixes to engine texture slots
+    const suffixToSlot = {
+        '_diffuse': 'albedo',
+        '_albedo': 'albedo',
+        '_basecolor': 'albedo',
+        '_normal': 'normal',
+        '_emissive': 'emissive',
+        '_emission': 'emissive',
+        '_sem': 'reflectionMask',
+        '_reflection': 'reflectionMask',
+        '_roughness': 'roughness',
+        '_metallic': 'metallic'
     };
 
-    const configPath = path.join(outputDir, 'config.arena');
-    fs.writeFileSync(configPath, prettyJSONStringify(configData, {
-        spaceAfterComma: '',
-        shouldExpand: (o, l, k) => k === 'chunks' || (Array.isArray(o) ? o.length > 3 || o.some(i => typeof i === 'object') : true)
-    }));
+    const getTextureSlot = (texName) => {
+        const lower = texName.toLowerCase();
+        for (const [suffix, slot] of Object.entries(suffixToSlot)) {
+            if (lower.includes(suffix)) return slot;
+        }
+        return 'albedo'; // Default to albedo if no suffix match
+    };
+
+    const processTextures = texList => {
+        const textureObj = {};
+        for (const texName of texList) {
+            const result = findAndConvertTexture(texName, inputDir, outputDir);
+            const slot = getTextureSlot(texName);
+            textureObj[slot] = result.found ? result.destName : `${texName}.webp`;
+        }
+        return textureObj;
+    };
+
+    fs.writeFileSync(path.join(outputDir, 'materials.mat'), JSON.stringify({
+        materials: materials.map(mat => ({ name: mat.name, textures: processTextures(mat.textures) }))
+    }, null, 4));
 };
 
 
 const convertMeshToBMeshData = (meshData, outputPath) => {
-    let totalIndicesCount = 0;
-    for (const group of meshData.indices) {
-        totalIndicesCount += group.array.length;
-    }
+    const totalIndicesCount = meshData.indices.reduce((sum, g) => sum + g.array.length, 0);
+    const uvsLen = meshData.uvs?.length || 0;
+    const normalsLen = meshData.normals?.length || 0;
 
     const buffer = Buffer.alloc(
-        20 +
+        24 + // 6 header fields * 4 bytes
         meshData.vertices.length * 4 +
-        (meshData.uvs?.length || 0) * 4 +
-        (meshData.normals?.length || 0) * 4 +
-        (meshData.indices.length * MATERIAL_NAME_SIZE) +
-        (meshData.indices.length * 4) +
-        (totalIndicesCount * 4)
+        uvsLen * 4 +
+        normalsLen * 4 +
+        meshData.indices.length * (MATERIAL_NAME_SIZE + 4) +
+        totalIndicesCount * 4
     );
 
     let offset = 0;
-    buffer.writeUInt32LE(1, offset); offset += 4;
-    buffer.writeUInt32LE(meshData.vertices.length, offset); offset += 4;
-    buffer.writeUInt32LE(meshData.uvs?.length || 0, offset); offset += 4;
-    buffer.writeUInt32LE(meshData.normals?.length || 0, offset); offset += 4;
-    buffer.writeUInt32LE(meshData.indices.length, offset); offset += 4;
+    const writeU32 = v => { buffer.writeUInt32LE(v, offset); offset += 4; };
+    const writeF32Array = arr => {
+        const f32 = new Float32Array(arr);
+        Buffer.from(f32.buffer).copy(buffer, offset);
+        offset += f32.byteLength;
+    };
 
-    for (let i = 0; i < meshData.vertices.length; i++) {
-        buffer.writeFloatLE(meshData.vertices[i], offset);
-        offset += 4;
-    }
+    // Header: version, vertexCount, uvCount, colorCount (unused, 0), normalCount, indexGroupCount
+    writeU32(1);  // version
+    writeU32(meshData.vertices.length);  // vertexCount
+    writeU32(uvsLen);  // uvCount
+    writeU32(0);  // colorCount (unused in v1, engine skips this)
+    writeU32(normalsLen);  // normalCount
+    writeU32(meshData.indices.length);  // indexGroupCount
 
-    if (meshData.uvs?.length) {
-        for (let i = 0; i < meshData.uvs.length; i++) {
-            buffer.writeFloatLE(meshData.uvs[i], offset);
-            offset += 4;
-        }
-    }
+    writeF32Array(meshData.vertices);
+    if (uvsLen) writeF32Array(meshData.uvs);
+    if (normalsLen) writeF32Array(meshData.normals);
 
-    if (meshData.normals?.length) {
-        for (let i = 0; i < meshData.normals.length; i++) {
-            buffer.writeFloatLE(meshData.normals[i], offset);
-            offset += 4;
-        }
-    }
-
-    for (const indexGroup of meshData.indices) {
-        const materialName = indexGroup.material || '';
+    for (const { material = '', array } of meshData.indices) {
         buffer.fill(0, offset, offset + MATERIAL_NAME_SIZE);
-        buffer.write(materialName, offset, Math.min(materialName.length, MATERIAL_NAME_SIZE));
+        buffer.write(material, offset, Math.min(material.length, MATERIAL_NAME_SIZE));
         offset += MATERIAL_NAME_SIZE;
-        buffer.writeUInt32LE(indexGroup.array.length, offset);
-        offset += 4;
-        for (let i = 0; i < indexGroup.array.length; i++) {
-            buffer.writeUInt32LE(indexGroup.array[i], offset);
-            offset += 4;
-        }
+        writeU32(array.length);
+        const u32 = new Uint32Array(array);
+        Buffer.from(u32.buffer).copy(buffer, offset);
+        offset += u32.byteLength;
     }
 
     fs.writeFileSync(outputPath, buffer);
@@ -383,7 +394,7 @@ const parseArgs = () => {
             scale = scaleValue;
         } else if (arg === '--help' || arg === '-h') {
             console.log(`
-Usage: node import-map.js [options] <input.obj>
+Usage: node obj2mesh.js [options] <input.obj>
 
 Options:
   --mesh, -m        Also output .mesh files (default: bmesh only)
@@ -392,9 +403,9 @@ Options:
   --help, -h        Show this help message
 
 Examples:
-  node import-map.js model.obj                    # Create map structure with .bmesh files
-  node import-map.js --scale 0.1 model.obj        # Scale down to 10% size
-  node import-map.js --scale 0.5 --mesh model.obj # Scale to 50% and output .mesh files
+  node obj2mesh.js model.obj                    # Convert OBJ to .bmesh files
+  node obj2mesh.js --scale 0.1 model.obj        # Scale down to 10% size
+  node obj2mesh.js --scale 0.5 --mesh model.obj # Scale to 50% and output .mesh files
             `);
             process.exit(0);
         } else if (!arg.startsWith('-') && !inputPath) {
