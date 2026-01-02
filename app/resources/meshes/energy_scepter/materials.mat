@@ -2,8 +2,12 @@
     "materials": [
         {
             "name": "Energy_Sceptre",
+            "reflectionStrength": 2.5,
             "textures": {
-                "albedo": "meshes/energy_scepter/energy_scepter_diffuse.webp"
+                "albedo": "meshes/energy_scepter/energy_scepter_diffuse.webp",
+                "emissive": "meshes/energy_scepter/energy_scepter_glow.webp",
+                "reflection": "meshes/spheremap1.webp",
+                "reflectionMask": "meshes/energy_scepter/energy_scepter_spec.webp"
             }
         }
     ]

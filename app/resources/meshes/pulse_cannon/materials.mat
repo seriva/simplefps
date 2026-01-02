@@ -2,8 +2,11 @@
     "materials": [
         {
             "name": "Pulse_Cannon",
+            "reflectionStrength": 2.5,
             "textures": {
-                "albedo": "meshes/pulse_cannon/pulse_cannon_diffuse.webp"
+                "albedo": "meshes/pulse_cannon/pulse_cannon_diffuse.webp",
+                "reflection": "meshes/spheremap1.webp",
+                "reflectionMask": "meshes/pulse_cannon/pulse_cannon_spec.webp"
             }
         }
     ]

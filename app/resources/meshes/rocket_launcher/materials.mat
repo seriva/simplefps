@@ -2,14 +2,11 @@
     "materials": [
         {
             "name": "Rocket_Launcher",
+            "reflectionStrength": 2.5,
             "textures": {
-                "albedo": "meshes/rocket_launcher/rocket_launcher_diffuse.webp"
-            }
-        },
-        {
-            "name": "Rocket",
-            "textures": {
-                "albedo": "meshes/rocket_launcher/rocket_diffuse.webp"
+                "albedo": "meshes/rocket_launcher/rocket_launcher_diffuse.webp",
+                "reflection": "meshes/spheremap1.webp",
+                "reflectionMask": "meshes/rocket_launcher/rocket_launcher_spec.webp"
             }
         }
     ]

@@ -291,12 +291,15 @@ const writeMaterialsFile = (outputDir, materials, inputDir) => {
         '_albedo': 'albedo',
         '_basecolor': 'albedo',
         '_normal': 'normal',
+        '_bump': 'normal',
         '_emissive': 'emissive',
         '_emission': 'emissive',
+        '_glow': 'emissive',
         '_sem': 'reflectionMask',
         '_reflection': 'reflectionMask',
         '_roughness': 'roughness',
-        '_metallic': 'metallic'
+        '_metallic': 'metallic',
+        '_spec': 'specular'
     };
 
     const getTextureSlot = (texName) => {
@@ -307,12 +310,55 @@ const writeMaterialsFile = (outputDir, materials, inputDir) => {
         return 'albedo'; // Default to albedo if no suffix match
     };
 
+    // Given a base name like "Energy_Scepter_diffuse", derive the material base "Energy_Scepter"
+    const getBaseName = (texName) => {
+        const lower = texName.toLowerCase();
+        for (const suffix of Object.keys(suffixToSlot)) {
+            if (lower.endsWith(suffix)) {
+                return texName.slice(0, -suffix.length);
+            }
+        }
+        return texName;
+    };
+
+    // Search for companion textures with the same base name but different suffixes
+    const findCompanionTextures = (baseName) => {
+        const companions = [];
+        const suffixesToSearch = ['_glow', '_emissive', '_emission'];
+        const extensions = ['.tga', '.jpg', '.jpeg', '.png'];
+
+        for (const suffix of suffixesToSearch) {
+            for (const ext of extensions) {
+                const candidateName = baseName + suffix;
+                const srcFile = path.join(inputDir, candidateName + ext);
+                if (fs.existsSync(srcFile)) {
+                    companions.push(candidateName);
+                    break; // Found this suffix, move to next
+                }
+            }
+        }
+        return companions;
+    };
+
     const processTextures = texList => {
         const textureObj = {};
         for (const texName of texList) {
             const result = findAndConvertTexture(texName, inputDir, outputDir);
             const slot = getTextureSlot(texName);
-            textureObj[slot] = result.found ? result.destName : `${texName}.webp`;
+            textureObj[slot] = result.found ? result.destName : `${texName.toLowerCase()}.webp`;
+
+            // If this is a diffuse/albedo texture, search for companions
+            if (slot === 'albedo') {
+                const baseName = getBaseName(texName);
+                const companions = findCompanionTextures(baseName);
+                for (const companion of companions) {
+                    const compResult = findAndConvertTexture(companion, inputDir, outputDir);
+                    const compSlot = getTextureSlot(companion);
+                    if (compResult.found && !textureObj[compSlot]) {
+                        textureObj[compSlot] = compResult.destName;
+                    }
+                }
+            }
         }
         return textureObj;
     };
