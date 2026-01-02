@@ -47,15 +47,6 @@
                 "albedo": "meshes/ball.webp",
                 "emissive": "meshes/ball.webp"
             }
-        },
-        {
-            "name": "mat_pickup_minigun",
-            "base": "powerup_base",
-            "textures": {
-                "albedo": "meshes/minigun.webp",
-                "emissive": "meshes/minigun_emissive.webp",
-                "reflectionMask": "meshes/minigun_sem.webp"
-            }
         }
     ]
 }

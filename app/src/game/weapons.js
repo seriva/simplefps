@@ -31,8 +31,8 @@ const _WEAPONS = {
 			},
 		},
 	},
-	MINIGUN: {
-		mesh: "meshes/minigun.mesh",
+	ROCKET_LAUNCHER: {
+		mesh: "meshes/rocket_launcher/rocket_launcher.bmesh",
 	},
 };
 
@@ -70,7 +70,7 @@ const _state = {
 	list: [],
 	selected: -1,
 	grenadeLauncher: null,
-	miniGun: null,
+	rocketLauncher: null,
 	firing: false,
 	firingStart: 0,
 	firingTimer: 0,
@@ -466,13 +466,13 @@ const _load = () => {
 	);
 	Scene.addEntities(_state.grenadeLauncher);
 
-	_state.miniGun = new FpsMeshEntity(
+	_state.rocketLauncher = new FpsMeshEntity(
 		[0, 0, 0],
-		_WEAPONS.MINIGUN.mesh,
+		_WEAPONS.ROCKET_LAUNCHER.mesh,
 		_createWeaponAnimation,
 	);
-	_state.miniGun.visible = false;
-	Scene.addEntities(_state.miniGun);
+	_state.rocketLauncher.visible = false;
+	Scene.addEntities(_state.rocketLauncher);
 
 	_state.list = Scene.getEntities(EntityTypes.FPS_MESH);
 	_selectNext();
