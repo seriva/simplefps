@@ -291,7 +291,7 @@ const _ShaderSources = {
                 // Combine type checks to reduce branching
                 if (flags.x != SKYBOX) {
                     // Apply Detail Noise
-                    if (doDetailTexture) {
+                    if (doDetailTexture && flags.w == 1) {
                         float noise = texture(detailNoise, vUV * 4.0).r;
                         // Modulate color (0.9 to 1.1 range based on noise)
                         color.rgb *= (0.9 + 0.2 * noise);
