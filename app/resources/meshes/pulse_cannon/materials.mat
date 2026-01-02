@@ -1,0 +1,10 @@
+{
+    "materials": [
+        {
+            "name": "Pulse_Cannon",
+            "textures": {
+                "albedo": "meshes/pulse_cannon/pulse_cannon_diffuse.webp"
+            }
+        }
+    ]
+}

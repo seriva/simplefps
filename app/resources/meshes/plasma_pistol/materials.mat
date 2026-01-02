@@ -1,0 +1,10 @@
+{
+    "materials": [
+        {
+            "name": "Plasma_Pistol",
+            "textures": {
+                "albedo": "meshes/plasma_pistol/plasma_pistol.webp"
+            }
+        }
+    ]
+}

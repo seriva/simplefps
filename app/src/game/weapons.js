@@ -15,24 +15,35 @@ import {
 // Private
 // ============================================================================
 
-const _WEAPONS = {
-	GRENADE_LAUNCHER: {
-		mesh: "meshes/grenade_launcher.mesh",
-		projectile: {
-			mesh: "meshes/ball.mesh",
-			meshScale: 33,
-			radius: 2,
-			mass: 0.5,
-			velocity: 900,
-			light: {
-				radius: 150,
-				intensity: 4,
-				color: [0.988, 0.31, 0.051],
-			},
-		},
+// Projectile config (used by all weapons as placeholder)
+const _PROJECTILE = {
+	mesh: "meshes/ball.mesh",
+	meshScale: 33,
+	radius: 2,
+	mass: 0.5,
+	velocity: 900,
+	light: {
+		radius: 150,
+		intensity: 4,
+		color: [0.988, 0.31, 0.051],
 	},
+};
+
+const _WEAPONS = {
 	ROCKET_LAUNCHER: {
 		mesh: "meshes/rocket_launcher/rocket_launcher.bmesh",
+	},
+	ENERGY_SCEPTER: {
+		mesh: "meshes/energy_scepter/energy_sceptre.bmesh",
+	},
+	LASER_GATLING: {
+		mesh: "meshes/laser_gatling/laser_gatling.bmesh",
+	},
+	PLASMA_PISTOL: {
+		mesh: "meshes/plasma_pistol/plasma_pistol.bmesh",
+	},
+	PULSE_CANNON: {
+		mesh: "meshes/pulse_cannon/pulse_cannon.bmesh",
 	},
 };
 
@@ -69,8 +80,11 @@ const _ANIMATION = {
 const _state = {
 	list: [],
 	selected: -1,
-	grenadeLauncher: null,
 	rocketLauncher: null,
+	energyScepter: null,
+	laserGatling: null,
+	plasmaPistol: null,
+	pulseCannon: null,
 	firing: false,
 	firingStart: 0,
 	firingTimer: 0,
@@ -106,7 +120,7 @@ const _preStepRaycast = () => {
 
 		if (speed < 10) continue; // Skip slow-moving projectiles
 
-		const radius = _WEAPONS.GRENADE_LAUNCHER.projectile.radius;
+		const radius = _PROJECTILE.radius;
 		// At 900 velocity and 120hz physics, grenade moves 7.5 units/step
 		// Check ahead by 2x that distance to catch tunneling
 		const lookAhead = Math.max(radius * 3, speed / 60);
@@ -164,9 +178,7 @@ const _aniValues = {
 	land: 0,
 };
 
-const _grenadeShape = new CANNON.Sphere(
-	_WEAPONS.GRENADE_LAUNCHER.projectile.radius,
-);
+const _grenadeShape = new CANNON.Sphere(_PROJECTILE.radius);
 
 // Create bouncy material for grenades
 const _grenadeMaterial = new CANNON.Material("grenade");
@@ -366,7 +378,7 @@ const _shootGrenade = () => {
 
 	Resources.get("sounds/shoot.sfx").play();
 
-	const projectileConfig = _WEAPONS.GRENADE_LAUNCHER.projectile;
+	const projectileConfig = _PROJECTILE;
 	const spawnPosition = _calculateProjectileSpawnPosition();
 	const projectile = _createProjectile(spawnPosition, projectileConfig);
 
@@ -459,13 +471,6 @@ const _load = () => {
 		friction: 0.3,
 	});
 
-	_state.grenadeLauncher = new FpsMeshEntity(
-		[0, 0, 0],
-		_WEAPONS.GRENADE_LAUNCHER.mesh,
-		_createWeaponAnimation,
-	);
-	Scene.addEntities(_state.grenadeLauncher);
-
 	_state.rocketLauncher = new FpsMeshEntity(
 		[0, 0, 0],
 		_WEAPONS.ROCKET_LAUNCHER.mesh,
@@ -474,8 +479,42 @@ const _load = () => {
 	_state.rocketLauncher.visible = false;
 	Scene.addEntities(_state.rocketLauncher);
 
+	_state.energyScepter = new FpsMeshEntity(
+		[0, 0, 0],
+		_WEAPONS.ENERGY_SCEPTER.mesh,
+		_createWeaponAnimation,
+	);
+	_state.energyScepter.visible = false;
+	Scene.addEntities(_state.energyScepter);
+
+	_state.laserGatling = new FpsMeshEntity(
+		[0, 0, 0],
+		_WEAPONS.LASER_GATLING.mesh,
+		_createWeaponAnimation,
+	);
+	_state.laserGatling.visible = false;
+	Scene.addEntities(_state.laserGatling);
+
+	_state.plasmaPistol = new FpsMeshEntity(
+		[0, 0, 0],
+		_WEAPONS.PLASMA_PISTOL.mesh,
+		_createWeaponAnimation,
+	);
+	Scene.addEntities(_state.plasmaPistol);
+
+	_state.pulseCannon = new FpsMeshEntity(
+		[0, 0, 0],
+		_WEAPONS.PULSE_CANNON.mesh,
+		_createWeaponAnimation,
+	);
+	_state.pulseCannon.visible = false;
+	Scene.addEntities(_state.pulseCannon);
+
 	_state.list = Scene.getEntities(EntityTypes.FPS_MESH);
-	_selectNext();
+	// Default to Plasma Pistol (index 3 in the list order)
+	_state.selected = 3;
+	_hideAll();
+	_state.list[_state.selected].visible = true;
 };
 
 // ============================================================================
