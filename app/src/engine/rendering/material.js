@@ -77,7 +77,7 @@ class Material {
 		// Handle double-sided materials
 		if (this.doubleSided) {
 			gl.disable(gl.CULL_FACE);
-		} else {
+		} else if (!this.translucent) {
 			gl.enable(gl.CULL_FACE);
 		}
 	}
