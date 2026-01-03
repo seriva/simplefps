@@ -23,6 +23,9 @@ const _translations = {
 		SSAO: "SSAO",
 		DIRT: "Dirt",
 		SHOW_STATS: "Show Render Stats",
+		GRAPHICS: "Graphics",
+		INPUT: "Input",
+		LOOK_SENSITIVITY: "Look Sensitivity",
 	},
 };
 
