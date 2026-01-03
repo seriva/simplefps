@@ -794,9 +794,14 @@ function exportMap(vertices, meshVerts, faces, textures, lightmaps, outputDir, a
 
             // Weapons
             'weapon_rocketlauncher': 'rocket_launcher',
+            'weapon_grenadelauncher': 'rocket_launcher', // GL -> Rocket Launcher
             'weapon_lightning': 'energy_scepter', // Lightning Gun -> Energy Scepter
+            'weapon_bfg': 'energy_scepter',       // BFG -> Energy Scepter
             'weapon_minigun': 'laser_gatling',   // Chaingun -> Laser Gatling
-            'weapon_railgun': 'pulse_cannon'     // Railgun -> Pulse Cannon
+            'weapon_machinegun': 'laser_gatling', // Machinegun -> Laser Gatling
+            'weapon_shotgun': 'laser_gatling',    // Shotgun -> Laser Gatling
+            'weapon_railgun': 'pulse_cannon',     // Railgun -> Pulse Cannon
+            'weapon_plasmagun': 'pulse_cannon'    // Plasmagun -> Pulse Cannon
         };
 
         const pickupEntities = entities.filter(e => pickupMapping[e.classname]);
