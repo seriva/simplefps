@@ -152,18 +152,66 @@ class _MenuUI extends Reactive.Component {
 				}
 
 				.menu-button {
-					padding: 15px;
-					font-size: 16px;
+					padding: 12px;
+					font-size: 14px;
 				}
 
 				.menu-row {
-					padding: 12px 6px;
-					font-size: 16px;
+					padding: 6px 4px;
+					font-size: 14px;
 				}
 
 				.menu-checkbox {
-					width: 24px;
-					height: 24px;
+					width: 20px;
+					height: 20px;
+				}
+
+				.menu-panel {
+					padding: 10px;
+					margin-bottom: 12px;
+				}
+
+				#menu-header {
+					font-size: 18px;
+					margin-bottom: 15px;
+					padding-bottom: 10px;
+				}
+			}
+
+			/* Landscape mobile - limit menu height */
+			@media (max-height: 500px) {
+				#menu-base {
+					max-height: 85vh;
+					overflow-y: auto;
+					padding: 12px;
+				}
+
+				#menu-header {
+					font-size: 16px;
+					margin-bottom: 10px;
+					padding-bottom: 8px;
+				}
+
+				.menu-button {
+					padding: 8px;
+					font-size: 12px;
+					margin-bottom: 6px;
+				}
+
+				.menu-row {
+					padding: 4px 4px;
+					font-size: 12px;
+					margin-bottom: 4px;
+				}
+
+				.menu-panel {
+					padding: 8px;
+					margin-bottom: 10px;
+				}
+
+				.menu-checkbox {
+					width: 18px;
+					height: 18px;
 				}
 			}
 		`;

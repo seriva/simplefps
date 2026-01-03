@@ -34,17 +34,17 @@ class _HUDUI extends Reactive.Component {
 
 			#button-menu {
 				border-radius: 50%;
-				right: 25px;
-				top: 25px;
-				width: 80px;
-				height: 80px;
+				right: 20px;
+				top: 20px;
+				width: 70px;
+				height: 70px;
 				position: absolute;
 				z-index: 1001;
 				cursor: pointer;
 				
 				background: rgba(40, 40, 40, 0.6);
 				border: 1px solid rgba(255, 255, 255, 0.2);
-				box-sizing: border-box; /* Ensure border doesn't add to size */
+				box-sizing: border-box;
 				box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 				backdrop-filter: blur(4px);
 				color: rgba(255, 255, 255, 0.9);
@@ -62,8 +62,8 @@ class _HUDUI extends Reactive.Component {
 			}
 
 			#button-menu svg {
-				width: 32px;
-				height: 32px;
+				width: 24px;
+				height: 24px;
 				fill: currentColor;
 			}
 
