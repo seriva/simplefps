@@ -223,14 +223,40 @@ class _MenuUI extends Reactive.Component {
 			}
 
 			.menu-checkbox {
-				width: 24px;
-				height: 24px;
-				min-width: 24px;
-				accent-color: #fff;
+				width: 22px;
+				height: 22px;
+				min-width: 22px;
+				max-width: 22px;
+				min-height: 22px;
+				max-height: 22px;
+				box-sizing: border-box;
 				cursor: pointer;
-				-webkit-appearance: checkbox;
-				appearance: checkbox;
+				-webkit-appearance: none;
+				appearance: none;
+				background: rgba(255, 255, 255, 0.1);
+				border: 2px solid rgba(255, 255, 255, 0.4);
+				border-radius: 3px;
+				position: relative;
 				touch-action: manipulation;
+				flex-shrink: 0;
+				transition: all 0.15s ease;
+			}
+
+			.menu-checkbox:checked {
+				background: rgba(255, 255, 255, 0.85);
+				border-color: rgba(255, 255, 255, 0.85);
+			}
+
+			.menu-checkbox:checked::after {
+				content: '';
+				position: absolute;
+				left: 6px;
+				top: 2px;
+				width: 5px;
+				height: 10px;
+				border: solid #333;
+				border-width: 0 2px 2px 0;
+				transform: rotate(45deg);
 			}
 
 			@media (max-width: 768px) {
@@ -427,12 +453,23 @@ class _MenuUI extends Reactive.Component {
 					slider.oninput = (e) => control.set(e.target.value);
 					row.appendChild(slider);
 				} else if (control.type === "checkbox") {
+					const label = document.createElement("label");
+					label.className = "menu-checkbox-label";
 					const checkbox = document.createElement("input");
 					checkbox.type = "checkbox";
 					checkbox.className = "menu-checkbox";
 					checkbox.checked = control.value();
 					checkbox.onchange = (e) => control.set(e.target.checked);
-					row.appendChild(checkbox);
+					label.appendChild(checkbox);
+					row.appendChild(label);
+					// Make entire row toggle checkbox
+					row.style.cursor = "pointer";
+					row.onclick = (e) => {
+						if (e.target !== checkbox) {
+							checkbox.checked = !checkbox.checked;
+							control.set(checkbox.checked);
+						}
+					};
 				}
 				currentPanel.appendChild(row);
 			} else {
