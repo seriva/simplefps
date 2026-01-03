@@ -55,10 +55,11 @@ class _HUDUI extends Reactive.Component {
 				transition: transform 0.1s ease, background 0.2s;
 			}
 			
-			#button-menu:active {
-				transform: scale(0.95);
-				background: rgba(60, 60, 60, 0.8);
-				border-color: rgba(255, 255, 255, 0.4);
+			#button-menu:active,
+			#button-menu.pressed {
+				transform: scale(0.9);
+				background: rgba(80, 80, 80, 0.9);
+				border-color: rgba(255, 255, 255, 0.5);
 			}
 
 			#button-menu svg {
@@ -99,8 +100,15 @@ class _HUDUI extends Reactive.Component {
 
 	mount() {
 		if (this._isMobile) {
-			this.on(this.refs.menuBtn, "click", () => {
+			this.on(this.refs.menuBtn, "touchstart", () => {
+				this.refs.menuBtn.classList.add("pressed");
+			});
+			this.on(this.refs.menuBtn, "touchend", () => {
+				this.refs.menuBtn.classList.remove("pressed");
 				State.enterMenu("MAIN_MENU");
+			});
+			this.on(this.refs.menuBtn, "touchcancel", () => {
+				this.refs.menuBtn.classList.remove("pressed");
 			});
 		}
 

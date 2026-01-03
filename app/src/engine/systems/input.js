@@ -185,10 +185,11 @@ class _VirtualInputUI extends Reactive.Component {
 				transition: transform 0.1s ease, background 0.2s;
 			}
 			
-			.action-btn:active {
-				transform: scale(0.95);
-				background: rgba(60, 60, 60, 0.8);
-				border-color: rgba(255, 255, 255, 0.4);
+			.action-btn:active,
+			.action-btn.pressed {
+				transform: scale(0.9);
+				background: rgba(80, 80, 80, 0.9);
+				border-color: rgba(255, 255, 255, 0.5);
 			}
 
 			.action-btn svg {
@@ -403,17 +404,31 @@ class _VirtualInputUI extends Reactive.Component {
 			{ passive: false },
 		);
 
-		// Button events
+		// Button events with visual feedback
 		this.on(this.refs.btnShoot, "touchstart", (ev) => {
-			ev.preventDefault(); // Prevent click emulation which might trigger weapon firing via other listeners
-			ev.stopPropagation(); // Stop propagation to look area
+			ev.preventDefault();
+			ev.stopPropagation();
+			this.refs.btnShoot.classList.add("pressed");
 			Utils.dispatchCustomEvent("game:shoot");
+		});
+		this.on(this.refs.btnShoot, "touchend", () => {
+			this.refs.btnShoot.classList.remove("pressed");
+		});
+		this.on(this.refs.btnShoot, "touchcancel", () => {
+			this.refs.btnShoot.classList.remove("pressed");
 		});
 
 		this.on(this.refs.btnJump, "touchstart", (ev) => {
 			ev.preventDefault();
 			ev.stopPropagation();
+			this.refs.btnJump.classList.add("pressed");
 			Utils.dispatchCustomEvent("game:jump");
+		});
+		this.on(this.refs.btnJump, "touchend", () => {
+			this.refs.btnJump.classList.remove("pressed");
+		});
+		this.on(this.refs.btnJump, "touchcancel", () => {
+			this.refs.btnJump.classList.remove("pressed");
 		});
 
 		// Update virtual input positions
