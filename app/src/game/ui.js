@@ -223,10 +223,14 @@ class _MenuUI extends Reactive.Component {
 			}
 
 			.menu-checkbox {
-				width: 22px;
-				height: 22px;
+				width: 24px;
+				height: 24px;
+				min-width: 24px;
 				accent-color: #fff;
 				cursor: pointer;
+				-webkit-appearance: checkbox;
+				appearance: checkbox;
+				touch-action: manipulation;
 			}
 
 			@media (max-width: 768px) {
