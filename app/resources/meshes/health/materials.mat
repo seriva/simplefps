@@ -1,0 +1,14 @@
+{
+    "materials": [
+        {
+            "name": "mat_pickup_health",
+            "textures": {
+                "albedo": "meshes/health/health_diffuse.webp",
+                "emissive": "meshes/health/health_emissive.webp",
+                "reflection": "meshes/spheremap_neutral.webp",
+                "reflectionMask": "meshes/powerup_sem.webp"
+            },
+            "reflectionStrength": 0.7
+        }
+    ]
+}

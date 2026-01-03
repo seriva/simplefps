@@ -1,0 +1,14 @@
+{
+    "materials": [
+        {
+            "name": "mat_pickup_armor",
+            "textures": {
+                "albedo": "meshes/armor/armor_diffuse.webp",
+                "emissive": "meshes/armor/armor_emissive.webp",
+                "reflection": "meshes/spheremap_neutral.webp",
+                "reflectionMask": "meshes/powerup_sem.webp"
+            },
+            "reflectionStrength": 0.7
+        }
+    ]
+}
