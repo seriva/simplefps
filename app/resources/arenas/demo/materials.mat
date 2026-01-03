@@ -87,7 +87,8 @@
             "textures": {
                 "albedo": "arenas/demo/textures/weapspawn01.webp",
                 "emissive": "arenas/demo/textures/weapspawn01.blend.webp"
-            }
+            },
+            "doubleSided": true
         },
         {
             "name": "dsiglass",
