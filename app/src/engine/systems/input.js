@@ -248,40 +248,57 @@ class _VirtualInputUI extends Reactive.Component {
 		});
 
 		// Touch cursor/look events
-		this.on(this.refs.look, "touchstart", (ev) => {
-			if (ev.targetTouches) {
-				this._cursorPos = {
-					x: ev.targetTouches[0].clientX,
-					y: ev.targetTouches[0].clientY,
-				};
-				this._lastPos = this._cursorPos;
-			}
-			this.cursorOpacity.set(0.35);
-		});
+		this.on(
+			this.refs.look,
+			"touchstart",
+			(ev) => {
+				if (ev.targetTouches) {
+					this._cursorPos = {
+						x: ev.targetTouches[0].clientX,
+						y: ev.targetTouches[0].clientY,
+					};
+					this._lastPos = { x: this._cursorPos.x, y: this._cursorPos.y };
+				}
+				this.cursorOpacity.set(0.35);
+			},
+			{ passive: true },
+		);
 
-		this.on(this.refs.look, "touchend", () => {
-			this._cursorPos = null;
-			this._lastPos = null;
-			_cursorMovement.x = 0;
-			_cursorMovement.y = 0;
-			this.cursorOpacity.set(0);
-		});
+		this.on(
+			this.refs.look,
+			"touchend",
+			() => {
+				this._cursorPos = null;
+				this._lastPos = null;
+				_cursorMovement.x = 0;
+				_cursorMovement.y = 0;
+				this.cursorOpacity.set(0);
+			},
+			{ passive: true },
+		);
 
-		this.on(this.refs.look, "touchmove", (ev) => {
-			ev.preventDefault();
-			if (ev.targetTouches && this._lastPos) {
-				this._cursorPos = {
-					x: ev.targetTouches[0].clientX,
-					y: ev.targetTouches[0].clientY,
-				};
-				_setCursorMovement(
-					(this._cursorPos.x - this._lastPos.x) * Settings.lookSensitivity,
-					(this._cursorPos.y - this._lastPos.y) * Settings.lookSensitivity,
-				);
-				this._lastPos.x = this._cursorPos.x;
-				this._lastPos.y = this._cursorPos.y;
-			}
-		});
+		this.on(
+			this.refs.look,
+			"touchmove",
+			(ev) => {
+				ev.preventDefault();
+				if (ev.targetTouches && this._lastPos) {
+					const currentX = ev.targetTouches[0].clientX;
+					const currentY = ev.targetTouches[0].clientY;
+					// Update cursor position for visual feedback
+					this._cursorPos = { x: currentX, y: currentY };
+					// Mobile needs higher sensitivity multiplier for responsive feel
+					const mobileSensitivity = Settings.lookSensitivity * 2;
+					_setCursorMovement(
+						(currentX - this._lastPos.x) * mobileSensitivity,
+						(currentY - this._lastPos.y) * mobileSensitivity,
+					);
+					this._lastPos.x = currentX;
+					this._lastPos.y = currentY;
+				}
+			},
+			{ passive: false },
+		);
 
 		// Joystick events
 		this.on(this.refs.stick, "touchstart", (ev) => {
