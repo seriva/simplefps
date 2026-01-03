@@ -3,5 +3,8 @@
 ARG VARIANT=22-bookworm
 FROM mcr.microsoft.com/vscode/devcontainers/javascript-node:1-${VARIANT}
 
+# Install imagemagick for texture conversion (used by bsp2map and obj2mesh)
+RUN apt-get update && apt-get install -y imagemagick && rm -rf /var/lib/apt/lists/*
+
 # Update npm to the latest version
 RUN su node -c "npm install -g npm@latest"

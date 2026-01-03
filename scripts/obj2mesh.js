@@ -2,6 +2,7 @@
 import fs from 'fs';
 import path from 'path';
 import { execSync } from 'child_process';
+import stringify from 'pretty-json-stringify';
 
 const MATERIAL_NAME_SIZE = 64;
 const WHITESPACE = /\s+/;
@@ -242,7 +243,7 @@ const saveMesh = (mesh, groupName, outputMesh, outputBMesh, meshOutputDir) => {
     const baseName = groupName.replace(/[^a-zA-Z0-9-_]/g, '_').replace(/_Mesh$/, '').toLowerCase();
 
     if (outputMesh) {
-        fs.writeFileSync(path.join(meshOutputDir, `${baseName}.mesh`), JSON.stringify(finalMesh, null, 2));
+        fs.writeFileSync(path.join(meshOutputDir, `${baseName}.mesh`), stringify(finalMesh, { spaceAfterColon: true, shouldExpand: (obj, level) => !Array.isArray(obj) }));
     }
     if (outputBMesh) {
         convertMeshToBMeshData(finalMesh, path.join(meshOutputDir, `${baseName}.bmesh`));
@@ -363,9 +364,9 @@ const writeMaterialsFile = (outputDir, materials, inputDir) => {
         return textureObj;
     };
 
-    fs.writeFileSync(path.join(outputDir, 'materials.mat'), JSON.stringify({
+    fs.writeFileSync(path.join(outputDir, 'materials.mat'), stringify({
         materials: materials.map(mat => ({ name: mat.name, textures: processTextures(mat.textures) }))
-    }, null, 4));
+    }, { spaceAfterColon: true, shouldExpand: (obj, level) => !Array.isArray(obj) }));
 };
 
 

@@ -2,6 +2,7 @@
 import fs from 'fs';
 import path from 'path';
 import { execSync } from 'child_process';
+import stringify from 'pretty-json-stringify';
 
 // Quake 3 BSP Constants
 const LUMP_ENTITIES = 0;
@@ -716,7 +717,7 @@ function exportMap(vertices, meshVerts, faces, textures, lightmaps, outputDir, a
     });
 
     materialsData.materials.push(...generatedMaterials);
-    fs.writeFileSync(path.join(outputDir, 'materials.mat'), JSON.stringify(materialsData, null, 4));
+    fs.writeFileSync(path.join(outputDir, 'materials.mat'), stringify(materialsData, { spaceAfterColon: true, shouldExpand: (obj, level) => !Array.isArray(obj) }));
 
     // Extract spawn points
     const spawnpoints = [];
@@ -783,7 +784,7 @@ function exportMap(vertices, meshVerts, faces, textures, lightmaps, outputDir, a
         pickups: []
     };
 
-    fs.writeFileSync(path.join(outputDir, 'config.arena'), JSON.stringify(configData, null, 4));
+    fs.writeFileSync(path.join(outputDir, 'config.arena'), stringify(configData, { spaceAfterColon: true, shouldExpand: (obj, level) => !Array.isArray(obj) }));
     console.log(`Wrote config.arena and materials.mat to ${outputDir}`);
 
     // Generate map-specific resources.list
