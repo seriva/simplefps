@@ -6,12 +6,33 @@ import { MeshEntity, PointLightEntity } from "../engine/core/engine.js";
 // ============================================================================
 
 const _PICKUP_MAP = {
-	health: { meshName: "meshes/health.mesh", lightColor: [0.988, 0.31, 0.051] },
-	armor: { meshName: "meshes/armor.mesh", lightColor: [0, 0.352, 0.662] },
-	ammo: { meshName: "meshes/ammo.mesh", lightColor: [0.623, 0.486, 0.133] },
+	health: {
+		meshName: "meshes/health/health.bmesh",
+		lightColor: [0.988, 0.31, 0.051],
+	},
+	armor: {
+		meshName: "meshes/armor/armor.bmesh",
+		lightColor: [0, 0.352, 0.662],
+	},
+	ammo: {
+		meshName: "meshes/ammo/ammo.bmesh",
+		lightColor: [0.623, 0.486, 0.133],
+	},
 	rocket_launcher: {
 		meshName: "meshes/rocket_launcher/rocket_launcher.bmesh",
 		lightColor: [0.752, 0, 0.035],
+	},
+	energy_scepter: {
+		meshName: "meshes/energy_scepter/energy_sceptre.bmesh",
+		lightColor: [0.2, 0.8, 1.0],
+	},
+	laser_gatling: {
+		meshName: "meshes/laser_gatling/laser_gatling.bmesh",
+		lightColor: [1.0, 0.4, 0.1],
+	},
+	pulse_cannon: {
+		meshName: "meshes/pulse_cannon/pulse_cannon.bmesh",
+		lightColor: [0.5, 0.2, 0.8],
 	},
 };
 

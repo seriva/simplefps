@@ -1,38 +1,6 @@
 {
     "materials": [
         {
-            "name": "powerup_base",
-            "textures": {
-                "reflection": "meshes/spheremap1.webp",
-                "reflectionMask": "meshes/powerup_sem.webp"
-            },
-            "reflectionStrength": 0.7
-        },
-        {
-            "name": "mat_pickup_ammo",
-            "base": "powerup_base",
-            "textures": {
-                "albedo": "meshes/ammo.webp",
-                "emissive": "meshes/ammo_emissive.webp"
-            }
-        },
-        {
-            "name": "mat_pickup_health",
-            "base": "powerup_base",
-            "textures": {
-                "albedo": "meshes/health.webp",
-                "emissive": "meshes/health_emissive.webp"
-            }
-        },
-        {
-            "name": "mat_pickup_armor",
-            "base": "powerup_base",
-            "textures": {
-                "albedo": "meshes/armor.webp",
-                "emissive": "meshes/armor_emissive.webp"
-            }
-        },
-        {
             "name": "mat_ball",
             "textures": {
                 "albedo": "meshes/ball.webp",
