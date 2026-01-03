@@ -88,6 +88,68 @@ class _MenuUI extends Reactive.Component {
 				padding-bottom: 15px;
 			}
 
+			.menu-tabs {
+				display: flex;
+				gap: 2px;
+				margin-bottom: 0;
+				padding: 0;
+				border-bottom: none;
+			}
+
+			.menu-tab {
+				flex: 1;
+				text-align: center;
+				padding: 10px 15px;
+				background: rgba(20, 20, 20, 0.6);
+				border: 1px solid rgba(255, 255, 255, 0.1);
+				border-bottom: none;
+				border-radius: 6px 6px 0 0;
+				cursor: pointer;
+				color: rgba(255, 255, 255, 0.5);
+				font-size: 12px;
+				text-transform: uppercase;
+				letter-spacing: 1px;
+				transition: all 0.15s ease;
+				position: relative;
+				top: 1px;
+			}
+
+			.menu-tab:hover {
+				background: rgba(40, 40, 40, 0.7);
+				color: rgba(255, 255, 255, 0.7);
+			}
+
+			.menu-tab.active {
+				background: rgba(0, 0, 0, 0.2);
+				border-color: rgba(255, 255, 255, 0.1);
+				border-bottom-color: transparent;
+				color: rgba(255, 255, 255, 0.9);
+				z-index: 2;
+				top: 1px;
+			}
+
+			.menu-tab-content {
+				display: none;
+			}
+
+			.menu-tab-content.active {
+				display: block;
+			}
+
+			/* Panel inside tab content - connects to tab */
+			.menu-tab-content .menu-panel {
+				border-radius: 0 0 6px 6px;
+				margin-top: 0;
+				border-top: 1px solid rgba(255, 255, 255, 0.1);
+				min-height: 200px;
+			}
+
+			/* First panel after tabs connects seamlessly */
+			.menu-tab-content.active > .menu-panel:first-child {
+				border-top: none;
+				border-radius: 0 0 6px 6px;
+			}
+
 			.menu-button {
 				text-align: center;
 				background: rgba(40, 40, 40, 0.6);
@@ -130,9 +192,28 @@ class _MenuUI extends Reactive.Component {
 			.menu-panel {
 				background: rgba(0, 0, 0, 0.2);
 				border-radius: 6px;
-				margin-bottom: 20px;
+				margin-bottom: 15px;
 				padding: 15px;
-				border: 1px solid rgba(255, 255, 255, 0.05);
+				border: 1px solid rgba(255, 255, 255, 0.1);
+			}
+
+			/* Custom scrollbar for panels */
+			.menu-panel::-webkit-scrollbar {
+				width: 6px;
+			}
+
+			.menu-panel::-webkit-scrollbar-track {
+				background: rgba(0, 0, 0, 0.2);
+				border-radius: 3px;
+			}
+
+			.menu-panel::-webkit-scrollbar-thumb {
+				background: rgba(255, 255, 255, 0.3);
+				border-radius: 3px;
+			}
+
+			.menu-panel::-webkit-scrollbar-thumb:hover {
+				background: rgba(255, 255, 255, 0.5);
 			}
 
 			.menu-slider {
@@ -141,6 +222,9 @@ class _MenuUI extends Reactive.Component {
 				cursor: pointer;
 			}
 
+			.menu-checkbox {
+				width: 22px;
+				height: 22px;
 				accent-color: #fff;
 				cursor: pointer;
 			}
@@ -181,8 +265,6 @@ class _MenuUI extends Reactive.Component {
 			/* Landscape mobile - limit menu height */
 			@media (max-height: 500px) {
 				#menu-base {
-					max-height: 85vh;
-					overflow-y: auto;
 					padding: 12px;
 				}
 
@@ -207,6 +289,8 @@ class _MenuUI extends Reactive.Component {
 				.menu-panel {
 					padding: 8px;
 					margin-bottom: 10px;
+					max-height: 55vh;
+					overflow-y: auto;
 				}
 
 				.menu-checkbox {
@@ -247,57 +331,116 @@ class _MenuUI extends Reactive.Component {
 			// Clear and rebuild controls
 			this.refs.controls.innerHTML = "";
 
-			let currentPanel = null;
+			// Check if menu has tabs
+			if (menu.tabs) {
+				// Create tab bar
+				const tabBar = document.createElement("div");
+				tabBar.className = "menu-tabs";
 
-			menu.controls.forEach((control) => {
-				const isButton = !control.type || control.type === "button";
+				const tabContents = [];
 
-				if (!isButton) {
-					// It's a setting control (slider side checkbox)
-					if (!currentPanel) {
-						currentPanel = document.createElement("div");
-						currentPanel.className = "menu-panel";
-						this.refs.controls.appendChild(currentPanel);
-					}
+				menu.tabs.forEach((tab, index) => {
+					// Create tab button
+					const tabBtn = document.createElement("div");
+					tabBtn.className = `menu-tab${index === 0 ? " active" : ""}`;
+					tabBtn.textContent = tab.label;
 
-					const row = document.createElement("div");
-					row.className = "menu-row";
+					// Create tab content container
+					const tabContent = document.createElement("div");
+					tabContent.className = `menu-tab-content${index === 0 ? " active" : ""}`;
 
-					const label = document.createElement("span");
-					label.textContent = control.text;
-					row.appendChild(label);
+					// Build controls for this tab
+					this._buildControls(tab.controls, tabContent);
 
-					if (control.type === "slider") {
-						const slider = document.createElement("input");
-						slider.type = "range";
-						slider.className = "menu-slider";
-						slider.min = control.min;
-						slider.max = control.max;
-						slider.step = control.step;
-						slider.value = control.value();
-						slider.oninput = (e) => control.set(e.target.value);
-						row.appendChild(slider);
-					} else if (control.type === "checkbox") {
-						const checkbox = document.createElement("input");
-						checkbox.type = "checkbox";
-						checkbox.className = "menu-checkbox";
-						checkbox.checked = control.value();
-						checkbox.onchange = (e) => control.set(e.target.checked);
-						row.appendChild(checkbox);
-					}
-					currentPanel.appendChild(row);
-				} else {
-					// It's a button
-					// Close current panel if exists (by nulling it, it's already appended)
-					currentPanel = null;
+					tabBtn.onclick = () => {
+						// Deactivate all tabs
+						for (const t of tabBar.querySelectorAll(".menu-tab")) {
+							t.classList.remove("active");
+						}
+						for (const c of tabContents) {
+							c.classList.remove("active");
+						}
+						// Activate this tab
+						tabBtn.classList.add("active");
+						tabContent.classList.add("active");
+					};
 
-					const button = document.createElement("div");
-					button.className = "menu-button";
-					button.textContent = control.text;
-					button.onclick = control.callback;
-					this.refs.controls.appendChild(button);
+					tabBar.appendChild(tabBtn);
+					tabContents.push(tabContent);
+				});
+
+				this.refs.controls.appendChild(tabBar);
+				for (const c of tabContents) {
+					this.refs.controls.appendChild(c);
 				}
-			});
+
+				// Add bottom buttons (like Back button)
+				if (menu.bottomControls) {
+					menu.bottomControls.forEach((control) => {
+						const button = document.createElement("div");
+						button.className = "menu-button";
+						button.textContent = control.text;
+						button.onclick = control.callback;
+						this.refs.controls.appendChild(button);
+					});
+				}
+			} else {
+				// Original non-tabbed logic
+				this._buildControls(menu.controls, this.refs.controls);
+			}
+		});
+	}
+
+	_buildControls(controls, container) {
+		let currentPanel = null;
+
+		controls.forEach((control) => {
+			const isButton = !control.type || control.type === "button";
+
+			if (!isButton) {
+				// It's a setting control (slider or checkbox)
+				if (!currentPanel) {
+					currentPanel = document.createElement("div");
+					currentPanel.className = "menu-panel";
+					container.appendChild(currentPanel);
+				}
+
+				const row = document.createElement("div");
+				row.className = "menu-row";
+
+				const label = document.createElement("span");
+				label.textContent = control.text;
+				row.appendChild(label);
+
+				if (control.type === "slider") {
+					const slider = document.createElement("input");
+					slider.type = "range";
+					slider.className = "menu-slider";
+					slider.min = control.min;
+					slider.max = control.max;
+					slider.step = control.step;
+					slider.value = control.value();
+					slider.oninput = (e) => control.set(e.target.value);
+					row.appendChild(slider);
+				} else if (control.type === "checkbox") {
+					const checkbox = document.createElement("input");
+					checkbox.type = "checkbox";
+					checkbox.className = "menu-checkbox";
+					checkbox.checked = control.value();
+					checkbox.onchange = (e) => control.set(e.target.checked);
+					row.appendChild(checkbox);
+				}
+				currentPanel.appendChild(row);
+			} else {
+				// It's a button
+				currentPanel = null;
+
+				const button = document.createElement("div");
+				button.className = "menu-button";
+				button.textContent = control.text;
+				button.onclick = control.callback;
+				container.appendChild(button);
+			}
 		});
 	}
 

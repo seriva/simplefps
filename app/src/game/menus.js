@@ -54,81 +54,105 @@ const _updateMenu = {
 	],
 };
 
-// Settings menu
+// Settings menu with tabs
 const _settingsMenu = {
 	header: Translations.get("SETTINGS"),
-	controls: [
+	tabs: [
 		{
-			type: "slider",
-			text: Translations.get("RENDER_SCALE"),
-			value: () => Settings.renderScale,
-			set: (v) => {
-				Settings.renderScale = parseFloat(v);
-				Settings.save();
-				Utils.dispatchEvent("resize");
-			},
-			min: 0.5,
-			max: 1.0,
-			step: 0.05,
+			label: Translations.get("GRAPHICS"),
+			controls: [
+				{
+					type: "slider",
+					text: Translations.get("RENDER_SCALE"),
+					value: () => Settings.renderScale,
+					set: (v) => {
+						Settings.renderScale = parseFloat(v);
+						Settings.save();
+						Utils.dispatchEvent("resize");
+					},
+					min: 0.5,
+					max: 1.0,
+					step: 0.05,
+				},
+				{
+					type: "slider",
+					text: Translations.get("GAMMA"),
+					value: () => Settings.gamma,
+					set: (v) => {
+						Settings.gamma = parseFloat(v);
+						Settings.save();
+					},
+					min: 0.5,
+					max: 2.5,
+					step: 0.1,
+				},
+				{
+					type: "checkbox",
+					text: Translations.get("FXAA"),
+					value: () => Settings.doFXAA,
+					set: (v) => {
+						Settings.doFXAA = v;
+						Settings.save();
+					},
+				},
+				{
+					type: "checkbox",
+					text: Translations.get("DETAIL_TEXTURE"),
+					value: () => Settings.detailTexture,
+					set: (v) => {
+						Settings.detailTexture = v;
+						Settings.save();
+					},
+				},
+				{
+					type: "checkbox",
+					text: Translations.get("SSAO"),
+					value: () => Settings.doSSAO,
+					set: (v) => {
+						Settings.doSSAO = v;
+						Settings.save();
+					},
+				},
+				{
+					type: "checkbox",
+					text: Translations.get("DIRT"),
+					value: () => Settings.doDirt,
+					set: (v) => {
+						Settings.doDirt = v;
+						Settings.save();
+					},
+				},
+				{
+					type: "checkbox",
+					text: Translations.get("SHOW_STATS"),
+					value: () => Settings.showStats,
+					set: (v) => {
+						Settings.showStats = v;
+						Stats.toggle(v);
+						Settings.save();
+					},
+				},
+			],
 		},
 		{
-			type: "slider",
-			text: Translations.get("GAMMA"),
-			value: () => Settings.gamma,
-			set: (v) => {
-				Settings.gamma = parseFloat(v);
-				Settings.save();
-			},
-			min: 0.5,
-			max: 2.5,
-			step: 0.1,
+			label: Translations.get("INPUT"),
+			controls: [
+				{
+					type: "slider",
+					text: Translations.get("LOOK_SENSITIVITY"),
+					value: () => Settings.lookSensitivity,
+					set: (v) => {
+						Settings.lookSensitivity = parseFloat(v);
+						Settings.save();
+					},
+					min: 0.1,
+					max: 1.0,
+					step: 0.05,
+				},
+			],
 		},
-		{
-			type: "checkbox",
-			text: Translations.get("FXAA"),
-			value: () => Settings.doFXAA,
-			set: (v) => {
-				Settings.doFXAA = v;
-				Settings.save();
-			},
-		},
-		{
-			type: "checkbox",
-			text: Translations.get("DETAIL_TEXTURE"),
-			value: () => Settings.detailTexture,
-			set: (v) => {
-				Settings.detailTexture = v;
-				Settings.save();
-			},
-		},
-		{
-			type: "checkbox",
-			text: Translations.get("SSAO"),
-			value: () => Settings.doSSAO,
-			set: (v) => {
-				Settings.doSSAO = v;
-				Settings.save();
-			},
-		},
-		{
-			type: "checkbox",
-			text: Translations.get("DIRT"),
-			value: () => Settings.doDirt,
-			set: (v) => {
-				Settings.doDirt = v;
-				Settings.save();
-			},
-		},
-		{
-			type: "checkbox",
-			text: Translations.get("SHOW_STATS"),
-			value: () => Settings.showStats,
-			set: (v) => {
-				Settings.showStats = v;
-				Stats.toggle(v);
-				Settings.save();
-			},
-		},
+	],
+	bottomControls: [
 		{
 			text: Translations.get("BACK"),
 			callback: () => {
