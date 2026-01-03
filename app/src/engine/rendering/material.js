@@ -23,6 +23,7 @@ class Material {
 		this.geomType = data.geomType || 1;
 		this.reflectionStrength = data.reflectionStrength ?? 1.0;
 		this.translucent = data.translucent || false;
+		this.doubleSided = data.doubleSided || false;
 		this.opacity = data.opacity !== undefined ? data.opacity : 1.0;
 
 		// Load all referenced textures
@@ -72,6 +73,13 @@ class Material {
 		}
 
 		gl.bindBufferBase(gl.UNIFORM_BUFFER, 1, this.ubo);
+
+		// Handle double-sided materials
+		if (this.doubleSided) {
+			gl.disable(gl.CULL_FACE);
+		} else {
+			gl.enable(gl.CULL_FACE);
+		}
 	}
 
 	unBind() {
