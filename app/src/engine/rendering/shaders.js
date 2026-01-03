@@ -536,7 +536,7 @@ const _ShaderSources = {
 
                 vec3 sl = calcSpotLight(spotLight.position, spotLight.direction, spotLight.cutoff, spotLight.range, position, normal);
                 if (sl.x <= 0.0) discard;
-                fragColor = vec4(spotLight.color * (spotLight.intensity * 2.0) * sl.x * sl.y * sl.z, 1.0);
+                fragColor = vec4(spotLight.color * spotLight.intensity * sl.x * sl.y * sl.z, 1.0);
             }`,
 	},
 	kawaseBlur: {

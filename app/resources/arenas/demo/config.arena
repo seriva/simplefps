@@ -130,6 +130,14 @@
             ]
         },
         {
+            "type": "laser_gatling",
+            "position": [
+                696,
+                16,
+                440
+            ]
+        },
+        {
             "type": "pulse_cannon",
             "position": [
                 1224,
@@ -199,6 +207,14 @@
                 1104,
                 -176,
                 120
+            ]
+        },
+        {
+            "type": "pulse_cannon",
+            "position": [
+                916,
+                16,
+                -488
             ]
         },
         {

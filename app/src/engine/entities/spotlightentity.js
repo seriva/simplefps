@@ -74,6 +74,17 @@ class SpotLightEntity extends Entity {
 		return m;
 	}
 
+	setPosition(position) {
+		this.position = position;
+		this.base_matrix = this.#buildTransformMatrix(
+			this.position,
+			this.direction,
+			this.angle,
+			this.range,
+		);
+		this.updateBoundingVolume();
+	}
+
 	render() {
 		if (!this.visible) return;
 
