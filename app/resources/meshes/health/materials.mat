@@ -8,7 +8,7 @@
                 "reflection": "meshes/spheremap_neutral.webp",
                 "reflectionMask": "meshes/powerup_sem.webp"
             },
-            "reflectionStrength": 0.7
+            "reflectionStrength": 0.3
         }
     ]
 }

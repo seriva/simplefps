@@ -510,6 +510,8 @@ const _fpsGeomPass = () => {
 };
 
 const _shadowPass = () => {
+	// Match the depth range of the world geometry pass so depth comparisons are valid
+	gl.depthRange(0.1, 1.0);
 	gl.bindFramebuffer(gl.FRAMEBUFFER, _s.framebuffer);
 	gl.clearColor(1.0, 1.0, 1.0, 1.0);
 	gl.clear(gl.COLOR_BUFFER_BIT);
@@ -517,6 +519,7 @@ const _shadowPass = () => {
 	Scene.renderShadows();
 
 	gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+	gl.depthRange(0.0, 1.0);
 };
 
 const _ssaoPass = () => {
