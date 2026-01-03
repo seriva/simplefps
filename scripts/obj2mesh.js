@@ -243,7 +243,7 @@ const saveMesh = (mesh, groupName, outputMesh, outputBMesh, meshOutputDir) => {
     const baseName = groupName.replace(/[^a-zA-Z0-9-_]/g, '_').replace(/_Mesh$/, '').toLowerCase();
 
     if (outputMesh) {
-        fs.writeFileSync(path.join(meshOutputDir, `${baseName}.mesh`), stringify(finalMesh, { spaceAfterColon: true, shouldExpand: (obj, level) => !Array.isArray(obj) }));
+        fs.writeFileSync(path.join(meshOutputDir, `${baseName}.mesh`), JSON.stringify(finalMesh, null, 4));
     }
     if (outputBMesh) {
         convertMeshToBMeshData(finalMesh, path.join(meshOutputDir, `${baseName}.bmesh`));
@@ -364,9 +364,9 @@ const writeMaterialsFile = (outputDir, materials, inputDir) => {
         return textureObj;
     };
 
-    fs.writeFileSync(path.join(outputDir, 'materials.mat'), stringify({
+    fs.writeFileSync(path.join(outputDir, 'materials.mat'), JSON.stringify({
         materials: materials.map(mat => ({ name: mat.name, textures: processTextures(mat.textures) }))
-    }, { spaceAfterColon: true, shouldExpand: (obj, level) => !Array.isArray(obj) }));
+    }, null, 4));
 };
 
 

@@ -36,14 +36,21 @@ const _PICKUP_MAP = {
 	},
 };
 
+const _SCALE = 35;
 const _ROTATION_SPEED = 1000;
-const _BOBBING_AMPLITUDE = 0.1;
-const _LIGHT_OFFSET_Y = 0.2;
+const _BOBBING_AMPLITUDE = 2.5; // World units
+const _LIGHT_OFFSET_Y = 0.2 * _SCALE;
 const _LIGHT_INTENSITY = 3;
-const _LIGHT_RADIUS = 1.8;
-const _SHADOW_HEIGHT = -0.29;
+const _LIGHT_RADIUS = 1.8 * _SCALE;
+const _PICKUP_OFFSET_Y = 0.19 * _SCALE;
+const _SHADOW_HEIGHT = -6.63; // World units relative to pickup center
 
-const _updatePickupEntity = (entity, frameTime, shouldRotate = false) => {
+const _updatePickupEntity = (
+	entity,
+	frameTime,
+	amplitude,
+	shouldRotate = false,
+) => {
 	entity.animationTime += frameTime;
 	const animationTimeInSeconds = entity.animationTime / _ROTATION_SPEED;
 	mat4.identity(entity.ani_matrix);
@@ -54,7 +61,7 @@ const _updatePickupEntity = (entity, frameTime, shouldRotate = false) => {
 
 	mat4.translate(entity.ani_matrix, entity.ani_matrix, [
 		0,
-		Math.cos(Math.PI * animationTimeInSeconds) * _BOBBING_AMPLITUDE,
+		Math.cos(Math.PI * animationTimeInSeconds) * amplitude,
 		0,
 	]);
 };
@@ -66,23 +73,25 @@ const _createPickup = (type, pos) => {
 
 	const { meshName, lightColor } = _PICKUP_MAP[type];
 	const pickup = new MeshEntity(
-		pos,
+		[pos[0], pos[1] + _PICKUP_OFFSET_Y, pos[2]],
 		meshName,
-		(entity, frameTime) => _updatePickupEntity(entity, frameTime, true),
-		1,
+		(entity, frameTime) =>
+			_updatePickupEntity(entity, frameTime, _BOBBING_AMPLITUDE / _SCALE, true),
+		1 * _SCALE,
 	);
-	pickup.castShadow = true;
-	pickup.shadowHeight = _SHADOW_HEIGHT;
+	pickup.castShadow = false;
+	pickup.shadowHeight = _SHADOW_HEIGHT / _SCALE;
 
-	const light = new PointLightEntity(
-		[pos[0], pos[1] + _LIGHT_OFFSET_Y, pos[2]],
-		_LIGHT_RADIUS,
-		lightColor,
-		_LIGHT_INTENSITY,
-		(entity, frameTime) => _updatePickupEntity(entity, frameTime, false),
-	);
+	// const light = new PointLightEntity(
+	// 	[pos[0], pos[1] + _LIGHT_OFFSET_Y, pos[2]],
+	// 	_LIGHT_RADIUS,
+	// 	lightColor,
+	// 	_LIGHT_INTENSITY,
+	// 	(entity, frameTime) =>
+	// 		_updatePickupEntity(entity, frameTime, _BOBBING_AMPLITUDE, false),
+	// );
 
-	return [pickup, light];
+	return [pickup];
 };
 
 // ============================================================================

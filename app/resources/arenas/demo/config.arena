@@ -47,7 +47,7 @@
             ],
             "rotation": [
                 0,
-                -1.5707963267948966,
+                4.71238898038469,
                 0
             ]
         },
@@ -83,7 +83,7 @@
             ],
             "rotation": [
                 0,
-                3.141592653589793,
+                0,
                 0
             ]
         },
@@ -112,5 +112,166 @@
             ]
         }
     ],
-    "pickups": []
+    "pickups": [
+        {
+            "type": "health",
+            "position": [
+                536,
+                208,
+                -856
+            ]
+        },
+        {
+            "type": "armor",
+            "position": [
+                516,
+                16,
+                -32
+            ]
+        },
+        {
+            "type": "pulse_cannon",
+            "position": [
+                1224,
+                216,
+                704
+            ]
+        },
+        {
+            "type": "ammo",
+            "position": [
+                1336,
+                216,
+                280
+            ]
+        },
+        {
+            "type": "ammo",
+            "position": [
+                720,
+                -176,
+                408
+            ]
+        },
+        {
+            "type": "armor",
+            "position": [
+                516,
+                16,
+                -160
+            ]
+        },
+        {
+            "type": "armor",
+            "position": [
+                864,
+                -184,
+                560
+            ]
+        },
+        {
+            "type": "armor",
+            "position": [
+                864,
+                -184,
+                496
+            ]
+        },
+        {
+            "type": "ammo",
+            "position": [
+                1504,
+                -176,
+                160
+            ]
+        },
+        {
+            "type": "ammo",
+            "position": [
+                1152,
+                216,
+                -272
+            ]
+        },
+        {
+            "type": "rocket_launcher",
+            "position": [
+                1104,
+                -176,
+                120
+            ]
+        },
+        {
+            "type": "health",
+            "position": [
+                1336,
+                -184,
+                280
+            ]
+        },
+        {
+            "type": "health",
+            "position": [
+                1112,
+                216,
+                88
+            ]
+        },
+        {
+            "type": "armor",
+            "position": [
+                864,
+                -184,
+                432
+            ]
+        },
+        {
+            "type": "armor",
+            "position": [
+                1616,
+                216,
+                736
+            ]
+        },
+        {
+            "type": "armor",
+            "position": [
+                896,
+                -184,
+                -96
+            ]
+        },
+        {
+            "type": "armor",
+            "position": [
+                896,
+                -184,
+                -160
+            ]
+        },
+        {
+            "type": "armor",
+            "position": [
+                896,
+                -184,
+                -224
+            ]
+        },
+        {
+            "type": "health",
+            "position": [
+                1008,
+                16,
+                192
+            ]
+        },
+        {
+            "type": "health",
+            "position": [
+                688,
+                -176,
+                128
+            ]
+        }
+    ]
 }

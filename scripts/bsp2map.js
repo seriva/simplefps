@@ -717,7 +717,7 @@ function exportMap(vertices, meshVerts, faces, textures, lightmaps, outputDir, a
     });
 
     materialsData.materials.push(...generatedMaterials);
-    fs.writeFileSync(path.join(outputDir, 'materials.mat'), stringify(materialsData, { spaceAfterColon: true, shouldExpand: (obj, level) => !Array.isArray(obj) }));
+    fs.writeFileSync(path.join(outputDir, 'materials.mat'), JSON.stringify(materialsData, null, 4));
 
     // Extract spawn points
     const spawnpoints = [];
@@ -765,6 +765,68 @@ function exportMap(vertices, meshVerts, faces, textures, lightmaps, outputDir, a
         });
     }
 
+    // Extract pickups
+    const pickups = [];
+
+    if (entities) {
+        // Mapping Quake 3 classnames to SimpleFPS pickup types
+        const pickupMapping = {
+            // Health
+            'item_health': 'health',
+            'item_health_small': 'health',
+            'item_health_large': 'health',
+            'item_health_mega': 'health',
+
+            // Armor
+            'item_armor_shard': 'armor',
+            'item_armor_combat': 'armor',
+            'item_armor_body': 'armor',
+
+            // Ammo (map all ammo types to generic ammo)
+            'ammo_shells': 'ammo',
+            'ammo_bullets': 'ammo',
+            'ammo_grenades': 'ammo',
+            'ammo_cells': 'ammo',
+            'ammo_rockets': 'ammo',
+            'ammo_slugs': 'ammo',
+            'ammo_lightning': 'ammo',
+            'ammo_bfg': 'ammo',
+
+            // Weapons
+            'weapon_rocketlauncher': 'rocket_launcher',
+            'weapon_lightning': 'energy_scepter', // Lightning Gun -> Energy Scepter
+            'weapon_minigun': 'laser_gatling',   // Chaingun -> Laser Gatling
+            'weapon_railgun': 'pulse_cannon'     // Railgun -> Pulse Cannon
+        };
+
+        const pickupEntities = entities.filter(e => pickupMapping[e.classname]);
+
+        if (pickupEntities.length > 0) {
+            console.log(`Processing ${pickupEntities.length} pickups...`);
+
+            for (const ent of pickupEntities) {
+                if (ent.origin) {
+                    const parts = ent.origin.split(' ').map(Number);
+                    if (parts.length === 3) {
+                        const x = parts[0] * scale;
+                        const y = parts[1] * scale;
+                        const z = parts[2] * scale;
+
+                        // Transform: Q3 Z-up -> Engine Y-up
+                        // Note: Pickups usually originate from floor, might need slight vertical offset if pivot is at bottom
+                        // converting (x, y, z) -> (x, z, -y)
+                        const position = [x, z, -y];
+
+                        pickups.push({
+                            type: pickupMapping[ent.classname],
+                            position: position
+                        });
+                    }
+                }
+            }
+        }
+    }
+
     // Write config.arena with simplified paths
     const configData = {
         skybox: 1,
@@ -781,10 +843,10 @@ function exportMap(vertices, meshVerts, faces, textures, lightmaps, outputDir, a
         },
         chunks: [`${arenaName}/geometry.bmesh`],
         spawnpoints: spawnpoints,
-        pickups: []
+        pickups: pickups
     };
 
-    fs.writeFileSync(path.join(outputDir, 'config.arena'), stringify(configData, { spaceAfterColon: true, shouldExpand: (obj, level) => !Array.isArray(obj) }));
+    fs.writeFileSync(path.join(outputDir, 'config.arena'), JSON.stringify(configData, null, 4));
     console.log(`Wrote config.arena and materials.mat to ${outputDir}`);
 
     // Generate map-specific resources.list
@@ -803,9 +865,11 @@ function exportMap(vertices, meshVerts, faces, textures, lightmaps, outputDir, a
 
     // Add all textures (base + blend)
     materialsData.materials.forEach(mat => {
-        mat.textures.forEach(tex => {
-            mapAssets.push(tex);
-        });
+        if (mat.textures) {
+            Object.values(mat.textures).forEach(tex => {
+                mapAssets.push(tex);
+            });
+        }
     });
 
     // Update resources.list (deduplicate entries)
