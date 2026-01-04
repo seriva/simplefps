@@ -254,7 +254,8 @@ const saveMesh = (mesh, groupName, outputMesh, outputBMesh, meshOutputDir) => {
 
 const convertSingleTexture = (srcFile, destFile) => {
     try {
-        execSync(`convert "${srcFile}" -quality 90 -define webp:lossless=true "${destFile}"`);
+        // Use lossy WebP compression at quality 85 for much smaller file sizes
+        execSync(`convert "${srcFile}" -quality 85 -define webp:lossless=false "${destFile}"`);
         return true;
     } catch (e) {
         console.error(`Failed to convert ${srcFile}:`, e.message);
