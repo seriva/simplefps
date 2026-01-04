@@ -24,6 +24,7 @@ const _g = {
 	normal: null,
 	color: null,
 	emissive: null,
+	worldPosition: null, // World-space position buffer for accurate lighting
 };
 
 const _s = {
@@ -59,6 +60,7 @@ const _disposeResources = () => {
 	if (_depth) _depth.dispose();
 	if (_g.framebuffer) {
 		gl.deleteFramebuffer(_g.framebuffer);
+		if (_g.worldPosition) _g.worldPosition.dispose();
 		if (_g.normal) _g.normal.dispose();
 		if (_g.color) _g.color.dispose();
 		if (_g.emissive) _g.emissive.dispose();
@@ -128,6 +130,21 @@ const _resize = (width, height) => {
 	gl.bindFramebuffer(gl.FRAMEBUFFER, _g.framebuffer);
 	gl.activeTexture(gl.TEXTURE0);
 
+	// World position buffer (RGBA16F for accurate position at all distances)
+	// Using RGBA instead of RGB for better compatibility as color attachment
+	_g.worldPosition = new Texture({
+		format: gl.RGBA16F,
+		width,
+		height,
+	});
+	gl.framebufferTexture2D(
+		gl.FRAMEBUFFER,
+		gl.COLOR_ATTACHMENT0,
+		gl.TEXTURE_2D,
+		_g.worldPosition.texture,
+		0,
+	);
+
 	_g.normal = new Texture({
 		format: gl.RGBA8,
 		width,
@@ -135,7 +152,7 @@ const _resize = (width, height) => {
 	});
 	gl.framebufferTexture2D(
 		gl.FRAMEBUFFER,
-		gl.COLOR_ATTACHMENT0,
+		gl.COLOR_ATTACHMENT1,
 		gl.TEXTURE_2D,
 		_g.normal.texture,
 		0,
@@ -148,7 +165,7 @@ const _resize = (width, height) => {
 	});
 	gl.framebufferTexture2D(
 		gl.FRAMEBUFFER,
-		gl.COLOR_ATTACHMENT1,
+		gl.COLOR_ATTACHMENT2,
 		gl.TEXTURE_2D,
 		_g.color.texture,
 		0,
@@ -161,7 +178,7 @@ const _resize = (width, height) => {
 	});
 	gl.framebufferTexture2D(
 		gl.FRAMEBUFFER,
-		gl.COLOR_ATTACHMENT2,
+		gl.COLOR_ATTACHMENT3,
 		gl.TEXTURE_2D,
 		_g.emissive.texture,
 		0,
@@ -175,7 +192,7 @@ const _resize = (width, height) => {
 	});
 	gl.framebufferTexture2D(
 		gl.FRAMEBUFFER,
-		gl.COLOR_ATTACHMENT3,
+		gl.COLOR_ATTACHMENT4,
 		gl.TEXTURE_2D,
 		_g.linearDepth.texture,
 		0,
@@ -193,6 +210,7 @@ const _resize = (width, height) => {
 		gl.COLOR_ATTACHMENT1,
 		gl.COLOR_ATTACHMENT2,
 		gl.COLOR_ATTACHMENT3,
+		gl.COLOR_ATTACHMENT4,
 	]);
 	_checkFramebufferStatus();
 	gl.bindFramebuffer(gl.FRAMEBUFFER, null);
@@ -529,13 +547,13 @@ const _ssaoPass = () => {
 
 	// Bind G-buffer textures
 	_g.normal.bind(gl.TEXTURE0);
-	_depth.bind(gl.TEXTURE1); // Use hardware depth for reconstruction
+	_g.worldPosition.bind(gl.TEXTURE1); // Use position buffer instead of depth
 	_ao.noise.bind(gl.TEXTURE2);
 
 	// Setup SSAO shader
 	Shaders.ssao.bind();
 	Shaders.ssao.setInt("normalBuffer", 0);
-	Shaders.ssao.setInt("depthBuffer", 1);
+	Shaders.ssao.setInt("positionBuffer", 1);
 	Shaders.ssao.setInt("noiseTexture", 2);
 	// Set uniforms
 	Shaders.ssao.setVec2("noiseScale", [
@@ -570,7 +588,7 @@ const _lightingPass = () => {
 	const ambient = Scene.getAmbient();
 	gl.clearColor(ambient[0], ambient[1], ambient[2], 1.0);
 	gl.clear(gl.COLOR_BUFFER_BIT);
-	_depth.bind(gl.TEXTURE0);
+	_g.worldPosition.bind(gl.TEXTURE0);
 	_g.normal.bind(gl.TEXTURE1);
 	_s.shadow.bind(gl.TEXTURE2);
 

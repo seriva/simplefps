@@ -33,15 +33,30 @@ class MeshEntity extends Entity {
 	renderShadow() {
 		if (!this.visible) return;
 		if (!this.castShadow) return;
+		if (this.shadowHeight === undefined) return; // No shadow if no ground
+
+		const basePos = [0, 0, 0];
+		mat4.getTranslation(basePos, this.base_matrix);
+
+		const baseRot = quat.create();
+		mat4.getRotation(baseRot, this.base_matrix);
+		const aniRot = quat.create();
+		mat4.getRotation(aniRot, this.ani_matrix);
+
+		const combinedRot = quat.create();
+		quat.multiply(combinedRot, baseRot, aniRot);
+
+		const baseScale = [0, 0, 0];
+		mat4.getScaling(baseScale, this.base_matrix);
+
 		const m = mat4.create();
-		mat4.copy(m, this.base_matrix);
-		const q = quat.create();
-		mat4.getRotation(q, this.ani_matrix);
-		const rm = mat4.create();
-		mat4.fromQuat(rm, q);
-		mat4.translate(m, m, [0, this.shadowHeight, 0]);
-		mat4.scale(m, m, [1, 0.001, 1]);
-		mat4.multiply(m, m, rm);
+		mat4.fromRotationTranslationScale(
+			m,
+			combinedRot,
+			[basePos[0], this.shadowHeight, basePos[2]],
+			[baseScale[0], 0.001, baseScale[2]],
+		);
+
 		Shaders.entityShadows.setMat4("matWorld", m);
 		this.mesh.renderSingle(false);
 	}

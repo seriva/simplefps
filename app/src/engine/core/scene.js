@@ -253,7 +253,7 @@ const _renderLighting = () => {
 	// Pointlights
 	Shaders.pointLight.bind();
 	// matViewProj, matInvViewProj, viewportSize now in FrameData UBO
-	Shaders.pointLight.setInt("depthBuffer", 0);
+	Shaders.pointLight.setInt("positionBuffer", 0);
 	Shaders.pointLight.setInt("normalBuffer", 1);
 	_renderEntities(EntityTypes.POINT_LIGHT);
 	Shader.unBind();
@@ -261,7 +261,7 @@ const _renderLighting = () => {
 	// Spotlights
 	Shaders.spotLight.bind();
 	// matViewProj, matInvViewProj, viewportSize now in FrameData UBO
-	Shaders.spotLight.setInt("depthBuffer", 0);
+	Shaders.spotLight.setInt("positionBuffer", 0);
 	Shaders.spotLight.setInt("normalBuffer", 1);
 	_renderEntities(EntityTypes.SPOT_LIGHT);
 	Shader.unBind();

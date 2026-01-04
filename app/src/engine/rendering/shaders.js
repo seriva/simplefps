@@ -255,10 +255,11 @@ const _ShaderSources = {
             in vec2 vUV;
             in vec2 vLightmapUV;
 
-            layout(location=0) out vec4 fragNormal;
-            layout(location=1) out vec4 fragColor;
-            layout(location=2) out vec4 fragEmissive;
-            layout(location=3) out float fragLinearDepth;
+            layout(location=0) out vec4 fragPosition;
+            layout(location=1) out vec4 fragNormal;
+            layout(location=2) out vec4 fragColor;
+            layout(location=3) out vec4 fragEmissive;
+            layout(location=4) out float fragLinearDepth;
 
             #include "frameDataUBO"
 
@@ -297,16 +298,19 @@ const _ShaderSources = {
                         color.rgb *= (0.9 + 0.2 * noise);
                     }
 
-                    // Store lightmap flag in normal.w for post-processing
+                // Store lightmap flag in normal.w for post-processing
                     // 0.0 = use deferred lighting, 1.0 = has lightmap
                     float lightmapFlag = float(flags.w);
                     // Pack normal from [-1,1] to [0,1] for RGBA8 storage
                     fragNormal = vec4(vNormal * 0.5 + 0.5, lightmapFlag);
                     // Linear depth for SSAO (camera-relative distance)
                     fragLinearDepth = length(vPosition.xyz - cameraPosition.xyz);
+                    // Output world position directly (w=1.0 for RGBA format)
+                    fragPosition = vec4(vPosition.xyz, 1.0);
                 } else {
                     fragNormal = vec4(0.5, 0.5, 0.5, 1.0); // Packed zero normal
                     fragLinearDepth = 10000.0; // Far away for skybox
+                    fragPosition = vec4(0.0, 0.0, 0.0, 0.0); // Skybox has no real position
                 }
 
                 // Apply reflection if enabled
@@ -467,18 +471,15 @@ const _ShaderSources = {
             #include "frameDataUBO"
 
             uniform PointLight pointLight;
-            uniform sampler2D depthBuffer;
+            uniform sampler2D positionBuffer;
             uniform sampler2D normalBuffer;
 
-            #include "reconstructPosition"
             #include "pointLightCalc"
 
             void main() {
-                vec2 uv = gl_FragCoord.xy / viewportSize.xy;
                 ivec2 fragCoord = ivec2(gl_FragCoord.xy);
                 
-                float depth = texelFetch(depthBuffer, fragCoord, 0).r;
-                vec3 position = reconstructPosition(uv, depth);
+                vec3 position = texelFetch(positionBuffer, fragCoord, 0).rgb;
                 // Unpack normal from [0,1] to [-1,1]
                 vec3 normal = normalize(texelFetch(normalBuffer, fragCoord, 0).xyz * 2.0 - 1.0);
 
@@ -519,18 +520,15 @@ const _ShaderSources = {
             #include "frameDataUBO"
 
             uniform SpotLight spotLight;
-            uniform sampler2D depthBuffer;
+            uniform sampler2D positionBuffer;
             uniform sampler2D normalBuffer;
 
-            #include "reconstructPosition"
             #include "spotLightCalc"
 
             void main() {
-                vec2 uv = gl_FragCoord.xy / viewportSize.xy;
                 ivec2 fragCoord = ivec2(gl_FragCoord.xy);
                 
-                float depth = texelFetch(depthBuffer, fragCoord, 0).r;
-                vec3 position = reconstructPosition(uv, depth);
+                vec3 position = texelFetch(positionBuffer, fragCoord, 0).rgb;
                 // Unpack normal from [0,1] to [-1,1]
                 vec3 normal = normalize(texelFetch(normalBuffer, fragCoord, 0).xyz * 2.0 - 1.0);
 
@@ -873,44 +871,36 @@ const _ShaderSources = {
             #include "frameDataUBO"
 
             uniform sampler2D normalBuffer;
-            uniform sampler2D depthBuffer;
+            uniform sampler2D positionBuffer;
             uniform sampler2D noiseTexture;
             uniform vec2 noiseScale;
             uniform float radius;
             uniform float bias;
             uniform vec3 uKernel[16];
 
-            #include "reconstructPosition"
-
             void main()
             {
                 vec2 uv = gl_FragCoord.xy / viewportSize.xy;
                 ivec2 fragCoord = ivec2(gl_FragCoord.xy);
                 
-                // Use texelFetch for normal buffer (no filtering needed)
+                // Read position and normal from G-buffer
+                vec3 fragPos = texelFetch(positionBuffer, fragCoord, 0).rgb;
                 vec4 normalData = texelFetch(normalBuffer, fragCoord, 0);
-                // Unpack normal from [0,1] to [-1,1]
                 vec3 normal = normalData.xyz * 2.0 - 1.0;
                 float hasLightmap = normalData.w;
                 
-                // Get depth and reconstruct world position
-                float depth = texelFetch(depthBuffer, fragCoord, 0).r;
-                
-                // Skip skybox (packed zero normal) or non-lightmapped objects
-                // We rely on normal length (skybox=0) and lightmap flag (void=0) to filter invalid pixels
+                // Skip skybox or non-lightmapped objects
                 if (length(normal) < 0.1 || hasLightmap < 0.5) {
                     fragColor = vec4(1.0);
                     return;
                 }
                 
-                vec3 fragPos = reconstructPosition(uv, depth);
-                
-                // Calculate linear depth from reconstructed position for range checks
+                // Calculate linear depth for range checks
                 float currentLinearDepth = length(fragPos - cameraPosition.xyz);
 
                 // Random vector for rotation
-                vec3 randomVec = texture(noiseTexture, uv * noiseScale).xyz; // texture is 0..1
-                randomVec = randomVec * 2.0 - 1.0; // map to -1..1
+                vec3 randomVec = texture(noiseTexture, uv * noiseScale).xyz;
+                randomVec = randomVec * 2.0 - 1.0;
                 
                 // Create TBN matrix
                 vec3 tangent = normalize(randomVec - normal * dot(randomVec, normal));
@@ -922,22 +912,19 @@ const _ShaderSources = {
                 for(int i = 0; i < 16; ++i)
                 {
                     // get sample position
-                    vec3 samplePos = TBN * uKernel[i]; // From tangent to world-space
+                    vec3 samplePos = TBN * uKernel[i];
                     samplePos = fragPos + samplePos * radius; 
                     
-                    // project sample position (to sample texture)
+                    // project sample position
                     vec4 offset = vec4(samplePos, 1.0);
-                    offset = matViewProj * offset; // World to Clip
-                    offset.xyz /= offset.w; // Perspective divide
-                    offset.xy = offset.xy * 0.5 + 0.5; // Transform to 0.0 - 1.0
+                    offset = matViewProj * offset;
+                    offset.xyz /= offset.w;
+                    offset.xy = offset.xy * 0.5 + 0.5;
                     
-                    // sample depth at offset - need to use texture() here since offset.xy is computed
+                    // Read position at sample location
                     ivec2 sampleCoord = ivec2(offset.xy * viewportSize.xy);
-                    float sampleDepth = texelFetch(depthBuffer, sampleCoord, 0).r;
-                    
-                    // Reconstruct sample position to get its distance
-                    vec3 reconstructedSamplePos = reconstructPosition(offset.xy, sampleDepth);
-                    float sampleLinearDepth = length(reconstructedSamplePos - cameraPosition.xyz);
+                    vec3 sampleWorldPos = texelFetch(positionBuffer, sampleCoord, 0).rgb;
+                    float sampleLinearDepth = length(sampleWorldPos - cameraPosition.xyz);
                     
                     float sampleDist = length(samplePos - cameraPosition.xyz);
 
@@ -945,7 +932,6 @@ const _ShaderSources = {
                     float rangeCheck = smoothstep(0.0, 1.0, radius / abs(currentLinearDepth - sampleLinearDepth));
                     
                     // Check if sample is occluded
-                    // If sampleLinearDepth is smaller (closer) than sampleDist, it occludes
                     occlusion += (sampleLinearDepth <= sampleDist - bias ? 1.0 : 0.0) * rangeCheck;
                 }
                 
