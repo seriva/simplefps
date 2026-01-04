@@ -52,7 +52,7 @@ const _ao = {
 let _detailNoise = null;
 
 // SSAO sample kernel and noise data
-let _ssaoKernel = [];
+let _ssaoKernel = null;
 let _ssaoNoiseData = [];
 
 // Dispose old resources to prevent memory leaks on resize
@@ -64,7 +64,6 @@ const _disposeResources = () => {
 		if (_g.normal) _g.normal.dispose();
 		if (_g.color) _g.color.dispose();
 		if (_g.emissive) _g.emissive.dispose();
-		if (_g.linearDepth) _g.linearDepth.dispose();
 	}
 	if (_s.framebuffer) {
 		gl.deleteFramebuffer(_s.framebuffer);
@@ -184,20 +183,6 @@ const _resize = (width, height) => {
 		0,
 	);
 
-	// Linear depth buffer for SSAO (camera-relative depth)
-	_g.linearDepth = new Texture({
-		format: gl.R16F,
-		width,
-		height,
-	});
-	gl.framebufferTexture2D(
-		gl.FRAMEBUFFER,
-		gl.COLOR_ATTACHMENT4,
-		gl.TEXTURE_2D,
-		_g.linearDepth.texture,
-		0,
-	);
-
 	gl.framebufferTexture2D(
 		gl.FRAMEBUFFER,
 		gl.DEPTH_ATTACHMENT,
@@ -210,7 +195,6 @@ const _resize = (width, height) => {
 		gl.COLOR_ATTACHMENT1,
 		gl.COLOR_ATTACHMENT2,
 		gl.COLOR_ATTACHMENT3,
-		gl.COLOR_ATTACHMENT4,
 	]);
 	_checkFramebufferStatus();
 	gl.bindFramebuffer(gl.FRAMEBUFFER, null);
@@ -383,7 +367,7 @@ const _blurImage = (source, iterations, radius) => {
 };
 
 const _generateSSAOKernel = () => {
-	_ssaoKernel = [];
+	const kernel = [];
 	for (let i = 0; i < 16; ++i) {
 		// Generate random samples in a hemisphere
 		const sample = [
@@ -406,8 +390,9 @@ const _generateSSAOKernel = () => {
 		sample[1] *= scale;
 		sample[2] *= scale;
 
-		_ssaoKernel.push(sample[0], sample[1], sample[2]);
+		kernel.push(sample[0], sample[1], sample[2]);
 	}
+	_ssaoKernel = new Float32Array(kernel);
 };
 
 const _generateSSAONoise = () => {
@@ -562,7 +547,7 @@ const _ssaoPass = () => {
 	]);
 	Shaders.ssao.setFloat("radius", Settings.ssaoRadius);
 	Shaders.ssao.setFloat("bias", Settings.ssaoBias);
-	Shaders.ssao.setVec3Array("uKernel", new Float32Array(_ssaoKernel));
+	Shaders.ssao.setVec3Array("uKernel", _ssaoKernel);
 
 	gl.disable(gl.DEPTH_TEST);
 	screenQuad.renderSingle();
@@ -699,7 +684,6 @@ const _postProcessingPass = () => {
 	const dirt = Resources.get("system/dirt.webp");
 	dirt.bind(gl.TEXTURE4);
 	_ao.ssao.bind(gl.TEXTURE5);
-	_g.linearDepth.bind(gl.TEXTURE6);
 	Shaders.postProcessing.bind();
 	Shaders.postProcessing.setInt("doFXAA", Settings.doFXAA);
 
