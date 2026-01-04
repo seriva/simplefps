@@ -1,22 +1,13 @@
-import * as CANNON from "../dependencies/cannon-es.js";
 import { mat4 } from "../dependencies/gl-matrix.js";
 import {
 	MeshEntity,
 	PointLightEntity,
 	SpotLightEntity,
 } from "../engine/core/engine.js";
-import Physics from "../engine/systems/physics.js";
 
 // ============================================================================
 // Private
 // ============================================================================
-
-// Raycast helpers (reused to avoid GC pressure)
-const _rayFrom = new CANNON.Vec3();
-const _rayTo = new CANNON.Vec3();
-const _rayResult = new CANNON.RaycastResult();
-const _rayOptions = {}; // Empty options - hit everything
-const _MAX_RAYCAST_DISTANCE = 200; // Maximum distance to search for ground
 
 // ============================================================================
 
@@ -122,22 +113,7 @@ const _createPickup = (type, pos) => {
 		scale * _SCALE,
 	);
 	pickup.castShadow = true;
-
-	// Use raycast to find the ground below the pickup
-	const pickupBaseY = pos[1] + hoverHeight;
-	_rayFrom.set(pos[0], pickupBaseY, pos[2]);
-	_rayTo.set(pos[0], pickupBaseY - _MAX_RAYCAST_DISTANCE, pos[2]);
-	_rayResult.reset();
-
-	Physics.getWorld().raycastClosest(_rayFrom, _rayTo, _rayOptions, _rayResult);
-
-	if (_rayResult.hasHit) {
-		// Shadow Y = collision point + small offset to prevent z-fighting
-		pickup.shadowHeight = _rayResult.hitPointWorld.y + 0.2;
-	} else {
-		// No shadow if no ground found
-		pickup.shadowHeight = undefined;
-	}
+	// Shadow height is now auto-calculated by MeshEntity.renderShadow()
 
 	const entities = [pickup];
 
