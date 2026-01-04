@@ -602,6 +602,14 @@ const _emissiveBlurPass = () => {
 	);
 };
 
+const _shadowBlurPass = () => {
+	_blurImage(
+		_BlurSourceType.SHADOW,
+		Settings.shadowBlurIterations,
+		Settings.shadowBlurOffset,
+	);
+};
+
 const _ssaoBlurPass = () => {
 	// Blur SSAO directly by setting up a special blur source
 	gl.bindFramebuffer(gl.FRAMEBUFFER, _b.framebuffer);
@@ -783,6 +791,9 @@ const Renderer = {
 			_ssaoBlurPass();
 		}
 		_shadowPass();
+		if (Settings.shadowBlurIterations > 0) {
+			_shadowBlurPass();
+		}
 		_fpsGeomPass();
 		_lightingPass();
 		_transparentPass();
