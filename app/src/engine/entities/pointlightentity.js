@@ -23,10 +23,16 @@ class PointLightEntity extends Entity {
 	}
 
 	render() {
-		const m = this.#getTransformMatrix();
+		// Get the actual light transform (without volume scaling) for accurate position
+		const lightTransform = mat4.create();
+		mat4.multiply(lightTransform, this.base_matrix, this.ani_matrix);
 		const pos = vec3.create();
-		mat4.getTranslation(pos, m);
-		Shaders.pointLight.setMat4("matWorld", m);
+		mat4.getTranslation(pos, lightTransform);
+
+		// Get the scaled volume transform for rendering the light volume geometry
+		const volumeTransform = this.#getTransformMatrix();
+
+		Shaders.pointLight.setMat4("matWorld", volumeTransform);
 		Shaders.pointLight.setVec3("pointLight.position", pos);
 		Shaders.pointLight.setVec3("pointLight.color", this.color);
 		Shaders.pointLight.setFloat("pointLight.size", this.size);

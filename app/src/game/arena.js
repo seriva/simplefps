@@ -120,11 +120,11 @@ const _load = async (name) => {
 		_setupCamera(startSpawn);
 		_setupLighting(lighting || {});
 		_setupEnvironment(_state.arena);
-		_setupPickups(pickups);
 		_setupCollision(
 			_state.arena.chunks || [],
 			startSpawn.position || _DEFAULT_POSITION,
 		);
+		_setupPickups(pickups);
 
 		Console.log(`Loaded arena: ${name}`);
 	} catch (error) {

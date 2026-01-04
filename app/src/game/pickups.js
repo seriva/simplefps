@@ -1,12 +1,23 @@
+import * as CANNON from "../dependencies/cannon-es.js";
 import { mat4 } from "../dependencies/gl-matrix.js";
 import {
 	MeshEntity,
 	PointLightEntity,
 	SpotLightEntity,
 } from "../engine/core/engine.js";
+import Physics from "../engine/systems/physics.js";
 
 // ============================================================================
 // Private
+// ============================================================================
+
+// Raycast helpers (reused to avoid GC pressure)
+const _rayFrom = new CANNON.Vec3();
+const _rayTo = new CANNON.Vec3();
+const _rayResult = new CANNON.RaycastResult();
+const _rayOptions = {}; // Empty options - hit everything
+const _MAX_RAYCAST_DISTANCE = 200; // Maximum distance to search for ground
+
 // ============================================================================
 
 const _WEAPON_LIGHT_COLOR = [1.0, 1.0, 1.0];
@@ -63,7 +74,7 @@ const _SPOTLIGHT_OFFSET_Y = 2.5 * _SCALE;
 const _SPOTLIGHT_ANGLE = 30; // Reduced from 40
 const _SPOTLIGHT_RANGE = 6.0 * _SCALE;
 const _PICKUP_OFFSET_Y = 0.15 * _SCALE; // Slightly higher default for weapons
-const _SHADOW_HEIGHT = -6.63; // World units relative to pickup center
+const _SHADOW_HEIGHT = -15; // World units relative to pickup center
 
 const _updatePickupEntity = (
 	entity,
@@ -110,8 +121,23 @@ const _createPickup = (type, pos) => {
 			_updatePickupEntity(entity, frameTime, _BOBBING_AMPLITUDE / _SCALE, true),
 		scale * _SCALE,
 	);
-	pickup.castShadow = false;
-	pickup.shadowHeight = _SHADOW_HEIGHT / _SCALE;
+	pickup.castShadow = true;
+
+	// Use raycast to find the ground below the pickup
+	const pickupBaseY = pos[1] + hoverHeight;
+	_rayFrom.set(pos[0], pickupBaseY, pos[2]);
+	_rayTo.set(pos[0], pickupBaseY - _MAX_RAYCAST_DISTANCE, pos[2]);
+	_rayResult.reset();
+
+	Physics.getWorld().raycastClosest(_rayFrom, _rayTo, _rayOptions, _rayResult);
+
+	if (_rayResult.hasHit) {
+		// Shadow Y = collision point + small offset to prevent z-fighting
+		pickup.shadowHeight = _rayResult.hitPointWorld.y + 0.2;
+	} else {
+		// No shadow if no ground found
+		pickup.shadowHeight = undefined;
+	}
 
 	const entities = [pickup];
 
@@ -137,18 +163,33 @@ const _createPickup = (type, pos) => {
 		entities.push(spotLight);
 	} else {
 		// Consumables: Use PointLight (Internal Glow)
+		// Note: No animation callback - light stays at a fixed position
+		// to avoid shadow shifting as the mesh bobs up and down
+
+		// Get mesh bounding box center offset to align light with visual mesh center
+		// Mesh loads asynchronously, so boundingBox might not be available yet
+		const mesh = pickup.mesh;
+		let lightOffsetX = 0;
+		let lightOffsetZ = 0;
+
+		if (mesh.boundingBox) {
+			const bbCenter = mesh.boundingBox.center;
+			const meshScale = scale * _SCALE;
+			lightOffsetX = bbCenter[0] * meshScale;
+			lightOffsetZ = bbCenter[2] * meshScale;
+		} else {
+			console.warn(
+				`Mesh bounding box not loaded yet for ${type}, using default light position`,
+			);
+		}
+
 		const light = new PointLightEntity(
-			[pos[0], pos[1] + _LIGHT_OFFSET_Y, pos[2]],
+			[pos[0] + lightOffsetX, pos[1] + _LIGHT_OFFSET_Y, pos[2] + lightOffsetZ],
 			_LIGHT_RADIUS,
 			lightColor,
 			_LIGHT_INTENSITY,
 			(entity, frameTime) =>
-				_updatePickupEntity(
-					entity,
-					frameTime,
-					_BOBBING_AMPLITUDE / _SCALE,
-					false,
-				),
+				_updatePickupEntity(entity, frameTime, _BOBBING_AMPLITUDE, false),
 		);
 		entities.push(light);
 	}
