@@ -141,8 +141,10 @@ class _MenuUI extends Reactive.Component {
 				border-radius: 0 0 6px 6px;
 				margin-top: 0;
 				border-top: 1px solid rgba(255, 255, 255, 0.1);
-				min-height: 200px;
+				height: min(320px, 60vh);
+				overflow-y: auto;
 			}
+
 
 			/* First panel after tabs connects seamlessly */
 			.menu-tab-content.active > .menu-panel:first-child {
@@ -290,6 +292,8 @@ class _MenuUI extends Reactive.Component {
 					margin-bottom: 15px;
 					padding-bottom: 10px;
 				}
+
+
 			}
 
 			/* Landscape mobile - limit menu height */
@@ -316,10 +320,11 @@ class _MenuUI extends Reactive.Component {
 					margin-bottom: 4px;
 				}
 
-				.menu-panel {
+				.menu-panel, .menu-tab-content .menu-panel {
 					padding: 8px;
 					margin-bottom: 10px;
 					max-height: 55vh;
+					min-height: 0;
 					overflow-y: auto;
 				}
 
