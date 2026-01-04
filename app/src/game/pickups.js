@@ -16,7 +16,7 @@ const _WEAPON_LIGHT_COLOR = [1.0, 1.0, 1.0];
 const _PICKUP_MAP = {
 	health: {
 		meshName: "meshes/health/health.bmesh",
-		lightColor: [0.988, 0.31, 0.051],
+		lightColor: [1.0, 0.1, 0.1],
 		yOffset: 0.05, // Lower than default
 		hasSpotlight: false,
 	},

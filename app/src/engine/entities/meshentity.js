@@ -18,6 +18,8 @@ const _SHADOW_OFFSET = 0.2; // Small offset to prevent z-fighting
 const _tempMatrix = mat4.create();
 const _tempPos = new Float32Array(3);
 const _tempScale = new Float32Array(3);
+const _tempShadowPos = new Float32Array(3);
+const _tempShadowScale = new Float32Array(3);
 const _tempQuat1 = quat.create();
 const _tempQuat2 = quat.create();
 const _tempQuat3 = quat.create();
@@ -88,11 +90,21 @@ class MeshEntity extends Entity {
 		quat.multiply(_tempQuat3, _tempQuat1, _tempQuat2);
 		mat4.getScaling(_tempScale, this.base_matrix);
 
+		// Populate shadow pos (use calculated shadow height)
+		_tempShadowPos[0] = _tempPos[0];
+		_tempShadowPos[1] = this.shadowHeight;
+		_tempShadowPos[2] = _tempPos[2];
+
+		// Populate shadow scale (squash Y)
+		_tempShadowScale[0] = _tempScale[0];
+		_tempShadowScale[1] = 0.001;
+		_tempShadowScale[2] = _tempScale[2];
+
 		mat4.fromRotationTranslationScale(
 			_tempMatrix,
 			_tempQuat3,
-			[_tempPos[0], this.shadowHeight, _tempPos[2]],
-			[_tempScale[0], 0.001, _tempScale[2]],
+			_tempShadowPos,
+			_tempShadowScale,
 		);
 
 		Shaders.entityShadows.setMat4("matWorld", _tempMatrix);
