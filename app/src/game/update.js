@@ -1,4 +1,5 @@
-import { Console, Loading } from "../engine/core/engine.js";
+import { Console } from "../engine/core/engine.js";
+import Loading from "./loading.js";
 import State from "./state.js";
 
 // ============================================================================

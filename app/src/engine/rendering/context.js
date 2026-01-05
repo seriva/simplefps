@@ -1,7 +1,7 @@
+import Settings from "../core/settings.js";
 import Console from "../systems/console.js";
 import { css } from "../utils/reactive.js";
 import Utils from "../utils/utils.js";
-import Settings from "./settings.js";
 
 // Private canvas setup
 const _canvasStyle = css`

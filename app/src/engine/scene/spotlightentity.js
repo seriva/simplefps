@@ -90,8 +90,7 @@ class SpotLightEntity extends Entity {
 
 		const m = this.#getWorldMatrix();
 
-		// Render light volume
-		Shaders.spotLight.bind();
+		// Set shader uniforms (shader already bound by RenderPasses)
 		Shaders.spotLight.setMat4("matWorld", m);
 		Shaders.spotLight.setVec3("spotLight.position", this.position);
 		Shaders.spotLight.setVec3("spotLight.direction", this.direction);

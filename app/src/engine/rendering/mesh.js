@@ -1,5 +1,5 @@
-import { gl } from "../core/context.js";
 import BoundingBox from "../utils/boundingbox.js";
+import { gl } from "./context.js";
 
 class Mesh {
 	static ATTR_POSITIONS = 0;
@@ -135,21 +135,17 @@ class Mesh {
 
 	renderSingle(
 		applyMaterial = true,
-		renderMode = gl.TRIANGLES,
+		renderMode = null,
 		mode = "all",
 		shader = null,
 	) {
 		this.bind();
-		this.renderIndices(applyMaterial, renderMode, mode, shader);
+		this.renderIndices(applyMaterial, renderMode ?? gl.TRIANGLES, mode, shader);
 		this.unBind();
 	}
 
-	renderIndices(
-		applyMaterial,
-		renderMode = gl.TRIANGLES,
-		mode = "all",
-		shader = null,
-	) {
+	renderIndices(applyMaterial, renderMode = null, mode = "all", shader = null) {
+		const actualRenderMode = renderMode ?? gl.TRIANGLES;
 		// Lazy initialization of grouped indices
 		if (!this.#groupedIndices && this.resources) {
 			this.#groupedIndices = {
@@ -189,7 +185,7 @@ class Mesh {
 				this.#bindMaterial(indexObj, applyMaterial, shader);
 				gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexObj.indexBuffer);
 				gl.drawElements(
-					renderMode,
+					actualRenderMode,
 					indexObj.indexBuffer.numItems,
 					gl.UNSIGNED_SHORT,
 					0,

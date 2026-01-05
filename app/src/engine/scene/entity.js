@@ -1,5 +1,4 @@
 import { mat4 } from "../../dependencies/gl-matrix.js";
-import { gl } from "../core/context.js";
 import { Shaders } from "../rendering/shaders.js";
 import { boundingBox } from "../rendering/shapes.js";
 
@@ -52,11 +51,11 @@ class Entity {
 		// Virtual function to be overridden by child classes
 	}
 
-	renderBoundingBox() {
+	renderBoundingBox(drawMode = null) {
 		if (!this.boundingBox || !this.visible) return;
 
 		Shaders.debug.setMat4("matWorld", this.boundingBox.transformMatrix);
-		boundingBox.renderSingle(true, gl.LINES);
+		boundingBox.renderSingle(true, drawMode);
 	}
 }
 

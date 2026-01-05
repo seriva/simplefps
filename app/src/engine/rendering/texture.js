@@ -1,6 +1,6 @@
-import { afExt, gl } from "../core/context.js";
 import Settings from "../core/settings.js";
 import Console from "../systems/console.js";
+import { afExt, gl } from "./context.js";
 
 // Private cached GL constants
 const {

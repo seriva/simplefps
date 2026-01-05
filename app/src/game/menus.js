@@ -1,6 +1,4 @@
-import Settings from "../engine/core/settings.js";
-import Stats from "../engine/systems/stats.js";
-import Utils from "../engine/utils/utils.js";
+import { Settings, Stats, Utils } from "../engine/core/engine.js";
 import State from "./state.js";
 import Translations from "./translations.js";
 import UI from "./ui.js";
