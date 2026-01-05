@@ -1,5 +1,5 @@
-import { gl } from "../core/context.js";
 import Console from "../systems/console.js";
+import { gl } from "./context.js";
 
 // ============================================================================
 // Public API

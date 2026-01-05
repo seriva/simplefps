@@ -3,17 +3,20 @@ import Mesh from "../rendering/mesh.js";
 import Texture from "../rendering/texture.js";
 import Utils from "../utils/utils.js";
 import Console from "./console.js";
-import Loading from "./loading.js";
 import Sound from "./sound.js";
 
 // Public Resources API
 const Resources = {
+	// Callbacks for load lifecycle (set by game layer)
+	onLoadStart: null,
+	onLoadEnd: null,
+
 	async load(paths) {
 		if (!Array.isArray(paths)) return null;
 		if (!paths.length) return Promise.resolve();
 
 		const startTime = performance.now();
-		Loading.toggle(true);
+		Resources.onLoadStart?.();
 
 		try {
 			// Create load promises for all resources
@@ -56,7 +59,7 @@ const Resources = {
 			// Wait for all resources to load in parallel
 			await Promise.all(loadPromises);
 		} finally {
-			Loading.toggle(false);
+			Resources.onLoadEnd?.();
 			const _loadTime = performance.now() - startTime;
 			// Console.log(`Loaded resources in ${Math.round(loadTime)} ms`);
 		}

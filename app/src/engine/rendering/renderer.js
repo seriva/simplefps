@@ -1,10 +1,11 @@
 import Camera from "../core/camera.js";
-import { afExt, Context, gl } from "../core/context.js";
-import Scene from "../core/scene.js";
 import Settings from "../core/settings.js";
+import Scene from "../scene/scene.js";
 import Console from "../systems/console.js";
 import Resources from "../systems/resources.js";
 import Utils from "../utils/utils.js";
+import { afExt, Context, gl } from "./context.js";
+import RenderPasses from "./renderpasses.js";
 import { Shader, Shaders } from "./shaders.js";
 import { screenQuad } from "./shapes.js";
 import Texture from "./texture.js";
@@ -494,7 +495,7 @@ const _worldGeomPass = () => {
 	_startGeomPass();
 
 	if (_detailNoise) _detailNoise.bind(gl.TEXTURE5); // Bind noise to unit 5
-	Scene.renderWorldGeometry();
+	RenderPasses.renderWorldGeometry();
 
 	_endGeomPass();
 	gl.depthRange(0.0, 1.0);
@@ -506,7 +507,7 @@ const _fpsGeomPass = () => {
 	gl.bindFramebuffer(gl.FRAMEBUFFER, _g.framebuffer);
 
 	if (_detailNoise) _detailNoise.bind(gl.TEXTURE5); // Bind noise to unit 5
-	Scene.renderFPSGeometry();
+	RenderPasses.renderFPSGeometry();
 
 	gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 	gl.depthRange(0.0, 1.0);
@@ -519,7 +520,7 @@ const _shadowPass = () => {
 	gl.clearColor(1.0, 1.0, 1.0, 1.0);
 	gl.clear(gl.COLOR_BUFFER_BIT);
 
-	Scene.renderShadows();
+	RenderPasses.renderShadows();
 
 	gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 	gl.depthRange(0.0, 1.0);
@@ -582,7 +583,7 @@ const _lightingPass = () => {
 	gl.enable(gl.BLEND);
 	gl.blendFunc(gl.ONE, gl.ONE);
 
-	Scene.renderLighting();
+	RenderPasses.renderLighting();
 
 	gl.disable(gl.BLEND);
 	gl.enable(gl.DEPTH_TEST);
@@ -674,7 +675,7 @@ const _transparentPass = () => {
 	gl.depthMask(false);
 	gl.disable(gl.CULL_FACE);
 
-	Scene.renderTransparent();
+	RenderPasses.renderTransparent();
 
 	gl.enable(gl.CULL_FACE);
 	gl.depthMask(true);
@@ -720,7 +721,7 @@ const _postProcessingPass = () => {
 };
 
 const _debugPass = () => {
-	Scene.renderDebug();
+	RenderPasses.renderDebug();
 };
 
 // UBO for FrameData

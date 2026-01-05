@@ -2,7 +2,6 @@ import {
 	Camera,
 	Console,
 	DirectionalLightEntity,
-	Loading,
 	MeshEntity,
 	Physics,
 	PointLightEntity,
@@ -12,6 +11,7 @@ import {
 	SpotLightEntity,
 	Utils,
 } from "../engine/core/engine.js";
+import Loading from "./loading.js";
 import Pickup from "./pickups.js";
 
 // ============================================================================

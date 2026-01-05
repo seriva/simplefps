@@ -1,4 +1,4 @@
-import { gl } from "../core/context.js";
+import { gl } from "./context.js";
 import { Shaders } from "./shaders.js";
 import Texture from "./texture.js";
 

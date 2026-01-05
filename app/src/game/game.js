@@ -1,8 +1,5 @@
 import { glMatrix, vec3 } from "../dependencies/gl-matrix.js";
-import Camera from "../engine/core/camera.js";
-import Settings from "../engine/core/settings.js";
-import Console from "../engine/systems/console.js";
-import Input from "../engine/systems/input.js";
+import { Camera, Console, Input, Settings } from "../engine/core/engine.js";
 import FPSController from "./fpscontroller.js";
 import State from "./state.js";
 import Weapons from "./weapons.js";

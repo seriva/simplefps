@@ -1,6 +1,5 @@
 import { mat4 } from "../../dependencies/gl-matrix.js";
 import Camera from "../core/camera.js";
-import { gl } from "../core/context.js";
 import { Shaders } from "../rendering/shaders.js";
 import { skyBox } from "../rendering/shapes.js";
 import Resources from "../systems/resources.js";
@@ -27,22 +26,14 @@ class SkyboxEntity extends Entity {
 	}
 
 	render() {
-		// Disable depth operations
-		gl.disable(gl.DEPTH_TEST);
-		gl.depthMask(false);
-
 		// Update matrix with camera position
 		this.#updateMatrix();
 
 		// Set shader uniforms (matViewProj now in FrameData UBO)
 		this.shader.setMat4("matWorld", this.base_matrix);
 
-		// Render
+		// Render (GL state managed by RenderPasses)
 		SkyboxEntity.shape.renderSingle();
-
-		// Restore gl state
-		gl.enable(gl.DEPTH_TEST);
-		gl.depthMask(true);
 	}
 
 	renderWireFrame() {

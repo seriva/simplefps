@@ -1,12 +1,16 @@
 import {
 	Console,
-	Loading,
 	loop,
 	Resources,
 	setGameLoop,
 	Utils,
 } from "./engine/core/engine.js";
+import Loading from "./game/loading.js";
 import State from "./game/state.js";
+
+// Wire up loading screen to Resources callbacks
+Resources.onLoadStart = () => Loading.toggle(true);
+Resources.onLoadEnd = () => Loading.toggle(false);
 
 async function loadGameModules() {
 	Utils.dispatchCustomEvent("loading", { state: "LOADING_MODULES" });

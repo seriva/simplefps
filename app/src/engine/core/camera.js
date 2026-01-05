@@ -1,6 +1,6 @@
 import { glMatrix, mat4, vec3, vec4 } from "../../dependencies/gl-matrix.js";
+import { Context } from "../rendering/context.js";
 import Utils from "../utils/utils.js";
-import { Context } from "./context.js";
 import Settings from "./settings.js";
 
 // Public Camera API

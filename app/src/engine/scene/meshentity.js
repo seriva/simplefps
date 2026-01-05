@@ -1,6 +1,5 @@
 import * as CANNON from "../../dependencies/cannon-es.js";
 import { mat4, quat } from "../../dependencies/gl-matrix.js";
-import { gl } from "../core/context.js";
 import { Shaders } from "../rendering/shaders.js";
 import Physics from "../systems/physics.js";
 import Resources from "../systems/resources.js";
@@ -63,7 +62,7 @@ class MeshEntity extends Entity {
 		if (!this.visible) return;
 		mat4.multiply(_tempMatrix, this.base_matrix, this.ani_matrix);
 		shader.setMat4("matWorld", _tempMatrix);
-		this.mesh.renderSingle(true, gl.TRIANGLES, filter, shader);
+		this.mesh.renderSingle(true, null, filter, shader);
 	}
 
 	renderWireFrame() {
