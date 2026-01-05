@@ -31,7 +31,6 @@ class Shader {
 		this.backend.bindShader(this.program);
 	}
 
-	// Note: Caller must ensure they have access to backend or use the backend instance directly
 	static unBind(backend) {
 		backend.unbindShader();
 	}
@@ -71,8 +70,6 @@ class Shader {
 		this.program = null;
 	}
 }
-
-// Initialize all shaders
 const Shaders = {};
 
 const initShaders = (backend) => {
@@ -84,7 +81,6 @@ const initShaders = (backend) => {
 			if (isWebGPU) {
 				Shaders[name] = new Shader(backend, source);
 			} else {
-				// GLSL source has { vertex, fragment }
 				Shaders[name] = new Shader(backend, source.vertex, source.fragment);
 			}
 			Console.log(`Loaded shader: ${name} [${isWebGPU ? "WGSL" : "GLSL"}]`);
@@ -92,12 +88,10 @@ const initShaders = (backend) => {
 			Console.error(
 				`Failed to load shader ${name}. Linker/Compiler Error might be above.`,
 			);
-			console.error(error); // Ensure it goes to browser console too
 		}
 	}
 };
 
-// Auto-initialize with default backend to maintain simple API usage
 initShaders(getBackend());
 
 export { Shaders };

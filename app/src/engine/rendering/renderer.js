@@ -433,7 +433,7 @@ const _generateSSAONoise = () => {
 	});
 
 	// Set wrap mode to REPEAT
-	_ao.noise.setTextureWrapMode(gl.REPEAT);
+	_ao.noise.setTextureWrapMode("repeat");
 };
 
 const _generateDetailNoise = () => {

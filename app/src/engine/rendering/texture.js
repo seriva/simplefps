@@ -1,6 +1,6 @@
 import Settings from "../core/settings.js";
 import Console from "../systems/console.js";
-import { getBackend, gl } from "./context.js";
+import { getBackend } from "./context.js";
 
 // We import gl from context.js to access constants like REPEAT, CLAMP_TO_EDGE, etc.
 // These constants are passed to the backend, which (in WebGLBackend case) understands them directly.
@@ -101,13 +101,7 @@ class Texture {
 
 	setTextureWrapMode(mode) {
 		if (!this._handle) return;
-
-		// Map GL constants to backend strings
-		let stringMode = "repeat";
-		if (mode === gl.CLAMP_TO_EDGE) stringMode = "clamp-to-edge";
-		else if (mode === gl.MIRRORED_REPEAT) stringMode = "mirrored-repeat";
-
-		getBackend().setTextureWrapMode(this._handle, stringMode);
+		getBackend().setTextureWrapMode(this._handle, mode);
 	}
 
 	dispose() {

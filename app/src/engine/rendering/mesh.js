@@ -1,8 +1,5 @@
 import BoundingBox from "../utils/boundingbox.js";
-import { getBackend, gl } from "./context.js";
-
-// Import gl just for constants if needed, e.g. TRIANGLES usage in defaults.
-// Ideally usage of 'gl.TRIANGLES' should be abstract, but we let it pass for now as integer constant.
+import { getBackend } from "./context.js";
 
 class Mesh {
 	static ATTR_POSITIONS = 0;
@@ -11,9 +8,9 @@ class Mesh {
 	static ATTR_LIGHTMAP_UVS = 3;
 
 	constructor(data, context) {
-		this.resources = context; // Material manager reference
-		this.vao = null; // Backend vertex state handle
-		this._buffers = []; // Track buffers for cleanup
+		this.resources = context;
+		this.vao = null;
+		this._buffers = [];
 		this.initialize(data);
 	}
 
@@ -33,14 +30,7 @@ class Mesh {
 		this.boundingBox = this.calculateBoundingBox();
 	}
 
-	/**
-	 * Helper to create a backend buffer
-	 */
 	static buildBuffer(_type, data, usage) {
-		// Enforce types to match original logic:
-		// ARRAY_BUFFER (Vertex data) -> Float32Array
-		// ELEMENT_ARRAY_BUFFER (Indices) -> Uint16Array
-		// This matches previous behavior and ensures WebGL backend gets correct TypedArray.
 		let typedArray;
 
 		if (usage === "index") {
@@ -93,7 +83,7 @@ class Mesh {
 				buffer: this.vertexBuffer,
 				slot: Mesh.ATTR_POSITIONS,
 				size: 3,
-				type: gl.FLOAT, // Backend handle constants if generic? Using GL constants for now.
+				type: "float", // Backend handles mapping to GL constant
 			},
 		];
 
@@ -102,7 +92,7 @@ class Mesh {
 				buffer: this.uvBuffer,
 				slot: Mesh.ATTR_UVS,
 				size: 2,
-				type: gl.FLOAT,
+				type: "float",
 			});
 		}
 
@@ -111,7 +101,7 @@ class Mesh {
 				buffer: this.normalBuffer,
 				slot: Mesh.ATTR_NORMALS,
 				size: 3,
-				type: gl.FLOAT,
+				type: "float",
 			});
 		}
 
@@ -120,7 +110,7 @@ class Mesh {
 				buffer: this.lightmapUVBuffer,
 				slot: Mesh.ATTR_LIGHTMAP_UVS,
 				size: 2,
-				type: gl.FLOAT,
+				type: "float",
 			});
 		} else {
 			// NOTE: WebGL allows disabling attrib array and using constant.
@@ -172,12 +162,12 @@ class Mesh {
 		shader = null,
 	) {
 		this.bind();
-		this.renderIndices(applyMaterial, renderMode ?? gl.TRIANGLES, mode, shader);
+		this.renderIndices(applyMaterial, renderMode ?? null, mode, shader);
 		this.unBind();
 	}
 
 	renderIndices(applyMaterial, renderMode = null, mode = "all", shader = null) {
-		const actualRenderMode = renderMode ?? gl.TRIANGLES;
+		const actualRenderMode = renderMode ?? null;
 
 		// Lazy initialization of grouped indices
 		if (!this.#groupedIndices && this.resources) {
@@ -273,7 +263,7 @@ class Mesh {
 			);
 
 			// Draw lines
-			getBackend().drawIndexed(tempBuffer, lineCount, 0, gl.LINES);
+			getBackend().drawIndexed(tempBuffer, lineCount, 0, "lines");
 
 			// Cleanup
 			getBackend().deleteBuffer(tempBuffer);

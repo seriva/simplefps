@@ -315,11 +315,21 @@ class WebGLBackend extends RenderBackend {
 		gl.bindVertexArray(vao);
 
 		for (const attr of descriptor.attributes) {
+			let type = gl.FLOAT;
+			if (attr.type === "float") type = gl.FLOAT;
+			else if (attr.type === "byte") type = gl.BYTE;
+			else if (attr.type === "unsigned-byte") type = gl.UNSIGNED_BYTE;
+			else if (attr.type === "short") type = gl.SHORT;
+			else if (attr.type === "unsigned-short") type = gl.UNSIGNED_SHORT;
+			else if (attr.type === "int") type = gl.INT;
+			else if (attr.type === "unsigned-int") type = gl.UNSIGNED_INT;
+			else if (typeof attr.type === "number") type = attr.type;
+
 			gl.bindBuffer(gl.ARRAY_BUFFER, attr.buffer._glBuffer);
 			gl.vertexAttribPointer(
 				attr.slot,
 				attr.size,
-				attr.type || gl.FLOAT,
+				type,
 				attr.normalized || false,
 				attr.stride || 0,
 				attr.offset || 0,
@@ -692,7 +702,19 @@ class WebGLBackend extends RenderBackend {
 
 	drawIndexed(indexBuffer, indexCount, indexOffset = 0, mode = null) {
 		const gl = this._gl;
-		const drawMode = mode !== null ? mode : gl.TRIANGLES;
+		let drawMode = gl.TRIANGLES;
+
+		if (mode === "lines") {
+			drawMode = gl.LINES;
+		} else if (mode === "points") {
+			drawMode = gl.POINTS;
+		} else if (mode === "triangle-strip") {
+			drawMode = gl.TRIANGLE_STRIP;
+		} else if (typeof mode === "number") {
+			// Fallback for raw GL constants until full migration
+			drawMode = mode;
+		}
+
 		const bytesPerElement = indexBuffer.bytesPerElement || 2;
 		const type = bytesPerElement === 4 ? gl.UNSIGNED_INT : gl.UNSIGNED_SHORT;
 
