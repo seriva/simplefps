@@ -478,11 +478,11 @@ const _generateDetailNoise = () => {
 const _startGeomPass = (clearDepthOnly = false) => {
 	gl.bindFramebuffer(gl.FRAMEBUFFER, _g.framebuffer);
 	const ambient = Scene.getAmbient();
-	gl.clearColor(ambient[0], ambient[1], ambient[2], 1.0);
+	const color = [ambient[0], ambient[1], ambient[2], 1.0];
 	if (clearDepthOnly) {
-		gl.clear(gl.DEPTH_BUFFER_BIT);
+		Backend.clear({ depth: 1.0 });
 	} else {
-		gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+		Backend.clear({ color, depth: 1.0 });
 	}
 };
 
@@ -517,8 +517,7 @@ const _shadowPass = () => {
 	// Match the depth range of the world geometry pass so depth comparisons are valid
 	gl.depthRange(0.1, 1.0);
 	gl.bindFramebuffer(gl.FRAMEBUFFER, _s.framebuffer);
-	gl.clearColor(1.0, 1.0, 1.0, 1.0);
-	gl.clear(gl.COLOR_BUFFER_BIT);
+	Backend.clear({ color: [1.0, 1.0, 1.0, 1.0] });
 
 	RenderPasses.renderShadows();
 
@@ -528,8 +527,7 @@ const _shadowPass = () => {
 
 const _ssaoPass = () => {
 	gl.bindFramebuffer(gl.FRAMEBUFFER, _ao.framebuffer);
-	gl.clearColor(1.0, 1.0, 1.0, 1.0);
-	gl.clear(gl.COLOR_BUFFER_BIT);
+	Backend.clear({ color: [1.0, 1.0, 1.0, 1.0] });
 
 	// Bind G-buffer textures
 	_g.normal.bind(gl.TEXTURE0);
@@ -550,9 +548,9 @@ const _ssaoPass = () => {
 	Shaders.ssao.setFloat("bias", Settings.ssaoBias);
 	Shaders.ssao.setVec3Array("uKernel", _ssaoKernel);
 
-	gl.disable(gl.DEPTH_TEST);
+	Backend.setDepthState(false, false);
 	screenQuad.renderSingle();
-	gl.enable(gl.DEPTH_TEST);
+	Backend.setDepthState(true, true);
 
 	Backend.unbindShader();
 	Texture.unBindRange(gl.TEXTURE0, 3);
@@ -572,22 +570,23 @@ const _lightingPass = () => {
 	);
 
 	const ambient = Scene.getAmbient();
-	gl.clearColor(ambient[0], ambient[1], ambient[2], 1.0);
-	gl.clear(gl.COLOR_BUFFER_BIT);
+
+	Backend.clear({
+		color: [ambient[0], ambient[1], ambient[2], 1.0],
+	});
 	_g.worldPosition.bind(gl.TEXTURE0);
 	_g.normal.bind(gl.TEXTURE1);
 	_s.shadow.bind(gl.TEXTURE2);
 
-	gl.enable(gl.CULL_FACE);
-	gl.disable(gl.DEPTH_TEST);
-	gl.enable(gl.BLEND);
-	gl.blendFunc(gl.ONE, gl.ONE);
+	Backend.setCullState(true);
+	Backend.setDepthState(false, false);
+	Backend.setBlendState(true, "one", "one");
 
 	RenderPasses.renderLighting();
 
-	gl.disable(gl.BLEND);
-	gl.enable(gl.DEPTH_TEST);
-	gl.enable(gl.CULL_FACE);
+	Backend.setBlendState(false);
+	Backend.setDepthState(true, true);
+	Backend.setCullState(true);
 
 	Texture.unBindRange(gl.TEXTURE0, 3);
 	gl.bindFramebuffer(gl.FRAMEBUFFER, null);
@@ -636,7 +635,7 @@ const _ssaoBlurPass = () => {
 			);
 			_b.blur.bind(gl.TEXTURE0);
 		}
-		gl.clear(gl.COLOR_BUFFER_BIT);
+		Backend.clear({ color: [0, 0, 0, 0] });
 
 		Shaders.kawaseBlur.bind();
 		Shaders.kawaseBlur.setInt("colorBuffer", 0);
@@ -666,20 +665,17 @@ const _transparentPass = () => {
 
 	// Glass pass uses the existing depth buffer for testing but not writing (handled by Scene.renderGlass internal setup usually, but we should be explicit here if needed)
 	// We want to blend glass on top of lighting buffer
-	gl.enable(gl.BLEND);
-	gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+	Backend.setBlendState(true, "src-alpha", "one-minus-src-alpha");
 
 	// Ensure we read depth but don't write it (standard for transparency)
-	gl.enable(gl.DEPTH_TEST);
-	gl.depthFunc(gl.LEQUAL);
-	gl.depthMask(false);
-	gl.disable(gl.CULL_FACE);
+	Backend.setDepthState(true, false, "lequal");
+	Backend.setCullState(false);
 
 	RenderPasses.renderTransparent();
 
-	gl.enable(gl.CULL_FACE);
-	gl.depthMask(true);
-	gl.disable(gl.BLEND);
+	Backend.setCullState(true);
+	Backend.setDepthState(true, true);
+	Backend.setBlendState(false);
 
 	gl.depthRange(0.0, 1.0);
 	gl.bindFramebuffer(gl.FRAMEBUFFER, null);

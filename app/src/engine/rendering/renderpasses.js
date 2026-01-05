@@ -3,7 +3,7 @@ import Settings from "../core/settings.js";
 import { EntityTypes } from "../scene/entity.js";
 import Scene from "../scene/scene.js";
 import Console from "../systems/console.js";
-import { Backend, gl } from "./context.js";
+import { Backend } from "./context.js";
 import { Shaders } from "./shaders.js";
 import { screenQuad } from "./shapes.js";
 
@@ -60,14 +60,12 @@ const _renderEntities = (
 
 const renderSkybox = () => {
 	// Disable depth operations for skybox
-	gl.disable(gl.DEPTH_TEST);
-	gl.depthMask(false);
+	Backend.setDepthState(false, false);
 
 	_renderEntities(EntityTypes.SKYBOX);
 
 	// Restore gl state
-	gl.enable(gl.DEPTH_TEST);
-	gl.depthMask(true);
+	Backend.setDepthState(true, true);
 };
 
 const renderWorldGeometry = () => {
@@ -162,7 +160,7 @@ const renderLighting = () => {
 	Backend.unbindShader();
 
 	// Apply shadows
-	gl.blendFunc(gl.DST_COLOR, gl.ZERO);
+	Backend.setBlendState(true, "dst-color", "zero");
 	Shaders.applyShadows.bind();
 	Shaders.applyShadows.setInt("shadowBuffer", 2);
 	screenQuad.renderSingle();
@@ -196,15 +194,14 @@ const renderDebug = () => {
 	Shaders.debug.bind();
 
 	// Enable wireframe mode
-	gl.disable(gl.DEPTH_TEST);
-	gl.depthMask(false);
+	Backend.setDepthState(false, false);
 
 	// Render bounding volumes
 	if (_showBoundingVolumes) {
 		for (const type in Scene.visibilityCache) {
 			Shaders.debug.setVec4("debugColor", _boundingBoxColors[type]);
 			for (const entity of Scene.visibilityCache[type]) {
-				entity.renderBoundingBox(gl.LINES);
+				entity.renderBoundingBox("lines");
 			}
 		}
 	}
@@ -236,8 +233,7 @@ const renderDebug = () => {
 	}
 
 	// Reset state
-	gl.enable(gl.DEPTH_TEST);
-	gl.depthMask(true);
+	Backend.setDepthState(true, true);
 
 	Backend.unbindShader();
 };
