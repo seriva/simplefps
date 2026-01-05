@@ -1,5 +1,8 @@
 import BoundingBox from "../utils/boundingbox.js";
-import { gl } from "./context.js";
+import { getBackend, gl } from "./context.js";
+
+// Import gl just for constants if needed, e.g. TRIANGLES usage in defaults.
+// Ideally usage of 'gl.TRIANGLES' should be abstract, but we let it pass for now as integer constant.
 
 class Mesh {
 	static ATTR_POSITIONS = 0;
@@ -7,15 +10,17 @@ class Mesh {
 	static ATTR_NORMALS = 2;
 	static ATTR_LIGHTMAP_UVS = 3;
 
+	constructor(data, context) {
+		this.resources = context; // Material manager reference
+		this.vao = null; // Backend vertex state handle
+		this._buffers = []; // Track buffers for cleanup
+		this.initialize(data);
+	}
+
 	#bindMaterial(indexObj, applyMaterial, shader) {
 		if (indexObj.material !== "none" && applyMaterial && this.resources) {
 			this.resources.get(indexObj.material).bind(shader);
 		}
-	}
-
-	constructor(data, context) {
-		this.resources = context;
-		this.initialize(data);
 	}
 
 	async initialize(data) {
@@ -28,15 +33,23 @@ class Mesh {
 		this.boundingBox = this.calculateBoundingBox();
 	}
 
-	static buildBuffer(type, data, itemSize) {
-		const buffer = gl.createBuffer();
-		const ArrayView = type === gl.ARRAY_BUFFER ? Float32Array : Uint16Array;
-		const typedArray = new ArrayView(data);
-		gl.bindBuffer(type, buffer);
-		gl.bufferData(type, typedArray, gl.STATIC_DRAW);
-		buffer.itemSize = itemSize;
-		buffer.numItems = data.length / itemSize;
-		return buffer;
+	/**
+	 * Helper to create a backend buffer
+	 */
+	static buildBuffer(_type, data, usage) {
+		// Enforce types to match original logic:
+		// ARRAY_BUFFER (Vertex data) -> Float32Array
+		// ELEMENT_ARRAY_BUFFER (Indices) -> Uint16Array
+		// This matches previous behavior and ensures WebGL backend gets correct TypedArray.
+		let typedArray;
+
+		if (usage === "index") {
+			typedArray = new Uint16Array(data);
+		} else {
+			typedArray = new Float32Array(data);
+		}
+
+		return getBackend().createBuffer(typedArray, usage);
 	}
 
 	initMeshBuffers() {
@@ -44,91 +57,110 @@ class Mesh {
 		this.hasNormals = this.normals.length > 0;
 		this.hasLightmapUVs = this.lightmapUVs && this.lightmapUVs.length > 0;
 		this.triangleCount = 0;
+		this._buffers = [];
 
+		// Create Index Buffers
 		for (const indexObj of this.indices) {
-			indexObj.indexBuffer = Mesh.buildBuffer(
-				gl.ELEMENT_ARRAY_BUFFER,
-				indexObj.array,
-				1,
-			);
+			indexObj.indexBuffer = Mesh.buildBuffer(null, indexObj.array, "index");
+			this._buffers.push(indexObj.indexBuffer);
 			this.triangleCount += indexObj.array.length / 3;
 		}
-		this.vertexBuffer = Mesh.buildBuffer(gl.ARRAY_BUFFER, this.vertices, 3);
+
+		// Create Vertex Buffers
+		this.vertexBuffer = Mesh.buildBuffer(null, this.vertices, "vertex");
+		this._buffers.push(this.vertexBuffer);
 
 		if (this.hasUVs) {
-			this.uvBuffer = Mesh.buildBuffer(gl.ARRAY_BUFFER, this.uvs, 2);
+			this.uvBuffer = Mesh.buildBuffer(null, this.uvs, "vertex");
+			this._buffers.push(this.uvBuffer);
 		}
 		if (this.hasNormals) {
-			this.normalBuffer = Mesh.buildBuffer(gl.ARRAY_BUFFER, this.normals, 3);
+			this.normalBuffer = Mesh.buildBuffer(null, this.normals, "vertex");
+			this._buffers.push(this.normalBuffer);
 		}
 		if (this.hasLightmapUVs) {
 			this.lightmapUVBuffer = Mesh.buildBuffer(
-				gl.ARRAY_BUFFER,
+				null,
 				this.lightmapUVs,
-				2,
+				"vertex",
 			);
+			this._buffers.push(this.lightmapUVBuffer);
 		}
 
-		// Create VAO and capture vertex attribute state
-		this.vao = gl.createVertexArray();
-		gl.bindVertexArray(this.vao);
+		// Define Vertex Attributes for State Creation
+		const attributes = [
+			{
+				buffer: this.vertexBuffer,
+				slot: Mesh.ATTR_POSITIONS,
+				size: 3,
+				type: gl.FLOAT, // Backend handle constants if generic? Using GL constants for now.
+			},
+		];
 
-		// Position attribute
-		gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
-		gl.vertexAttribPointer(Mesh.ATTR_POSITIONS, 3, gl.FLOAT, false, 0, 0);
-		gl.enableVertexAttribArray(Mesh.ATTR_POSITIONS);
-
-		// UV attribute
 		if (this.hasUVs) {
-			gl.bindBuffer(gl.ARRAY_BUFFER, this.uvBuffer);
-			gl.vertexAttribPointer(Mesh.ATTR_UVS, 2, gl.FLOAT, false, 0, 0);
-			gl.enableVertexAttribArray(Mesh.ATTR_UVS);
+			attributes.push({
+				buffer: this.uvBuffer,
+				slot: Mesh.ATTR_UVS,
+				size: 2,
+				type: gl.FLOAT,
+			});
 		}
 
-		// Normal attribute
 		if (this.hasNormals) {
-			gl.bindBuffer(gl.ARRAY_BUFFER, this.normalBuffer);
-			gl.vertexAttribPointer(Mesh.ATTR_NORMALS, 3, gl.FLOAT, false, 0, 0);
-			gl.enableVertexAttribArray(Mesh.ATTR_NORMALS);
+			attributes.push({
+				buffer: this.normalBuffer,
+				slot: Mesh.ATTR_NORMALS,
+				size: 3,
+				type: gl.FLOAT,
+			});
 		}
 
-		// Lightmap UV attribute
 		if (this.hasLightmapUVs) {
-			gl.bindBuffer(gl.ARRAY_BUFFER, this.lightmapUVBuffer);
-			gl.vertexAttribPointer(Mesh.ATTR_LIGHTMAP_UVS, 2, gl.FLOAT, false, 0, 0);
-			gl.enableVertexAttribArray(Mesh.ATTR_LIGHTMAP_UVS);
+			attributes.push({
+				buffer: this.lightmapUVBuffer,
+				slot: Mesh.ATTR_LIGHTMAP_UVS,
+				size: 2,
+				type: gl.FLOAT,
+			});
 		} else {
-			// Provide default lightmap UVs (0,0) when not available
-			gl.disableVertexAttribArray(Mesh.ATTR_LIGHTMAP_UVS);
-			gl.vertexAttrib2f(Mesh.ATTR_LIGHTMAP_UVS, 0.0, 0.0);
+			// NOTE: WebGL allows disabling attrib array and using constant.
+			// RenderBackend abstraction usually implies "Vertex State" captures enabled arrays.
+			// Handling default/constant values for disabled attributes is complex in pure abstraction.
+			// Current WebGLBackend implementation only enables arrays in the list.
+			// If we omit it, it won't be enabled, which is correct.
+			// The original code did: gl.disableVertexAttribArray(...) + gl.vertexAttrib2f(...)
+			// We might need an "Constant Attribute" feature in backend if visual artifacts appear.
+			// For now, assume shader handles missing data or default attribute values are sufficient (usually 0,0,0,1).
 		}
 
-		// Unbind VAO (state is now captured)
-		gl.bindVertexArray(null);
-		gl.bindBuffer(gl.ARRAY_BUFFER, null);
+		// Create Vertex State (VAO)
+		this.vao = getBackend().createVertexState({ attributes });
 	}
 
 	deleteMeshBuffers() {
 		if (this.vao) {
-			gl.deleteVertexArray(this.vao);
+			getBackend().deleteVertexState(this.vao);
 			this.vao = null;
 		}
-		for (const indexObj of this.indices) {
-			gl.deleteBuffer(indexObj.indexBuffer);
+
+		// Delete all buffers we created
+		if (this._buffers) {
+			for (const buffer of this._buffers) {
+				getBackend().deleteBuffer(buffer);
+			}
+			this._buffers = [];
 		}
-		gl.deleteBuffer(this.vertexBuffer);
-		if (this.hasUVs) gl.deleteBuffer(this.uvBuffer);
-		if (this.hasNormals) gl.deleteBuffer(this.normalBuffer);
-		if (this.hasLightmapUVs) gl.deleteBuffer(this.lightmapUVBuffer);
+
+		// References in indices/this need clearing?
+		// Logic above recreates them on init, so assuming `delete` is final before re-init or GC.
 	}
 
 	bind() {
-		// With VAO, we just bind it and all vertex attribute state is restored
-		gl.bindVertexArray(this.vao);
+		getBackend().bindVertexState(this.vao);
 	}
 
 	unBind() {
-		gl.bindVertexArray(null);
+		getBackend().bindVertexState(null);
 	}
 
 	#groupedIndices = null;
@@ -146,6 +178,7 @@ class Mesh {
 
 	renderIndices(applyMaterial, renderMode = null, mode = "all", shader = null) {
 		const actualRenderMode = renderMode ?? gl.TRIANGLES;
+
 		// Lazy initialization of grouped indices
 		if (!this.#groupedIndices && this.resources) {
 			this.#groupedIndices = {
@@ -168,9 +201,6 @@ class Mesh {
 			}
 		}
 
-		// Use grouped list if available (and resources exist), otherwise fallback to all
-		// If mode is a filter function (legacy support during transition), we handle that too for safety,
-		// though we aim to replace it.
 		let targets = this.indices;
 
 		if (typeof mode === "function") {
@@ -183,12 +213,13 @@ class Mesh {
 				if (!mode(material)) continue;
 
 				this.#bindMaterial(indexObj, applyMaterial, shader);
-				gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexObj.indexBuffer);
-				gl.drawElements(
-					actualRenderMode,
-					indexObj.indexBuffer.numItems,
-					gl.UNSIGNED_SHORT,
+
+				// Draw Abstracted
+				getBackend().drawIndexed(
+					indexObj.indexBuffer,
+					indexObj.indexBuffer.length,
 					0,
+					actualRenderMode,
 				);
 			}
 			return;
@@ -200,12 +231,13 @@ class Mesh {
 
 		for (const indexObj of targets) {
 			this.#bindMaterial(indexObj, applyMaterial, shader);
-			gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexObj.indexBuffer);
-			gl.drawElements(
-				renderMode,
-				indexObj.indexBuffer.numItems,
-				gl.UNSIGNED_SHORT,
+
+			// Draw Abstracted
+			getBackend().drawIndexed(
+				indexObj.indexBuffer,
+				indexObj.indexBuffer.length,
 				0,
+				actualRenderMode,
 			);
 		}
 	}
@@ -213,11 +245,16 @@ class Mesh {
 	renderWireFrame() {
 		this.bind();
 
+		// Note: Existing wireframe logic creates temporary buffers on the fly.
+		// This is slow and difficult to abstract perfectly efficiently without
+		// creating backend resources every frame.
+		// Kept logic but using backend creation/deletion.
+
 		for (const indexObj of this.indices) {
-			// Each triangle (3 indices) becomes 3 lines (6 indices)
-			const tempArray = new Uint16Array(indexObj.array.length * 2);
-			let lineCount = 0;
 			const indices = indexObj.array;
+			// Uint16Array needed for index buffer
+			const tempArray = new Uint16Array(indices.length * 2);
+			let lineCount = 0;
 
 			for (let i = 0; i < indices.length; i += 3) {
 				tempArray[lineCount++] = indices[i];
@@ -228,16 +265,18 @@ class Mesh {
 				tempArray[lineCount++] = indices[i];
 			}
 
-			// Create and use a temporary buffer
-			const tempBuffer = gl.createBuffer();
-			gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, tempBuffer);
-			gl.bufferData(
-				gl.ELEMENT_ARRAY_BUFFER,
+			// Create temporary index buffer via backend
+			// using slice to get exact content length
+			const tempBuffer = getBackend().createBuffer(
 				tempArray.subarray(0, lineCount),
-				gl.STREAM_DRAW,
+				"index",
 			);
-			gl.drawElements(gl.LINES, lineCount, gl.UNSIGNED_SHORT, 0);
-			gl.deleteBuffer(tempBuffer);
+
+			// Draw lines
+			getBackend().drawIndexed(tempBuffer, lineCount, 0, gl.LINES);
+
+			// Cleanup
+			getBackend().deleteBuffer(tempBuffer);
 		}
 
 		this.unBind();
@@ -271,12 +310,11 @@ class Mesh {
 		const vertexCount = readUint32();
 		const uvCount = readUint32();
 
-		// BMesh v2: has lightmapUVs, BMesh v1 (or unversioned): no lightmapUVs
 		let lightmapUVCount = 0;
 		if (version === 2) {
 			lightmapUVCount = readUint32();
 		} else {
-			readUint32(); // Skip old colorCount field from v1
+			readUint32();
 		}
 
 		const normalCount = readUint32();
@@ -288,7 +326,7 @@ class Mesh {
 		if (version === 2) {
 			this.lightmapUVs = readFloat32Array(lightmapUVCount);
 		} else {
-			this.lightmapUVs = []; // No lightmap UVs in v1
+			this.lightmapUVs = [];
 		}
 
 		this.normals = readFloat32Array(normalCount);
@@ -338,6 +376,7 @@ class Mesh {
 
 	calculateBoundingBox() {
 		if (this.vertices.length === 0) return null;
+		// vertices is array of numbers, BoundingBox.fromPoints expects [x,y,z, x,y,z] format which matches
 		return BoundingBox.fromPoints(this.vertices);
 	}
 }

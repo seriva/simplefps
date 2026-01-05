@@ -1,117 +1,72 @@
 import Settings from "../core/settings.js";
 import Console from "../systems/console.js";
-import { css } from "../utils/reactive.js";
 import Utils from "../utils/utils.js";
+import WebGLBackend from "./backends/WebGLBackend.js";
 
-// Private canvas setup
-const _canvasStyle = css`
-	background: #000;
-	position: fixed;
-	top: 0;
-	left: 0;
-	width: 100dvw;
-	height: 100dvh;
-	display: block;
-	z-index: 0;
-`;
+// Global backend instance
+let _backend = null;
 
-const _canvas = document.createElement("canvas");
-_canvas.id = "context";
-_canvas.className = _canvasStyle;
-document.body.appendChild(_canvas);
+// Initialize WebGL backend synchronously to maintain backward compatibility
+const _defaultBackend = new WebGLBackend();
+_defaultBackend.init(); // Auto-creates canvas and context
+_backend = _defaultBackend;
 
-// Private WebGL extensions
-const _REQUIRED_EXTENSIONS = {
-	EXT_color_buffer_float: "EXT_color_buffer_float",
-};
+// Export legacy WebGL objects for backward compatibility
+const gl = _defaultBackend.getGL();
+const afExt = _defaultBackend.getAnisotropicExt();
+const canvas = _defaultBackend.getCanvas();
 
-const _OPTIONAL_EXTENSIONS = {
-	anisotropic: [
-		"EXT_texture_filter_anisotropic",
-		"MOZ_EXT_texture_filter_anisotropic",
-		"WEBKIT_EXT_texture_filter_anisotropic",
-	],
-};
+// ============================================================================
+// Public Context API
+// ============================================================================
 
-const _checkWebGLCapabilities = (gl) => {
-	// Check required extensions
-	for (const [key, ext] of Object.entries(_REQUIRED_EXTENSIONS)) {
-		const extension = gl.getExtension(ext);
-		if (!extension) {
-			Console.error(`Required WebGL extension ${ext} is not supported`);
+/**
+ * Get the current render backend
+ * @returns {RenderBackend}
+ */
+const getBackend = () => _backend;
+
+/**
+ * Initialize the rendering context (async)
+ * Supports switching to WebGPU if available
+ * @param {boolean} preferWebGPU
+ */
+const initContext = async (preferWebGPU = true) => {
+	// If WebGPU is requested and supported
+	if (preferWebGPU && navigator.gpu) {
+		try {
+			// Dynamic import to avoid loading WebGPU code if not needed
+			const { default: WebGPUBackend } = await import(
+				"./backends/WebGPUBackend.js"
+			).catch(() => ({ default: null }));
+
+			if (WebGPUBackend) {
+				const gpuBackend = new WebGPUBackend();
+				if (await gpuBackend.init(_defaultBackend.getCanvas())) {
+					Console.log("Switching to WebGPU backend");
+					_backend.dispose(); // Cleanup WebGL
+					_backend = gpuBackend;
+					return _backend;
+				}
+			}
+		} catch (e) {
+			Console.warn(`Failed to initialize WebGPU: ${e.message}`);
 		}
-		gl[key] = extension;
 	}
 
-	// Check optional extensions
-	const afExt = _OPTIONAL_EXTENSIONS.anisotropic.reduce(
-		(ext, name) => ext || gl.getExtension(name),
-		null,
-	);
-
-	return { afExt };
+	// Fallback/Default is already WebGL (initialized synchronously)
+	Console.log("Using WebGL2 backend");
+	return _backend;
 };
 
-// Private WebGL context initialization
-let _afExt = null;
-
-const gl = _canvas.getContext("webgl2", {
-	premultipliedAlpha: false,
-	antialias: false,
-	preserveDrawingBuffer: true,
-});
-if (!gl) {
-	Console.error("Failed to initialize WebGL 2.0 context");
-}
-
-try {
-	const capabilities = _checkWebGLCapabilities(gl);
-	_afExt = capabilities.afExt;
-
-	// Initialize WebGL state
-	gl.clearColor(0.0, 0.0, 0.0, 1.0);
-	gl.clearDepth(1.0);
-
-	// Enable depth testing
-	gl.enable(gl.DEPTH_TEST);
-	gl.depthFunc(gl.LEQUAL);
-
-	// Enable face culling
-	gl.enable(gl.CULL_FACE);
-	gl.cullFace(gl.BACK);
-
-	// Log context information
-	Console.log("Initialized context");
-	Console.log(`Renderer: ${gl.getParameter(gl.RENDERER)}`);
-	Console.log(`Vendor: ${gl.getParameter(gl.VENDOR)}`);
-	Console.log(`WebGL version: ${gl.getParameter(gl.VERSION)}`);
-	Console.log(`GLSL version: ${gl.getParameter(gl.SHADING_LANGUAGE_VERSION)}`);
-	Console.log(
-		`Max anisotropic filtering: ${_afExt ? gl.getParameter(_afExt.MAX_TEXTURE_MAX_ANISOTROPY_EXT) : "Not supported"}`,
-	);
-} catch (error) {
-	Console.error(`WebGL initialization failed: ${error.message}`);
-}
-
-// Private helper functions
-const _getDevicePixelRatio = () => window.devicePixelRatio || 1;
-
-const _width = () =>
-	Math.floor(
-		gl.canvas.clientWidth * _getDevicePixelRatio() * Settings.renderScale,
-	);
-
-const _height = () =>
-	Math.floor(
-		gl.canvas.clientHeight * _getDevicePixelRatio() * Settings.renderScale,
-	);
-
-const _aspectRatio = () => _width() / _height();
+// ============================================================================
+// Legacy Context API Wrapper
+// ============================================================================
 
 const _resize = () => {
-	gl.canvas.width = _width();
-	gl.canvas.height = _height();
-	gl.viewport(0, 0, _width(), _height());
+	if (_backend) {
+		_backend.resize();
+	}
 };
 
 // Console command
@@ -120,15 +75,12 @@ Console.registerCmd("rscale", (scale) => {
 	Utils.dispatchEvent("resize");
 });
 
-// Public Context API
 const Context = {
-	canvas: _canvas,
-	width: _width,
-	height: _height,
-	aspectRatio: _aspectRatio,
+	canvas: canvas,
+	width: () => _backend.getWidth(),
+	height: () => _backend.getHeight(),
+	aspectRatio: () => _backend.getWidth() / _backend.getHeight(),
 	resize: _resize,
 };
 
-const afExt = _afExt;
-
-export { gl, afExt, Context };
+export { Context, afExt, getBackend, gl, initContext };

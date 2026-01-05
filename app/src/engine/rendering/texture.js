@@ -1,154 +1,119 @@
 import Settings from "../core/settings.js";
 import Console from "../systems/console.js";
-import { afExt, gl } from "./context.js";
+import { getBackend, gl } from "./context.js";
 
-// Private cached GL constants
-const {
-	TEXTURE_2D: _TEXTURE_2D,
-	RGBA: _RGBA,
-	UNSIGNED_BYTE: _UNSIGNED_BYTE,
-	LINEAR: _LINEAR,
-	LINEAR_MIPMAP_LINEAR: _LINEAR_MIPMAP_LINEAR,
-	NEAREST: _NEAREST,
-	TEXTURE_MAG_FILTER: _TEXTURE_MAG_FILTER,
-	TEXTURE_MIN_FILTER: _TEXTURE_MIN_FILTER,
-	TEXTURE_WRAP_S: _TEXTURE_WRAP_S,
-	TEXTURE_WRAP_T: _TEXTURE_WRAP_T,
-	CLAMP_TO_EDGE: _CLAMP_TO_EDGE,
-	REPEAT: _REPEAT,
-	UNPACK_FLIP_Y_WEBGL: _UNPACK_FLIP_Y_WEBGL,
-} = gl;
+// We import gl from context.js to access constants like REPEAT, CLAMP_TO_EDGE, etc.
+// These constants are passed to the backend, which (in WebGLBackend case) understands them directly.
+// For WebGPU, the backend would need to map these constants or we'd refactor to use string constants.
 
 class Texture {
 	constructor(data) {
-		// Delete existing texture if any
-		if (this.texture) gl.deleteTexture(this.texture);
-
-		this.texture = gl.createTexture();
+		this._handle = null;
 		this.init(data);
 	}
 
-	init(data) {
-		gl.bindTexture(_TEXTURE_2D, this.texture);
+	// Backward compatibility: expose the raw GL texture (if supported by backend)
+	get texture() {
+		return this._handle ? this._handle._glTexture : null;
+	}
 
-		// Default black texture
-		gl.texImage2D(
-			_TEXTURE_2D,
-			0,
-			_RGBA,
-			1,
-			1,
-			0,
-			_RGBA,
-			_UNSIGNED_BYTE,
-			new Uint8Array([0, 0, 0, 255]),
-		);
+	init(data) {
+		if (this._handle) {
+			this.dispose();
+		}
 
 		if (data.data) {
+			// Image texture case
+			// Create a 1x1 mutable placeholder (defaults to black)
+			this._handle = getBackend().createTexture({
+				width: 1,
+				height: 1,
+				// format defaults to RGBA, type to UNSIGNED_BYTE
+				mutable: true,
+			});
+
 			this.loadImageTexture(data.data);
 		} else {
-			this.createRenderTexture(data);
+			// Render texture case
+			// data contains format, width, height, etc.
+			this._handle = getBackend().createTexture(data);
+			getBackend().setTextureWrapMode(this._handle, "clamp-to-edge");
 		}
 	}
 
-	static setTextureParameters(isImage) {
-		const filterType = isImage ? _LINEAR : _NEAREST;
-		gl.texParameteri(_TEXTURE_2D, _TEXTURE_MAG_FILTER, filterType);
-		gl.texParameteri(
-			_TEXTURE_2D,
-			_TEXTURE_MIN_FILTER,
-			isImage ? _LINEAR_MIPMAP_LINEAR : filterType,
-		);
+	// Static helper to set params - handled by backend methods now, but kept for compatibility if called externally?
+	// Existing code calls Texture.setTextureParameters(true/false).
+	// We'll leave it as a no-op or deprecated since backend handles defaults in createTexture.
+	static setTextureParameters(_isImage) {
+		// Handled by backend creation logic + generateMipmaps
 	}
 
 	loadImageTexture(imageData) {
 		const image = new Image();
 		image.onload = () => {
-			gl.bindTexture(_TEXTURE_2D, this.texture);
-			gl.texImage2D(_TEXTURE_2D, 0, _RGBA, _RGBA, _UNSIGNED_BYTE, image);
+			if (!this._handle) return; // Disposed?
 
-			// Set texture parameters
-			Texture.setTextureParameters(true);
+			// Upload image data (this updates the texture content and might resize usage in WebGL)
+			getBackend().uploadTextureFromImage(this._handle, image);
 
-			// Apply anisotropic filtering if available
-			if (afExt) {
-				const maxAniso = gl.getParameter(afExt.MAX_TEXTURE_MAX_ANISOTROPY_EXT);
-				const af = Math.min(
-					Math.max(Settings.anisotropicFiltering, 1),
-					maxAniso,
+			// Generate mipmaps
+			getBackend().generateMipmaps(this._handle);
+
+			// Apply settings
+			getBackend().setTextureWrapMode(this._handle, "repeat");
+
+			if (Settings.anisotropicFiltering > 1) {
+				getBackend().setTextureAnisotropy(
+					this._handle,
+					Settings.anisotropicFiltering,
 				);
-				gl.texParameterf(_TEXTURE_2D, afExt.TEXTURE_MAX_ANISOTROPY_EXT, af);
 			}
-
-			gl.generateMipmap(_TEXTURE_2D);
-			// Use REPEAT mode for tiled textures (UVs can go outside 0-1 range)
-			this.setTextureWrapMode(_REPEAT);
-			gl.bindTexture(_TEXTURE_2D, null);
 
 			URL.revokeObjectURL(image.src); // Clean up the blob URL
 		};
 
 		image.onerror = () => {
 			Console.error("Failed to load texture image");
-			gl.bindTexture(_TEXTURE_2D, null);
 		};
 		image.src = URL.createObjectURL(imageData);
 	}
 
-	createRenderTexture(data) {
-		gl.bindTexture(_TEXTURE_2D, this.texture);
-		gl.pixelStorei(_UNPACK_FLIP_Y_WEBGL, false);
-
-		// Set texture parameters
-		Texture.setTextureParameters(false);
-
-		gl.texStorage2D(_TEXTURE_2D, 1, data.format, data.width, data.height);
-
-		if (data.pdata && data.ptype && data.pformat) {
-			gl.texSubImage2D(
-				_TEXTURE_2D,
-				0,
-				0,
-				0,
-				data.width,
-				data.height,
-				data.pformat,
-				data.ptype,
-				data.pdata,
-			);
-		}
-
-		this.setTextureWrapMode(_CLAMP_TO_EDGE);
+	createRenderTexture(_data) {
+		// Deprecated: logic moved to init.
+		// Kept only if external callers use it, but usage seems internal to old init().
 	}
 
 	bind(unit) {
-		gl.activeTexture(unit);
-		gl.bindTexture(_TEXTURE_2D, this.texture);
+		if (this._handle) {
+			getBackend().bindTexture(this._handle, unit);
+		}
 	}
 
 	static unBind(unit) {
-		gl.activeTexture(unit);
-		gl.bindTexture(_TEXTURE_2D, null);
+		getBackend().unbindTexture(unit);
 	}
 
 	static unBindRange(startUnit, count) {
 		for (let i = 0; i < count; i++) {
-			gl.activeTexture(startUnit + i);
-			gl.bindTexture(_TEXTURE_2D, null);
+			getBackend().unbindTexture(startUnit + i);
 		}
 	}
 
 	setTextureWrapMode(mode) {
-		gl.bindTexture(_TEXTURE_2D, this.texture);
-		gl.texParameteri(_TEXTURE_2D, _TEXTURE_WRAP_S, mode);
-		gl.texParameteri(_TEXTURE_2D, _TEXTURE_WRAP_T, mode);
-		gl.bindTexture(_TEXTURE_2D, null);
+		if (!this._handle) return;
+
+		// Map GL constants to backend strings
+		let stringMode = "repeat";
+		if (mode === gl.CLAMP_TO_EDGE) stringMode = "clamp-to-edge";
+		else if (mode === gl.MIRRORED_REPEAT) stringMode = "mirrored-repeat";
+
+		getBackend().setTextureWrapMode(this._handle, stringMode);
 	}
 
 	dispose() {
-		if (this.texture) {
-			gl.deleteTexture(this.texture);
-			this.texture = null;
+		if (this._handle) {
+			getBackend().disposeTexture(this._handle);
+			this._handle = null;
 		}
 	}
 }

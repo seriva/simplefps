@@ -73,6 +73,10 @@ const Resources = {
 		}
 		return resource;
 	},
+
+	has(key) {
+		return _resources.has(key);
+	},
 };
 
 export default Resources;
