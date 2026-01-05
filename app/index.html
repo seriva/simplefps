@@ -1,58 +1,69 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png" />
-    <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png" />
-    <link rel="manifest" href="manifest.json" />
 
-    <meta charset="utf-8" />
-    <meta name="Description" content="SimpleFPS FPS">
-    <meta name="format-detection" content="telephone=no" />
-    <meta
-      name="viewport"
-      content="user-scalable=no, initial-scale=1, maximum-scale=1, minimum-scale=1, width=device-width, height=device-height, viewport-fit=cover"
-    />
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="theme-color" content="#000000" />
+<head>
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png" />
+  <link rel="manifest" href="manifest.json" />
 
-    <script type="module" src="src/main.js"></script>
+  <meta charset="utf-8" />
+  <meta name="Description" content="SimpleFPS FPS">
+  <meta name="format-detection" content="telephone=no" />
+  <meta name="viewport"
+    content="user-scalable=no, initial-scale=1, maximum-scale=1, minimum-scale=1, width=device-width, height=device-height, viewport-fit=cover" />
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#000000" />
 
-    <style>
-      html {
-        height: 100%;
-      }
-      body {
-        background: #000;
-        min-height: 100%;
-        margin: 0;
-        padding: 0;
-        position: relative;
-        overflow: hidden;
-        color: white;
-        font-family: Consolas, monaco, monospace;
-        font-weight: bold;
-      }
-    </style>
+  <script type="module" src="src/main.js"></script>
 
-    <title>SimpleFPS</title>
-  </head>
-  <body>
-    <script>
-      window.onerror = function(msg, url, line, column, error) {
-        document.body.style.padding = "5px";
-        document.body.style.overflow = "scroll";
-        document.body.innerHTML =
-          "Error (" +
-          line +
-          "," +
-          column +
-          "): " +
-          msg +
-          "<br />Stack: " +
-          error.stack;
-        return false;
-      };
-    </script>
-  </body>
+  <style>
+    html {
+      height: 100%;
+    }
+
+    body {
+      background: #000;
+      min-height: 100%;
+      min-height: 100dvh;
+      /* Dynamic viewport height - includes notch area */
+      margin: 0;
+      padding: 0;
+      /* Extend into safe area (notch/cutout regions) */
+      padding-top: env(safe-area-inset-top);
+      padding-bottom: env(safe-area-inset-bottom);
+      padding-left: env(safe-area-inset-left);
+      padding-right: env(safe-area-inset-right);
+      position: relative;
+      overflow: hidden;
+      color: white;
+      font-family: Consolas, monaco, monospace;
+      font-weight: bold;
+      /* Ensure content fills the entire viewport including notch */
+      box-sizing: border-box;
+    }
+  </style>
+
+  <title>SimpleFPS</title>
+</head>
+
+<body>
+  <script>
+    window.onerror = function (msg, url, line, column, error) {
+      document.body.style.padding = "5px";
+      document.body.style.overflow = "scroll";
+      document.body.innerHTML =
+        "Error (" +
+        line +
+        "," +
+        column +
+        "): " +
+        msg +
+        "<br />Stack: " +
+        error.stack;
+      return false;
+    };
+  </script>
+</body>
+
 </html>
