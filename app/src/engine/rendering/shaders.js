@@ -1,134 +1,62 @@
 import Console from "../systems/console.js";
-import { gl } from "./context.js";
+import { getBackend } from "./context.js";
 
 // ============================================================================
 // Public API
 // ============================================================================
 
 class Shader {
-	#uniformMap;
+	constructor(backend, vertex, fragment) {
+		this.backend = backend;
+		this.program = backend.createShaderProgram(vertex, fragment);
 
-	constructor(vertex, fragment) {
-		this.#uniformMap = new Map();
-		this.createAndCompileShaders(vertex, fragment);
-		this.createAndLinkProgram();
-	}
-
-	createAndCompileShaders(vertex, fragment) {
-		// Create and compile vertex shader
-		this.vertexShader = gl.createShader(gl.VERTEX_SHADER);
-		gl.shaderSource(this.vertexShader, vertex);
-		gl.compileShader(this.vertexShader);
-		this.checkShaderError(this.vertexShader, "vertex");
-
-		// Create and compile fragment shader
-		this.fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
-		gl.shaderSource(this.fragmentShader, fragment);
-		gl.compileShader(this.fragmentShader);
-		this.checkShaderError(this.fragmentShader, "fragment");
-	}
-
-	createAndLinkProgram() {
-		this.program = gl.createProgram();
-		gl.attachShader(this.program, this.vertexShader);
-		gl.attachShader(this.program, this.fragmentShader);
-		gl.linkProgram(this.program);
-
-		if (!gl.getProgramParameter(this.program, gl.LINK_STATUS)) {
-			const info = gl.getProgramInfoLog(this.program);
-			Console.error(`Error linking program: ${info}`);
-			// Don't dispose immediately, allow caller to see error?
-			// Actually console.error might throw, so we stop here.
-			this.dispose();
-			return;
-		}
-
-		// Automatic UBO Binding
-		const frameDataIndex = gl.getUniformBlockIndex(this.program, "FrameData");
-		if (frameDataIndex !== gl.INVALID_INDEX) {
-			gl.uniformBlockBinding(this.program, frameDataIndex, 0);
-		}
-
-		const materialDataIndex = gl.getUniformBlockIndex(
-			this.program,
-			"MaterialData",
-		);
-		if (materialDataIndex !== gl.INVALID_INDEX) {
-			gl.uniformBlockBinding(this.program, materialDataIndex, 1);
-		}
-
-		// Cleanup individual shaders after linking
-		gl.detachShader(this.program, this.vertexShader);
-		gl.detachShader(this.program, this.fragmentShader);
-		gl.deleteShader(this.vertexShader);
-		gl.deleteShader(this.fragmentShader);
-	}
-
-	checkShaderError(shader, type) {
-		if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-			const error = gl.getShaderInfoLog(shader);
-			Console.error(`Error compiling ${type} shader: ${error}`);
-			gl.deleteShader(shader);
+		if (!this.program) {
+			throw new Error("Failed to create shader program");
 		}
 	}
 
 	bind() {
-		gl.useProgram(this.program);
+		this.backend.bindShader(this.program);
 	}
 
-	static unBind() {
-		gl.useProgram(null);
-	}
-
-	getUniformLocation(id) {
-		let location = this.#uniformMap.get(id);
-		if (location !== undefined) return location;
-
-		location = gl.getUniformLocation(this.program, id);
-		if (location === null) {
-			Console.warn(`Uniform '${id}' not found in shader program`);
-			this.#uniformMap.set(id, null);
-			return null;
-		}
-
-		this.#uniformMap.set(id, location);
-		return location;
+	// Note: Caller must ensure they have access to backend or use the backend instance directly
+	static unBind(backend) {
+		backend.unbindShader();
 	}
 
 	setInt(id, value) {
-		gl.uniform1i(this.getUniformLocation(id), value);
+		this.backend.setUniform(id, "int", value);
 	}
 
 	setMat4(id, mat) {
-		gl.uniformMatrix4fv(this.getUniformLocation(id), gl.FALSE, mat);
+		this.backend.setUniform(id, "mat4", mat);
 	}
 
 	setFloat(id, value) {
-		gl.uniform1f(this.getUniformLocation(id), value);
+		this.backend.setUniform(id, "float", value);
 	}
 
 	setVec2(id, vec) {
-		gl.uniform2f(this.getUniformLocation(id), vec[0], vec[1]);
+		this.backend.setUniform(id, "vec2", vec);
 	}
 
 	setVec3(id, vec) {
-		gl.uniform3f(this.getUniformLocation(id), vec[0], vec[1], vec[2]);
+		this.backend.setUniform(id, "vec3", vec);
 	}
 
 	setVec4(id, vec) {
-		gl.uniform4f(this.getUniformLocation(id), vec[0], vec[1], vec[2], vec[3]);
+		this.backend.setUniform(id, "vec4", vec);
 	}
 
 	setVec3Array(id, array) {
-		gl.uniform3fv(this.getUniformLocation(id), array);
+		this.backend.setUniform(id, "vec3[]", array);
 	}
 
 	dispose() {
-		if (this.program) {
-			gl.deleteProgram(this.program);
-			this.program = null;
+		if (this.backend.disposeShader) {
+			this.backend.disposeShader(this.program);
 		}
-		this.#uniformMap.clear();
+		this.program = null;
 	}
 }
 
@@ -965,18 +893,24 @@ const _ShaderSources = {
 	},
 };
 
-// Initialize all shaders immediately
+// Initialize all shaders
 const Shaders = {};
-for (const [name, { vertex, fragment }] of Object.entries(_ShaderSources)) {
-	try {
-		Shaders[name] = new Shader(vertex, fragment);
-		Console.log(`Loaded shader: ${name}`);
-	} catch (error) {
-		Console.error(
-			`Failed to load shader ${name}. Linker/Compiler Error might be above.`,
-		);
-		console.error(error); // Ensure it goes to browser console too
-	}
-}
 
-export { Shaders, Shader };
+const initShaders = (backend) => {
+	for (const [name, { vertex, fragment }] of Object.entries(_ShaderSources)) {
+		try {
+			Shaders[name] = new Shader(backend, vertex, fragment);
+			Console.log(`Loaded shader: ${name}`);
+		} catch (error) {
+			Console.error(
+				`Failed to load shader ${name}. Linker/Compiler Error might be above.`,
+			);
+			console.error(error); // Ensure it goes to browser console too
+		}
+	}
+};
+
+// Auto-initialize with default backend to maintain simple API usage
+initShaders(getBackend());
+
+export { Shaders };

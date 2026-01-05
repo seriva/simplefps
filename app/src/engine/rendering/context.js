@@ -20,17 +20,8 @@ const canvas = _defaultBackend.getCanvas();
 // Public Context API
 // ============================================================================
 
-/**
- * Get the current render backend
- * @returns {RenderBackend}
- */
 const getBackend = () => _backend;
 
-/**
- * Initialize the rendering context (async)
- * Supports switching to WebGPU if available
- * @param {boolean} preferWebGPU
- */
 const initContext = async (preferWebGPU = true) => {
 	// If WebGPU is requested and supported
 	if (preferWebGPU && navigator.gpu) {
@@ -83,4 +74,4 @@ const Context = {
 	resize: _resize,
 };
 
-export { Context, afExt, getBackend, gl, initContext };
+export { Context, afExt, getBackend, gl };

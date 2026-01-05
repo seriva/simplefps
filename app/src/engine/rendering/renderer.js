@@ -4,9 +4,9 @@ import Scene from "../scene/scene.js";
 import Console from "../systems/console.js";
 import Resources from "../systems/resources.js";
 import Utils from "../utils/utils.js";
-import { afExt, Context, gl } from "./context.js";
+import { afExt, Context, getBackend, gl } from "./context.js";
 import RenderPasses from "./renderpasses.js";
-import { Shader, Shaders } from "./shaders.js";
+import { Shaders } from "./shaders.js";
 import { screenQuad } from "./shapes.js";
 import Texture from "./texture.js";
 
@@ -364,7 +364,7 @@ const _blurImage = (source, iterations, radius) => {
 		screenQuad.renderSingle();
 	}
 	_endBlurPass();
-	Shader.unBind();
+	getBackend().unbindShader();
 };
 
 const _generateSSAOKernel = () => {
@@ -554,7 +554,7 @@ const _ssaoPass = () => {
 	screenQuad.renderSingle();
 	gl.enable(gl.DEPTH_TEST);
 
-	Shader.unBind();
+	getBackend().unbindShader();
 	Texture.unBindRange(gl.TEXTURE0, 3);
 	gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 };
@@ -642,7 +642,7 @@ const _ssaoBlurPass = () => {
 		Shaders.kawaseBlur.setInt("colorBuffer", 0);
 		Shaders.kawaseBlur.setFloat("offset", i + 1.0);
 		screenQuad.renderSingle();
-		Shader.unBind();
+		getBackend().unbindShader();
 	}
 
 	Texture.unBind(gl.TEXTURE0);
@@ -716,7 +716,7 @@ const _postProcessingPass = () => {
 	Shaders.postProcessing.setVec3("uAmbient", Scene.getAmbient());
 	screenQuad.renderSingle();
 
-	Shader.unBind();
+	getBackend().unbindShader();
 	Texture.unBindRange(gl.TEXTURE0, 6);
 };
 

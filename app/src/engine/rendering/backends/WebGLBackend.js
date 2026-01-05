@@ -545,6 +545,13 @@ class WebGLBackend extends RenderBackend {
 		this._currentShader = null;
 	}
 
+	disposeShader(shader) {
+		const gl = this._gl;
+		if (shader?._glProgram) {
+			gl.deleteProgram(shader._glProgram);
+		}
+	}
+
 	// =========================================================================
 	// Texture Management (Extended)
 	// =========================================================================
