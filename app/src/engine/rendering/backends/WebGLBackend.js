@@ -57,6 +57,22 @@ const _DEPTH_FUNCS = {
 	always: 7,
 };
 
+// Texture format mapping
+const _TEXTURE_FORMATS = {
+	// Internal Formats
+	depth24: 0, // gl.DEPTH_COMPONENT24
+	rgba16f: 1, // gl.RGBA16F
+	rgba8: 2, // gl.RGBA8
+	rgba: 3, // gl.RGBA
+
+	// Formats
+	depth: 4, // gl.DEPTH_COMPONENT
+
+	// Types
+	ubyte: 5, // gl.UNSIGNED_BYTE
+	float: 6, // gl.FLOAT
+};
+
 class WebGLBackend extends RenderBackend {
 	constructor() {
 		super();
@@ -150,6 +166,15 @@ class WebGLBackend extends RenderBackend {
 			_DEPTH_FUNCS.gequal = gl.GEQUAL;
 			_DEPTH_FUNCS.always = gl.ALWAYS;
 
+			// texture format mapping
+			_TEXTURE_FORMATS.depth24 = gl.DEPTH_COMPONENT24;
+			_TEXTURE_FORMATS.rgba16f = gl.RGBA16F;
+			_TEXTURE_FORMATS.rgba8 = gl.RGBA8;
+			_TEXTURE_FORMATS.rgba = gl.RGBA;
+			_TEXTURE_FORMATS.depth = gl.DEPTH_COMPONENT;
+			_TEXTURE_FORMATS.ubyte = gl.UNSIGNED_BYTE;
+			_TEXTURE_FORMATS.float = gl.FLOAT;
+
 			// Log context information
 			Console.log("Initialized WebGL2 backend");
 			Console.log(`Renderer: ${this._capabilities.renderer}`);
@@ -218,7 +243,9 @@ class WebGLBackend extends RenderBackend {
 			gl.texStorage2D(
 				gl.TEXTURE_2D,
 				1,
-				descriptor.format,
+				typeof descriptor.format === "string"
+					? _TEXTURE_FORMATS[descriptor.format]
+					: descriptor.format,
 				descriptor.width,
 				descriptor.height,
 			);
@@ -226,9 +253,17 @@ class WebGLBackend extends RenderBackend {
 			// Mutable storage (or default 1x1 black if implied)
 			const width = descriptor.width || 1;
 			const height = descriptor.height || 1;
-			const format = descriptor.format || gl.RGBA; // Default to RGBA part
-			const internalFormat = descriptor.internalFormat || gl.RGBA;
-			const type = descriptor.type || gl.UNSIGNED_BYTE;
+			let format = descriptor.format || gl.RGBA;
+			if (typeof format === "string")
+				format = _TEXTURE_FORMATS[format] || gl.RGBA;
+
+			let internalFormat = descriptor.internalFormat || gl.RGBA;
+			if (typeof internalFormat === "string")
+				internalFormat = _TEXTURE_FORMATS[internalFormat] || gl.RGBA;
+
+			let type = descriptor.type || gl.UNSIGNED_BYTE;
+			if (typeof type === "string")
+				type = _TEXTURE_FORMATS[type] || gl.UNSIGNED_BYTE;
 
 			// If data provided, use it, otherwise black 1x1 or empty
 			if (descriptor.pdata) {
@@ -266,6 +301,11 @@ class WebGLBackend extends RenderBackend {
 			descriptor.pformat &&
 			!descriptor.mutable
 		) {
+			let pformat = descriptor.pformat;
+			if (typeof pformat === "string") pformat = _TEXTURE_FORMATS[pformat];
+			let ptype = descriptor.ptype;
+			if (typeof ptype === "string") ptype = _TEXTURE_FORMATS[ptype];
+
 			gl.texSubImage2D(
 				gl.TEXTURE_2D,
 				0,
@@ -273,8 +313,8 @@ class WebGLBackend extends RenderBackend {
 				0,
 				descriptor.width,
 				descriptor.height,
-				descriptor.pformat,
-				descriptor.ptype,
+				pformat,
+				ptype,
 				descriptor.pdata,
 			);
 		}

@@ -4,7 +4,7 @@ import Scene from "../scene/scene.js";
 
 import Resources from "../systems/resources.js";
 import Utils from "../utils/utils.js";
-import { Backend, gl } from "./context.js";
+import { Backend } from "./context.js";
 import RenderPasses from "./renderpasses.js";
 import { Shaders } from "./shaders.js";
 import { screenQuad } from "./shapes.js";
@@ -81,11 +81,9 @@ const _disposeResources = () => {
 	if (_ao.framebuffer) {
 		Backend.deleteFramebuffer(_ao.framebuffer);
 		if (_ao.ssao) _ao.ssao.dispose();
-		// Note: _ao.noise is NOT disposed - it's reusable across resizes
 	}
 };
 
-// Private functions
 // Private functions
 // _checkFramebufferStatus removed - Backend handles validation during creation
 
@@ -97,16 +95,11 @@ const _resize = (width, height) => {
 	// depth buffer
 	// **********************************
 	_depth = new Texture({
-		format: gl.DEPTH_COMPONENT24,
+		format: "depth24",
 		width,
 		height,
 	});
 
-	// **********************************
-	// geometry buffer
-	// **********************************
-	_g.width = width;
-	_g.height = height;
 	// **********************************
 	// geometry buffer
 	// **********************************
@@ -116,25 +109,25 @@ const _resize = (width, height) => {
 	// World position buffer (RGBA16F for accurate position at all distances)
 	// Using RGBA instead of RGB for better compatibility as color attachment
 	_g.worldPosition = new Texture({
-		format: gl.RGBA16F,
+		format: "rgba16f",
 		width,
 		height,
 	});
 
 	_g.normal = new Texture({
-		format: gl.RGBA8,
+		format: "rgba8",
 		width,
 		height,
 	});
 
 	_g.color = new Texture({
-		format: gl.RGBA8,
+		format: "rgba8",
 		width,
 		height,
 	});
 
 	_g.emissive = new Texture({
-		format: gl.RGBA8,
+		format: "rgba8",
 		width,
 		height,
 	});
@@ -153,11 +146,8 @@ const _resize = (width, height) => {
 	// **********************************
 	// shadow buffer
 	// **********************************
-	// **********************************
-	// shadow buffer
-	// **********************************
 	_s.shadow = new Texture({
-		format: gl.RGBA8,
+		format: "rgba8",
 		width,
 		height,
 	});
@@ -171,11 +161,8 @@ const _resize = (width, height) => {
 	// **********************************
 	// lighting buffer
 	// **********************************
-	// **********************************
-	// lighting buffer
-	// **********************************
 	_l.light = new Texture({
-		format: gl.RGBA8,
+		format: "rgba8",
 		width,
 		height,
 	});
@@ -186,13 +173,10 @@ const _resize = (width, height) => {
 	_l.framebuffer = lightingFBResult;
 
 	// **********************************
-	// gaussianblur buffer
-	// **********************************
-	// **********************************
-	// gaussianblur buffer
+	// blur buffer
 	// **********************************
 	_b.blur = new Texture({
-		format: gl.RGBA8,
+		format: "rgba8",
 		width,
 		height,
 	});
@@ -205,11 +189,8 @@ const _resize = (width, height) => {
 	// **********************************
 	// SSAO buffer
 	// **********************************
-	// **********************************
-	// SSAO buffer
-	// **********************************
 	_ao.ssao = new Texture({
-		format: gl.RGBA8,
+		format: "rgba8",
 		width,
 		height,
 	});
@@ -247,7 +228,7 @@ const _startBlurPass = (blurSource) => {
 };
 
 const _endBlurPass = () => {
-	Texture.unBind(gl.TEXTURE0);
+	Texture.unBind(0);
 	Backend.bindFramebuffer(null);
 };
 
@@ -256,12 +237,12 @@ const _swapBlur = (i) => {
 		Backend.setFramebufferAttachment(_b.framebuffer, 0, _b.blur.getHandle());
 		// Re-bind (as setFramebufferAttachment unbinds)
 		Backend.bindFramebuffer(_b.framebuffer);
-		_b.source.bind(gl.TEXTURE0);
+		_b.source.bind(0);
 	} else {
 		Backend.setFramebufferAttachment(_b.framebuffer, 0, _b.source.getHandle());
 		// Re-bind
 		Backend.bindFramebuffer(_b.framebuffer);
-		_b.blur.bind(gl.TEXTURE0);
+		_b.blur.bind(0);
 	}
 	Backend.clear({ color: [0, 0, 0, 0] });
 };
@@ -339,12 +320,12 @@ const _generateSSAONoise = () => {
 	}
 
 	_ao.noise = new Texture({
-		format: gl.RGBA8,
+		format: "rgba8",
 		width: 4,
 		height: 4,
 		pdata: new Uint8Array(noiseData),
-		pformat: gl.RGBA,
-		ptype: gl.UNSIGNED_BYTE,
+		pformat: "rgba",
+		ptype: "ubyte",
 	});
 
 	// Set wrap mode to REPEAT
@@ -363,12 +344,12 @@ const _generateDetailNoise = () => {
 	}
 
 	_detailNoise = new Texture({
-		format: gl.RGBA8,
+		format: "rgba8",
 		width: size,
 		height: size,
 		pdata: data,
-		pformat: gl.RGBA,
-		ptype: gl.UNSIGNED_BYTE,
+		pformat: "rgba",
+		ptype: "ubyte",
 	});
 
 	_detailNoise.setTextureWrapMode("repeat");
@@ -401,7 +382,7 @@ const _worldGeomPass = () => {
 	Backend.setDepthRange(0.1, 1.0);
 	_startGeomPass();
 
-	if (_detailNoise) _detailNoise.bind(gl.TEXTURE5); // Bind noise to unit 5
+	if (_detailNoise) _detailNoise.bind(5); // Bind noise to unit 5
 	RenderPasses.renderWorldGeometry();
 
 	_endGeomPass();
@@ -413,7 +394,7 @@ const _fpsGeomPass = () => {
 	Backend.setDepthRange(0.0, 0.1);
 	Backend.bindFramebuffer(_g.framebuffer);
 
-	if (_detailNoise) _detailNoise.bind(gl.TEXTURE5); // Bind noise to unit 5
+	if (_detailNoise) _detailNoise.bind(5); // Bind noise to unit 5
 	RenderPasses.renderFPSGeometry();
 
 	Backend.bindFramebuffer(null);
@@ -437,9 +418,9 @@ const _ssaoPass = () => {
 	Backend.clear({ color: [1.0, 1.0, 1.0, 1.0] });
 
 	// Bind G-buffer textures
-	_g.normal.bind(gl.TEXTURE0);
-	_g.worldPosition.bind(gl.TEXTURE1); // Use position buffer instead of depth
-	_ao.noise.bind(gl.TEXTURE2);
+	_g.normal.bind(0);
+	_g.worldPosition.bind(1); // Use position buffer instead of depth
+	_ao.noise.bind(2);
 
 	// Setup SSAO shader
 	Shaders.ssao.bind();
@@ -460,7 +441,7 @@ const _ssaoPass = () => {
 	Backend.setDepthState(true, true);
 
 	Backend.unbindShader();
-	Texture.unBindRange(gl.TEXTURE0, 3);
+	Texture.unBindRange(0, 3);
 	Backend.bindFramebuffer(null);
 };
 
@@ -474,9 +455,9 @@ const _lightingPass = () => {
 	Backend.clear({
 		color: [ambient[0], ambient[1], ambient[2], 1.0],
 	});
-	_g.worldPosition.bind(gl.TEXTURE0);
-	_g.normal.bind(gl.TEXTURE1);
-	_s.shadow.bind(gl.TEXTURE2);
+	_g.worldPosition.bind(0);
+	_g.normal.bind(1);
+	_s.shadow.bind(2);
 
 	Backend.setCullState(true);
 	Backend.setDepthState(false, false);
@@ -488,7 +469,7 @@ const _lightingPass = () => {
 	Backend.setDepthState(true, true);
 	Backend.setCullState(true);
 
-	Texture.unBindRange(gl.TEXTURE0, 3);
+	Texture.unBindRange(0, 3);
 	Backend.bindFramebuffer(null);
 
 	_blurImage(_BlurSourceType.LIGHTING, 4, 0.2);
@@ -517,23 +498,13 @@ const _ssaoBlurPass = () => {
 	// Ping-pong blur for SSAO
 	for (let i = 0; i < Settings.ssaoBlurIterations; i++) {
 		if (i % 2 === 0) {
-			gl.framebufferTexture2D(
-				gl.FRAMEBUFFER,
-				gl.COLOR_ATTACHMENT0,
-				gl.TEXTURE_2D,
-				_b.blur.texture,
-				0,
-			);
-			_ao.ssao.bind(gl.TEXTURE0);
+			Backend.setFramebufferAttachment(_b.framebuffer, 0, _b.blur.getHandle());
+			Backend.bindFramebuffer(_b.framebuffer);
+			_ao.ssao.bind(0);
 		} else {
-			gl.framebufferTexture2D(
-				gl.FRAMEBUFFER,
-				gl.COLOR_ATTACHMENT0,
-				gl.TEXTURE_2D,
-				_ao.ssao.texture,
-				0,
-			);
-			_b.blur.bind(gl.TEXTURE0);
+			Backend.setFramebufferAttachment(_b.framebuffer, 0, _ao.ssao.getHandle());
+			Backend.bindFramebuffer(_b.framebuffer);
+			_b.blur.bind(0);
 		}
 		Backend.clear({ color: [0, 0, 0, 0] });
 
@@ -544,7 +515,7 @@ const _ssaoBlurPass = () => {
 		Backend.unbindShader();
 	}
 
-	Texture.unBind(gl.TEXTURE0);
+	Texture.unBind(0);
 	Backend.bindFramebuffer(null);
 };
 
@@ -554,7 +525,7 @@ const _transparentPass = () => {
 	Backend.bindFramebuffer(_l.framebuffer);
 
 	// Match the depth range of the world geometry pass so depth comparisons are valid
-	gl.depthRange(0.1, 1.0);
+	Backend.setDepthRange(0.1, 1.0);
 
 	// Glass pass uses the existing depth buffer for testing but not writing (handled by Scene.renderGlass internal setup usually, but we should be explicit here if needed)
 	// We want to blend glass on top of lighting buffer
@@ -575,13 +546,13 @@ const _transparentPass = () => {
 };
 
 const _postProcessingPass = () => {
-	_g.color.bind(gl.TEXTURE0);
-	_l.light.bind(gl.TEXTURE1);
-	_g.normal.bind(gl.TEXTURE2);
-	_g.emissive.bind(gl.TEXTURE3);
+	_g.color.bind(0);
+	_l.light.bind(1);
+	_g.normal.bind(2);
+	_g.emissive.bind(3);
 	const dirt = Resources.get("system/dirt.webp");
-	dirt.bind(gl.TEXTURE4);
-	_ao.ssao.bind(gl.TEXTURE5);
+	dirt.bind(4);
+	_ao.ssao.bind(5);
 	Shaders.postProcessing.bind();
 	Shaders.postProcessing.setInt("doFXAA", Settings.doFXAA);
 
@@ -606,7 +577,7 @@ const _postProcessingPass = () => {
 	screenQuad.renderSingle();
 
 	Backend.unbindShader();
-	Texture.unBindRange(gl.TEXTURE0, 6);
+	Texture.unBindRange(0, 6);
 };
 
 const _debugPass = () => {
