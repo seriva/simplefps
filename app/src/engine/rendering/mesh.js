@@ -1,5 +1,5 @@
 import BoundingBox from "../utils/boundingbox.js";
-import { Backend } from "./context.js";
+import { Backend } from "./backend.js";
 
 class Mesh {
 	static ATTR_POSITIONS = 0;

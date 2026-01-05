@@ -1,5 +1,5 @@
 import { glMatrix, mat4, vec3, vec4 } from "../../dependencies/gl-matrix.js";
-import { Backend } from "../rendering/context.js";
+import { Backend } from "../rendering/backend.js";
 import Utils from "../utils/utils.js";
 import Settings from "./settings.js";
 

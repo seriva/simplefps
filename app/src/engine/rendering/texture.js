@@ -1,8 +1,8 @@
 import Settings from "../core/settings.js";
 import Console from "../systems/console.js";
-import { Backend } from "./context.js";
+import { Backend } from "./backend.js";
 
-// We import gl from context.js to access constants like REPEAT, CLAMP_TO_EDGE, etc.
+// We import gl from backend.js to access constants like REPEAT, CLAMP_TO_EDGE, etc.
 // These constants are passed to the backend, which (in WebGLBackend case) understands them directly.
 // For WebGPU, the backend would need to map these constants or we'd refactor to use string constants.
 

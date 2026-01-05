@@ -1,5 +1,5 @@
 import Console from "../systems/console.js";
-import { Backend } from "./context.js";
+import { Backend } from "./backend.js";
 import { ShaderSources as GlslShaderSources } from "./shaders/glsl.js";
 import { WgslShaderSources } from "./shaders/wgsl.js";
 

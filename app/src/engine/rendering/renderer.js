@@ -4,7 +4,7 @@ import Scene from "../scene/scene.js";
 
 import Resources from "../systems/resources.js";
 import Utils from "../utils/utils.js";
-import { Backend } from "./context.js";
+import { Backend } from "./backend.js";
 import RenderPasses from "./renderpasses.js";
 import { Shaders } from "./shaders.js";
 import { screenQuad } from "./shapes.js";

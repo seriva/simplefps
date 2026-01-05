@@ -1,4 +1,4 @@
-import RenderBackend from "./RenderBackend.js";
+import RenderBackend from "./renderbackend.js";
 
 class WebGPUBackend extends RenderBackend {
 	constructor() {

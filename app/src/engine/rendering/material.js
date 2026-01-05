@@ -1,4 +1,4 @@
-import { Backend } from "./context.js";
+import { Backend } from "./backend.js";
 import { Shaders } from "./shaders.js";
 import Texture from "./texture.js";
 

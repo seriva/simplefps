@@ -8,7 +8,7 @@
 import Settings from "../../core/settings.js";
 import Console from "../../systems/console.js";
 import { css } from "../../utils/reactive.js";
-import RenderBackend from "./RenderBackend.js";
+import RenderBackend from "./renderbackend.js";
 
 // Canvas style
 const _canvasStyle = css`

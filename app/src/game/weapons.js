@@ -10,7 +10,7 @@ import {
 	Resources,
 	Scene,
 } from "../engine/core/engine.js";
-import { Backend } from "../engine/rendering/context.js";
+import { Backend } from "../engine/rendering/backend.js";
 
 // ============================================================================
 // Private

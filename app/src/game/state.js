@@ -1,5 +1,5 @@
 import { Input, Physics, Scene } from "../engine/core/engine.js";
-import { Backend } from "../engine/rendering/context.js";
+import { Backend } from "../engine/rendering/backend.js";
 import { css, Signals } from "../engine/utils/reactive.js";
 import UI from "./ui.js";
 
