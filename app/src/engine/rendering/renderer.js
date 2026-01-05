@@ -4,7 +4,7 @@ import Scene from "../scene/scene.js";
 import Console from "../systems/console.js";
 import Resources from "../systems/resources.js";
 import Utils from "../utils/utils.js";
-import { afExt, Context, getBackend, gl } from "./context.js";
+import { afExt, getBackend, gl } from "./context.js";
 import RenderPasses from "./renderpasses.js";
 import { Shaders } from "./shaders.js";
 import { screenQuad } from "./shapes.js";
@@ -543,8 +543,8 @@ const _ssaoPass = () => {
 	Shaders.ssao.setInt("noiseTexture", 2);
 	// Set uniforms
 	Shaders.ssao.setVec2("noiseScale", [
-		Context.width() / 4.0,
-		Context.height() / 4.0,
+		getBackend().getWidth() / 4.0,
+		getBackend().getHeight() / 4.0,
 	]);
 	Shaders.ssao.setFloat("radius", Settings.ssaoRadius);
 	Shaders.ssao.setFloat("bias", Settings.ssaoBias);
@@ -773,8 +773,8 @@ const _updateFrameData = (time) => {
 	_frameData[67] = time; // .w = time
 
 	// viewportSize (68-71)
-	_frameData[68] = Context.width();
-	_frameData[69] = Context.height();
+	_frameData[68] = getBackend().getWidth();
+	_frameData[69] = getBackend().getHeight();
 
 	gl.bindBuffer(gl.UNIFORM_BUFFER, _frameDataUBO);
 	gl.bufferSubData(gl.UNIFORM_BUFFER, 0, _frameData);
@@ -810,8 +810,8 @@ export default Renderer;
 window.addEventListener(
 	"resize",
 	() => {
-		Context.resize();
-		_resize(Context.width(), Context.height());
+		getBackend().resize();
+		_resize(getBackend().getWidth(), getBackend().getHeight());
 	},
 	false,
 );

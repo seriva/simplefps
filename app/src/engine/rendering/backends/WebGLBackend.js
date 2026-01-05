@@ -805,6 +805,10 @@ class WebGLBackend extends RenderBackend {
 		);
 	}
 
+	getAspectRatio() {
+		return this.getWidth() / this.getHeight();
+	}
+
 	resize() {
 		const width = this.getWidth();
 		const height = this.getHeight();

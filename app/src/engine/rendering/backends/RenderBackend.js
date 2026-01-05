@@ -193,6 +193,10 @@ class RenderBackend {
 		throw new Error("RenderBackend.getHeight() must be implemented");
 	}
 
+	getAspectRatio() {
+		return this.getWidth() / this.getHeight();
+	}
+
 	resize() {
 		throw new Error("RenderBackend.resize() must be implemented");
 	}

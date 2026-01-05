@@ -14,7 +14,6 @@ _backend = _defaultBackend;
 // Export legacy WebGL objects for backward compatibility
 const gl = _defaultBackend.getGL();
 const afExt = _defaultBackend.getAnisotropicExt();
-const canvas = _defaultBackend.getCanvas();
 
 // ============================================================================
 // Public Context API
@@ -22,7 +21,7 @@ const canvas = _defaultBackend.getCanvas();
 
 const getBackend = () => _backend;
 
-const initContext = async (preferWebGPU = true) => {
+const _initContext = async (preferWebGPU = true) => {
 	// If WebGPU is requested and supported
 	if (preferWebGPU && navigator.gpu) {
 		try {
@@ -66,12 +65,4 @@ Console.registerCmd("rscale", (scale) => {
 	Utils.dispatchEvent("resize");
 });
 
-const Context = {
-	canvas: canvas,
-	width: () => _backend.getWidth(),
-	height: () => _backend.getHeight(),
-	aspectRatio: () => _backend.getWidth() / _backend.getHeight(),
-	resize: _resize,
-};
-
-export { Context, afExt, getBackend, gl };
+export { afExt, getBackend, gl };

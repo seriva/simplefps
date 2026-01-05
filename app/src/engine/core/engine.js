@@ -1,4 +1,3 @@
-import { Context } from "../rendering/context.js";
 import Renderer from "../rendering/renderer.js";
 import DirectionalLightEntity from "../scene/directionallightentity.js";
 import { EntityTypes } from "../scene/entity.js";
@@ -82,7 +81,6 @@ export {
 	Physics,
 	Resources,
 	Camera,
-	Context,
 	Renderer,
 	Scene,
 	EntityTypes,

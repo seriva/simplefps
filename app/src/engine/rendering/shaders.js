@@ -73,7 +73,7 @@ class Shader {
 const Shaders = {};
 
 const initShaders = (backend) => {
-	const isWebGPU = backend.isWebGPU && backend.isWebGPU();
+	const isWebGPU = backend.isWebGPU?.();
 	const sources = isWebGPU ? WgslShaderSources : GlslShaderSources;
 
 	for (const [name, source] of Object.entries(sources)) {
@@ -84,7 +84,7 @@ const initShaders = (backend) => {
 				Shaders[name] = new Shader(backend, source.vertex, source.fragment);
 			}
 			Console.log(`Loaded shader: ${name} [${isWebGPU ? "WGSL" : "GLSL"}]`);
-		} catch (error) {
+		} catch (_error) {
 			Console.error(
 				`Failed to load shader ${name}. Linker/Compiler Error might be above.`,
 			);
