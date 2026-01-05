@@ -3,7 +3,7 @@ import Settings from "../core/settings.js";
 import { EntityTypes } from "../scene/entity.js";
 import Scene from "../scene/scene.js";
 import Console from "../systems/console.js";
-import { getBackend, gl } from "./context.js";
+import { Backend, gl } from "./context.js";
 import { Shaders } from "./shaders.js";
 import { screenQuad } from "./shapes.js";
 
@@ -85,7 +85,7 @@ const renderWorldGeometry = () => {
 	_renderEntities(EntityTypes.MESH, "render", "opaque");
 	_renderEntities(EntityTypes.FPS_MESH, "render", "opaque");
 
-	getBackend().unbindShader();
+	Backend.unbindShader();
 };
 
 const renderTransparent = () => {
@@ -137,7 +137,7 @@ const renderTransparent = () => {
 		Shaders.transparent,
 	);
 
-	getBackend().unbindShader();
+	Backend.unbindShader();
 };
 
 const renderLighting = () => {
@@ -145,28 +145,28 @@ const renderLighting = () => {
 	Shaders.directionalLight.bind();
 	Shaders.directionalLight.setInt("normalBuffer", 1);
 	_renderEntities(EntityTypes.DIRECTIONAL_LIGHT);
-	getBackend().unbindShader();
+	Backend.unbindShader();
 
 	// Point lights
 	Shaders.pointLight.bind();
 	Shaders.pointLight.setInt("positionBuffer", 0);
 	Shaders.pointLight.setInt("normalBuffer", 1);
 	_renderEntities(EntityTypes.POINT_LIGHT);
-	getBackend().unbindShader();
+	Backend.unbindShader();
 
 	// Spot lights
 	Shaders.spotLight.bind();
 	Shaders.spotLight.setInt("positionBuffer", 0);
 	Shaders.spotLight.setInt("normalBuffer", 1);
 	_renderEntities(EntityTypes.SPOT_LIGHT);
-	getBackend().unbindShader();
+	Backend.unbindShader();
 
 	// Apply shadows
 	gl.blendFunc(gl.DST_COLOR, gl.ZERO);
 	Shaders.applyShadows.bind();
 	Shaders.applyShadows.setInt("shadowBuffer", 2);
 	screenQuad.renderSingle();
-	getBackend().unbindShader();
+	Backend.unbindShader();
 };
 
 const renderShadows = () => {
@@ -175,7 +175,7 @@ const renderShadows = () => {
 
 	_renderEntities(EntityTypes.MESH, "renderShadow");
 
-	getBackend().unbindShader();
+	Backend.unbindShader();
 };
 
 const renderFPSGeometry = () => {
@@ -189,7 +189,7 @@ const renderFPSGeometry = () => {
 
 	_renderEntities(EntityTypes.FPS_MESH);
 
-	getBackend().unbindShader();
+	Backend.unbindShader();
 };
 
 const renderDebug = () => {
@@ -239,7 +239,7 @@ const renderDebug = () => {
 	gl.enable(gl.DEPTH_TEST);
 	gl.depthMask(true);
 
-	getBackend().unbindShader();
+	Backend.unbindShader();
 };
 
 // Public RenderPasses API

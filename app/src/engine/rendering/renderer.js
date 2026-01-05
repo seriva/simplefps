@@ -4,7 +4,7 @@ import Scene from "../scene/scene.js";
 import Console from "../systems/console.js";
 import Resources from "../systems/resources.js";
 import Utils from "../utils/utils.js";
-import { afExt, getBackend, gl } from "./context.js";
+import { afExt, Backend, gl } from "./context.js";
 import RenderPasses from "./renderpasses.js";
 import { Shaders } from "./shaders.js";
 import { screenQuad } from "./shapes.js";
@@ -364,7 +364,7 @@ const _blurImage = (source, iterations, radius) => {
 		screenQuad.renderSingle();
 	}
 	_endBlurPass();
-	getBackend().unbindShader();
+	Backend.unbindShader();
 };
 
 const _generateSSAOKernel = () => {
@@ -543,8 +543,8 @@ const _ssaoPass = () => {
 	Shaders.ssao.setInt("noiseTexture", 2);
 	// Set uniforms
 	Shaders.ssao.setVec2("noiseScale", [
-		getBackend().getWidth() / 4.0,
-		getBackend().getHeight() / 4.0,
+		Backend.getWidth() / 4.0,
+		Backend.getHeight() / 4.0,
 	]);
 	Shaders.ssao.setFloat("radius", Settings.ssaoRadius);
 	Shaders.ssao.setFloat("bias", Settings.ssaoBias);
@@ -554,7 +554,7 @@ const _ssaoPass = () => {
 	screenQuad.renderSingle();
 	gl.enable(gl.DEPTH_TEST);
 
-	getBackend().unbindShader();
+	Backend.unbindShader();
 	Texture.unBindRange(gl.TEXTURE0, 3);
 	gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 };
@@ -642,7 +642,7 @@ const _ssaoBlurPass = () => {
 		Shaders.kawaseBlur.setInt("colorBuffer", 0);
 		Shaders.kawaseBlur.setFloat("offset", i + 1.0);
 		screenQuad.renderSingle();
-		getBackend().unbindShader();
+		Backend.unbindShader();
 	}
 
 	Texture.unBind(gl.TEXTURE0);
@@ -716,7 +716,7 @@ const _postProcessingPass = () => {
 	Shaders.postProcessing.setVec3("uAmbient", Scene.getAmbient());
 	screenQuad.renderSingle();
 
-	getBackend().unbindShader();
+	Backend.unbindShader();
 	Texture.unBindRange(gl.TEXTURE0, 6);
 };
 
@@ -773,8 +773,8 @@ const _updateFrameData = (time) => {
 	_frameData[67] = time; // .w = time
 
 	// viewportSize (68-71)
-	_frameData[68] = getBackend().getWidth();
-	_frameData[69] = getBackend().getHeight();
+	_frameData[68] = Backend.getWidth();
+	_frameData[69] = Backend.getHeight();
 
 	gl.bindBuffer(gl.UNIFORM_BUFFER, _frameDataUBO);
 	gl.bufferSubData(gl.UNIFORM_BUFFER, 0, _frameData);
@@ -810,8 +810,8 @@ export default Renderer;
 window.addEventListener(
 	"resize",
 	() => {
-		getBackend().resize();
-		_resize(getBackend().getWidth(), getBackend().getHeight());
+		Backend.resize();
+		_resize(Backend.getWidth(), Backend.getHeight());
 	},
 	false,
 );

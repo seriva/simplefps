@@ -1,5 +1,5 @@
 import { Input, Physics, Scene } from "../engine/core/engine.js";
-import { getBackend } from "../engine/rendering/context.js";
+import { Backend } from "../engine/rendering/context.js";
 import { css, Signals } from "../engine/utils/reactive.js";
 import UI from "./ui.js";
 
@@ -20,12 +20,12 @@ const _blurStyle = css`
 `;
 
 // Initialize blur immediately to avoid white flash on load
-const _canvas = getBackend().getCanvas();
+const _canvas = Backend.getCanvas();
 _canvas.classList.add(_blurStyle);
 _canvas.style.filter = "blur(8px)";
 
 _isBlurred.subscribe((blurred) => {
-	const canvas = getBackend().getCanvas();
+	const canvas = Backend.getCanvas();
 	if (canvas) canvas.style.filter = blurred ? "blur(8px)" : "blur(0px)";
 });
 

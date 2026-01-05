@@ -1,6 +1,6 @@
 import Settings from "../core/settings.js";
 import Console from "../systems/console.js";
-import { getBackend } from "./context.js";
+import { Backend } from "./context.js";
 
 // We import gl from context.js to access constants like REPEAT, CLAMP_TO_EDGE, etc.
 // These constants are passed to the backend, which (in WebGLBackend case) understands them directly.
@@ -25,7 +25,7 @@ class Texture {
 		if (data.data) {
 			// Image texture case
 			// Create a 1x1 mutable placeholder (defaults to black)
-			this._handle = getBackend().createTexture({
+			this._handle = Backend.createTexture({
 				width: 1,
 				height: 1,
 				// format defaults to RGBA, type to UNSIGNED_BYTE
@@ -36,8 +36,8 @@ class Texture {
 		} else {
 			// Render texture case
 			// data contains format, width, height, etc.
-			this._handle = getBackend().createTexture(data);
-			getBackend().setTextureWrapMode(this._handle, "clamp-to-edge");
+			this._handle = Backend.createTexture(data);
+			Backend.setTextureWrapMode(this._handle, "clamp-to-edge");
 		}
 	}
 
@@ -54,16 +54,16 @@ class Texture {
 			if (!this._handle) return; // Disposed?
 
 			// Upload image data (this updates the texture content and might resize usage in WebGL)
-			getBackend().uploadTextureFromImage(this._handle, image);
+			Backend.uploadTextureFromImage(this._handle, image);
 
 			// Generate mipmaps
-			getBackend().generateMipmaps(this._handle);
+			Backend.generateMipmaps(this._handle);
 
 			// Apply settings
-			getBackend().setTextureWrapMode(this._handle, "repeat");
+			Backend.setTextureWrapMode(this._handle, "repeat");
 
 			if (Settings.anisotropicFiltering > 1) {
-				getBackend().setTextureAnisotropy(
+				Backend.setTextureAnisotropy(
 					this._handle,
 					Settings.anisotropicFiltering,
 				);
@@ -85,28 +85,28 @@ class Texture {
 
 	bind(unit) {
 		if (this._handle) {
-			getBackend().bindTexture(this._handle, unit);
+			Backend.bindTexture(this._handle, unit);
 		}
 	}
 
 	static unBind(unit) {
-		getBackend().unbindTexture(unit);
+		Backend.unbindTexture(unit);
 	}
 
 	static unBindRange(startUnit, count) {
 		for (let i = 0; i < count; i++) {
-			getBackend().unbindTexture(startUnit + i);
+			Backend.unbindTexture(startUnit + i);
 		}
 	}
 
 	setTextureWrapMode(mode) {
 		if (!this._handle) return;
-		getBackend().setTextureWrapMode(this._handle, mode);
+		Backend.setTextureWrapMode(this._handle, mode);
 	}
 
 	dispose() {
 		if (this._handle) {
-			getBackend().disposeTexture(this._handle);
+			Backend.disposeTexture(this._handle);
 			this._handle = null;
 		}
 	}

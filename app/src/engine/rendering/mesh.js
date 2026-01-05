@@ -1,5 +1,5 @@
 import BoundingBox from "../utils/boundingbox.js";
-import { getBackend } from "./context.js";
+import { Backend } from "./context.js";
 
 class Mesh {
 	static ATTR_POSITIONS = 0;
@@ -39,7 +39,7 @@ class Mesh {
 			typedArray = new Float32Array(data);
 		}
 
-		return getBackend().createBuffer(typedArray, usage);
+		return Backend.createBuffer(typedArray, usage);
 	}
 
 	initMeshBuffers() {
@@ -124,19 +124,19 @@ class Mesh {
 		}
 
 		// Create Vertex State (VAO)
-		this.vao = getBackend().createVertexState({ attributes });
+		this.vao = Backend.createVertexState({ attributes });
 	}
 
 	deleteMeshBuffers() {
 		if (this.vao) {
-			getBackend().deleteVertexState(this.vao);
+			Backend.deleteVertexState(this.vao);
 			this.vao = null;
 		}
 
 		// Delete all buffers we created
 		if (this._buffers) {
 			for (const buffer of this._buffers) {
-				getBackend().deleteBuffer(buffer);
+				Backend.deleteBuffer(buffer);
 			}
 			this._buffers = [];
 		}
@@ -146,11 +146,11 @@ class Mesh {
 	}
 
 	bind() {
-		getBackend().bindVertexState(this.vao);
+		Backend.bindVertexState(this.vao);
 	}
 
 	unBind() {
-		getBackend().bindVertexState(null);
+		Backend.bindVertexState(null);
 	}
 
 	#groupedIndices = null;
@@ -205,7 +205,7 @@ class Mesh {
 				this.#bindMaterial(indexObj, applyMaterial, shader);
 
 				// Draw Abstracted
-				getBackend().drawIndexed(
+				Backend.drawIndexed(
 					indexObj.indexBuffer,
 					indexObj.indexBuffer.length,
 					0,
@@ -223,7 +223,7 @@ class Mesh {
 			this.#bindMaterial(indexObj, applyMaterial, shader);
 
 			// Draw Abstracted
-			getBackend().drawIndexed(
+			Backend.drawIndexed(
 				indexObj.indexBuffer,
 				indexObj.indexBuffer.length,
 				0,
@@ -257,16 +257,16 @@ class Mesh {
 
 			// Create temporary index buffer via backend
 			// using slice to get exact content length
-			const tempBuffer = getBackend().createBuffer(
+			const tempBuffer = Backend.createBuffer(
 				tempArray.subarray(0, lineCount),
 				"index",
 			);
 
 			// Draw lines
-			getBackend().drawIndexed(tempBuffer, lineCount, 0, "lines");
+			Backend.drawIndexed(tempBuffer, lineCount, 0, "lines");
 
 			// Cleanup
-			getBackend().deleteBuffer(tempBuffer);
+			Backend.deleteBuffer(tempBuffer);
 		}
 
 		this.unBind();

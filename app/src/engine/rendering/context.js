@@ -4,12 +4,12 @@ import Utils from "../utils/utils.js";
 import WebGLBackend from "./backends/WebGLBackend.js";
 
 // Global backend instance
-let _backend = null;
+export let Backend = null;
 
 // Initialize WebGL backend synchronously to maintain backward compatibility
 const _defaultBackend = new WebGLBackend();
 _defaultBackend.init(); // Auto-creates canvas and context
-_backend = _defaultBackend;
+Backend = _defaultBackend;
 
 // Export legacy WebGL objects for backward compatibility
 const gl = _defaultBackend.getGL();
@@ -18,8 +18,6 @@ const afExt = _defaultBackend.getAnisotropicExt();
 // ============================================================================
 // Public Context API
 // ============================================================================
-
-const getBackend = () => _backend;
 
 const _initContext = async (preferWebGPU = true) => {
 	// If WebGPU is requested and supported
@@ -34,9 +32,9 @@ const _initContext = async (preferWebGPU = true) => {
 				const gpuBackend = new WebGPUBackend();
 				if (await gpuBackend.init(_defaultBackend.getCanvas())) {
 					Console.log("Switching to WebGPU backend");
-					_backend.dispose(); // Cleanup WebGL
-					_backend = gpuBackend;
-					return _backend;
+					Backend.dispose(); // Cleanup WebGL
+					Backend = gpuBackend;
+					return Backend;
 				}
 			}
 		} catch (e) {
@@ -46,7 +44,7 @@ const _initContext = async (preferWebGPU = true) => {
 
 	// Fallback/Default is already WebGL (initialized synchronously)
 	Console.log("Using WebGL2 backend");
-	return _backend;
+	return Backend;
 };
 
 // ============================================================================
@@ -54,8 +52,8 @@ const _initContext = async (preferWebGPU = true) => {
 // ============================================================================
 
 const _resize = () => {
-	if (_backend) {
-		_backend.resize();
+	if (Backend) {
+		Backend.resize();
 	}
 };
 
@@ -65,4 +63,4 @@ Console.registerCmd("rscale", (scale) => {
 	Utils.dispatchEvent("resize");
 });
 
-export { afExt, getBackend, gl };
+export { afExt, gl };

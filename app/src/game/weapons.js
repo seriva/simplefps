@@ -10,7 +10,7 @@ import {
 	Resources,
 	Scene,
 } from "../engine/core/engine.js";
-import { getBackend } from "../engine/rendering/context.js";
+import { Backend } from "../engine/rendering/context.js";
 
 // ============================================================================
 // Private
@@ -418,7 +418,7 @@ const _applyWeaponTransforms = (entity, animations) => {
 	// Correct for aspect ratio (pull closer to center on wide screens to avoid distortion)
 	// We mix the correction 50% so it's not too aggressive
 	// We mix the correction 50% so it's not too aggressive
-	const aspect = getBackend().getAspectRatio();
+	const aspect = Backend.getAspectRatio();
 	const targetFactor = 1.8 / Math.max(1.8, aspect);
 	const aspectFactor = 0.5 + targetFactor * 0.5;
 

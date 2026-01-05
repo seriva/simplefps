@@ -1,5 +1,5 @@
 import { glMatrix, mat4, vec3, vec4 } from "../../dependencies/gl-matrix.js";
-import { getBackend } from "../rendering/context.js";
+import { Backend } from "../rendering/context.js";
 import Utils from "../utils/utils.js";
 import Settings from "./settings.js";
 
@@ -172,7 +172,7 @@ const _handleResize = () => {
 	mat4.perspective(
 		_projection,
 		glMatrix.toRadian(_fov),
-		getBackend().getAspectRatio(),
+		Backend.getAspectRatio(),
 		_nearPlane ?? Settings.zNear,
 		_farPlane ?? Settings.zFar,
 	);

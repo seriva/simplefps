@@ -1,4 +1,4 @@
-import { getBackend } from "./context.js";
+import { Backend } from "./context.js";
 import { Shaders } from "./shaders.js";
 import Texture from "./texture.js";
 
@@ -55,13 +55,13 @@ class Material {
 			this._createUBO();
 		}
 
-		getBackend().bindUniformBuffer(this.ubo);
+		Backend.bindUniformBuffer(this.ubo);
 
 		// Handle double-sided materials
 		if (this.doubleSided) {
-			getBackend().setCullState(false);
+			Backend.setCullState(false);
 		} else if (!this.translucent) {
-			getBackend().setCullState(true, "back");
+			Backend.setCullState(true, "back");
 		}
 	}
 
@@ -85,10 +85,10 @@ class Material {
 
 		// Create UBO via backend (size 32 bytes, binding point 1)
 		// We create it first
-		this.ubo = getBackend().createUBO(32, 1);
+		this.ubo = Backend.createUBO(32, 1);
 
 		// Then update logic
-		getBackend().updateUBO(this.ubo, data);
+		Backend.updateUBO(this.ubo, data);
 	}
 
 	unBind() {
