@@ -1,10 +1,10 @@
 import Camera from "../core/camera.js";
 import Settings from "../core/settings.js";
 import Scene from "../scene/scene.js";
-import Console from "../systems/console.js";
+
 import Resources from "../systems/resources.js";
 import Utils from "../utils/utils.js";
-import { afExt, Backend, gl } from "./context.js";
+import { Backend, gl } from "./context.js";
 import RenderPasses from "./renderpasses.js";
 import { Shaders } from "./shaders.js";
 import { screenQuad } from "./shapes.js";
@@ -60,53 +60,34 @@ let _ssaoNoiseData = [];
 const _disposeResources = () => {
 	if (_depth) _depth.dispose();
 	if (_g.framebuffer) {
-		gl.deleteFramebuffer(_g.framebuffer);
+		Backend.deleteFramebuffer(_g.framebuffer);
 		if (_g.worldPosition) _g.worldPosition.dispose();
 		if (_g.normal) _g.normal.dispose();
 		if (_g.color) _g.color.dispose();
 		if (_g.emissive) _g.emissive.dispose();
 	}
 	if (_s.framebuffer) {
-		gl.deleteFramebuffer(_s.framebuffer);
+		Backend.deleteFramebuffer(_s.framebuffer);
 		if (_s.shadow) _s.shadow.dispose();
 	}
 	if (_l.framebuffer) {
-		gl.deleteFramebuffer(_l.framebuffer);
+		Backend.deleteFramebuffer(_l.framebuffer);
 		if (_l.light) _l.light.dispose();
 	}
 	if (_b.framebuffer) {
-		gl.deleteFramebuffer(_b.framebuffer);
+		Backend.deleteFramebuffer(_b.framebuffer);
 		if (_b.blur) _b.blur.dispose();
 	}
 	if (_ao.framebuffer) {
-		gl.deleteFramebuffer(_ao.framebuffer);
+		Backend.deleteFramebuffer(_ao.framebuffer);
 		if (_ao.ssao) _ao.ssao.dispose();
 		// Note: _ao.noise is NOT disposed - it's reusable across resizes
 	}
 };
 
 // Private functions
-const _checkFramebufferStatus = () => {
-	const status = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
-	switch (status) {
-		case gl.FRAMEBUFFER_COMPLETE:
-			break;
-		case gl.FRAMEBUFFER_INCOMPLETE_ATTACHMENT:
-			Console.error("FRAMEBUFFER_INCOMPLETE_ATTACHMENT");
-			break;
-		case gl.FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT:
-			Console.error("FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT");
-			break;
-		case gl.FRAMEBUFFER_INCOMPLETE_DIMENSIONS:
-			Console.error("FRAMEBUFFER_INCOMPLETE_DIMENSIONS");
-			break;
-		case gl.FRAMEBUFFER_UNSUPPORTED:
-			Console.error("FRAMEBUFFER_UNSUPPORTED");
-			break;
-		default:
-			break;
-	}
-};
+// Private functions
+// _checkFramebufferStatus removed - Backend handles validation during creation
 
 const _resize = (width, height) => {
 	// Dispose old resources first to prevent memory leaks
@@ -126,9 +107,11 @@ const _resize = (width, height) => {
 	// **********************************
 	_g.width = width;
 	_g.height = height;
-	_g.framebuffer = gl.createFramebuffer();
-	gl.bindFramebuffer(gl.FRAMEBUFFER, _g.framebuffer);
-	gl.activeTexture(gl.TEXTURE0);
+	// **********************************
+	// geometry buffer
+	// **********************************
+	_g.width = width;
+	_g.height = height;
 
 	// World position buffer (RGBA16F for accurate position at all distances)
 	// Using RGBA instead of RGB for better compatibility as color attachment
@@ -137,164 +120,104 @@ const _resize = (width, height) => {
 		width,
 		height,
 	});
-	gl.framebufferTexture2D(
-		gl.FRAMEBUFFER,
-		gl.COLOR_ATTACHMENT0,
-		gl.TEXTURE_2D,
-		_g.worldPosition.texture,
-		0,
-	);
 
 	_g.normal = new Texture({
 		format: gl.RGBA8,
 		width,
 		height,
 	});
-	gl.framebufferTexture2D(
-		gl.FRAMEBUFFER,
-		gl.COLOR_ATTACHMENT1,
-		gl.TEXTURE_2D,
-		_g.normal.texture,
-		0,
-	);
 
 	_g.color = new Texture({
 		format: gl.RGBA8,
 		width,
 		height,
 	});
-	gl.framebufferTexture2D(
-		gl.FRAMEBUFFER,
-		gl.COLOR_ATTACHMENT2,
-		gl.TEXTURE_2D,
-		_g.color.texture,
-		0,
-	);
 
 	_g.emissive = new Texture({
 		format: gl.RGBA8,
 		width,
 		height,
 	});
-	gl.framebufferTexture2D(
-		gl.FRAMEBUFFER,
-		gl.COLOR_ATTACHMENT3,
-		gl.TEXTURE_2D,
-		_g.emissive.texture,
-		0,
-	);
 
-	gl.framebufferTexture2D(
-		gl.FRAMEBUFFER,
-		gl.DEPTH_ATTACHMENT,
-		gl.TEXTURE_2D,
-		_depth.texture,
-		0,
-	);
-	gl.drawBuffers([
-		gl.COLOR_ATTACHMENT0,
-		gl.COLOR_ATTACHMENT1,
-		gl.COLOR_ATTACHMENT2,
-		gl.COLOR_ATTACHMENT3,
-	]);
-	_checkFramebufferStatus();
-	gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+	const geometryFBResult = Backend.createFramebuffer({
+		colorAttachments: [
+			_g.worldPosition.getHandle(),
+			_g.normal.getHandle(),
+			_g.color.getHandle(),
+			_g.emissive.getHandle(),
+		],
+		depthAttachment: _depth.getHandle(),
+	});
+	_g.framebuffer = geometryFBResult;
 
 	// **********************************
 	// shadow buffer
 	// **********************************
-	_s.framebuffer = gl.createFramebuffer();
-	gl.bindFramebuffer(gl.FRAMEBUFFER, _s.framebuffer);
-	gl.activeTexture(gl.TEXTURE0);
-
+	// **********************************
+	// shadow buffer
+	// **********************************
 	_s.shadow = new Texture({
 		format: gl.RGBA8,
 		width,
 		height,
 	});
-	gl.framebufferTexture2D(
-		gl.FRAMEBUFFER,
-		gl.COLOR_ATTACHMENT0,
-		gl.TEXTURE_2D,
-		_s.shadow.texture,
-		0,
-	);
-	gl.framebufferTexture2D(
-		gl.FRAMEBUFFER,
-		gl.DEPTH_ATTACHMENT,
-		gl.TEXTURE_2D,
-		_depth.texture,
-		0,
-	);
-	_checkFramebufferStatus();
-	gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+	const shadowFBResult = Backend.createFramebuffer({
+		colorAttachments: [_s.shadow.getHandle()],
+		depthAttachment: _depth.getHandle(),
+	});
+	_s.framebuffer = shadowFBResult;
 
 	// **********************************
 	// lighting buffer
 	// **********************************
-	_l.framebuffer = gl.createFramebuffer();
-	gl.bindFramebuffer(gl.FRAMEBUFFER, _l.framebuffer);
-	gl.activeTexture(gl.TEXTURE0);
-
+	// **********************************
+	// lighting buffer
+	// **********************************
 	_l.light = new Texture({
 		format: gl.RGBA8,
 		width,
 		height,
 	});
-	gl.framebufferTexture2D(
-		gl.FRAMEBUFFER,
-		gl.COLOR_ATTACHMENT0,
-		gl.TEXTURE_2D,
-		_l.light.texture,
-		0,
-	);
 
-	_checkFramebufferStatus();
-	gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+	const lightingFBResult = Backend.createFramebuffer({
+		colorAttachments: [_l.light.getHandle()],
+	});
+	_l.framebuffer = lightingFBResult;
 
 	// **********************************
 	// gaussianblur buffer
 	// **********************************
-	_b.framebuffer = gl.createFramebuffer();
-	gl.bindFramebuffer(gl.FRAMEBUFFER, _b.framebuffer);
-	gl.activeTexture(gl.TEXTURE0);
-
+	// **********************************
+	// gaussianblur buffer
+	// **********************************
 	_b.blur = new Texture({
 		format: gl.RGBA8,
 		width,
 		height,
 	});
-	gl.framebufferTexture2D(
-		gl.FRAMEBUFFER,
-		gl.COLOR_ATTACHMENT0,
-		gl.TEXTURE_2D,
-		_b.blur.texture,
-		0,
-	);
-	_checkFramebufferStatus();
-	gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+	const blurFBResult = Backend.createFramebuffer({
+		colorAttachments: [_b.blur.getHandle()],
+	});
+	_b.framebuffer = blurFBResult;
 
 	// **********************************
 	// SSAO buffer
 	// **********************************
-	_ao.framebuffer = gl.createFramebuffer();
-	gl.bindFramebuffer(gl.FRAMEBUFFER, _ao.framebuffer);
-	gl.activeTexture(gl.TEXTURE0);
-
+	// **********************************
+	// SSAO buffer
+	// **********************************
 	_ao.ssao = new Texture({
 		format: gl.RGBA8,
 		width,
 		height,
 	});
-	gl.framebufferTexture2D(
-		gl.FRAMEBUFFER,
-		gl.COLOR_ATTACHMENT0,
-		gl.TEXTURE_2D,
-		_ao.ssao.texture,
-		0,
-	);
-	_checkFramebufferStatus();
-	gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+	const ssaoFBResult = Backend.createFramebuffer({
+		colorAttachments: [_ao.ssao.getHandle()],
+	});
+	_ao.framebuffer = ssaoFBResult;
 
 	// Initialize SSAO noise texture (only once, doesn't need resize)
 	if (!_ao.noise) {
@@ -320,35 +243,27 @@ const _startBlurPass = (blurSource) => {
 			break;
 		default:
 	}
-	gl.bindFramebuffer(gl.FRAMEBUFFER, _b.framebuffer);
+	Backend.bindFramebuffer(_b.framebuffer);
 };
 
 const _endBlurPass = () => {
 	Texture.unBind(gl.TEXTURE0);
-	gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+	Backend.bindFramebuffer(null);
 };
 
 const _swapBlur = (i) => {
 	if (i % 2 === 0) {
-		gl.framebufferTexture2D(
-			gl.FRAMEBUFFER,
-			gl.COLOR_ATTACHMENT0,
-			gl.TEXTURE_2D,
-			_b.blur.texture,
-			0,
-		);
+		Backend.setFramebufferAttachment(_b.framebuffer, 0, _b.blur.getHandle());
+		// Re-bind (as setFramebufferAttachment unbinds)
+		Backend.bindFramebuffer(_b.framebuffer);
 		_b.source.bind(gl.TEXTURE0);
 	} else {
-		gl.framebufferTexture2D(
-			gl.FRAMEBUFFER,
-			gl.COLOR_ATTACHMENT0,
-			gl.TEXTURE_2D,
-			_b.source.texture,
-			0,
-		);
+		Backend.setFramebufferAttachment(_b.framebuffer, 0, _b.source.getHandle());
+		// Re-bind
+		Backend.bindFramebuffer(_b.framebuffer);
 		_b.blur.bind(gl.TEXTURE0);
 	}
-	gl.clear(gl.COLOR_BUFFER_BIT);
+	Backend.clear({ color: [0, 0, 0, 0] });
 };
 
 const _blurImage = (source, iterations, radius) => {
@@ -456,27 +371,19 @@ const _generateDetailNoise = () => {
 		ptype: gl.UNSIGNED_BYTE,
 	});
 
-	_detailNoise.bind(gl.TEXTURE0);
-	gl.texParameteri(
-		gl.TEXTURE_2D,
-		gl.TEXTURE_MIN_FILTER,
-		gl.LINEAR_MIPMAP_LINEAR,
-	);
-	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
-	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+	_detailNoise.setTextureWrapMode("repeat");
+	Backend.generateMipmaps(_detailNoise.getHandle());
 
-	if (afExt) {
-		const maxAniso = gl.getParameter(afExt.MAX_TEXTURE_MAX_ANISOTROPY_EXT);
-		const af = Math.min(Math.max(Settings.anisotropicFiltering, 1), maxAniso);
-		gl.texParameterf(gl.TEXTURE_2D, afExt.TEXTURE_MAX_ANISOTROPY_EXT, af);
+	if (Settings.anisotropicFiltering > 1) {
+		Backend.setTextureAnisotropy(
+			_detailNoise.getHandle(),
+			Settings.anisotropicFiltering,
+		);
 	}
-
-	gl.generateMipmap(gl.TEXTURE_2D);
 };
 
 const _startGeomPass = (clearDepthOnly = false) => {
-	gl.bindFramebuffer(gl.FRAMEBUFFER, _g.framebuffer);
+	Backend.bindFramebuffer(_g.framebuffer);
 	const ambient = Scene.getAmbient();
 	const color = [ambient[0], ambient[1], ambient[2], 1.0];
 	if (clearDepthOnly) {
@@ -487,46 +394,46 @@ const _startGeomPass = (clearDepthOnly = false) => {
 };
 
 const _endGeomPass = () => {
-	gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+	Backend.bindFramebuffer(null);
 };
 
 const _worldGeomPass = () => {
-	gl.depthRange(0.1, 1.0);
+	Backend.setDepthRange(0.1, 1.0);
 	_startGeomPass();
 
 	if (_detailNoise) _detailNoise.bind(gl.TEXTURE5); // Bind noise to unit 5
 	RenderPasses.renderWorldGeometry();
 
 	_endGeomPass();
-	gl.depthRange(0.0, 1.0);
+	Backend.setDepthRange(0.0, 1.0);
 };
 
 const _fpsGeomPass = () => {
 	// Don't clear depth, just use a closer depth range so it draws on top
-	gl.depthRange(0.0, 0.1);
-	gl.bindFramebuffer(gl.FRAMEBUFFER, _g.framebuffer);
+	Backend.setDepthRange(0.0, 0.1);
+	Backend.bindFramebuffer(_g.framebuffer);
 
 	if (_detailNoise) _detailNoise.bind(gl.TEXTURE5); // Bind noise to unit 5
 	RenderPasses.renderFPSGeometry();
 
-	gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-	gl.depthRange(0.0, 1.0);
+	Backend.bindFramebuffer(null);
+	Backend.setDepthRange(0.0, 1.0);
 };
 
 const _shadowPass = () => {
 	// Match the depth range of the world geometry pass so depth comparisons are valid
-	gl.depthRange(0.1, 1.0);
-	gl.bindFramebuffer(gl.FRAMEBUFFER, _s.framebuffer);
+	Backend.setDepthRange(0.1, 1.0);
+	Backend.bindFramebuffer(_s.framebuffer);
 	Backend.clear({ color: [1.0, 1.0, 1.0, 1.0] });
 
 	RenderPasses.renderShadows();
 
-	gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-	gl.depthRange(0.0, 1.0);
+	Backend.bindFramebuffer(null);
+	Backend.setDepthRange(0.0, 1.0);
 };
 
 const _ssaoPass = () => {
-	gl.bindFramebuffer(gl.FRAMEBUFFER, _ao.framebuffer);
+	Backend.bindFramebuffer(_ao.framebuffer);
 	Backend.clear({ color: [1.0, 1.0, 1.0, 1.0] });
 
 	// Bind G-buffer textures
@@ -554,20 +461,13 @@ const _ssaoPass = () => {
 
 	Backend.unbindShader();
 	Texture.unBindRange(gl.TEXTURE0, 3);
-	gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+	Backend.bindFramebuffer(null);
 };
 
 const _lightingPass = () => {
-	gl.bindFramebuffer(gl.FRAMEBUFFER, _l.framebuffer);
-
 	// Explicitly detach depth buffer to allow reading it as a texture
-	gl.framebufferTexture2D(
-		gl.FRAMEBUFFER,
-		gl.DEPTH_ATTACHMENT,
-		gl.TEXTURE_2D,
-		null,
-		0,
-	);
+	Backend.setFramebufferAttachment(_l.framebuffer, "depth", null);
+	Backend.bindFramebuffer(_l.framebuffer);
 
 	const ambient = Scene.getAmbient();
 
@@ -589,7 +489,7 @@ const _lightingPass = () => {
 	Backend.setCullState(true);
 
 	Texture.unBindRange(gl.TEXTURE0, 3);
-	gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+	Backend.bindFramebuffer(null);
 
 	_blurImage(_BlurSourceType.LIGHTING, 4, 0.2);
 };
@@ -612,7 +512,7 @@ const _shadowBlurPass = () => {
 
 const _ssaoBlurPass = () => {
 	// Blur SSAO directly by setting up a special blur source
-	gl.bindFramebuffer(gl.FRAMEBUFFER, _b.framebuffer);
+	Backend.bindFramebuffer(_b.framebuffer);
 
 	// Ping-pong blur for SSAO
 	for (let i = 0; i < Settings.ssaoBlurIterations; i++) {
@@ -645,20 +545,13 @@ const _ssaoBlurPass = () => {
 	}
 
 	Texture.unBind(gl.TEXTURE0);
-	gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+	Backend.bindFramebuffer(null);
 };
 
 const _transparentPass = () => {
-	gl.bindFramebuffer(gl.FRAMEBUFFER, _l.framebuffer);
-
 	// Re-attach depth buffer for correct depth testing
-	gl.framebufferTexture2D(
-		gl.FRAMEBUFFER,
-		gl.DEPTH_ATTACHMENT,
-		gl.TEXTURE_2D,
-		_depth.texture,
-		0,
-	);
+	Backend.setFramebufferAttachment(_l.framebuffer, "depth", _depth.getHandle());
+	Backend.bindFramebuffer(_l.framebuffer);
 
 	// Match the depth range of the world geometry pass so depth comparisons are valid
 	gl.depthRange(0.1, 1.0);
@@ -677,8 +570,8 @@ const _transparentPass = () => {
 	Backend.setDepthState(true, true);
 	Backend.setBlendState(false);
 
-	gl.depthRange(0.0, 1.0);
-	gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+	Backend.setDepthRange(0.0, 1.0);
+	Backend.bindFramebuffer(null);
 };
 
 const _postProcessingPass = () => {
@@ -740,15 +633,9 @@ const _frameData = new Float32Array(72);
 const _initUBO = () => {
 	if (_frameDataUBO) return;
 
-	_frameDataUBO = gl.createBuffer();
-	gl.bindBuffer(gl.UNIFORM_BUFFER, _frameDataUBO);
-	gl.bufferData(gl.UNIFORM_BUFFER, _FRAME_DATA_SIZE, gl.DYNAMIC_DRAW);
-	gl.bindBuffer(gl.UNIFORM_BUFFER, null);
-
-	gl.bindBufferBase(
-		gl.UNIFORM_BUFFER,
+	_frameDataUBO = Backend.createUBO(
+		_FRAME_DATA_SIZE,
 		_FRAME_DATA_BINDING_POINT,
-		_frameDataUBO,
 	);
 };
 
@@ -772,9 +659,7 @@ const _updateFrameData = (time) => {
 	_frameData[68] = Backend.getWidth();
 	_frameData[69] = Backend.getHeight();
 
-	gl.bindBuffer(gl.UNIFORM_BUFFER, _frameDataUBO);
-	gl.bufferSubData(gl.UNIFORM_BUFFER, 0, _frameData);
-	gl.bindBuffer(gl.UNIFORM_BUFFER, null);
+	Backend.updateUBO(_frameDataUBO, _frameData);
 };
 
 // Public Renderer API

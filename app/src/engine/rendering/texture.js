@@ -12,6 +12,11 @@ class Texture {
 		this.init(data);
 	}
 
+	// Public accessor for the backend handle (opaque to the user)
+	getHandle() {
+		return this._handle;
+	}
+
 	// Backward compatibility: expose the raw GL texture (if supported by backend)
 	get texture() {
 		return this._handle ? this._handle._glTexture : null;

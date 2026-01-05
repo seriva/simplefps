@@ -59,6 +59,18 @@ class RenderBackend {
 		throw new Error("RenderBackend.bindFramebuffer() must be implemented");
 	}
 
+	setFramebufferAttachment(
+		_framebuffer,
+		_attachment,
+		_texture,
+		_level = 0,
+		_layer = 0,
+	) {
+		throw new Error(
+			"RenderBackend.setFramebufferAttachment() must be implemented",
+		);
+	}
+
 	// =========================================================================
 	// Vertex State Management
 	// =========================================================================

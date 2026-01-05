@@ -202,12 +202,14 @@ class WebGLBackend extends RenderBackend {
 		gl.texParameteri(
 			gl.TEXTURE_2D,
 			gl.TEXTURE_MIN_FILTER,
-			descriptor.data ? gl.LINEAR_MIPMAP_LINEAR : gl.NEAREST,
+			descriptor.data || descriptor.pdata
+				? gl.LINEAR_MIPMAP_LINEAR
+				: gl.NEAREST,
 		);
 		gl.texParameteri(
 			gl.TEXTURE_2D,
 			gl.TEXTURE_MAG_FILTER,
-			descriptor.data ? gl.LINEAR : gl.NEAREST,
+			descriptor.data || descriptor.pdata ? gl.LINEAR : gl.NEAREST,
 		);
 
 		// Create storage
@@ -463,7 +465,14 @@ class WebGLBackend extends RenderBackend {
 		if (descriptor.colorAttachments) {
 			for (let i = 0; i < descriptor.colorAttachments.length; i++) {
 				const att = descriptor.colorAttachments[i];
-				const texHandle = this.createTexture(att);
+				let texHandle;
+				if (att._glTexture) {
+					// Existing handle passed
+					texHandle = att;
+				} else {
+					// Create new texture
+					texHandle = this.createTexture(att);
+				}
 				textures.push(texHandle);
 
 				gl.framebufferTexture2D(
@@ -479,7 +488,11 @@ class WebGLBackend extends RenderBackend {
 
 		// Create depth attachment
 		if (descriptor.depthAttachment) {
-			depthTexture = this.createTexture(descriptor.depthAttachment);
+			if (descriptor.depthAttachment._glTexture) {
+				depthTexture = descriptor.depthAttachment;
+			} else {
+				depthTexture = this.createTexture(descriptor.depthAttachment);
+			}
 			gl.framebufferTexture2D(
 				gl.FRAMEBUFFER,
 				gl.DEPTH_ATTACHMENT,
@@ -506,6 +519,57 @@ class WebGLBackend extends RenderBackend {
 			colorTextures: textures,
 			depthTexture,
 		};
+	}
+
+	deleteFramebuffer(framebuffer) {
+		const gl = this._gl;
+		gl.deleteFramebuffer(framebuffer._glFramebuffer);
+	}
+
+	setFramebufferAttachment(
+		framebuffer,
+		attachment,
+		texture,
+		level = 0,
+		_layer = 0,
+	) {
+		const gl = this._gl;
+		this.bindFramebuffer(framebuffer);
+
+		let glAttachment;
+		if (attachment === "depth") {
+			glAttachment = gl.DEPTH_ATTACHMENT;
+		} else if (attachment === "stencil") {
+			glAttachment = gl.STENCIL_ATTACHMENT;
+		} else if (attachment === "depth-stencil") {
+			glAttachment = gl.DEPTH_STENCIL_ATTACHMENT;
+		} else if (typeof attachment === "number") {
+			// Assume color attachment index
+			glAttachment = gl.COLOR_ATTACHMENT0 + attachment;
+		} else {
+			Console.error(`Unknown attachment type: ${attachment}`);
+			return;
+		}
+
+		if (texture) {
+			gl.framebufferTexture2D(
+				gl.FRAMEBUFFER,
+				glAttachment,
+				gl.TEXTURE_2D,
+				texture._glTexture,
+				level,
+			);
+		} else {
+			gl.framebufferTexture2D(
+				gl.FRAMEBUFFER,
+				glAttachment,
+				gl.TEXTURE_2D,
+				null,
+				level,
+			);
+		}
+
+		this.bindFramebuffer(null);
 	}
 
 	bindFramebuffer(framebuffer) {
