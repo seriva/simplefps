@@ -18,5 +18,10 @@
     "theme_color": "#000000",
     "background_color": "#000000",
     "display": "fullscreen",
+    "display_override": [
+        "fullscreen",
+        "standalone",
+        "minimal-ui"
+    ],
     "orientation": "landscape"
 }
