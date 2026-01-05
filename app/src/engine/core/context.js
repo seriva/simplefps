@@ -6,8 +6,11 @@ import Settings from "./settings.js";
 // Private canvas setup
 const _canvasStyle = css`
 	background: #000;
-	width: 100vw;
-	height: 100vh;
+	position: fixed;
+	top: 0;
+	left: 0;
+	width: 100dvw;
+	height: 100dvh;
 	display: block;
 	z-index: 0;
 `;
