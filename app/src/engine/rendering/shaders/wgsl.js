@@ -55,6 +55,7 @@ struct FragmentOutput {
 @group(2) @binding(1) var colorTexture: texture_2d<f32>;
 @group(2) @binding(2) var emissiveTexture: texture_2d<f32>;
 @group(2) @binding(3) var lightmapTexture: texture_2d<f32>;
+@group(2) @binding(4) var detailTexture: texture_2d<f32>;
 
 const MESH: i32 = 1;
 const SKYBOX: i32 = 2;
@@ -83,6 +84,12 @@ fn fs_main(input: GeomVertexOutput) -> FragmentOutput {
     // Apply lightmap if available and not skybox
     if (materialData.flags.w == 1 && materialData.flags.x != SKYBOX) {
         color = color * textureSample(lightmapTexture, colorSampler, input.lightmapUV);
+    }
+
+    // Apply Detail Noise
+    if (materialData.flags.x != SKYBOX && frameData.viewportSize.z > 0.5 && materialData.flags.w == 1) {
+         let noise = textureSample(detailTexture, colorSampler, input.uv * 4.0).r;
+         color = vec4<f32>(color.rgb * (0.9 + 0.2 * noise), color.a);
     }
     
     // Initialize emissive

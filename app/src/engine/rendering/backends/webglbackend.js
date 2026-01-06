@@ -913,26 +913,6 @@ class WebGLBackend extends RenderBackend {
 		this._canvas.height = height;
 		this._gl.viewport(0, 0, width, height);
 	}
-
-	// =========================================================================
-	// WebGL-specific accessors (for backward compatibility during migration)
-	// =========================================================================
-
-	/**
-	 * Get the raw WebGL2 context
-	 * @returns {WebGL2RenderingContext}
-	 */
-	getGL() {
-		return this._gl;
-	}
-
-	/**
-	 * Get the anisotropic filtering extension
-	 * @returns {Object|null}
-	 */
-	getAnisotropicExt() {
-		return this._afExt;
-	}
 }
 
 export default WebGLBackend;

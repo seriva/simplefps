@@ -631,6 +631,7 @@ const _updateFrameData = (time) => {
 	// viewportSize (68-71)
 	_frameData[68] = Backend.getWidth();
 	_frameData[69] = Backend.getHeight();
+	_frameData[70] = Settings.detailTexture ? 1.0 : 0.0; // .z = doDetailTexture flag
 
 	Backend.updateUBO(_frameDataUBO, _frameData);
 };
