@@ -641,9 +641,7 @@ const Renderer = {
 		Backend.beginFrame();
 
 		_updateFrameData(time);
-
 		_worldGeomPass();
-
 		if (Settings.doSSAO) {
 			_ssaoPass();
 			_ssaoBlurPass();
@@ -656,12 +654,6 @@ const Renderer = {
 		_lightingPass();
 		_transparentPass();
 		_emissiveBlurPass();
-
-		// Clear light buffer to black so post-process doesn't add anything
-		//Backend.bindFramebuffer(_l.framebuffer);
-		//Backend.clear({ color: [0, 0, 0, 1] });
-		//Backend.bindFramebuffer(null);
-
 		_postProcessingPass();
 		_debugPass();
 

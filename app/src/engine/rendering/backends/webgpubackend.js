@@ -71,33 +71,30 @@ const _SHADER_BINDINGS = {
 	},
 	applyShadows: {
 		group1: [
-			{ binding: 0, type: "sampler", unit: 0 },
-			{ binding: 1, type: "texture", unit: 0 },
+			{ binding: 0, type: "sampler", unit: 2 },
+			{ binding: 1, type: "texture", unit: 2 }, // shadowBuffer at unit 2
 		],
 	},
 	directionalLight: {
 		group1: [
 			{ binding: 0, type: "uniform", name: "directionalLight" },
-			// { binding: 1, type: "sampler", unit: 2 }, // Removed
-			{ binding: 2, type: "texture", unit: 2 }, // Normal buffer (Unit 2)
+			{ binding: 2, type: "texture", unit: 1 }, // normalBuffer at unit 1
 		],
 	},
 	pointLight: {
 		group1: [
 			{ binding: 0, type: "uniform", name: "matWorld" },
 			{ binding: 1, type: "uniform", name: "pointLight" },
-			// { binding: 2, type: "sampler", unit: 3 }, // Removed
-			{ binding: 3, type: "texture", unit: 3 }, // Position (Unit 3)
-			{ binding: 4, type: "texture", unit: 2 }, // Normal (Unit 2)
+			{ binding: 3, type: "texture", unit: 0 }, // Position (Unit 0)
+			{ binding: 4, type: "texture", unit: 1 }, // Normal (Unit 1)
 		],
 	},
 	spotLight: {
 		group1: [
 			{ binding: 0, type: "uniform", name: "matWorld" },
 			{ binding: 1, type: "uniform", name: "spotLight" },
-			// { binding: 2, type: "sampler", unit: 3 }, // Removed
-			{ binding: 3, type: "texture", unit: 3 },
-			{ binding: 4, type: "texture", unit: 2 },
+			{ binding: 3, type: "texture", unit: 0 }, // Position (Unit 0)
+			{ binding: 4, type: "texture", unit: 1 }, // Normal (Unit 1)
 		],
 	},
 	kawaseBlur: {
@@ -133,10 +130,10 @@ const _SHADER_BINDINGS = {
 	ssao: {
 		group1: [
 			{ binding: 0, type: "uniform", name: "ssaoParams" },
-			{ binding: 1, type: "sampler", unit: 3 },
-			{ binding: 2, type: "texture", unit: 3 },
-			{ binding: 3, type: "texture", unit: 2 },
-			{ binding: 4, type: "texture", unit: 4 },
+			{ binding: 1, type: "sampler", unit: 0 },
+			{ binding: 2, type: "texture", unit: 1 }, // positionBuffer at unit 1
+			{ binding: 3, type: "texture", unit: 0 }, // normalBuffer at unit 0
+			{ binding: 4, type: "texture", unit: 2 }, // noiseTexture at unit 2
 		],
 	},
 	debug: {
@@ -865,17 +862,6 @@ class WebGPUBackend extends RenderBackend {
 			texture.width = width;
 			texture.height = height;
 			texture.mipLevelCount = mipLevelCount;
-		}
-
-		// Always ensure sampler exists (needed for material texture binding in WebGPU)
-		if (!texture._gpuSampler) {
-			texture._gpuSampler = device.createSampler({
-				magFilter: "linear",
-				minFilter: "linear",
-				mipmapFilter: "linear",
-				addressModeU: "repeat",
-				addressModeV: "repeat",
-			});
 		}
 
 		// Create ImageBitmap and copy synchronously (await)
