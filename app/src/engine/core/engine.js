@@ -1,5 +1,6 @@
 import { backendReady } from "../rendering/backend.js";
 import Renderer from "../rendering/renderer.js";
+import { Shaders } from "../rendering/shaders.js";
 import Shapes from "../rendering/shapes.js";
 import DirectionalLightEntity from "../scene/directionallightentity.js";
 import { EntityTypes } from "../scene/entity.js";
@@ -68,6 +69,7 @@ const loop = resume;
 const init = async () => {
 	await backendReady;
 
+	Shaders.init();
 	Shapes.init();
 	Utils.dispatchEvent("resize");
 };

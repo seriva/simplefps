@@ -1168,9 +1168,6 @@ class WebGPUBackend extends RenderBackend {
 		let pipeline = this._pipelineCache.get(key);
 
 		if (!pipeline) {
-			Console.log(`Creating new pipeline for shader...`);
-
-			// Build pipeline descriptor
 			const descriptor = {
 				layout: "auto",
 				vertex: {
@@ -1201,7 +1198,6 @@ class WebGPUBackend extends RenderBackend {
 					})),
 				},
 				primitive,
-				// Depth stencil
 			};
 
 			if (this._currentPassFormats.depth) {
@@ -1393,10 +1389,6 @@ class WebGPUBackend extends RenderBackend {
 		}
 
 		pass.drawIndexed(indexCount, 1, indexOffset, 0, 0);
-	}
-
-	drawFullscreenQuad() {
-		Console.warn("WebGPU: drawFullscreenQuad not yet implemented");
 	}
 
 	_packStruct(name) {

@@ -1,5 +1,5 @@
 import Console from "../systems/console.js";
-import { Backend, backendReady } from "./backend.js";
+import { Backend } from "./backend.js";
 import { ShaderSources as GlslShaderSources } from "./shaders/glsl.js";
 import { WgslShaderSources } from "./shaders/wgsl.js";
 
@@ -70,33 +70,27 @@ class Shader {
 		this.program = null;
 	}
 }
-const Shaders = {};
+const Shaders = {
+	init: () => {
+		const backend = Backend;
+		const isWebGPU = backend.isWebGPU?.();
+		const sources = isWebGPU ? WgslShaderSources : GlslShaderSources;
 
-const initShaders = (backend) => {
-	const isWebGPU = backend.isWebGPU?.();
-	const sources = isWebGPU ? WgslShaderSources : GlslShaderSources;
-
-	for (const [name, source] of Object.entries(sources)) {
-		try {
-			if (isWebGPU) {
-				Shaders[name] = new Shader(backend, source);
-			} else {
-				Shaders[name] = new Shader(backend, source.vertex, source.fragment);
+		for (const [name, source] of Object.entries(sources)) {
+			try {
+				if (isWebGPU) {
+					Shaders[name] = new Shader(backend, source);
+				} else {
+					Shaders[name] = new Shader(backend, source.vertex, source.fragment);
+				}
+				Console.log(`Loaded shader: ${name} [${isWebGPU ? "WGSL" : "GLSL"}]`);
+			} catch (_error) {
+				Console.error(
+					`Failed to load shader ${name}. Linker/Compiler Error might be above.`,
+				);
 			}
-			Console.log(`Loaded shader: ${name} [${isWebGPU ? "WGSL" : "GLSL"}]`);
-		} catch (_error) {
-			Console.error(
-				`Failed to load shader ${name}. Linker/Compiler Error might be above.`,
-			);
 		}
-	}
+	},
 };
 
-// Wait for backend to be ready before initializing shaders
-// Export a promise that resolves when shaders are ready
-export const shadersReady = backendReady.then(() => {
-	initShaders(Backend);
-	return Shaders;
-});
-
-export { Shaders };
+export { Shader, Shaders };

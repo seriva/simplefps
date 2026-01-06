@@ -819,12 +819,6 @@ class WebGLBackend extends RenderBackend {
 		gl.drawElements(drawMode, indexCount, type, indexOffset * bytesPerElement);
 	}
 
-	drawFullscreenQuad() {
-		const gl = this._gl;
-		// Assumes a fullscreen quad is already set up
-		gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-	}
-
 	// =========================================================================
 	// Uniform Setters
 	// =========================================================================

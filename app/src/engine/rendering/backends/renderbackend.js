@@ -169,10 +169,6 @@ class RenderBackend {
 		throw new Error("RenderBackend.drawIndexed() must be implemented");
 	}
 
-	drawFullscreenQuad() {
-		throw new Error("RenderBackend.drawFullscreenQuad() must be implemented");
-	}
-
 	// =========================================================================
 	// Uniform Setters
 	// =========================================================================
