@@ -25,6 +25,10 @@ const _translations = {
 		SHOW_STATS: "Show Render Stats",
 		GRAPHICS: "Graphics",
 		INPUT: "Input",
+		RENDERER: "Renderer",
+		WEBGL: "WebGL",
+		WEBGPU: "WebGPU",
+		RELOAD_CONFIRM: "Changing renderer requires a page reload. Reload now?",
 		LOOK_SENSITIVITY: "Look Sensitivity",
 	},
 };

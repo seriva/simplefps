@@ -60,6 +60,40 @@ const _settingsMenu = {
 			label: Translations.get("GRAPHICS"),
 			controls: [
 				{
+					type: "select",
+					text: Translations.get("RENDERER"),
+					value: () => Settings.useWebGPU,
+					options: (() => {
+						const opts = [{ label: Translations.get("WEBGL"), value: false }];
+						if (navigator.gpu) {
+							opts.unshift({
+								label: `${Translations.get("WEBGPU")} (Experimental)`,
+								value: true,
+							});
+						}
+						return opts;
+					})(),
+					set: (v) => {
+						const doWebGPU = v === "true" || v === true;
+						if (Settings.useWebGPU !== doWebGPU) {
+							UI.showDialog(
+								Translations.get("RENDERER"),
+								Translations.get("RELOAD_CONFIRM"),
+								() => {
+									// Yes callback
+									Settings.useWebGPU = doWebGPU;
+									Settings.save();
+									window.location.reload();
+								},
+								() => {
+									// No callback - force UI refresh to revert selection
+									UI.show("SETTINGS_MENU");
+								},
+							);
+						}
+					},
+				},
+				{
 					type: "slider",
 					text: Translations.get("RENDER_SCALE"),
 					value: () => Settings.renderScale,

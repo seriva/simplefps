@@ -5,6 +5,7 @@ import { css, html, Reactive } from "../engine/utils/reactive.js";
 // ============================================================================
 
 import * as Engine from "../engine/core/engine.js";
+import Translations from "./translations.js";
 
 class _MenuUI extends Reactive.Component {
 	constructor() {
@@ -16,6 +17,7 @@ class _MenuUI extends Reactive.Component {
 		return {
 			visible: this.signal(false, "ui:visible"),
 			currentMenu: this.signal("", "ui:currentMenu"),
+			dialogVisible: this.signal(false, "ui:dialogVisible"),
 		};
 	}
 
@@ -24,6 +26,90 @@ class _MenuUI extends Reactive.Component {
 			#ui {
 				background-color: transparent;
 				font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+			}
+			
+			/* Dialog Styles */
+			#dialog-overlay {
+				position: fixed;
+				top: 0;
+				left: 0;
+				width: 100vw;
+				height: 100vh;
+				background: rgba(0, 0, 0, 0.5);
+				z-index: 2000;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				opacity: 0;
+				visibility: hidden;
+				transition: opacity 0.2s ease, visibility 0s 0.2s;
+			}
+			
+			#dialog-overlay.visible {
+				opacity: 1;
+				visibility: visible;
+				transition: opacity 0.2s ease, visibility 0s;
+			}
+			
+			.dialog-box {
+				background: #252525;
+				border: 1px solid rgba(255, 255, 255, 0.15);
+				border-radius: 8px;
+				box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+				width: 400px;
+				max-width: 90vw;
+				padding: 24px;
+				transform: scale(0.95);
+				transition: transform 0.2s ease;
+			}
+			
+			#dialog-overlay.visible .dialog-box {
+				transform: scale(1);
+			}
+			
+			.dialog-header {
+				font-size: 20px;
+				color: #fff;
+				margin-bottom: 12px;
+				font-weight: 500;
+			}
+			
+			.dialog-body {
+				font-size: 15px;
+				color: #ccc;
+				margin-bottom: 24px;
+				line-height: 1.5;
+			}
+			
+			.dialog-footer {
+				display: flex;
+				justify-content: flex-end;
+				gap: 12px;
+			}
+			
+			.dialog-btn {
+				padding: 8px 16px;
+				border-radius: 4px;
+				cursor: pointer;
+				font-size: 14px;
+				border: 1px solid transparent;
+				transition: background 0.15s;
+			}
+			
+			.dialog-btn.confirm {
+				background: #4a90e2;
+				color: white;
+			}
+			.dialog-btn.confirm:hover { background: #357abd; }
+			
+			.dialog-btn.cancel {
+				background: transparent;
+				border: 1px solid #444;
+				color: #aaa;
+			}
+			.dialog-btn.cancel:hover {
+				border-color: #666;
+				color: #fff;
 			}
 
 			#menu-backdrop {
@@ -244,6 +330,29 @@ class _MenuUI extends Reactive.Component {
 				transition: all 0.15s ease;
 			}
 
+			.menu-select {
+				width: 50%;
+				background: rgba(0, 0, 0, 0.3);
+				border: 1px solid rgba(255, 255, 255, 0.2);
+				border-radius: 4px;
+				color: #fff;
+				padding: 4px 8px;
+				font-family: inherit;
+				font-size: 14px;
+				cursor: pointer;
+				outline: none;
+			}
+			
+			.menu-select:hover {
+				background: rgba(40, 40, 40, 0.5);
+				border-color: rgba(255, 255, 255, 0.4);
+			}
+
+			.menu-select option {
+				background: #222;
+				color: #fff;
+			}
+
 			.menu-checkbox:checked {
 				background: rgba(255, 255, 255, 0.85);
 				border-color: rgba(255, 255, 255, 0.85);
@@ -344,8 +453,47 @@ class _MenuUI extends Reactive.Component {
 					<div id="menu-header" data-ref="header"></div>
 					<div data-ref="controls"></div>
 				</div>
+				
+				<div id="dialog-overlay" data-class-visible="dialogVisible" data-ref="dialogOverlay">
+					<div class="dialog-box">
+						<div class="dialog-header" data-ref="dialogHeader"></div>
+						<div class="dialog-body" data-ref="dialogBody"></div>
+						<div class="dialog-footer" data-ref="dialogFooter"></div>
+					</div>
+				</div>
 			</div>
 		`;
+	}
+
+	// New internal method for showing dialog
+	showDialogInternal(title, message, onYes, onNo) {
+		this.refs.dialogHeader.textContent = title;
+		this.refs.dialogBody.textContent = message;
+
+		this.refs.dialogFooter.innerHTML = "";
+
+		// Yes Button
+		const yesBtn = document.createElement("button");
+		yesBtn.className = "dialog-btn confirm";
+		yesBtn.textContent = Translations.get("YES");
+		yesBtn.onclick = () => {
+			this.dialogVisible.set(false);
+			if (onYes) onYes();
+		};
+
+		// No Button
+		const noBtn = document.createElement("button");
+		noBtn.className = "dialog-btn cancel";
+		noBtn.textContent = Translations.get("NO");
+		noBtn.onclick = () => {
+			this.dialogVisible.set(false);
+			if (onNo) onNo();
+		};
+
+		this.refs.dialogFooter.appendChild(noBtn);
+		this.refs.dialogFooter.appendChild(yesBtn);
+
+		this.dialogVisible.set(true);
 	}
 
 	mount() {
@@ -475,6 +623,25 @@ class _MenuUI extends Reactive.Component {
 							control.set(checkbox.checked);
 						}
 					};
+				} else if (control.type === "select") {
+					const select = document.createElement("select");
+					select.className = "menu-select";
+
+					const currentValue = control.value();
+
+					control.options.forEach((opt) => {
+						const option = document.createElement("option");
+						option.value = opt.value;
+						option.textContent = opt.label;
+						if (String(opt.value) === String(currentValue)) {
+							// loose equality for string/bool match
+							option.selected = true;
+						}
+						select.appendChild(option);
+					});
+
+					select.onchange = (e) => control.set(e.target.value);
+					row.appendChild(select);
 				}
 				currentPanel.appendChild(row);
 			} else {
@@ -554,6 +721,9 @@ const UI = {
 	},
 	hide() {
 		_ui.hide();
+	},
+	showDialog(title, message, onYes, onNo) {
+		_ui.showDialogInternal(title, message, onYes, onNo);
 	},
 };
 
