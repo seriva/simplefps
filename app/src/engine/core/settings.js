@@ -24,6 +24,7 @@ const _defaults = {
 	showStats: false,
 	shadowBlurIterations: 2,
 	shadowBlurOffset: 0.8,
+	useWebGPU: false,
 
 	// SSAO settings
 	doSSAO: false,
