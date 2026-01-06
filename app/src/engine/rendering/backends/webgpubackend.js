@@ -479,14 +479,35 @@ class WebGPUBackend extends RenderBackend {
 	// =========================================================================
 
 	setViewport(x, y, width, height) {
+		// Cache settings
+		this._viewport = { x, y, width, height };
+
 		if (this._currentPass) {
-			this._currentPass.setViewport(x, y, width, height, 0, 1);
+			this._currentPass.setViewport(
+				x,
+				y,
+				width,
+				height,
+				this._depthRange?.min ?? 0.0,
+				this._depthRange?.max ?? 1.0,
+			);
 		}
 	}
 
-	setDepthRange(_near, _far) {
-		// WebGPU handles this via viewport - store for next viewport call
-		// For now, this is a no-op since we set 0-1 in setViewport
+	setDepthRange(min, max) {
+		this._depthRange = { min, max };
+
+		// Update active pass immediately
+		if (this._currentPass && this._viewport) {
+			this._currentPass.setViewport(
+				this._viewport.x,
+				this._viewport.y,
+				this._viewport.width,
+				this._viewport.height,
+				min,
+				max,
+			);
+		}
 	}
 
 	setBlendState(enabled, srcFactor = "one", dstFactor = "zero") {
@@ -512,10 +533,21 @@ class WebGPUBackend extends RenderBackend {
 		};
 	}
 
-	_beginPass(loadOp) {
-		if (this._currentPass) return;
+	_beginPass(colorLoadOp = "clear", depthLoadOp = "clear") {
+		// End any active render pass before starting a new one
+		if (this._currentPass) {
+			this._currentPass.end();
+			this._currentPass = null;
+		}
 
-		const encoder = this._commandEncoder;
+		const encoder = this._commandEncoder; // Use the encoder from beginFrame
+		// const loadOp = colorLoadOp; // Alias for consistent usage if needed, but we use specific ops now
+
+		// Ensure we have a texture to render to if rendering to swapchain
+		if (!this._activeFramebuffer && !this._currentTexture) {
+			this._currentTexture = this._context.getCurrentTexture();
+		}
+
 		const fb = this._activeFramebuffer;
 
 		const colorAttachments = [];
@@ -527,46 +559,43 @@ class WebGPUBackend extends RenderBackend {
 			for (let i = 0; i < fb.colorAttachments.length; i++) {
 				const attachment = fb.colorAttachments[i];
 				// handle is { _gpuTexture, _gpuTextureView, ... }
-				colorAttachments.push({
-					view: attachment._gpuTextureView,
-					clearValue: this._clearColor || { r: 0, g: 0, b: 0, a: 1 },
-					loadOp: loadOp, // "clear" or "load"
-					storeOp: "store",
-				});
+				if (attachment) {
+					colorAttachments.push({
+						view: attachment._gpuTextureView,
+						clearValue: this._clearColor || { r: 0, g: 0, b: 0, a: 1 },
+						loadOp: colorLoadOp,
+						storeOp: "store",
+					});
+				}
 			}
 			if (fb.depthAttachment) {
 				depthAttachment = {
 					view: fb.depthAttachment._gpuTextureView,
 					depthClearValue: 1.0,
-					depthLoadOp: loadOp,
+					depthLoadOp: depthLoadOp,
 					depthStoreOp: "store",
-					// stencil...
 				};
 			}
 
 			// Cache formats for pipeline creation
 			this._currentPassFormats = {
-				targets: fb.colorAttachments.map((a) => a.format),
+				targets: fb.colorAttachments
+					.map((a) => (a ? a.format : null))
+					.filter((f) => f),
 				depth: fb.depthAttachment ? fb.depthAttachment.format : null,
 			};
 		} else {
 			// Render to swapchain
 			if (!this._currentTexture) {
-				// Should not happen if beginFrame called, but safety check
 				this._currentTexture = this._context.getCurrentTexture();
 			}
 
 			colorAttachments.push({
 				view: this._currentTexture.createView(),
 				clearValue: this._clearColor || { r: 0, g: 0, b: 0, a: 1 },
-				loadOp: loadOp,
+				loadOp: colorLoadOp,
 				storeOp: "store",
 			});
-
-			// We don't have a default depth buffer in backend yet - use null
-			// If renderer sets one via bindFramebuffer(null)?
-			// Current implementation assumes null FB = swapchain only.
-			// Stage 2: geometry requires depth. But we are rendering flat first.
 
 			this._currentPassFormats = {
 				targets: [this._format],
@@ -583,10 +612,22 @@ class WebGPUBackend extends RenderBackend {
 		}
 
 		this._currentPass = encoder.beginRenderPass(descriptor);
+
+		// Restore viewport if we have one cached
+		if (this._viewport) {
+			this._currentPass.setViewport(
+				this._viewport.x,
+				this._viewport.y,
+				this._viewport.width,
+				this._viewport.height,
+				this._depthRange?.min ?? 0.0,
+				this._depthRange?.max ?? 1.0,
+			);
+		}
 	}
 
 	clear(options) {
-		// End current pass
+		// End current pass to start a new one with correct loadOps
 		if (this._currentPass) {
 			this._currentPass.end();
 			this._currentPass = null;
@@ -602,16 +643,12 @@ class WebGPUBackend extends RenderBackend {
 			};
 		}
 
-		// Begin new pass with "clear" loadOp
-		// This clears the attachments
-		this._beginPass("clear");
+		// Determine load ops based on what we want to clear
+		const colorLoadOp = options.color ? "clear" : "load";
+		const depthLoadOp = options.depth !== undefined ? "clear" : "load";
 
-		// Immediately end it?
-		// No, usually we want to keep it open for drawing.
-		// BUT: WebGL logic is "clear, then draw".
-		// WebGPU clear happens AT BEGIN.
-		// So we start the pass. Subsequent draw calls will use this open pass.
-		// If another clear happens, we close and restart.
+		// Begin new pass with specific loadOps
+		this._beginPass(colorLoadOp, depthLoadOp);
 	}
 
 	// =========================================================================
@@ -1098,7 +1135,7 @@ class WebGPUBackend extends RenderBackend {
 
 		// 1. Ensure active render pass
 		if (!this._currentPass) {
-			this._beginPass("load");
+			this._beginPass("load", "load");
 		}
 
 		const pass = this._currentPass;
