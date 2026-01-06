@@ -111,12 +111,12 @@ const _SHADER_BINDINGS = {
 		group1: [
 			{ binding: 0, type: "uniform", name: "postProcessParams" },
 			{ binding: 1, type: "sampler", unit: 0 },
-			{ binding: 2, type: "texture", unit: 0 }, // Color
-			{ binding: 3, type: "texture", unit: 1 }, // Bloom
-			{ binding: 4, type: "texture", unit: 4 }, // Dirt
-			{ binding: 5, type: "texture", unit: 2 }, // Linear Depth
-			{ binding: 6, type: "texture", unit: 5 }, // SSAO
-			{ binding: 7, type: "texture", unit: 3 }, // Noise? Unused?
+			{ binding: 2, type: "texture", unit: 0 }, // colorBuffer
+			{ binding: 3, type: "texture", unit: 1 }, // lightBuffer
+			{ binding: 4, type: "texture", unit: 2 }, // normalBuffer
+			{ binding: 5, type: "texture", unit: 3 }, // emissiveBuffer
+			{ binding: 6, type: "texture", unit: 4 }, // dirtBuffer
+			{ binding: 7, type: "texture", unit: 5 }, // aoBuffer
 		],
 	},
 	transparent: {
@@ -811,11 +811,24 @@ class WebGPUBackend extends RenderBackend {
 		this._activeFramebuffer = framebuffer;
 	}
 
-	setFramebufferAttachment(_fb, _attachment, _texture, _level = 0, _layer = 0) {
-		// No-op for now
+	setFramebufferAttachment(fb, attachment, texture, _level = 0, _layer = 0) {
+		if (!fb) return;
+		if (attachment === "depth") {
+			fb.depthAttachment = texture;
+		} else {
+			const index = Number(attachment);
+			if (!Number.isNaN(index)) {
+				// Ensure array size
+				if (!fb.colorAttachments) fb.colorAttachments = [];
+				while (fb.colorAttachments.length <= index) {
+					fb.colorAttachments.push(null);
+				}
+				fb.colorAttachments[index] = texture;
+			}
+		}
 	}
 
-	uploadTextureFromImage(texture, source) {
+	async uploadTextureFromImage(texture, source) {
 		if (!texture || !this._device) return;
 
 		const device = this._device;
@@ -854,14 +867,24 @@ class WebGPUBackend extends RenderBackend {
 			texture.mipLevelCount = mipLevelCount;
 		}
 
-		// Create ImageBitmap and copy
-		createImageBitmap(source).then((bitmap) => {
-			this._device.queue.copyExternalImageToTexture(
-				{ source: bitmap },
-				{ texture: texture._gpuTexture },
-				{ width, height },
-			);
-		});
+		// Always ensure sampler exists (needed for material texture binding in WebGPU)
+		if (!texture._gpuSampler) {
+			texture._gpuSampler = device.createSampler({
+				magFilter: "linear",
+				minFilter: "linear",
+				mipmapFilter: "linear",
+				addressModeU: "repeat",
+				addressModeV: "repeat",
+			});
+		}
+
+		// Create ImageBitmap and copy synchronously (await)
+		const bitmap = await createImageBitmap(source);
+		this._device.queue.copyExternalImageToTexture(
+			{ source: bitmap },
+			{ texture: texture._gpuTexture },
+			{ width, height },
+		);
 	}
 
 	generateMipmaps(texture) {
@@ -1471,12 +1494,14 @@ class WebGPUBackend extends RenderBackend {
 
 			return arr;
 		} else if (name === "blurParams") {
-			// offset: f32 (0). _pad: vec3 (4..16).
-			// Total 16 bytes.
-			const arr = new Float32Array(4);
-			const offset = this._uniforms.get("offset"); // "blurParams.offset"?
-			// Renderer uses Shaders.kawaseBlur.setFloat("offset", ...)
-			// So key is "offset".
+			// offset: f32 (0). _pad: vec3 (4..16)? NO.
+			// vec3 alignment is 16.
+			// offset (0-4). Pad (4-16).
+			// _pad (vec3) at 16 (16-28).
+			// Struct size aligned to 16 -> 32 bytes.
+			const arr = new Float32Array(8); // 32 bytes
+			const offset = this._uniforms.get("offset");
+
 			if (offset !== undefined) arr[0] = offset;
 			return arr;
 		} else if (name === "ambient") {

@@ -45,7 +45,6 @@ struct FragmentOutput {
     @location(1) normal: vec4<f32>,
     @location(2) color: vec4<f32>,
     @location(3) emissive: vec4<f32>,
-    @location(4) linearDepth: f32,
 }
 
 @group(0) @binding(0) var<uniform> frameData: FrameData;
@@ -92,11 +91,9 @@ fn fs_main(input: GeomVertexOutput) -> FragmentOutput {
     if (materialData.flags.x != SKYBOX) {
         let lightmapFlag = f32(materialData.flags.w);
         output.normal = vec4<f32>(input.normal * 0.5 + 0.5, lightmapFlag);
-        output.linearDepth = length(input.worldPosition.xyz - frameData.cameraPosition.xyz);
         output.position = vec4<f32>(input.worldPosition.xyz, 1.0);
     } else {
         output.normal = vec4<f32>(0.5, 0.5, 0.5, 1.0);
-        output.linearDepth = 10000.0;
         output.position = vec4<f32>(0.0, 0.0, 0.0, 0.0);
     }
     

@@ -55,11 +55,11 @@ class Texture {
 
 	loadImageTexture(imageData) {
 		const image = new Image();
-		image.onload = () => {
+		image.onload = async () => {
 			if (!this._handle) return; // Disposed?
 
 			// Upload image data (this updates the texture content and might resize usage in WebGL)
-			Backend.uploadTextureFromImage(this._handle, image);
+			await Backend.uploadTextureFromImage(this._handle, image);
 
 			// Generate mipmaps
 			Backend.generateMipmaps(this._handle);
