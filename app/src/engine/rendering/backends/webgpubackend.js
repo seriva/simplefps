@@ -62,6 +62,8 @@ const _SHADER_BINDINGS = {
 			{ binding: 2, type: "texture", unit: 1 }, // Emissive
 			{ binding: 3, type: "texture", unit: 4 }, // Lightmap
 			{ binding: 4, type: "texture", unit: 5 }, // Detail Noise
+			{ binding: 5, type: "texture", unit: 2 }, // Reflection (SphereMap)
+			{ binding: 6, type: "texture", unit: 3 }, // Reflection Mask
 		],
 	},
 	entityShadows: {

@@ -56,6 +56,8 @@ struct FragmentOutput {
 @group(2) @binding(2) var emissiveTexture: texture_2d<f32>;
 @group(2) @binding(3) var lightmapTexture: texture_2d<f32>;
 @group(2) @binding(4) var detailTexture: texture_2d<f32>;
+@group(2) @binding(5) var reflectionTexture: texture_2d<f32>;
+@group(2) @binding(6) var reflectionMaskTexture: texture_2d<f32>;
 
 const MESH: i32 = 1;
 const SKYBOX: i32 = 2;
@@ -104,6 +106,24 @@ fn fs_main(input: GeomVertexOutput) -> FragmentOutput {
         output.position = vec4<f32>(0.0, 0.0, 0.0, 0.0);
     }
     
+    // Apply reflection if enabled (flags.z == 1)
+    if (materialData.flags.z == 1) {
+         let reflMask = textureSample(reflectionMaskTexture, colorSampler, input.uv);
+         let maskSum = dot(reflMask.rgb, vec3<f32>(0.333333));
+         
+         if (maskSum > 0.2) {
+             let viewDir = normalize(frameData.cameraPosition.xyz - input.worldPosition.xyz);
+             let r = reflect(-viewDir, input.normal);
+             let m = 2.0 * sqrt(dot(r.xy, r.xy) + (r.z + 1.0) * (r.z + 1.0)) + 0.00001;
+             let reflUV = r.xy / m + 0.5;
+             // Use textureSampleLevel to allow calling inside non-uniform control flow
+             let reflColor = textureSampleLevel(reflectionTexture, colorSampler, reflUV, 0.0);
+             
+             // Blend reflection
+             color = mix(color, reflColor * reflMask, materialData.params.x * maskSum);
+         }
+    }
+
     // Sample emissive if enabled
     if (materialData.flags.y == 1) {
         output.emissive = textureSample(emissiveTexture, colorSampler, input.uv);
