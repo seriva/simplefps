@@ -1,4 +1,6 @@
+import { backendReady } from "../rendering/backend.js";
 import Renderer from "../rendering/renderer.js";
+import Shapes from "../rendering/shapes.js";
 import DirectionalLightEntity from "../scene/directionallightentity.js";
 import { EntityTypes } from "../scene/entity.js";
 import FpsMeshEntity from "../scene/fpsmeshentity.js";
@@ -63,12 +65,20 @@ const resume = () => {
 
 const loop = resume;
 
+const init = async () => {
+	await backendReady;
+
+	Shapes.init();
+	Utils.dispatchEvent("resize");
+};
+
 const setGameLoop = (update, postPhysics) => {
 	_gameUpdate = update;
 	_gamePostPhysics = postPhysics;
 };
 
 export {
+	init,
 	loop,
 	pause,
 	resume,

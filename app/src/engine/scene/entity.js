@@ -1,6 +1,6 @@
 import { mat4 } from "../../dependencies/gl-matrix.js";
 import { Shaders } from "../rendering/shaders.js";
-import { boundingBox } from "../rendering/shapes.js";
+import Shapes from "../rendering/shapes.js";
 
 const EntityTypes = Object.freeze({
 	MESH: 1,
@@ -55,7 +55,7 @@ class Entity {
 		if (!this.boundingBox || !this.visible) return;
 
 		Shaders.debug.setMat4("matWorld", this.boundingBox.transformMatrix);
-		boundingBox.renderSingle(true, drawMode);
+		Shapes.boundingBox.renderSingle(true, drawMode);
 	}
 }
 

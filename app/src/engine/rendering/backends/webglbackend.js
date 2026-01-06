@@ -1,10 +1,3 @@
-/**
- * WebGLBackend - WebGL2 implementation of the RenderBackend interface
- *
- * This wraps the existing WebGL2 context and provides an API-agnostic interface
- * for the renderer to use. This allows the same rendering code to work with
- * both WebGL2 and WebGPU backends.
- */
 import Settings from "../../core/settings.js";
 import Console from "../../systems/console.js";
 import { css } from "../../utils/reactive.js";

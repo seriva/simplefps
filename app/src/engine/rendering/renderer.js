@@ -2,12 +2,13 @@ import Camera from "../core/camera.js";
 import Settings from "../core/settings.js";
 import Scene from "../scene/scene.js";
 
+import Console from "../systems/console.js";
 import Resources from "../systems/resources.js";
 import Utils from "../utils/utils.js";
 import { Backend } from "./backend.js";
 import RenderPasses from "./renderpasses.js";
 import { Shaders } from "./shaders.js";
-import { screenQuad } from "./shapes.js";
+import Shapes from "./shapes.js";
 import Texture from "./texture.js";
 
 // Private state - buffers
@@ -257,7 +258,7 @@ const _blurImage = (source, iterations, radius) => {
 		// Kawase blur uses progressive offsets: each iteration increases spread
 		Shaders.kawaseBlur.setFloat("offset", (i + 1) * radius);
 
-		screenQuad.renderSingle();
+		Shapes.screenQuad.renderSingle();
 	}
 	_endBlurPass();
 	Backend.unbindShader();
@@ -437,7 +438,7 @@ const _ssaoPass = () => {
 	Shaders.ssao.setVec3Array("uKernel", _ssaoKernel);
 
 	Backend.setDepthState(false, false);
-	screenQuad.renderSingle();
+	Shapes.screenQuad.renderSingle();
 	Backend.setDepthState(true, true);
 
 	Backend.unbindShader();
@@ -511,7 +512,7 @@ const _ssaoBlurPass = () => {
 		Shaders.kawaseBlur.bind();
 		Shaders.kawaseBlur.setInt("colorBuffer", 0);
 		Shaders.kawaseBlur.setFloat("offset", i + 1.0);
-		screenQuad.renderSingle();
+		Shapes.screenQuad.renderSingle();
 		Backend.unbindShader();
 	}
 
@@ -574,7 +575,7 @@ const _postProcessingPass = () => {
 		Settings.doDirt ? Settings.dirtIntensity : 0.0,
 	);
 	Shaders.postProcessing.setVec3("uAmbient", Scene.getAmbient());
-	screenQuad.renderSingle();
+	Shapes.screenQuad.renderSingle();
 
 	Backend.unbindShader();
 	Texture.unBindRange(0, 6);
@@ -667,4 +668,9 @@ window.addEventListener(
 	},
 	false,
 );
-Utils.dispatchEvent("resize");
+
+// Console command for render scale
+Console.registerCmd("rscale", (scale) => {
+	Settings.renderScale = Math.min(Math.max(scale, 0.2), 1);
+	Utils.dispatchEvent("resize");
+});

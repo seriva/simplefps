@@ -5,7 +5,7 @@ import Scene from "../scene/scene.js";
 import Console from "../systems/console.js";
 import { Backend } from "./backend.js";
 import { Shaders } from "./shaders.js";
-import { screenQuad } from "./shapes.js";
+import Shapes from "./shapes.js";
 
 // Private constants
 const _matModel = mat4.create();
@@ -163,7 +163,7 @@ const renderLighting = () => {
 	Backend.setBlendState(true, "dst-color", "zero");
 	Shaders.applyShadows.bind();
 	Shaders.applyShadows.setInt("shadowBuffer", 2);
-	screenQuad.renderSingle();
+	Shapes.screenQuad.renderSingle();
 	Backend.unbindShader();
 };
 

@@ -1,5 +1,5 @@
 import { Shaders } from "../rendering/shaders.js";
-import { screenQuad } from "../rendering/shapes.js";
+import Shapes from "../rendering/shapes.js";
 import { Entity, EntityTypes } from "./entity.js";
 
 class DirectionalLightEntity extends Entity {
@@ -15,7 +15,7 @@ class DirectionalLightEntity extends Entity {
 			this.direction,
 		);
 		Shaders.directionalLight.setVec3("directionalLight.color", this.color);
-		screenQuad.renderSingle();
+		Shapes.screenQuad.renderSingle();
 	}
 }
 

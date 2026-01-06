@@ -1,5 +1,5 @@
 import Console from "../systems/console.js";
-import { Backend } from "./backend.js";
+import { Backend, backendReady } from "./backend.js";
 import { ShaderSources as GlslShaderSources } from "./shaders/glsl.js";
 import { WgslShaderSources } from "./shaders/wgsl.js";
 
@@ -92,6 +92,11 @@ const initShaders = (backend) => {
 	}
 };
 
-initShaders(Backend);
+// Wait for backend to be ready before initializing shaders
+// Export a promise that resolves when shaders are ready
+export const shadersReady = backendReady.then(() => {
+	initShaders(Backend);
+	return Shaders;
+});
 
 export { Shaders };

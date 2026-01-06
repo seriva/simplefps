@@ -1,6 +1,6 @@
 import { mat4, vec3 } from "../../dependencies/gl-matrix.js";
 import { Shaders } from "../rendering/shaders.js";
-import { pointLightVolume } from "../rendering/shapes.js";
+import Shapes from "../rendering/shapes.js";
 import { Entity, EntityTypes } from "./entity.js";
 
 class PointLightEntity extends Entity {
@@ -37,18 +37,18 @@ class PointLightEntity extends Entity {
 		Shaders.pointLight.setVec3("pointLight.color", this.color);
 		Shaders.pointLight.setFloat("pointLight.size", this.size);
 		Shaders.pointLight.setFloat("pointLight.intensity", this.intensity);
-		pointLightVolume.renderSingle();
+		Shapes.pointLightVolume.renderSingle();
 	}
 
 	renderWireFrame() {
 		if (!this.visible) return;
 		const m = this.#getTransformMatrix();
 		Shaders.debug.setMat4("matWorld", m);
-		pointLightVolume.renderWireFrame();
+		Shapes.pointLightVolume.renderWireFrame();
 	}
 
 	updateBoundingVolume() {
-		const unitBox = pointLightVolume.boundingBox;
+		const unitBox = Shapes.pointLightVolume.boundingBox;
 		const m = this.#getTransformMatrix();
 		this.boundingBox = unitBox.transform(m);
 	}

@@ -1,5 +1,6 @@
 import {
 	Console,
+	init,
 	loop,
 	Resources,
 	setGameLoop,
@@ -36,9 +37,12 @@ async function loadGameModules() {
 		Weapons: weapons.default,
 	};
 }
-
 (async () => {
 	Loading.toggle(true);
+
+	// Wait for engine initialization (includes rendering backend)
+	await init();
+
 	await Resources.load(["resources.list"]);
 
 	const { Game, Arena, Weapons } = await loadGameModules();
