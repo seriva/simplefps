@@ -48,6 +48,105 @@ const _DEPTH_FUNCS = {
 	always: "always",
 };
 
+// Shader binding metadata (Hardcoded for Stage 2)
+// This maps shader labels to their expected bind group layouts
+const _SHADER_BINDINGS = {
+	geometry: {
+		group1: [
+			{ binding: 0, type: "ubo", id: 1 }, // MaterialData (UBO binding point 1)
+			{ binding: 1, type: "uniform", name: "matWorld" },
+		],
+		group2: [
+			{ binding: 0, type: "sampler", unit: 0 },
+			{ binding: 1, type: "texture", unit: 0 }, // Albedo
+			{ binding: 2, type: "texture", unit: 1 }, // Emissive
+			{ binding: 3, type: "texture", unit: 4 }, // Lightmap
+		],
+	},
+	entityShadows: {
+		group1: [
+			{ binding: 0, type: "uniform", name: "matWorld" },
+			{ binding: 1, type: "uniform", name: "ambient" },
+		],
+	},
+	applyShadows: {
+		group1: [
+			{ binding: 0, type: "sampler", unit: 0 },
+			{ binding: 1, type: "texture", unit: 0 },
+		],
+	},
+	directionalLight: {
+		group1: [
+			{ binding: 0, type: "uniform", name: "directionalLight" },
+			// { binding: 1, type: "sampler", unit: 2 }, // Removed
+			{ binding: 2, type: "texture", unit: 2 }, // Normal buffer (Unit 2)
+		],
+	},
+	pointLight: {
+		group1: [
+			{ binding: 0, type: "uniform", name: "matWorld" },
+			{ binding: 1, type: "uniform", name: "pointLight" },
+			// { binding: 2, type: "sampler", unit: 3 }, // Removed
+			{ binding: 3, type: "texture", unit: 3 }, // Position (Unit 3)
+			{ binding: 4, type: "texture", unit: 2 }, // Normal (Unit 2)
+		],
+	},
+	spotLight: {
+		group1: [
+			{ binding: 0, type: "uniform", name: "matWorld" },
+			{ binding: 1, type: "uniform", name: "spotLight" },
+			// { binding: 2, type: "sampler", unit: 3 }, // Removed
+			{ binding: 3, type: "texture", unit: 3 },
+			{ binding: 4, type: "texture", unit: 2 },
+		],
+	},
+	kawaseBlur: {
+		group1: [
+			{ binding: 0, type: "uniform", name: "blurParams" },
+			{ binding: 1, type: "sampler", unit: 0 },
+			{ binding: 2, type: "texture", unit: 0 },
+		],
+	},
+	postProcessing: {
+		group1: [
+			{ binding: 0, type: "uniform", name: "postProcessParams" },
+			{ binding: 1, type: "sampler", unit: 0 },
+			{ binding: 2, type: "texture", unit: 0 }, // Color
+			{ binding: 3, type: "texture", unit: 1 }, // Bloom
+			{ binding: 4, type: "texture", unit: 4 }, // Dirt
+			{ binding: 5, type: "texture", unit: 2 }, // Linear Depth
+			{ binding: 6, type: "texture", unit: 5 }, // SSAO
+			{ binding: 7, type: "texture", unit: 3 }, // Noise? Unused?
+		],
+	},
+	transparent: {
+		group1: [
+			{ binding: 0, type: "ubo", id: 1 },
+			{ binding: 1, type: "uniform", name: "matWorld" },
+		],
+		group2: [
+			{ binding: 0, type: "sampler", unit: 0 },
+			{ binding: 1, type: "texture", unit: 0 },
+			{ binding: 2, type: "texture", unit: 1 },
+		],
+	},
+	ssao: {
+		group1: [
+			{ binding: 0, type: "uniform", name: "ssaoParams" },
+			{ binding: 1, type: "sampler", unit: 3 },
+			{ binding: 2, type: "texture", unit: 3 },
+			{ binding: 3, type: "texture", unit: 2 },
+			{ binding: 4, type: "texture", unit: 4 },
+		],
+	},
+	debug: {
+		group1: [
+			{ binding: 0, type: "sampler", unit: 0 },
+			{ binding: 1, type: "texture", unit: 0 },
+		],
+	},
+};
+
 class WebGPUBackend extends RenderBackend {
 	constructor() {
 		super();
@@ -81,6 +180,17 @@ class WebGPUBackend extends RenderBackend {
 
 		// Current shader for uniform setting
 		this._currentShader = null;
+
+		// Pipeline cache
+		this._pipelineCache = new Map();
+
+		// Current rendering state
+		this._currentVertexState = null;
+		this._currentPassFormats = null;
+		this._activeFramebuffer = null;
+		this._clearColor = { r: 0, g: 0, b: 0, a: 1 };
+		this._boundTextures = new Map();
+		this._boundUBOs = new Map();
 	}
 
 	// =========================================================================
@@ -154,6 +264,30 @@ class WebGPUBackend extends RenderBackend {
 				vendor: this._adapter.info?.vendor || "Unknown",
 				version: "WebGPU 1.0",
 			};
+
+			// Create default texture (1x1 white)
+			const whiteData = new Uint8Array([255, 255, 255, 255]);
+			const defaultTexture = this._device.createTexture({
+				size: { width: 1, height: 1, depthOrArrayLayers: 1 },
+				format: "rgba8unorm",
+				usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
+			});
+			this._device.queue.writeTexture(
+				{ texture: defaultTexture },
+				whiteData,
+				{ bytesPerRow: 4, rowsPerImage: 1 },
+				{ width: 1, height: 1 },
+			);
+			this._defaultTextureView = defaultTexture.createView();
+
+			// Create default sampler
+			this._defaultSampler = this._device.createSampler({
+				magFilter: "linear",
+				minFilter: "linear",
+				mipmapFilter: "linear",
+				addressModeU: "repeat",
+				addressModeV: "repeat",
+			});
 
 			// Log context information
 			Console.log("Initialized WebGPU backend");
@@ -381,41 +515,106 @@ class WebGPUBackend extends RenderBackend {
 		};
 	}
 
-	clear(options) {
-		// In WebGPU, clearing happens when beginning a render pass
-		// Store clear values for next render pass
-		this._clearOptions = options;
+	_beginPass(loadOp) {
+		if (this._currentPass) return;
 
-		// If we have a current pass, end it first
+		const encoder = this._commandEncoder;
+		const fb = this._activeFramebuffer;
+
+		const colorAttachments = [];
+		let depthAttachment = null;
+
+		// Determine color attachments
+		if (fb) {
+			// Render to framebuffer
+			for (let i = 0; i < fb.colorAttachments.length; i++) {
+				const attachment = fb.colorAttachments[i];
+				// handle is { _gpuTexture, _gpuTextureView, ... }
+				colorAttachments.push({
+					view: attachment._gpuTextureView,
+					clearValue: this._clearColor || { r: 0, g: 0, b: 0, a: 1 },
+					loadOp: loadOp, // "clear" or "load"
+					storeOp: "store",
+				});
+			}
+			if (fb.depthAttachment) {
+				depthAttachment = {
+					view: fb.depthAttachment._gpuTextureView,
+					depthClearValue: 1.0,
+					depthLoadOp: loadOp,
+					depthStoreOp: "store",
+					// stencil...
+				};
+			}
+
+			// Cache formats for pipeline creation
+			this._currentPassFormats = {
+				targets: fb.colorAttachments.map((a) => a.format),
+				depth: fb.depthAttachment ? fb.depthAttachment.format : null,
+			};
+		} else {
+			// Render to swapchain
+			if (!this._currentTexture) {
+				// Should not happen if beginFrame called, but safety check
+				this._currentTexture = this._context.getCurrentTexture();
+			}
+
+			colorAttachments.push({
+				view: this._currentTexture.createView(),
+				clearValue: this._clearColor || { r: 0, g: 0, b: 0, a: 1 },
+				loadOp: loadOp,
+				storeOp: "store",
+			});
+
+			// We don't have a default depth buffer in backend yet - use null
+			// If renderer sets one via bindFramebuffer(null)?
+			// Current implementation assumes null FB = swapchain only.
+			// Stage 2: geometry requires depth. But we are rendering flat first.
+
+			this._currentPassFormats = {
+				targets: [this._format],
+				depth: null,
+			};
+		}
+
+		const descriptor = {
+			colorAttachments,
+		};
+
+		if (depthAttachment) {
+			descriptor.depthStencilAttachment = depthAttachment;
+		}
+
+		this._currentPass = encoder.beginRenderPass(descriptor);
+	}
+
+	clear(options) {
+		// End current pass
 		if (this._currentPass) {
 			this._currentPass.end();
 			this._currentPass = null;
 		}
 
-		// Begin a new render pass with clear values
-		const colorAttachments = [];
-		if (options.color && this._currentTexture) {
-			colorAttachments.push({
-				view: this._currentTexture.createView(),
-				clearValue: {
-					r: options.color[0],
-					g: options.color[1],
-					b: options.color[2],
-					a: options.color[3] ?? 1.0,
-				},
-				loadOp: "clear",
-				storeOp: "store",
-			});
+		// If options provided, update clear state
+		if (options.color) {
+			this._clearColor = {
+				r: options.color[0],
+				g: options.color[1],
+				b: options.color[2],
+				a: options.color[3] ?? 1.0,
+			};
 		}
 
-		// For now, just clear to the swap chain
-		// G-buffer clearing will be handled in Stage 3
-		if (colorAttachments.length > 0 && this._commandEncoder) {
-			const pass = this._commandEncoder.beginRenderPass({
-				colorAttachments,
-			});
-			pass.end();
-		}
+		// Begin new pass with "clear" loadOp
+		// This clears the attachments
+		this._beginPass("clear");
+
+		// Immediately end it?
+		// No, usually we want to keep it open for drawing.
+		// BUT: WebGL logic is "clear, then draw".
+		// WebGPU clear happens AT BEGIN.
+		// So we start the pass. Subsequent draw calls will use this open pass.
+		// If another clear happens, we close and restart.
 	}
 
 	// =========================================================================
@@ -506,7 +705,20 @@ class WebGPUBackend extends RenderBackend {
 		}
 
 		try {
+			// Derive label from code logic or pass it?
+			// Since args were (wgslSource), if wgslSource is object it might have label?
+			// WgslShaderSources keys?
+			// For now, we rely on the object passed being `{ code: ... }` but we want to know WHICH shader it is.
+			// renderbackend calls createShaderProgram(source).
+			// shaders.js calls createShaderProgram(WgslShaderSources.geometry).
+			// We can attach name to WgslShaderSources?
+			const label =
+				typeof wgslSource === "object"
+					? wgslSource.label || "unknown"
+					: "unknown";
+
 			const shaderModule = device.createShaderModule({
+				label,
 				code,
 			});
 
@@ -532,53 +744,74 @@ class WebGPUBackend extends RenderBackend {
 		}
 	}
 
-	createVertexState(_descriptor) {
-		Console.warn("WebGPU: createVertexState not yet implemented");
-		return null;
+	createVertexState(descriptor) {
+		const buffers = [];
+		const layout = [];
+
+		// We use one buffer slot per attribute (Structure of Arrays approach used in Mesh.js)
+		for (let i = 0; i < descriptor.attributes.length; i++) {
+			const attr = descriptor.attributes[i];
+			const buffer = attr.buffer;
+
+			// Add to list of buffers to bind at draw time
+			buffers.push(buffer);
+
+			// Determine format
+			let format = "float32";
+			if (attr.size === 2) format = "float32x2";
+			if (attr.size === 3) format = "float32x3";
+			if (attr.size === 4) format = "float32x4";
+
+			// Create layout entry for this buffer slot
+			layout.push({
+				arrayStride: attr.size * 4, // 4 bytes per float
+				stepMode: "vertex",
+				attributes: [
+					{
+						shaderLocation: attr.slot,
+						offset: 0,
+						format: format,
+					},
+				],
+			});
+		}
+
+		return {
+			buffers, // The GPUBuffer objects associated with this state
+			layout, // The layout description for pipeline creation
+		};
 	}
 
-	bindVertexState(_vertexState) {
-		// No-op for now
+	bindVertexState(vertexState) {
+		this._currentVertexState = vertexState;
 	}
 
 	deleteVertexState(_vertexState) {
 		// No-op for now
 	}
 
-	createFramebuffer(_descriptor) {
-		Console.warn("WebGPU: createFramebuffer not yet implemented");
-		return null;
+	createFramebuffer(descriptor) {
+		// Store descriptor to know attachments and formats later
+		return {
+			colorAttachments: descriptor.colorAttachments || [],
+			depthAttachment: descriptor.depthAttachment || null,
+		};
 	}
 
 	deleteFramebuffer(_framebuffer) {
-		// No-op for now
+		// JS GC handles this mostly, unless we need to destroy specific resources
 	}
 
-	bindFramebuffer(_framebuffer) {
-		// No-op for now
+	bindFramebuffer(framebuffer) {
+		// If binding a new framebuffer, end current pass
+		if (this._currentPass) {
+			this._currentPass.end();
+			this._currentPass = null;
+		}
+		this._activeFramebuffer = framebuffer;
 	}
 
 	setFramebufferAttachment(_fb, _attachment, _texture, _level = 0, _layer = 0) {
-		// No-op for now
-	}
-
-	bindTexture(_texture, _unit) {
-		// No-op for now - WebGPU uses bind groups
-	}
-
-	unbindTexture(_unit) {
-		// No-op for now
-	}
-
-	bindShader(shader) {
-		this._currentShader = shader;
-	}
-
-	unbindShader() {
-		this._currentShader = null;
-	}
-
-	disposeShader(_shader) {
 		// No-op for now
 	}
 
@@ -589,11 +822,14 @@ class WebGPUBackend extends RenderBackend {
 		const width = source.width;
 		const height = source.height;
 
+		const mipLevelCount = Math.floor(Math.log2(Math.max(width, height))) + 1;
+
 		// If texture doesn't exist or is wrong size, recreate it
 		if (
 			!texture._gpuTexture ||
 			texture.width !== width ||
-			texture.height !== height
+			texture.height !== height ||
+			texture.mipLevelCount !== mipLevelCount
 		) {
 			// Destroy old texture if exists
 			if (texture._gpuTexture) {
@@ -603,6 +839,7 @@ class WebGPUBackend extends RenderBackend {
 			// Create new texture with correct size
 			const newTexture = device.createTexture({
 				size: { width, height, depthOrArrayLayers: 1 },
+				mipLevelCount,
 				format: "rgba8unorm",
 				usage:
 					GPUTextureUsage.TEXTURE_BINDING |
@@ -614,6 +851,7 @@ class WebGPUBackend extends RenderBackend {
 			texture._gpuTextureView = newTexture.createView();
 			texture.width = width;
 			texture.height = height;
+			texture.mipLevelCount = mipLevelCount;
 		}
 
 		// Create ImageBitmap and copy
@@ -626,8 +864,131 @@ class WebGPUBackend extends RenderBackend {
 		});
 	}
 
-	generateMipmaps(_texture) {
-		Console.warn("WebGPU: generateMipmaps not yet implemented");
+	generateMipmaps(texture) {
+		if (
+			!texture._gpuTexture ||
+			!texture.mipLevelCount ||
+			texture.mipLevelCount <= 1
+		) {
+			return;
+		}
+
+		const pipeline = this._getMipmapPipeline(texture.format || "rgba8unorm");
+
+		// We need a command encoder. If one exists for the frame (beginFrame), use it?
+		// Usually generateMipmaps is called during load, outside frame.
+		let encoder = this._commandEncoder;
+		let submitImmediate = false;
+
+		if (!encoder) {
+			encoder = this._device.createCommandEncoder();
+			submitImmediate = true;
+		}
+
+		let srcView = texture._gpuTexture.createView({
+			baseMipLevel: 0,
+			mipLevelCount: 1,
+		});
+
+		for (let i = 1; i < texture.mipLevelCount; i++) {
+			const dstView = texture._gpuTexture.createView({
+				baseMipLevel: i,
+				mipLevelCount: 1,
+			});
+
+			const passEncoder = encoder.beginRenderPass({
+				colorAttachments: [
+					{
+						view: dstView,
+						loadOp: "clear",
+						storeOp: "store",
+					},
+				],
+			});
+
+			passEncoder.setPipeline(pipeline);
+			passEncoder.setBindGroup(
+				0,
+				this._device.createBindGroup({
+					layout: pipeline.getBindGroupLayout(0),
+					entries: [
+						{ binding: 0, resource: this._defaultSampler },
+						{ binding: 1, resource: srcView },
+					],
+				}),
+			);
+			passEncoder.draw(4);
+			passEncoder.end();
+
+			srcView = dstView;
+		}
+
+		if (submitImmediate) {
+			this._device.queue.submit([encoder.finish()]);
+		}
+	}
+
+	_getMipmapPipeline(format) {
+		if (!this._mipmapPipelines) {
+			this._mipmapPipelines = new Map();
+		}
+
+		if (this._mipmapPipelines.has(format)) {
+			return this._mipmapPipelines.get(format);
+		}
+
+		const module = this._device.createShaderModule({
+			label: "mipmap-blit",
+			code: /* wgsl */ `
+				struct VSOutput {
+					@builtin(position) position: vec4<f32>,
+					@location(0) uv: vec2<f32>,
+				};
+
+				@vertex
+				fn vs_main(@builtin(vertex_index) vertexIndex: u32) -> VSOutput {
+					var pos = array<vec2<f32>, 4>(
+						vec2(-1.0, 1.0), vec2(1.0, 1.0), vec2(-1.0, -1.0), vec2(1.0, -1.0)
+					);
+					var uv = array<vec2<f32>, 4>(
+						vec2(0.0, 0.0), vec2(1.0, 0.0), vec2(0.0, 1.0), vec2(1.0, 1.0)
+					);
+					var out: VSOutput;
+					out.position = vec4<f32>(pos[vertexIndex], 0.0, 1.0);
+					out.uv = uv[vertexIndex];
+					return out;
+				}
+
+				@group(0) @binding(0) var imgSampler: sampler;
+				@group(0) @binding(1) var img: texture_2d<f32>;
+
+				@fragment
+				fn fs_main(in: VSOutput) -> @location(0) vec4<f32> {
+					return textureSample(img, imgSampler, in.uv);
+				}
+			`,
+		});
+
+		const pipeline = this._device.createRenderPipeline({
+			label: `mipmap-pipeline-${format}`,
+			layout: "auto",
+			vertex: {
+				module,
+				entryPoint: "vs_main",
+			},
+			fragment: {
+				module,
+				entryPoint: "fs_main",
+				targets: [{ format }],
+			},
+			primitive: {
+				topology: "triangle-strip",
+				stripIndexFormat: undefined,
+			},
+		});
+
+		this._mipmapPipelines.set(format, pipeline);
+		return pipeline;
 	}
 
 	setTextureWrapMode(_texture, _mode) {
@@ -645,39 +1006,495 @@ class WebGPUBackend extends RenderBackend {
 		// In WebGPU, this is set at sampler creation time
 	}
 
+	bindTexture(texture, unit) {
+		if (!this._boundTextures) this._boundTextures = new Map();
+		this._boundTextures.set(unit, texture);
+	}
+
+	unbindTexture(unit) {
+		if (this._boundTextures) {
+			this._boundTextures.delete(unit);
+		}
+	}
+
+	bindShader(shader) {
+		this._currentShader = shader;
+	}
+
+	unbindShader() {
+		this._currentShader = null;
+	}
+
+	disposeShader(_shader) {
+		// No-op for now
+	}
+
 	createUBO(size, bindingPoint) {
+		// Create buffer with exact size
+		// Note: size should be aligned to 16 bytes for UBOs usually
+		const alignedSize = Math.ceil(size / 16) * 16;
+
 		const buffer = this._device.createBuffer({
-			size,
+			size: alignedSize,
 			usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
 		});
 
 		return {
 			_gpuBuffer: buffer,
-			size,
+			size: alignedSize,
 			bindingPoint,
 		};
 	}
 
 	updateUBO(ubo, data, offset = 0) {
 		if (ubo?._gpuBuffer) {
+			// Check if data needs padding/sizing?
+			// writeBuffer handles TypedArrays nicely
 			this._device.queue.writeBuffer(ubo._gpuBuffer, offset, data);
 		}
 	}
 
-	bindUniformBuffer(_ubo) {
-		// In WebGPU, this is handled through bind groups
+	bindUniformBuffer(ubo) {
+		if (!this._boundUBOs) this._boundUBOs = new Map();
+
+		if (ubo) {
+			this._boundUBOs.set(ubo.bindingPoint, ubo);
+		}
 	}
 
-	drawIndexed(_indexBuffer, _indexCount, _indexOffset = 0, _mode = null) {
-		Console.warn("WebGPU: drawIndexed not yet implemented");
+	_getPipelineKey(
+		vertexState,
+		shader,
+		primitive,
+		depthState,
+		blendState,
+		cullState,
+		formats,
+	) {
+		// Create a unique key for the pipeline configuration
+		return JSON.stringify({
+			layout: vertexState.layout, // Buffer layout
+			shader: shader._gpuShaderModule.label || "shader", // Just ID
+			topology: primitive.topology,
+			cullMode: cullState.enabled ? cullState.face : "none",
+			depth: depthState,
+			blend: blendState,
+			formats: formats,
+		});
+	}
+
+	drawIndexed(indexBuffer, indexCount, indexOffset = 0, _mode = null) {
+		if (!this._device || !this._currentVertexState || !this._currentShader)
+			return;
+
+		// 1. Ensure active render pass
+		if (!this._currentPass) {
+			this._beginPass("load");
+		}
+
+		const pass = this._currentPass;
+
+		// 2. Get or create pipeline
+		const primitive = {
+			topology: "triangle-list", // WebGL BACKEND uses TRIANGLES usually.
+			// If 'mode' arg passed, map it? (gl.TRIANGLES etc).
+			// RenderBackend abstraction implies TRIANGLES default.
+			cullMode: this._cullState.enabled ? this._cullState.face : "none",
+			frontFace: "ccw", // standard
+		};
+
+		const key = this._getPipelineKey(
+			this._currentVertexState,
+			this._currentShader,
+			primitive,
+			this._depthState,
+			this._blendState,
+			this._cullState,
+			this._currentPassFormats,
+		);
+
+		let pipeline = this._pipelineCache.get(key);
+
+		if (!pipeline) {
+			Console.log(`Creating new pipeline for shader...`);
+
+			// Build pipeline descriptor
+			const descriptor = {
+				layout: "auto",
+				vertex: {
+					module: this._currentShader._gpuShaderModule,
+					entryPoint: "vs_main",
+					buffers: this._currentVertexState.layout,
+				},
+				fragment: {
+					module: this._currentShader._gpuShaderModule,
+					entryPoint: "fs_main",
+					targets: this._currentPassFormats.targets.map((format) => ({
+						format,
+						blend: this._blendState.enabled
+							? {
+									color: {
+										srcFactor: this._blendState.srcFactor,
+										dstFactor: this._blendState.dstFactor,
+										operation: "add",
+									},
+									alpha: {
+										srcFactor: this._blendState.srcFactor,
+										dstFactor: this._blendState.dstFactor,
+										operation: "add",
+									},
+								}
+							: undefined,
+						writeMask: GPUColorWrite.ALL,
+					})),
+				},
+				primitive,
+				// Depth stencil
+			};
+
+			if (this._currentPassFormats.depth) {
+				descriptor.depthStencil = {
+					format: this._currentPassFormats.depth,
+					depthWriteEnabled: this._depthState.write,
+					depthCompare: this._depthState.test
+						? this._depthState.func
+						: "always",
+				};
+			}
+
+			try {
+				pipeline = this._device.createRenderPipeline(descriptor);
+				this._pipelineCache.set(key, pipeline);
+			} catch (e) {
+				Console.error(`Failed to create pipeline: ${e.message}`);
+				return;
+			}
+		}
+
+		pass.setPipeline(pipeline);
+
+		// 3. Bind Vertex Buffers
+		const buffers = this._currentVertexState.buffers;
+		for (let i = 0; i < buffers.length; i++) {
+			if (buffers[i]?._gpuBuffer) {
+				pass.setVertexBuffer(i, buffers[i]._gpuBuffer);
+			}
+		}
+
+		// 4. Bind Index Buffer
+		if (indexBuffer?._gpuBuffer) {
+			pass.setIndexBuffer(indexBuffer._gpuBuffer, "uint16"); // Assuming uint16 for now from Mesh.js
+		}
+
+		// 5. Bind Groups
+		// Group 0: FrameData (always expected if shader uses it)
+		if (this._boundUBOs.has(0)) {
+			// Use cached BindGroup if possible? For now create new.
+			try {
+				pass.setBindGroup(
+					0,
+					this._device.createBindGroup({
+						layout: pipeline.getBindGroupLayout(0),
+						entries: [
+							{
+								binding: 0,
+								resource: { buffer: this._boundUBOs.get(0)._gpuBuffer },
+							},
+						],
+					}),
+				);
+			} catch (_e) {
+				/* Ignore if shader doesn't use group 0 */
+			}
+		}
+
+		// Shader-specific groups
+		const shaderName = this._currentShader._gpuShaderModule.label;
+		const bindings = _SHADER_BINDINGS[shaderName];
+
+		if (bindings) {
+			// Group 1
+			if (bindings.group1) {
+				const entries = [];
+				for (const b of bindings.group1) {
+					if (b.type === "ubo") {
+						const ubo = this._boundUBOs.get(b.id);
+						if (ubo)
+							entries.push({
+								binding: b.binding,
+								resource: { buffer: ubo._gpuBuffer },
+							});
+					} else if (b.type === "uniform") {
+						// Create temp buffer for uniforms
+						let val = this._uniforms?.get(b.name);
+
+						// If no direct value, try to pack struct provided by renderer scalars
+						if (!val && this._packStruct) {
+							val = this._packStruct(b.name);
+						}
+
+						if (val !== undefined && val !== null) {
+							// If primitive, wrap in array
+							let bufferVal = val;
+							if (typeof val === "number") {
+								bufferVal = new Float32Array([val]);
+							} else if (typeof val === "boolean") {
+								bufferVal = new Uint32Array([val ? 1 : 0]);
+							} else if (Array.isArray(val)) {
+								bufferVal = new Float32Array(val);
+							}
+
+							// Align size to 16 bytes for Uniform usage requirement usually preferred
+							const size = Math.ceil(bufferVal.byteLength / 16) * 16;
+							const buf = this._device.createBuffer({
+								size,
+								usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+								mappedAtCreation: true,
+							});
+
+							// Copy data to mapped range (zero padding if size > bufferVal.byteLength)
+							if (bufferVal instanceof Float32Array) {
+								new Float32Array(buf.getMappedRange()).set(bufferVal);
+							} else {
+								new Uint8Array(buf.getMappedRange()).set(
+									new Uint8Array(
+										bufferVal.buffer,
+										bufferVal.byteOffset,
+										bufferVal.byteLength,
+									),
+								);
+							}
+
+							buf.unmap();
+							entries.push({ binding: b.binding, resource: { buffer: buf } });
+						}
+					} else if (b.type === "sampler") {
+						const tex = this._boundTextures.get(b.unit);
+						const resource = tex ? tex._gpuSampler : this._defaultSampler;
+						entries.push({ binding: b.binding, resource });
+					} else if (b.type === "texture") {
+						const tex = this._boundTextures.get(b.unit);
+						const resource = tex
+							? tex._gpuTextureView
+							: this._defaultTextureView;
+						entries.push({ binding: b.binding, resource });
+					}
+				}
+				if (entries.length > 0) {
+					try {
+						pass.setBindGroup(
+							1,
+							this._device.createBindGroup({
+								layout: pipeline.getBindGroupLayout(1),
+								entries,
+							}),
+						);
+					} catch (e) {
+						Console.warn(`BindGroup 1 error: ${e.message}`);
+					}
+				}
+			}
+
+			// Group 2
+			if (bindings.group2) {
+				const entries = [];
+				for (const b of bindings.group2) {
+					const tex = this._boundTextures.get(b.unit);
+					if (tex) {
+						if (b.type === "sampler") {
+							entries.push({ binding: b.binding, resource: tex._gpuSampler });
+						} else if (b.type === "texture") {
+							entries.push({
+								binding: b.binding,
+								resource: tex._gpuTextureView,
+							});
+						}
+					} else {
+						// Fallback to defaults
+						if (b.type === "sampler") {
+							entries.push({
+								binding: b.binding,
+								resource: this._defaultSampler,
+							});
+						} else if (b.type === "texture") {
+							entries.push({
+								binding: b.binding,
+								resource: this._defaultTextureView,
+							});
+						}
+					}
+				}
+				if (entries.length > 0) {
+					try {
+						pass.setBindGroup(
+							2,
+							this._device.createBindGroup({
+								layout: pipeline.getBindGroupLayout(2),
+								entries,
+							}),
+						);
+					} catch (e) {
+						Console.warn(`BindGroup 2 error: ${e.message}`);
+					}
+				}
+			}
+		}
+
+		pass.drawIndexed(indexCount, 1, indexOffset, 0, 0);
 	}
 
 	drawFullscreenQuad() {
 		Console.warn("WebGPU: drawFullscreenQuad not yet implemented");
 	}
 
-	setUniform(_name, _type, _value) {
-		// In WebGPU, uniforms are handled through UBOs
+	_packStruct(name) {
+		if (!this._uniforms) return null;
+
+		if (name === "pointLight") {
+			// 32 bytes = 8 floats
+			const arr = new Float32Array(8);
+			const pos = this._uniforms.get("pointLight.position"); // vec3
+			const size = this._uniforms.get("pointLight.size"); // f32
+			const col = this._uniforms.get("pointLight.color"); // vec3
+			const intensity = this._uniforms.get("pointLight.intensity"); // f32
+
+			if (pos) arr.set(pos, 0); // 0,1,2
+			if (size !== undefined) arr[3] = size;
+			if (col) arr.set(col, 4); // 4,5,6
+			if (intensity !== undefined) arr[7] = intensity;
+			return arr;
+		} else if (name === "directionalLight") {
+			// 32 bytes = 8 floats
+			const arr = new Float32Array(8);
+			const dir = this._uniforms.get("directionalLight.direction");
+			const col = this._uniforms.get("directionalLight.color");
+
+			if (dir) arr.set(dir, 0);
+			if (col) arr.set(col, 4);
+			return arr;
+		} else if (name === "spotLight") {
+			// 48 bytes = 12 floats
+			const arr = new Float32Array(12);
+			// pos(0), cutoff(3), dir(4), range(7), col(8), intensity(11)
+			const pos = this._uniforms.get("spotLight.position");
+			const cutoff = this._uniforms.get("spotLight.cutoff");
+			const dir = this._uniforms.get("spotLight.direction");
+			const range = this._uniforms.get("spotLight.range");
+			const col = this._uniforms.get("spotLight.color");
+			const intensity = this._uniforms.get("spotLight.intensity");
+
+			if (pos) arr.set(pos, 0);
+			if (cutoff !== undefined) arr[3] = cutoff;
+			if (dir) arr.set(dir, 4);
+			if (range !== undefined) arr[7] = range;
+			if (col) arr.set(col, 8);
+			if (intensity !== undefined) arr[11] = intensity;
+			return arr;
+		} else if (name === "postProcessParams") {
+			// Renamed from params
+			// PostProcess
+			// 64 bytes = 16 floats
+			const arr = new Float32Array(16);
+			// gamma(0), emissiveMult(1), ssaoStrength(2), dirtIntensity(3)
+			const gamma = this._uniforms.get("gamma");
+			const emissiveMult = this._uniforms.get("emissiveMult");
+			const ssaoStrength = this._uniforms.get("ssaoStrength");
+			const dirtIntensity = this._uniforms.get("dirtIntensity");
+			const doFXAA = this._uniforms.get("doFXAA");
+			const ambient =
+				this._uniforms.get("ambient") ?? this._uniforms.get("params.ambient");
+
+			if (gamma !== undefined) arr[0] = gamma;
+			if (emissiveMult !== undefined) arr[1] = emissiveMult;
+			if (ssaoStrength !== undefined) arr[2] = ssaoStrength;
+			if (dirtIntensity !== undefined) arr[3] = dirtIntensity;
+			if (doFXAA !== undefined) arr[4] = doFXAA;
+			if (ambient) arr.set(ambient, 12);
+
+			return arr;
+		} else if (name === "ssaoParams") {
+			// SSAOParams: radius(f32), bias(f32), noiseScale(vec2), kernel(array<vec4,16>)
+			// Size: 8 + 8 + 256 = 272 bytes?
+			// Layout:
+			// 0: radius, 4: bias, 8: noiseScale (vec2), 16: kernel array (aligned 16)
+			// Total size = 16 + 256 = 272 bytes.
+			const arr = new Float32Array(4 + 16 * 4); // 4 + 64 floats = 68 floats = 272 bytes
+
+			const radius = this._uniforms.get("radius");
+			const bias = this._uniforms.get("bias");
+			const noiseScale = this._uniforms.get("noiseScale");
+			const kernel = this._uniforms.get("kernel"); // Float32Array(48) (16*3)? Or Float32Array(64) (16*4)?
+
+			if (radius !== undefined) arr[0] = radius;
+			if (bias !== undefined) arr[1] = bias;
+			if (noiseScale) arr.set(noiseScale, 2); // vec2 at index 2 (offset 8)
+
+			// Kernel (index 4 = offset 16).
+			// If kernel is vec3 array (flat), we must expand to vec4.
+			if (kernel) {
+				for (let i = 0; i < 16; i++) {
+					if (i * 3 + 2 < kernel.length) {
+						arr[4 + i * 4] = kernel[i * 3];
+						arr[4 + i * 4 + 1] = kernel[i * 3 + 1];
+						arr[4 + i * 4 + 2] = kernel[i * 3 + 2];
+						arr[4 + i * 4 + 3] = 0.0; // pad
+					}
+				}
+			}
+			return arr;
+		} else if (name === "shadowParams") {
+			// ShadowParams: lightVP(mat4), ambient(vec3), _pad, bias(f32)
+			// lightVP: 64 bytes.
+			// ambient: offset 64. (vec3).
+			// bias: offset 80? (align 16 for vec3 pad? no, bias is f32).
+			// Struct: lightVP, ambient, _pad(f32), bias(f32). ??
+			// entityShadowsShader: lightVP, ambient, _pad, bias, _pad2.
+
+			const arr = new Float32Array(24); // 96 bytes implies ~24 floats.
+			const lightVP = this._uniforms.get("lightVP");
+			const ambient = this._uniforms.get("ambient");
+			const bias = this._uniforms.get("bias");
+
+			if (lightVP) arr.set(lightVP, 0); // 0..15
+			if (ambient) arr.set(ambient, 16); // 16..18
+			// bias at? offset 80? index 20?
+			// 16 floats = 64 bytes.
+			// ambient at 64. (index 16).
+			// bias at 76? (index 19?).
+			// Check alignment.
+			// vec3 ambient (12 bytes). 64+12 = 76.
+			// Next f32 (bias)?
+			// Wait, struct: ambient(vec3), _pad(f32), bias(f32).
+			// ambient: 64. _pad: 76. bias: 80.
+			// index 16, 17, 18 used. 19 is _pad. 20 is bias.
+			if (bias !== undefined) arr[20] = bias;
+
+			return arr;
+		} else if (name === "blurParams") {
+			// offset: f32 (0). _pad: vec3 (4..16).
+			// Total 16 bytes.
+			const arr = new Float32Array(4);
+			const offset = this._uniforms.get("offset"); // "blurParams.offset"?
+			// Renderer uses Shaders.kawaseBlur.setFloat("offset", ...)
+			// So key is "offset".
+			if (offset !== undefined) arr[0] = offset;
+			return arr;
+		} else if (name === "ambient") {
+			// Shadow shader "ambient" vec3
+			// entityShadowsShader: var<uniform> ambient: vec3<f32>;
+			// Wait, struct? No, var<uniform> ambient: vec3<f32>.
+			// This is NOT a struct. It's a raw vec3.
+			// Renderer calls setVec3("ambient").
+			// drawIndexed will find "ambient" in _uniforms (Float32Array).
+			// So "val" will be found. No pack needed.
+			return null;
+		}
+		return null;
+	}
+
+	setUniform(name, _type, value) {
+		if (!this._uniforms) this._uniforms = new Map();
+		this._uniforms.set(name, value);
 	}
 }
 

@@ -57,71 +57,79 @@ class Mesh {
 		}
 
 		// Create Vertex Buffers
+		const vertexCount = this.vertices.length / 3;
+
+		// Position (Always present)
 		this.vertexBuffer = Mesh.buildBuffer(null, this.vertices, "vertex");
 		this._buffers.push(this.vertexBuffer);
 
+		// UVs (Always provide buffer)
 		if (this.hasUVs) {
 			this.uvBuffer = Mesh.buildBuffer(null, this.uvs, "vertex");
-			this._buffers.push(this.uvBuffer);
+		} else {
+			this.uvBuffer = Mesh.buildBuffer(
+				null,
+				new Float32Array(vertexCount * 2),
+				"vertex",
+			);
 		}
+		this._buffers.push(this.uvBuffer);
+
+		// Normals (Always provide buffer)
 		if (this.hasNormals) {
 			this.normalBuffer = Mesh.buildBuffer(null, this.normals, "vertex");
-			this._buffers.push(this.normalBuffer);
+		} else {
+			this.normalBuffer = Mesh.buildBuffer(
+				null,
+				new Float32Array(vertexCount * 3),
+				"vertex",
+			);
 		}
+		this._buffers.push(this.normalBuffer);
+
+		// Lightmap UVs (Always provide buffer)
 		if (this.hasLightmapUVs) {
 			this.lightmapUVBuffer = Mesh.buildBuffer(
 				null,
 				this.lightmapUVs,
 				"vertex",
 			);
-			this._buffers.push(this.lightmapUVBuffer);
+		} else {
+			this.lightmapUVBuffer = Mesh.buildBuffer(
+				null,
+				new Float32Array(vertexCount * 2),
+				"vertex",
+			);
 		}
+		this._buffers.push(this.lightmapUVBuffer);
 
-		// Define Vertex Attributes for State Creation
+		// Define Vertex Attributes for State Creation (Always consistent layout)
 		const attributes = [
 			{
 				buffer: this.vertexBuffer,
 				slot: Mesh.ATTR_POSITIONS,
 				size: 3,
-				type: "float", // Backend handles mapping to GL constant
+				type: "float",
 			},
-		];
-
-		if (this.hasUVs) {
-			attributes.push({
+			{
 				buffer: this.uvBuffer,
 				slot: Mesh.ATTR_UVS,
 				size: 2,
 				type: "float",
-			});
-		}
-
-		if (this.hasNormals) {
-			attributes.push({
+			},
+			{
 				buffer: this.normalBuffer,
 				slot: Mesh.ATTR_NORMALS,
 				size: 3,
 				type: "float",
-			});
-		}
-
-		if (this.hasLightmapUVs) {
-			attributes.push({
+			},
+			{
 				buffer: this.lightmapUVBuffer,
 				slot: Mesh.ATTR_LIGHTMAP_UVS,
 				size: 2,
 				type: "float",
-			});
-		} else {
-			// NOTE: WebGL allows disabling attrib array and using constant.
-			// RenderBackend abstraction usually implies "Vertex State" captures enabled arrays.
-			// Handling default/constant values for disabled attributes is complex in pure abstraction.
-			// Current WebGLBackend implementation only enables arrays in the list.
-			// If we omit it, it won't be enabled, which is correct.
-			// The original code did: gl.disableVertexAttribArray(...) + gl.vertexAttrib2f(...)
-			// We might need an "Constant Attribute" feature in backend if visual artifacts appear.
-			// For now, assume shader handles missing data or default attribute values are sufficient (usually 0,0,0,1).
-		}
+			},
+		];
 
 		// Create Vertex State (VAO)
 		this.vao = Backend.createVertexState({ attributes });

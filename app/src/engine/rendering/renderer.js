@@ -609,6 +609,7 @@ const _initUBO = () => {
 		_FRAME_DATA_SIZE,
 		_FRAME_DATA_BINDING_POINT,
 	);
+	Backend.bindUniformBuffer(_frameDataUBO);
 };
 
 const _updateFrameData = (time) => {
@@ -637,6 +638,8 @@ const _updateFrameData = (time) => {
 // Public Renderer API
 const Renderer = {
 	render(time = 0) {
+		Backend.beginFrame();
+
 		_updateFrameData(time);
 
 		_worldGeomPass();
@@ -654,6 +657,8 @@ const Renderer = {
 		_emissiveBlurPass();
 		_postProcessingPass();
 		_debugPass();
+
+		Backend.endFrame();
 	},
 };
 

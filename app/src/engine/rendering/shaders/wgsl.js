@@ -188,7 +188,6 @@ struct DirLightOutput {
 
 @group(0) @binding(0) var<uniform> frameData: FrameData;
 @group(1) @binding(0) var<uniform> directionalLight: DirectionalLight;
-@group(1) @binding(1) var normalSampler: sampler;
 @group(1) @binding(2) var normalBuffer: texture_2d<f32>;
 
 @vertex
@@ -196,7 +195,7 @@ fn vs_main(@builtin(vertex_index) vertexIndex: u32) -> DirLightOutput {
     var output: DirLightOutput;
     let x = f32((vertexIndex << 1) & 2);
     let y = f32(vertexIndex & 2);
-    output.position = vec4<f32>(x * 2.0 - 1.0, y * 2.0 - 1.0, 0.0, 1.0);
+    output.position = vec4<f32>(x * 2.0 - 1.0, y * 2.0 - 1.0, 0.0, 1.0 + frameData.viewportSize.x * 0.0000001);
     output.uv = vec2<f32>(x, 1.0 - y);
     return output;
 }
@@ -240,7 +239,6 @@ struct PointLightVertexOutput {
 @group(0) @binding(0) var<uniform> frameData: FrameData;
 @group(1) @binding(0) var<uniform> matWorld: mat4x4<f32>;
 @group(1) @binding(1) var<uniform> pointLight: PointLight;
-@group(1) @binding(2) var bufferSampler: sampler;
 @group(1) @binding(3) var positionBuffer: texture_2d<f32>;
 @group(1) @binding(4) var normalBuffer: texture_2d<f32>;
 
@@ -306,7 +304,6 @@ struct SpotLightVertexOutput {
 @group(0) @binding(0) var<uniform> frameData: FrameData;
 @group(1) @binding(0) var<uniform> matWorld: mat4x4<f32>;
 @group(1) @binding(1) var<uniform> spotLight: SpotLight;
-@group(1) @binding(2) var bufferSampler: sampler;
 @group(1) @binding(3) var positionBuffer: texture_2d<f32>;
 @group(1) @binding(4) var normalBuffer: texture_2d<f32>;
 
@@ -602,20 +599,22 @@ fn fs_main(input: SSAOOutput) -> @location(0) vec4<f32> {
 
 // Debug shader
 const debugShader = /* wgsl */ `
+${FrameDataStruct}
 struct DebugOutput {
     @builtin(position) position: vec4<f32>,
     @location(0) uv: vec2<f32>,
 }
 
-@group(0) @binding(0) var debugSampler: sampler;
-@group(0) @binding(1) var debugTexture: texture_2d<f32>;
+@group(0) @binding(0) var<uniform> frameData: FrameData;
+@group(1) @binding(0) var debugSampler: sampler;
+@group(1) @binding(1) var debugTexture: texture_2d<f32>;
 
 @vertex
 fn vs_main(@builtin(vertex_index) vertexIndex: u32) -> DebugOutput {
     var output: DebugOutput;
     let x = f32((vertexIndex << 1) & 2);
     let y = f32(vertexIndex & 2);
-    output.position = vec4<f32>(x * 2.0 - 1.0, y * 2.0 - 1.0, 0.0, 1.0);
+    output.position = vec4<f32>(x * 2.0 - 1.0, y * 2.0 - 1.0, 0.0, 1.0 + frameData.viewportSize.x * 0.0);
     output.uv = vec2<f32>(x, 1.0 - y);
     return output;
 }
@@ -627,38 +626,50 @@ fn fs_main(input: DebugOutput) -> @location(0) vec4<f32> {
 `;
 
 // Export shader sources in same format as GLSL
+// Export shader sources in same format as GLSL
 export const WgslShaderSources = {
 	geometry: {
+		label: "geometry",
 		code: geometryShader,
 	},
 	entityShadows: {
+		label: "entityShadows",
 		code: entityShadowsShader,
 	},
 	applyShadows: {
+		label: "applyShadows",
 		code: applyShadowsShader,
 	},
 	directionalLight: {
+		label: "directionalLight",
 		code: directionalLightShader,
 	},
 	pointLight: {
+		label: "pointLight",
 		code: pointLightShader,
 	},
 	spotLight: {
+		label: "spotLight",
 		code: spotLightShader,
 	},
 	kawaseBlur: {
+		label: "kawaseBlur",
 		code: kawaseBlurShader,
 	},
 	postProcessing: {
+		label: "postProcessing",
 		code: postProcessingShader,
 	},
 	transparent: {
+		label: "transparent",
 		code: transparentShader,
 	},
 	ssao: {
+		label: "ssao",
 		code: ssaoShader,
 	},
 	debug: {
+		label: "debug",
 		code: debugShader,
 	},
 };

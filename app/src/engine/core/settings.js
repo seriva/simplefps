@@ -11,6 +11,7 @@ export default Settings;
 // Private defaults
 const _defaults = {
 	// rendering
+	useWebGPU: true,
 	zNear: 0.1,
 	zFar: 8192,
 	renderScale: Utils.isMobile() ? 0.5 : 1.0,
@@ -24,7 +25,6 @@ const _defaults = {
 	showStats: false,
 	shadowBlurIterations: 2,
 	shadowBlurOffset: 0.8,
-	useWebGPU: false,
 
 	// SSAO settings
 	doSSAO: false,
