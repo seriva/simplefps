@@ -121,13 +121,16 @@ const _SHADER_BINDINGS = {
 	},
 	transparent: {
 		group1: [
-			{ binding: 0, type: "ubo", id: 1 },
+			{ binding: 0, type: "ubo", id: 1 }, // MaterialData (Binding Point 1)
 			{ binding: 1, type: "uniform", name: "matWorld" },
+			{ binding: 2, type: "ubo", id: 2 }, // LightingData (Binding Point 2)
 		],
 		group2: [
-			{ binding: 0, type: "sampler", unit: 0 },
-			{ binding: 1, type: "texture", unit: 0 },
-			{ binding: 2, type: "texture", unit: 1 },
+			{ binding: 0, type: "sampler", unit: 0 }, // colorSampler
+			{ binding: 1, type: "texture", unit: 0 }, // colorTexture
+			{ binding: 2, type: "texture", unit: 1 }, // emissiveTexture
+			{ binding: 3, type: "texture", unit: 2 }, // reflectionTexture
+			{ binding: 4, type: "texture", unit: 3 }, // reflectionMaskTexture
 		],
 	},
 	ssao: {

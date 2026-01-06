@@ -494,6 +494,17 @@ const transparentShader = /* wgsl */ `
 ${FrameDataStruct}
 ${MaterialDataStruct}
 
+struct LightingData {
+    pointLightPositions: array<vec4<f32>, 8>,
+    pointLightColors: array<vec4<f32>, 8>,
+    pointLightParams: array<vec4<f32>, 8>, // x=intensity, y=size
+    spotLightPositions: array<vec4<f32>, 4>,
+    spotLightDirections: array<vec4<f32>, 4>,
+    spotLightColors: array<vec4<f32>, 4>,
+    spotLightParams: array<vec4<f32>, 4>, // x=intensity, y=cutoff, z=range
+    counts: vec4<f32>, // x=numPoint, y=numSpot
+}
+
 struct TransparentVertexInput {
     @location(0) position: vec3<f32>,
     @location(1) uv: vec2<f32>,
@@ -510,9 +521,13 @@ struct TransparentVertexOutput {
 @group(0) @binding(0) var<uniform> frameData: FrameData;
 @group(1) @binding(0) var<uniform> materialData: MaterialData;
 @group(1) @binding(1) var<uniform> matWorld: mat4x4<f32>;
+@group(1) @binding(2) var<uniform> lightingData: LightingData;
+
 @group(2) @binding(0) var colorSampler: sampler;
 @group(2) @binding(1) var colorTexture: texture_2d<f32>;
 @group(2) @binding(2) var emissiveTexture: texture_2d<f32>;
+@group(2) @binding(3) var reflectionTexture: texture_2d<f32>;
+@group(2) @binding(4) var reflectionMaskTexture: texture_2d<f32>;
 
 @vertex
 fn vs_main(input: TransparentVertexInput) -> TransparentVertexOutput {
@@ -524,13 +539,100 @@ fn vs_main(input: TransparentVertexInput) -> TransparentVertexOutput {
     return output;
 }
 
+fn calcPointLight(pos: vec3<f32>, size: f32, fragPos: vec3<f32>, normal: vec3<f32>) -> vec2<f32> {
+    let lightDir = pos - fragPos;
+    let dist = length(lightDir);
+    let L = normalize(lightDir);
+    let NdotL = max(dot(normal, L), 0.0);
+    
+    let att = 1.0 / (1.0 + 0.1 * dist + 0.01 * dist * dist);
+    // Simple size factor approximation or ignore size for basic point light
+    return vec2<f32>(NdotL, att);
+}
+
+fn calcSpotLight(pos: vec3<f32>, dir: vec3<f32>, cutoff: f32, range: f32, fragPos: vec3<f32>, normal: vec3<f32>) -> vec3<f32> {
+    let lightDir = normalize(pos - fragPos);
+    let dist = length(pos - fragPos);
+    
+    let theta = dot(lightDir, normalize(-dir));
+    let epsilon = 0.1; // Soft edge
+    let intensity = clamp((theta - cutoff) / epsilon, 0.0, 1.0);
+    
+    if (theta > cutoff && dist < range) {
+        let att = 1.0 / (1.0 + 0.1 * dist + 0.01 * dist * dist);
+        let NdotL = max(dot(normal, lightDir), 0.0);
+        return vec3<f32>(NdotL, att, intensity);
+    }
+    return vec3<f32>(0.0);
+}
+
 @fragment
 fn fs_main(input: TransparentVertexOutput) -> @location(0) vec4<f32> {
-    var color = textureSample(colorTexture, colorSampler, input.uv);
+    var baseColor = textureSample(colorTexture, colorSampler, input.uv);
     let emissive = textureSample(emissiveTexture, colorSampler, input.uv);
-    color = vec4<f32>(color.rgb + emissive.rgb, color.a * materialData.params.y);
     
-    return color;
+    // Base ambient/emissive
+    baseColor = vec4<f32>(baseColor.rgb + emissive.rgb, baseColor.a * materialData.params.y);
+    
+    let normal = normalize(input.normal);
+    let fragPos = input.worldPosition.xyz;
+    
+    // Reflections (Environment Mapping)
+    if (materialData.flags.z == 1) { // doReflection
+        let reflMask = textureSample(reflectionMaskTexture, colorSampler, input.uv);
+        let maskSum = dot(reflMask.rgb, vec3<f32>(0.333333));
+        
+        if (maskSum > 0.1) {
+            let viewDir = normalize(frameData.cameraPosition.xyz - fragPos);
+            let r = reflect(-viewDir, normal);
+            let m = 2.0 * sqrt(dot(r.xy, r.xy) + (r.z + 1.0) * (r.z + 1.0)) + 0.00001;
+            let reflUV = r.xy / m + 0.5;
+            
+            // Use textureSampleLevel for non-uniform control flow
+            let reflColor = textureSampleLevel(reflectionTexture, colorSampler, reflUV, 0.0);
+            
+            baseColor = mix(baseColor, reflColor * reflMask, materialData.params.x * maskSum);
+        }
+    }
+    
+    // Dynamic Lighting (Additive)
+    var dynamicLighting = vec3<f32>(0.0);
+    
+    // Point Lights
+    let numPoint = i32(lightingData.counts.x);
+    for (var i = 0; i < 8; i++) {
+        if (i >= numPoint) { break; }
+        
+        let pos = lightingData.pointLightPositions[i].xyz;
+        let color = lightingData.pointLightColors[i].rgb;
+        let intensity = lightingData.pointLightParams[i].x;
+        let size = lightingData.pointLightParams[i].y;
+        
+        let pl = calcPointLight(pos, size, fragPos, normal);
+        dynamicLighting += color * (pl.x * pl.y * intensity);
+    }
+    
+    // Spot Lights
+    let numSpot = i32(lightingData.counts.y);
+    for (var i = 0; i < 4; i++) {
+        if (i >= numSpot) { break; }
+        
+        let pos = lightingData.spotLightPositions[i].xyz;
+        let dir = lightingData.spotLightDirections[i].xyz;
+        let color = lightingData.spotLightColors[i].rgb;
+        let intensity = lightingData.spotLightParams[i].x;
+        let cutoff = lightingData.spotLightParams[i].y;
+        let range = lightingData.spotLightParams[i].z;
+        
+        let sl = calcSpotLight(pos, dir, cutoff, range, fragPos, normal);
+        dynamicLighting += color * (intensity * 2.0) * sl.x * sl.y * sl.z;
+    }
+    
+    // Apply lighting
+    // Hardcoded ambient approximation (similar to GLSL)
+    let finalColor = vec3<f32>(baseColor.rgb * 0.5 + baseColor.rgb * dynamicLighting);
+    
+    return vec4<f32>(finalColor, baseColor.a);
 }
 `;
 
