@@ -144,8 +144,8 @@ const _SHADER_BINDINGS = {
 	},
 	debug: {
 		group1: [
-			{ binding: 0, type: "sampler", unit: 0 },
-			{ binding: 1, type: "texture", unit: 0 },
+			{ binding: 0, type: "uniform", name: "matWorld" },
+			{ binding: 1, type: "uniform", name: "debugColor" },
 		],
 	},
 };
@@ -1135,7 +1135,7 @@ class WebGPUBackend extends RenderBackend {
 		});
 	}
 
-	drawIndexed(indexBuffer, indexCount, indexOffset = 0, _mode = null) {
+	drawIndexed(indexBuffer, indexCount, indexOffset = 0, mode = null) {
 		if (!this._device || !this._currentVertexState || !this._currentShader)
 			return;
 
@@ -1146,13 +1146,21 @@ class WebGPUBackend extends RenderBackend {
 
 		const pass = this._currentPass;
 
-		// 2. Get or create pipeline
+		// 2. Determine topology based on mode
+		let topology = "triangle-list";
+		if (mode === "lines") {
+			topology = "line-list";
+		} else if (mode === "points") {
+			topology = "point-list";
+		} else if (mode === "triangle-strip") {
+			topology = "triangle-strip";
+		}
+
+		// 3. Get or create pipeline
 		const primitive = {
-			topology: "triangle-list", // WebGL BACKEND uses TRIANGLES usually.
-			// If 'mode' arg passed, map it? (gl.TRIANGLES etc).
-			// RenderBackend abstraction implies TRIANGLES default.
+			topology,
 			cullMode: this._cullState.enabled ? this._cullState.face : "none",
-			frontFace: "ccw", // standard
+			frontFace: "ccw",
 		};
 
 		const key = this._getPipelineKey(

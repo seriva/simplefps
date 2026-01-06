@@ -243,38 +243,37 @@ class Mesh {
 	renderWireFrame() {
 		this.bind();
 
-		// Note: Existing wireframe logic creates temporary buffers on the fly.
-		// This is slow and difficult to abstract perfectly efficiently without
-		// creating backend resources every frame.
-		// Kept logic but using backend creation/deletion.
+		// Cache wireframe index buffers to avoid creating/destroying every frame
+		// (WebGPU requires buffers to stay alive until commands are submitted)
+		if (!this._wireframeBuffers) {
+			this._wireframeBuffers = [];
+			for (const indexObj of this.indices) {
+				const indices = indexObj.array;
+				// Uint16Array needed for index buffer
+				const tempArray = new Uint16Array(indices.length * 2);
+				let lineCount = 0;
 
-		for (const indexObj of this.indices) {
-			const indices = indexObj.array;
-			// Uint16Array needed for index buffer
-			const tempArray = new Uint16Array(indices.length * 2);
-			let lineCount = 0;
+				for (let i = 0; i < indices.length; i += 3) {
+					tempArray[lineCount++] = indices[i];
+					tempArray[lineCount++] = indices[i + 1];
+					tempArray[lineCount++] = indices[i + 1];
+					tempArray[lineCount++] = indices[i + 2];
+					tempArray[lineCount++] = indices[i + 2];
+					tempArray[lineCount++] = indices[i];
+				}
 
-			for (let i = 0; i < indices.length; i += 3) {
-				tempArray[lineCount++] = indices[i];
-				tempArray[lineCount++] = indices[i + 1];
-				tempArray[lineCount++] = indices[i + 1];
-				tempArray[lineCount++] = indices[i + 2];
-				tempArray[lineCount++] = indices[i + 2];
-				tempArray[lineCount++] = indices[i];
+				// Create index buffer and cache it
+				const buffer = Backend.createBuffer(
+					tempArray.subarray(0, lineCount),
+					"index",
+				);
+				this._wireframeBuffers.push({ buffer, count: lineCount });
 			}
+		}
 
-			// Create temporary index buffer via backend
-			// using slice to get exact content length
-			const tempBuffer = Backend.createBuffer(
-				tempArray.subarray(0, lineCount),
-				"index",
-			);
-
-			// Draw lines
-			Backend.drawIndexed(tempBuffer, lineCount, 0, "lines");
-
-			// Cleanup
-			Backend.deleteBuffer(tempBuffer);
+		// Draw cached wireframe buffers
+		for (const wf of this._wireframeBuffers) {
+			Backend.drawIndexed(wf.buffer, wf.count, 0, "lines");
 		}
 
 		this.unBind();

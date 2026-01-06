@@ -723,31 +723,32 @@ fn fs_main(input: SSAOOutput) -> @location(0) vec4<f32> {
 }
 `;
 
-// Debug shader
+// Debug shader - for wireframes, bounding boxes, light volumes
 const debugShader = /* wgsl */ `
 ${FrameDataStruct}
-struct DebugOutput {
-    @builtin(position) position: vec4<f32>,
-    @location(0) uv: vec2<f32>,
+
+struct DebugVertexInput {
+    @location(0) position: vec3<f32>,
+}
+
+struct DebugVertexOutput {
+    @builtin(position) clipPosition: vec4<f32>,
 }
 
 @group(0) @binding(0) var<uniform> frameData: FrameData;
-@group(1) @binding(0) var debugSampler: sampler;
-@group(1) @binding(1) var debugTexture: texture_2d<f32>;
+@group(1) @binding(0) var<uniform> matWorld: mat4x4<f32>;
+@group(1) @binding(1) var<uniform> debugColor: vec4<f32>;
 
 @vertex
-fn vs_main(@builtin(vertex_index) vertexIndex: u32) -> DebugOutput {
-    var output: DebugOutput;
-    let x = f32((vertexIndex << 1) & 2);
-    let y = f32(vertexIndex & 2);
-    output.position = vec4<f32>(x * 2.0 - 1.0, y * 2.0 - 1.0, 0.0, 1.0 + frameData.viewportSize.x * 0.0);
-    output.uv = vec2<f32>(x, 1.0 - y);
+fn vs_main(input: DebugVertexInput) -> DebugVertexOutput {
+    var output: DebugVertexOutput;
+    output.clipPosition = frameData.matViewProj * matWorld * vec4<f32>(input.position, 1.0);
     return output;
 }
 
 @fragment
-fn fs_main(input: DebugOutput) -> @location(0) vec4<f32> {
-    return textureSample(debugTexture, debugSampler, input.uv);
+fn fs_main() -> @location(0) vec4<f32> {
+    return debugColor;
 }
 `;
 
