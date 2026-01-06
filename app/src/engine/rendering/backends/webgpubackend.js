@@ -838,8 +838,22 @@ class WebGPUBackend extends RenderBackend {
 		};
 	}
 
-	deleteFramebuffer(_framebuffer) {
-		// JS GC handles this mostly, unless we need to destroy specific resources
+	deleteFramebuffer(framebuffer) {
+		if (!framebuffer) return;
+
+		// Destroy color attachment textures
+		if (framebuffer.colorAttachments) {
+			for (const attachment of framebuffer.colorAttachments) {
+				if (attachment?._gpuTexture) {
+					attachment._gpuTexture.destroy();
+				}
+			}
+		}
+
+		// Destroy depth attachment texture
+		if (framebuffer.depthAttachment?._gpuTexture) {
+			framebuffer.depthAttachment._gpuTexture.destroy();
+		}
 	}
 
 	bindFramebuffer(framebuffer) {
@@ -1043,9 +1057,37 @@ class WebGPUBackend extends RenderBackend {
 		return pipeline;
 	}
 
-	setTextureWrapMode(_texture, _mode) {
-		// In WebGPU, this is set at sampler creation time
-		// Would need to recreate sampler
+	setTextureWrapMode(texture, mode) {
+		if (!texture || !this._device) return;
+
+		// Map mode string to WebGPU address mode
+		let addressMode;
+		switch (mode) {
+			case "repeat":
+				addressMode = "repeat";
+				break;
+			case "clamp-to-edge":
+				addressMode = "clamp-to-edge";
+				break;
+			case "mirrored-repeat":
+				addressMode = "mirror-repeat";
+				break;
+			default:
+				addressMode = "repeat";
+		}
+
+		// Store the current wrap mode on the texture for future sampler recreation
+		texture._wrapMode = addressMode;
+
+		// Recreate the sampler with the new wrap mode
+		texture._gpuSampler = this._device.createSampler({
+			magFilter: "linear",
+			minFilter: "linear",
+			mipmapFilter: "linear",
+			addressModeU: addressMode,
+			addressModeV: addressMode,
+			maxAnisotropy: texture._anisotropy || 1,
+		});
 	}
 
 	disposeTexture(texture) {
@@ -1054,8 +1096,28 @@ class WebGPUBackend extends RenderBackend {
 		}
 	}
 
-	setTextureAnisotropy(_texture, _level) {
-		// In WebGPU, this is set at sampler creation time
+	setTextureAnisotropy(texture, level) {
+		if (!texture || !this._device) return;
+
+		// Clamp anisotropy level to valid range (1-16 in WebGPU)
+		const maxAniso = this._capabilities.maxAnisotropy || 16;
+		const anisotropy = Math.min(Math.max(level, 1), maxAniso);
+
+		// Store the anisotropy level on the texture for future sampler recreation
+		texture._anisotropy = anisotropy;
+
+		// Get current wrap mode or default to repeat
+		const addressMode = texture._wrapMode || "repeat";
+
+		// Recreate the sampler with the new anisotropy level
+		texture._gpuSampler = this._device.createSampler({
+			magFilter: "linear",
+			minFilter: "linear",
+			mipmapFilter: "linear",
+			addressModeU: addressMode,
+			addressModeV: addressMode,
+			maxAnisotropy: anisotropy,
+		});
 	}
 
 	bindTexture(texture, unit) {
@@ -1077,8 +1139,28 @@ class WebGPUBackend extends RenderBackend {
 		this._currentShader = null;
 	}
 
-	disposeShader(_shader) {
-		// No-op for now
+	disposeShader(shader) {
+		if (!shader) return;
+
+		// Clear any cached pipelines that use this shader
+		// Pipeline cache keys include shader label, so we need to remove matching entries
+		if (this._pipelineCache && shader._gpuShaderModule) {
+			const shaderLabel = shader._gpuShaderModule.label || "shader";
+			for (const [key, _pipeline] of this._pipelineCache.entries()) {
+				if (key.includes(shaderLabel)) {
+					this._pipelineCache.delete(key);
+				}
+			}
+		}
+
+		// Clear uniform cache
+		if (shader._uniformCache) {
+			shader._uniformCache.clear();
+		}
+
+		// Note: GPUShaderModule doesn't have an explicit destroy method,
+		// but clearing references allows GC to collect it
+		shader._gpuShaderModule = null;
 	}
 
 	createUBO(size, bindingPoint) {
