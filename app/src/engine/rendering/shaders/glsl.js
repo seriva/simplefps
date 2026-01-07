@@ -1,22 +1,8 @@
-import Console from "../../systems/console.js";
+// =========================================================================
+// Shared GLSL code snippets (for template interpolation)
+// =========================================================================
 
-// GLSL template tag with #include preprocessing
-export const glsl = (strings, ...values) => {
-	let result = String.raw({ raw: strings }, ...values);
-	// Replace #include "name" with actual code
-	result = result.replace(/#include\s+"(\w+)"/g, (_, name) => {
-		if (_ShaderIncludes[name]) {
-			return _ShaderIncludes[name];
-		}
-		Console.error(`Unknown shader include: "${name}"`);
-		return `// ERROR: Unknown include "${name}"`;
-	});
-	return result;
-};
-
-// Shared shader code snippets for #include preprocessing
-const _ShaderIncludes = {
-	frameDataUBO: glsl`
+const _frameDataUBO = /* glsl */ `
 layout(std140) uniform FrameData {
     mat4 matViewProj;
     mat4 matInvViewProj;
@@ -24,21 +10,24 @@ layout(std140) uniform FrameData {
     mat4 matProjection;
     vec4 cameraPosition; // .w = time
     vec4 viewportSize;   // .zw = unused
-};`,
-	materialDataUBO: glsl`
+};`;
+
+const _materialDataUBO = /* glsl */ `
 layout(std140) uniform MaterialData {
     ivec4 flags; // type, doEmissive, doReflection, hasLightmap
     vec4 params; // reflectionStrength, opacity, pad, pad
-};`,
-	reconstructPosition: glsl`
+};`;
+
+const _reconstructPosition = /* glsl */ `
 vec3 reconstructPosition(vec2 uv, float depth) {
     vec4 clipPos = vec4(uv * 2.0 - 1.0, depth * 2.0 - 1.0, 1.0);
     vec4 worldPos = matInvViewProj * clipPos;
     return worldPos.xyz / worldPos.w;
-}`,
-	// Point light falloff calculation - shared between deferred and forward paths
-	// Returns vec2(falloff, nDotL) to allow caller to combine with color/intensity
-	pointLightCalc: glsl`
+}`;
+
+// Point light falloff calculation - shared between deferred and forward paths
+// Returns vec2(falloff, nDotL) to allow caller to combine with color/intensity
+const _pointLightCalc = /* glsl */ `
 vec2 calcPointLight(vec3 lightPos, float lightSize, vec3 fragPos, vec3 normal) {
     vec3 lightDir = lightPos - fragPos;
     float distSq = dot(lightDir, lightDir);
@@ -53,10 +42,11 @@ vec2 calcPointLight(vec3 lightPos, float lightSize, vec3 fragPos, vec3 normal) {
     float nDotL = max(0.0, dot(normal, L));
     
     return vec2(falloff * falloff, nDotL);
-}`,
-	// Spot light attenuation calculation - shared between deferred and forward paths
-	// Returns vec3(attenuation, spotFalloff, nDotL) to allow caller to combine
-	spotLightCalc: glsl`
+}`;
+
+// Spot light attenuation calculation - shared between deferred and forward paths
+// Returns vec3(attenuation, spotFalloff, nDotL) to allow caller to combine
+const _spotLightCalc = /* glsl */ `
 vec3 calcSpotLight(vec3 lightPos, vec3 lightDir, float cutoff, float range, vec3 fragPos, vec3 normal) {
     vec3 toLight = lightPos - fragPos;
     float dist = length(toLight);
@@ -75,12 +65,11 @@ vec3 calcSpotLight(vec3 lightPos, vec3 lightDir, float cutoff, float range, vec3
     float nDotL = max(0.0, dot(normal, toLight));
     
     return vec3(attenuation, spotFalloff, nDotL);
-}`,
-};
+}`;
 
 export const ShaderSources = {
 	geometry: {
-		vertex: glsl`#version 300 es
+		vertex: /* glsl */ `#version 300 es
             precision highp float;
             precision highp int;
 
@@ -89,7 +78,7 @@ export const ShaderSources = {
             layout(location=2) in vec3 aNormal;
             layout(location=3) in vec2 aLightmapUV;
 
-            #include "frameDataUBO"
+            ${_frameDataUBO}
 
             uniform mat4 matWorld;
 
@@ -110,7 +99,7 @@ export const ShaderSources = {
 
                 gl_Position = matViewProj * vPosition;
             }`,
-		fragment: glsl`#version 300 es
+		fragment: /* glsl */ `#version 300 es
             precision highp float;
             precision highp int;
 
@@ -125,9 +114,9 @@ export const ShaderSources = {
             layout(location=3) out vec4 fragEmissive;
 
 
-            #include "frameDataUBO"
+            ${_frameDataUBO}
 
-            #include "materialDataUBO"
+            ${_materialDataUBO}
 
             uniform sampler2D colorSampler;
             uniform sampler2D emissiveSampler;
@@ -201,13 +190,13 @@ export const ShaderSources = {
             }`,
 	},
 	entityShadows: {
-		vertex: glsl`#version 300 es
+		vertex: /* glsl */ `#version 300 es
             precision highp float;
             precision highp int;
 
             layout(location=0) in vec3 aPosition;
 
-            #include "frameDataUBO"
+            ${_frameDataUBO}
 
             uniform mat4 matWorld;
 
@@ -215,7 +204,7 @@ export const ShaderSources = {
             {
                 gl_Position = matViewProj * matWorld * vec4(aPosition, 1.0);
             }`,
-		fragment: glsl`#version 300 es
+		fragment: /* glsl */ `#version 300 es
             precision highp float;
             precision highp int;
 
@@ -229,7 +218,7 @@ export const ShaderSources = {
             }`,
 	},
 	applyShadows: {
-		vertex: glsl`#version 300 es
+		vertex: /* glsl */ `#version 300 es
             precision highp float;
 
             layout(location=0) in vec3 aPosition;
@@ -238,12 +227,12 @@ export const ShaderSources = {
             {
                 gl_Position = vec4(aPosition, 1.0);
             }`,
-		fragment: glsl`#version 300 es
+		fragment: /* glsl */ `#version 300 es
             precision highp float;
 
             layout(location=0) out vec4 fragColor;
 
-            #include "frameDataUBO"
+            ${_frameDataUBO}
 
             uniform sampler2D shadowBuffer;
 
@@ -254,7 +243,7 @@ export const ShaderSources = {
             }`,
 	},
 	directionalLight: {
-		vertex: glsl`#version 300 es
+		vertex: /* glsl */ `#version 300 es
             precision highp float;
 
             layout(location=0) in vec3 aPosition;
@@ -263,7 +252,7 @@ export const ShaderSources = {
             {
                 gl_Position = vec4(aPosition, 1.0);
             }`,
-		fragment: glsl`#version 300 es
+		fragment: /* glsl */ `#version 300 es
             precision highp float;
 
             struct DirectionalLight {
@@ -302,13 +291,13 @@ export const ShaderSources = {
             }`,
 	},
 	pointLight: {
-		vertex: glsl`#version 300 es
+		vertex: /* glsl */ `#version 300 es
             precision highp float;
             precision highp int;
 
             layout(location=0) in vec3 aPosition;
 
-            #include "frameDataUBO"
+            ${_frameDataUBO}
 
             uniform mat4 matWorld;
 
@@ -316,7 +305,7 @@ export const ShaderSources = {
             {
                 gl_Position = matViewProj * matWorld * vec4(aPosition, 1.0);
             }`,
-		fragment: glsl`#version 300 es
+		fragment: /* glsl */ `#version 300 es
             precision highp float;
             precision highp int;
 
@@ -329,13 +318,13 @@ export const ShaderSources = {
 
             layout(location=0) out vec4 fragColor;
 
-            #include "frameDataUBO"
+            ${_frameDataUBO}
 
             uniform PointLight pointLight;
             uniform sampler2D positionBuffer;
             uniform sampler2D normalBuffer;
 
-            #include "pointLightCalc"
+            ${_pointLightCalc}
 
             void main() {
                 ivec2 fragCoord = ivec2(gl_FragCoord.xy);
@@ -350,20 +339,20 @@ export const ShaderSources = {
             }`,
 	},
 	spotLight: {
-		vertex: glsl`#version 300 es
+		vertex: /* glsl */ `#version 300 es
             precision highp float;
             precision highp int;
 
             layout(location=0) in vec3 aPosition;
 
-            #include "frameDataUBO"
+            ${_frameDataUBO}
 
             uniform mat4 matWorld;
 
             void main() {
                 gl_Position = matViewProj * matWorld * vec4(aPosition, 1.0);
             }`,
-		fragment: glsl`#version 300 es
+		fragment: /* glsl */ `#version 300 es
             precision highp float;
             precision highp int;
 
@@ -378,13 +367,13 @@ export const ShaderSources = {
 
             layout(location=0) out vec4 fragColor;
 
-            #include "frameDataUBO"
+            ${_frameDataUBO}
 
             uniform SpotLight spotLight;
             uniform sampler2D positionBuffer;
             uniform sampler2D normalBuffer;
 
-            #include "spotLightCalc"
+            ${_spotLightCalc}
 
             void main() {
                 ivec2 fragCoord = ivec2(gl_FragCoord.xy);
@@ -399,7 +388,7 @@ export const ShaderSources = {
             }`,
 	},
 	kawaseBlur: {
-		vertex: glsl`#version 300 es
+		vertex: /* glsl */ `#version 300 es
             precision highp float;
 
             layout(location=0) in vec3 aPosition;
@@ -408,12 +397,12 @@ export const ShaderSources = {
             {
                 gl_Position = vec4(aPosition, 1.0);
             }`,
-		fragment: glsl`#version 300 es
+		fragment: /* glsl */ `#version 300 es
             precision highp float;
 
             out vec4 fragColor;
 
-            #include "frameDataUBO"
+            ${_frameDataUBO}
 
             uniform sampler2D colorBuffer;
             uniform float offset;
@@ -437,7 +426,7 @@ export const ShaderSources = {
             }`,
 	},
 	postProcessing: {
-		vertex: glsl`#version 300 es
+		vertex: /* glsl */ `#version 300 es
             precision highp float;
 
             layout(location=0) in vec3 aPosition;
@@ -446,14 +435,14 @@ export const ShaderSources = {
             {
                 gl_Position = vec4(aPosition, 1.0);
             }`,
-		fragment: glsl`#version 300 es
+		fragment: /* glsl */ `#version 300 es
             precision highp float;
 
             layout(std140, column_major) uniform;
 
             out vec4 fragColor;
 
-            #include "frameDataUBO"
+            ${_frameDataUBO}
 
             uniform bool doFXAA;
             uniform sampler2D colorBuffer;
@@ -593,7 +582,7 @@ export const ShaderSources = {
             }`,
 	},
 	transparent: {
-		vertex: glsl`#version 300 es
+		vertex: /* glsl */ `#version 300 es
             precision highp float;
             precision highp int;
 
@@ -601,7 +590,7 @@ export const ShaderSources = {
             layout(location=1) in vec2 aUV;
             layout(location=2) in vec3 aNormal;
 
-            #include "frameDataUBO"
+            ${_frameDataUBO}
 
             uniform mat4 matWorld;
 
@@ -615,7 +604,7 @@ export const ShaderSources = {
                 vNormal = normalize(mat3(matWorld) * aNormal);
                 gl_Position = matViewProj * vPosition;
             }`,
-		fragment: glsl`#version 300 es
+		fragment: /* glsl */ `#version 300 es
             precision highp float;
             precision highp int;
 
@@ -625,9 +614,9 @@ export const ShaderSources = {
 
             layout(location=0) out vec4 fragColor;
 
-            #include "frameDataUBO"
+            ${_frameDataUBO}
 
-            #include "materialDataUBO"
+            ${_materialDataUBO}
 
             uniform sampler2D colorSampler;
             uniform sampler2D emissiveSampler; 
@@ -654,8 +643,8 @@ export const ShaderSources = {
             uniform float spotLightCutoffs[MAX_SPOT_LIGHTS];
             uniform float spotLightRanges[MAX_SPOT_LIGHTS];
 
-            #include "pointLightCalc"
-            #include "spotLightCalc"
+            ${_pointLightCalc}
+            ${_spotLightCalc}
 
             vec3 calculatePointLight(int i, vec3 normal, vec3 fragPos) {
                 vec2 pl = calcPointLight(pointLightPositions[i], pointLightSizes[i], fragPos, normal);
@@ -715,7 +704,7 @@ export const ShaderSources = {
             }`,
 	},
 	ssao: {
-		vertex: glsl`#version 300 es
+		vertex: /* glsl */ `#version 300 es
             precision highp float;
 
             layout(location=0) in vec3 aPosition;
@@ -724,12 +713,12 @@ export const ShaderSources = {
             {
                 gl_Position = vec4(aPosition, 1.0);
             }`,
-		fragment: glsl`#version 300 es
+		fragment: /* glsl */ `#version 300 es
             precision highp float;
 
             layout(location=0) out vec4 fragColor;
             
-            #include "frameDataUBO"
+            ${_frameDataUBO}
 
             uniform sampler2D normalBuffer;
             uniform sampler2D positionBuffer;
@@ -801,19 +790,19 @@ export const ShaderSources = {
             }`,
 	},
 	debug: {
-		vertex: glsl`#version 300 es
+		vertex: /* glsl */ `#version 300 es
             precision highp float;
 
             layout(location=0) in vec3 aPosition;
 
-            #include "frameDataUBO"
+            ${_frameDataUBO}
 
             uniform mat4 matWorld;
 
             void main() {
                 gl_Position = matViewProj * matWorld * vec4(aPosition, 1.0);
             }`,
-		fragment: glsl`#version 300 es
+		fragment: /* glsl */ `#version 300 es
             precision highp float;
 
             layout(location=0) out vec4 fragColor;
