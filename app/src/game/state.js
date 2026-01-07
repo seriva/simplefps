@@ -67,10 +67,6 @@ const State = {
 		return _currentState.get();
 	},
 
-	/**
-	 * Transitions to the main menu state
-	 * @param {string} [menu] - Optional specific menu to show
-	 */
 	enterMenu(menu) {
 		Signals.batch(() => {
 			_currentState.set(_GameStates.MENU);
@@ -78,9 +74,6 @@ const State = {
 		});
 	},
 
-	/**
-	 * Transitions to the in-game state
-	 */
 	enterGame() {
 		Signals.batch(() => {
 			_currentState.set(_GameStates.GAME);
