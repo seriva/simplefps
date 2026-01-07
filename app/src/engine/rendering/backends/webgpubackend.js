@@ -194,6 +194,21 @@ class WebGPUBackend extends RenderBackend {
 		this._clearColor = { r: 0, g: 0, b: 0, a: 1 };
 		this._boundTextures = new Map();
 		this._boundUBOs = new Map();
+
+		// =========================================================================
+		// Optimization: Buffer pool for per-frame uniform buffers
+		// =========================================================================
+		// Pool of uniform buffers keyed by size (aligned to 16 bytes)
+		this._uniformBufferPool = new Map(); // size -> [buffer, buffer, ...]
+		this._uniformBufferInUse = []; // buffers used this frame, reset each frame
+
+		// =========================================================================
+		// Optimization: BindGroup cache
+		// =========================================================================
+		// Cache BindGroups by a hash of their contents
+		this._bindGroupCache = new Map();
+		this._bindGroupCacheHits = 0;
+		this._bindGroupCacheMisses = 0;
 	}
 
 	// =========================================================================
@@ -328,6 +343,13 @@ class WebGPUBackend extends RenderBackend {
 
 		// Create command encoder for this frame
 		this._commandEncoder = this._device.createCommandEncoder();
+
+		// Reset uniform buffer pool for this frame
+		// Return all buffers from previous frame back to the pool
+		this._uniformBufferInUse = [];
+
+		// Clear per-frame BindGroup cache (bindings change each frame)
+		this._bindGroupCache.clear();
 	}
 
 	endFrame() {
@@ -344,6 +366,7 @@ class WebGPUBackend extends RenderBackend {
 		}
 
 		this._currentTexture = null;
+		this._currentTextureView = null; // Reset swapchain view cache
 	}
 
 	// =========================================================================
@@ -596,8 +619,13 @@ class WebGPUBackend extends RenderBackend {
 				this._currentTexture = this._context.getCurrentTexture();
 			}
 
+			// OPTIMIZATION: Cache the swapchain view for this frame
+			if (!this._currentTextureView) {
+				this._currentTextureView = this._currentTexture.createView();
+			}
+
 			colorAttachments.push({
-				view: this._currentTexture.createView(),
+				view: this._currentTextureView,
 				clearValue: this._clearColor || { r: 0, g: 0, b: 0, a: 1 },
 				loadOp: colorLoadOp,
 				storeOp: "store",
@@ -730,7 +758,7 @@ class WebGPUBackend extends RenderBackend {
 	}
 
 	// =========================================================================
-	// Stub methods (to be implemented in later stages)
+	// Shader Management
 	// =========================================================================
 
 	createShaderProgram(wgslSource, _fragmentSrcOrNull = null) {
@@ -1196,6 +1224,50 @@ class WebGPUBackend extends RenderBackend {
 		}
 	}
 
+	// =========================================================================
+	// Optimization: Pooled uniform buffer allocation
+	// =========================================================================
+
+	/**
+	 * Get a uniform buffer from the pool (or create one if needed)
+	 * @param {number} size - Required size in bytes (will be aligned to 16)
+	 * @returns {GPUBuffer}
+	 */
+	_getPooledUniformBuffer(size) {
+		// Align size to 16 bytes
+		const alignedSize = Math.ceil(size / 16) * 16;
+
+		// Get or create pool for this size
+		if (!this._uniformBufferPool.has(alignedSize)) {
+			this._uniformBufferPool.set(alignedSize, []);
+		}
+
+		const pool = this._uniformBufferPool.get(alignedSize);
+
+		// Find an available buffer (one not in use this frame)
+		for (const buf of pool) {
+			if (!this._uniformBufferInUse.includes(buf)) {
+				this._uniformBufferInUse.push(buf);
+				return buf;
+			}
+		}
+
+		// No available buffer, create a new one
+		const newBuffer = this._device.createBuffer({
+			size: alignedSize,
+			usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+		});
+
+		pool.push(newBuffer);
+		this._uniformBufferInUse.push(newBuffer);
+
+		return newBuffer;
+	}
+
+	// =========================================================================
+	// Pipeline cache key (optimized)
+	// =========================================================================
+
 	_getPipelineKey(
 		vertexState,
 		shader,
@@ -1205,16 +1277,21 @@ class WebGPUBackend extends RenderBackend {
 		cullState,
 		formats,
 	) {
-		// Create a unique key for the pipeline configuration
-		return JSON.stringify({
-			layout: vertexState.layout, // Buffer layout
-			shader: shader._gpuShaderModule.label || "shader", // Just ID
-			topology: primitive.topology,
-			cullMode: cullState.enabled ? cullState.face : "none",
-			depth: depthState,
-			blend: blendState,
-			formats: formats,
-		});
+		// Optimized: Use string concatenation instead of JSON.stringify
+		// This is significantly faster for hot paths
+		const shaderLabel = shader._gpuShaderModule.label || "s";
+		const cullMode = cullState.enabled ? cullState.face : "n";
+		const blendKey = blendState.enabled
+			? `${blendState.srcFactor}_${blendState.dstFactor}`
+			: "off";
+		const depthKey = `${depthState.test ? 1 : 0}_${depthState.write ? 1 : 0}_${depthState.func}`;
+		const formatKey = formats.targets.join(",") + (formats.depth || "");
+		// Include layout length and first buffer stride as a simple hash
+		const layoutKey = vertexState.layout
+			.map((l) => `${l.arrayStride}:${l.attributes[0]?.shaderLocation}`)
+			.join("|");
+
+		return `${shaderLabel}|${primitive.topology}|${cullMode}|${blendKey}|${depthKey}|${formatKey}|${layoutKey}`;
 	}
 
 	drawIndexed(indexBuffer, indexCount, indexOffset = 0, mode = null) {
@@ -1327,11 +1404,13 @@ class WebGPUBackend extends RenderBackend {
 		// 5. Bind Groups
 		// Group 0: FrameData (always expected if shader uses it)
 		if (this._boundUBOs.has(0)) {
-			// Use cached BindGroup if possible? For now create new.
-			try {
-				pass.setBindGroup(
-					0,
-					this._device.createBindGroup({
+			// OPTIMIZATION: Cache BindGroup 0 per pipeline
+			const bg0Key = `bg0_${key}`;
+			let bindGroup0 = this._bindGroupCache.get(bg0Key);
+
+			if (!bindGroup0) {
+				try {
+					bindGroup0 = this._device.createBindGroup({
 						layout: pipeline.getBindGroupLayout(0),
 						entries: [
 							{
@@ -1339,10 +1418,15 @@ class WebGPUBackend extends RenderBackend {
 								resource: { buffer: this._boundUBOs.get(0)._gpuBuffer },
 							},
 						],
-					}),
-				);
-			} catch (_e) {
-				/* Ignore if shader doesn't use group 0 */
+					});
+					this._bindGroupCache.set(bg0Key, bindGroup0);
+				} catch (_e) {
+					/* Ignore if shader doesn't use group 0 */
+				}
+			}
+
+			if (bindGroup0) {
+				pass.setBindGroup(0, bindGroup0);
 			}
 		}
 
@@ -1382,28 +1466,12 @@ class WebGPUBackend extends RenderBackend {
 								bufferVal = new Float32Array(val);
 							}
 
-							// Align size to 16 bytes for Uniform usage requirement usually preferred
-							const size = Math.ceil(bufferVal.byteLength / 16) * 16;
-							const buf = this._device.createBuffer({
-								size,
-								usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-								mappedAtCreation: true,
-							});
+							// OPTIMIZATION: Use pooled buffer instead of creating new one
+							const buf = this._getPooledUniformBuffer(bufferVal.byteLength);
 
-							// Copy data to mapped range (zero padding if size > bufferVal.byteLength)
-							if (bufferVal instanceof Float32Array) {
-								new Float32Array(buf.getMappedRange()).set(bufferVal);
-							} else {
-								new Uint8Array(buf.getMappedRange()).set(
-									new Uint8Array(
-										bufferVal.buffer,
-										bufferVal.byteOffset,
-										bufferVal.byteLength,
-									),
-								);
-							}
+							// Write data via queue (buffer is already created)
+							this._device.queue.writeBuffer(buf, 0, bufferVal);
 
-							buf.unmap();
 							entries.push({ binding: b.binding, resource: { buffer: buf } });
 						}
 					} else if (b.type === "sampler") {

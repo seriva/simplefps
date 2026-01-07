@@ -447,6 +447,77 @@ struct PostOutput {
 @group(1) @binding(6) var dirtBuffer: texture_2d<f32>;
 @group(1) @binding(7) var aoBuffer: texture_2d<f32>;
 
+// FXAA constants
+const FXAA_EDGE_THRESHOLD_MIN: f32 = 0.0312;
+const FXAA_EDGE_THRESHOLD_MAX: f32 = 0.125;
+
+// Luma weights for perceived brightness
+const LUMA: vec3<f32> = vec3<f32>(0.299, 0.587, 0.114);
+
+// Simplified FXAA - samples center + 4 neighbors
+// Uses textureSampleLevel to allow calling from non-uniform control flow
+fn applyFXAA(fragCoord: vec2<f32>) -> vec4<f32> {
+    let inverseVP = 1.0 / frameData.viewportSize.xy;
+    let uv = fragCoord * inverseVP;
+    
+    // Sample center and 4 neighbors (use textureSampleLevel for non-uniform control flow)
+    let rgbM = textureSampleLevel(colorBuffer, bufferSampler, uv, 0.0).rgb;
+    let rgbN = textureSampleLevel(colorBuffer, bufferSampler, uv + vec2<f32>(0.0, -1.0) * inverseVP, 0.0).rgb;
+    let rgbS = textureSampleLevel(colorBuffer, bufferSampler, uv + vec2<f32>(0.0, 1.0) * inverseVP, 0.0).rgb;
+    let rgbE = textureSampleLevel(colorBuffer, bufferSampler, uv + vec2<f32>(1.0, 0.0) * inverseVP, 0.0).rgb;
+    let rgbW = textureSampleLevel(colorBuffer, bufferSampler, uv + vec2<f32>(-1.0, 0.0) * inverseVP, 0.0).rgb;
+    
+    // Compute luma for each sample
+    let lumaM = dot(rgbM, LUMA);
+    let lumaN = dot(rgbN, LUMA);
+    let lumaS = dot(rgbS, LUMA);
+    let lumaE = dot(rgbE, LUMA);
+    let lumaW = dot(rgbW, LUMA);
+    
+    // Compute local contrast
+    let lumaMin = min(lumaM, min(min(lumaN, lumaS), min(lumaE, lumaW)));
+    let lumaMax = max(lumaM, max(max(lumaN, lumaS), max(lumaE, lumaW)));
+    let lumaRange = lumaMax - lumaMin;
+    
+    // Early exit if contrast is too low
+    if (lumaRange < max(FXAA_EDGE_THRESHOLD_MIN, lumaMax * FXAA_EDGE_THRESHOLD_MAX)) {
+        return vec4<f32>(rgbM, 1.0);
+    }
+    
+    // Determine edge direction
+    let edgeH = abs(lumaN + lumaS - 2.0 * lumaM);
+    let edgeV = abs(lumaE + lumaW - 2.0 * lumaM);
+    let isHorizontal = edgeH > edgeV;
+    
+    // Choose blend direction
+    var luma1: f32;
+    var luma2: f32;
+    var stepDir: vec2<f32>;
+    
+    if (isHorizontal) {
+        luma1 = lumaN;
+        luma2 = lumaS;
+        stepDir = vec2<f32>(0.0, inverseVP.y);
+    } else {
+        luma1 = lumaW;
+        luma2 = lumaE;
+        stepDir = vec2<f32>(inverseVP.x, 0.0);
+    }
+    
+    let gradient1 = abs(luma1 - lumaM);
+    let gradient2 = abs(luma2 - lumaM);
+    
+    if (gradient1 < gradient2) {
+        stepDir = -stepDir;
+    }
+    
+    // Blend along edge
+    let rgbBlend = textureSampleLevel(colorBuffer, bufferSampler, uv + stepDir * 0.5, 0.0).rgb;
+    let blendFactor = smoothstep(0.0, 1.0, lumaRange / lumaMax);
+    
+    return vec4<f32>(mix(rgbM, rgbBlend, blendFactor * 0.5), 1.0);
+}
+
 @vertex
 fn vs_main(@builtin(vertex_index) vertexIndex: u32) -> PostOutput {
     var output: PostOutput;
@@ -462,7 +533,14 @@ fn fs_main(input: PostOutput) -> @location(0) vec4<f32> {
     let uv = input.position.xy / frameData.viewportSize.xy;
     let fragCoord = vec2<i32>(input.position.xy);
     
-    var color = textureLoad(colorBuffer, fragCoord, 0);
+    // Apply FXAA if enabled, otherwise use direct texture load
+    var color: vec4<f32>;
+    if (params.doFXAA != 0) {
+        color = applyFXAA(input.position.xy);
+    } else {
+        color = textureLoad(colorBuffer, fragCoord, 0);
+    }
+    
     let light = textureLoad(lightBuffer, fragCoord, 0);
     let normalData = textureLoad(normalBuffer, fragCoord, 0);
     let emissive = textureLoad(emissiveBuffer, fragCoord, 0);
@@ -481,6 +559,23 @@ fn fs_main(input: PostOutput) -> @location(0) vec4<f32> {
     
     // Add emissive
     fragColor = fragColor + emissive * params.emissiveMult;
+    
+    // Apply dirt effect with emissive protection
+    if (params.dirtIntensity > 0.0) {
+        // Protect emissive materials from dirt overlay
+        let emissiveStrength = length(emissive.rgb);
+        let emissiveMask = 1.0 - clamp(emissiveStrength * 10.0, 0.0, 1.0);
+        
+        // Invert dirt texture (darker = more dirt) and scale by intensity
+        var dirtAmount = (1.0 - dirt.rgb) * params.dirtIntensity;
+        dirtAmount = clamp(dirtAmount, vec3<f32>(0.0), vec3<f32>(1.0));
+        
+        // Apply dirt by darkening
+        let dirtened = fragColor.rgb * (1.0 - dirtAmount);
+        
+        // Mix based on emissive mask (0 = emissive/no dirt, 1 = apply dirt)
+        fragColor = vec4<f32>(mix(fragColor.rgb, dirtened, emissiveMask), fragColor.a);
+    }
     
     // Gamma correction
     fragColor = vec4<f32>(pow(fragColor.rgb, vec3<f32>(1.0 / params.gamma)), fragColor.a);
