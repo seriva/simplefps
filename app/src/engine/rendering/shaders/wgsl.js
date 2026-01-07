@@ -636,29 +636,46 @@ fn vs_main(input: TransparentVertexInput) -> TransparentVertexOutput {
 
 fn calcPointLight(pos: vec3<f32>, size: f32, fragPos: vec3<f32>, normal: vec3<f32>) -> vec2<f32> {
     let lightDir = pos - fragPos;
-    let dist = length(lightDir);
+    let distSq = dot(lightDir, lightDir);
+    let sizeSq = size * size;
+    
+    if (distSq > sizeSq) {
+        return vec2<f32>(0.0);
+    }
+    
+    let normalizedDist = sqrt(distSq) / size;
+    var falloff = 1.0 - smoothstep(0.0, 1.0, normalizedDist);
+    falloff = falloff * falloff;
+    
     let L = normalize(lightDir);
     let NdotL = max(dot(normal, L), 0.0);
     
-    let att = 1.0 / (1.0 + 0.1 * dist + 0.01 * dist * dist);
-    // Simple size factor approximation or ignore size for basic point light
-    return vec2<f32>(NdotL, att);
+    return vec2<f32>(falloff * falloff, NdotL);
 }
 
 fn calcSpotLight(pos: vec3<f32>, dir: vec3<f32>, cutoff: f32, range: f32, fragPos: vec3<f32>, normal: vec3<f32>) -> vec3<f32> {
-    let lightDir = normalize(pos - fragPos);
-    let dist = length(pos - fragPos);
+    let toLight = pos - fragPos;
+    let dist = length(toLight);
     
-    let theta = dot(lightDir, normalize(-dir));
-    let epsilon = 0.1; // Soft edge
-    let intensity = clamp((theta - cutoff) / epsilon, 0.0, 1.0);
-    
-    if (theta > cutoff && dist < range) {
-        let att = 1.0 / (1.0 + 0.1 * dist + 0.01 * dist * dist);
-        let NdotL = max(dot(normal, lightDir), 0.0);
-        return vec3<f32>(NdotL, att, intensity);
+    if (dist > range) {
+        return vec3<f32>(0.0);
     }
-    return vec3<f32>(0.0);
+    
+    let lightDir = normalize(toLight);
+    
+    let spotEffect = dot(lightDir, -normalize(dir));
+    if (spotEffect < cutoff) {
+        return vec3<f32>(0.0);
+    }
+    
+    var spotFalloff = (spotEffect - cutoff) / (1.0 - cutoff);
+    spotFalloff = smoothstep(0.0, 1.0, spotFalloff);
+    
+    let attenuation = 1.0 - pow(dist / range, 1.5);
+    
+    let NdotL = max(dot(normal, lightDir), 0.0);
+    
+    return vec3<f32>(attenuation, spotFalloff, NdotL);
 }
 
 @fragment
