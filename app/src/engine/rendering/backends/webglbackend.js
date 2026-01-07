@@ -1,19 +1,6 @@
 import Settings from "../../core/settings.js";
 import Console from "../../systems/console.js";
-import { css } from "../../utils/reactive.js";
-import RenderBackend from "./renderbackend.js";
-
-// Canvas style
-const _canvasStyle = css`
-	background: #000;
-	position: fixed;
-	top: 0;
-	left: 0;
-	width: 100dvw;
-	height: 100dvh;
-	display: block;
-	z-index: 0;
-`;
+import RenderBackend, { CanvasStyle } from "./renderbackend.js";
 
 // Required WebGL extensions
 const _REQUIRED_EXTENSIONS = {
@@ -85,7 +72,7 @@ class WebGLBackend extends RenderBackend {
 		if (!canvas) {
 			this._canvas = document.createElement("canvas");
 			this._canvas.id = "context";
-			this._canvas.className = _canvasStyle;
+			this._canvas.className = CanvasStyle;
 			document.body.appendChild(this._canvas);
 		} else {
 			this._canvas = canvas;

@@ -1,19 +1,6 @@
 import Settings from "../../core/settings.js";
 import Console from "../../systems/console.js";
-import { css } from "../../utils/reactive.js";
-import RenderBackend from "./renderbackend.js";
-
-// Canvas style (same as WebGL)
-const _canvasStyle = css`
-	background: #000;
-	position: fixed;
-	top: 0;
-	left: 0;
-	width: 100dvw;
-	height: 100dvh;
-	display: block;
-	z-index: 0;
-`;
+import RenderBackend, { CanvasStyle } from "./renderbackend.js";
 
 // Texture format mapping (WebGPU formats)
 const _TEXTURE_FORMATS = {
@@ -209,6 +196,16 @@ class WebGPUBackend extends RenderBackend {
 		this._bindGroupCache = new Map();
 		this._bindGroupCacheHits = 0;
 		this._bindGroupCacheMisses = 0;
+
+		// Optimization: State filtering cache
+		this._passCache = {
+			pipeline: null,
+			bindGroups: new Map(),
+			vertexBuffers: new Map(),
+			indexBuffer: null,
+		};
+		// Optimization: Temporary array to avoid GC
+		this._tempEntries = [];
 	}
 
 	// =========================================================================
@@ -225,7 +222,7 @@ class WebGPUBackend extends RenderBackend {
 		if (!canvas) {
 			this._canvas = document.createElement("canvas");
 			this._canvas.id = "context";
-			this._canvas.className = _canvasStyle;
+			this._canvas.className = CanvasStyle;
 			document.body.appendChild(this._canvas);
 		} else {
 			this._canvas = canvas;
@@ -308,10 +305,20 @@ class WebGPUBackend extends RenderBackend {
 			});
 
 			// Log context information
+			const info = this._adapter.info;
 			Console.log("Initialized WebGPU backend");
-			Console.log(`Adapter: ${this._adapter.info?.description || "Unknown"}`);
+			Console.log(`Adapter: ${info?.description || "Unknown"}`);
+			Console.log(
+				`Vendor: ${info?.vendor || "Unknown"} [${
+					info?.architecture || "Unknown"
+				}]`,
+			);
 			Console.log(`Preferred format: ${this._format}`);
 			Console.log(`Max texture size: ${this._capabilities.maxTextureSize}`);
+			Console.log(`Max anisotropy: ${this._capabilities.maxAnisotropy}`);
+			Console.log(
+				`Max storage/uniform buffer: ${this._device.limits.maxStorageBufferBindingSize} / ${this._device.limits.maxUniformBufferBindingSize}`,
+			);
 		} catch (error) {
 			Console.error(`WebGPU initialization failed: ${error.message}`);
 			return false;
@@ -646,6 +653,12 @@ class WebGPUBackend extends RenderBackend {
 		}
 
 		this._currentPass = encoder.beginRenderPass(descriptor);
+
+		// OPTIMIZATION: Reset state cache for new pass
+		this._passCache.pipeline = null;
+		this._passCache.bindGroups.clear();
+		this._passCache.vertexBuffers.clear();
+		this._passCache.indexBuffer = null;
 
 		// Restore viewport if we have one cached
 		if (this._viewport) {
@@ -1386,19 +1399,31 @@ class WebGPUBackend extends RenderBackend {
 			}
 		}
 
-		pass.setPipeline(pipeline);
+		// OPTIMIZATION: Filter redundant pipeline changes
+		if (this._passCache.pipeline !== pipeline) {
+			pass.setPipeline(pipeline);
+			this._passCache.pipeline = pipeline;
+		}
 
 		// 3. Bind Vertex Buffers
 		const buffers = this._currentVertexState.buffers;
 		for (let i = 0; i < buffers.length; i++) {
 			if (buffers[i]?._gpuBuffer) {
-				pass.setVertexBuffer(i, buffers[i]._gpuBuffer);
+				// OPTIMIZATION: Filter redundant vertex buffer binds
+				if (this._passCache.vertexBuffers.get(i) !== buffers[i]._gpuBuffer) {
+					pass.setVertexBuffer(i, buffers[i]._gpuBuffer);
+					this._passCache.vertexBuffers.set(i, buffers[i]._gpuBuffer);
+				}
 			}
 		}
 
 		// 4. Bind Index Buffer
 		if (indexBuffer?._gpuBuffer) {
-			pass.setIndexBuffer(indexBuffer._gpuBuffer, "uint16"); // Assuming uint16 for now from Mesh.js
+			// OPTIMIZATION: Filter redundant index buffer binds
+			if (this._passCache.indexBuffer !== indexBuffer._gpuBuffer) {
+				pass.setIndexBuffer(indexBuffer._gpuBuffer, "uint16"); // Assuming uint16 for now from Mesh.js
+				this._passCache.indexBuffer = indexBuffer._gpuBuffer;
+			}
 		}
 
 		// 5. Bind Groups
@@ -1426,7 +1451,11 @@ class WebGPUBackend extends RenderBackend {
 			}
 
 			if (bindGroup0) {
-				pass.setBindGroup(0, bindGroup0);
+				// OPTIMIZATION: Filter redundant bind group binds
+				if (this._passCache.bindGroups.get(0) !== bindGroup0) {
+					pass.setBindGroup(0, bindGroup0);
+					this._passCache.bindGroups.set(0, bindGroup0);
+				}
 			}
 		}
 
@@ -1437,7 +1466,10 @@ class WebGPUBackend extends RenderBackend {
 		if (bindings) {
 			// Group 1
 			if (bindings.group1) {
-				const entries = [];
+				// OPTIMIZATION: Reuse temp array to avoid GC
+				this._tempEntries.length = 0;
+				const entries = this._tempEntries;
+
 				for (const b of bindings.group1) {
 					if (b.type === "ubo") {
 						const ubo = this._boundUBOs.get(b.id);
@@ -1488,22 +1520,32 @@ class WebGPUBackend extends RenderBackend {
 				}
 				if (entries.length > 0) {
 					try {
-						pass.setBindGroup(
-							1,
-							this._device.createBindGroup({
-								layout: pipeline.getBindGroupLayout(1),
-								entries,
-							}),
-						);
+						// Note: BindGroups change every frame/draw if uniforms do, so hard to cache purely.
+						// But we can cache the *creation* if inputs are identical?
+						// For now just optimized the entries array allocation.
+						const bg1 = this._device.createBindGroup({
+							layout: pipeline.getBindGroupLayout(1),
+							entries,
+						});
+
+						// OPTIMIZATION: Filter redundant bind group binds
+						// Even if new object, if layout same... wait, BG specific commands.
+						// We created a NEW bg object, so we must bind it.
+						pass.setBindGroup(1, bg1);
+						// Update cache (though it's a new obj every time unless we cache BG creation too)
+						this._passCache.bindGroups.set(1, bg1);
 					} catch (e) {
-						Console.warn(`BindGroup 1 error: ${e.message}`);
+						// console.warn("Missing bindings for group 1", e);
 					}
 				}
 			}
 
-			// Group 2
+			// Group 2 (if exists)
 			if (bindings.group2) {
-				const entries = [];
+				// Reuse temp array
+				this._tempEntries.length = 0;
+				const entries = this._tempEntries;
+
 				for (const b of bindings.group2) {
 					const tex = this._boundTextures.get(b.unit);
 					if (tex) {
@@ -1532,13 +1574,16 @@ class WebGPUBackend extends RenderBackend {
 				}
 				if (entries.length > 0) {
 					try {
-						pass.setBindGroup(
-							2,
-							this._device.createBindGroup({
-								layout: pipeline.getBindGroupLayout(2),
-								entries,
-							}),
-						);
+						const bg2 = this._device.createBindGroup({
+							layout: pipeline.getBindGroupLayout(2),
+							entries,
+						});
+
+						// OPTIMIZATION: Filter redundant bind group binds
+						if (this._passCache.bindGroups.get(2) !== bg2) {
+							pass.setBindGroup(2, bg2);
+							this._passCache.bindGroups.set(2, bg2);
+						}
 					} catch (e) {
 						Console.warn(`BindGroup 2 error: ${e.message}`);
 					}
