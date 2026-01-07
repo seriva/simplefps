@@ -123,7 +123,7 @@ export const ShaderSources = {
             layout(location=1) out vec4 fragNormal;
             layout(location=2) out vec4 fragColor;
             layout(location=3) out vec4 fragEmissive;
-            layout(location=4) out float fragLinearDepth;
+
 
             #include "frameDataUBO"
 
@@ -167,13 +167,10 @@ export const ShaderSources = {
                     float lightmapFlag = float(flags.w);
                     // Pack normal from [-1,1] to [0,1] for RGBA8 storage
                     fragNormal = vec4(vNormal * 0.5 + 0.5, lightmapFlag);
-                    // Linear depth for SSAO (camera-relative distance)
-                    fragLinearDepth = length(vPosition.xyz - cameraPosition.xyz);
                     // Output world position directly (w=1.0 for RGBA format)
                     fragPosition = vec4(vPosition.xyz, 1.0);
                 } else {
                     fragNormal = vec4(0.5, 0.5, 0.5, 1.0); // Packed zero normal
-                    fragLinearDepth = 10000.0; // Far away for skybox
                     fragPosition = vec4(0.0, 0.0, 0.0, 0.0); // Skybox has no real position
                 }
 

@@ -1557,7 +1557,7 @@ class WebGPUBackend extends RenderBackend {
 			const radius = this._uniforms.get("radius");
 			const bias = this._uniforms.get("bias");
 			const noiseScale = this._uniforms.get("noiseScale");
-			const kernel = this._uniforms.get("kernel"); // Float32Array(48) (16*3)? Or Float32Array(64) (16*4)?
+			const kernel = this._uniforms.get("uKernel"); // Float32Array(48) (16*3) - renderer uses "uKernel"
 
 			if (radius !== undefined) arr[0] = radius;
 			if (bias !== undefined) arr[1] = bias;

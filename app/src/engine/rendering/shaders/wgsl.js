@@ -703,7 +703,11 @@ fn fs_main(input: SSAOOutput) -> @location(0) vec4<f32> {
         let offsetXY = offset.xy / offset.w;
         let sampleUV = offsetXY * 0.5 + 0.5;
         
-        let sampleCoord = vec2<i32>(sampleUV * frameData.viewportSize.xy);
+        // WebGPU: Flip Y when converting from NDC to pixel coords
+        // NDC Y=0 maps to bottom of screen, but pixel Y=0 is at top in WebGPU
+        let flippedY = 1.0 - sampleUV.y;
+        let rawCoord = vec2<i32>(i32(sampleUV.x * frameData.viewportSize.x), i32(flippedY * frameData.viewportSize.y));
+        let sampleCoord = clamp(rawCoord, vec2<i32>(0, 0), vec2<i32>(i32(frameData.viewportSize.x) - 1, i32(frameData.viewportSize.y) - 1));
         let sampleWorldPos = textureLoad(positionBuffer, sampleCoord, 0).rgb;
         let sampleLinearDepth = length(sampleWorldPos - frameData.cameraPosition.xyz);
         
