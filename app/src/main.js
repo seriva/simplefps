@@ -9,19 +9,23 @@ import "./game/menus.js";
 import "./game/hud.js";
 
 (async () => {
-	Loading.toggle(true);
+	try {
+		Loading.toggle(true);
 
-	// Initialize engine and load core resources
-	await init({ resources: ["resources.list"] });
+		// Initialize engine and load core resources
+		await init({ resources: ["resources.list"] });
 
-	// Load map and initialize game
-	await Game.load("demo");
-	setGameLoop(Game.update, Game.postPhysicsUpdate);
+		// Load map and initialize game
+		await Game.load("demo");
+		setGameLoop(Game.update, Game.postPhysicsUpdate);
 
-	// Start render loop and show menu
-	State.enterGame();
-	start();
-	await Utils.wait();
-	Loading.toggle(false);
-	State.enterMenu("MAIN_MENU");
+		// Start render loop and show menu
+		State.enterGame();
+		start();
+		await Utils.wait();
+		Loading.toggle(false);
+		State.enterMenu("MAIN_MENU");
+	} catch (e) {
+		console.error("Critical Game Initialization Failure:", e);
+	}
 })();

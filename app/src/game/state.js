@@ -1,4 +1,4 @@
-import { Input, Physics, Scene } from "../engine/core/engine.js";
+import { Input, pause } from "../engine/core/engine.js";
 import { Backend } from "../engine/rendering/backend.js";
 import { css, Signals } from "../engine/utils/reactive.js";
 import UI from "./ui.js";
@@ -36,16 +36,14 @@ _currentState.subscribe((state) => {
 			Input.toggleVirtualInput(true);
 			Input.toggleCursor(false);
 			_isBlurred.set(false);
-			Scene.pause(false);
-			Physics.pause(false);
+			pause(false);
 			break;
 
 		case _GameStates.MENU:
 			Input.toggleVirtualInput(false);
 			Input.toggleCursor(true);
 			_isBlurred.set(true);
-			Scene.pause(true);
-			Physics.pause(true);
+			pause(true);
 			break;
 	}
 });

@@ -4,7 +4,6 @@ import { css, html, Reactive } from "../engine/utils/reactive.js";
 // Private
 // ============================================================================
 
-import * as Engine from "../engine/core/engine.js";
 import Translations from "./translations.js";
 
 class _MenuUI extends Reactive.Component {
@@ -672,7 +671,6 @@ class _MenuUI extends Reactive.Component {
 				this.refs.backdrop.style.backgroundImage = `url(${canvas.toDataURL("image/jpeg", 0.8)})`;
 			}
 			this.refs.backdrop.classList.add("visible");
-			Engine.pause();
 		}
 
 		// If already showing a different menu, fade out first, then switch
@@ -700,7 +698,6 @@ class _MenuUI extends Reactive.Component {
 	hide() {
 		this.visible.set(false);
 		this.refs.backdrop.classList.remove("visible");
-		Engine.resume();
 	}
 }
 

@@ -25,6 +25,7 @@ import Settings from "./settings.js";
 // ============================================================================
 
 let _gameUpdate;
+let _gameUpdateBacking;
 let _gamePostPhysics;
 let _time;
 let _frameTime = 0;
@@ -48,22 +49,24 @@ const _frame = () => {
 	_rafId = window.requestAnimationFrame(_frame);
 };
 
-const pause = () => {
-	if (_rafId) {
-		window.cancelAnimationFrame(_rafId);
-		_rafId = null;
+const pause = (paused) => {
+	Physics.pause(paused);
+	Scene.pause(paused);
+	// Also pause game updates if provided via setGameLoop
+	if (paused) {
+		_gameUpdate = null;
+	} else if (_gameUpdateBacking) {
+		_gameUpdate = _gameUpdateBacking;
 	}
 };
 
-const resume = () => {
+const start = () => {
 	if (!_rafId) {
 		Input.resetDelta();
 		_time = null;
 		_rafId = window.requestAnimationFrame(_frame);
 	}
 };
-
-const start = resume;
 
 const init = async (config = {}) => {
 	await backendReady;
@@ -80,6 +83,7 @@ const init = async (config = {}) => {
 
 const setGameLoop = (update, postPhysics) => {
 	_gameUpdate = update;
+	_gameUpdateBacking = update;
 	_gamePostPhysics = postPhysics;
 };
 
@@ -87,7 +91,6 @@ export {
 	init,
 	start,
 	pause,
-	resume,
 	setGameLoop,
 	Console,
 	Settings,
