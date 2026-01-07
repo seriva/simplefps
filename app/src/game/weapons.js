@@ -504,7 +504,7 @@ const _createProjectile = (spawnPos, config) => {
 	entity.physicsBody.addShape(_grenadeShape);
 
 	// Add to physics world with gravity
-	Physics.addBodyWithGravity(entity.physicsBody);
+	Physics.addBody(entity.physicsBody);
 
 	// Register for pre-step raycast anti-tunneling
 	_activeProjectiles.add(entity.physicsBody);

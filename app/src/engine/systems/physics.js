@@ -48,6 +48,10 @@ const _init = () => {
 
 const _addBody = (body) => {
 	_world.addBody(body);
+	// Auto-register for gravity if gravityScale is not explicitly 0
+	if (body.gravityScale !== 0) {
+		_gravityBodies.add(body);
+	}
 };
 
 const _removeBody = (body) => {
@@ -126,10 +130,6 @@ const Physics = {
 	},
 	addBody: _addBody,
 	removeBody: _removeBody,
-	addBodyWithGravity: (body) => {
-		_world.addBody(body);
-		_gravityBodies.add(body);
-	},
 	addContactMaterial: _addContactMaterial,
 	onCollision: _onCollision,
 	addTrimesh: _addTrimesh,

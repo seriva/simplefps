@@ -45,6 +45,10 @@ const Utils = {
 		document.body.removeChild(a);
 		URL.revokeObjectURL(url);
 	},
+
+	wait(ms = 100) {
+		return new Promise((resolve) => setTimeout(resolve, ms));
+	},
 };
 
 export default Utils;

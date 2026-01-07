@@ -1534,7 +1534,7 @@ class WebGPUBackend extends RenderBackend {
 						pass.setBindGroup(1, bg1);
 						// Update cache (though it's a new obj every time unless we cache BG creation too)
 						this._passCache.bindGroups.set(1, bg1);
-					} catch (e) {
+					} catch (_e) {
 						// console.warn("Missing bindings for group 1", e);
 					}
 				}

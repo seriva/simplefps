@@ -61,17 +61,21 @@ const resume = () => {
 		_time = null;
 		_rafId = window.requestAnimationFrame(_frame);
 	}
-	return pause;
 };
 
-const loop = resume;
+const start = resume;
 
-const init = async () => {
+const init = async (config = {}) => {
 	await backendReady;
 
 	Shaders.init();
 	Shapes.init();
 	Utils.dispatchEvent("resize");
+
+	// Load resources if provided
+	if (config.resources) {
+		await Resources.load(config.resources);
+	}
 };
 
 const setGameLoop = (update, postPhysics) => {
@@ -81,7 +85,7 @@ const setGameLoop = (update, postPhysics) => {
 
 export {
 	init,
-	loop,
+	start,
 	pause,
 	resume,
 	setGameLoop,

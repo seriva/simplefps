@@ -59,7 +59,7 @@ class FPSController {
 
 		this.body.allowSleep = false;
 
-		Physics.addBodyWithGravity(this.body);
+		Physics.addBody(this.body);
 
 		// Set up contact material between player and world
 		const worldMaterial = Physics.getWorldMaterial();

@@ -1,5 +1,6 @@
 import { glMatrix, vec3 } from "../dependencies/gl-matrix.js";
 import { Camera, Console, Input, Settings } from "../engine/core/engine.js";
+import Arena from "./arena.js";
 import FPSController from "./fpscontroller.js";
 import State from "./state.js";
 import Weapons from "./weapons.js";
@@ -12,7 +13,10 @@ const _defaultSpawn = [0, 0, 0];
 let _controller = null;
 
 const Game = {
-	init(spawnPoint = {}) {
+	async load(mapName) {
+		await Arena.load(mapName);
+		const spawnPoint = Arena.getSpawnPoint();
+
 		const pos = spawnPoint.position || _defaultSpawn;
 		_controller = new FPSController(pos, {
 			onLand: Weapons.onLand,
@@ -21,10 +25,11 @@ const Game = {
 
 		if (spawnPoint.rotation) {
 			const yawRadians = spawnPoint.rotation[1];
-			// Convert to degrees for Camera (glMatrix.toRadian is used internally by Camera, so it expects degrees)
 			const yawDegrees = yawRadians * (180 / Math.PI);
 			Camera.setRotation([0, yawDegrees, 0]);
 		}
+
+		Weapons.load();
 	},
 
 	update(frameTime) {
