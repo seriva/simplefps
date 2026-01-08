@@ -1,6 +1,6 @@
 import Settings from "../../core/settings.js";
 import Console from "../../systems/console.js";
-import RenderBackend, { CanvasStyle } from "./renderbackend.js";
+import RenderBackend, { CanvasStyle } from "../renderbackend.js";
 
 // Texture format mapping (WebGPU formats)
 const _TEXTURE_FORMATS = {
