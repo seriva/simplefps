@@ -2,9 +2,7 @@ import Camera from "../core/camera.js";
 import Settings from "../core/settings.js";
 import Scene from "../scene/scene.js";
 
-import Console from "../systems/console.js";
 import Resources from "../systems/resources.js";
-import Utils from "../utils/utils.js";
 import { Backend } from "./backend.js";
 import RenderPasses from "./renderpasses.js";
 import { Shaders } from "./shaders.js";
@@ -638,6 +636,10 @@ const _updateFrameData = (time) => {
 
 // Public Renderer API
 const Renderer = {
+	resize() {
+		_resize(Backend.getWidth(), Backend.getHeight());
+	},
+
 	render(time = 0) {
 		Backend.beginFrame();
 
@@ -663,19 +665,3 @@ const Renderer = {
 };
 
 export default Renderer;
-
-// Initialize on resize
-window.addEventListener(
-	"resize",
-	() => {
-		Backend.resize();
-		_resize(Backend.getWidth(), Backend.getHeight());
-	},
-	false,
-);
-
-// Console command for render scale
-Console.registerCmd("rscale", (scale) => {
-	Settings.renderScale = Math.min(Math.max(scale, 0.2), 1);
-	Utils.dispatchEvent("resize");
-});

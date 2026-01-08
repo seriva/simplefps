@@ -1,4 +1,4 @@
-import { backendReady } from "../rendering/backend.js";
+import { Backend, backendReady } from "../rendering/backend.js";
 import Renderer from "../rendering/renderer.js";
 import { Shaders } from "../rendering/shaders.js";
 import Shapes from "../rendering/shapes.js";
@@ -30,6 +30,22 @@ let _gamePostPhysics;
 let _time;
 let _frameTime = 0;
 let _rafId;
+
+const _handleResize = () => {
+	Backend.resize();
+	Camera.updateProjection();
+	Renderer.resize();
+};
+
+const resize = () => _handleResize();
+
+window.addEventListener("resize", _handleResize, false);
+
+// Console command for render scale
+Console.registerCmd("rscale", (scale) => {
+	Settings.renderScale = Math.min(Math.max(scale, 0.2), 1);
+	resize();
+});
 
 const _frame = () => {
 	// timing
@@ -70,14 +86,11 @@ const start = () => {
 
 const init = async (config = {}) => {
 	await backendReady;
-
-	// Initialize built-in resources (solid color textures)
 	Resources.init();
 	Shaders.init();
 	Shapes.init();
-	Utils.dispatchEvent("resize");
+	resize();
 
-	// Load resources if provided
 	if (config.resources) {
 		await Resources.load(config.resources);
 	}
@@ -93,6 +106,7 @@ export {
 	init,
 	start,
 	pause,
+	resize,
 	setGameLoop,
 	Console,
 	Settings,

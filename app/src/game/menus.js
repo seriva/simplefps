@@ -1,4 +1,4 @@
-import { Settings, Stats, Utils } from "../engine/core/engine.js";
+import { resize, Settings, Stats } from "../engine/core/engine.js";
 import State from "./state.js";
 import Translations from "./translations.js";
 import UI from "./ui.js";
@@ -100,7 +100,7 @@ const _settingsMenu = {
 					set: (v) => {
 						Settings.renderScale = parseFloat(v);
 						Settings.save();
-						Utils.dispatchEvent("resize");
+						resize();
 					},
 					min: 0.5,
 					max: 1.0,

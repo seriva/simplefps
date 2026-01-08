@@ -1,6 +1,5 @@
 import { glMatrix, mat4, vec3, vec4 } from "../../dependencies/gl-matrix.js";
 import { Backend } from "../rendering/backend.js";
-import Utils from "../utils/utils.js";
 import Settings from "./settings.js";
 
 // Public Camera API
@@ -27,7 +26,7 @@ const Camera = {
 		_fov = inFov;
 		_nearPlane = inNearPlane;
 		_farPlane = inFarPlane;
-		Utils.dispatchEvent("resize");
+		this.updateProjection();
 	},
 
 	setPosition(pos) {
@@ -151,8 +150,14 @@ const Camera = {
 		mat4.invert(this.inverseViewProjection, this.viewProjection);
 	},
 
-	destroy() {
-		window.removeEventListener("resize", _handleResize, false);
+	updateProjection() {
+		mat4.perspective(
+			_projection,
+			glMatrix.toRadian(_fov),
+			Backend.getAspectRatio(),
+			_nearPlane ?? Settings.zNear,
+			_farPlane ?? Settings.zFar,
+		);
 	},
 };
 
@@ -166,16 +171,3 @@ const _target = vec3.create();
 let _fov = 45;
 let _nearPlane = null;
 let _farPlane = null;
-
-// Private functions
-const _handleResize = () => {
-	mat4.perspective(
-		_projection,
-		glMatrix.toRadian(_fov),
-		Backend.getAspectRatio(),
-		_nearPlane ?? Settings.zNear,
-		_farPlane ?? Settings.zFar,
-	);
-};
-
-window.addEventListener("resize", _handleResize, false);
