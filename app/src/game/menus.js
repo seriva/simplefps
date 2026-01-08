@@ -8,13 +8,21 @@ import Update from "./update.js";
 // Private
 // ============================================================================
 
+// Track if game has been started at least once
+let _hasStarted = false;
+
 // Main menu
 const _mainMenu = {
 	header: Translations.get("MAIN_MENU"),
 	controls: [
 		{
-			text: Translations.get("CONTINUE_GAME"),
+			get text() {
+				return _hasStarted
+					? Translations.get("CONTINUE_GAME")
+					: Translations.get("START_GAME");
+			},
 			callback: () => {
+				_hasStarted = true;
 				State.enterGame();
 			},
 		},

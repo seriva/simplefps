@@ -10,6 +10,7 @@ const _translations = {
 	"en-US": {
 		YES: "Yes",
 		NO: "No",
+		START_GAME: "Start game",
 		CONTINUE_GAME: "Continue game",
 		MAIN_MENU: "Main Menu",
 		VERSION_CHECK: "Check for updates",
