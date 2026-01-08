@@ -1,8 +1,6 @@
 {
     "resources": [
         "system/dirt.webp",
-        "system/black.webp",
-        "system/white.webp",
         "skybox/1.mat",
         "skybox/1_front.webp",
         "skybox/1_back.webp",

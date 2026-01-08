@@ -53,6 +53,17 @@ class Texture {
 		// Handled by backend creation logic + generateMipmaps
 	}
 
+	static createSolidColor(r, g, b, a = 255) {
+		const texture = new Texture({});
+		texture._handle = Backend.createTexture({
+			width: 1,
+			height: 1,
+			mutable: true,
+			pdata: new Uint8Array([r, g, b, a]),
+		});
+		return texture;
+	}
+
 	loadImageTexture(imageData) {
 		const image = new Image();
 		image.onload = async () => {

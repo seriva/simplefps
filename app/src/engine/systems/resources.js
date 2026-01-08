@@ -11,6 +11,12 @@ const Resources = {
 	onLoadStart: null,
 	onLoadEnd: null,
 
+	init() {
+		// Register built-in solid color textures
+		_resources.set("black", Texture.createSolidColor(0, 0, 0, 255));
+		_resources.set("white", Texture.createSolidColor(255, 255, 255, 255));
+	},
+
 	async load(paths) {
 		if (!Array.isArray(paths)) return null;
 		if (!paths.length) return Promise.resolve();

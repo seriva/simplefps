@@ -71,6 +71,8 @@ const start = () => {
 const init = async (config = {}) => {
 	await backendReady;
 
+	// Initialize built-in resources (solid color textures)
+	Resources.init();
 	Shaders.init();
 	Shapes.init();
 	Utils.dispatchEvent("resize");
