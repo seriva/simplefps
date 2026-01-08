@@ -1,4 +1,4 @@
-import BoundingBox from "../utils/boundingbox.js";
+import BoundingBox from "../core/boundingbox.js";
 import { Backend } from "./backend.js";
 
 class Mesh {

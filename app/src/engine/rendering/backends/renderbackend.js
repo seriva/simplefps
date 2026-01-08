@@ -1,4 +1,4 @@
-import { css } from "../../utils/reactive.js";
+import { css } from "../../../dependencies/reactive.js";
 
 export const CanvasStyle = css`
 	background: #000;

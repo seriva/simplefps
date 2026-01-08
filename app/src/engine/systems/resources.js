@@ -1,7 +1,7 @@
+import Utils from "../core/utils.js";
 import Material from "../rendering/material.js";
 import Mesh from "../rendering/mesh.js";
 import Texture from "../rendering/texture.js";
-import Utils from "../utils/utils.js";
 import Console from "./console.js";
 import Sound from "./sound.js";
 

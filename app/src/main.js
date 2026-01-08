@@ -1,4 +1,4 @@
-import { init, setGameLoop, start, Utils } from "./engine/core/engine.js";
+import { init, setCallbacks, start, Utils } from "./engine/core/engine.js";
 import Game from "./game/game.js";
 import Loading from "./game/loading.js";
 import State from "./game/state.js";
@@ -17,9 +17,9 @@ import "./game/hud.js";
 
 		// Load map and initialize game
 		await Game.load("demo");
-		setGameLoop(Game.update, Game.postPhysicsUpdate);
+		setCallbacks(Game.update, Game.postPhysicsUpdate);
 
-		// Start render loop and show menu
+		// Enter game state to render first frame, then show menu with backdrop
 		State.enterGame();
 		start();
 		await Utils.wait();

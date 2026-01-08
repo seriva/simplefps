@@ -16,9 +16,9 @@ import Physics from "../systems/physics.js";
 import Resources from "../systems/resources.js";
 import Sound from "../systems/sound.js";
 import Stats from "../systems/stats.js";
-import Utils from "../utils/utils.js";
 import Camera from "./camera.js";
 import Settings from "./settings.js";
+import Utils from "./utils.js";
 
 // ============================================================================
 // Private
@@ -96,18 +96,21 @@ const init = async (config = {}) => {
 	}
 };
 
-const setGameLoop = (update, postPhysics) => {
+const setCallbacks = (update, postPhysics) => {
 	_gameUpdate = update;
 	_gameUpdateBacking = update;
 	_gamePostPhysics = postPhysics;
 };
+
+const getCanvas = () => Backend.getCanvas();
 
 export {
 	init,
 	start,
 	pause,
 	resize,
-	setGameLoop,
+	setCallbacks,
+	getCanvas,
 	Console,
 	Settings,
 	Utils,

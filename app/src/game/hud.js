@@ -1,5 +1,5 @@
+import { css, html, Reactive } from "../dependencies/reactive.js";
 import { Utils } from "../engine/core/engine.js";
-import { css, html, Reactive } from "../engine/utils/reactive.js";
 import State from "./state.js";
 
 // ============================================================================

@@ -1,5 +1,5 @@
+import { css, html, Reactive } from "../dependencies/reactive.js";
 import { Resources } from "../engine/core/engine.js";
-import { css, html, Reactive } from "../engine/utils/reactive.js";
 
 // Loading UI component
 class _LoadingUI extends Reactive.Component {

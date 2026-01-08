@@ -1,4 +1,4 @@
-import { css, html, Reactive } from "../engine/utils/reactive.js";
+import { css, html, Reactive } from "../dependencies/reactive.js";
 
 // ============================================================================
 // Private

@@ -1,5 +1,5 @@
 import Console from "../systems/console.js";
-import Utils from "../utils/utils.js";
+import Utils from "./utils.js";
 
 // Public Settings object
 const Settings = {
