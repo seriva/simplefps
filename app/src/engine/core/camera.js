@@ -7,6 +7,7 @@ const Camera = {
 	position: vec3.fromValues(0, 0, 0),
 	rotation: vec3.fromValues(0, 0, 0),
 	direction: vec3.fromValues(0, 0, 1),
+	upVector: vec3.fromValues(0, 1, 0),
 	view: mat4.create(),
 	viewProjection: mat4.create(),
 	inverseViewProjection: mat4.create(),
@@ -81,7 +82,7 @@ const Camera = {
 
 	update() {
 		vec3.add(_target, this.position, this.direction);
-		mat4.lookAt(this.view, this.position, _target, _upVector);
+		mat4.lookAt(this.view, this.position, _target, this.upVector);
 		mat4.mul(this.viewProjection, _projection, this.view);
 
 		// Extract frustum planes from view-projection matrix
@@ -165,7 +166,6 @@ export default Camera;
 
 // Private state
 const _projection = mat4.create();
-const _upVector = vec3.fromValues(0, 1, 0);
 const _target = vec3.create();
 
 let _fov = 45;

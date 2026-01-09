@@ -622,6 +622,15 @@ class _MenuUI extends Reactive.Component {
 							control.set(checkbox.checked);
 						}
 					};
+				} else if (control.type === "link") {
+					const link = document.createElement("a");
+					link.href = control.url;
+					link.target = "_blank";
+					link.rel = "noopener noreferrer";
+					link.textContent = control.linkText || control.url;
+					link.style.color = "#6cb4ff";
+					link.style.textDecoration = "none";
+					row.appendChild(link);
 				} else if (control.type === "select") {
 					const select = document.createElement("select");
 					select.className = "menu-select";

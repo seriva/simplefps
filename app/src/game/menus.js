@@ -33,9 +33,46 @@ const _mainMenu = {
 			},
 		},
 		{
+			text: Translations.get("CREDITS"),
+			callback: () => {
+				UI.show("CREDITS_MENU");
+			},
+		},
+		{
 			text: Translations.get("VERSION_CHECK"),
 			callback: () => {
 				Update.force();
+			},
+		},
+	],
+};
+
+// Credits menu
+const _creditsMenu = {
+	header: Translations.get("CREDITS"),
+	controls: [
+		{
+			type: "link",
+			text: Translations.get("CREDITS_MAP"),
+			url: "https://lvlworld.com/review/id:2562",
+			linkText: "Focal Point by Lunaran",
+		},
+		{
+			type: "link",
+			text: Translations.get("CREDITS_PICKUPS"),
+			url: "https://www.cgtrader.com/3d-models/science/other/sci-fi-powerups-set",
+			linkText: "Sci-Fi Powerups Set",
+		},
+		{
+			type: "link",
+			text: Translations.get("CREDITS_WEAPONS"),
+			url: "https://www.cgtrader.com/3d-model-packs/sci-fi-weapon-pack",
+			linkText: "Sci-Fi Weapon Pack",
+		},
+		{
+			text: Translations.get("BACK"),
+			callback: () => {
+				UI.show("MAIN_MENU");
 			},
 		},
 	],
@@ -209,6 +246,7 @@ const _settingsMenu = {
 // Register all menus
 UI.register("MAIN_MENU", _mainMenu);
 UI.register("SETTINGS_MENU", _settingsMenu);
+UI.register("CREDITS_MENU", _creditsMenu);
 UI.register("UPDATE_MENU", _updateMenu);
 
 const Menus = {};

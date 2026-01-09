@@ -77,10 +77,10 @@ const Game = {
 		}
 	},
 
-	postPhysicsUpdate() {
+	postPhysicsUpdate(frameTime) {
 		// Sync camera position from physics body
 		if (_controller) {
-			_controller.syncCamera();
+			_controller.syncCamera(frameTime / 1000);
 		}
 	},
 

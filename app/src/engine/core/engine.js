@@ -57,7 +57,7 @@ const _frame = () => {
 	Input.update();
 	if (_gameUpdate) _gameUpdate(_frameTime);
 	Physics.update(_frameTime / 1000);
-	if (_gamePostPhysics) _gamePostPhysics();
+	if (_gamePostPhysics) _gamePostPhysics(_frameTime);
 	Camera.update();
 	Scene.update(_frameTime);
 	Renderer.render();

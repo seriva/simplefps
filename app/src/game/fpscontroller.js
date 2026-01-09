@@ -11,6 +11,8 @@ const _currentVel = vec3.create();
 const _moveDir = vec3.create();
 const _positionArray = [0, 0, 0];
 const _velocityArray = [0, 0, 0];
+const _worldUp = vec3.fromValues(0, 1, 0);
+const _rightVector = vec3.create();
 
 let _noclip = false;
 const _NOCLIP_SPEED = 500;
@@ -37,7 +39,13 @@ class FPSController {
 			maxSpeed: config.maxSpeed || 300,
 			onLand: config.onLand || (() => {}),
 			onJump: config.onJump || (() => {}),
+			// Camera wobble settings
+			wobbleFrequency: config.wobbleFrequency || 8, // How fast the wobble cycles
+			wobbleIntensity: config.wobbleIntensity || 1, // Roll wobble amount (degrees)
 		};
+
+		// Camera wobble state
+		this.bobPhase = 0;
 
 		const shape = new CANNON.Sphere(this.config.radius);
 		this.body = new CANNON.Body({
@@ -277,7 +285,7 @@ class FPSController {
 		return _velocityArray;
 	}
 
-	syncCamera() {
+	syncCamera(frameTime) {
 		// In noclip mode, camera is moved directly - don't sync from physics body
 		if (_noclip) return;
 
@@ -286,6 +294,48 @@ class FPSController {
 			Camera.position[0] = pos[0];
 			Camera.position[1] = pos[1];
 			Camera.position[2] = pos[2];
+
+			// Calculate horizontal speed for wobble intensity
+			const vel = this.body.velocity;
+			const horizontalSpeed = Math.sqrt(vel.x * vel.x + vel.z * vel.z);
+
+			// Calculate target roll (in radians)
+			let targetRoll = 0;
+
+			// Apply roll wobble when moving and grounded
+			if (horizontalSpeed > 10 && this.isGrounded()) {
+				// Advance bob phase based on movement speed
+				const speedFactor = Math.min(horizontalSpeed / this.config.maxSpeed, 1);
+				this.bobPhase += speedFactor * this.config.wobbleFrequency * frameTime;
+
+				// Calculate target roll wobble (tilt left/right) - convert degrees to radians
+				targetRoll =
+					((Math.sin(this.bobPhase) * (this.config.wobbleIntensity * Math.PI)) /
+						180) *
+					speedFactor;
+			} else {
+				// Decay phase when not moving
+				this.bobPhase *= 0.9;
+			}
+
+			// Smoothly interpolate current roll towards target
+			const smoothing = 1 - Math.pow(0.001, frameTime);
+			this.currentRoll =
+				(this.currentRoll || 0) +
+				(targetRoll - (this.currentRoll || 0)) * smoothing;
+
+			// Calculate rolled up vector
+			// Get right vector (perpendicular to direction and world up)
+			vec3.cross(_rightVector, Camera.direction, _worldUp);
+			vec3.normalize(_rightVector, _rightVector);
+
+			// Roll the up vector by mixing world up with right vector
+			const cosRoll = Math.cos(this.currentRoll);
+			const sinRoll = Math.sin(this.currentRoll);
+			Camera.upVector[0] = _worldUp[0] * cosRoll + _rightVector[0] * sinRoll;
+			Camera.upVector[1] = _worldUp[1] * cosRoll + _rightVector[1] * sinRoll;
+			Camera.upVector[2] = _worldUp[2] * cosRoll + _rightVector[2] * sinRoll;
+			vec3.normalize(Camera.upVector, Camera.upVector);
 		}
 	}
 

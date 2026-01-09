@@ -31,6 +31,10 @@ const _translations = {
 		WEBGPU: "WebGPU",
 		RELOAD_CONFIRM: "Changing renderer requires a page reload. Reload now?",
 		LOOK_SENSITIVITY: "Look Sensitivity",
+		CREDITS: "Credits",
+		CREDITS_MAP: "Map",
+		CREDITS_PICKUPS: "Pickups",
+		CREDITS_WEAPONS: "Weapons",
 	},
 };
 
