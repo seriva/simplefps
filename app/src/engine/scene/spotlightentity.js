@@ -1,7 +1,7 @@
 import { mat4, quat, vec3 } from "../../dependencies/gl-matrix.js";
+import BoundingBox from "../core/boundingbox.js";
 import { Shaders } from "../rendering/shaders.js";
-import { spotlightVolume } from "../rendering/shapes.js";
-import BoundingBox from "../utils/boundingbox.js";
+import Shapes from "../rendering/shapes.js";
 import { Entity, EntityTypes } from "./entity.js";
 
 class SpotLightEntity extends Entity {
@@ -99,18 +99,18 @@ class SpotLightEntity extends Entity {
 		Shaders.spotLight.setFloat("spotLight.cutoff", this.cutoff);
 		Shaders.spotLight.setFloat("spotLight.range", this.range);
 
-		spotlightVolume.renderSingle();
+		Shapes.spotlightVolume.renderSingle();
 	}
 
 	renderWireFrame() {
 		if (!this.visible) return;
 		const m = this.#getWorldMatrix();
 		Shaders.debug.setMat4("matWorld", m);
-		spotlightVolume.renderWireFrame();
+		Shapes.spotlightVolume.renderWireFrame();
 	}
 
 	updateBoundingVolume() {
-		const unitBox = spotlightVolume.boundingBox;
+		const unitBox = Shapes.spotlightVolume.boundingBox;
 		const m = this.#getWorldMatrix();
 		this.boundingBox = unitBox.transform(m);
 	}

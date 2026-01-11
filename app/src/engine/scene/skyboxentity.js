@@ -1,13 +1,12 @@
 import { mat4 } from "../../dependencies/gl-matrix.js";
 import Camera from "../core/camera.js";
 import { Shaders } from "../rendering/shaders.js";
-import { skyBox } from "../rendering/shapes.js";
+import Shapes from "../rendering/shapes.js";
 import Resources from "../systems/resources.js";
 import { Entity, EntityTypes } from "./entity.js";
 
 class SkyboxEntity extends Entity {
 	static FACE_NAMES = ["front", "back", "top", "bottom", "right", "left"];
-	static shape = skyBox;
 
 	constructor(id, updateCallback) {
 		super([0, 0, 0], updateCallback);
@@ -15,12 +14,12 @@ class SkyboxEntity extends Entity {
 		this.shader = Shaders.geometry;
 
 		// Initialize shape resources once
-		if (!SkyboxEntity.shape.resources) {
-			SkyboxEntity.shape.resources = Resources;
+		if (!Shapes.skyBox.resources) {
+			Shapes.skyBox.resources = Resources;
 		}
 
 		// Set material names
-		for (const [i, index] of SkyboxEntity.shape.indices.entries()) {
+		for (const [i, index] of Shapes.skyBox.indices.entries()) {
 			index.material = `mat_skybox_${id}_${SkyboxEntity.FACE_NAMES[i]}`;
 		}
 	}
@@ -33,7 +32,7 @@ class SkyboxEntity extends Entity {
 		this.shader.setMat4("matWorld", this.base_matrix);
 
 		// Render (GL state managed by RenderPasses)
-		SkyboxEntity.shape.renderSingle();
+		Shapes.skyBox.renderSingle();
 	}
 
 	renderWireFrame() {
@@ -44,7 +43,7 @@ class SkyboxEntity extends Entity {
 		Shaders.debug.setMat4("matWorld", this.base_matrix);
 
 		// Render
-		SkyboxEntity.shape.renderWireFrame();
+		Shapes.skyBox.renderWireFrame();
 	}
 
 	// Private method to update matrix with camera position

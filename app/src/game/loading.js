@@ -1,4 +1,5 @@
-import { css, html, Reactive } from "../engine/utils/reactive.js";
+import { css, html, Reactive } from "../dependencies/reactive.js";
+import { Resources } from "../engine/core/engine.js";
 
 // Loading UI component
 class _LoadingUI extends Reactive.Component {
@@ -88,5 +89,9 @@ const Loading = {
 		_ui.toggle(visible, force);
 	},
 };
+
+// Self-wire to Resources
+Resources.onLoadStart = () => Loading.toggle(true);
+Resources.onLoadEnd = () => Loading.toggle(false);
 
 export default Loading;

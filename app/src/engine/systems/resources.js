@@ -1,7 +1,7 @@
+import Utils from "../core/utils.js";
 import Material from "../rendering/material.js";
 import Mesh from "../rendering/mesh.js";
 import Texture from "../rendering/texture.js";
-import Utils from "../utils/utils.js";
 import Console from "./console.js";
 import Sound from "./sound.js";
 
@@ -10,6 +10,12 @@ const Resources = {
 	// Callbacks for load lifecycle (set by game layer)
 	onLoadStart: null,
 	onLoadEnd: null,
+
+	init() {
+		// Register built-in solid color textures
+		_resources.set("black", Texture.createSolidColor(0, 0, 0, 255));
+		_resources.set("white", Texture.createSolidColor(255, 255, 255, 255));
+	},
 
 	async load(paths) {
 		if (!Array.isArray(paths)) return null;
@@ -72,6 +78,10 @@ const Resources = {
 			return null;
 		}
 		return resource;
+	},
+
+	has(key) {
+		return _resources.has(key);
 	},
 };
 

@@ -1,5 +1,5 @@
 import { mat4, vec3 } from "../../dependencies/gl-matrix.js";
-import Camera from "../core/camera.js";
+import Camera from "./camera.js";
 
 class BoundingBox {
 	// Increase pool size for better performance in scenes with many boxes

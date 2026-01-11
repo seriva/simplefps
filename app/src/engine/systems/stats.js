@@ -1,6 +1,6 @@
+import { css, html, Reactive } from "../../dependencies/reactive.js";
 import Camera from "../core/camera.js";
 import Settings from "../core/settings.js";
-import { css, html, Reactive } from "../utils/reactive.js";
 import Console from "./console.js";
 
 // Private Stats UI component

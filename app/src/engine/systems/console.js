@@ -1,4 +1,4 @@
-import { css, html, Reactive } from "../utils/reactive.js";
+import { css, html, Reactive } from "../../dependencies/reactive.js";
 
 // Console default configuration
 const _DEFAULTS = {

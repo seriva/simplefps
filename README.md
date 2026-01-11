@@ -9,16 +9,18 @@ Simple first person arena shooter game written in ES6 and WebGL with a PWA distr
 ## Features
 
 - **Gameplay**: Arena-based FPS with physics-based projectiles, multiple weapons (Energy Scepter, Plasma Pistol, Pulse Cannon, Laser Gatling), and cross-platform controls
-- **Rendering**: Custom WebGL engine with SSAO, detail textures, emissive materials, post-processing pipeline, and lightmap support
-- **Performance**: Optimized rendering with UBOs, physics simulation (Cannon.js), and PWA support
+- **Rendering**: Hybrid WebGL/WebGPU engine with PBR-like lighting, UBOs, SSAO, detail textures, emissive materials, and post-processing pipeline
+- **UI**: Modern, reactive UI system with state management for menus and HUD
+- **Performance**: Optimized rendering with linear depth buffer, physics simulation (Cannon.js), and PWA support
 - **Architecture**: Modular ES6 design with entity system, scene management, and comprehensive input handling
 - **Cross-Platform**: Runs on Desktop, Android, and iOS with touch controls and responsive design
-- **Settings**: In-game settings menu with graphics and input configuration
+- **Settings**: In-game settings menu with graphics (including renderer selection) and input configuration
 
 ## Tech Stack
 
-**Core**: ES6 Modules, WebGL, cannon-es (physics), gl-matrix (3D math)  
-**Build**: Microtastic (dev server, production builds, hot-reload)  
+**Core**: ES6 Modules, simple-reactive (UI), cannon-es (physics), gl-matrix (3D math)
+**Rendering**: WebGPU (experimental) & WebGL 2.0 backends
+**Build**: Microtastic (dev server, production builds, hot-reload)
 **Tools**: Biome (linting/formatting), Husky (git hooks), Devcontainer (development environment)
 
 ## Project Structure
@@ -26,19 +28,19 @@ Simple first person arena shooter game written in ES6 and WebGL with a PWA distr
 ```
 app/
 ├── src/
+│   ├── dependencies/     # Bundled 3rd party libs (reactive, etc)
 │   ├── engine/           # Core engine modules
-│   │   ├── core/         # Scene, camera, timing
-│   │   ├── entities/     # Entity system
-│   │   ├── rendering/    # WebGL renderer, shaders
-│   │   ├── systems/      # Physics, input, audio
-│   │   └── utils/        # Helpers and utilities
+│   │   ├── core/         # Engine loop, camera, utils
+│   │   ├── rendering/    # WebGPU/WebGL backends, shaders
+│   │   ├── scene/        # Entity system & scene graph
+│   │   └── systems/      # Physics, input, audio, resources
 │   ├── game/             # Game-specific modules
 │   │   ├── weapons.js    # Weapon system
 │   │   ├── controls.js   # Game controls
 │   │   ├── arena.js      # Arena management
 │   │   └── ...
 │   └── main.js           # Application entry point
-├── resources/            # Game assets
+├── resources/            # Game assets (textures, models, sounds)
 └── index.html            # Main HTML file
 scripts/
 ├── bsp2map.js            # Quake 3 BSP to game format converter

@@ -107,7 +107,7 @@
             "textures": {
                 "albedo": "arenas/demo/textures/q1_tele.webp",
                 "reflection": "arenas/demo/textures/q1_tele.webp",
-                "reflectionMask": "system/white.webp"
+                "reflectionMask": "white"
             },
             "reflectionStrength": 0.5
         }

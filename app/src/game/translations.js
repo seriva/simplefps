@@ -10,6 +10,7 @@ const _translations = {
 	"en-US": {
 		YES: "Yes",
 		NO: "No",
+		START_GAME: "Start game",
 		CONTINUE_GAME: "Continue game",
 		MAIN_MENU: "Main Menu",
 		VERSION_CHECK: "Check for updates",
@@ -25,7 +26,15 @@ const _translations = {
 		SHOW_STATS: "Show Render Stats",
 		GRAPHICS: "Graphics",
 		INPUT: "Input",
+		RENDERER: "Renderer",
+		WEBGL: "WebGL",
+		WEBGPU: "WebGPU",
+		RELOAD_CONFIRM: "Changing renderer requires a page reload. Reload now?",
 		LOOK_SENSITIVITY: "Look Sensitivity",
+		CREDITS: "Credits",
+		CREDITS_MAP: "Map",
+		CREDITS_PICKUPS: "Pickups",
+		CREDITS_WEAPONS: "Weapons",
 	},
 };
 
