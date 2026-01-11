@@ -11,7 +11,7 @@ class Mesh {
 		this.resources = context;
 		this.vao = null;
 		this._buffers = [];
-		this.initialize(data);
+		this.ready = this.initialize(data);
 	}
 
 	#bindMaterial(indexObj, applyMaterial, shader) {
@@ -159,6 +159,12 @@ class Mesh {
 
 	unBind() {
 		Backend.bindVertexState(null);
+	}
+
+	updateVertexBuffer(data) {
+		if (this.vertexBuffer) {
+			Backend.updateBuffer(this.vertexBuffer, data);
+		}
 	}
 
 	#groupedIndices = null;

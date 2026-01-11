@@ -510,6 +510,11 @@ class WebGPUBackend extends RenderBackend {
 		}
 	}
 
+	updateBuffer(buffer, data, offset = 0) {
+		if (!buffer?._gpuBuffer || !this._device) return;
+		this._device.queue.writeBuffer(buffer._gpuBuffer, offset, data);
+	}
+
 	// =========================================================================
 	// State Management
 	// =========================================================================

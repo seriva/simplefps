@@ -1,3 +1,5 @@
+import Animation from "../animation/animation.js";
+import AnimationPlayer from "../animation/animationplayer.js";
 import { Backend, backendReady } from "../rendering/backend.js";
 import Renderer from "../rendering/renderer.js";
 import { Shaders } from "../rendering/shaders.js";
@@ -8,6 +10,7 @@ import FpsMeshEntity from "../scene/fpsmeshentity.js";
 import MeshEntity from "../scene/meshentity.js";
 import PointLightEntity from "../scene/pointlightentity.js";
 import Scene from "../scene/scene.js";
+import SkinnedMeshEntity from "../scene/skinnedmeshentity.js";
 import SkyboxEntity from "../scene/skyboxentity.js";
 import SpotLightEntity from "../scene/spotlightentity.js";
 import Console from "../systems/console.js";
@@ -123,8 +126,11 @@ export {
 	Scene,
 	EntityTypes,
 	Sound,
+	Animation,
+	AnimationPlayer,
 	MeshEntity,
 	FpsMeshEntity,
+	SkinnedMeshEntity,
 	DirectionalLightEntity,
 	PointLightEntity,
 	SpotLightEntity,
