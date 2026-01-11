@@ -663,7 +663,7 @@ function main() {
     };
 
     // Save mesh
-    const meshExt = outputBinary ? '.sbmesh' : '.smesh';
+    const meshExt = outputBinary ? '.bmesh' : '.mesh';
     const meshPath = path.join(outputDir, baseName + meshExt);
 
     if (outputBinary) {

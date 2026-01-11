@@ -22,24 +22,6 @@ class SkinnedMeshEntity extends MeshEntity {
 		}
 	}
 
-	setRotation(rotation) {
-		mat4.rotateX(
-			this.base_matrix,
-			this.base_matrix,
-			(rotation[0] * Math.PI) / 180,
-		);
-		mat4.rotateY(
-			this.base_matrix,
-			this.base_matrix,
-			(rotation[1] * Math.PI) / 180,
-		);
-		mat4.rotateZ(
-			this.base_matrix,
-			this.base_matrix,
-			(rotation[2] * Math.PI) / 180,
-		);
-	}
-
 	playAnimation(animName, reset = true) {
 		if (!this.animationPlayer) return;
 		const anim = Resources.get(animName);
@@ -65,23 +47,6 @@ class SkinnedMeshEntity extends MeshEntity {
 		}
 
 		super.update?.(deltaTime);
-	}
-
-	render(filter = null, shader = Shaders.geometry) {
-		if (!this.visible || !this.mesh) return;
-
-		mat4.multiply(_tempMatrix, this.base_matrix, this.ani_matrix);
-		shader.setMat4("matWorld", _tempMatrix);
-		this.mesh.renderSingle(true, null, filter, shader);
-	}
-
-	renderWireFrame() {
-		if (!this.visible || !this.mesh) return;
-		mat4.multiply(_tempMatrix, this.base_matrix, this.ani_matrix);
-		Shaders.debug.setMat4("matWorld", _tempMatrix);
-		if (this.mesh.renderWireFrame) {
-			this.mesh.renderWireFrame();
-		}
 	}
 
 	renderDebugSkeleton() {

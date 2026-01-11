@@ -33,6 +33,24 @@ class MeshEntity extends Entity {
 		mat4.scale(this.base_matrix, this.base_matrix, [scale, scale, scale]);
 	}
 
+	setRotation(rotation) {
+		mat4.rotateX(
+			this.base_matrix,
+			this.base_matrix,
+			(rotation[0] * Math.PI) / 180,
+		);
+		mat4.rotateY(
+			this.base_matrix,
+			this.base_matrix,
+			(rotation[1] * Math.PI) / 180,
+		);
+		mat4.rotateZ(
+			this.base_matrix,
+			this.base_matrix,
+			(rotation[2] * Math.PI) / 180,
+		);
+	}
+
 	/**
 	 * Calculate shadow height by raycasting downward to find ground.
 	 * Sets shadowHeight to the hit point Y + offset, or undefined if no ground found.
