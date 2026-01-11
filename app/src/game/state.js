@@ -1,5 +1,5 @@
-import { Context, Input, Physics, Scene } from "../engine/core/engine.js";
-import { css, Signals } from "../engine/utils/reactive.js";
+import { css, Signals } from "../dependencies/reactive.js";
+import { getCanvas, Input, pause } from "../engine/core/engine.js";
 import UI from "./ui.js";
 
 // ============================================================================
@@ -18,12 +18,14 @@ const _blurStyle = css`
 	transition: filter 25ms linear;
 `;
 
-Context.canvas.classList.add(_blurStyle);
 // Initialize blur immediately to avoid white flash on load
-Context.canvas.style.filter = "blur(8px)";
+const _canvas = getCanvas();
+_canvas.classList.add(_blurStyle);
+_canvas.style.filter = "blur(8px)";
 
 _isBlurred.subscribe((blurred) => {
-	Context.canvas.style.filter = blurred ? "blur(8px)" : "blur(0px)";
+	const canvas = getCanvas();
+	if (canvas) canvas.style.filter = blurred ? "blur(8px)" : "blur(0px)";
 });
 
 // Subscribe to state changes to orchestrate system transitions
@@ -33,16 +35,14 @@ _currentState.subscribe((state) => {
 			Input.toggleVirtualInput(true);
 			Input.toggleCursor(false);
 			_isBlurred.set(false);
-			Scene.pause(false);
-			Physics.pause(false);
+			pause(false);
 			break;
 
 		case _GameStates.MENU:
 			Input.toggleVirtualInput(false);
 			Input.toggleCursor(true);
 			_isBlurred.set(true);
-			Scene.pause(true);
-			Physics.pause(true);
+			pause(true);
 			break;
 	}
 });
@@ -66,10 +66,6 @@ const State = {
 		return _currentState.get();
 	},
 
-	/**
-	 * Transitions to the main menu state
-	 * @param {string} [menu] - Optional specific menu to show
-	 */
 	enterMenu(menu) {
 		Signals.batch(() => {
 			_currentState.set(_GameStates.MENU);
@@ -77,9 +73,6 @@ const State = {
 		});
 	},
 
-	/**
-	 * Transitions to the in-game state
-	 */
 	enterGame() {
 		Signals.batch(() => {
 			_currentState.set(_GameStates.GAME);

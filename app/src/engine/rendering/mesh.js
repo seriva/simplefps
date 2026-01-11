@@ -1,5 +1,5 @@
-import BoundingBox from "../utils/boundingbox.js";
-import { gl } from "./context.js";
+import BoundingBox from "../core/boundingbox.js";
+import { Backend } from "./backend.js";
 
 class Mesh {
 	static ATTR_POSITIONS = 0;
@@ -7,15 +7,17 @@ class Mesh {
 	static ATTR_NORMALS = 2;
 	static ATTR_LIGHTMAP_UVS = 3;
 
+	constructor(data, context) {
+		this.resources = context;
+		this.vao = null;
+		this._buffers = [];
+		this.initialize(data);
+	}
+
 	#bindMaterial(indexObj, applyMaterial, shader) {
 		if (indexObj.material !== "none" && applyMaterial && this.resources) {
 			this.resources.get(indexObj.material).bind(shader);
 		}
-	}
-
-	constructor(data, context) {
-		this.resources = context;
-		this.initialize(data);
 	}
 
 	async initialize(data) {
@@ -28,15 +30,16 @@ class Mesh {
 		this.boundingBox = this.calculateBoundingBox();
 	}
 
-	static buildBuffer(type, data, itemSize) {
-		const buffer = gl.createBuffer();
-		const ArrayView = type === gl.ARRAY_BUFFER ? Float32Array : Uint16Array;
-		const typedArray = new ArrayView(data);
-		gl.bindBuffer(type, buffer);
-		gl.bufferData(type, typedArray, gl.STATIC_DRAW);
-		buffer.itemSize = itemSize;
-		buffer.numItems = data.length / itemSize;
-		return buffer;
+	static buildBuffer(_type, data, usage) {
+		let typedArray;
+
+		if (usage === "index") {
+			typedArray = new Uint16Array(data);
+		} else {
+			typedArray = new Float32Array(data);
+		}
+
+		return Backend.createBuffer(typedArray, usage);
 	}
 
 	initMeshBuffers() {
@@ -44,91 +47,118 @@ class Mesh {
 		this.hasNormals = this.normals.length > 0;
 		this.hasLightmapUVs = this.lightmapUVs && this.lightmapUVs.length > 0;
 		this.triangleCount = 0;
+		this._buffers = [];
 
+		// Create Index Buffers
 		for (const indexObj of this.indices) {
-			indexObj.indexBuffer = Mesh.buildBuffer(
-				gl.ELEMENT_ARRAY_BUFFER,
-				indexObj.array,
-				1,
-			);
+			indexObj.indexBuffer = Mesh.buildBuffer(null, indexObj.array, "index");
+			this._buffers.push(indexObj.indexBuffer);
 			this.triangleCount += indexObj.array.length / 3;
 		}
-		this.vertexBuffer = Mesh.buildBuffer(gl.ARRAY_BUFFER, this.vertices, 3);
 
+		// Create Vertex Buffers
+		const vertexCount = this.vertices.length / 3;
+
+		// Position (Always present)
+		this.vertexBuffer = Mesh.buildBuffer(null, this.vertices, "vertex");
+		this._buffers.push(this.vertexBuffer);
+
+		// UVs (Always provide buffer)
 		if (this.hasUVs) {
-			this.uvBuffer = Mesh.buildBuffer(gl.ARRAY_BUFFER, this.uvs, 2);
-		}
-		if (this.hasNormals) {
-			this.normalBuffer = Mesh.buildBuffer(gl.ARRAY_BUFFER, this.normals, 3);
-		}
-		if (this.hasLightmapUVs) {
-			this.lightmapUVBuffer = Mesh.buildBuffer(
-				gl.ARRAY_BUFFER,
-				this.lightmapUVs,
-				2,
+			this.uvBuffer = Mesh.buildBuffer(null, this.uvs, "vertex");
+		} else {
+			this.uvBuffer = Mesh.buildBuffer(
+				null,
+				new Float32Array(vertexCount * 2),
+				"vertex",
 			);
 		}
+		this._buffers.push(this.uvBuffer);
 
-		// Create VAO and capture vertex attribute state
-		this.vao = gl.createVertexArray();
-		gl.bindVertexArray(this.vao);
-
-		// Position attribute
-		gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
-		gl.vertexAttribPointer(Mesh.ATTR_POSITIONS, 3, gl.FLOAT, false, 0, 0);
-		gl.enableVertexAttribArray(Mesh.ATTR_POSITIONS);
-
-		// UV attribute
-		if (this.hasUVs) {
-			gl.bindBuffer(gl.ARRAY_BUFFER, this.uvBuffer);
-			gl.vertexAttribPointer(Mesh.ATTR_UVS, 2, gl.FLOAT, false, 0, 0);
-			gl.enableVertexAttribArray(Mesh.ATTR_UVS);
-		}
-
-		// Normal attribute
+		// Normals (Always provide buffer)
 		if (this.hasNormals) {
-			gl.bindBuffer(gl.ARRAY_BUFFER, this.normalBuffer);
-			gl.vertexAttribPointer(Mesh.ATTR_NORMALS, 3, gl.FLOAT, false, 0, 0);
-			gl.enableVertexAttribArray(Mesh.ATTR_NORMALS);
-		}
-
-		// Lightmap UV attribute
-		if (this.hasLightmapUVs) {
-			gl.bindBuffer(gl.ARRAY_BUFFER, this.lightmapUVBuffer);
-			gl.vertexAttribPointer(Mesh.ATTR_LIGHTMAP_UVS, 2, gl.FLOAT, false, 0, 0);
-			gl.enableVertexAttribArray(Mesh.ATTR_LIGHTMAP_UVS);
+			this.normalBuffer = Mesh.buildBuffer(null, this.normals, "vertex");
 		} else {
-			// Provide default lightmap UVs (0,0) when not available
-			gl.disableVertexAttribArray(Mesh.ATTR_LIGHTMAP_UVS);
-			gl.vertexAttrib2f(Mesh.ATTR_LIGHTMAP_UVS, 0.0, 0.0);
+			this.normalBuffer = Mesh.buildBuffer(
+				null,
+				new Float32Array(vertexCount * 3),
+				"vertex",
+			);
 		}
+		this._buffers.push(this.normalBuffer);
 
-		// Unbind VAO (state is now captured)
-		gl.bindVertexArray(null);
-		gl.bindBuffer(gl.ARRAY_BUFFER, null);
+		// Lightmap UVs (Always provide buffer)
+		if (this.hasLightmapUVs) {
+			this.lightmapUVBuffer = Mesh.buildBuffer(
+				null,
+				this.lightmapUVs,
+				"vertex",
+			);
+		} else {
+			this.lightmapUVBuffer = Mesh.buildBuffer(
+				null,
+				new Float32Array(vertexCount * 2),
+				"vertex",
+			);
+		}
+		this._buffers.push(this.lightmapUVBuffer);
+
+		// Define Vertex Attributes for State Creation (Always consistent layout)
+		const attributes = [
+			{
+				buffer: this.vertexBuffer,
+				slot: Mesh.ATTR_POSITIONS,
+				size: 3,
+				type: "float",
+			},
+			{
+				buffer: this.uvBuffer,
+				slot: Mesh.ATTR_UVS,
+				size: 2,
+				type: "float",
+			},
+			{
+				buffer: this.normalBuffer,
+				slot: Mesh.ATTR_NORMALS,
+				size: 3,
+				type: "float",
+			},
+			{
+				buffer: this.lightmapUVBuffer,
+				slot: Mesh.ATTR_LIGHTMAP_UVS,
+				size: 2,
+				type: "float",
+			},
+		];
+
+		// Create Vertex State (VAO)
+		this.vao = Backend.createVertexState({ attributes });
 	}
 
 	deleteMeshBuffers() {
 		if (this.vao) {
-			gl.deleteVertexArray(this.vao);
+			Backend.deleteVertexState(this.vao);
 			this.vao = null;
 		}
-		for (const indexObj of this.indices) {
-			gl.deleteBuffer(indexObj.indexBuffer);
+
+		// Delete all buffers we created
+		if (this._buffers) {
+			for (const buffer of this._buffers) {
+				Backend.deleteBuffer(buffer);
+			}
+			this._buffers = [];
 		}
-		gl.deleteBuffer(this.vertexBuffer);
-		if (this.hasUVs) gl.deleteBuffer(this.uvBuffer);
-		if (this.hasNormals) gl.deleteBuffer(this.normalBuffer);
-		if (this.hasLightmapUVs) gl.deleteBuffer(this.lightmapUVBuffer);
+
+		// References in indices/this need clearing?
+		// Logic above recreates them on init, so assuming `delete` is final before re-init or GC.
 	}
 
 	bind() {
-		// With VAO, we just bind it and all vertex attribute state is restored
-		gl.bindVertexArray(this.vao);
+		Backend.bindVertexState(this.vao);
 	}
 
 	unBind() {
-		gl.bindVertexArray(null);
+		Backend.bindVertexState(null);
 	}
 
 	#groupedIndices = null;
@@ -140,12 +170,13 @@ class Mesh {
 		shader = null,
 	) {
 		this.bind();
-		this.renderIndices(applyMaterial, renderMode ?? gl.TRIANGLES, mode, shader);
+		this.renderIndices(applyMaterial, renderMode ?? null, mode, shader);
 		this.unBind();
 	}
 
 	renderIndices(applyMaterial, renderMode = null, mode = "all", shader = null) {
-		const actualRenderMode = renderMode ?? gl.TRIANGLES;
+		const actualRenderMode = renderMode ?? null;
+
 		// Lazy initialization of grouped indices
 		if (!this.#groupedIndices && this.resources) {
 			this.#groupedIndices = {
@@ -168,9 +199,6 @@ class Mesh {
 			}
 		}
 
-		// Use grouped list if available (and resources exist), otherwise fallback to all
-		// If mode is a filter function (legacy support during transition), we handle that too for safety,
-		// though we aim to replace it.
 		let targets = this.indices;
 
 		if (typeof mode === "function") {
@@ -183,12 +211,13 @@ class Mesh {
 				if (!mode(material)) continue;
 
 				this.#bindMaterial(indexObj, applyMaterial, shader);
-				gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexObj.indexBuffer);
-				gl.drawElements(
-					actualRenderMode,
-					indexObj.indexBuffer.numItems,
-					gl.UNSIGNED_SHORT,
+
+				// Draw Abstracted
+				Backend.drawIndexed(
+					indexObj.indexBuffer,
+					indexObj.indexBuffer.length,
 					0,
+					actualRenderMode,
 				);
 			}
 			return;
@@ -200,12 +229,13 @@ class Mesh {
 
 		for (const indexObj of targets) {
 			this.#bindMaterial(indexObj, applyMaterial, shader);
-			gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexObj.indexBuffer);
-			gl.drawElements(
-				renderMode,
-				indexObj.indexBuffer.numItems,
-				gl.UNSIGNED_SHORT,
+
+			// Draw Abstracted
+			Backend.drawIndexed(
+				indexObj.indexBuffer,
+				indexObj.indexBuffer.length,
 				0,
+				actualRenderMode,
 			);
 		}
 	}
@@ -213,31 +243,37 @@ class Mesh {
 	renderWireFrame() {
 		this.bind();
 
-		for (const indexObj of this.indices) {
-			// Each triangle (3 indices) becomes 3 lines (6 indices)
-			const tempArray = new Uint16Array(indexObj.array.length * 2);
-			let lineCount = 0;
-			const indices = indexObj.array;
+		// Cache wireframe index buffers to avoid creating/destroying every frame
+		// (WebGPU requires buffers to stay alive until commands are submitted)
+		if (!this._wireframeBuffers) {
+			this._wireframeBuffers = [];
+			for (const indexObj of this.indices) {
+				const indices = indexObj.array;
+				// Uint16Array needed for index buffer
+				const tempArray = new Uint16Array(indices.length * 2);
+				let lineCount = 0;
 
-			for (let i = 0; i < indices.length; i += 3) {
-				tempArray[lineCount++] = indices[i];
-				tempArray[lineCount++] = indices[i + 1];
-				tempArray[lineCount++] = indices[i + 1];
-				tempArray[lineCount++] = indices[i + 2];
-				tempArray[lineCount++] = indices[i + 2];
-				tempArray[lineCount++] = indices[i];
+				for (let i = 0; i < indices.length; i += 3) {
+					tempArray[lineCount++] = indices[i];
+					tempArray[lineCount++] = indices[i + 1];
+					tempArray[lineCount++] = indices[i + 1];
+					tempArray[lineCount++] = indices[i + 2];
+					tempArray[lineCount++] = indices[i + 2];
+					tempArray[lineCount++] = indices[i];
+				}
+
+				// Create index buffer and cache it
+				const buffer = Backend.createBuffer(
+					tempArray.subarray(0, lineCount),
+					"index",
+				);
+				this._wireframeBuffers.push({ buffer, count: lineCount });
 			}
+		}
 
-			// Create and use a temporary buffer
-			const tempBuffer = gl.createBuffer();
-			gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, tempBuffer);
-			gl.bufferData(
-				gl.ELEMENT_ARRAY_BUFFER,
-				tempArray.subarray(0, lineCount),
-				gl.STREAM_DRAW,
-			);
-			gl.drawElements(gl.LINES, lineCount, gl.UNSIGNED_SHORT, 0);
-			gl.deleteBuffer(tempBuffer);
+		// Draw cached wireframe buffers
+		for (const wf of this._wireframeBuffers) {
+			Backend.drawIndexed(wf.buffer, wf.count, 0, "lines");
 		}
 
 		this.unBind();
@@ -271,12 +307,11 @@ class Mesh {
 		const vertexCount = readUint32();
 		const uvCount = readUint32();
 
-		// BMesh v2: has lightmapUVs, BMesh v1 (or unversioned): no lightmapUVs
 		let lightmapUVCount = 0;
 		if (version === 2) {
 			lightmapUVCount = readUint32();
 		} else {
-			readUint32(); // Skip old colorCount field from v1
+			readUint32();
 		}
 
 		const normalCount = readUint32();
@@ -288,7 +323,7 @@ class Mesh {
 		if (version === 2) {
 			this.lightmapUVs = readFloat32Array(lightmapUVCount);
 		} else {
-			this.lightmapUVs = []; // No lightmap UVs in v1
+			this.lightmapUVs = [];
 		}
 
 		this.normals = readFloat32Array(normalCount);
@@ -338,6 +373,7 @@ class Mesh {
 
 	calculateBoundingBox() {
 		if (this.vertices.length === 0) return null;
+		// vertices is array of numbers, BoundingBox.fromPoints expects [x,y,z, x,y,z] format which matches
 		return BoundingBox.fromPoints(this.vertices);
 	}
 }

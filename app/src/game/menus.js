@@ -1,4 +1,4 @@
-import { Settings, Stats, Utils } from "../engine/core/engine.js";
+import { resize, Settings, Stats } from "../engine/core/engine.js";
 import State from "./state.js";
 import Translations from "./translations.js";
 import UI from "./ui.js";
@@ -8,13 +8,21 @@ import Update from "./update.js";
 // Private
 // ============================================================================
 
+// Track if game has been started at least once
+let _hasStarted = false;
+
 // Main menu
 const _mainMenu = {
 	header: Translations.get("MAIN_MENU"),
 	controls: [
 		{
-			text: Translations.get("CONTINUE_GAME"),
+			get text() {
+				return _hasStarted
+					? Translations.get("CONTINUE_GAME")
+					: Translations.get("START_GAME");
+			},
 			callback: () => {
+				_hasStarted = true;
 				State.enterGame();
 			},
 		},
@@ -25,9 +33,46 @@ const _mainMenu = {
 			},
 		},
 		{
+			text: Translations.get("CREDITS"),
+			callback: () => {
+				UI.show("CREDITS_MENU");
+			},
+		},
+		{
 			text: Translations.get("VERSION_CHECK"),
 			callback: () => {
 				Update.force();
+			},
+		},
+	],
+};
+
+// Credits menu
+const _creditsMenu = {
+	header: Translations.get("CREDITS"),
+	controls: [
+		{
+			type: "link",
+			text: Translations.get("CREDITS_MAP"),
+			url: "https://lvlworld.com/review/id:2562",
+			linkText: "Focal Point by Lunaran",
+		},
+		{
+			type: "link",
+			text: Translations.get("CREDITS_PICKUPS"),
+			url: "https://www.cgtrader.com/3d-models/science/other/sci-fi-powerups-set",
+			linkText: "Sci-Fi Powerups Set",
+		},
+		{
+			type: "link",
+			text: Translations.get("CREDITS_WEAPONS"),
+			url: "https://www.cgtrader.com/3d-model-packs/sci-fi-weapon-pack",
+			linkText: "Sci-Fi Weapon Pack",
+		},
+		{
+			text: Translations.get("BACK"),
+			callback: () => {
+				UI.show("MAIN_MENU");
 			},
 		},
 	],
@@ -60,13 +105,47 @@ const _settingsMenu = {
 			label: Translations.get("GRAPHICS"),
 			controls: [
 				{
+					type: "select",
+					text: Translations.get("RENDERER"),
+					value: () => Settings.useWebGPU,
+					options: (() => {
+						const opts = [{ label: Translations.get("WEBGL"), value: false }];
+						if (navigator.gpu) {
+							opts.unshift({
+								label: `${Translations.get("WEBGPU")} (Experimental)`,
+								value: true,
+							});
+						}
+						return opts;
+					})(),
+					set: (v) => {
+						const doWebGPU = v === "true" || v === true;
+						if (Settings.useWebGPU !== doWebGPU) {
+							UI.showDialog(
+								Translations.get("RENDERER"),
+								Translations.get("RELOAD_CONFIRM"),
+								() => {
+									// Yes callback
+									Settings.useWebGPU = doWebGPU;
+									Settings.save();
+									window.location.reload();
+								},
+								() => {
+									// No callback - force UI refresh to revert selection
+									UI.show("SETTINGS_MENU");
+								},
+							);
+						}
+					},
+				},
+				{
 					type: "slider",
 					text: Translations.get("RENDER_SCALE"),
 					value: () => Settings.renderScale,
 					set: (v) => {
 						Settings.renderScale = parseFloat(v);
 						Settings.save();
-						Utils.dispatchEvent("resize");
+						resize();
 					},
 					min: 0.5,
 					max: 1.0,
@@ -167,6 +246,7 @@ const _settingsMenu = {
 // Register all menus
 UI.register("MAIN_MENU", _mainMenu);
 UI.register("SETTINGS_MENU", _settingsMenu);
+UI.register("CREDITS_MENU", _creditsMenu);
 UI.register("UPDATE_MENU", _updateMenu);
 
 const Menus = {};

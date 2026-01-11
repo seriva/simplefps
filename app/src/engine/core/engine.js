@@ -1,5 +1,7 @@
-import { Context } from "../rendering/context.js";
+import { Backend, backendReady } from "../rendering/backend.js";
 import Renderer from "../rendering/renderer.js";
+import { Shaders } from "../rendering/shaders.js";
+import Shapes from "../rendering/shapes.js";
 import DirectionalLightEntity from "../scene/directionallightentity.js";
 import { EntityTypes } from "../scene/entity.js";
 import FpsMeshEntity from "../scene/fpsmeshentity.js";
@@ -14,19 +16,36 @@ import Physics from "../systems/physics.js";
 import Resources from "../systems/resources.js";
 import Sound from "../systems/sound.js";
 import Stats from "../systems/stats.js";
-import Utils from "../utils/utils.js";
 import Camera from "./camera.js";
 import Settings from "./settings.js";
+import Utils from "./utils.js";
 
 // ============================================================================
 // Private
 // ============================================================================
 
 let _gameUpdate;
+let _gameUpdateBacking;
 let _gamePostPhysics;
 let _time;
 let _frameTime = 0;
 let _rafId;
+
+const _handleResize = () => {
+	Backend.resize();
+	Camera.updateProjection();
+	Renderer.resize();
+};
+
+const resize = () => _handleResize();
+
+window.addEventListener("resize", _handleResize, false);
+
+// Console command for render scale
+Console.registerCmd("rscale", (scale) => {
+	Settings.renderScale = Math.min(Math.max(scale, 0.2), 1);
+	resize();
+});
 
 const _frame = () => {
 	// timing
@@ -38,7 +57,7 @@ const _frame = () => {
 	Input.update();
 	if (_gameUpdate) _gameUpdate(_frameTime);
 	Physics.update(_frameTime / 1000);
-	if (_gamePostPhysics) _gamePostPhysics();
+	if (_gamePostPhysics) _gamePostPhysics(_frameTime);
 	Camera.update();
 	Scene.update(_frameTime);
 	Renderer.render();
@@ -46,34 +65,52 @@ const _frame = () => {
 	_rafId = window.requestAnimationFrame(_frame);
 };
 
-const pause = () => {
-	if (_rafId) {
-		window.cancelAnimationFrame(_rafId);
-		_rafId = null;
+const pause = (paused) => {
+	Physics.pause(paused);
+	Scene.pause(paused);
+	// Also pause game updates if provided via setGameLoop
+	if (paused) {
+		_gameUpdate = null;
+	} else if (_gameUpdateBacking) {
+		_gameUpdate = _gameUpdateBacking;
 	}
 };
 
-const resume = () => {
+const start = () => {
 	if (!_rafId) {
 		Input.resetDelta();
 		_time = null;
 		_rafId = window.requestAnimationFrame(_frame);
 	}
-	return pause;
 };
 
-const loop = resume;
+const init = async (config = {}) => {
+	await backendReady;
+	Resources.init();
+	Shaders.init();
+	Shapes.init();
+	resize();
 
-const setGameLoop = (update, postPhysics) => {
+	if (config.resources) {
+		await Resources.load(config.resources);
+	}
+};
+
+const setCallbacks = (update, postPhysics) => {
 	_gameUpdate = update;
+	_gameUpdateBacking = update;
 	_gamePostPhysics = postPhysics;
 };
 
+const getCanvas = () => Backend.getCanvas();
+
 export {
-	loop,
+	init,
+	start,
 	pause,
-	resume,
-	setGameLoop,
+	resize,
+	setCallbacks,
+	getCanvas,
 	Console,
 	Settings,
 	Utils,
@@ -82,7 +119,6 @@ export {
 	Physics,
 	Resources,
 	Camera,
-	Context,
 	Renderer,
 	Scene,
 	EntityTypes,

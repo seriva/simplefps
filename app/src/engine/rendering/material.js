@@ -1,4 +1,4 @@
-import { gl } from "./context.js";
+import { Backend } from "./backend.js";
 import { Shaders } from "./shaders.js";
 import Texture from "./texture.js";
 
@@ -25,6 +25,7 @@ class Material {
 		this.translucent = data.translucent || false;
 		this.doubleSided = data.doubleSided || false;
 		this.opacity = data.opacity !== undefined ? data.opacity : 1.0;
+		this.ubo = null;
 
 		// Load all referenced textures
 		for (const texturePath of Object.values(this.textures)) {
@@ -40,51 +41,59 @@ class Material {
 		// Bind textures using the slot definitions
 		for (const [slotName, { unit, sampler }] of Object.entries(TEXTURE_SLOTS)) {
 			const texturePath = this.textures[slotName];
-			if (texturePath) {
+			if (texturePath && this.resources.has(texturePath)) {
 				shader.setInt(sampler, unit);
-				this.resources.get(texturePath).bind(gl.TEXTURE0 + unit);
+				// bind() in Texture.js calls backend.bindTexture(unit)
+				// We pass 'unit' (0,1,2...), which Texture.js passes to Backend.
+				// Backend is now fixed to handle 0,1,2 correctly.
+				this.resources.get(texturePath).bind(unit);
 			}
 		}
 
-		// Infer flags from texture presence
-
 		// Material UBO (Binding Point 1)
-		// Layout std140:
-		// ivec4 flags;  // 16 bytes (type, doEmissive, doReflection, hasLightmap)
-		// vec4 params;  // 16 bytes (reflectionStrength, opacity, pad, pad)
-		// Total: 32 bytes
 		if (!this.ubo) {
-			this.ubo = gl.createBuffer();
-			const data = new Int32Array(8); // 32 bytes
-			// Flags
-			data[0] = this.geomType;
-			data[1] = this.textures.emissive ? 1 : 0;
-			data[2] = this.textures.reflection ? 1 : 0;
-			data[3] = this.textures.lightmap ? 1 : 0;
-
-			// Params (cast to float view)
-			const floatView = new Float32Array(data.buffer);
-			floatView[4] = this.reflectionStrength;
-			floatView[5] = this.opacity;
-
-			gl.bindBuffer(gl.UNIFORM_BUFFER, this.ubo);
-			gl.bufferData(gl.UNIFORM_BUFFER, data, gl.STATIC_DRAW);
-			gl.bindBuffer(gl.UNIFORM_BUFFER, null);
+			this._createUBO();
 		}
 
-		gl.bindBufferBase(gl.UNIFORM_BUFFER, 1, this.ubo);
+		Backend.bindUniformBuffer(this.ubo);
 
 		// Handle double-sided materials
 		if (this.doubleSided) {
-			gl.disable(gl.CULL_FACE);
+			Backend.setCullState(false);
 		} else if (!this.translucent) {
-			gl.enable(gl.CULL_FACE);
+			Backend.setCullState(true, "back");
 		}
+	}
+
+	_createUBO() {
+		// Layout std140:
+		// ivec4 flags;  // 16 bytes (geomType, doEmissive, doReflection, hasLightmap)
+		// vec4 params;  // 16 bytes (reflectionStrength, opacity, pad, pad)
+		// Total: 32 bytes
+
+		const data = new Int32Array(8); // 32 bytes
+		// Flags
+		data[0] = this.geomType;
+		data[1] = this.textures.emissive ? 1 : 0;
+		data[2] = this.textures.reflection ? 1 : 0;
+		data[3] = this.textures.lightmap ? 1 : 0;
+
+		// Params (cast to float view)
+		const floatView = new Float32Array(data.buffer);
+		floatView[4] = this.reflectionStrength;
+		floatView[5] = this.opacity;
+
+		// Create UBO via backend (size 32 bytes, binding point 1)
+		// We create it first
+		this.ubo = Backend.createUBO(32, 1);
+
+		// Then update logic
+		Backend.updateUBO(this.ubo, data);
 	}
 
 	unBind() {
 		for (const { unit } of Object.values(TEXTURE_SLOTS)) {
-			Texture.unBind(gl.TEXTURE0 + unit);
+			Texture.unBind(unit);
 		}
 	}
 }

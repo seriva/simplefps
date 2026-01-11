@@ -1,5 +1,5 @@
 import Console from "../systems/console.js";
-import Utils from "../utils/utils.js";
+import Utils from "./utils.js";
 
 // Public Settings object
 const Settings = {
@@ -11,6 +11,7 @@ export default Settings;
 // Private defaults
 const _defaults = {
 	// rendering
+	useWebGPU: true,
 	zNear: 0.1,
 	zFar: 8192,
 	renderScale: Utils.isMobile() ? 0.5 : 1.0,

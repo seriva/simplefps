@@ -9,8 +9,6 @@ import {
 // Private
 // ============================================================================
 
-// ============================================================================
-
 const _WEAPON_LIGHT_COLOR = [1.0, 1.0, 1.0];
 
 const _PICKUP_MAP = {
@@ -101,7 +99,6 @@ const _createPickup = (type, pos) => {
 		hasSpotlight = true,
 	} = _PICKUP_MAP[type];
 
-	// Use specific yOffset if defined, otherwise default
 	const hoverHeight =
 		(yOffset !== undefined ? yOffset : _PICKUP_OFFSET_Y / _SCALE) * _SCALE;
 
@@ -113,16 +110,14 @@ const _createPickup = (type, pos) => {
 		scale * _SCALE,
 	);
 	pickup.castShadow = true;
-	// Shadow height is now auto-calculated by MeshEntity.renderShadow()
 
 	const entities = [pickup];
 
-	// Only add spotlight if the pickup type requires it (Weapons)
 	if (hasSpotlight) {
 		const spotBaseY = pos[1] + _SPOTLIGHT_OFFSET_Y;
 		const spotLight = new SpotLightEntity(
 			[pos[0], spotBaseY, pos[2]],
-			[0, -1, 0], // Pointing down
+			[0, -1, 0],
 			lightColor,
 			_SPOTLIGHT_INTENSITY,
 			_SPOTLIGHT_ANGLE,
@@ -130,7 +125,6 @@ const _createPickup = (type, pos) => {
 			(entity, frameTime) => {
 				entity.animationTime = (entity.animationTime || 0) + frameTime;
 				const animationTimeInSeconds = entity.animationTime / _ROTATION_SPEED;
-				// Fix: Remove /_SCALE to restore full amplitude for the light
 				const offset =
 					Math.cos(Math.PI * animationTimeInSeconds) * _BOBBING_AMPLITUDE;
 				entity.setPosition([pos[0], spotBaseY + offset, pos[2]]);
@@ -138,12 +132,6 @@ const _createPickup = (type, pos) => {
 		);
 		entities.push(spotLight);
 	} else {
-		// Consumables: Use PointLight (Internal Glow)
-		// Note: No animation callback - light stays at a fixed position
-		// to avoid shadow shifting as the mesh bobs up and down
-
-		// Get mesh bounding box center offset to align light with visual mesh center
-		// Mesh loads asynchronously, so boundingBox might not be available yet
 		const mesh = pickup.mesh;
 		let lightOffsetX = 0;
 		let lightOffsetZ = 0;
