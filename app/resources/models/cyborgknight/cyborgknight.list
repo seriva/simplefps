@@ -1,0 +1,33 @@
+{
+  "resources": [
+    "models/cyborgknight/materials.mat",
+    "models/cyborgknight/cyborgknight.sbmesh",
+    "models/cyborgknight/crouch.banim",
+    "models/cyborgknight/crouch_idle.banim",
+    "models/cyborgknight/crouch_pain.banim",
+    "models/cyborgknight/crouch_point.banim",
+    "models/cyborgknight/crouch_shoot.banim",
+    "models/cyborgknight/crouch_shoot_pain.banim",
+    "models/cyborgknight/death01.banim",
+    "models/cyborgknight/death02.banim",
+    "models/cyborgknight/death03.banim",
+    "models/cyborgknight/idle.banim",
+    "models/cyborgknight/jump.banim",
+    "models/cyborgknight/lamp01_walk.banim",
+    "models/cyborgknight/pain01.banim",
+    "models/cyborgknight/pain02.banim",
+    "models/cyborgknight/pain03.banim",
+    "models/cyborgknight/pain03_shoot.banim",
+    "models/cyborgknight/run.banim",
+    "models/cyborgknight/run_begin.banim",
+    "models/cyborgknight/run_shoot.banim",
+    "models/cyborgknight/run_shoot_point.banim",
+    "models/cyborgknight/run_stop.banim",
+    "models/cyborgknight/stand_shoot.banim",
+    "models/cyborgknight/walk.banim",
+    "models/cyborgknight/walk_begin.banim",
+    "models/cyborgknight/walk_shoot.banim",
+    "models/cyborgknight/walk_shoot_point.banim",
+    "models/cyborgknight/walk_stop.banim"
+  ]
+}

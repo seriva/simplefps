@@ -44,6 +44,10 @@ class RenderBackend {
 		throw new Error("RenderBackend.createBuffer() must be implemented");
 	}
 
+	updateBuffer(_buffer, _data, _offset = 0) {
+		throw new Error("RenderBackend.updateBuffer() must be implemented");
+	}
+
 	createShaderProgram(_vertexOrWgslSrc, _fragmentSrcOrNull = null) {
 		throw new Error("RenderBackend.createShaderProgram() must be implemented");
 	}

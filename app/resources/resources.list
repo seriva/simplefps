@@ -49,6 +49,7 @@
         "meshes/meshes.mat",
         "meshes/ball.mesh",
         "sounds/shoot.sfx",
+        "models/cyborgknight/cyborgknight.list",
         "arenas/demo/resources.list"
     ]
 }

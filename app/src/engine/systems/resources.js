@@ -1,6 +1,8 @@
+import Animation from "../animation/animation.js";
 import Utils from "../core/utils.js";
 import Material from "../rendering/material.js";
 import Mesh from "../rendering/mesh.js";
+import SkinnedMesh from "../rendering/skinnedmesh.js";
 import Texture from "../rendering/texture.js";
 import Console from "./console.js";
 import Sound from "./sound.js";
@@ -96,8 +98,28 @@ const _fileExtRegex = /(?:\.([^.]+))?$/;
 // Private constants
 const _RESOURCE_TYPES = {
 	webp: (data) => new Texture({ data }),
-	mesh: (data, context) => new Mesh(JSON.parse(data), context),
-	bmesh: (data, context) => new Mesh(data, context),
+	mesh: async (data, context) => {
+		const mesh = new Mesh(JSON.parse(data), context);
+		await mesh.ready;
+		return mesh;
+	},
+	smesh: async (data, context) => {
+		const mesh = new SkinnedMesh(JSON.parse(data), context);
+		await mesh.ready;
+		return mesh;
+	},
+	bmesh: async (data, context) => {
+		const mesh = new Mesh(data, context);
+		await mesh.ready;
+		return mesh;
+	},
+	sbmesh: async (data, context) => {
+		const mesh = new SkinnedMesh(data, context);
+		await mesh.ready;
+		return mesh;
+	},
+	anim: (data) => new Animation(JSON.parse(data)),
+	banim: (data) => Animation.fromBlob(data),
 	mat: (data, context) => {
 		const matData = JSON.parse(data);
 		const materials = matData.materials;

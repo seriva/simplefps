@@ -1,0 +1,18 @@
+{
+    "materials": [
+        {
+            "name": "Unassigned",
+            "textures": {
+                "albedo": "models/cyborgknight/cyborgknight_diffuse.webp",
+                "emissive": "models/cyborgknight/cyborgknight_glow.webp"
+            }
+        },
+        {
+            "name": "Soldier_01",
+            "textures": {
+                "albedo": "models/cyborgknight/cyborgknight_diffuse.webp",
+                "emissive": "models/cyborgknight/cyborgknight_glow.webp"
+            }
+        }
+    ]
+}

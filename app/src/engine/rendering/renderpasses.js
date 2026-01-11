@@ -27,9 +27,12 @@ const _lightingData = new Float32Array(_LIGHTING_DATA_SIZE);
 let _lightingUBO = null;
 
 // Debug state
-let _showBoundingVolumes = false;
-let _showWireframes = false;
-let _showLightVolumes = false;
+const _debugState = {
+	showBoundingVolumes: false,
+	showWireframes: false,
+	showLightVolumes: false,
+	showSkeleton: false,
+};
 
 // Debug colors for each entity type
 const _boundingBoxColors = {
@@ -43,21 +46,26 @@ const _boundingBoxColors = {
 
 // Toggle functions for debug commands
 const toggleBoundingVolumes = () => {
-	_showBoundingVolumes = !_showBoundingVolumes;
+	_debugState.showBoundingVolumes = !_debugState.showBoundingVolumes;
 };
 
 const toggleWireframes = () => {
-	_showWireframes = !_showWireframes;
+	_debugState.showWireframes = !_debugState.showWireframes;
 };
 
 const toggleLightVolumes = () => {
-	_showLightVolumes = !_showLightVolumes;
+	_debugState.showLightVolumes = !_debugState.showLightVolumes;
+};
+
+const toggleSkeleton = () => {
+	_debugState.showSkeleton = !_debugState.showSkeleton;
 };
 
 // Register console commands
 Console.registerCmd("tbv", toggleBoundingVolumes);
 Console.registerCmd("twf", toggleWireframes);
 Console.registerCmd("tlv", toggleLightVolumes);
+Console.registerCmd("tsk", toggleSkeleton);
 
 // Helper to render entities
 const _renderEntities = (
@@ -279,7 +287,7 @@ const renderDebug = () => {
 	Backend.setDepthState(false, false);
 
 	// Render bounding volumes
-	if (_showBoundingVolumes) {
+	if (_debugState.showBoundingVolumes) {
 		for (const type in Scene.visibilityCache) {
 			Shaders.debug.setVec4("debugColor", _boundingBoxColors[type]);
 			for (const entity of Scene.visibilityCache[type]) {
@@ -289,7 +297,7 @@ const renderDebug = () => {
 	}
 
 	// Render mesh wireframes
-	if (_showWireframes) {
+	if (_debugState.showWireframes) {
 		Shaders.debug.setVec4("debugColor", [1, 1, 1, 1]);
 		const meshTypes = [
 			EntityTypes.MESH,
@@ -304,12 +312,26 @@ const renderDebug = () => {
 	}
 
 	// Render light volumes
-	if (_showLightVolumes) {
+	if (_debugState.showLightVolumes) {
 		Shaders.debug.setVec4("debugColor", [1, 1, 0, 1]);
 		const lightTypes = [EntityTypes.POINT_LIGHT, EntityTypes.SPOT_LIGHT];
 		for (const type of lightTypes) {
 			for (const entity of Scene.visibilityCache[type]) {
 				entity.renderWireFrame();
+			}
+		}
+	}
+
+	// Render skeleton
+	if (_debugState.showSkeleton) {
+		const skinnedTypes = [EntityTypes.MESH, EntityTypes.FPS_MESH];
+		for (const type of skinnedTypes) {
+			if (Scene.visibilityCache[type]) {
+				for (const entity of Scene.visibilityCache[type]) {
+					if (entity.renderSkeleton) {
+						entity.renderSkeleton();
+					}
+				}
 			}
 		}
 	}

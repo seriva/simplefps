@@ -7,6 +7,7 @@ import {
 	PointLightEntity,
 	Resources,
 	Scene,
+	SkinnedMeshEntity,
 	SkyboxEntity,
 	SpotLightEntity,
 	Utils,
@@ -74,6 +75,19 @@ const _setupPickups = (pickups = []) => {
 	}
 };
 
+const _setupPlayerModel = (spawn) => {
+	const pos = spawn.position || _DEFAULT_POSITION;
+	const character = new SkinnedMeshEntity(
+		pos,
+		"models/cyborgknight/cyborgknight.sbmesh",
+		null,
+		0.2, // MD5 models are very large, need scaling down
+	);
+	//character.playAnimation("models/cyborgknight/run.banim");
+	character.setRotation([-90, 0, 0]);
+	Scene.addEntities(character);
+};
+
 const _setupCollision = (chunks, _spawnPosition) => {
 	// Create collision bodies for each map chunk
 	for (const chunkPath of chunks) {
@@ -102,8 +116,6 @@ const _load = async (name) => {
 		_state.arena = arenaData;
 		Scene.init();
 
-		// Lightmap is now handled per-material in Material class
-
 		const { spawnpoint, spawnpoints, lighting, pickups } = _state.arena;
 
 		let startSpawn = spawnpoint || {};
@@ -125,6 +137,7 @@ const _load = async (name) => {
 			startSpawn.position || _DEFAULT_POSITION,
 		);
 		_setupPickups(pickups);
+		_setupPlayerModel(startSpawn);
 
 		Console.log(`Loaded arena: ${name}`);
 	} catch (error) {
