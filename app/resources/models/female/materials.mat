@@ -1,0 +1,10 @@
+{
+    "materials": [
+        {
+            "name": "Female01",
+            "textures": {
+                "albedo": "models/female/female_d.webp"
+            }
+        }
+    ]
+}
