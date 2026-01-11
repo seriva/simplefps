@@ -17,9 +17,6 @@ class Mesh {
 		this.skeleton = null;
 		this.weightData = null;
 
-		this.bindVertices = null;
-		this.bindNormals = null;
-
 		this.skinnedVertices = null;
 		this.skinnedNormals = null;
 
@@ -42,7 +39,7 @@ class Mesh {
 			this.loadFromJson(data);
 		}
 		this.initMeshBuffers();
-		this.boundingBox = this.calculateBoundingBox();
+		this.updateBoundingBox();
 	}
 
 	static buildBuffer(_type, data, usage) {
@@ -457,8 +454,6 @@ class Mesh {
 			}
 		}
 
-		this.bindVertices = new Float32Array(this.vertices);
-		this.bindNormals = new Float32Array(this.normals);
 		this.skinnedVertices = new Float32Array(this.vertices.length);
 		this.skinnedNormals = new Float32Array(this.normals.length);
 	}
@@ -485,9 +480,6 @@ class Mesh {
 		if (data.weights) {
 			this.weightData = data.weights;
 		}
-
-		this.bindVertices = new Float32Array(this.vertices);
-		this.bindNormals = new Float32Array(this.normals);
 
 		this.skinnedVertices = new Float32Array(this.vertices.length);
 		this.skinnedNormals = new Float32Array(this.normals.length);
@@ -567,25 +559,17 @@ class Mesh {
 	}
 
 	updateBoundingBox() {
-		if (this.skinnedVertices && this.skinnedVertices.length > 0) {
-			this.boundingBox = BoundingBox.fromPoints(
-				Array.from(this.skinnedVertices),
-			);
-		} else if (this.vertices && this.vertices.length > 0) {
-			this.boundingBox = BoundingBox.fromPoints(Array.from(this.vertices));
-		}
-	}
-
-	calculateBoundingBox() {
 		if (
 			this.skinnedVertices &&
 			this.skinnedVertices.length > 0 &&
 			this.isSkinned()
 		) {
-			return BoundingBox.fromPoints(Array.from(this.skinnedVertices));
+			this.boundingBox = BoundingBox.fromPoints(this.skinnedVertices);
+		} else if (this.vertices && this.vertices.length > 0) {
+			this.boundingBox = BoundingBox.fromPoints(this.vertices);
+		} else {
+			this.boundingBox = null;
 		}
-		if (this.vertices.length === 0) return null;
-		return BoundingBox.fromPoints(Array.from(this.vertices));
 	}
 
 	isSkinned() {
