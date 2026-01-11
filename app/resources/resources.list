@@ -49,7 +49,7 @@
         "meshes/meshes.mat",
         "meshes/ball.mesh",
         "sounds/shoot.sfx",
-        "models/cyborgknight/cyborgknight.list",
+        "models/female/female.list",
         "arenas/demo/resources.list"
     ]
 }

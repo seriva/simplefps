@@ -112,7 +112,7 @@ class SkinnedMesh {
 		const uvCount = readUint32();
 
 		let lightmapUVCount = 0;
-		if (version === 2) {
+		if (version >= 2) {
 			lightmapUVCount = readUint32();
 		} else {
 			readUint32();
@@ -123,7 +123,8 @@ class SkinnedMesh {
 
 		let jointCount = 0;
 		let weightCount = 0;
-		const hasSkeletal = version === 3;
+		const hasSkeletal = version >= 3;
+		const hasWeightNormals = version >= 4;
 
 		if (hasSkeletal) {
 			jointCount = readUint32();
@@ -209,16 +210,21 @@ class SkinnedMesh {
 				const jointIndices = [];
 				const weights = [];
 				const positions = [];
+				const normals = [];
 				for (let j = 0; j < count; j++) {
 					jointIndices.push(readUint32());
 					weights.push(readFloat32());
 					positions.push([readFloat32(), readFloat32(), readFloat32()]);
+					if (hasWeightNormals) {
+						normals.push([readFloat32(), readFloat32(), readFloat32()]);
+					}
 				}
 				this.weightData.push({
 					vertex,
 					joints: jointIndices,
 					weights,
 					positions,
+					normals,
 				});
 			}
 		}
@@ -420,6 +426,40 @@ class SkinnedMesh {
 		}
 	}
 
+	renderWireFrame() {
+		this.bind();
+
+		if (!this._wireframeBuffers) {
+			this._wireframeBuffers = [];
+			for (const indexObj of this.indices) {
+				const indices = indexObj.array;
+				const tempArray = new Uint16Array(indices.length * 2);
+				let lineCount = 0;
+
+				for (let i = 0; i < indices.length; i += 3) {
+					tempArray[lineCount++] = indices[i];
+					tempArray[lineCount++] = indices[i + 1];
+					tempArray[lineCount++] = indices[i + 1];
+					tempArray[lineCount++] = indices[i + 2];
+					tempArray[lineCount++] = indices[i + 2];
+					tempArray[lineCount++] = indices[i];
+				}
+
+				const buffer = Backend.createBuffer(
+					tempArray.subarray(0, lineCount),
+					"index",
+				);
+				this._wireframeBuffers.push({ buffer, count: lineCount });
+			}
+		}
+
+		for (const wf of this._wireframeBuffers) {
+			Backend.drawIndexed(wf.buffer, wf.count, 0, "lines");
+		}
+
+		this.unBind();
+	}
+
 	calculateBoundingBox() {
 		if (this.vertices.length === 0) return null;
 		return BoundingBox.fromPoints(Array.from(this.vertices));
@@ -442,43 +482,55 @@ class SkinnedMesh {
 			const vertIdx = weightEntry.vertex;
 			const vBase = vertIdx * 3;
 
-			// bindPos/bindNormal not needed for MD5 skinning formula
-
 			let px = 0,
 				py = 0,
 				pz = 0;
-			const nx = 0,
+			let nx = 0,
 				ny = 0,
 				nz = 0;
 
 			for (let w = 0; w < weightEntry.joints.length; w++) {
 				const jointIdx = weightEntry.joints[w];
 				const weight = weightEntry.weights[w];
-				const weightPos = weightEntry.positions[w];
 				const jointMatrix = worldMatrices[jointIdx];
 
 				// Transform weight position by joint world matrix
+				const weightPos = weightEntry.positions[w];
 				vec3.transformMat4(this._tempVec, weightPos, jointMatrix);
 				px += this._tempVec[0] * weight;
 				py += this._tempVec[1] * weight;
 				pz += this._tempVec[2] * weight;
 
-				// For normals, we'd typically need bind normals or reconstruct them.
-				// Since MD5 Normals are placeholders, stick to zeros or use world rotation?
-				// Using the same joint matrix rotation for normals (simplified):
-				/*
-				this._tempNormal[0] = jointMatrix[0] * 0 + jointMatrix[4] * 1 + jointMatrix[8] * 0; // assuming up normal
-				// ... this is complex without bind normals. Leaving normals 0 for now.
-				*/
+				// Transform weight normal by joint world matrix (rotation only)
+				if (weightEntry.normals && weightEntry.normals[w]) {
+					const weightNormal = weightEntry.normals[w];
+					// Transform normal by 3x3 part of matrix
+					// n' = M * n (where M is worldMatrix)
+					// Since MD5 doesn't use non-uniform scaling, we don't need inverse-transpose.
+					const rx = weightNormal[0],
+						ry = weightNormal[1],
+						rz = weightNormal[2];
+					const tx =
+						jointMatrix[0] * rx + jointMatrix[4] * ry + jointMatrix[8] * rz;
+					const ty =
+						jointMatrix[1] * rx + jointMatrix[5] * ry + jointMatrix[9] * rz;
+					const tz =
+						jointMatrix[2] * rx + jointMatrix[6] * ry + jointMatrix[10] * rz;
+
+					nx += tx * weight;
+					ny += ty * weight;
+					nz += tz * weight;
+				}
 			}
 
 			this.skinnedVertices[vBase] = px;
 			this.skinnedVertices[vBase + 1] = py;
 			this.skinnedVertices[vBase + 2] = pz;
-			const len = Math.sqrt(nx * nx + ny * ny + nz * nz) || 1;
-			this.skinnedNormals[vBase] = nx / len;
-			this.skinnedNormals[vBase + 1] = ny / len;
-			this.skinnedNormals[vBase + 2] = nz / len;
+
+			const nLen = Math.sqrt(nx * nx + ny * ny + nz * nz) || 1;
+			this.skinnedNormals[vBase] = nx / nLen;
+			this.skinnedNormals[vBase + 1] = ny / nLen;
+			this.skinnedNormals[vBase + 2] = nz / nLen;
 		}
 
 		Backend.updateBuffer(this.vertexBuffer, this.skinnedVertices);

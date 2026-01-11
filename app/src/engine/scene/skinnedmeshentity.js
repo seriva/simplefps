@@ -4,12 +4,13 @@ import Mesh from "../rendering/mesh.js";
 import { Shaders } from "../rendering/shaders.js";
 import Resources from "../systems/resources.js";
 import { Entity, EntityTypes } from "./entity.js";
+import MeshEntity from "./meshentity.js";
 
 const _tempMatrix = mat4.create();
 
-class SkinnedMeshEntity extends Entity {
+class SkinnedMeshEntity extends MeshEntity {
 	constructor(position, meshName, updateCallback, scale = 1) {
-		super(EntityTypes.MESH, updateCallback);
+		super(position, meshName, updateCallback, scale);
 		this.mesh = Resources.get(meshName);
 		this.scale = scale;
 		this.debugSkeleton = false;
@@ -19,9 +20,6 @@ class SkinnedMeshEntity extends Entity {
 		} else {
 			this.animationPlayer = null;
 		}
-
-		mat4.translate(this.base_matrix, this.base_matrix, position);
-		mat4.scale(this.base_matrix, this.base_matrix, [scale, scale, scale]);
 	}
 
 	setRotation(rotation) {
@@ -75,11 +73,6 @@ class SkinnedMeshEntity extends Entity {
 		mat4.multiply(_tempMatrix, this.base_matrix, this.ani_matrix);
 		shader.setMat4("matWorld", _tempMatrix);
 		this.mesh.renderSingle(true, null, filter, shader);
-	}
-
-	renderShadow() {
-		// Skinned meshes don't cast shadows for now (would need shadow height calculation)
-		// Can be implemented later if needed
 	}
 
 	renderWireFrame() {
