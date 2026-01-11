@@ -331,6 +331,15 @@ class WebGLBackend extends RenderBackend {
 		gl.deleteBuffer(buffer._glBuffer);
 	}
 
+	updateBuffer(buffer, data, offset = 0) {
+		const gl = this._gl;
+		const target =
+			buffer.usage === "index" ? gl.ELEMENT_ARRAY_BUFFER : gl.ARRAY_BUFFER;
+		gl.bindBuffer(target, buffer._glBuffer);
+		gl.bufferSubData(target, offset, data);
+		gl.bindBuffer(target, null);
+	}
+
 	createVertexState(descriptor) {
 		const gl = this._gl;
 		const vao = gl.createVertexArray();

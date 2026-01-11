@@ -319,7 +319,7 @@ class FPSController {
 			}
 
 			// Smoothly interpolate current roll towards target
-			const smoothing = 1 - Math.pow(0.001, frameTime);
+			const smoothing = 1 - 0.001 ** frameTime;
 			this.currentRoll =
 				(this.currentRoll || 0) +
 				(targetRoll - (this.currentRoll || 0)) * smoothing;
