@@ -63,6 +63,15 @@ class Skeleton {
 			mat4.invert(inv, m);
 			return inv;
 		});
+
+		// Pre-allocate caches for runtime matrices
+		this._worldMatrices = Array.from({ length: this.jointCount }, () =>
+			mat4.create(),
+		);
+		this._skinMatrices = Array.from({ length: this.jointCount }, () =>
+			mat4.create(),
+		);
+		this._tempMatrix = mat4.create();
 	}
 
 	getJoint(name) {
@@ -74,23 +83,23 @@ class Skeleton {
 	}
 
 	#computeWorldMatrices(pose) {
-		const worldMatrices = [];
-		const localMatrix = mat4.create();
+		const worldMatrices = this._worldMatrices;
+		const localMatrix = this._tempMatrix;
 
 		for (let i = 0; i < this.jointCount; i++) {
 			const joint = this.joints[i];
 			const jointPose = pose[i];
 
+			// Compute local matrix
 			mat4.fromRotationTranslation(localMatrix, jointPose.rot, jointPose.pos);
 
-			const worldMatrix = mat4.create();
+			// Compute world matrix
+			const worldMatrix = worldMatrices[i];
 			if (joint.parent >= 0) {
 				mat4.multiply(worldMatrix, worldMatrices[joint.parent], localMatrix);
 			} else {
 				mat4.copy(worldMatrix, localMatrix);
 			}
-
-			worldMatrices.push(worldMatrix);
 		}
 
 		return worldMatrices;
@@ -115,13 +124,15 @@ class Skeleton {
 	}
 
 	computeSkinningMatrices(pose) {
-		const worldMatrices = this.#computeWorldMatrices(pose);
-		const skinMatrices = [];
+		this.#computeWorldMatrices(pose); // Populates this._worldMatrices
+		const skinMatrices = this._skinMatrices;
 
 		for (let i = 0; i < this.jointCount; i++) {
-			const skinMatrix = mat4.create();
-			mat4.multiply(skinMatrix, worldMatrices[i], this.inverseBindMatrices[i]);
-			skinMatrices.push(skinMatrix);
+			mat4.multiply(
+				skinMatrices[i],
+				this._worldMatrices[i],
+				this.inverseBindMatrices[i],
+			);
 		}
 
 		return skinMatrices;
@@ -168,18 +179,12 @@ class Pose {
 
 	static lerp(out, poseA, poseB, t) {
 		for (let i = 0; i < out.jointCount; i++) {
-			// Interpolate
-			const a = poseA.localTransforms[i].rot;
-			const b = poseB.localTransforms[i].rot;
-			const dot = a[0] * b[0] + a[1] * b[1] + a[2] * b[2] + a[3] * b[3];
-
-			if (dot < 0) {
-				// Negate b to take shortest path
-				const negB = [-b[0], -b[1], -b[2], -b[3]];
-				quat.slerp(out.localTransforms[i].rot, a, negB, t);
-			} else {
-				quat.slerp(out.localTransforms[i].rot, a, b, t);
-			}
+			quat.slerp(
+				out.localTransforms[i].rot,
+				poseA.localTransforms[i].rot,
+				poseB.localTransforms[i].rot,
+				t,
+			);
 			vec3.lerp(
 				out.localTransforms[i].pos,
 				poseA.localTransforms[i].pos,
