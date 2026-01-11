@@ -77,13 +77,15 @@ const _setupPickups = (pickups = []) => {
 
 const _setupPlayerModel = (spawn) => {
 	const pos = spawn.position || _DEFAULT_POSITION;
+	const modelPos = [pos[0] + 2, pos[1], pos[2]];
 	const character = new SkinnedMeshEntity(
-		pos,
-		"models/cyborgknight/cyborgknight.sbmesh",
+		modelPos,
+		"models/female/female.sbmesh",
 		null,
-		0.2, // MD5 models are very large, need scaling down
+		10, // Female model is already in meters (~1.3m tall)
 	);
-	//character.playAnimation("models/cyborgknight/run.banim");
+	character.castShadow = true;
+	character.playAnimation("models/female/female.banim");
 	character.setRotation([-90, 0, 0]);
 	Scene.addEntities(character);
 };

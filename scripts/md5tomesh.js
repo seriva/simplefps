@@ -292,11 +292,11 @@ function computeBindPoseVertices(md5mesh) {
 
                 weightData.joints.push(weight.joint);
                 weightData.weights.push(weight.bias);
-                weightData.positions.push([...weight.pos]); // Store weight position offset
+                weightData.positions.push([...weight.pos]);
+                weightData.normals = weightData.normals || []; // Initialize for later
             }
 
             vertices.push(px, py, pz);
-            normals.push(0, 1, 0); // Placeholder normals
             allUVs.push(vert.uv[0], vert.uv[1]);
             allWeights.push(weightData);
         }
@@ -314,6 +314,8 @@ function computeBindPoseVertices(md5mesh) {
             const edge1 = [v1[0] - v0[0], v1[1] - v0[1], v1[2] - v0[2]];
             const edge2 = [v2[0] - v0[0], v2[1] - v0[1], v2[2] - v0[2]];
 
+            // MD5 winding is usually counter-clockwise but engine might differ. 
+            // Sticking to edge1 x edge2 for now.
             const normal = [
                 edge1[1] * edge2[2] - edge1[2] * edge2[1],
                 edge1[2] * edge2[0] - edge1[0] * edge2[2],
@@ -327,11 +329,27 @@ function computeBindPoseVertices(md5mesh) {
             }
         }
 
-        // Normalize and store
+        // Normalize and store vertex normals, and BACK-TRANSFORM them to joint-local space
         for (let v = 0; v < mesh.verts.length; v++) {
             const n = vertexNormals[v];
             const len = Math.sqrt(n[0] * n[0] + n[1] * n[1] + n[2] * n[2]) || 1;
-            allNormals.push(n[0] / len, n[1] / len, n[2] / len);
+            const normalizedN = [n[0] / len, n[1] / len, n[2] / len];
+            allNormals.push(...normalizedN);
+
+            // Now, for each weight influencing this vertex, rotate the bind normal into the joint's local space
+            const vertMatch = mesh.verts[v];
+            const weightData = allWeights[vertexOffset + vertMatch.index];
+
+            for (let w = 0; w < vertMatch.countWeight; w++) {
+                const weightIdx = vertMatch.startWeight + w;
+                const weight = mesh.weights[weightIdx];
+                const joint = md5mesh.joints[weight.joint];
+
+                // Normal rotation: Rotate by inverse(joint.rot)
+                const invRot = quaternionInverse(joint.rot);
+                const localNormal = quaternionRotate(invRot, normalizedN);
+                weightData.normals.push(localNormal);
+            }
         }
 
         allVertices.push(...vertices);
@@ -374,6 +392,24 @@ function quaternionRotate(q, v) {
     ];
 }
 
+function quaternionMultiply(a, b) {
+    const ax = a[0], ay = a[1], az = a[2], aw = a[3];
+    const bx = b[0], by = b[1], bz = b[2], bw = b[3];
+    return [
+        aw * bx + ax * bw + ay * bz - az * by,
+        aw * by - ax * bz + ay * bw + az * bx,
+        aw * bz + ax * by - ay * bx + az * bw,
+        aw * bw - ax * bx - ay * by - az * bz
+    ];
+}
+
+function quaternionInverse(q) {
+    // For unit quaternions, inverse is just conjugate
+    const lenSq = q[0] * q[0] + q[1] * q[1] + q[2] * q[2] + q[3] * q[3];
+    if (lenSq === 0) return [0, 0, 0, 1];
+    return [-q[0] / lenSq, -q[1] / lenSq, -q[2] / lenSq, q[3] / lenSq];
+}
+
 // ============================================================================
 // Output Formats
 // ============================================================================
@@ -408,10 +444,10 @@ function saveMeshBinary(meshData, outputPath) {
         jointNamesTotalSize += joint.name.length + 1; // +1 for null terminator
     }
 
-    // Calculate weights size: for each weight entry, we store vertex index, count, then (joint, weight) pairs
+    // Calculate weights size: for each weight entry, we store vertex index, count, then (joint, weight, pos, norm) triplets
     let weightsDataSize = 0;
     for (const w of weights) {
-        weightsDataSize += 4 + 4 + w.joints.length * (4 + 4 + 12); // vertex(4) + count(4) + N*(joint(4)+weight(4)+pos(12))
+        weightsDataSize += 4 + 4 + w.joints.length * (4 + 4 + 12 + 12); // vertex(4) + count(4) + N*(joint(4)+weight(4)+pos(12)+norm(12))
     }
 
     // Header: version(4) + vertexCount(4) + uvCount(4) + lightmapUVCount(4) + normalCount(4) + indexGroupCount(4)
@@ -440,7 +476,7 @@ function saveMeshBinary(meshData, outputPath) {
     };
 
     // Header
-    writeU32(hasSkeletalData ? 3 : 1); // version 3 = skeletal mesh
+    writeU32(hasSkeletalData ? 4 : 1); // version 4 = skeletal mesh with weight normals
     writeU32(vertexCount);
     writeU32(uvCount);
     writeU32(0); // lightmapUVCount
@@ -489,6 +525,7 @@ function saveMeshBinary(meshData, outputPath) {
                 writeU32(w.joints[i]);
                 writeF32(w.weights[i]);
                 writeF32Array(w.positions[i]); // Write weight position offset
+                writeF32Array(w.normals[i]);   // Write weight normal offset [NEW in Ver 4]
             }
         }
     }
@@ -542,6 +579,7 @@ function parseArgs() {
     const animPaths = [];
     let outputBinary = false;
     let scale = 1.0;
+    let rotateX = 0; // Degrees
 
     for (let i = 0; i < args.length; i++) {
         const arg = args[i];
@@ -550,6 +588,8 @@ function parseArgs() {
             outputBinary = true;
         } else if (arg === '--scale' || arg === '-s') {
             scale = parseFloat(args[++i]) || 1.0;
+        } else if (arg === '--rotatex' || arg === '-rx') {
+            rotateX = parseFloat(args[++i]) || 0;
         } else if (arg === '--help' || arg === '-h') {
             console.log(`
 Usage: node md5tomesh.js [options] <model.md5mesh> [anim1.md5anim ...]
@@ -607,6 +647,7 @@ function main() {
             }
         }
     }
+
 
     // Compute bind pose mesh
     const meshData = computeBindPoseVertices(md5mesh);
@@ -681,6 +722,7 @@ function main() {
                 }
             }
         }
+
 
         const animData = {
             name: animName,
