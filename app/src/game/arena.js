@@ -80,7 +80,7 @@ const _setupPlayerModel = (spawn) => {
 	const modelPos = [pos[0] + 2, pos[1], pos[2]];
 	const character = new SkinnedMeshEntity(
 		modelPos,
-		"models/female/female.sbmesh",
+		"models/female/female.bmesh",
 		null,
 		10, // Female model is already in meters (~1.3m tall)
 	);
