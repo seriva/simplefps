@@ -2,12 +2,22 @@ import Animation from "../animation/animation.js";
 import Utils from "../core/utils.js";
 import Material from "../rendering/material.js";
 import Mesh from "../rendering/mesh.js";
-import SkinnedMesh from "../rendering/skinnedmesh.js";
 import Texture from "../rendering/texture.js";
 import Console from "./console.js";
 import Sound from "./sound.js";
 
 // Public Resources API
+const _loadMesh = async (data, context) => {
+	// If data is a string/json
+	if (typeof data === "string") {
+		data = JSON.parse(data);
+	}
+	// If data is a Blob (binary), Mesh constructor handles it via loadFromBlob
+	const mesh = new Mesh(data, context);
+	await mesh.ready;
+	return mesh;
+};
+
 const Resources = {
 	// Callbacks for load lifecycle (set by game layer)
 	onLoadStart: null,
@@ -98,26 +108,8 @@ const _fileExtRegex = /(?:\.([^.]+))?$/;
 // Private constants
 const _RESOURCE_TYPES = {
 	webp: (data) => new Texture({ data }),
-	mesh: async (data, context) => {
-		const mesh = new Mesh(JSON.parse(data), context);
-		await mesh.ready;
-		return mesh;
-	},
-	smesh: async (data, context) => {
-		const mesh = new SkinnedMesh(JSON.parse(data), context);
-		await mesh.ready;
-		return mesh;
-	},
-	bmesh: async (data, context) => {
-		const mesh = new Mesh(data, context);
-		await mesh.ready;
-		return mesh;
-	},
-	sbmesh: async (data, context) => {
-		const mesh = new SkinnedMesh(data, context);
-		await mesh.ready;
-		return mesh;
-	},
+	mesh: _loadMesh,
+	bmesh: _loadMesh,
 	anim: (data) => new Animation(JSON.parse(data)),
 	banim: (data) => Animation.fromBlob(data),
 	mat: (data, context) => {
