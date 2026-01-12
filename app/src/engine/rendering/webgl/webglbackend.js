@@ -345,37 +345,59 @@ class WebGLBackend extends RenderBackend {
 		const vao = gl.createVertexArray();
 		gl.bindVertexArray(vao);
 
+		let hasIntegerAttribs = false;
 		for (const attr of descriptor.attributes) {
 			let type = gl.FLOAT;
+			let isInteger = false;
 			if (attr.type === "float") type = gl.FLOAT;
 			else if (attr.type === "byte") type = gl.BYTE;
-			else if (attr.type === "unsigned-byte") type = gl.UNSIGNED_BYTE;
-			else if (attr.type === "short") type = gl.SHORT;
+			else if (attr.type === "unsigned-byte" || attr.type === "ubyte") {
+				type = gl.UNSIGNED_BYTE;
+				isInteger = attr.asInteger || false;
+			} else if (attr.type === "short") type = gl.SHORT;
 			else if (attr.type === "unsigned-short") type = gl.UNSIGNED_SHORT;
-			else if (attr.type === "int") type = gl.INT;
-			else if (attr.type === "unsigned-int") type = gl.UNSIGNED_INT;
-			else if (typeof attr.type === "number") type = attr.type;
+			else if (attr.type === "int") {
+				type = gl.INT;
+				isInteger = true;
+			} else if (attr.type === "unsigned-int") {
+				type = gl.UNSIGNED_INT;
+				isInteger = true;
+			} else if (typeof attr.type === "number") type = attr.type;
 
 			gl.bindBuffer(gl.ARRAY_BUFFER, attr.buffer._glBuffer);
-			gl.vertexAttribPointer(
-				attr.slot,
-				attr.size,
-				type,
-				attr.normalized || false,
-				attr.stride || 0,
-				attr.offset || 0,
-			);
+
+			if (isInteger) {
+				hasIntegerAttribs = true;
+				// Use vertexAttribIPointer for integer attributes (keeps them as integers)
+				gl.vertexAttribIPointer(
+					attr.slot,
+					attr.size,
+					type,
+					attr.stride || 0,
+					attr.offset || 0,
+				);
+			} else {
+				gl.vertexAttribPointer(
+					attr.slot,
+					attr.size,
+					type,
+					attr.normalized || false,
+					attr.stride || 0,
+					attr.offset || 0,
+				);
+			}
 			gl.enableVertexAttribArray(attr.slot);
 		}
 
 		gl.bindVertexArray(null);
 		gl.bindBuffer(gl.ARRAY_BUFFER, null);
 
-		return { _glVAO: vao };
+		return { _glVAO: vao, _hasIntegerAttribs: hasIntegerAttribs };
 	}
 
 	bindVertexState(vertexState) {
 		const gl = this._gl;
+		this._currentVAO = vertexState;
 		gl.bindVertexArray(vertexState ? vertexState._glVAO : null);
 	}
 
@@ -850,6 +872,9 @@ class WebGLBackend extends RenderBackend {
 				gl.uniform4f(location, value[0], value[1], value[2], value[3]);
 				break;
 			case "mat4":
+				gl.uniformMatrix4fv(location, false, value);
+				break;
+			case "mat4[]":
 				gl.uniformMatrix4fv(location, false, value);
 				break;
 			case "vec3[]":

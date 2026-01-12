@@ -411,13 +411,72 @@ function quaternionInverse(q) {
 }
 
 // ============================================================================
+// Convert MD5 weights to GPU-friendly 4-bone-per-vertex format
+// ============================================================================
+
+const MAX_BONES_PER_VERTEX = 4;
+
+function convertWeightsToGPUFormat(weights, vertexCount) {
+    // Output arrays: 4 joint indices and 4 weights per vertex
+    const jointIndices = new Uint8Array(vertexCount * MAX_BONES_PER_VERTEX);
+    const jointWeights = new Float32Array(vertexCount * MAX_BONES_PER_VERTEX);
+
+    // Initialize all weights to 0 and indices to 0
+    jointIndices.fill(0);
+    jointWeights.fill(0);
+
+    for (const w of weights) {
+        const vertIdx = w.vertex;
+        const baseIdx = vertIdx * MAX_BONES_PER_VERTEX;
+
+        // Sort weights by influence (descending) and take top 4
+        const influences = w.joints.map((joint, i) => ({
+            joint,
+            weight: w.weights[i]
+        })).sort((a, b) => b.weight - a.weight);
+
+        // Take up to 4 influences
+        const count = Math.min(influences.length, MAX_BONES_PER_VERTEX);
+        let totalWeight = 0;
+
+        for (let i = 0; i < count; i++) {
+            jointIndices[baseIdx + i] = influences[i].joint;
+            jointWeights[baseIdx + i] = influences[i].weight;
+            totalWeight += influences[i].weight;
+        }
+
+        // Renormalize weights to sum to 1.0 (important if we dropped some)
+        if (totalWeight > 0 && count > 0) {
+            for (let i = 0; i < count; i++) {
+                jointWeights[baseIdx + i] /= totalWeight;
+            }
+        } else if (count > 0) {
+            // Fallback: equal weight to first bone
+            jointWeights[baseIdx] = 1.0;
+        }
+    }
+
+    return { jointIndices, jointWeights };
+}
+
+// ============================================================================
 // Output Formats
 // ============================================================================
 
 function saveMeshJson(meshData, outputPath) {
+    // Add GPU skinning data to JSON output
+    if (meshData.weights && meshData.weights.length > 0) {
+        const numVertices = meshData.vertices.length / 3;
+        const gpuSkinning = convertWeightsToGPUFormat(meshData.weights, numVertices);
+        
+        // Convert Uint8Array and Float32Array to regular arrays for JSON
+        meshData.gpuJointIndices = Array.from(gpuSkinning.jointIndices);
+        meshData.gpuJointWeights = Array.from(gpuSkinning.jointWeights);
+    }
+    
     const json = JSON.stringify(meshData, null, 2);
     fs.writeFileSync(outputPath, json);
-    console.log(`Created: ${outputPath}`);
+    console.log(`Created: ${outputPath} (with GPU skinning data)`);
 }
 
 function saveAnimJson(animData, outputPath) {
@@ -432,11 +491,18 @@ function saveMeshBinary(meshData, outputPath) {
     const uvCount = meshData.uvs.length;
     const normalCount = meshData.normals.length;
     const totalIndicesCount = meshData.indices.reduce((sum, g) => sum + g.array.length, 0);
+    const numVertices = vertexCount / 3;
 
     // Skeleton data
     const joints = meshData.skeleton?.joints || [];
     const weights = meshData.weights || [];
     const hasSkeletalData = joints.length > 0;
+
+    // GPU skinning data (4 joints + 4 weights per vertex)
+    let gpuSkinningData = null;
+    if (hasSkeletalData && weights.length > 0) {
+        gpuSkinningData = convertWeightsToGPUFormat(weights, numVertices);
+    }
 
     // Calculate joint names total size (null-terminated strings)
     let jointNamesTotalSize = 0;
@@ -449,6 +515,9 @@ function saveMeshBinary(meshData, outputPath) {
     for (const w of weights) {
         weightsDataSize += 4 + 4 + w.joints.length * (4 + 4 + 12 + 12); // vertex(4) + count(4) + N*(joint(4)+weight(4)+pos(12)+norm(12))
     }
+
+    // GPU skinning size: jointIndices (4 bytes per vertex) + jointWeights (16 bytes per vertex)
+    const gpuSkinningSize = hasSkeletalData ? (numVertices * 4 + numVertices * 16) : 0;
 
     // Header: version(4) + vertexCount(4) + uvCount(4) + lightmapUVCount(4) + normalCount(4) + indexGroupCount(4)
     //         + skeletalFlag(4) + jointCount(4) + weightCount(4)
@@ -463,20 +532,21 @@ function saveMeshBinary(meshData, outputPath) {
         normalCount * 4 +
         meshData.indices.length * (MATERIAL_NAME_SIZE + 4) +
         totalIndicesCount * 4 +
-        (hasSkeletalData ? jointDataSize + weightsDataSize : 0);
+        (hasSkeletalData ? jointDataSize + weightsDataSize + gpuSkinningSize : 0);
 
     const buffer = Buffer.alloc(bufferSize);
     let offset = 0;
 
     const writeU32 = v => { buffer.writeUInt32LE(v, offset); offset += 4; };
+    const writeU8 = v => { buffer.writeUInt8(v, offset); offset += 1; };
     const writeI32 = v => { buffer.writeInt32LE(v, offset); offset += 4; };
     const writeF32 = v => { buffer.writeFloatLE(v, offset); offset += 4; };
     const writeF32Array = arr => {
         for (const v of arr) writeF32(v);
     };
 
-    // Header
-    writeU32(hasSkeletalData ? 4 : 1); // version 4 = skeletal mesh with weight normals
+    // Header - version 5 = includes GPU skinning data
+    writeU32(hasSkeletalData ? 5 : 1);
     writeU32(vertexCount);
     writeU32(uvCount);
     writeU32(0); // lightmapUVCount
@@ -517,7 +587,7 @@ function saveMeshBinary(meshData, outputPath) {
             offset += joint.name.length + 1;
         }
 
-        // Weights
+        // Legacy weights (for CPU skinning fallback)
         for (const w of weights) {
             writeU32(w.vertex);
             writeU32(w.joints.length);
@@ -525,13 +595,25 @@ function saveMeshBinary(meshData, outputPath) {
                 writeU32(w.joints[i]);
                 writeF32(w.weights[i]);
                 writeF32Array(w.positions[i]); // Write weight position offset
-                writeF32Array(w.normals[i]);   // Write weight normal offset [NEW in Ver 4]
+                writeF32Array(w.normals[i]);   // Write weight normal offset
+            }
+        }
+
+        // GPU skinning data (NEW in version 5)
+        if (gpuSkinningData) {
+            // Joint indices (4 uint8 per vertex)
+            for (let i = 0; i < gpuSkinningData.jointIndices.length; i++) {
+                writeU8(gpuSkinningData.jointIndices[i]);
+            }
+            // Joint weights (4 float32 per vertex)
+            for (let i = 0; i < gpuSkinningData.jointWeights.length; i++) {
+                writeF32(gpuSkinningData.jointWeights[i]);
             }
         }
     }
 
     fs.writeFileSync(outputPath, buffer.slice(0, offset));
-    console.log(`Created: ${outputPath}`);
+    console.log(`Created: ${outputPath} (version 5 with GPU skinning data)`);
 }
 
 function saveAnimBinary(animData, outputPath) {
@@ -595,7 +677,7 @@ function parseArgs() {
 Usage: node md5tomesh.js [options] <model.md5mesh> [anim1.md5anim ...]
 
 Options:
-  --bmesh, -b       Output binary .bmesh and .banim (default: JSON)
+  --bmesh, -b       Output binary .sbmesh and .banim (default: JSON)
   --scale, -s <n>   Scale factor for vertices (default: 1.0)
   --help, -h        Show this help
 
@@ -662,8 +744,8 @@ function main() {
         }))
     };
 
-    // Save mesh
-    const meshExt = outputBinary ? '.bmesh' : '.mesh';
+    // Save mesh (MD5 meshes are always skinned)
+    const meshExt = outputBinary ? '.sbmesh' : '.smesh';
     const meshPath = path.join(outputDir, baseName + meshExt);
 
     if (outputBinary) {

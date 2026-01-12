@@ -63,6 +63,10 @@ class Shader {
 		this.backend.setUniform(id, "vec3[]", array);
 	}
 
+	setMat4Array(id, array) {
+		this.backend.setUniform(id, "mat4[]", array);
+	}
+
 	dispose() {
 		if (this.backend.disposeShader) {
 			this.backend.disposeShader(this.program);

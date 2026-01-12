@@ -11,9 +11,11 @@ const _tempMatrix = mat4.create();
 class SkinnedMeshEntity extends MeshEntity {
 	constructor(position, meshName, updateCallback, scale = 1) {
 		super(position, meshName, updateCallback, scale);
+		this.type = EntityTypes.SKINNED_MESH;
 		this.mesh = Resources.get(meshName);
 		this.scale = scale;
 		this.debugSkeleton = false;
+		this._boneMatrices = null;
 
 		if (this.mesh?.skeleton) {
 			this.animationPlayer = new AnimationPlayer(this.mesh.skeleton);
@@ -37,16 +39,70 @@ class SkinnedMeshEntity extends MeshEntity {
 	update(deltaTime) {
 		if (!this.visible) return;
 
-		if (this.animationPlayer) {
+		if (this.animationPlayer && this.mesh?.skeleton) {
 			// deltaTime is in milliseconds, convert to seconds for animation
 			const pose = this.animationPlayer.update(deltaTime / 1000);
-
-			if (this.mesh?.skeleton) {
-				this.mesh.applySkinning(pose);
-			}
+			// Compute bone matrices for GPU skinning
+			this._boneMatrices = this.mesh.getBoneMatricesForGPU(pose);
 		}
 
 		super.update?.(deltaTime);
+	}
+
+	render(filter = null, shader = Shaders.skinnedGeometry) {
+		if (!this.visible || !this._boneMatrices) return;
+		if (!shader) return;
+
+		mat4.multiply(_tempMatrix, this.base_matrix, this.ani_matrix);
+
+		shader.setMat4("matWorld", _tempMatrix);
+		shader.setMat4Array("boneMatrices", this._boneMatrices);
+		this.mesh.renderSingle(true, null, filter, shader, true);
+	}
+
+	renderShadow(mode = "all", shader = Shaders.skinnedEntityShadows) {
+		if (!this.visible || !this._boneMatrices) return;
+		if (!this.castShadow) return;
+		if (!shader) return;
+		if (this.shadowHeight === null) {
+			this.calculateShadowHeight();
+		}
+		if (this.shadowHeight === undefined) return;
+
+		// Build shadow matrix
+		mat4.multiply(_tempMatrix, this.base_matrix, this.ani_matrix);
+		_tempMatrix[1] *= 0.1;
+		_tempMatrix[5] *= 0.1;
+		_tempMatrix[9] *= 0.1;
+		_tempMatrix[13] = this.shadowHeight;
+
+		shader.setMat4("matWorld", _tempMatrix);
+		shader.setMat4Array("boneMatrices", this._boneMatrices);
+		this.mesh.renderSingle(false, null, mode, null, true);
+	}
+
+	// Render animated wireframe using skinnedDebug shader
+	renderWireFrame() {
+		if (!this.visible || !this._boneMatrices) return;
+
+		const skinnedDebug = Shaders.skinnedDebug;
+		if (!skinnedDebug) {
+			// Fallback to bind pose if skinned debug shader not available
+			mat4.multiply(_tempMatrix, this.base_matrix, this.ani_matrix);
+			Shaders.debug.setMat4("matWorld", _tempMatrix);
+			this.mesh.renderWireFrame();
+			return;
+		}
+
+		skinnedDebug.bind();
+		mat4.multiply(_tempMatrix, this.base_matrix, this.ani_matrix);
+		skinnedDebug.setMat4("matWorld", _tempMatrix);
+		skinnedDebug.setMat4Array("boneMatrices", this._boneMatrices);
+		skinnedDebug.setVec4("debugColor", [1, 1, 1, 1]);
+		this.mesh.renderWireFrame(true); // true = use skinned VAO
+
+		// Restore debug shader for other entities
+		Shaders.debug.bind();
 	}
 
 	renderDebugSkeleton() {
