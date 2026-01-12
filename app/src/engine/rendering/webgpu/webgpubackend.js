@@ -1266,6 +1266,12 @@ class WebGPUBackend extends RenderBackend {
 		};
 	}
 
+	deleteUBO(ubo) {
+		if (ubo?._gpuBuffer) {
+			ubo._gpuBuffer.destroy();
+		}
+	}
+
 	updateUBO(ubo, data, offset = 0) {
 		if (ubo?._gpuBuffer) {
 			// Check if data needs padding/sizing?

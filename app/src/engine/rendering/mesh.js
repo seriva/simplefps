@@ -159,6 +159,21 @@ class Mesh {
 			}
 			this._buffers = [];
 		}
+
+		// Delete wireframe buffers if they exist
+		if (this._wireframeBuffers) {
+			for (const wf of this._wireframeBuffers) {
+				Backend.deleteBuffer(wf.buffer);
+			}
+			this._wireframeBuffers = null;
+		}
+	}
+
+	/**
+	 * Dispose of all GPU resources. Call when mesh is no longer needed.
+	 */
+	dispose() {
+		this.deleteMeshBuffers();
 	}
 
 	bind(useSkinned = false) {

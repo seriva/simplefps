@@ -485,6 +485,12 @@ class WebGLBackend extends RenderBackend {
 		return { _glBuffer: buffer, size, bindingPoint };
 	}
 
+	deleteUBO(ubo) {
+		if (ubo?._glBuffer) {
+			this._gl.deleteBuffer(ubo._glBuffer);
+		}
+	}
+
 	updateUBO(ubo, data, offset = 0) {
 		const gl = this._gl;
 		gl.bindBuffer(gl.UNIFORM_BUFFER, ubo._glBuffer);

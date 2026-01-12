@@ -56,6 +56,10 @@ class RenderBackend {
 		throw new Error("RenderBackend.createUBO() must be implemented");
 	}
 
+	deleteUBO(_ubo) {
+		throw new Error("RenderBackend.deleteUBO() must be implemented");
+	}
+
 	updateUBO(_ubo, _data, _offset = 0) {
 		throw new Error("RenderBackend.updateUBO() must be implemented");
 	}

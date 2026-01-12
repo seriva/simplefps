@@ -126,6 +126,16 @@ class MeshEntity extends Entity {
 		}
 		this.mesh.boundingBox.transformInto(_tempMatrix, this.boundingBox);
 	}
+
+	/**
+	 * Dispose of entity resources.
+	 * Note: Does not dispose the mesh as it may be shared with other entities.
+	 */
+	dispose() {
+		super.dispose();
+		this.mesh = null;
+		this.physicsBody = null;
+	}
 }
 
 export default MeshEntity;

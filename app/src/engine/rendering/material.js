@@ -102,6 +102,16 @@ class Material {
 			Texture.unBind(TEXTURE_SLOT_UNITS[i]);
 		}
 	}
+
+	/**
+	 * Dispose of material GPU resources (UBO).
+	 */
+	dispose() {
+		if (this.ubo) {
+			Backend.deleteUBO(this.ubo);
+			this.ubo = null;
+		}
+	}
 }
 
 export default Material;
