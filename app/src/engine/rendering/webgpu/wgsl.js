@@ -135,6 +135,119 @@ fn fs_main(input: GeomVertexOutput) -> FragmentOutput {
 }
 `;
 
+// Skinned Geometry shader - outputs to G-buffer with GPU skinning
+const skinnedGeometryShader = /* wgsl */ `
+${FrameDataStruct}
+${MaterialDataStruct}
+
+struct SkinnedVertexInput {
+    @location(0) position: vec3<f32>,
+    @location(1) uv: vec2<f32>,
+    @location(2) normal: vec3<f32>,
+    @location(4) jointIndices: vec4<u32>,
+    @location(5) jointWeights: vec4<f32>,
+}
+
+struct GeomVertexOutput {
+    @builtin(position) clipPosition: vec4<f32>,
+    @location(0) worldPosition: vec4<f32>,
+    @location(1) normal: vec3<f32>,
+    @location(2) uv: vec2<f32>,
+}
+
+struct FragmentOutput {
+    @location(0) position: vec4<f32>,
+    @location(1) normal: vec4<f32>,
+    @location(2) color: vec4<f32>,
+    @location(3) emissive: vec4<f32>,
+}
+
+@group(0) @binding(0) var<uniform> frameData: FrameData;
+@group(1) @binding(0) var<uniform> materialData: MaterialData;
+@group(1) @binding(1) var<uniform> matWorld: mat4x4<f32>;
+@group(1) @binding(2) var<uniform> boneMatrices: array<mat4x4<f32>, 64>;
+
+@group(2) @binding(0) var colorSampler: sampler;
+@group(2) @binding(1) var colorTexture: texture_2d<f32>;
+@group(2) @binding(2) var emissiveTexture: texture_2d<f32>;
+@group(2) @binding(4) var detailTexture: texture_2d<f32>;
+@group(2) @binding(5) var reflectionTexture: texture_2d<f32>;
+@group(2) @binding(6) var reflectionMaskTexture: texture_2d<f32>;
+
+const MESH: i32 = 1;
+const SKYBOX: i32 = 2;
+
+@vertex
+fn vs_main(input: SkinnedVertexInput) -> GeomVertexOutput {
+    var output: GeomVertexOutput;
+    
+    // Compute skinning matrix from bone weights
+    let skinMatrix = 
+        boneMatrices[input.jointIndices.x] * input.jointWeights.x +
+        boneMatrices[input.jointIndices.y] * input.jointWeights.y +
+        boneMatrices[input.jointIndices.z] * input.jointWeights.z +
+        boneMatrices[input.jointIndices.w] * input.jointWeights.w;
+    
+    // Apply skinning to position and normal
+    let skinnedPosition = (skinMatrix * vec4<f32>(input.position, 1.0)).xyz;
+    let skinnedNormal = (skinMatrix * vec4<f32>(input.normal, 0.0)).xyz;
+    
+    output.worldPosition = matWorld * vec4<f32>(skinnedPosition, 1.0);
+    output.uv = input.uv;
+    output.normal = normalize((matWorld * vec4<f32>(skinnedNormal, 0.0)).xyz);
+    output.clipPosition = frameData.matViewProj * output.worldPosition;
+    return output;
+}
+
+@fragment
+fn fs_main(input: GeomVertexOutput) -> FragmentOutput {
+    var output: FragmentOutput;
+    
+    // Sample albedo
+    var color = textureSample(colorTexture, colorSampler, input.uv);
+    if (color.a < 0.5) {
+        discard;
+    }
+
+    // Apply Detail Noise
+    if (frameData.viewportSize.z > 0.5) {
+         let noise = textureSample(detailTexture, colorSampler, input.uv * 4.0).r;
+         color = vec4<f32>(color.rgb * (0.9 + 0.2 * noise), color.a);
+    }
+    
+    // Initialize emissive
+    output.emissive = vec4<f32>(0.0);
+    
+    // Skinned meshes don't have lightmaps, always use deferred lighting
+    output.normal = vec4<f32>(input.normal * 0.5 + 0.5, 0.0);
+    output.position = vec4<f32>(input.worldPosition.xyz, 1.0);
+    
+    // Apply reflection if enabled (flags.z == 1)
+    if (materialData.flags.z == 1) {
+         let reflMask = textureSample(reflectionMaskTexture, colorSampler, input.uv);
+         let maskSum = dot(reflMask.rgb, vec3<f32>(0.333333));
+         
+         if (maskSum > 0.2) {
+             let viewDir = normalize(frameData.cameraPosition.xyz - input.worldPosition.xyz);
+             let r = reflect(-viewDir, input.normal);
+             let m = 2.0 * sqrt(dot(r.xy, r.xy) + (r.z + 1.0) * (r.z + 1.0)) + 0.00001;
+             let reflUV = r.xy / m + 0.5;
+             let reflColor = textureSampleLevel(reflectionTexture, colorSampler, reflUV, 0.0);
+             color = mix(color, reflColor * reflMask, materialData.params.x * maskSum);
+         }
+    }
+
+    // Sample emissive if enabled
+    if (materialData.flags.y == 1) {
+        output.emissive = textureSample(emissiveTexture, colorSampler, input.uv);
+    }
+    
+    output.color = color + output.emissive;
+    
+    return output;
+}
+`;
+
 // Entity shadows shader
 const entityShadowsShader = /* wgsl */ `
 ${FrameDataStruct}
@@ -155,6 +268,49 @@ struct ShadowVertexOutput {
 fn vs_main(input: ShadowVertexInput) -> ShadowVertexOutput {
     var output: ShadowVertexOutput;
     output.clipPosition = frameData.matViewProj * matWorld * vec4<f32>(input.position, 1.0);
+    return output;
+}
+
+@fragment
+fn fs_main() -> @location(0) vec4<f32> {
+    return vec4<f32>(ambient, 1.0);
+}
+`;
+
+// Skinned entity shadows shader
+const skinnedEntityShadowsShader = /* wgsl */ `
+${FrameDataStruct}
+
+struct SkinnedShadowVertexInput {
+    @location(0) position: vec3<f32>,
+    @location(4) jointIndices: vec4<u32>,
+    @location(5) jointWeights: vec4<f32>,
+}
+
+struct ShadowVertexOutput {
+    @builtin(position) clipPosition: vec4<f32>,
+}
+
+@group(0) @binding(0) var<uniform> frameData: FrameData;
+@group(1) @binding(0) var<uniform> matWorld: mat4x4<f32>;
+@group(1) @binding(1) var<uniform> ambient: vec3<f32>;
+@group(1) @binding(2) var<uniform> boneMatrices: array<mat4x4<f32>, 64>;
+
+@vertex
+fn vs_main(input: SkinnedShadowVertexInput) -> ShadowVertexOutput {
+    var output: ShadowVertexOutput;
+    
+    // Compute skinning matrix from bone weights
+    let skinMatrix = 
+        boneMatrices[input.jointIndices.x] * input.jointWeights.x +
+        boneMatrices[input.jointIndices.y] * input.jointWeights.y +
+        boneMatrices[input.jointIndices.z] * input.jointWeights.z +
+        boneMatrices[input.jointIndices.w] * input.jointWeights.w;
+    
+    // Apply skinning to position
+    let skinnedPosition = (skinMatrix * vec4<f32>(input.position, 1.0)).xyz;
+    
+    output.clipPosition = frameData.matViewProj * matWorld * vec4<f32>(skinnedPosition, 1.0);
     return output;
 }
 
@@ -868,6 +1024,49 @@ fn fs_main() -> @location(0) vec4<f32> {
 }
 `;
 
+// Skinned debug shader - for animated wireframes
+const skinnedDebugShader = /* wgsl */ `
+${FrameDataStruct}
+
+struct SkinnedDebugVertexInput {
+    @location(0) position: vec3<f32>,
+    @location(4) jointIndices: vec4<u32>,
+    @location(5) jointWeights: vec4<f32>,
+}
+
+struct DebugVertexOutput {
+    @builtin(position) clipPosition: vec4<f32>,
+}
+
+@group(0) @binding(0) var<uniform> frameData: FrameData;
+@group(1) @binding(0) var<uniform> matWorld: mat4x4<f32>;
+@group(1) @binding(1) var<uniform> debugColor: vec4<f32>;
+@group(1) @binding(2) var<uniform> boneMatrices: array<mat4x4<f32>, 64>;
+
+@vertex
+fn vs_main(input: SkinnedDebugVertexInput) -> DebugVertexOutput {
+    var output: DebugVertexOutput;
+    
+    // Compute skinning matrix from bone weights
+    let skinMatrix = 
+        boneMatrices[input.jointIndices.x] * input.jointWeights.x +
+        boneMatrices[input.jointIndices.y] * input.jointWeights.y +
+        boneMatrices[input.jointIndices.z] * input.jointWeights.z +
+        boneMatrices[input.jointIndices.w] * input.jointWeights.w;
+    
+    // Apply skinning to position
+    let skinnedPosition = (skinMatrix * vec4<f32>(input.position, 1.0)).xyz;
+    
+    output.clipPosition = frameData.matViewProj * matWorld * vec4<f32>(skinnedPosition, 1.0);
+    return output;
+}
+
+@fragment
+fn fs_main() -> @location(0) vec4<f32> {
+    return debugColor;
+}
+`;
+
 // Export shader sources in same format as GLSL
 // Export shader sources in same format as GLSL
 export const WgslShaderSources = {
@@ -875,9 +1074,17 @@ export const WgslShaderSources = {
 		label: "geometry",
 		code: geometryShader,
 	},
+	skinnedGeometry: {
+		label: "skinnedGeometry",
+		code: skinnedGeometryShader,
+	},
 	entityShadows: {
 		label: "entityShadows",
 		code: entityShadowsShader,
+	},
+	skinnedEntityShadows: {
+		label: "skinnedEntityShadows",
+		code: skinnedEntityShadowsShader,
 	},
 	applyShadows: {
 		label: "applyShadows",
@@ -914,5 +1121,9 @@ export const WgslShaderSources = {
 	debug: {
 		label: "debug",
 		code: debugShader,
+	},
+	skinnedDebug: {
+		label: "skinnedDebug",
+		code: skinnedDebugShader,
 	},
 };
