@@ -2,18 +2,20 @@ import Animation from "../animation/animation.js";
 import Utils from "../core/utils.js";
 import Material from "../rendering/material.js";
 import Mesh from "../rendering/mesh.js";
+import SkinnedMesh from "../rendering/skinnedmesh.js";
 import Texture from "../rendering/texture.js";
 import Console from "./console.js";
 import Sound from "./sound.js";
 
 // Public Resources API
-const _loadMesh = async (data, context) => {
+const _loadMesh = async (data, context, isSkinned = false) => {
 	// If data is a string/json
 	if (typeof data === "string") {
 		data = JSON.parse(data);
 	}
-	// If data is a Blob (binary), Mesh constructor handles it via loadFromBlob
-	const mesh = new Mesh(data, context);
+	// Use SkinnedMesh for skeletal meshes
+	const MeshClass = isSkinned ? SkinnedMesh : Mesh;
+	const mesh = new MeshClass(data, context);
 	await mesh.ready;
 	return mesh;
 };
@@ -108,8 +110,10 @@ const _fileExtRegex = /(?:\.([^.]+))?$/;
 // Private constants
 const _RESOURCE_TYPES = {
 	webp: (data) => new Texture({ data }),
-	mesh: _loadMesh,
-	bmesh: _loadMesh,
+	mesh: (data, context) => _loadMesh(data, context, false),
+	smesh: (data, context) => _loadMesh(data, context, true), // Skinned JSON mesh
+	bmesh: (data, context) => _loadMesh(data, context, false),
+	sbmesh: (data, context) => _loadMesh(data, context, true), // Skinned binary mesh
 	anim: (data) => new Animation(JSON.parse(data)),
 	banim: (data) => Animation.fromBlob(data),
 	mat: (data, context) => {
