@@ -78,6 +78,9 @@ const _removeEntity = (entity) => {
 		_entities.splice(index, 1);
 		_entityCache.clear();
 
+		// Dispose entity resources
+		entity.dispose?.();
+
 		// Remove physics body if it exists
 		if (entity.physicsBody) {
 			Physics.removeBody(entity.physicsBody);

@@ -1,3 +1,5 @@
+import * as CANNON from "../dependencies/cannon-es.js";
+import { mat4 } from "../dependencies/gl-matrix.js";
 import {
 	Camera,
 	Console,
@@ -22,6 +24,12 @@ import Pickup from "./pickups.js";
 const _BASE_URL = `${window.location}resources/arenas/`;
 const _DEFAULT_POSITION = [0, 0, 0];
 const _DEFAULT_AMBIENT = [1, 1, 1];
+
+// Raycast helpers
+const _rayFrom = new CANNON.Vec3();
+const _rayTo = new CANNON.Vec3();
+const _rayResult = new CANNON.RaycastResult();
+const _MAX_RAYCAST_DISTANCE = 500;
 
 const _state = {
 	arena: {},
@@ -75,19 +83,59 @@ const _setupPickups = (pickups = []) => {
 	}
 };
 
-const _setupPlayerModel = (spawn) => {
-	const pos = spawn.position || _DEFAULT_POSITION;
-	const modelPos = [pos[0] + 2, pos[1], pos[2]];
-	const character = new SkinnedMeshEntity(
-		modelPos,
-		"models/female/female.sbmesh",
-		null,
-		10, // Female model is already in meters (~1.3m tall)
-	);
-	character.castShadow = true;
-	character.playAnimation("models/female/female.banim");
-	character.setRotation([-90, 0, 0]);
-	Scene.addEntities(character);
+// Raycast to find ground position
+const _getGroundHeight = (x, y, z) => {
+	_rayFrom.set(x, y + 100, z); // Start above
+	_rayTo.set(x, y - _MAX_RAYCAST_DISTANCE, z);
+	_rayResult.reset();
+
+	Physics.getWorld().raycastClosest(_rayFrom, _rayTo, {}, _rayResult);
+
+	if (_rayResult.hasHit) {
+		return _rayResult.hitPointWorld.y;
+	}
+	return y; // Fallback to original height
+};
+
+// Setup player models at all spawnpoints
+const _setupSpawnpointModels = (spawnpoints = []) => {
+	for (const spawn of spawnpoints) {
+		const pos = spawn.position || _DEFAULT_POSITION;
+
+		// Raycast to attach to ground
+		const groundY = _getGroundHeight(pos[0], pos[1], pos[2]);
+		const modelPos = [pos[0], groundY, pos[2]];
+
+		// Get yaw in degrees
+		const yawDegrees = spawn.rotation ? (spawn.rotation[1] * 180) / Math.PI : 0;
+
+		const character = new SkinnedMeshEntity(
+			modelPos,
+			"models/female/female.sbmesh",
+			null,
+			1.15, // Start with scale 1
+		);
+		character.castShadow = false;
+		character.playAnimation("models/female/female.banim");
+
+		// Build rotation: first yaw (Y), then stand upright (X -90)
+		// This makes the model face the right direction THEN stand up
+		mat4.rotateY(
+			character.base_matrix,
+			character.base_matrix,
+			spawn.rotation ? spawn.rotation[1] : 0,
+		);
+		mat4.rotateX(
+			character.base_matrix,
+			character.base_matrix,
+			(-90 * Math.PI) / 180,
+		);
+
+		// Now apply scale
+		mat4.scale(character.base_matrix, character.base_matrix, [10, 10, 10]);
+
+		Scene.addEntities(character);
+	}
 };
 
 const _setupCollision = (chunks, _spawnPosition) => {
@@ -139,7 +187,7 @@ const _load = async (name) => {
 			startSpawn.position || _DEFAULT_POSITION,
 		);
 		_setupPickups(pickups);
-		_setupPlayerModel(startSpawn);
+		_setupSpawnpointModels(spawnpoints || []);
 
 		Console.log(`Loaded arena: ${name}`);
 	} catch (error) {
