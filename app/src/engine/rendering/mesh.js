@@ -1,4 +1,3 @@
-import { vec3 } from "../../dependencies/gl-matrix.js";
 import { Skeleton } from "../animation/skeleton.js";
 import BoundingBox from "../core/boundingbox.js";
 import { Backend } from "./backend.js";
@@ -8,20 +7,20 @@ class Mesh {
 	static ATTR_UVS = 1;
 	static ATTR_NORMALS = 2;
 	static ATTR_LIGHTMAP_UVS = 3;
+	static ATTR_JOINT_INDICES = 4;
+	static ATTR_JOINT_WEIGHTS = 5;
 
-	constructor(data, context) {
+	constructor(data, context, isSkinned = false) {
 		this.resources = context;
 		this.vao = null;
+		this.skinnedVao = null;
 		this._buffers = [];
+		this._isSkinned = isSkinned;
 
+		// Skeletal data (populated during loading, used by SkinnedMesh)
 		this.skeleton = null;
-		this.weightData = null;
-
-		this.skinnedVertices = null;
-		this.skinnedNormals = null;
-
-		this._tempVec = vec3.create();
-		this._skinMatrices = null;
+		this.gpuJointIndices = null;
+		this.gpuJointWeights = null;
 
 		this.ready = this.initialize(data);
 	}
@@ -115,8 +114,8 @@ class Mesh {
 		}
 		this._buffers.push(this.lightmapUVBuffer);
 
-		// Define Vertex Attributes for State Creation (Always consistent layout)
-		const attributes = [
+		// Define base vertex attributes (without skinning)
+		const baseAttributes = [
 			{
 				buffer: this.vertexBuffer,
 				slot: Mesh.ATTR_POSITIONS,
@@ -143,8 +142,8 @@ class Mesh {
 			},
 		];
 
-		// Create Vertex State (VAO)
-		this.vao = Backend.createVertexState({ attributes });
+		// Create base VAO (for non-skinned shaders)
+		this.vao = Backend.createVertexState({ attributes: baseAttributes });
 	}
 
 	deleteMeshBuffers() {
@@ -162,7 +161,7 @@ class Mesh {
 		}
 	}
 
-	bind() {
+	bind(useSkinned = false) {
 		Backend.bindVertexState(this.vao);
 	}
 
@@ -183,8 +182,9 @@ class Mesh {
 		renderMode = null,
 		mode = "all",
 		shader = null,
+		useSkinned = false,
 	) {
-		this.bind();
+		this.bind(useSkinned);
 		this.renderIndices(applyMaterial, renderMode ?? null, mode, shader);
 		this.unBind();
 	}
@@ -255,8 +255,8 @@ class Mesh {
 		}
 	}
 
-	renderWireFrame() {
-		this.bind();
+	renderWireFrame(useSkinned = false) {
+		this.bind(useSkinned);
 
 		// Cache wireframe index buffers to avoid creating/destroying every frame
 		// (WebGPU requires buffers to stay alive until commands are submitted)
@@ -349,6 +349,7 @@ class Mesh {
 		let weightCount = 0;
 		const hasSkeletal = version >= 3;
 		const hasWeightNormals = version >= 4;
+		const hasGPUSkinning = version >= 5;
 
 		if (hasSkeletal) {
 			jointCount = readUint32();
@@ -426,36 +427,37 @@ class Mesh {
 			}
 
 			this.skeleton = new Skeleton(joints);
-			this._skinMatrices = new Array(this.skeleton.jointCount);
 
-			this.weightData = [];
+			// Skip over legacy weight data (kept for file format compatibility)
 			for (let i = 0; i < weightCount; i++) {
-				const vertex = readUint32();
+				readUint32(); // vertex
 				const count = readUint32();
-				const jointIndices = [];
-				const weights = [];
-				const positions = [];
-				const normals = [];
 				for (let j = 0; j < count; j++) {
-					jointIndices.push(readUint32());
-					weights.push(readFloat32());
-					positions.push([readFloat32(), readFloat32(), readFloat32()]);
+					readUint32(); // joint index
+					readFloat32(); // weight
+					readFloat32();
+					readFloat32();
+					readFloat32(); // position
 					if (hasWeightNormals) {
-						normals.push([readFloat32(), readFloat32(), readFloat32()]);
+						readFloat32();
+						readFloat32();
+						readFloat32(); // normal
 					}
 				}
-				this.weightData.push({
-					vertex,
-					joints: jointIndices,
-					weights,
-					positions,
-					normals,
-				});
+			}
+
+			// Read GPU skinning data (version 5+)
+			if (hasGPUSkinning) {
+				const numVertices = this.vertices.length / 3;
+				// Joint indices: 4 uint8 per vertex
+				this.gpuJointIndices = new Uint8Array(numVertices * 4);
+				for (let i = 0; i < numVertices * 4; i++) {
+					this.gpuJointIndices[i] = bytes[offset++];
+				}
+				// Joint weights: 4 float32 per vertex
+				this.gpuJointWeights = readFloat32Array(numVertices * 4);
 			}
 		}
-
-		this.skinnedVertices = new Float32Array(this.vertices.length);
-		this.skinnedNormals = new Float32Array(this.normals.length);
 	}
 
 	loadFromJson(data) {
@@ -474,106 +476,21 @@ class Mesh {
 
 		if (data.skeleton) {
 			this.skeleton = new Skeleton(data.skeleton.joints);
-			this._skinMatrices = new Array(this.skeleton.jointCount);
 		}
 
-		if (data.weights) {
-			this.weightData = data.weights;
-		}
-
-		this.skinnedVertices = new Float32Array(this.vertices.length);
-		this.skinnedNormals = new Float32Array(this.normals.length);
-	}
-
-	applySkinning(pose, overrideWorldMatrices = null) {
-		if (!this.skeleton || !this.weightData) return;
-
-		// Use MD5 native skinning definitions (weight offsets)
-		// Skeleton handles Local poses correctly via accumulation in getWorldMatrices
-		const worldMatrices =
-			overrideWorldMatrices ||
-			this.skeleton.getWorldMatrices(pose.localTransforms);
-
-		this.skinnedVertices.fill(0);
-		this.skinnedNormals.fill(0);
-
-		for (const weightEntry of this.weightData) {
-			const vertIdx = weightEntry.vertex;
-			const vBase = vertIdx * 3;
-
-			let px = 0,
-				py = 0,
-				pz = 0;
-			let nx = 0,
-				ny = 0,
-				nz = 0;
-
-			for (let w = 0; w < weightEntry.joints.length; w++) {
-				const jointIdx = weightEntry.joints[w];
-				const weight = weightEntry.weights[w];
-				const jointMatrix = worldMatrices[jointIdx];
-
-				// Transform weight position by joint world matrix
-				const weightPos = weightEntry.positions[w];
-				vec3.transformMat4(this._tempVec, weightPos, jointMatrix);
-				px += this._tempVec[0] * weight;
-				py += this._tempVec[1] * weight;
-				pz += this._tempVec[2] * weight;
-
-				// Transform weight normal by joint world matrix (rotation only)
-				if (weightEntry.normals && weightEntry.normals[w]) {
-					const weightNormal = weightEntry.normals[w];
-					// Transform normal by 3x3 part of matrix
-					// n' = M * n (where M is worldMatrix)
-					// Since MD5 doesn't use non-uniform scaling, we don't need inverse-transpose.
-					const rx = weightNormal[0],
-						ry = weightNormal[1],
-						rz = weightNormal[2];
-					const tx =
-						jointMatrix[0] * rx + jointMatrix[4] * ry + jointMatrix[8] * rz;
-					const ty =
-						jointMatrix[1] * rx + jointMatrix[5] * ry + jointMatrix[9] * rz;
-					const tz =
-						jointMatrix[2] * rx + jointMatrix[6] * ry + jointMatrix[10] * rz;
-
-					nx += tx * weight;
-					ny += ty * weight;
-					nz += tz * weight;
-				}
-			}
-
-			this.skinnedVertices[vBase] = px;
-			this.skinnedVertices[vBase + 1] = py;
-			this.skinnedVertices[vBase + 2] = pz;
-
-			const nLen = Math.sqrt(nx * nx + ny * ny + nz * nz) || 1;
-			this.skinnedNormals[vBase] = nx / nLen;
-			this.skinnedNormals[vBase + 1] = ny / nLen;
-			this.skinnedNormals[vBase + 2] = nz / nLen;
-		}
-
-		Backend.updateBuffer(this.vertexBuffer, this.skinnedVertices);
-		if (this.hasNormals) {
-			Backend.updateBuffer(this.normalBuffer, this.skinnedNormals);
+		// Load GPU skinning data if present
+		if (data.gpuJointIndices && data.gpuJointWeights) {
+			this.gpuJointIndices = new Uint8Array(data.gpuJointIndices);
+			this.gpuJointWeights = new Float32Array(data.gpuJointWeights);
 		}
 	}
 
 	updateBoundingBox() {
-		if (
-			this.skinnedVertices &&
-			this.skinnedVertices.length > 0 &&
-			this.isSkinned()
-		) {
-			this.boundingBox = BoundingBox.fromPoints(this.skinnedVertices);
-		} else if (this.vertices && this.vertices.length > 0) {
+		if (this.vertices && this.vertices.length > 0) {
 			this.boundingBox = BoundingBox.fromPoints(this.vertices);
 		} else {
 			this.boundingBox = null;
 		}
-	}
-
-	isSkinned() {
-		return this.skeleton !== null && this.weightData !== null;
 	}
 }
 

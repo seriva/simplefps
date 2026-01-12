@@ -38,6 +38,7 @@ const _debugState = {
 const _boundingBoxColors = {
 	[EntityTypes.SKYBOX]: [0, 0, 1, 1], // Blue
 	[EntityTypes.MESH]: [1, 0, 0, 1], // Red
+	[EntityTypes.SKINNED_MESH]: [1, 0, 1, 1], // Magenta
 	[EntityTypes.FPS_MESH]: [0, 1, 0, 1], // Green
 	[EntityTypes.DIRECTIONAL_LIGHT]: [1, 1, 0, 1], // Yellow
 	[EntityTypes.POINT_LIGHT]: [1, 1, 0, 1], // Yellow
@@ -106,6 +107,23 @@ const renderWorldGeometry = () => {
 	_renderEntities(EntityTypes.FPS_MESH, "render", "opaque");
 
 	Backend.unbindShader();
+
+	// Render skinned meshes with dedicated shader
+	if (Shaders.skinnedGeometry) {
+		Shaders.skinnedGeometry.bind();
+		Shaders.skinnedGeometry.setInt("detailNoise", 5);
+		Shaders.skinnedGeometry.setInt(
+			"doDetailTexture",
+			Settings.detailTexture ? 1 : 0,
+		);
+		_renderEntities(
+			EntityTypes.SKINNED_MESH,
+			"render",
+			"opaque",
+			Shaders.skinnedGeometry,
+		);
+		Backend.unbindShader();
+	}
 };
 
 const renderTransparent = () => {
@@ -260,10 +278,21 @@ const renderLighting = () => {
 const renderShadows = () => {
 	Shaders.entityShadows.bind();
 	Shaders.entityShadows.setVec3("ambient", Scene.getAmbient());
-
 	_renderEntities(EntityTypes.MESH, "renderShadow");
-
 	Backend.unbindShader();
+
+	// Render skinned mesh shadows with dedicated shader
+	if (Shaders.skinnedEntityShadows) {
+		Shaders.skinnedEntityShadows.bind();
+		Shaders.skinnedEntityShadows.setVec3("ambient", Scene.getAmbient());
+		_renderEntities(
+			EntityTypes.SKINNED_MESH,
+			"renderShadow",
+			"all",
+			Shaders.skinnedEntityShadows,
+		);
+		Backend.unbindShader();
+	}
 };
 
 const renderFPSGeometry = () => {
@@ -301,6 +330,7 @@ const renderDebug = () => {
 		Shaders.debug.setVec4("debugColor", [1, 1, 1, 1]);
 		const meshTypes = [
 			EntityTypes.MESH,
+			EntityTypes.SKINNED_MESH,
 			EntityTypes.FPS_MESH,
 			EntityTypes.SKYBOX,
 		];
@@ -324,7 +354,7 @@ const renderDebug = () => {
 
 	// Render skeleton
 	if (_debugState.showSkeleton) {
-		const skinnedTypes = [EntityTypes.MESH, EntityTypes.FPS_MESH];
+		const skinnedTypes = [EntityTypes.SKINNED_MESH];
 		for (const type of skinnedTypes) {
 			if (Scene.visibilityCache[type]) {
 				for (const entity of Scene.visibilityCache[type]) {

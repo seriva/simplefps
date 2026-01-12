@@ -67,39 +67,8 @@ vec3 calcSpotLight(vec3 lightPos, vec3 lightDir, float cutoff, float range, vec3
     return vec3(attenuation, spotFalloff, nDotL);
 }`;
 
-export const ShaderSources = {
-	geometry: {
-		vertex: /* glsl */ `#version 300 es
-            precision highp float;
-            precision highp int;
-
-            layout(location=0) in vec3 aPosition;
-            layout(location=1) in vec2 aUV;
-            layout(location=2) in vec3 aNormal;
-            layout(location=3) in vec2 aLightmapUV;
-
-            ${_frameDataUBO}
-
-            uniform mat4 matWorld;
-
-            out vec4 vPosition;
-            out vec3 vNormal;
-            out vec2 vUV;
-            out vec2 vLightmapUV;
-
-            const int MESH = 1;
-            const int SKYBOX = 2;
-
-            void main() {
-                vPosition = matWorld * vec4(aPosition, 1.0);
-
-                vUV = aUV;
-                vLightmapUV = aLightmapUV;
-                vNormal = normalize(mat3(matWorld) * aNormal);
-
-                gl_Position = matViewProj * vPosition;
-            }`,
-		fragment: /* glsl */ `#version 300 es
+// Shared geometry fragment shader (used by both geometry and skinnedGeometry)
+const _geometryFragment = /* glsl */ `#version 300 es
             precision highp float;
             precision highp int;
 
@@ -187,7 +156,87 @@ export const ShaderSources = {
                 }
 
                 fragColor = color + fragEmissive;
+            }`;
+
+export const ShaderSources = {
+	geometry: {
+		vertex: /* glsl */ `#version 300 es
+            precision highp float;
+            precision highp int;
+
+            layout(location=0) in vec3 aPosition;
+            layout(location=1) in vec2 aUV;
+            layout(location=2) in vec3 aNormal;
+            layout(location=3) in vec2 aLightmapUV;
+
+            ${_frameDataUBO}
+
+            uniform mat4 matWorld;
+
+            out vec4 vPosition;
+            out vec3 vNormal;
+            out vec2 vUV;
+            out vec2 vLightmapUV;
+
+            const int MESH = 1;
+            const int SKYBOX = 2;
+
+            void main() {
+                vPosition = matWorld * vec4(aPosition, 1.0);
+
+                vUV = aUV;
+                vLightmapUV = aLightmapUV;
+                vNormal = normalize(mat3(matWorld) * aNormal);
+
+                gl_Position = matViewProj * vPosition;
             }`,
+		fragment: _geometryFragment,
+	},
+	skinnedGeometry: {
+		vertex: /* glsl */ `#version 300 es
+            precision highp float;
+            precision highp int;
+
+            layout(location=0) in vec3 aPosition;
+            layout(location=1) in vec2 aUV;
+            layout(location=2) in vec3 aNormal;
+            layout(location=3) in vec2 aLightmapUV;
+            layout(location=4) in uvec4 aJointIndices;
+            layout(location=5) in vec4 aJointWeights;
+
+            ${_frameDataUBO}
+
+            uniform mat4 matWorld;
+            uniform mat4 boneMatrices[64];
+
+            out vec4 vPosition;
+            out vec3 vNormal;
+            out vec2 vUV;
+            out vec2 vLightmapUV;
+
+            void main() {
+                // Convert uint indices to int for array indexing
+                ivec4 joints = ivec4(aJointIndices);
+                
+                // Compute skinning matrix from bone weights
+                mat4 skinMatrix = 
+                    boneMatrices[joints.x] * aJointWeights.x +
+                    boneMatrices[joints.y] * aJointWeights.y +
+                    boneMatrices[joints.z] * aJointWeights.z +
+                    boneMatrices[joints.w] * aJointWeights.w;
+
+                // Apply skinning to position and normal
+                vec3 skinnedPosition = (skinMatrix * vec4(aPosition, 1.0)).xyz;
+                vec3 skinnedNormal = mat3(skinMatrix) * aNormal;
+
+                vPosition = matWorld * vec4(skinnedPosition, 1.0);
+                vNormal = normalize(mat3(matWorld) * skinnedNormal);
+                vUV = aUV;
+                vLightmapUV = aLightmapUV;
+
+                gl_Position = matViewProj * vPosition;
+            }`,
+		fragment: _geometryFragment,
 	},
 	entityShadows: {
 		vertex: /* glsl */ `#version 300 es
@@ -203,6 +252,48 @@ export const ShaderSources = {
             void main()
             {
                 gl_Position = matViewProj * matWorld * vec4(aPosition, 1.0);
+            }`,
+		fragment: /* glsl */ `#version 300 es
+            precision highp float;
+            precision highp int;
+
+            layout(location=0) out vec4 fragColor;
+
+            uniform vec3 ambient;
+
+            void main()
+            {
+                fragColor = vec4(ambient, 1.0);
+            }`,
+	},
+	skinnedEntityShadows: {
+		vertex: /* glsl */ `#version 300 es
+            precision highp float;
+            precision highp int;
+
+            layout(location=0) in vec3 aPosition;
+            layout(location=4) in uvec4 aJointIndices;
+            layout(location=5) in vec4 aJointWeights;
+
+            ${_frameDataUBO}
+
+            uniform mat4 matWorld;
+            uniform mat4 boneMatrices[64];
+
+            void main()
+            {
+                // Convert uint indices to int for array indexing
+                ivec4 joints = ivec4(aJointIndices);
+                
+                // Compute skinning matrix
+                mat4 skinMatrix = 
+                    boneMatrices[joints.x] * aJointWeights.x +
+                    boneMatrices[joints.y] * aJointWeights.y +
+                    boneMatrices[joints.z] * aJointWeights.z +
+                    boneMatrices[joints.w] * aJointWeights.w;
+
+                vec3 skinnedPosition = (skinMatrix * vec4(aPosition, 1.0)).xyz;
+                gl_Position = matViewProj * matWorld * vec4(skinnedPosition, 1.0);
             }`,
 		fragment: /* glsl */ `#version 300 es
             precision highp float;
@@ -801,6 +892,47 @@ export const ShaderSources = {
 
             void main() {
                 gl_Position = matViewProj * matWorld * vec4(aPosition, 1.0);
+            }`,
+		fragment: /* glsl */ `#version 300 es
+            precision highp float;
+
+            layout(location=0) out vec4 fragColor;
+
+            uniform vec4 debugColor;
+
+            void main() {
+                fragColor = debugColor;
+            }`,
+	},
+	skinnedDebug: {
+		vertex: /* glsl */ `#version 300 es
+            precision highp float;
+            precision highp int;
+
+            layout(location=0) in vec3 aPosition;
+            layout(location=4) in uvec4 aJointIndices;
+            layout(location=5) in vec4 aJointWeights;
+
+            ${_frameDataUBO}
+
+            uniform mat4 matWorld;
+            uniform mat4 boneMatrices[64];
+
+            void main() {
+                // Convert uint indices to int for array indexing
+                ivec4 joints = ivec4(aJointIndices);
+                
+                // Compute skinning matrix from bone weights
+                mat4 skinMatrix = 
+                    boneMatrices[joints.x] * aJointWeights.x +
+                    boneMatrices[joints.y] * aJointWeights.y +
+                    boneMatrices[joints.z] * aJointWeights.z +
+                    boneMatrices[joints.w] * aJointWeights.w;
+
+                // Apply skinning to position
+                vec3 skinnedPosition = (skinMatrix * vec4(aPosition, 1.0)).xyz;
+
+                gl_Position = matViewProj * matWorld * vec4(skinnedPosition, 1.0);
             }`,
 		fragment: /* glsl */ `#version 300 es
             precision highp float;

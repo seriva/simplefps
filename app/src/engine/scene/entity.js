@@ -9,6 +9,7 @@ const EntityTypes = Object.freeze({
 	POINT_LIGHT: 4,
 	SPOT_LIGHT: 5,
 	SKYBOX: 6,
+	SKINNED_MESH: 7,
 });
 
 class Entity {

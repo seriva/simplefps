@@ -14,6 +14,7 @@ let _pauseUpdate = false;
 const _visibilityCache = {
 	[EntityTypes.SKYBOX]: [],
 	[EntityTypes.MESH]: [],
+	[EntityTypes.SKINNED_MESH]: [],
 	[EntityTypes.FPS_MESH]: [],
 	[EntityTypes.DIRECTIONAL_LIGHT]: [],
 	[EntityTypes.POINT_LIGHT]: [],
@@ -133,7 +134,13 @@ const _updateVisibility = () => {
 		if (!entity.boundingBox || entity.boundingBox.isVisible()) {
 			_visibilityCache[entity.type].push(entity);
 
-			if ([EntityTypes.MESH, EntityTypes.FPS_MESH].includes(entity.type)) {
+			if (
+				[
+					EntityTypes.MESH,
+					EntityTypes.SKINNED_MESH,
+					EntityTypes.FPS_MESH,
+				].includes(entity.type)
+			) {
 				stats.visibleMeshCount++;
 				stats.triangleCount += entity.mesh?.triangleCount || 0;
 			} else if (
