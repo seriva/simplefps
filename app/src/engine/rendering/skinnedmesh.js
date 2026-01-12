@@ -137,6 +137,7 @@ class SkinnedMesh extends Mesh {
 	}
 
 	// Get bone matrices for GPU skinning (flat Float32Array of mat4s)
+	// Always returns 64 matrices (4096 bytes) for WebGPU uniform buffer compatibility
 	getBoneMatricesForGPU(pose) {
 		if (!this.skeleton) return null;
 
@@ -144,11 +145,14 @@ class SkinnedMesh extends Mesh {
 			pose.localTransforms,
 		);
 		const count = skinMatrices.length;
-		const result = new Float32Array(count * 16);
+
+		// Always allocate 64 matrices for uniform buffer alignment
+		const result = new Float32Array(64 * 16);
 
 		for (let i = 0; i < count; i++) {
 			result.set(skinMatrices[i], i * 16);
 		}
+		// Remaining matrices stay as identity (zeros, which is fine as they won't be used)
 
 		return result;
 	}

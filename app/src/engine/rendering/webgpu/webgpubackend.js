@@ -53,10 +53,33 @@ const _SHADER_BINDINGS = {
 			{ binding: 6, type: "texture", unit: 3 }, // Reflection Mask
 		],
 	},
+	skinnedGeometry: {
+		group1: [
+			{ binding: 0, type: "ubo", id: 1 }, // MaterialData (UBO binding point 1)
+			{ binding: 1, type: "uniform", name: "matWorld" },
+			{ binding: 2, type: "uniform", name: "boneMatrices" },
+		],
+		group2: [
+			{ binding: 0, type: "sampler", unit: 0 },
+			{ binding: 1, type: "texture", unit: 0 }, // Albedo
+			{ binding: 2, type: "texture", unit: 1 }, // Emissive
+			// Note: binding 3 (lightmap) is not used in skinned shader
+			{ binding: 4, type: "texture", unit: 5 }, // Detail Noise
+			{ binding: 5, type: "texture", unit: 2 }, // Reflection (SphereMap)
+			{ binding: 6, type: "texture", unit: 3 }, // Reflection Mask
+		],
+	},
 	entityShadows: {
 		group1: [
 			{ binding: 0, type: "uniform", name: "matWorld" },
 			{ binding: 1, type: "uniform", name: "ambient" },
+		],
+	},
+	skinnedEntityShadows: {
+		group1: [
+			{ binding: 0, type: "uniform", name: "matWorld" },
+			{ binding: 1, type: "uniform", name: "ambient" },
+			{ binding: 2, type: "uniform", name: "boneMatrices" },
 		],
 	},
 	applyShadows: {
@@ -133,6 +156,13 @@ const _SHADER_BINDINGS = {
 		group1: [
 			{ binding: 0, type: "uniform", name: "matWorld" },
 			{ binding: 1, type: "uniform", name: "debugColor" },
+		],
+	},
+	skinnedDebug: {
+		group1: [
+			{ binding: 0, type: "uniform", name: "matWorld" },
+			{ binding: 1, type: "uniform", name: "debugColor" },
+			{ binding: 2, type: "uniform", name: "boneMatrices" },
 		],
 	},
 };
@@ -842,15 +872,25 @@ class WebGPUBackend extends RenderBackend {
 			// Add to list of buffers to bind at draw time
 			buffers.push(buffer);
 
-			// Determine format
+			// Determine format based on type and size
 			let format = "float32";
-			if (attr.size === 2) format = "float32x2";
-			if (attr.size === 3) format = "float32x3";
-			if (attr.size === 4) format = "float32x4";
+			let stride = attr.size * 4; // Default: 4 bytes per float
+
+			if (attr.type === "ubyte" && attr.asInteger) {
+				// Unsigned byte as integer (for joint indices)
+				if (attr.size === 4) format = "uint8x4";
+				else if (attr.size === 2) format = "uint8x2";
+				stride = attr.size; // 1 byte per component
+			} else {
+				// Float formats
+				if (attr.size === 2) format = "float32x2";
+				else if (attr.size === 3) format = "float32x3";
+				else if (attr.size === 4) format = "float32x4";
+			}
 
 			// Create layout entry for this buffer slot
 			layout.push({
-				arrayStride: attr.size * 4, // 4 bytes per float
+				arrayStride: stride,
 				stepMode: "vertex",
 				attributes: [
 					{
