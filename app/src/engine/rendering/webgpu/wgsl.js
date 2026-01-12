@@ -20,6 +20,25 @@ struct MaterialData {
 }
 `;
 
+// Skinning vertex input attributes - shared between all skinned shaders
+const SkinnedVertexInputAttribs = /* wgsl */ `
+    @location(4) jointIndices: vec4<u32>,
+    @location(5) jointWeights: vec4<f32>,`;
+
+// Skinning uniform binding - bone matrices array (for group 1)
+const SkinningUniformBinding = /* wgsl */ `
+@group(1) @binding(2) var<uniform> boneMatrices: array<mat4x4<f32>, 64>;`;
+
+// Skinning calculation function - compute skin matrix from bone weights
+// Call with jointIndices and jointWeights from vertex input
+const SkinningCalcFn = /* wgsl */ `
+fn calcSkinMatrix(jointIndices: vec4<u32>, jointWeights: vec4<f32>) -> mat4x4<f32> {
+    return boneMatrices[jointIndices.x] * jointWeights.x +
+           boneMatrices[jointIndices.y] * jointWeights.y +
+           boneMatrices[jointIndices.z] * jointWeights.z +
+           boneMatrices[jointIndices.w] * jointWeights.w;
+}`;
+
 // Geometry shader - outputs to G-buffer
 const geometryShader = /* wgsl */ `
 ${FrameDataStruct}
@@ -144,8 +163,7 @@ struct SkinnedVertexInput {
     @location(0) position: vec3<f32>,
     @location(1) uv: vec2<f32>,
     @location(2) normal: vec3<f32>,
-    @location(4) jointIndices: vec4<u32>,
-    @location(5) jointWeights: vec4<f32>,
+    ${SkinnedVertexInputAttribs}
 }
 
 struct GeomVertexOutput {
@@ -165,7 +183,7 @@ struct FragmentOutput {
 @group(0) @binding(0) var<uniform> frameData: FrameData;
 @group(1) @binding(0) var<uniform> materialData: MaterialData;
 @group(1) @binding(1) var<uniform> matWorld: mat4x4<f32>;
-@group(1) @binding(2) var<uniform> boneMatrices: array<mat4x4<f32>, 64>;
+${SkinningUniformBinding}
 
 @group(2) @binding(0) var colorSampler: sampler;
 @group(2) @binding(1) var colorTexture: texture_2d<f32>;
@@ -177,16 +195,13 @@ struct FragmentOutput {
 const MESH: i32 = 1;
 const SKYBOX: i32 = 2;
 
+${SkinningCalcFn}
+
 @vertex
 fn vs_main(input: SkinnedVertexInput) -> GeomVertexOutput {
     var output: GeomVertexOutput;
     
-    // Compute skinning matrix from bone weights
-    let skinMatrix = 
-        boneMatrices[input.jointIndices.x] * input.jointWeights.x +
-        boneMatrices[input.jointIndices.y] * input.jointWeights.y +
-        boneMatrices[input.jointIndices.z] * input.jointWeights.z +
-        boneMatrices[input.jointIndices.w] * input.jointWeights.w;
+    let skinMatrix = calcSkinMatrix(input.jointIndices, input.jointWeights);
     
     // Apply skinning to position and normal
     let skinnedPosition = (skinMatrix * vec4<f32>(input.position, 1.0)).xyz;
@@ -283,8 +298,7 @@ ${FrameDataStruct}
 
 struct SkinnedShadowVertexInput {
     @location(0) position: vec3<f32>,
-    @location(4) jointIndices: vec4<u32>,
-    @location(5) jointWeights: vec4<f32>,
+    ${SkinnedVertexInputAttribs}
 }
 
 struct ShadowVertexOutput {
@@ -294,18 +308,15 @@ struct ShadowVertexOutput {
 @group(0) @binding(0) var<uniform> frameData: FrameData;
 @group(1) @binding(0) var<uniform> matWorld: mat4x4<f32>;
 @group(1) @binding(1) var<uniform> ambient: vec3<f32>;
-@group(1) @binding(2) var<uniform> boneMatrices: array<mat4x4<f32>, 64>;
+${SkinningUniformBinding}
+
+${SkinningCalcFn}
 
 @vertex
 fn vs_main(input: SkinnedShadowVertexInput) -> ShadowVertexOutput {
     var output: ShadowVertexOutput;
     
-    // Compute skinning matrix from bone weights
-    let skinMatrix = 
-        boneMatrices[input.jointIndices.x] * input.jointWeights.x +
-        boneMatrices[input.jointIndices.y] * input.jointWeights.y +
-        boneMatrices[input.jointIndices.z] * input.jointWeights.z +
-        boneMatrices[input.jointIndices.w] * input.jointWeights.w;
+    let skinMatrix = calcSkinMatrix(input.jointIndices, input.jointWeights);
     
     // Apply skinning to position
     let skinnedPosition = (skinMatrix * vec4<f32>(input.position, 1.0)).xyz;
@@ -1030,8 +1041,7 @@ ${FrameDataStruct}
 
 struct SkinnedDebugVertexInput {
     @location(0) position: vec3<f32>,
-    @location(4) jointIndices: vec4<u32>,
-    @location(5) jointWeights: vec4<f32>,
+    ${SkinnedVertexInputAttribs}
 }
 
 struct DebugVertexOutput {
@@ -1041,18 +1051,15 @@ struct DebugVertexOutput {
 @group(0) @binding(0) var<uniform> frameData: FrameData;
 @group(1) @binding(0) var<uniform> matWorld: mat4x4<f32>;
 @group(1) @binding(1) var<uniform> debugColor: vec4<f32>;
-@group(1) @binding(2) var<uniform> boneMatrices: array<mat4x4<f32>, 64>;
+${SkinningUniformBinding}
+
+${SkinningCalcFn}
 
 @vertex
 fn vs_main(input: SkinnedDebugVertexInput) -> DebugVertexOutput {
     var output: DebugVertexOutput;
     
-    // Compute skinning matrix from bone weights
-    let skinMatrix = 
-        boneMatrices[input.jointIndices.x] * input.jointWeights.x +
-        boneMatrices[input.jointIndices.y] * input.jointWeights.y +
-        boneMatrices[input.jointIndices.z] * input.jointWeights.z +
-        boneMatrices[input.jointIndices.w] * input.jointWeights.w;
+    let skinMatrix = calcSkinMatrix(input.jointIndices, input.jointWeights);
     
     // Apply skinning to position
     let skinnedPosition = (skinMatrix * vec4<f32>(input.position, 1.0)).xyz;
