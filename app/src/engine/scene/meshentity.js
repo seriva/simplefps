@@ -1,5 +1,6 @@
 import * as CANNON from "../../dependencies/cannon-es.js";
 import { mat4, quat } from "../../dependencies/gl-matrix.js";
+import BoundingBox from "../core/boundingbox.js";
 import { Shaders } from "../rendering/shaders.js";
 import Physics from "../systems/physics.js";
 import Resources from "../systems/resources.js";
@@ -115,8 +116,15 @@ class MeshEntity extends Entity {
 	}
 
 	updateBoundingVolume() {
+		if (!this.mesh?.boundingBox) return;
+
 		mat4.multiply(_tempMatrix, this.base_matrix, this.ani_matrix);
-		this.boundingBox = this.mesh.boundingBox?.transform(_tempMatrix);
+
+		// Reuse bounding box instead of creating new one each frame
+		if (!this.boundingBox) {
+			this.boundingBox = new BoundingBox([0, 0, 0], [1, 1, 1]);
+		}
+		this.mesh.boundingBox.transformInto(_tempMatrix, this.boundingBox);
 	}
 }
 

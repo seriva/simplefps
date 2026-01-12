@@ -11,6 +11,15 @@ const TEXTURE_SLOTS = {
 	lightmap: { unit: 4, sampler: "lightmapSampler" },
 };
 
+// Pre-computed arrays for fast iteration (avoids Object.entries() in hot path)
+const TEXTURE_SLOT_NAMES = Object.keys(TEXTURE_SLOTS);
+const TEXTURE_SLOT_UNITS = TEXTURE_SLOT_NAMES.map(
+	(name) => TEXTURE_SLOTS[name].unit,
+);
+const TEXTURE_SLOT_SAMPLERS = TEXTURE_SLOT_NAMES.map(
+	(name) => TEXTURE_SLOTS[name].sampler,
+);
+
 class Material {
 	constructor(data, resources) {
 		if (!data || !resources) {
@@ -38,15 +47,12 @@ class Material {
 	bind(shader = Shaders.geometry) {
 		if (!shader) shader = Shaders.geometry;
 
-		// Bind textures using the slot definitions
-		for (const [slotName, { unit, sampler }] of Object.entries(TEXTURE_SLOTS)) {
-			const texturePath = this.textures[slotName];
+		// Bind textures using pre-computed arrays (avoids Object.entries())
+		for (let i = 0; i < TEXTURE_SLOT_NAMES.length; i++) {
+			const texturePath = this.textures[TEXTURE_SLOT_NAMES[i]];
 			if (texturePath && this.resources.has(texturePath)) {
-				shader.setInt(sampler, unit);
-				// bind() in Texture.js calls backend.bindTexture(unit)
-				// We pass 'unit' (0,1,2...), which Texture.js passes to Backend.
-				// Backend is now fixed to handle 0,1,2 correctly.
-				this.resources.get(texturePath).bind(unit);
+				shader.setInt(TEXTURE_SLOT_SAMPLERS[i], TEXTURE_SLOT_UNITS[i]);
+				this.resources.get(texturePath).bind(TEXTURE_SLOT_UNITS[i]);
 			}
 		}
 
@@ -92,8 +98,8 @@ class Material {
 	}
 
 	unBind() {
-		for (const { unit } of Object.values(TEXTURE_SLOTS)) {
-			Texture.unBind(unit);
+		for (let i = 0; i < TEXTURE_SLOT_UNITS.length; i++) {
+			Texture.unBind(TEXTURE_SLOT_UNITS[i]);
 		}
 	}
 }
