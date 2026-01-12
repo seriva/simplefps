@@ -416,6 +416,93 @@ function quaternionInverse(q) {
 
 const MAX_BONES_PER_VERTEX = 4;
 
+// Compute bounding box for a single animation frame
+function computeFrameBoundingBox(meshData, skeleton, frameJoints) {
+    // Build world matrices for this frame's joint transforms
+    const worldMatrices = [];
+    for (let j = 0; j < frameJoints.length; j++) {
+        const joint = frameJoints[j];
+        const parent = skeleton[j].parent;
+        
+        // Create local transform matrix from pos/rot
+        const localMatrix = mat4FromPosRot(joint.pos, joint.rot);
+        
+        if (parent >= 0) {
+            // Multiply parent world matrix by local matrix
+            worldMatrices[j] = mat4Multiply(worldMatrices[parent], localMatrix);
+        } else {
+            worldMatrices[j] = localMatrix;
+        }
+    }
+    
+    let minX = Infinity, minY = Infinity, minZ = Infinity;
+    let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+    
+    // For each vertex, compute skinned position
+    const numVertices = meshData.vertices.length / 3;
+    for (let v = 0; v < numVertices; v++) {
+        const weightData = meshData.weights[v];
+        let px = 0, py = 0, pz = 0;
+        
+        for (let w = 0; w < weightData.joints.length; w++) {
+            const jointIdx = weightData.joints[w];
+            const weight = weightData.weights[w];
+            const localPos = weightData.positions[w];
+            
+            // Transform local weight position by joint's world matrix
+            const worldMatrix = worldMatrices[jointIdx];
+            const wx = worldMatrix[0] * localPos[0] + worldMatrix[4] * localPos[1] + worldMatrix[8] * localPos[2] + worldMatrix[12];
+            const wy = worldMatrix[1] * localPos[0] + worldMatrix[5] * localPos[1] + worldMatrix[9] * localPos[2] + worldMatrix[13];
+            const wz = worldMatrix[2] * localPos[0] + worldMatrix[6] * localPos[1] + worldMatrix[10] * localPos[2] + worldMatrix[14];
+            
+            px += weight * wx;
+            py += weight * wy;
+            pz += weight * wz;
+        }
+        
+        minX = Math.min(minX, px);
+        minY = Math.min(minY, py);
+        minZ = Math.min(minZ, pz);
+        maxX = Math.max(maxX, px);
+        maxY = Math.max(maxY, py);
+        maxZ = Math.max(maxZ, pz);
+    }
+    
+    return { min: [minX, minY, minZ], max: [maxX, maxY, maxZ] };
+}
+
+// Simple matrix helpers for bounding box computation
+function mat4FromPosRot(pos, rot) {
+    const [qx, qy, qz, qw] = rot;
+    const [px, py, pz] = pos;
+    
+    const x2 = qx + qx, y2 = qy + qy, z2 = qz + qz;
+    const xx = qx * x2, xy = qx * y2, xz = qx * z2;
+    const yy = qy * y2, yz = qy * z2, zz = qz * z2;
+    const wx = qw * x2, wy = qw * y2, wz = qw * z2;
+    
+    return [
+        1 - (yy + zz), xy + wz, xz - wy, 0,
+        xy - wz, 1 - (xx + zz), yz + wx, 0,
+        xz + wy, yz - wx, 1 - (xx + yy), 0,
+        px, py, pz, 1
+    ];
+}
+
+function mat4Multiply(a, b) {
+    const out = new Array(16);
+    for (let i = 0; i < 4; i++) {
+        for (let j = 0; j < 4; j++) {
+            out[j * 4 + i] = 
+                a[i] * b[j * 4] + 
+                a[4 + i] * b[j * 4 + 1] + 
+                a[8 + i] * b[j * 4 + 2] + 
+                a[12 + i] * b[j * 4 + 3];
+        }
+    }
+    return out;
+}
+
 function convertWeightsToGPUFormat(weights, vertexCount) {
     // Output arrays: 4 joint indices and 4 weights per vertex
     const jointIndices = new Uint8Array(vertexCount * MAX_BONES_PER_VERTEX);
@@ -619,11 +706,15 @@ function saveMeshBinary(meshData, outputPath) {
 function saveAnimBinary(animData, outputPath) {
     const numFrames = animData.frames.length;
     const numJoints = animData.frames[0]?.joints.length || 0;
+    const hasBounds = animData.bounds && animData.bounds.length === numFrames;
 
-    // Header: frameRate(4) + numFrames(4) + numJoints(4)
+    // Version 2 format with bounding boxes:
+    // Header: version(4) + frameRate(4) + numFrames(4) + numJoints(4) + hasBounds(4)
     // Frame data: numJoints * (pos(12) + rot(16)) per frame
+    // Bounds data (if hasBounds): numFrames * (min(12) + max(12))
     const frameSize = numJoints * (12 + 16);
-    const bufferSize = 12 + numFrames * frameSize;
+    const boundsSize = hasBounds ? numFrames * 24 : 0;
+    const bufferSize = 20 + numFrames * frameSize + boundsSize;
 
     const buffer = Buffer.alloc(bufferSize);
     let offset = 0;
@@ -631,9 +722,11 @@ function saveAnimBinary(animData, outputPath) {
     const writeU32 = v => { buffer.writeUInt32LE(v, offset); offset += 4; };
     const writeF32 = v => { buffer.writeFloatLE(v, offset); offset += 4; };
 
+    writeU32(2); // Version 2
     writeU32(animData.frameRate);
     writeU32(numFrames);
     writeU32(numJoints);
+    writeU32(hasBounds ? 1 : 0);
 
     for (const frame of animData.frames) {
         for (const joint of frame.joints) {
@@ -647,8 +740,20 @@ function saveAnimBinary(animData, outputPath) {
         }
     }
 
+    // Write bounding boxes
+    if (hasBounds) {
+        for (const bound of animData.bounds) {
+            writeF32(bound.min[0]);
+            writeF32(bound.min[1]);
+            writeF32(bound.min[2]);
+            writeF32(bound.max[0]);
+            writeF32(bound.max[1]);
+            writeF32(bound.max[2]);
+        }
+    }
+
     fs.writeFileSync(outputPath, buffer);
-    console.log(`Created: ${outputPath}`);
+    console.log(`Created: ${outputPath}${hasBounds ? ' (with per-frame bounds)' : ''}`);
 }
 
 // ============================================================================
@@ -806,10 +911,18 @@ function main() {
         }
 
 
+        // Compute per-frame bounding boxes
+        console.log(`  Computing per-frame bounding boxes...`);
+        const bounds = frames.map((frame, idx) => {
+            return computeFrameBoundingBox(meshData, md5mesh.joints, frame.joints);
+        });
+        console.log(`  Computed ${bounds.length} bounding boxes`);
+
         const animData = {
             name: animName,
             frameRate: md5anim.frameRate,
-            frames: frames
+            frames: frames,
+            bounds: bounds
         };
 
         const animExt = outputBinary ? '.banim' : '.anim';
