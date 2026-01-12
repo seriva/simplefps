@@ -67,6 +67,28 @@ vec3 calcSpotLight(vec3 lightPos, vec3 lightDir, float cutoff, float range, vec3
     return vec3(attenuation, spotFalloff, nDotL);
 }`;
 
+// Skinning vertex attributes - shared between all skinned shaders
+const _skinningInputs = /* glsl */ `
+layout(location=4) in uvec4 aJointIndices;
+layout(location=5) in vec4 aJointWeights;`;
+
+// Skinning uniform - bone matrices array
+const _skinningUniform = /* glsl */ `
+uniform mat4 boneMatrices[64];`;
+
+// Skinning calculation - computes skinMatrix from bone weights
+// Requires: aJointIndices, aJointWeights, boneMatrices to be declared
+const _skinningCalc = /* glsl */ `
+    // Convert uint indices to int for array indexing
+    ivec4 joints = ivec4(aJointIndices);
+    
+    // Compute skinning matrix from bone weights
+    mat4 skinMatrix = 
+        boneMatrices[joints.x] * aJointWeights.x +
+        boneMatrices[joints.y] * aJointWeights.y +
+        boneMatrices[joints.z] * aJointWeights.z +
+        boneMatrices[joints.w] * aJointWeights.w;`;
+
 // Shared geometry fragment shader (used by both geometry and skinnedGeometry)
 const _geometryFragment = /* glsl */ `#version 300 es
             precision highp float;
@@ -201,13 +223,12 @@ export const ShaderSources = {
             layout(location=1) in vec2 aUV;
             layout(location=2) in vec3 aNormal;
             layout(location=3) in vec2 aLightmapUV;
-            layout(location=4) in uvec4 aJointIndices;
-            layout(location=5) in vec4 aJointWeights;
+            ${_skinningInputs}
 
             ${_frameDataUBO}
 
             uniform mat4 matWorld;
-            uniform mat4 boneMatrices[64];
+            ${_skinningUniform}
 
             out vec4 vPosition;
             out vec3 vNormal;
@@ -215,15 +236,7 @@ export const ShaderSources = {
             out vec2 vLightmapUV;
 
             void main() {
-                // Convert uint indices to int for array indexing
-                ivec4 joints = ivec4(aJointIndices);
-                
-                // Compute skinning matrix from bone weights
-                mat4 skinMatrix = 
-                    boneMatrices[joints.x] * aJointWeights.x +
-                    boneMatrices[joints.y] * aJointWeights.y +
-                    boneMatrices[joints.z] * aJointWeights.z +
-                    boneMatrices[joints.w] * aJointWeights.w;
+                ${_skinningCalc}
 
                 // Apply skinning to position and normal
                 vec3 skinnedPosition = (skinMatrix * vec4(aPosition, 1.0)).xyz;
@@ -272,25 +285,16 @@ export const ShaderSources = {
             precision highp int;
 
             layout(location=0) in vec3 aPosition;
-            layout(location=4) in uvec4 aJointIndices;
-            layout(location=5) in vec4 aJointWeights;
+            ${_skinningInputs}
 
             ${_frameDataUBO}
 
             uniform mat4 matWorld;
-            uniform mat4 boneMatrices[64];
+            ${_skinningUniform}
 
             void main()
             {
-                // Convert uint indices to int for array indexing
-                ivec4 joints = ivec4(aJointIndices);
-                
-                // Compute skinning matrix
-                mat4 skinMatrix = 
-                    boneMatrices[joints.x] * aJointWeights.x +
-                    boneMatrices[joints.y] * aJointWeights.y +
-                    boneMatrices[joints.z] * aJointWeights.z +
-                    boneMatrices[joints.w] * aJointWeights.w;
+                ${_skinningCalc}
 
                 vec3 skinnedPosition = (skinMatrix * vec4(aPosition, 1.0)).xyz;
                 gl_Position = matViewProj * matWorld * vec4(skinnedPosition, 1.0);
@@ -910,24 +914,15 @@ export const ShaderSources = {
             precision highp int;
 
             layout(location=0) in vec3 aPosition;
-            layout(location=4) in uvec4 aJointIndices;
-            layout(location=5) in vec4 aJointWeights;
+            ${_skinningInputs}
 
             ${_frameDataUBO}
 
             uniform mat4 matWorld;
-            uniform mat4 boneMatrices[64];
+            ${_skinningUniform}
 
             void main() {
-                // Convert uint indices to int for array indexing
-                ivec4 joints = ivec4(aJointIndices);
-                
-                // Compute skinning matrix from bone weights
-                mat4 skinMatrix = 
-                    boneMatrices[joints.x] * aJointWeights.x +
-                    boneMatrices[joints.y] * aJointWeights.y +
-                    boneMatrices[joints.z] * aJointWeights.z +
-                    boneMatrices[joints.w] * aJointWeights.w;
+                ${_skinningCalc}
 
                 // Apply skinning to position
                 vec3 skinnedPosition = (skinMatrix * vec4(aPosition, 1.0)).xyz;
