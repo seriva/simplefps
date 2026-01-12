@@ -136,23 +136,26 @@ class SkinnedMesh extends Mesh {
 		Backend.bindVertexState(vao);
 	}
 
+	// Pre-allocated buffer for bone matrices (reused each frame)
+	_boneMatrixBuffer = null;
+
 	// Get bone matrices for GPU skinning (flat Float32Array of mat4s)
-	// Always returns 64 matrices (4096 bytes) for WebGPU uniform buffer compatibility
+	// Reuses internal buffer to avoid allocations
 	getBoneMatricesForGPU(pose) {
 		if (!this.skeleton) return null;
 
-		const skinMatrices = this.skeleton.computeSkinningMatrices(
-			pose.localTransforms,
-		);
+		const skinMatrices = this.skeleton.computeSkinningMatrices(pose);
 		const count = skinMatrices.length;
 
-		// Always allocate 64 matrices for uniform buffer alignment
-		const result = new Float32Array(64 * 16);
+		// Allocate buffer once (64 matrices for uniform buffer alignment)
+		if (!this._boneMatrixBuffer) {
+			this._boneMatrixBuffer = new Float32Array(64 * 16);
+		}
 
+		const result = this._boneMatrixBuffer;
 		for (let i = 0; i < count; i++) {
 			result.set(skinMatrices[i], i * 16);
 		}
-		// Remaining matrices stay as identity (zeros, which is fine as they won't be used)
 
 		return result;
 	}

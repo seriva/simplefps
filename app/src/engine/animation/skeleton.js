@@ -1,4 +1,4 @@
-import { mat4, quat, vec3 } from "../../dependencies/gl-matrix.js";
+import { mat4, quat } from "../../dependencies/gl-matrix.js";
 
 class Skeleton {
 	constructor(jointsData) {
@@ -16,7 +16,6 @@ class Skeleton {
 		}));
 
 		this.jointCount = this.joints.length;
-		this.jointMap = new Map();
 
 		// Temporary storage for global matrices to compute local transforms
 		const globalMatrices = [];
@@ -24,8 +23,6 @@ class Skeleton {
 		for (let i = 0; i < this.jointCount; i++) {
 			const j = jointsData[i];
 			const joint = this.joints[i];
-
-			this.jointMap.set(joint.name, joint);
 
 			// Construct Global Matrix from MD5 data
 			const globalMatrix = mat4.create();
@@ -45,7 +42,7 @@ class Skeleton {
 			}
 
 			// Extract Pos/Rot from Local Matrix
-			const pos = vec3.create();
+			const pos = new Float32Array(3);
 			const rot = quat.create();
 			mat4.getTranslation(pos, localMatrix);
 			mat4.getRotation(rot, localMatrix);
@@ -55,12 +52,10 @@ class Skeleton {
 			joint.localBindRot.set(rot);
 		}
 
-		// bindPoseMatrices should be the Global matrices (which we already computed)
-		this.bindPoseMatrices = this.joints.map((j) => j.bindPoseMatrix);
-
-		this.inverseBindMatrices = this.bindPoseMatrices.map((m) => {
+		// Compute inverse bind matrices for skinning
+		this.inverseBindMatrices = this.joints.map((j) => {
 			const inv = mat4.create();
-			mat4.invert(inv, m);
+			mat4.invert(inv, j.bindPoseMatrix);
 			return inv;
 		});
 
@@ -74,24 +69,51 @@ class Skeleton {
 		this._tempMatrix = mat4.create();
 	}
 
-	getJoint(name) {
-		return this.jointMap.get(name);
-	}
-
-	getJointByIndex(index) {
-		return this.joints[index];
-	}
-
 	#computeWorldMatrices(pose) {
 		const worldMatrices = this._worldMatrices;
 		const localMatrix = this._tempMatrix;
+		const positions = pose.positions;
+		const rotations = pose.rotations;
 
 		for (let i = 0; i < this.jointCount; i++) {
 			const joint = this.joints[i];
-			const jointPose = pose[i];
+			const pi = i * 3;
+			const ri = i * 4;
 
-			// Compute local matrix
-			mat4.fromRotationTranslation(localMatrix, jointPose.rot, jointPose.pos);
+			// Inline fromRotationTranslation for performance
+			const qx = rotations[ri],
+				qy = rotations[ri + 1],
+				qz = rotations[ri + 2],
+				qw = rotations[ri + 3];
+			const x2 = qx + qx,
+				y2 = qy + qy,
+				z2 = qz + qz;
+			const xx = qx * x2,
+				xy = qx * y2,
+				xz = qx * z2;
+			const yy = qy * y2,
+				yz = qy * z2,
+				zz = qz * z2;
+			const wx = qw * x2,
+				wy = qw * y2,
+				wz = qw * z2;
+
+			localMatrix[0] = 1 - (yy + zz);
+			localMatrix[1] = xy + wz;
+			localMatrix[2] = xz - wy;
+			localMatrix[3] = 0;
+			localMatrix[4] = xy - wz;
+			localMatrix[5] = 1 - (xx + zz);
+			localMatrix[6] = yz + wx;
+			localMatrix[7] = 0;
+			localMatrix[8] = xz + wy;
+			localMatrix[9] = yz - wx;
+			localMatrix[10] = 1 - (xx + yy);
+			localMatrix[11] = 0;
+			localMatrix[12] = positions[pi];
+			localMatrix[13] = positions[pi + 1];
+			localMatrix[14] = positions[pi + 2];
+			localMatrix[15] = 1;
 
 			// Compute world matrix
 			const worldMatrix = worldMatrices[i];
@@ -109,20 +131,6 @@ class Skeleton {
 		return this.#computeWorldMatrices(pose);
 	}
 
-	// For poses that are already in World/Object space (like MD5)
-	getDirectWorldMatrices(pose) {
-		const matrices = [];
-		const _localMatrix = mat4.create();
-
-		for (let i = 0; i < this.jointCount; i++) {
-			const jointPose = pose[i];
-			const matrix = mat4.create();
-			mat4.fromRotationTranslation(matrix, jointPose.rot, jointPose.pos);
-			matrices.push(matrix);
-		}
-		return matrices;
-	}
-
 	computeSkinningMatrices(pose) {
 		this.#computeWorldMatrices(pose); // Populates this._worldMatrices
 		const skinMatrices = this._skinMatrices;
@@ -137,60 +145,90 @@ class Skeleton {
 
 		return skinMatrices;
 	}
-
-	getJointPositions(pose) {
-		const worldMatrices = this.#computeWorldMatrices(pose);
-		const positions = [];
-
-		for (const matrix of worldMatrices) {
-			const pos = vec3.create();
-			mat4.getTranslation(pos, matrix);
-			positions.push(pos);
-		}
-
-		return positions;
-	}
 }
 
 class Pose {
 	constructor(jointCount) {
 		this.jointCount = jointCount;
-		this.localTransforms = [];
+		// Flat typed arrays for better cache locality and less GC pressure
+		// positions: 3 floats per joint, rotations: 4 floats per joint
+		this.positions = new Float32Array(jointCount * 3);
+		this.rotations = new Float32Array(jointCount * 4);
 
+		// Initialize rotations to identity quaternion (0,0,0,1)
 		for (let i = 0; i < jointCount; i++) {
-			this.localTransforms.push({
-				pos: vec3.create(),
-				rot: quat.create(),
-			});
+			this.rotations[i * 4 + 3] = 1;
 		}
 	}
 
 	setJointTransform(index, pos, rot) {
-		vec3.copy(this.localTransforms[index].pos, pos);
-		quat.copy(this.localTransforms[index].rot, rot);
+		const pi = index * 3;
+		const ri = index * 4;
+		this.positions[pi] = pos[0];
+		this.positions[pi + 1] = pos[1];
+		this.positions[pi + 2] = pos[2];
+		this.rotations[ri] = rot[0];
+		this.rotations[ri + 1] = rot[1];
+		this.rotations[ri + 2] = rot[2];
+		this.rotations[ri + 3] = rot[3];
 	}
 
 	copyFrom(other) {
-		for (let i = 0; i < this.jointCount; i++) {
-			vec3.copy(this.localTransforms[i].pos, other.localTransforms[i].pos);
-			quat.copy(this.localTransforms[i].rot, other.localTransforms[i].rot);
-		}
+		this.positions.set(other.positions);
+		this.rotations.set(other.rotations);
 	}
 
 	static lerp(out, poseA, poseB, t) {
+		const outPos = out.positions;
+		const outRot = out.rotations;
+		const aPos = poseA.positions;
+		const aRot = poseA.rotations;
+		const bPos = poseB.positions;
+		const bRot = poseB.rotations;
+
 		for (let i = 0; i < out.jointCount; i++) {
-			quat.slerp(
-				out.localTransforms[i].rot,
-				poseA.localTransforms[i].rot,
-				poseB.localTransforms[i].rot,
-				t,
-			);
-			vec3.lerp(
-				out.localTransforms[i].pos,
-				poseA.localTransforms[i].pos,
-				poseB.localTransforms[i].pos,
-				t,
-			);
+			const pi = i * 3;
+			const ri = i * 4;
+
+			// Lerp position
+			outPos[pi] = aPos[pi] + (bPos[pi] - aPos[pi]) * t;
+			outPos[pi + 1] = aPos[pi + 1] + (bPos[pi + 1] - aPos[pi + 1]) * t;
+			outPos[pi + 2] = aPos[pi + 2] + (bPos[pi + 2] - aPos[pi + 2]) * t;
+
+			// Slerp rotation (inlined for performance)
+			let ax = aRot[ri],
+				ay = aRot[ri + 1],
+				az = aRot[ri + 2],
+				aw = aRot[ri + 3];
+			let bx = bRot[ri],
+				by = bRot[ri + 1],
+				bz = bRot[ri + 2],
+				bw = bRot[ri + 3];
+
+			let dot = ax * bx + ay * by + az * bz + aw * bw;
+			if (dot < 0) {
+				dot = -dot;
+				bx = -bx;
+				by = -by;
+				bz = -bz;
+				bw = -bw;
+			}
+
+			let s0, s1;
+			if (1.0 - dot > 0.000001) {
+				const omega = Math.acos(dot);
+				const sinOmega = Math.sin(omega);
+				s0 = Math.sin((1 - t) * omega) / sinOmega;
+				s1 = Math.sin(t * omega) / sinOmega;
+			} else {
+				s0 = 1 - t;
+				s1 = t;
+			}
+
+			outRot[ri] = s0 * ax + s1 * bx;
+			outRot[ri + 1] = s0 * ay + s1 * by;
+			outRot[ri + 2] = s0 * az + s1 * bz;
+			outRot[ri + 3] = s0 * aw + s1 * bw;
 		}
 	}
 }
