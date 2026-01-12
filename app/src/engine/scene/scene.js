@@ -21,6 +21,19 @@ const _visibilityCache = {
 	[EntityTypes.SPOT_LIGHT]: [],
 };
 
+// Pre-computed type arrays for fast lookup (avoids .includes() in hot path)
+const _visibilityCacheTypes = Object.keys(_visibilityCache).map(Number);
+const _meshTypes = new Set([
+	EntityTypes.MESH,
+	EntityTypes.SKINNED_MESH,
+	EntityTypes.FPS_MESH,
+]);
+const _lightTypes = new Set([
+	EntityTypes.POINT_LIGHT,
+	EntityTypes.SPOT_LIGHT,
+	EntityTypes.DIRECTIONAL_LIGHT,
+]);
+
 const _renderStats = {
 	visibleMeshCount: 0,
 	visibleLightCount: 0,
@@ -123,9 +136,9 @@ const _updateVisibility = () => {
 	stats.visibleLightCount = 0;
 	stats.triangleCount = 0;
 
-	// Reset visibility lists
-	for (const type of Object.keys(_visibilityCache)) {
-		_visibilityCache[type].length = 0;
+	// Reset visibility lists using pre-computed type array
+	for (let t = 0; t < _visibilityCacheTypes.length; t++) {
+		_visibilityCache[_visibilityCacheTypes[t]].length = 0;
 	}
 
 	// Sort entities into visible/invisible lists
@@ -133,23 +146,12 @@ const _updateVisibility = () => {
 		const entity = _entities[i];
 		if (!entity.boundingBox || entity.boundingBox.isVisible()) {
 			_visibilityCache[entity.type].push(entity);
+			const type = entity.type;
 
-			if (
-				[
-					EntityTypes.MESH,
-					EntityTypes.SKINNED_MESH,
-					EntityTypes.FPS_MESH,
-				].includes(entity.type)
-			) {
+			if (_meshTypes.has(type)) {
 				stats.visibleMeshCount++;
 				stats.triangleCount += entity.mesh?.triangleCount || 0;
-			} else if (
-				[
-					EntityTypes.POINT_LIGHT,
-					EntityTypes.SPOT_LIGHT,
-					EntityTypes.DIRECTIONAL_LIGHT,
-				].includes(entity.type)
-			) {
+			} else if (_lightTypes.has(type)) {
 				stats.visibleLightCount++;
 			}
 		}

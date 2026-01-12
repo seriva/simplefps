@@ -8,6 +8,11 @@ class BoundingBox {
 		.map(() => vec3.create());
 	static #poolIndex = 0;
 
+	// Reusable buffers for transform() - avoid per-call allocations
+	static #cornersBuffer = new Float32Array(24);
+	static #transformedMin = vec3.create();
+	static #transformedMax = vec3.create();
+
 	#center = vec3.create();
 	#dimensions = vec3.create();
 	#min;
@@ -59,6 +64,14 @@ class BoundingBox {
 		this.#updateCachedValues();
 	}
 
+	// Set bounds in-place (avoids creating new BoundingBox)
+	set(min, max) {
+		vec3.copy(this.#min, min);
+		vec3.copy(this.#max, max);
+		this.#updateCachedValues();
+		return this;
+	}
+
 	#updateCachedValues() {
 		vec3.add(this.#center, this.#min, this.#max);
 		vec3.scale(this.#center, this.#center, 0.5);
@@ -85,8 +98,8 @@ class BoundingBox {
 	}
 
 	transform(matrix) {
-		// Cache the transformed corners for better performance
-		const corners = new Float32Array(24); // 8 corners * 3 components
+		// Use static buffers to avoid per-call allocations
+		const corners = BoundingBox.#cornersBuffer;
 		const corner = BoundingBox.#getVector();
 
 		for (let i = 0; i < 8; i++) {
@@ -103,11 +116,14 @@ class BoundingBox {
 			corners[i * 3 + 2] = corner[2];
 		}
 
-		// Find min and max in one pass
-		const transformedMin = vec3.fromValues(corners[0], corners[1], corners[2]);
-		const transformedMax = vec3.fromValues(corners[0], corners[1], corners[2]);
+		// Find min and max in one pass - reuse static vectors
+		const transformedMin = BoundingBox.#transformedMin;
+		const transformedMax = BoundingBox.#transformedMax;
+		transformedMin[0] = transformedMax[0] = corners[0];
+		transformedMin[1] = transformedMax[1] = corners[1];
+		transformedMin[2] = transformedMax[2] = corners[2];
 
-		for (let i = 3; i < corners.length; i += 3) {
+		for (let i = 3; i < 24; i += 3) {
 			transformedMin[0] = Math.min(transformedMin[0], corners[i]);
 			transformedMin[1] = Math.min(transformedMin[1], corners[i + 1]);
 			transformedMin[2] = Math.min(transformedMin[2], corners[i + 2]);
@@ -119,11 +135,51 @@ class BoundingBox {
 		return new BoundingBox(transformedMin, transformedMax);
 	}
 
+	// Transform into an existing BoundingBox (avoids allocation)
+	transformInto(matrix, out) {
+		const corners = BoundingBox.#cornersBuffer;
+		const corner = BoundingBox.#getVector();
+
+		for (let i = 0; i < 8; i++) {
+			vec3.set(
+				corner,
+				i & 1 ? this.#max[0] : this.#min[0],
+				i & 2 ? this.#max[1] : this.#min[1],
+				i & 4 ? this.#max[2] : this.#min[2],
+			);
+
+			vec3.transformMat4(corner, corner, matrix);
+			corners[i * 3] = corner[0];
+			corners[i * 3 + 1] = corner[1];
+			corners[i * 3 + 2] = corner[2];
+		}
+
+		const transformedMin = BoundingBox.#transformedMin;
+		const transformedMax = BoundingBox.#transformedMax;
+		transformedMin[0] = transformedMax[0] = corners[0];
+		transformedMin[1] = transformedMax[1] = corners[1];
+		transformedMin[2] = transformedMax[2] = corners[2];
+
+		for (let i = 3; i < 24; i += 3) {
+			transformedMin[0] = Math.min(transformedMin[0], corners[i]);
+			transformedMin[1] = Math.min(transformedMin[1], corners[i + 1]);
+			transformedMin[2] = Math.min(transformedMin[2], corners[i + 2]);
+			transformedMax[0] = Math.max(transformedMax[0], corners[i]);
+			transformedMax[1] = Math.max(transformedMax[1], corners[i + 1]);
+			transformedMax[2] = Math.max(transformedMax[2], corners[i + 2]);
+		}
+
+		return out.set(transformedMin, transformedMax);
+	}
+
 	isVisible() {
 		const p = BoundingBox.#getVector();
 		const n = BoundingBox.#getVector();
+		const planes = Camera.frustumPlanesArray;
 
-		for (const plane of Object.values(Camera.frustumPlanes)) {
+		// Use array for fast iteration (avoids Object.values())
+		for (let i = 0; i < 6; i++) {
+			const plane = planes[i];
 			// Use direct array access for better performance
 			p[0] = plane[0] > 0 ? this.#max[0] : this.#min[0];
 			p[1] = plane[1] > 0 ? this.#max[1] : this.#min[1];

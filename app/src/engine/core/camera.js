@@ -22,6 +22,8 @@ const Camera = {
 		top: vec4.create(),
 		bottom: vec4.create(),
 	},
+	// Array view for fast iteration (references same vec4s)
+	frustumPlanesArray: null,
 
 	setProjection(inFov, inNearPlane, inFarPlane) {
 		_fov = inFov;
@@ -81,6 +83,19 @@ const Camera = {
 	},
 
 	update() {
+		// Initialize array view on first update (after frustumPlanes is populated)
+		if (!this.frustumPlanesArray) {
+			const fp = this.frustumPlanes;
+			this.frustumPlanesArray = [
+				fp.left,
+				fp.right,
+				fp.bottom,
+				fp.top,
+				fp.near,
+				fp.far,
+			];
+		}
+
 		vec3.add(_target, this.position, this.direction);
 		mat4.lookAt(this.view, this.position, _target, this.upVector);
 		mat4.mul(this.viewProjection, _projection, this.view);

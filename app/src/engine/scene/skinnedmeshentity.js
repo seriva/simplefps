@@ -9,6 +9,9 @@ import MeshEntity from "./meshentity.js";
 
 const _tempMatrix = mat4.create();
 
+// Reusable bounding boxes to avoid per-frame allocations
+const _localBB = new BoundingBox([0, 0, 0], [1, 1, 1]);
+
 class SkinnedMeshEntity extends MeshEntity {
 	constructor(position, meshName, updateCallback, scale = 1) {
 		super(position, meshName, updateCallback, scale);
@@ -172,9 +175,14 @@ class SkinnedMeshEntity extends MeshEntity {
 		const animBounds = this.animationPlayer.getCurrentBounds();
 		if (!animBounds) return;
 
-		const localBB = new BoundingBox(animBounds.min, animBounds.max);
+		// Reuse bounding box objects instead of creating new ones each frame
+		_localBB.set(animBounds.min, animBounds.max);
 		mat4.multiply(_tempMatrix, this.base_matrix, this.ani_matrix);
-		this.boundingBox = localBB.transform(_tempMatrix);
+
+		if (!this.boundingBox) {
+			this.boundingBox = new BoundingBox([0, 0, 0], [1, 1, 1]);
+		}
+		_localBB.transformInto(_tempMatrix, this.boundingBox);
 	}
 
 	isPlaying() {
