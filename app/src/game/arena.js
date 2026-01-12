@@ -107,7 +107,7 @@ const _setupSpawnpointModels = (spawnpoints = []) => {
 		const modelPos = [pos[0], groundY, pos[2]];
 
 		// Get yaw in degrees
-		const yawDegrees = spawn.rotation ? (spawn.rotation[1] * 180) / Math.PI : 0;
+		// const yawDegrees = spawn.rotation ? (spawn.rotation[1] * 180) / Math.PI : 0;
 
 		const character = new SkinnedMeshEntity(
 			modelPos,
