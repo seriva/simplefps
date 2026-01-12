@@ -39,6 +39,18 @@ fn calcSkinMatrix(jointIndices: vec4<u32>, jointWeights: vec4<f32>) -> mat4x4<f3
            boneMatrices[jointIndices.w] * jointWeights.w;
 }`;
 
+// Shared shadow vertex output struct
+const ShadowVertexOutputStruct = /* wgsl */ `
+struct ShadowVertexOutput {
+    @builtin(position) clipPosition: vec4<f32>,
+}`;
+
+// Shared debug vertex output struct
+const DebugVertexOutputStruct = /* wgsl */ `
+struct DebugVertexOutput {
+    @builtin(position) clipPosition: vec4<f32>,
+}`;
+
 // Geometry shader - outputs to G-buffer
 const geometryShader = /* wgsl */ `
 ${FrameDataStruct}
@@ -271,9 +283,7 @@ struct ShadowVertexInput {
     @location(0) position: vec3<f32>,
 }
 
-struct ShadowVertexOutput {
-    @builtin(position) clipPosition: vec4<f32>,
-}
+${ShadowVertexOutputStruct}
 
 @group(0) @binding(0) var<uniform> frameData: FrameData;
 @group(1) @binding(0) var<uniform> matWorld: mat4x4<f32>;
@@ -301,9 +311,7 @@ struct SkinnedShadowVertexInput {
     ${SkinnedVertexInputAttribs}
 }
 
-struct ShadowVertexOutput {
-    @builtin(position) clipPosition: vec4<f32>,
-}
+${ShadowVertexOutputStruct}
 
 @group(0) @binding(0) var<uniform> frameData: FrameData;
 @group(1) @binding(0) var<uniform> matWorld: mat4x4<f32>;
@@ -1014,9 +1022,7 @@ struct DebugVertexInput {
     @location(0) position: vec3<f32>,
 }
 
-struct DebugVertexOutput {
-    @builtin(position) clipPosition: vec4<f32>,
-}
+${DebugVertexOutputStruct}
 
 @group(0) @binding(0) var<uniform> frameData: FrameData;
 @group(1) @binding(0) var<uniform> matWorld: mat4x4<f32>;
@@ -1044,9 +1050,7 @@ struct SkinnedDebugVertexInput {
     ${SkinnedVertexInputAttribs}
 }
 
-struct DebugVertexOutput {
-    @builtin(position) clipPosition: vec4<f32>,
-}
+${DebugVertexOutputStruct}
 
 @group(0) @binding(0) var<uniform> frameData: FrameData;
 @group(1) @binding(0) var<uniform> matWorld: mat4x4<f32>;
