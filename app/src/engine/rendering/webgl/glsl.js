@@ -18,13 +18,6 @@ layout(std140) uniform MaterialData {
     vec4 params; // reflectionStrength, opacity, pad, pad
 };`;
 
-const _reconstructPosition = /* glsl */ `
-vec3 reconstructPosition(vec2 uv, float depth) {
-    vec4 clipPos = vec4(uv * 2.0 - 1.0, depth * 2.0 - 1.0, 1.0);
-    vec4 worldPos = matInvViewProj * clipPos;
-    return worldPos.xyz / worldPos.w;
-}`;
-
 // Point light falloff calculation - shared between deferred and forward paths
 // Returns vec2(falloff, nDotL) to allow caller to combine with color/intensity
 const _pointLightCalc = /* glsl */ `
@@ -88,6 +81,32 @@ const _skinningCalc = /* glsl */ `
         boneMatrices[joints.y] * aJointWeights.y +
         boneMatrices[joints.z] * aJointWeights.z +
         boneMatrices[joints.w] * aJointWeights.w;`;
+
+// Debug fragment shader - shared between debug and skinnedDebug
+const _debugFragment = /* glsl */ `#version 300 es
+            precision highp float;
+
+            layout(location=0) out vec4 fragColor;
+
+            uniform vec4 debugColor;
+
+            void main() {
+                fragColor = debugColor;
+            }`;
+
+// Shadow fragment shader - shared between entityShadows and skinnedEntityShadows
+const _shadowFragment = /* glsl */ `#version 300 es
+            precision highp float;
+            precision highp int;
+
+            layout(location=0) out vec4 fragColor;
+
+            uniform vec3 ambient;
+
+            void main()
+            {
+                fragColor = vec4(ambient, 1.0);
+            }`;
 
 // Shared geometry fragment shader (used by both geometry and skinnedGeometry)
 const _geometryFragment = /* glsl */ `#version 300 es
@@ -266,18 +285,7 @@ export const ShaderSources = {
             {
                 gl_Position = matViewProj * matWorld * vec4(aPosition, 1.0);
             }`,
-		fragment: /* glsl */ `#version 300 es
-            precision highp float;
-            precision highp int;
-
-            layout(location=0) out vec4 fragColor;
-
-            uniform vec3 ambient;
-
-            void main()
-            {
-                fragColor = vec4(ambient, 1.0);
-            }`,
+		fragment: _shadowFragment,
 	},
 	skinnedEntityShadows: {
 		vertex: /* glsl */ `#version 300 es
@@ -299,18 +307,7 @@ export const ShaderSources = {
                 vec3 skinnedPosition = (skinMatrix * vec4(aPosition, 1.0)).xyz;
                 gl_Position = matViewProj * matWorld * vec4(skinnedPosition, 1.0);
             }`,
-		fragment: /* glsl */ `#version 300 es
-            precision highp float;
-            precision highp int;
-
-            layout(location=0) out vec4 fragColor;
-
-            uniform vec3 ambient;
-
-            void main()
-            {
-                fragColor = vec4(ambient, 1.0);
-            }`,
+		fragment: _shadowFragment,
 	},
 	applyShadows: {
 		vertex: /* glsl */ `#version 300 es
@@ -897,16 +894,7 @@ export const ShaderSources = {
             void main() {
                 gl_Position = matViewProj * matWorld * vec4(aPosition, 1.0);
             }`,
-		fragment: /* glsl */ `#version 300 es
-            precision highp float;
-
-            layout(location=0) out vec4 fragColor;
-
-            uniform vec4 debugColor;
-
-            void main() {
-                fragColor = debugColor;
-            }`,
+		fragment: _debugFragment,
 	},
 	skinnedDebug: {
 		vertex: /* glsl */ `#version 300 es
@@ -929,15 +917,6 @@ export const ShaderSources = {
 
                 gl_Position = matViewProj * matWorld * vec4(skinnedPosition, 1.0);
             }`,
-		fragment: /* glsl */ `#version 300 es
-            precision highp float;
-
-            layout(location=0) out vec4 fragColor;
-
-            uniform vec4 debugColor;
-
-            void main() {
-                fragColor = debugColor;
-            }`,
+		fragment: _debugFragment,
 	},
 };
