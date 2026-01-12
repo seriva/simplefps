@@ -13,6 +13,7 @@ class Animation {
 		// Per-frame bounding boxes (min/max pairs)
 		this.bounds = data.bounds || null;
 
+		// Pre-compute frame poses from raw frame data
 		this._framePoses = this.frames.map((frame) => {
 			const pose = new Pose(this.jointCount);
 			for (let j = 0; j < this.jointCount; j++) {
@@ -21,49 +22,18 @@ class Animation {
 			}
 			return pose;
 		});
+
+		// Free raw frame data after converting to poses (saves memory)
+		this.frames = null;
+
+		// Reusable bounds object to avoid allocations
+		this._boundsResult = { min: [0, 0, 0], max: [0, 0, 0] };
 	}
 
-	sample(time, outPose, loop = true) {
-		if (this.numFrames === 0) return;
-
-		if (this.numFrames === 1) {
-			outPose.copyFrom(this._framePoses[0]);
-			return;
-		}
-
-		let t = time;
-		if (loop && this.duration > 0) {
-			t = t % this.duration;
-			if (t < 0) t += this.duration;
-		} else {
-			t = Math.max(0, Math.min(t, this.duration));
-		}
-
-		const frameTime = t * this.frameRate;
-		const frame0 = Math.floor(frameTime);
-		const frame1 = Math.min(frame0 + 1, this.numFrames - 1);
-		const alpha = frameTime - frame0;
-
-		const clampedFrame0 = Math.min(frame0, this.numFrames - 1);
-
-		if (alpha < 0.001 || frame0 === frame1) {
-			outPose.copyFrom(this._framePoses[clampedFrame0]);
-		} else {
-			Pose.lerp(
-				outPose,
-				this._framePoses[clampedFrame0],
-				this._framePoses[frame1],
-				alpha,
-			);
-		}
-	}
-
-	// Sample bounding box at a given time, returns { min, max } or null
-	sampleBounds(time, loop = true) {
-		if (!this.bounds || this.numFrames === 0) return null;
-
-		if (this.numFrames === 1) {
-			return this.bounds[0];
+	// Calculate frame indices and interpolation factor for a given time
+	_getFrameInfo(time, loop) {
+		if (this.numFrames <= 1) {
+			return { frame0: 0, frame1: 0, alpha: 0 };
 		}
 
 		let t = time;
@@ -79,26 +49,54 @@ class Animation {
 		const frame1 = Math.min(frame0 + 1, this.numFrames - 1);
 		const alpha = frameTime - Math.floor(frameTime);
 
-		const b0 = this.bounds[frame0];
-		const b1 = this.bounds[frame1];
+		return { frame0, frame1, alpha };
+	}
+
+	sample(time, outPose, loop = true) {
+		if (this.numFrames === 0) return;
+
+		const { frame0, frame1, alpha } = this._getFrameInfo(time, loop);
 
 		if (alpha < 0.001 || frame0 === frame1) {
-			return b0;
+			outPose.copyFrom(this._framePoses[frame0]);
+		} else {
+			Pose.lerp(
+				outPose,
+				this._framePoses[frame0],
+				this._framePoses[frame1],
+				alpha,
+			);
+		}
+	}
+
+	// Sample bounding box at a given time (reuses internal object)
+	sampleBounds(time, loop = true) {
+		if (!this.bounds || this.numFrames === 0) return null;
+
+		const { frame0, frame1, alpha } = this._getFrameInfo(time, loop);
+
+		const b0 = this.bounds[frame0];
+		const b1 = this.bounds[frame1];
+		const out = this._boundsResult;
+
+		if (alpha < 0.001 || frame0 === frame1) {
+			out.min[0] = b0.min[0];
+			out.min[1] = b0.min[1];
+			out.min[2] = b0.min[2];
+			out.max[0] = b0.max[0];
+			out.max[1] = b0.max[1];
+			out.max[2] = b0.max[2];
+		} else {
+			// Lerp between bounding boxes
+			out.min[0] = b0.min[0] + (b1.min[0] - b0.min[0]) * alpha;
+			out.min[1] = b0.min[1] + (b1.min[1] - b0.min[1]) * alpha;
+			out.min[2] = b0.min[2] + (b1.min[2] - b0.min[2]) * alpha;
+			out.max[0] = b0.max[0] + (b1.max[0] - b0.max[0]) * alpha;
+			out.max[1] = b0.max[1] + (b1.max[1] - b0.max[1]) * alpha;
+			out.max[2] = b0.max[2] + (b1.max[2] - b0.max[2]) * alpha;
 		}
 
-		// Lerp between bounding boxes
-		return {
-			min: [
-				b0.min[0] + (b1.min[0] - b0.min[0]) * alpha,
-				b0.min[1] + (b1.min[1] - b0.min[1]) * alpha,
-				b0.min[2] + (b1.min[2] - b0.min[2]) * alpha,
-			],
-			max: [
-				b0.max[0] + (b1.max[0] - b0.max[0]) * alpha,
-				b0.max[1] + (b1.max[1] - b0.max[1]) * alpha,
-				b0.max[2] + (b1.max[2] - b0.max[2]) * alpha,
-			],
-		};
+		return out;
 	}
 
 	static fromBlob(blob) {
