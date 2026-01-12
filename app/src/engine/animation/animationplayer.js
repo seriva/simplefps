@@ -63,6 +63,12 @@ class AnimationPlayer {
 		return this.pose;
 	}
 
+	// Get the current animation's bounding box at current time
+	getCurrentBounds() {
+		if (!this.currentAnimation) return null;
+		return this.currentAnimation.sampleBounds(this.currentTime, this.loop);
+	}
+
 	isPlaying() {
 		return this.playing;
 	}

@@ -1,5 +1,6 @@
 import { mat4, vec3 } from "../../dependencies/gl-matrix.js";
 import AnimationPlayer from "../animation/animationplayer.js";
+import BoundingBox from "../core/boundingbox.js";
 import Mesh from "../rendering/mesh.js";
 import { Shaders } from "../rendering/shaders.js";
 import Resources from "../systems/resources.js";
@@ -199,7 +200,6 @@ class SkinnedMeshEntity extends MeshEntity {
 		// Log scale once
 		if (Math.random() < 0.01) {
 			const output = mat4.getScaling([0, 0, 0], _tempMatrix);
-			console.log("Skeleton Render Scale:", output, "Base Scale:", this.scale);
 		}
 
 		const debugShader = Shaders.debug;
@@ -212,14 +212,14 @@ class SkinnedMeshEntity extends MeshEntity {
 	}
 
 	updateBoundingVolume() {
-		if (!this.mesh) return;
+		if (!this.animationPlayer) return;
 
-		if (this.mesh.updateBoundingBox) {
-			this.mesh.updateBoundingBox();
-		}
+		const animBounds = this.animationPlayer.getCurrentBounds();
+		if (!animBounds) return;
 
+		const localBB = new BoundingBox(animBounds.min, animBounds.max);
 		mat4.multiply(_tempMatrix, this.base_matrix, this.ani_matrix);
-		this.boundingBox = this.mesh.boundingBox?.transform(_tempMatrix);
+		this.boundingBox = localBB.transform(_tempMatrix);
 	}
 
 	isPlaying() {
