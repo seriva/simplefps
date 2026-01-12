@@ -196,7 +196,7 @@ class Pose {
 			outPos[pi + 2] = aPos[pi + 2] + (bPos[pi + 2] - aPos[pi + 2]) * t;
 
 			// Slerp rotation (inlined for performance)
-			let ax = aRot[ri],
+			const ax = aRot[ri],
 				ay = aRot[ri + 1],
 				az = aRot[ri + 2],
 				aw = aRot[ri + 3];

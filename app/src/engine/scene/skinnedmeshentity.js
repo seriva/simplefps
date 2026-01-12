@@ -4,7 +4,7 @@ import BoundingBox from "../core/boundingbox.js";
 import Mesh from "../rendering/mesh.js";
 import { Shaders } from "../rendering/shaders.js";
 import Resources from "../systems/resources.js";
-import { Entity, EntityTypes } from "./entity.js";
+import { EntityTypes } from "./entity.js";
 import MeshEntity from "./meshentity.js";
 
 const _tempMatrix = mat4.create();
