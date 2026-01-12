@@ -58,6 +58,14 @@ class Entity {
 		Shaders.debug.setMat4("matWorld", this.boundingBox.transformMatrix);
 		Shapes.boundingBox.renderSingle(true, drawMode);
 	}
+
+	/**
+	 * Dispose of entity resources. Override in subclasses to clean up specific resources.
+	 */
+	dispose() {
+		this.updateCallback = null;
+		this.boundingBox = null;
+	}
 }
 
 export { Entity, EntityTypes };

@@ -204,6 +204,21 @@ class SkinnedMeshEntity extends MeshEntity {
 			this.animationPlayer.loop = loop;
 		}
 	}
+
+	/**
+	 * Dispose of entity resources including skeleton debug mesh.
+	 */
+	dispose() {
+		super.dispose();
+		this.animationPlayer = null;
+		this._boneMatrices = null;
+
+		// Clean up skeleton debug mesh if created
+		if (this._skeletonMesh) {
+			this._skeletonMesh.dispose();
+			this._skeletonMesh = null;
+		}
+	}
 }
 
 export default SkinnedMeshEntity;
