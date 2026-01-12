@@ -51,10 +51,6 @@ class MeshEntity extends Entity {
 		);
 	}
 
-	/**
-	 * Calculate shadow height by raycasting downward to find ground.
-	 * Sets shadowHeight to the hit point Y + offset, or undefined if no ground found.
-	 */
 	calculateShadowHeight() {
 		mat4.getTranslation(_tempPos, this.base_matrix);
 
@@ -101,28 +97,18 @@ class MeshEntity extends Entity {
 
 		if (this.shadowHeight === undefined) return; // No shadow if no ground
 
-		mat4.getTranslation(_tempPos, this.base_matrix);
-		mat4.getRotation(_tempQuat1, this.base_matrix);
-		mat4.getRotation(_tempQuat2, this.ani_matrix);
-		quat.multiply(_tempQuat3, _tempQuat1, _tempQuat2);
-		mat4.getScaling(_tempScale, this.base_matrix);
+		// 1. Calculate the standard World Matrix (apply base and ani)
+		mat4.multiply(_tempMatrix, this.base_matrix, this.ani_matrix);
 
-		// Populate shadow pos (use calculated shadow height)
-		_tempShadowPos[0] = _tempPos[0];
-		_tempShadowPos[1] = this.shadowHeight;
-		_tempShadowPos[2] = _tempPos[2];
+		// 2. Squash the model Y axis (World Space)
+		// We flatten the Y component of the 3 basis vectors
+		_tempMatrix[1] *= 0.1; // X-axis Y component
+		_tempMatrix[5] *= 0.1; // Y-axis Y component
+		_tempMatrix[9] *= 0.1; // Z-axis Y component
 
-		// Populate shadow scale (squash Y)
-		_tempShadowScale[0] = _tempScale[0];
-		_tempShadowScale[1] = 0.001;
-		_tempShadowScale[2] = _tempScale[2];
-
-		mat4.fromRotationTranslationScale(
-			_tempMatrix,
-			_tempQuat3,
-			_tempShadowPos,
-			_tempShadowScale,
-		);
+		// 3. Translate to the shadow height (World Space)
+		// Overwrite the Y position directly
+		_tempMatrix[13] = this.shadowHeight;
 
 		Shaders.entityShadows.setMat4("matWorld", _tempMatrix);
 		this.mesh.renderSingle(false);
