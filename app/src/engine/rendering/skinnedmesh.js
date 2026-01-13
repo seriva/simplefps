@@ -1,54 +1,20 @@
+import { Skeleton } from "../animation/skeleton.js";
 import { Backend } from "./backend.js";
 import Mesh from "./mesh.js";
 
 class SkinnedMesh extends Mesh {
 	constructor(data, context) {
-		super(data, context, true); // true = isSkinned
+		super(data, context);
+
+		// Skeletal data
+		this.skeleton = null;
+		this.gpuJointIndices = null;
+		this.gpuJointWeights = null;
 	}
 
 	initMeshBuffers() {
-		this.hasUVs = this.uvs.length > 0;
-		this.hasNormals = this.normals.length > 0;
+		const baseAttributes = this._createBaseBuffers();
 		this.hasLightmapUVs = false; // Skinned meshes never have lightmap UVs
-		this.triangleCount = 0;
-		this._buffers = [];
-
-		// Create Index Buffers
-		for (const indexObj of this.indices) {
-			indexObj.indexBuffer = Mesh.buildBuffer(null, indexObj.array, "index");
-			this._buffers.push(indexObj.indexBuffer);
-			this.triangleCount += indexObj.array.length / 3;
-		}
-
-		const vertexCount = this.vertices.length / 3;
-
-		// Position
-		this.vertexBuffer = Mesh.buildBuffer(null, this.vertices, "vertex");
-		this._buffers.push(this.vertexBuffer);
-
-		// UVs
-		if (this.hasUVs) {
-			this.uvBuffer = Mesh.buildBuffer(null, this.uvs, "vertex");
-		} else {
-			this.uvBuffer = Mesh.buildBuffer(
-				null,
-				new Float32Array(vertexCount * 2),
-				"vertex",
-			);
-		}
-		this._buffers.push(this.uvBuffer);
-
-		// Normals
-		if (this.hasNormals) {
-			this.normalBuffer = Mesh.buildBuffer(null, this.normals, "vertex");
-		} else {
-			this.normalBuffer = Mesh.buildBuffer(
-				null,
-				new Float32Array(vertexCount * 3),
-				"vertex",
-			);
-		}
-		this._buffers.push(this.normalBuffer);
 
 		// Joint indices buffer
 		this.jointIndexBuffer = Backend.createBuffer(
@@ -63,28 +29,6 @@ class SkinnedMesh extends Mesh {
 			"vertex",
 		);
 		this._buffers.push(this.jointWeightBuffer);
-
-		// Base attributes (positions, UVs, normals - no lightmap UVs)
-		const baseAttributes = [
-			{
-				buffer: this.vertexBuffer,
-				slot: Mesh.ATTR_POSITIONS,
-				size: 3,
-				type: "float",
-			},
-			{
-				buffer: this.uvBuffer,
-				slot: Mesh.ATTR_UVS,
-				size: 2,
-				type: "float",
-			},
-			{
-				buffer: this.normalBuffer,
-				slot: Mesh.ATTR_NORMALS,
-				size: 3,
-				type: "float",
-			},
-		];
 
 		// Create base VAO (for debug rendering without skinning)
 		this.vao = Backend.createVertexState({ attributes: baseAttributes });
@@ -174,6 +118,101 @@ class SkinnedMesh extends Mesh {
 		}
 
 		return result;
+	}
+
+	_loadExtraDataFromJson(data) {
+		if (data.skeleton) {
+			this.skeleton = new Skeleton(data.skeleton.joints);
+		}
+
+		// Load GPU skinning data if present
+		if (data.gpuJointIndices && data.gpuJointWeights) {
+			this.gpuJointIndices = new Uint8Array(data.gpuJointIndices);
+			this.gpuJointWeights = new Float32Array(data.gpuJointWeights);
+		}
+	}
+
+	async _loadExtraDataFromBlob(reader, context) {
+		const { readInt32, readFloat32, readUint32, readFloat32Array, bytes } =
+			reader;
+		const {
+			hasSkeletal,
+			jointCount,
+			weightCount,
+			hasWeightNormals,
+			hasGPUSkinning,
+		} = context;
+
+		if (hasSkeletal && jointCount > 0) {
+			const joints = [];
+
+			for (let i = 0; i < jointCount; i++) {
+				const parent = readInt32();
+				const pos = [readFloat32(), readFloat32(), readFloat32()];
+				const rot = [
+					readFloat32(),
+					readFloat32(),
+					readFloat32(),
+					readFloat32(),
+				];
+				joints.push({ name: "", parent, pos, rot });
+			}
+
+			// Read joint names
+			for (let i = 0; i < jointCount; i++) {
+				let name = "";
+				// We need to manage offset manually since we are accessing bytes directly here for strings
+				let offset = reader.getOffset();
+				while (offset < bytes.length && bytes[offset] !== 0) {
+					name += String.fromCharCode(bytes[offset++]);
+				}
+				offset++; // Skip null terminator
+
+				// Update the reader's offset!
+				// We need to calculate how many bytes we advanced
+				const delta = offset - reader.getOffset();
+				reader.skip(delta);
+
+				joints[i].name = name;
+			}
+
+			this.skeleton = new Skeleton(joints);
+
+			// Skip over legacy weight data (kept for file format compatibility)
+			for (let i = 0; i < weightCount; i++) {
+				readUint32(); // vertex
+				const count = readUint32();
+				for (let j = 0; j < count; j++) {
+					readUint32(); // joint index
+					readFloat32(); // weight
+					readFloat32();
+					readFloat32();
+					readFloat32(); // position
+					if (hasWeightNormals) {
+						readFloat32();
+						readFloat32();
+						readFloat32(); // normal
+					}
+				}
+			}
+
+			// Read GPU skinning data (version 5+)
+			if (hasGPUSkinning) {
+				const numVertices = this.vertices.length / 3;
+				// Joint indices: 4 uint8 per vertex
+				this.gpuJointIndices = new Uint8Array(numVertices * 4);
+				// We need to read raw bytes for Uint8Array
+				let offset = reader.getOffset();
+				for (let i = 0; i < numVertices * 4; i++) {
+					this.gpuJointIndices[i] = bytes[offset++];
+				}
+				// Sync offset again
+				reader.skip(numVertices * 4);
+
+				// Joint weights: 4 float32 per vertex
+				this.gpuJointWeights = readFloat32Array(numVertices * 4);
+			}
+		}
 	}
 }
 

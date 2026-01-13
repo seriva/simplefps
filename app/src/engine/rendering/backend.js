@@ -8,9 +8,11 @@ let _defaultBackend;
 
 if (Settings.useWebGPU && navigator.gpu) {
 	_defaultBackend = new WebGPUBackend();
+	_defaultBackend.name = "WebGPU";
 	Console.log("Using WebGPU backend");
 } else {
 	_defaultBackend = new WebGLBackend();
+	_defaultBackend.name = "WebGL";
 	Console.log("Using WebGL backend");
 }
 

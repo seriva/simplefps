@@ -86,6 +86,21 @@ const _disposeResources = () => {
 // Private functions
 // _checkFramebufferStatus removed - Backend handles validation during creation
 
+const _createFB = (textureConfig, attachmentConfig) => {
+	const texture = new Texture(textureConfig);
+	let fb = null;
+	if (attachmentConfig) {
+		fb = Backend.createFramebuffer({
+			...attachmentConfig,
+			colorAttachments: [
+				texture.getHandle(),
+				...(attachmentConfig.colorAttachments || []),
+			],
+		});
+	}
+	return { texture, fb };
+};
+
 const _resize = (width, height) => {
 	// Dispose old resources first to prevent memory leaks
 	_disposeResources();
@@ -106,32 +121,12 @@ const _resize = (width, height) => {
 	_g.height = height;
 
 	// World position buffer (RGBA16F for accurate position at all distances)
-	// Using RGBA instead of RGB for better compatibility as color attachment
-	_g.worldPosition = new Texture({
-		format: "rgba16f",
-		width,
-		height,
-	});
+	_g.worldPosition = new Texture({ format: "rgba16f", width, height });
+	_g.normal = new Texture({ format: "rgba8", width, height });
+	_g.color = new Texture({ format: "rgba8", width, height });
+	_g.emissive = new Texture({ format: "rgba8", width, height });
 
-	_g.normal = new Texture({
-		format: "rgba8",
-		width,
-		height,
-	});
-
-	_g.color = new Texture({
-		format: "rgba8",
-		width,
-		height,
-	});
-
-	_g.emissive = new Texture({
-		format: "rgba8",
-		width,
-		height,
-	});
-
-	const geometryFBResult = Backend.createFramebuffer({
+	_g.framebuffer = Backend.createFramebuffer({
 		colorAttachments: [
 			_g.worldPosition.getHandle(),
 			_g.normal.getHandle(),
@@ -140,64 +135,37 @@ const _resize = (width, height) => {
 		],
 		depthAttachment: _depth.getHandle(),
 	});
-	_g.framebuffer = geometryFBResult;
 
 	// **********************************
 	// shadow buffer
 	// **********************************
-	_s.shadow = new Texture({
-		format: "rgba8",
-		width,
-		height,
-	});
-
-	const shadowFBResult = Backend.createFramebuffer({
-		colorAttachments: [_s.shadow.getHandle()],
-		depthAttachment: _depth.getHandle(),
-	});
-	_s.framebuffer = shadowFBResult;
+	const shadowRes = _createFB(
+		{ format: "rgba8", width, height },
+		{ depthAttachment: _depth.getHandle() },
+	);
+	_s.shadow = shadowRes.texture;
+	_s.framebuffer = shadowRes.fb;
 
 	// **********************************
 	// lighting buffer
 	// **********************************
-	_l.light = new Texture({
-		format: "rgba8",
-		width,
-		height,
-	});
-
-	const lightingFBResult = Backend.createFramebuffer({
-		colorAttachments: [_l.light.getHandle()],
-	});
-	_l.framebuffer = lightingFBResult;
+	const lightRes = _createFB({ format: "rgba8", width, height }, {});
+	_l.light = lightRes.texture;
+	_l.framebuffer = lightRes.fb;
 
 	// **********************************
 	// blur buffer
 	// **********************************
-	_b.blur = new Texture({
-		format: "rgba8",
-		width,
-		height,
-	});
-
-	const blurFBResult = Backend.createFramebuffer({
-		colorAttachments: [_b.blur.getHandle()],
-	});
-	_b.framebuffer = blurFBResult;
+	const blurRes = _createFB({ format: "rgba8", width, height }, {});
+	_b.blur = blurRes.texture;
+	_b.framebuffer = blurRes.fb;
 
 	// **********************************
 	// SSAO buffer
 	// **********************************
-	_ao.ssao = new Texture({
-		format: "rgba8",
-		width,
-		height,
-	});
-
-	const ssaoFBResult = Backend.createFramebuffer({
-		colorAttachments: [_ao.ssao.getHandle()],
-	});
-	_ao.framebuffer = ssaoFBResult;
+	const ssaoRes = _createFB({ format: "rgba8", width, height }, {});
+	_ao.ssao = ssaoRes.texture;
+	_ao.framebuffer = ssaoRes.fb;
 
 	// Initialize SSAO noise texture (only once, doesn't need resize)
 	if (!_ao.noise) {

@@ -1,4 +1,4 @@
-import { Skeleton } from "../animation/skeleton.js";
+// Skeleton import removed - moved to skinnedmesh.js
 import BoundingBox from "../core/boundingbox.js";
 import { Backend } from "./backend.js";
 
@@ -10,17 +10,11 @@ class Mesh {
 	static ATTR_JOINT_INDICES = 4;
 	static ATTR_JOINT_WEIGHTS = 5;
 
-	constructor(data, context, isSkinned = false) {
+	constructor(data, context) {
 		this.resources = context;
 		this.vao = null;
 		this.skinnedVao = null;
 		this._buffers = [];
-		this._isSkinned = isSkinned;
-
-		// Skeletal data (populated during loading, used by SkinnedMesh)
-		this.skeleton = null;
-		this.gpuJointIndices = null;
-		this.gpuJointWeights = null;
 
 		this.ready = this.initialize(data);
 	}
@@ -53,10 +47,13 @@ class Mesh {
 		return Backend.createBuffer(typedArray, usage);
 	}
 
-	initMeshBuffers() {
+	/**
+	 * Creates common buffers shared between Mesh and SkinnedMesh.
+	 * Returns an object with the created buffers and base attributes.
+	 */
+	_createBaseBuffers() {
 		this.hasUVs = this.uvs.length > 0;
 		this.hasNormals = this.normals.length > 0;
-		this.hasLightmapUVs = this.lightmapUVs && this.lightmapUVs.length > 0;
 		this.triangleCount = 0;
 		this._buffers = [];
 
@@ -67,7 +64,6 @@ class Mesh {
 			this.triangleCount += indexObj.array.length / 3;
 		}
 
-		// Create Vertex Buffers
 		const vertexCount = this.vertices.length / 3;
 
 		// Position (Always present)
@@ -98,24 +94,8 @@ class Mesh {
 		}
 		this._buffers.push(this.normalBuffer);
 
-		// Lightmap UVs (Always provide buffer)
-		if (this.hasLightmapUVs) {
-			this.lightmapUVBuffer = Mesh.buildBuffer(
-				null,
-				this.lightmapUVs,
-				"vertex",
-			);
-		} else {
-			this.lightmapUVBuffer = Mesh.buildBuffer(
-				null,
-				new Float32Array(vertexCount * 2),
-				"vertex",
-			);
-		}
-		this._buffers.push(this.lightmapUVBuffer);
-
-		// Define base vertex attributes (without skinning)
-		const baseAttributes = [
+		// Return base attributes for VAO creation
+		return [
 			{
 				buffer: this.vertexBuffer,
 				slot: Mesh.ATTR_POSITIONS,
@@ -134,6 +114,34 @@ class Mesh {
 				size: 3,
 				type: "float",
 			},
+		];
+	}
+
+	initMeshBuffers() {
+		const baseAttributes = this._createBaseBuffers();
+		this.hasLightmapUVs = this.lightmapUVs && this.lightmapUVs.length > 0;
+
+		const vertexCount = this.vertices.length / 3;
+
+		// Lightmap UVs (Always provide buffer)
+		if (this.hasLightmapUVs) {
+			this.lightmapUVBuffer = Mesh.buildBuffer(
+				null,
+				this.lightmapUVs,
+				"vertex",
+			);
+		} else {
+			this.lightmapUVBuffer = Mesh.buildBuffer(
+				null,
+				new Float32Array(vertexCount * 2),
+				"vertex",
+			);
+		}
+		this._buffers.push(this.lightmapUVBuffer);
+
+		// Add lightmap attribute
+		const allAttributes = [
+			...baseAttributes,
 			{
 				buffer: this.lightmapUVBuffer,
 				slot: Mesh.ATTR_LIGHTMAP_UVS,
@@ -143,7 +151,7 @@ class Mesh {
 		];
 
 		// Create base VAO (for non-skinned shaders)
-		this.vao = Backend.createVertexState({ attributes: baseAttributes });
+		this.vao = Backend.createVertexState({ attributes: allAttributes });
 	}
 
 	deleteMeshBuffers() {
@@ -204,6 +212,16 @@ class Mesh {
 		this.unBind();
 	}
 
+	#drawIndexObject(indexObj, applyMaterial, shader, actualRenderMode) {
+		this.#bindMaterial(indexObj, applyMaterial, shader);
+		Backend.drawIndexed(
+			indexObj.indexBuffer,
+			indexObj.indexBuffer.length,
+			0,
+			actualRenderMode,
+		);
+	}
+
 	renderIndices(applyMaterial, renderMode = null, mode = "all", shader = null) {
 		const actualRenderMode = renderMode ?? null;
 
@@ -240,13 +258,10 @@ class Mesh {
 						: null;
 				if (!mode(material)) continue;
 
-				this.#bindMaterial(indexObj, applyMaterial, shader);
-
-				// Draw Abstracted
-				Backend.drawIndexed(
-					indexObj.indexBuffer,
-					indexObj.indexBuffer.length,
-					0,
+				this.#drawIndexObject(
+					indexObj,
+					applyMaterial,
+					shader,
 					actualRenderMode,
 				);
 			}
@@ -258,15 +273,7 @@ class Mesh {
 		}
 
 		for (const indexObj of targets) {
-			this.#bindMaterial(indexObj, applyMaterial, shader);
-
-			// Draw Abstracted
-			Backend.drawIndexed(
-				indexObj.indexBuffer,
-				indexObj.indexBuffer.length,
-				0,
-				actualRenderMode,
-			);
+			this.#drawIndexObject(indexObj, applyMaterial, shader, actualRenderMode);
 		}
 	}
 
@@ -416,63 +423,40 @@ class Mesh {
 			});
 		}
 
-		if (hasSkeletal && jointCount > 0) {
-			const joints = [];
+		// Allow subclasses to load extra data (e.g. skinning)
+		// We pass the reader functions so they share the same closure state (offset, bytes)
+		const reader = {
+			readUint32,
+			readInt32,
+			readFloat32,
+			readFloat32Array,
+			bytes, // Expose bytes for manual reading if needed
+			getOffset: () => offset, // Helper to get current offset
+			skip: (n) => {
+				offset += n;
+			},
+		};
 
-			for (let i = 0; i < jointCount; i++) {
-				const parent = readInt32();
-				const pos = [readFloat32(), readFloat32(), readFloat32()];
-				const rot = [
-					readFloat32(),
-					readFloat32(),
-					readFloat32(),
-					readFloat32(),
-				];
-				joints.push({ name: "", parent, pos, rot });
-			}
+		// Pass context for version-specific logic
+		const context = {
+			version,
+			vertexCount,
+			hasSkeletal,
+			hasWeightNormals,
+			hasGPUSkinning,
+			jointCount,
+			weightCount,
+		};
 
-			// Read joint names
-			for (let i = 0; i < jointCount; i++) {
-				let name = "";
-				while (offset < bytes.length && bytes[offset] !== 0) {
-					name += String.fromCharCode(bytes[offset++]);
-				}
-				offset++;
-				joints[i].name = name;
-			}
+		await this._loadExtraDataFromBlob(reader, context);
+	}
 
-			this.skeleton = new Skeleton(joints);
+	async _loadExtraDataFromBlob(_reader, _context) {
+		// Override in subclasses
+	}
 
-			// Skip over legacy weight data (kept for file format compatibility)
-			for (let i = 0; i < weightCount; i++) {
-				readUint32(); // vertex
-				const count = readUint32();
-				for (let j = 0; j < count; j++) {
-					readUint32(); // joint index
-					readFloat32(); // weight
-					readFloat32();
-					readFloat32();
-					readFloat32(); // position
-					if (hasWeightNormals) {
-						readFloat32();
-						readFloat32();
-						readFloat32(); // normal
-					}
-				}
-			}
-
-			// Read GPU skinning data (version 5+)
-			if (hasGPUSkinning) {
-				const numVertices = this.vertices.length / 3;
-				// Joint indices: 4 uint8 per vertex
-				this.gpuJointIndices = new Uint8Array(numVertices * 4);
-				for (let i = 0; i < numVertices * 4; i++) {
-					this.gpuJointIndices[i] = bytes[offset++];
-				}
-				// Joint weights: 4 float32 per vertex
-				this.gpuJointWeights = readFloat32Array(numVertices * 4);
-			}
-		}
+	_loadExtraDataFromJson(_data) {
+		// Override in subclasses
 	}
 
 	loadFromJson(data) {
@@ -489,15 +473,7 @@ class Mesh {
 				: new Float32Array(0);
 		this.indices = data.indices;
 
-		if (data.skeleton) {
-			this.skeleton = new Skeleton(data.skeleton.joints);
-		}
-
-		// Load GPU skinning data if present
-		if (data.gpuJointIndices && data.gpuJointWeights) {
-			this.gpuJointIndices = new Uint8Array(data.gpuJointIndices);
-			this.gpuJointWeights = new Float32Array(data.gpuJointWeights);
-		}
+		this._loadExtraDataFromJson(data);
 	}
 
 	updateBoundingBox() {
