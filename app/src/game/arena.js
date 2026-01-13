@@ -3,6 +3,7 @@ import { mat4 } from "../dependencies/gl-matrix.js";
 import {
 	Camera,
 	Console,
+	DirectionalLightEntity,
 	MeshEntity,
 	Physics,
 	Resources,
@@ -48,10 +49,20 @@ const _setupEnvironment = ({ skybox, chunks = [] }) => {
 	}
 };
 
-const _setupLighting = (lightGrid, arenaName) => {
+const _setupLighting = (lightGrid, directional, arenaName) => {
 	// Load Light Grid (Base Lighting)
 	if (lightGrid?.origin) {
 		Scene.loadLightGrid({ lightGrid, arenaName });
+	}
+
+	// Add directional light for dynamic object shading
+	if (directional) {
+		const light = new DirectionalLightEntity(
+			directional.direction || [0.5, 1.0, 0.3],
+			directional.color || [1.0, 1.0, 1.0],
+			null, // updateCallback
+		);
+		Scene.addEntities(light);
 	}
 };
 
@@ -168,7 +179,7 @@ const _load = async (name) => {
 		// In bsp2map.js we wrote: { ..., lightGrid: { ... } } at root level.
 		// So we need to pass arenaData.lightGrid.
 
-		_setupLighting(_state.arena.lightGrid, name);
+		_setupLighting(_state.arena.lightGrid, _state.arena.directional, name);
 		_setupEnvironment(_state.arena);
 		_setupCollision(
 			_state.arena.chunks || [],

@@ -3,6 +3,10 @@
     "chunks": [
         "arenas/demo/geometry.bmesh"
     ],
+    "directional": {
+        "direction": [0.5, 1.0, 0.3],
+        "color": [0.15, 0.15, 0.17]
+    },
     "lightGrid": {
         "src": "arenas/demo/lightgrid.bin",
         "origin": [

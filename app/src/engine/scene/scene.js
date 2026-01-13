@@ -12,7 +12,6 @@ const _BLACK = [0, 0, 0];
 let _entities = [];
 let _ambient = _DEFAULT_AMBIENT;
 let _pauseUpdate = false;
-const _lightGrid = new LightGrid();
 
 const _visibilityCache = {
 	[EntityTypes.SKYBOX]: [],
@@ -97,8 +96,8 @@ const _init = () => {
 };
 
 const _getAmbient = (position = null, outColor = null) => {
-	if (_lightGrid.hasData) {
-		if (position) return _lightGrid.getAmbient(position, outColor);
+	if (LightGrid.hasData) {
+		if (position) return LightGrid.getAmbient(position, outColor);
 		if (outColor) {
 			outColor[0] = 0;
 			outColor[1] = 0;
@@ -121,10 +120,8 @@ const _setAmbient = (a) => {
 };
 
 const _loadLightGrid = (config) => {
-	_lightGrid.load(config);
+	LightGrid.load(config);
 };
-
-const _getLightGrid = () => _lightGrid;
 
 const _pause = (doPause) => {
 	_pauseUpdate = doPause;
@@ -199,7 +196,6 @@ const Scene = {
 	getEntities: _getEntities,
 	visibilityCache: _visibilityCache,
 	loadLightGrid: _loadLightGrid,
-	getLightGrid: _getLightGrid,
 };
 
 export default Scene;
