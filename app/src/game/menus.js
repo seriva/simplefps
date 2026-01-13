@@ -70,6 +70,12 @@ const _creditsMenu = {
 			linkText: "Sci-Fi Weapon Pack",
 		},
 		{
+			type: "link",
+			text: Translations.get("CREDITS_ROBOT"),
+			url: "https://sketchfab.com/3d-models/vintage-robot-animated-1ccfb0b99b8a492d9f1144bb96d4a679",
+			linkText: "Vintage Robot Animated",
+		},
+		{
 			text: Translations.get("BACK"),
 			callback: () => {
 				UI.show("MAIN_MENU");

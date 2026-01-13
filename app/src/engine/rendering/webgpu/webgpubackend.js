@@ -1,6 +1,7 @@
 import Settings from "../../core/settings.js";
 import Console from "../../systems/console.js";
 import RenderBackend, { CanvasStyle } from "../renderbackend.js";
+import { WgslShaderSources } from "./wgsl.js";
 
 // Texture format mapping (WebGPU formats)
 const _TEXTURE_FORMATS = {
@@ -33,138 +34,6 @@ const _DEPTH_FUNCS = {
 	notequal: "not-equal",
 	gequal: "greater-equal",
 	always: "always",
-};
-
-// Shader binding metadata (Hardcoded for Stage 2)
-// This maps shader labels to their expected bind group layouts
-const _SHADER_BINDINGS = {
-	geometry: {
-		group1: [
-			{ binding: 0, type: "ubo", id: 1 }, // MaterialData (UBO binding point 1)
-			{ binding: 1, type: "uniform", name: "matWorld" },
-		],
-		group2: [
-			{ binding: 0, type: "sampler", unit: 0 },
-			{ binding: 1, type: "texture", unit: 0 }, // Albedo
-			{ binding: 2, type: "texture", unit: 1 }, // Emissive
-			{ binding: 3, type: "texture", unit: 4 }, // Lightmap
-			{ binding: 4, type: "texture", unit: 5 }, // Detail Noise
-			{ binding: 5, type: "texture", unit: 2 }, // Reflection (SphereMap)
-			{ binding: 6, type: "texture", unit: 3 }, // Reflection Mask
-		],
-	},
-	skinnedGeometry: {
-		group1: [
-			{ binding: 0, type: "ubo", id: 1 }, // MaterialData (UBO binding point 1)
-			{ binding: 1, type: "uniform", name: "matWorld" },
-			{ binding: 2, type: "uniform", name: "boneMatrices" },
-		],
-		group2: [
-			{ binding: 0, type: "sampler", unit: 0 },
-			{ binding: 1, type: "texture", unit: 0 }, // Albedo
-			{ binding: 2, type: "texture", unit: 1 }, // Emissive
-			// Note: binding 3 (lightmap) is not used in skinned shader
-			{ binding: 4, type: "texture", unit: 5 }, // Detail Noise
-			{ binding: 5, type: "texture", unit: 2 }, // Reflection (SphereMap)
-			{ binding: 6, type: "texture", unit: 3 }, // Reflection Mask
-		],
-	},
-	entityShadows: {
-		group1: [
-			{ binding: 0, type: "uniform", name: "matWorld" },
-			{ binding: 1, type: "uniform", name: "ambient" },
-		],
-	},
-	skinnedEntityShadows: {
-		group1: [
-			{ binding: 0, type: "uniform", name: "matWorld" },
-			{ binding: 1, type: "uniform", name: "ambient" },
-			{ binding: 2, type: "uniform", name: "boneMatrices" },
-		],
-	},
-	applyShadows: {
-		group1: [
-			{ binding: 0, type: "sampler", unit: 2 },
-			{ binding: 1, type: "texture", unit: 2 }, // shadowBuffer at unit 2
-		],
-	},
-	directionalLight: {
-		group1: [
-			{ binding: 0, type: "uniform", name: "directionalLight" },
-			{ binding: 2, type: "texture", unit: 1 }, // normalBuffer at unit 1
-		],
-	},
-	pointLight: {
-		group1: [
-			{ binding: 0, type: "uniform", name: "matWorld" },
-			{ binding: 1, type: "uniform", name: "pointLight" },
-			{ binding: 3, type: "texture", unit: 0 }, // Position (Unit 0)
-			{ binding: 4, type: "texture", unit: 1 }, // Normal (Unit 1)
-		],
-	},
-	spotLight: {
-		group1: [
-			{ binding: 0, type: "uniform", name: "matWorld" },
-			{ binding: 1, type: "uniform", name: "spotLight" },
-			{ binding: 3, type: "texture", unit: 0 }, // Position (Unit 0)
-			{ binding: 4, type: "texture", unit: 1 }, // Normal (Unit 1)
-		],
-	},
-	kawaseBlur: {
-		group1: [
-			{ binding: 0, type: "uniform", name: "blurParams" },
-			{ binding: 1, type: "sampler", unit: 0 },
-			{ binding: 2, type: "texture", unit: 0 },
-		],
-	},
-	postProcessing: {
-		group1: [
-			{ binding: 0, type: "uniform", name: "postProcessParams" },
-			{ binding: 1, type: "sampler", unit: 0 },
-			{ binding: 2, type: "texture", unit: 0 }, // colorBuffer
-			{ binding: 3, type: "texture", unit: 1 }, // lightBuffer
-			{ binding: 4, type: "texture", unit: 2 }, // normalBuffer
-			{ binding: 5, type: "texture", unit: 3 }, // emissiveBuffer
-			{ binding: 6, type: "texture", unit: 4 }, // dirtBuffer
-			{ binding: 7, type: "texture", unit: 5 }, // aoBuffer
-		],
-	},
-	transparent: {
-		group1: [
-			{ binding: 0, type: "ubo", id: 1 }, // MaterialData (Binding Point 1)
-			{ binding: 1, type: "uniform", name: "matWorld" },
-			{ binding: 2, type: "ubo", id: 2 }, // LightingData (Binding Point 2)
-		],
-		group2: [
-			{ binding: 0, type: "sampler", unit: 0 }, // colorSampler
-			{ binding: 1, type: "texture", unit: 0 }, // colorTexture
-			{ binding: 2, type: "texture", unit: 1 }, // emissiveTexture
-			{ binding: 3, type: "texture", unit: 2 }, // reflectionTexture
-			{ binding: 4, type: "texture", unit: 3 }, // reflectionMaskTexture
-		],
-	},
-	ssao: {
-		group1: [
-			{ binding: 0, type: "uniform", name: "ssaoParams" },
-			{ binding: 1, type: "sampler", unit: 0 },
-			{ binding: 2, type: "texture", unit: 1 }, // positionBuffer at unit 1
-			{ binding: 3, type: "texture", unit: 0 }, // normalBuffer at unit 0
-			{ binding: 4, type: "texture", unit: 2 }, // noiseTexture at unit 2
-		],
-	},
-	debug: {
-		group1: [
-			{ binding: 0, type: "uniform", name: "matWorld" },
-			{ binding: 1, type: "uniform", name: "debugColor" },
-		],
-	},
-	skinnedDebug: {
-		group1: [
-			{ binding: 0, type: "uniform", name: "matWorld" },
-			{ binding: 1, type: "uniform", name: "debugColor" },
-			{ binding: 2, type: "uniform", name: "boneMatrices" },
-		],
-	},
 };
 
 class WebGPUBackend extends RenderBackend {
@@ -1514,7 +1383,7 @@ class WebGPUBackend extends RenderBackend {
 
 		// Shader-specific groups
 		const shaderName = this._currentShader._gpuShaderModule.label;
-		const bindings = _SHADER_BINDINGS[shaderName];
+		const bindings = WgslShaderSources[shaderName]?.bindings;
 
 		if (bindings) {
 			// Group 1

@@ -35,6 +35,7 @@ const _translations = {
 		CREDITS_MAP: "Map",
 		CREDITS_PICKUPS: "Pickups",
 		CREDITS_WEAPONS: "Weapons",
+		CREDITS_ROBOT: "Robot",
 	},
 };
 

@@ -1,0 +1,14 @@
+{
+    "materials": [
+        {
+            "name": "texture_0",
+            "reflectionStrength": 0.6,
+            "textures": {
+                "albedo": "models/robot/robot_diffuse.webp",
+                "emissive": "models/robot/robot_glow.webp",
+                "reflection": "meshes/spheremap_neutral.webp",
+                "reflectionMask": "models/robot/robot_spec.webp"
+            }
+        }
+    ]
+}
