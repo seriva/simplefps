@@ -1079,7 +1079,6 @@ fn fs_main() -> @location(0) vec4<f32> {
 `;
 
 // Export shader sources in same format as GLSL
-// Export shader sources in same format as GLSL
 export const WgslShaderSources = {
 	geometry: {
 		label: "geometry",
