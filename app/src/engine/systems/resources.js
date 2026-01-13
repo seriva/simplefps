@@ -154,4 +154,5 @@ const _RESOURCE_TYPES = {
 	},
 	sfx: (data) => new Sound(JSON.parse(data)),
 	list: (data, _context) => Resources.load(JSON.parse(data).resources),
+	bin: (data) => data.arrayBuffer(),
 };

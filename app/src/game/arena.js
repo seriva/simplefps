@@ -3,7 +3,6 @@ import { mat4 } from "../dependencies/gl-matrix.js";
 import {
 	Camera,
 	Console,
-	DirectionalLightEntity,
 	MeshEntity,
 	Physics,
 	PointLightEntity,
@@ -51,16 +50,15 @@ const _setupEnvironment = ({ skybox, chunks = [] }) => {
 	}
 };
 
-const _setupLighting = ({
-	ambient,
-	directional = [],
-	point = [],
-	spot = [],
-}) => {
-	Scene.setAmbient(ambient || _DEFAULT_AMBIENT);
+const _setupLighting = (
+	{ point = [], spot = [], lightGrid = null },
+	arenaName,
+) => {
+	// Scene.setAmbient(ambient || _DEFAULT_AMBIENT); // Deprecated
 
-	for (const { direction, color } of directional) {
-		Scene.addEntities(new DirectionalLightEntity(direction, color));
+	// Load Light Grid (Base Lighting)
+	if (lightGrid?.origin) {
+		Scene.loadLightGrid({ lightGrid, arenaName });
 	}
 
 	for (const { position, size, color, intensity } of point) {
@@ -169,7 +167,7 @@ const _load = async (name) => {
 		_state.arena = arenaData;
 		Scene.init();
 
-		const { spawnpoint, spawnpoints, lighting, pickups } = _state.arena;
+		const { spawnpoint, spawnpoints, pickups } = _state.arena;
 
 		let startSpawn = spawnpoint || {};
 		if (spawnpoints && spawnpoints.length > 0) {
@@ -183,7 +181,17 @@ const _load = async (name) => {
 		_state.currentSpawnPoint = startSpawn;
 
 		_setupCamera(startSpawn);
-		_setupLighting(lighting || {});
+		// Pass the whole arena config to setupLighting because lightGrid is at root level or under lighting?
+		// In bsp2map.js we wrote: { ..., lightGrid: { ... } } at root level.
+		// So we need to pass arenaData.lightGrid.
+
+		_setupLighting(
+			{
+				...(_state.arena.lighting || {}),
+				lightGrid: _state.arena.lightGrid,
+			},
+			name,
+		);
 		_setupEnvironment(_state.arena);
 		_setupCollision(
 			_state.arena.chunks || [],

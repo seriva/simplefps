@@ -6,8 +6,11 @@ import { Shaders } from "../rendering/shaders.js";
 import Resources from "../systems/resources.js";
 import { EntityTypes } from "./entity.js";
 import MeshEntity from "./meshentity.js";
+import Scene from "./scene.js";
 
 const _tempMatrix = mat4.create();
+const _tempPos = new Float32Array(3);
+const _tempProbeColor = new Float32Array(3);
 
 // Reusable bounding boxes to avoid per-frame allocations
 const _localBB = new BoundingBox([0, 0, 0], [1, 1, 1]);
@@ -58,6 +61,14 @@ class SkinnedMeshEntity extends MeshEntity {
 		if (!shader) return;
 
 		mat4.multiply(_tempMatrix, this.base_matrix, this.ani_matrix);
+
+		// Sample Light Grid
+		if (Scene.getLightGrid()) {
+			mat4.getTranslation(_tempPos, _tempMatrix);
+			_tempPos[1] += 32.0;
+			Scene.getLightGrid().getAmbient(_tempPos, _tempProbeColor);
+			shader.setVec3("uProbeColor", _tempProbeColor);
+		}
 
 		shader.setMat4("matWorld", _tempMatrix);
 		shader.setMat4Array("boneMatrices", this._boneMatrices);

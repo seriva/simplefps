@@ -5,6 +5,7 @@ import { Shaders } from "../rendering/shaders.js";
 import Physics from "../systems/physics.js";
 import Resources from "../systems/resources.js";
 import { Entity, EntityTypes } from "./entity.js";
+import Scene from "./scene.js";
 
 // Raycast helpers (reused to avoid GC pressure)
 const _rayFrom = new CANNON.Vec3();
@@ -23,6 +24,7 @@ const _tempShadowScale = new Float32Array(3);
 const _tempQuat1 = quat.create();
 const _tempQuat2 = quat.create();
 const _tempQuat3 = quat.create();
+const _tempProbeColor = new Float32Array(3);
 
 class MeshEntity extends Entity {
 	constructor(position, name, updateCallback, scale = 1) {
@@ -76,6 +78,20 @@ class MeshEntity extends Entity {
 	render(filter = null, shader = Shaders.geometry) {
 		if (!this.visible) return;
 		mat4.multiply(_tempMatrix, this.base_matrix, this.ani_matrix);
+
+		// Sample Light Grid
+		// Sample Light Grid
+		if (Scene.getLightGrid()) {
+			// Sample at center of entity (approx +32 units up) to avoid floor probes
+			mat4.getTranslation(_tempPos, _tempMatrix);
+			_tempPos[1] += 32.0;
+			Scene.getLightGrid().getAmbient(_tempPos, _tempProbeColor); // Using global _tempProbeColor
+			Shaders.geometry.setVec3("uProbeColor", _tempProbeColor);
+			// Also need to set for skinned shader if used
+			if (this.type === EntityTypes.SKINNED_MESH) {
+				Shaders.skinnedGeometry.setVec3("uProbeColor", _tempProbeColor);
+			}
+		}
 		shader.setMat4("matWorld", _tempMatrix);
 		this.mesh.renderSingle(true, null, filter, shader);
 	}

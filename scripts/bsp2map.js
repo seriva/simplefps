@@ -7,10 +7,12 @@ import stringify from 'pretty-json-stringify';
 // Quake 3 BSP Constants
 const LUMP_ENTITIES = 0;
 const LUMP_TEXTURES = 1;
+const LUMP_MODELS = 7;
 const LUMP_VERTEXES = 10;
 const LUMP_MESHVERTS = 11;
 const LUMP_FACES = 13;
 const LUMP_LIGHTMAPS = 14;
+const LUMP_LIGHTGRID = 15;
 
 const HEADER_SIZE = 144; // 4 magic + 4 version + 17 * 8 lumps
 const MATERIAL_NAME_SIZE = 64;
@@ -22,6 +24,8 @@ const FACE_SIZE = 104; // bytes per face
 const MESHVERT_SIZE = 4; // bytes per mesh vertex index
 const LIGHTMAP_SIZE = 128; // Quake 3 lightmaps are 128x128
 const LIGHTMAP_BYTES = LIGHTMAP_SIZE * LIGHTMAP_SIZE * 3; // RGB format
+const LIGHTGRID_ELEMENT_SIZE = 8; // 3 ambient + 3 directional + 2 dir
+const MODEL_SIZE = 40; // bytes per model
 
 // Color amplification for Quake 3 overbright bits
 
@@ -159,6 +163,146 @@ function parseLightmaps(buffer, lump, overbright = 4) {
 
     console.log(`Extracting ${count} lightmaps (${overbright}x overbright)...`);
     return lightmaps;
+}
+
+function parseModels(buffer, lump) {
+    const count = lump.length / MODEL_SIZE;
+    const models = [];
+
+    for (let i = 0; i < count; i++) {
+        const off = lump.offset + i * MODEL_SIZE;
+        models.push({
+            mins: [
+                buffer.readFloatLE(off),
+                buffer.readFloatLE(off + 4),
+                buffer.readFloatLE(off + 8)
+            ],
+            maxs: [
+                buffer.readFloatLE(off + 12),
+                buffer.readFloatLE(off + 16),
+                buffer.readFloatLE(off + 20)
+            ],
+            // We only need mins/maxs for the world model (index 0)
+        });
+    }
+    return models;
+}
+
+function parseLightGrid(buffer, lump, worldModel, overbright = 1) {
+    if (!lump.length) return null;
+
+    // Try to detect grid step (64x64x64 vs 64x64x128)
+    const candidates = [
+        { step: [64, 64, 64], name: "64x64x64" },
+        { step: [64, 64, 128], name: "64x64x128" }
+    ];
+
+    let bestConfig = null;
+    let bestOrigin = null;
+    let bestCounts = null;
+    let bestElementSize = 0;
+
+    for (const config of candidates) {
+        const counts = [0, 0, 0];
+        const origin = [0, 0, 0];
+
+        for (let i = 0; i < 3; i++) {
+            let min = worldModel.mins[i];
+            let max = worldModel.maxs[i];
+            const s = config.step[i];
+
+            // Q3 Grid Align
+            const gridMin = Math.ceil((min - 1) / s);
+            const gridMax = Math.floor((max + 1) / s);
+
+            counts[i] = gridMax - gridMin + 1;
+            origin[i] = gridMin * s;
+        }
+
+        const totalPoints = counts[0] * counts[1] * counts[2];
+        if (totalPoints === 0) continue;
+
+        const bytesPerProbe = lump.length / totalPoints;
+
+        // Check for Standard 8-byte
+        if (Math.abs(bytesPerProbe - 8) < 0.01) {
+            bestConfig = config;
+            bestCounts = counts;
+            bestOrigin = origin;
+            bestElementSize = 8;
+            console.log(`Matched LightGrid config: ${config.name} (8 bytes/probe)`);
+            break; // Found perfect match
+        }
+
+        // Fallback check for compressed 4-byte (only if we haven't found a better one)
+        // Note: 64x64x128 @ 8 bytes is preferred over 64x64x64 @ 4 bytes usually
+        // But if we encounter 4-byte, record it
+        if (Math.abs(bytesPerProbe - 4) < 0.01 && !bestConfig) {
+            bestConfig = config;
+            bestCounts = counts;
+            bestOrigin = origin;
+            bestElementSize = 4;
+        }
+    }
+
+    if (!bestConfig) {
+        // Default fallthrough to standard 64x64x64 and assume 8 bytes (will warn/truncate)
+        console.warn("Could not match LightGrid dimensions to Lump Size. Defaulting to 64x64x64.");
+        const s = [64, 64, 64];
+        bestConfig = { step: s };
+        bestCounts = [0, 0, 0];
+        bestOrigin = [0, 0, 0];
+        for (let i = 0; i < 3; i++) {
+            let min = worldModel.mins[i];
+            let max = worldModel.maxs[i];
+            const gridMin = Math.ceil((min - 1) / s[i]);
+            const gridMax = Math.floor((max + 1) / s[i]);
+            bestCounts[i] = gridMax - gridMin + 1;
+            bestOrigin[i] = gridMin * s[i];
+        }
+        bestElementSize = 8; // Force 8
+    }
+
+    const totalGridPoints = bestCounts[0] * bestCounts[1] * bestCounts[2];
+    const exportData = new Uint8Array(totalGridPoints * 3);
+
+    for (let i = 0; i < totalGridPoints; i++) {
+        const srcOff = lump.offset + i * bestElementSize;
+        if (srcOff + bestElementSize > buffer.length) break;
+
+        let r = 0, g = 0, b = 0;
+
+        // Ambient (Bytes 0-2)
+        r += buffer[srcOff];
+        g += buffer[srcOff + 1];
+        b += buffer[srcOff + 2];
+
+        // Directional (Bytes 3-5) - Only if 8-byte probe
+        if (bestElementSize === 8) {
+            r += buffer[srcOff + 3];
+            g += buffer[srcOff + 4];
+            b += buffer[srcOff + 5];
+        }
+
+        // Apply Overbright
+        r *= overbright;
+        g *= overbright;
+        b *= overbright;
+
+        // Clamp
+        exportData[i * 3] = Math.min(255, r);
+        exportData[i * 3 + 1] = Math.min(255, g);
+        exportData[i * 3 + 2] = Math.min(255, b);
+    }
+
+    console.log(`Extracted Light Grid: ${bestCounts.join('x')} (${totalGridPoints} probes)`);
+
+    return {
+        data: exportData,
+        origin: bestOrigin,
+        counts: bestCounts,
+        step: bestConfig.step
+    };
 }
 
 function upscaleLightmap(pixels, scale, outputDir) {
@@ -476,8 +620,64 @@ function updateResourceList(listPath, newResources) {
     return added;
 }
 
-function exportMap(vertices, meshVerts, faces, textures, lightmaps, outputDir, arenaName, textureDir, shaderMap, entities, scale, lightmapScale) {
+function exportMap(vertices, meshVerts, faces, textures, lightmaps, models, lightGridRaw, outputDir, arenaName, textureDir, shaderMap, entities, scale, lightmapScale) {
     fs.mkdirSync(outputDir, { recursive: true });
+
+    // Handle Light Grid Export
+    let lightGridConfig = null;
+    if (lightGridRaw && models && models.length > 0) {
+        const gridPath = path.join(outputDir, 'lightgrid.bin');
+        fs.writeFileSync(gridPath, lightGridRaw.data);
+        console.log(`Wrote lightgrid.bin (${lightGridRaw.data.length} bytes)`);
+
+        // Transform origin/step to Engine Coordinate System (Y-Up, Scaled)
+        // Q3: X=East, Y=North, Z=Up
+        // Engine: X=East, Y=Up, Z=South (scale applied)
+        // Origin transformation:
+        // Q3 Origin: [ox, oy, oz]
+        // Engine Origin: [ox * scale, oz * scale, -oy * scale] ?? 
+        // Wait, bsp2map vertices transform: x=x, y=z, z=-y
+
+        const q3Origin = lightGridRaw.origin;
+        // const engineOrigin = [
+        //     q3Origin[0] * scale,
+        //     q3Origin[2] * scale,
+        //     -q3Origin[1] * scale
+        // ];
+
+        // Actually, we should keep the grid configuration in "BSP Space" logic for the lookup
+        // but store the values scaled so the engine can convert its position to grid indices easily.
+        // OR: Transform the grid origin to engine space, and store the scaled step.
+
+        lightGridConfig = {
+            origin: [
+                q3Origin[0] * scale,
+                q3Origin[2] * scale,
+                -q3Origin[1] * scale
+            ],
+            // Dimensions (counts) don't change
+            // But checking axis mapping: 
+            // Q3: Width(x), Height(y), Depth(z) for array indexing?
+            // Array index = x + y*w + z*w*h ? Check Q3 logic.
+            // Q3: value = grid[ z * size[0] * size[1] + y * size[0] + x ]
+            // So Z is the major outer loop, then Y, then X.
+
+            // Engine Mapping:
+            // Engine X = Q3 X
+            // Engine Y = Q3 Z
+            // Engine Z = -Q3 Y
+
+            // So we need to map Engine(x,y,z) back to Q3(x,y, z) to sample.
+
+            counts: lightGridRaw.counts, // [nx, ny, nz] in Q3 axes
+            step: [
+                lightGridRaw.step[0] * scale,
+                lightGridRaw.step[1] * scale,
+                lightGridRaw.step[2] * scale
+            ]
+        };
+    }
+
 
     // Export lightmaps and get atlas info
     const { atlasName, gridSize } = exportLightmaps(lightmaps, outputDir, lightmapScale);
@@ -848,7 +1048,8 @@ function exportMap(vertices, meshVerts, faces, textures, lightmaps, outputDir, a
         },
         chunks: [`${arenaName}/geometry.bmesh`],
         spawnpoints: spawnpoints,
-        pickups: pickups
+        pickups: pickups,
+        lightGrid: lightGridConfig
     };
 
     fs.writeFileSync(path.join(outputDir, 'config.arena'), JSON.stringify(configData, null, 4));
@@ -932,9 +1133,20 @@ try {
     const meshVerts = parseMeshVerts(buffer, lumps[LUMP_MESHVERTS]);
     const faces = parseFaces(buffer, lumps[LUMP_FACES]);
     const textures = parseTextures(buffer, lumps[LUMP_TEXTURES]);
+    const models = parseModels(buffer, lumps[LUMP_MODELS]);
+
+    // We need the world model (index 0) to parse the light grid
+    let lightGrid = null;
+    if (models.length > 0) {
+        // Use 2.0 scale strictly for lightgrid or 1.0? 
+        // Let's try 2.0 as Q3 usually wants 2x overbright for vertex/grid lighting.
+        // But 5.7 is definitely too much.
+        lightGrid = parseLightGrid(buffer, lumps[LUMP_LIGHTGRID], models[0], 1.5);
+    }
+
     const lightmaps = parseLightmaps(buffer, lumps[LUMP_LIGHTMAPS], overbright);
 
-    exportMap(vertices, meshVerts, faces, textures, lightmaps, outputDir, arenaName, textureDir, shaderMap, entities, scale, lightmapScale);
+    exportMap(vertices, meshVerts, faces, textures, lightmaps, models, lightGrid, outputDir, arenaName, textureDir, shaderMap, entities, scale, lightmapScale);
 } catch (e) {
     console.error('Conversion failed:', e);
 }

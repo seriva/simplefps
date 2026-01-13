@@ -135,6 +135,7 @@ const _geometryFragment = /* glsl */ `#version 300 es
             uniform sampler2D reflectionMaskSampler;
             uniform sampler2D detailNoise;
             uniform bool doDetailTexture;
+            uniform vec3 uProbeColor;
 
             const int MESH = 1;
             const int SKYBOX = 2;
@@ -143,6 +144,11 @@ const _geometryFragment = /* glsl */ `#version 300 es
                 // Early alpha test using textureLod for better performance
                 vec4 color = textureLod(colorSampler, vUV, 0.0);
                 if(color.a < 0.5) discard;
+                
+                // Apply Probe Color (only for non-lightmapped objects)
+                if (flags.w == 0) {
+                     color.rgb *= uProbeColor;
+                }
                 
                 // Use lightmap if available, but NOT for skybox
                 if (flags.w == 1 && flags.x != SKYBOX) {

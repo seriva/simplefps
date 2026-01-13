@@ -2,6 +2,7 @@ import Console from "../systems/console.js";
 import Physics from "../systems/physics.js";
 import Stats from "../systems/stats.js";
 import { EntityTypes } from "./entity.js";
+import LightGrid from "./lightgrid.js";
 
 // Private constants
 const _DEFAULT_AMBIENT = [0.5, 0.5, 0.5];
@@ -10,6 +11,7 @@ const _DEFAULT_AMBIENT = [0.5, 0.5, 0.5];
 let _entities = [];
 let _ambient = _DEFAULT_AMBIENT;
 let _pauseUpdate = false;
+const _lightGrid = new LightGrid();
 
 const _visibilityCache = {
 	[EntityTypes.SKYBOX]: [],
@@ -95,16 +97,15 @@ const _init = () => {
 
 const _getAmbient = () => _ambient;
 const _setAmbient = (a) => {
-	if (
-		!Array.isArray(a) ||
-		a.length !== 3 ||
-		!a.every((v) => typeof v === "number")
-	) {
-		Console.warn("Invalid ambient light values. Expected array of 3 numbers.");
-		return;
-	}
+	// Deprecated: used to set global ambient, now driven by LightGrid
 	_ambient = a;
 };
+
+const _loadLightGrid = (config) => {
+	_lightGrid.load(config);
+};
+
+const _getLightGrid = () => _lightGrid;
 
 const _pause = (doPause) => {
 	_pauseUpdate = doPause;
@@ -178,6 +179,8 @@ const Scene = {
 	removeEntity: _removeEntity,
 	getEntities: _getEntities,
 	visibilityCache: _visibilityCache,
+	loadLightGrid: _loadLightGrid,
+	getLightGrid: _getLightGrid,
 };
 
 export default Scene;
