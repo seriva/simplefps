@@ -117,7 +117,8 @@ fn fs_main(input: GeomVertexOutput) -> FragmentOutput {
     
     // Apply Probe Color for dynamic objects (no lightmap)
     // Static objects (lightmapFlag == 1) ignore this as they use texture mixing below
-    if (materialData.flags.w == 0) {
+    // Skybox (flag x == SKYBOX) should also ignore this
+    if (materialData.flags.w == 0 && materialData.flags.x != SKYBOX) {
         color = vec4<f32>(color.rgb * uProbeColor, color.a);
     }
     
@@ -243,6 +244,9 @@ fn fs_main(input: GeomVertexOutput) -> FragmentOutput {
     if (color.a < 0.5) {
         discard;
     }
+
+    // Apply Probe Color
+    color = vec4<f32>(color.rgb * uProbeColor, color.a);
 
     // Apply Detail Noise
     if (frameData.viewportSize.z > 0.5) {
@@ -1096,6 +1100,7 @@ export const WgslShaderSources = {
 			group1: [
 				{ binding: 0, type: "ubo", id: 1 }, // MaterialData
 				{ binding: 1, type: "uniform", name: "matWorld" },
+				{ binding: 2, type: "uniform", name: "uProbeColor" },
 			],
 			group2: [
 				{ binding: 0, type: "sampler", unit: 0 },

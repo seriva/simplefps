@@ -30,6 +30,8 @@ class SkyboxEntity extends Entity {
 
 		// Set shader uniforms (matViewProj now in FrameData UBO)
 		this.shader.setMat4("matWorld", this.base_matrix);
+		// Set probe color (ignored by shader for skybox, but required for bind group)
+		this.shader.setVec3("uProbeColor", [1, 1, 1]);
 
 		// Render (GL state managed by RenderPasses)
 		Shapes.skyBox.renderSingle();
