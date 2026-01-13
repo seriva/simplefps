@@ -1,7 +1,0 @@
-{
-  "resources": [
-    "models/female/materials.mat",
-    "models/female/female.sbmesh",
-    "models/female/female.banim"
-  ]
-}

@@ -1078,62 +1078,189 @@ fn fs_main() -> @location(0) vec4<f32> {
 }
 `;
 
-// Export shader sources in same format as GLSL
+// Export shader sources with co-located binding metadata
+// This eliminates duplication between shaders and backend binding code
 export const WgslShaderSources = {
 	geometry: {
 		label: "geometry",
 		code: geometryShader,
+		bindings: {
+			group1: [
+				{ binding: 0, type: "ubo", id: 1 }, // MaterialData
+				{ binding: 1, type: "uniform", name: "matWorld" },
+			],
+			group2: [
+				{ binding: 0, type: "sampler", unit: 0 },
+				{ binding: 1, type: "texture", unit: 0 }, // Albedo
+				{ binding: 2, type: "texture", unit: 1 }, // Emissive
+				{ binding: 3, type: "texture", unit: 4 }, // Lightmap
+				{ binding: 4, type: "texture", unit: 5 }, // Detail Noise
+				{ binding: 5, type: "texture", unit: 2 }, // Reflection
+				{ binding: 6, type: "texture", unit: 3 }, // Reflection Mask
+			],
+		},
 	},
 	skinnedGeometry: {
 		label: "skinnedGeometry",
 		code: skinnedGeometryShader,
+		bindings: {
+			group1: [
+				{ binding: 0, type: "ubo", id: 1 },
+				{ binding: 1, type: "uniform", name: "matWorld" },
+				{ binding: 2, type: "uniform", name: "boneMatrices" },
+			],
+			group2: [
+				{ binding: 0, type: "sampler", unit: 0 },
+				{ binding: 1, type: "texture", unit: 0 },
+				{ binding: 2, type: "texture", unit: 1 },
+				{ binding: 4, type: "texture", unit: 5 },
+				{ binding: 5, type: "texture", unit: 2 },
+				{ binding: 6, type: "texture", unit: 3 },
+			],
+		},
 	},
 	entityShadows: {
 		label: "entityShadows",
 		code: entityShadowsShader,
+		bindings: {
+			group1: [
+				{ binding: 0, type: "uniform", name: "matWorld" },
+				{ binding: 1, type: "uniform", name: "ambient" },
+			],
+		},
 	},
 	skinnedEntityShadows: {
 		label: "skinnedEntityShadows",
 		code: skinnedEntityShadowsShader,
+		bindings: {
+			group1: [
+				{ binding: 0, type: "uniform", name: "matWorld" },
+				{ binding: 1, type: "uniform", name: "ambient" },
+				{ binding: 2, type: "uniform", name: "boneMatrices" },
+			],
+		},
 	},
 	applyShadows: {
 		label: "applyShadows",
 		code: applyShadowsShader,
+		bindings: {
+			group1: [
+				{ binding: 0, type: "sampler", unit: 2 },
+				{ binding: 1, type: "texture", unit: 2 },
+			],
+		},
 	},
 	directionalLight: {
 		label: "directionalLight",
 		code: directionalLightShader,
+		bindings: {
+			group1: [
+				{ binding: 0, type: "uniform", name: "directionalLight" },
+				{ binding: 2, type: "texture", unit: 1 },
+			],
+		},
 	},
 	pointLight: {
 		label: "pointLight",
 		code: pointLightShader,
+		bindings: {
+			group1: [
+				{ binding: 0, type: "uniform", name: "matWorld" },
+				{ binding: 1, type: "uniform", name: "pointLight" },
+				{ binding: 3, type: "texture", unit: 0 },
+				{ binding: 4, type: "texture", unit: 1 },
+			],
+		},
 	},
 	spotLight: {
 		label: "spotLight",
 		code: spotLightShader,
+		bindings: {
+			group1: [
+				{ binding: 0, type: "uniform", name: "matWorld" },
+				{ binding: 1, type: "uniform", name: "spotLight" },
+				{ binding: 3, type: "texture", unit: 0 },
+				{ binding: 4, type: "texture", unit: 1 },
+			],
+		},
 	},
 	kawaseBlur: {
 		label: "kawaseBlur",
 		code: kawaseBlurShader,
+		bindings: {
+			group1: [
+				{ binding: 0, type: "uniform", name: "blurParams" },
+				{ binding: 1, type: "sampler", unit: 0 },
+				{ binding: 2, type: "texture", unit: 0 },
+			],
+		},
 	},
 	postProcessing: {
 		label: "postProcessing",
 		code: postProcessingShader,
+		bindings: {
+			group1: [
+				{ binding: 0, type: "uniform", name: "postProcessParams" },
+				{ binding: 1, type: "sampler", unit: 0 },
+				{ binding: 2, type: "texture", unit: 0 },
+				{ binding: 3, type: "texture", unit: 1 },
+				{ binding: 4, type: "texture", unit: 2 },
+				{ binding: 5, type: "texture", unit: 3 },
+				{ binding: 6, type: "texture", unit: 4 },
+				{ binding: 7, type: "texture", unit: 5 },
+			],
+		},
 	},
 	transparent: {
 		label: "transparent",
 		code: transparentShader,
+		bindings: {
+			group1: [
+				{ binding: 0, type: "ubo", id: 1 },
+				{ binding: 1, type: "uniform", name: "matWorld" },
+				{ binding: 2, type: "ubo", id: 2 },
+			],
+			group2: [
+				{ binding: 0, type: "sampler", unit: 0 },
+				{ binding: 1, type: "texture", unit: 0 },
+				{ binding: 2, type: "texture", unit: 1 },
+				{ binding: 3, type: "texture", unit: 2 },
+				{ binding: 4, type: "texture", unit: 3 },
+			],
+		},
 	},
 	ssao: {
 		label: "ssao",
 		code: ssaoShader,
+		bindings: {
+			group1: [
+				{ binding: 0, type: "uniform", name: "ssaoParams" },
+				{ binding: 1, type: "sampler", unit: 0 },
+				{ binding: 2, type: "texture", unit: 1 },
+				{ binding: 3, type: "texture", unit: 0 },
+				{ binding: 4, type: "texture", unit: 2 },
+			],
+		},
 	},
 	debug: {
 		label: "debug",
 		code: debugShader,
+		bindings: {
+			group1: [
+				{ binding: 0, type: "uniform", name: "matWorld" },
+				{ binding: 1, type: "uniform", name: "debugColor" },
+			],
+		},
 	},
 	skinnedDebug: {
 		label: "skinnedDebug",
 		code: skinnedDebugShader,
+		bindings: {
+			group1: [
+				{ binding: 0, type: "uniform", name: "matWorld" },
+				{ binding: 1, type: "uniform", name: "debugColor" },
+				{ binding: 2, type: "uniform", name: "boneMatrices" },
+			],
+		},
 	},
 };

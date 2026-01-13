@@ -1,0 +1,7 @@
+{
+  "resources": [
+    "models/robot/materials.mat",
+    "models/robot/robot.sbmesh",
+    "models/robot/robot.banim"
+  ]
+}

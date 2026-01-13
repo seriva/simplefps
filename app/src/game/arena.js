@@ -97,9 +97,12 @@ const _getGroundHeight = (x, y, z) => {
 	return y; // Fallback to original height
 };
 
-// Setup player models at all spawnpoints
-const _setupSpawnpointModels = (spawnpoints = []) => {
+// Setup player models at all spawnpoints except the current one
+const _setupSpawnpointModels = (spawnpoints = [], currentSpawn = null) => {
 	for (const spawn of spawnpoints) {
+		// Skip the spawn point where the player spawns
+		if (spawn === currentSpawn) continue;
+
 		const pos = spawn.position || _DEFAULT_POSITION;
 
 		// Raycast to attach to ground
@@ -111,12 +114,12 @@ const _setupSpawnpointModels = (spawnpoints = []) => {
 
 		const character = new SkinnedMeshEntity(
 			modelPos,
-			"models/female/female.sbmesh",
+			"models/robot/robot.sbmesh",
 			null,
-			1.15, // Start with scale 1
+			0.035, // Scaled down for robot
 		);
 		character.castShadow = false;
-		character.playAnimation("models/female/female.banim");
+		character.playAnimation("models/robot/robot.banim");
 
 		// Build rotation: first yaw (Y), then stand upright (X -90)
 		// This makes the model face the right direction THEN stand up
@@ -187,7 +190,7 @@ const _load = async (name) => {
 			startSpawn.position || _DEFAULT_POSITION,
 		);
 		_setupPickups(pickups);
-		_setupSpawnpointModels(spawnpoints || []);
+		_setupSpawnpointModels(spawnpoints || [], startSpawn);
 
 		Console.log(`Loaded arena: ${name}`);
 	} catch (error) {
