@@ -650,6 +650,7 @@ function exportMap(vertices, meshVerts, faces, textures, lightmaps, models, ligh
         // OR: Transform the grid origin to engine space, and store the scaled step.
 
         lightGridConfig = {
+            src: `${arenaName}/lightgrid.bin`,
             origin: [
                 q3Origin[0] * scale,
                 q3Origin[2] * scale,
@@ -1035,21 +1036,11 @@ function exportMap(vertices, meshVerts, faces, textures, lightmaps, models, ligh
     // Write config.arena with simplified paths
     const configData = {
         skybox: 1,
-        lighting: {
-            ambient: [0.01, 0.01, 0.01],
-            directional: [
-                {
-                    direction: [0.3, -0.8, 0.5],
-                    color: [0.4, 0.5, 0.6]
-                }
-            ],
-            spot: [],
-            point: []
-        },
+
         chunks: [`${arenaName}/geometry.bmesh`],
+        lightGrid: lightGridConfig,
         spawnpoints: spawnpoints,
-        pickups: pickups,
-        lightGrid: lightGridConfig
+        pickups: pickups
     };
 
     fs.writeFileSync(path.join(outputDir, 'config.arena'), JSON.stringify(configData, null, 4));

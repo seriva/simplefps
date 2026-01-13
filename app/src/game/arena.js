@@ -5,12 +5,10 @@ import {
 	Console,
 	MeshEntity,
 	Physics,
-	PointLightEntity,
 	Resources,
 	Scene,
 	SkinnedMeshEntity,
 	SkyboxEntity,
-	SpotLightEntity,
 	Utils,
 } from "../engine/core/engine.js";
 import Loading from "./loading.js";
@@ -50,25 +48,10 @@ const _setupEnvironment = ({ skybox, chunks = [] }) => {
 	}
 };
 
-const _setupLighting = (
-	{ point = [], spot = [], lightGrid = null },
-	arenaName,
-) => {
-	// Scene.setAmbient(ambient || _DEFAULT_AMBIENT); // Deprecated
-
+const _setupLighting = (lightGrid, arenaName) => {
 	// Load Light Grid (Base Lighting)
 	if (lightGrid?.origin) {
 		Scene.loadLightGrid({ lightGrid, arenaName });
-	}
-
-	for (const { position, size, color, intensity } of point) {
-		Scene.addEntities(new PointLightEntity(position, size, color, intensity));
-	}
-
-	for (const { position, direction, color, intensity, angle, range } of spot) {
-		Scene.addEntities(
-			new SpotLightEntity(position, direction, color, intensity, angle, range),
-		);
 	}
 };
 
@@ -185,13 +168,7 @@ const _load = async (name) => {
 		// In bsp2map.js we wrote: { ..., lightGrid: { ... } } at root level.
 		// So we need to pass arenaData.lightGrid.
 
-		_setupLighting(
-			{
-				...(_state.arena.lighting || {}),
-				lightGrid: _state.arena.lightGrid,
-			},
-			name,
-		);
+		_setupLighting(_state.arena.lightGrid, name);
 		_setupEnvironment(_state.arena);
 		_setupCollision(
 			_state.arena.chunks || [],

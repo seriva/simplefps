@@ -81,16 +81,14 @@ class MeshEntity extends Entity {
 
 		// Sample Light Grid
 		// Sample Light Grid
-		if (Scene.getLightGrid()) {
-			// Sample at center of entity (approx +32 units up) to avoid floor probes
-			mat4.getTranslation(_tempPos, _tempMatrix);
-			_tempPos[1] += 32.0;
-			Scene.getLightGrid().getAmbient(_tempPos, _tempProbeColor); // Using global _tempProbeColor
-			Shaders.geometry.setVec3("uProbeColor", _tempProbeColor);
-			// Also need to set for skinned shader if used
-			if (this.type === EntityTypes.SKINNED_MESH) {
-				Shaders.skinnedGeometry.setVec3("uProbeColor", _tempProbeColor);
-			}
+		// Ambient lighting for dynamic objects
+		mat4.getTranslation(_tempPos, _tempMatrix);
+		_tempPos[1] += 32.0;
+		Scene.getAmbient(_tempPos, _tempProbeColor);
+		this.shader?.setVec3("uProbeColor", _tempProbeColor);
+		if (shader) shader.setVec3("uProbeColor", _tempProbeColor);
+		if (this.type === EntityTypes.SKINNED_MESH) {
+			Shaders.skinnedGeometry.setVec3("uProbeColor", _tempProbeColor);
 		}
 		shader.setMat4("matWorld", _tempMatrix);
 		this.mesh.renderSingle(true, null, filter, shader);

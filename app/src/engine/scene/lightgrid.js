@@ -12,6 +12,10 @@ class LightGrid {
 		this.bounds = { min: [0, 0, 0], max: [0, 0, 0] };
 	}
 
+	get hasData() {
+		return this.data !== null;
+	}
+
 	load(config) {
 		if (!config || !config.lightGrid) {
 			console.warn("No light grid configuration found in arena config.");
@@ -21,7 +25,9 @@ class LightGrid {
 		const lgConfig = config.lightGrid;
 
 		// Load the binary data
-		const resourceName = `arenas/${config.arenaName}/lightgrid.bin`;
+		const resourceName = lgConfig.src
+			? lgConfig.src
+			: `arenas/${config.arenaName}/lightgrid.bin`;
 		Resources.load([resourceName]).then(() => {
 			const buffer = Resources.get(resourceName);
 			if (buffer) {
@@ -94,16 +100,16 @@ class LightGrid {
 
 		// Wait, let's re-verify the export logic in bsp2map.js:
 		/*
-            lightGridConfig = {
-                origin: [
-                   q3Origin[0] * scale,
-                   q3Origin[2] * scale,
-                   -q3Origin[1] * scale
-                ],
-                counts: lightGridRaw.counts, // [x, y, z] in Q3 axes
-                step: ...
-            }
-        */
+			lightGridConfig = {
+				origin: [
+				   q3Origin[0] * scale,
+				   q3Origin[2] * scale,
+				   -q3Origin[1] * scale
+				],
+				counts: lightGridRaw.counts, // [x, y, z] in Q3 axes
+				step: ...
+			}
+		*/
 
 		// So 'origin' is actually in ENGINE SPACE (X, Y, Z) if we map Q3 Z->Y and Q3 Y->-Z
 		// So we can simpler subtract origin from position directly?

@@ -62,13 +62,11 @@ class SkinnedMeshEntity extends MeshEntity {
 
 		mat4.multiply(_tempMatrix, this.base_matrix, this.ani_matrix);
 
-		// Sample Light Grid
-		if (Scene.getLightGrid()) {
-			mat4.getTranslation(_tempPos, _tempMatrix);
-			_tempPos[1] += 32.0;
-			Scene.getLightGrid().getAmbient(_tempPos, _tempProbeColor);
-			shader.setVec3("uProbeColor", _tempProbeColor);
-		}
+		// Ambient lighting
+		mat4.getTranslation(_tempPos, _tempMatrix);
+		_tempPos[1] += 32.0;
+		Scene.getAmbient(_tempPos, _tempProbeColor);
+		shader.setVec3("uProbeColor", _tempProbeColor);
 
 		shader.setMat4("matWorld", _tempMatrix);
 		shader.setMat4Array("boneMatrices", this._boneMatrices);
