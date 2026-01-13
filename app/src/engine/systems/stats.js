@@ -1,6 +1,7 @@
 import { css, html, Reactive } from "../../dependencies/reactive.js";
 import Camera from "../core/camera.js";
 import Settings from "../core/settings.js";
+import { Backend } from "../rendering/backend.js";
 import Console from "./console.js";
 
 // Private Stats UI component
@@ -15,6 +16,7 @@ class _StatsUI extends Reactive.Component {
 	state() {
 		return {
 			visible: this.signal(Settings.showStats, "stats:visible"),
+			backendName: this.signal(Backend.name || "Unknown", "stats:backend"),
 			fps: this.signal(0, "stats:fps"),
 			frameTime: this.signal(0, "stats:frameTime"),
 			memory: this.signal(0, "stats:memory"),
@@ -40,7 +42,7 @@ class _StatsUI extends Reactive.Component {
 				display: block;
 			}
 
-			#stats-basic {
+			#stats-renderer {
 				font-size: 12px;
 				color: #fff;
 				left: 8px;
@@ -49,7 +51,7 @@ class _StatsUI extends Reactive.Component {
 				position: absolute;
 			}
 
-			#stats-scene {
+			#stats-basic {
 				font-size: 12px;
 				color: #fff;
 				left: 8px;
@@ -58,11 +60,20 @@ class _StatsUI extends Reactive.Component {
 				position: absolute;
 			}
 
+			#stats-scene {
+				font-size: 12px;
+				color: #fff;
+				left: 8px;
+				top: 40px;
+				z-index: 2001;
+				position: absolute;
+			}
+
 			#stats-pos {
 				color: #fff;
 				font-size: 12px;
 				left: 8px;
-				top: 40px;
+				top: 56px;
 				z-index: 2001;
 				position: absolute;
 			}
@@ -72,6 +83,9 @@ class _StatsUI extends Reactive.Component {
 	template() {
 		return html`
 			<div id="stats">
+				<div id="stats-renderer" class="stats-item" data-class-visible="visible">
+					<span data-ref="renderer"></span>
+				</div>
 				<div id="stats-basic" class="stats-item" data-class-visible="visible">
 					<span data-ref="basic"></span>
 				</div>
@@ -86,6 +100,13 @@ class _StatsUI extends Reactive.Component {
 	}
 
 	mount() {
+		// Backend name binding
+		this.bind(
+			this.refs.renderer,
+			this.backendName,
+			(name) => `Renderer: ${name}`,
+		);
+
 		// Use bindMultiple for cleaner multi-signal bindings
 		this.bindMultiple(
 			this.refs.basic,

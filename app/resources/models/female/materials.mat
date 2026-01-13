@@ -2,6 +2,7 @@
     "materials": [
         {
             "name": "Female01",
+            "geomType": 2,
             "textures": {
                 "albedo": "models/female/female_d.webp"
             }
