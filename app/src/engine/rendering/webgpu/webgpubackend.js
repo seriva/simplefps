@@ -217,7 +217,7 @@ class WebGPUBackend extends RenderBackend {
 		// =========================================================================
 		// Pool of uniform buffers keyed by size (aligned to 16 bytes)
 		this._uniformBufferPool = new Map(); // size -> [buffer, buffer, ...]
-		this._uniformBufferInUse = []; // buffers used this frame, reset each frame
+		this._uniformBufferInUse = new Set(); // buffers used this frame, reset each frame
 
 		// =========================================================================
 		// Optimization: BindGroup cache
@@ -383,7 +383,7 @@ class WebGPUBackend extends RenderBackend {
 
 		// Reset uniform buffer pool for this frame
 		// Return all buffers from previous frame back to the pool
-		this._uniformBufferInUse = [];
+		this._uniformBufferInUse.clear();
 
 		// Clear per-frame BindGroup cache (bindings change each frame)
 		this._bindGroupCache.clear();
@@ -1310,8 +1310,8 @@ class WebGPUBackend extends RenderBackend {
 
 		// Find an available buffer (one not in use this frame)
 		for (const buf of pool) {
-			if (!this._uniformBufferInUse.includes(buf)) {
-				this._uniformBufferInUse.push(buf);
+			if (!this._uniformBufferInUse.has(buf)) {
+				this._uniformBufferInUse.add(buf);
 				return buf;
 			}
 		}
@@ -1323,7 +1323,7 @@ class WebGPUBackend extends RenderBackend {
 		});
 
 		pool.push(newBuffer);
-		this._uniformBufferInUse.push(newBuffer);
+		this._uniformBufferInUse.add(newBuffer);
 
 		return newBuffer;
 	}
@@ -1472,7 +1472,9 @@ class WebGPUBackend extends RenderBackend {
 		if (indexBuffer?._gpuBuffer) {
 			// OPTIMIZATION: Filter redundant index buffer binds
 			if (this._passCache.indexBuffer !== indexBuffer._gpuBuffer) {
-				pass.setIndexBuffer(indexBuffer._gpuBuffer, "uint16"); // Assuming uint16 for now from Mesh.js
+				const indexFormat =
+					indexBuffer.bytesPerElement === 4 ? "uint32" : "uint16";
+				pass.setIndexBuffer(indexBuffer._gpuBuffer, indexFormat);
 				this._passCache.indexBuffer = indexBuffer._gpuBuffer;
 			}
 		}

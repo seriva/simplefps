@@ -725,7 +725,6 @@ class WebGLBackend extends RenderBackend {
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, glMode);
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, glMode);
 		gl.bindTexture(gl.TEXTURE_2D, null);
-		gl.bindTexture(gl.TEXTURE_2D, null);
 	}
 
 	disposeTexture(texture) {
