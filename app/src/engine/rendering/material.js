@@ -50,9 +50,12 @@ class Material {
 		// Bind textures using pre-computed arrays (avoids Object.entries())
 		for (let i = 0; i < TEXTURE_SLOT_NAMES.length; i++) {
 			const texturePath = this.textures[TEXTURE_SLOT_NAMES[i]];
-			if (texturePath && this.resources.has(texturePath)) {
-				shader.setInt(TEXTURE_SLOT_SAMPLERS[i], TEXTURE_SLOT_UNITS[i]);
-				this.resources.get(texturePath).bind(TEXTURE_SLOT_UNITS[i]);
+			if (texturePath) {
+				const texture = this.resources.get(texturePath);
+				if (texture) {
+					shader.setInt(TEXTURE_SLOT_SAMPLERS[i], TEXTURE_SLOT_UNITS[i]);
+					texture.bind(TEXTURE_SLOT_UNITS[i]);
+				}
 			}
 		}
 

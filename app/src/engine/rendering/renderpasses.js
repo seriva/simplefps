@@ -34,6 +34,15 @@ const _debugState = {
 	showSkeleton: false,
 };
 
+// Pre-computed arrays for debug rendering (avoid per-frame allocations)
+const _debugMeshTypes = [
+	EntityTypes.MESH,
+	EntityTypes.SKINNED_MESH,
+	EntityTypes.FPS_MESH,
+	EntityTypes.SKYBOX,
+];
+const _debugLightTypes = [EntityTypes.POINT_LIGHT, EntityTypes.SPOT_LIGHT];
+
 // Debug colors for each entity type
 const _boundingBoxColors = {
 	[EntityTypes.SKYBOX]: [0, 0, 1, 1], // Blue
@@ -328,13 +337,7 @@ const renderDebug = () => {
 	// Render mesh wireframes
 	if (_debugState.showWireframes) {
 		Shaders.debug.setVec4("debugColor", [1, 1, 1, 1]);
-		const meshTypes = [
-			EntityTypes.MESH,
-			EntityTypes.SKINNED_MESH,
-			EntityTypes.FPS_MESH,
-			EntityTypes.SKYBOX,
-		];
-		for (const type of meshTypes) {
+		for (const type of _debugMeshTypes) {
 			for (const entity of Scene.visibilityCache[type]) {
 				entity.renderWireFrame();
 			}
@@ -344,8 +347,7 @@ const renderDebug = () => {
 	// Render light volumes
 	if (_debugState.showLightVolumes) {
 		Shaders.debug.setVec4("debugColor", [1, 1, 0, 1]);
-		const lightTypes = [EntityTypes.POINT_LIGHT, EntityTypes.SPOT_LIGHT];
-		for (const type of lightTypes) {
+		for (const type of _debugLightTypes) {
 			for (const entity of Scene.visibilityCache[type]) {
 				entity.renderWireFrame();
 			}
@@ -354,14 +356,9 @@ const renderDebug = () => {
 
 	// Render skeleton
 	if (_debugState.showSkeleton) {
-		const skinnedTypes = [EntityTypes.SKINNED_MESH];
-		for (const type of skinnedTypes) {
-			if (Scene.visibilityCache[type]) {
-				for (const entity of Scene.visibilityCache[type]) {
-					if (entity.renderSkeleton) {
-						entity.renderSkeleton();
-					}
-				}
+		for (const entity of Scene.visibilityCache[EntityTypes.SKINNED_MESH]) {
+			if (entity.renderSkeleton) {
+				entity.renderSkeleton();
 			}
 		}
 	}

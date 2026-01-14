@@ -215,15 +215,14 @@ const _swapBlur = (i) => {
 };
 
 const _blurImage = (source, iterations, radius) => {
+	if (iterations <= 0) return;
 	Shaders.kawaseBlur.bind();
+	Shaders.kawaseBlur.setInt("colorBuffer", 0);
 	_startBlurPass(source);
 	for (let i = 0; i < iterations; i++) {
 		_swapBlur(i);
-
-		Shaders.kawaseBlur.setInt("colorBuffer", 0);
 		// Kawase blur uses progressive offsets: each iteration increases spread
 		Shaders.kawaseBlur.setFloat("offset", (i + 1) * radius);
-
 		Shapes.screenQuad.renderSingle();
 	}
 	_endBlurPass();
@@ -231,32 +230,25 @@ const _blurImage = (source, iterations, radius) => {
 };
 
 const _generateSSAOKernel = () => {
-	const kernel = [];
+	_ssaoKernel = new Float32Array(48); // 16 samples * 3 components
 	for (let i = 0; i < 16; ++i) {
 		// Generate random samples in a hemisphere
-		const sample = [
-			Math.random() * 2.0 - 1.0,
-			Math.random() * 2.0 - 1.0,
-			Math.random(),
-		];
+		let x = Math.random() * 2.0 - 1.0;
+		let y = Math.random() * 2.0 - 1.0;
+		let z = Math.random();
 		// Normalize
-		const length = Math.sqrt(
-			sample[0] * sample[0] + sample[1] * sample[1] + sample[2] * sample[2],
-		);
-		sample[0] /= length;
-		sample[1] /= length;
-		sample[2] /= length;
-
+		const invLen = 1.0 / Math.sqrt(x * x + y * y + z * z);
+		x *= invLen;
+		y *= invLen;
+		z *= invLen;
 		// Scale samples so they're more aligned to center of kernel
-		let scale = i / 16.0;
-		scale = 0.1 + scale * scale * 0.9; // Lerp between 0.1 and 1.0
-		sample[0] *= scale;
-		sample[1] *= scale;
-		sample[2] *= scale;
-
-		kernel.push(sample[0], sample[1], sample[2]);
+		const t = i / 16.0;
+		const scale = 0.1 + t * t * 0.9; // Lerp between 0.1 and 1.0
+		const idx = i * 3;
+		_ssaoKernel[idx] = x * scale;
+		_ssaoKernel[idx + 1] = y * scale;
+		_ssaoKernel[idx + 2] = z * scale;
 	}
-	_ssaoKernel = new Float32Array(kernel);
 };
 
 const _generateSSAONoise = () => {
