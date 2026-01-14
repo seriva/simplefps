@@ -29,10 +29,10 @@ const _defaults = {
 
 	// SSAO settings
 	doSSAO: false,
-	ssaoRadius: 20,
-	ssaoBias: 2.0,
-	ssaoStrength: 1.2,
-	ssaoBlurIterations: 6,
+	ssaoRadius: 12,
+	ssaoBias: 1.5,
+	ssaoStrength: 0.8,
+	ssaoBlurIterations: 5,
 
 	// Dirt/vignette effect
 	doDirt: true,

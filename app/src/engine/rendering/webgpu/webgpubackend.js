@@ -123,6 +123,7 @@ class WebGPUBackend extends RenderBackend {
 			shadowParams: new Float32Array(24),
 			skinnedShadowParams: new Float32Array(20),
 			blurParams: new Float32Array(8),
+			bilateralParams: new Float32Array(4), // depthThreshold, normalThreshold, _pad x2
 		};
 	}
 
@@ -1672,6 +1673,15 @@ class WebGPUBackend extends RenderBackend {
 			const offset = this._uniforms.get("offset");
 
 			if (offset !== undefined) arr[0] = offset;
+			return arr;
+		} else if (name === "bilateralParams") {
+			const arr = bufs.bilateralParams;
+			arr.fill(0);
+			const depthThreshold = this._uniforms.get("depthThreshold");
+			const normalThreshold = this._uniforms.get("normalThreshold");
+
+			if (depthThreshold !== undefined) arr[0] = depthThreshold;
+			if (normalThreshold !== undefined) arr[1] = normalThreshold;
 			return arr;
 		} else if (name === "ambient") {
 			return null;

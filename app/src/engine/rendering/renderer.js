@@ -458,10 +458,14 @@ const _shadowBlurPass = () => {
 };
 
 const _ssaoBlurPass = () => {
-	// Blur SSAO directly by setting up a special blur source
+	// Blur SSAO with bilateral filter for edge-aware blurring
 	Backend.bindFramebuffer(_b.framebuffer);
 
-	// Ping-pong blur for SSAO
+	// Bind position and normal buffers for edge detection
+	_g.worldPosition.bind(1);
+	_g.normal.bind(2);
+
+	// Ping-pong blur for SSAO using bilateral filter
 	for (let i = 0; i < Settings.ssaoBlurIterations; i++) {
 		if (i % 2 === 0) {
 			Backend.setFramebufferAttachment(_b.framebuffer, 0, _b.blur.getHandle());
@@ -474,14 +478,17 @@ const _ssaoBlurPass = () => {
 		}
 		Backend.clear({ color: [0, 0, 0, 0] });
 
-		Shaders.kawaseBlur.bind();
-		Shaders.kawaseBlur.setInt("colorBuffer", 0);
-		Shaders.kawaseBlur.setFloat("offset", i + 1.0);
+		Shaders.bilateralBlur.bind();
+		Shaders.bilateralBlur.setInt("aoBuffer", 0);
+		Shaders.bilateralBlur.setInt("positionBuffer", 1);
+		Shaders.bilateralBlur.setInt("normalBuffer", 2);
+		Shaders.bilateralBlur.setFloat("depthThreshold", 20.0); // Very permissive depth threshold
+		Shaders.bilateralBlur.setFloat("normalThreshold", 2.0); // Very gentle normal falloff
 		Shapes.screenQuad.renderSingle();
 		Backend.unbindShader();
 	}
 
-	Texture.unBind(0);
+	Texture.unBindRange(0, 3);
 	Backend.bindFramebuffer(null);
 };
 
