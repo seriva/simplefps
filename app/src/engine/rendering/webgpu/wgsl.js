@@ -614,6 +614,103 @@ fn fs_main(input: BlurOutput) -> @location(0) vec4<f32> {
 }
 `;
 
+// Bilateral blur shader for edge-aware SSAO blurring
+const bilateralBlurShader = /* wgsl */ `
+${FrameDataStruct}
+
+struct BilateralParams {
+    depthThreshold: f32,
+    normalThreshold: f32,
+    _pad: vec2<f32>,
+}
+
+struct BilateralOutput {
+    @builtin(position) position: vec4<f32>,
+    @location(0) uv: vec2<f32>,
+}
+
+@group(0) @binding(0) var<uniform> frameData: FrameData;
+@group(1) @binding(0) var<uniform> params: BilateralParams;
+@group(1) @binding(2) var aoBuffer: texture_2d<f32>;
+@group(1) @binding(3) var positionBuffer: texture_2d<f32>;
+@group(1) @binding(4) var normalBuffer: texture_2d<f32>;
+
+@vertex
+fn vs_main(@builtin(vertex_index) vertexIndex: u32) -> BilateralOutput {
+    var output: BilateralOutput;
+    let x = f32((vertexIndex << 1) & 2);
+    let y = f32(vertexIndex & 2);
+    output.position = vec4<f32>(x * 2.0 - 1.0, y * 2.0 - 1.0, 0.0, 1.0);
+    output.uv = vec2<f32>(x, 1.0 - y);
+    return output;
+}
+
+@fragment
+fn fs_main(input: BilateralOutput) -> @location(0) vec4<f32> {
+    let fragCoord = vec2<i32>(input.position.xy);
+    let texelSize = 1.0 / frameData.viewportSize.xy;
+    
+    // Get center pixel data
+    let centerAO = textureLoad(aoBuffer, fragCoord, 0).r;
+    let centerPos = textureLoad(positionBuffer, fragCoord, 0).xyz;
+    let centerNormal = textureLoad(normalBuffer, fragCoord, 0).xyz * 2.0 - 1.0;
+    let centerDepth = length(centerPos - frameData.cameraPosition.xyz);
+    
+    // If center is sky or invalid, just return the center value
+    if (length(centerNormal) < 0.1) {
+        return vec4<f32>(centerAO, centerAO, centerAO, 1.0);
+    }
+    
+    var totalWeight = 1.0;
+    var totalAO = centerAO;
+    
+    // Sample in a 5x5 pattern with bilateral weights
+    for (var y = -2; y <= 2; y++) {
+        for (var x = -2; x <= 2; x++) {
+            if (x == 0 && y == 0) { continue; }
+            
+            let sampleCoord = fragCoord + vec2<i32>(x, y);
+            
+            // Bounds check
+            if (sampleCoord.x < 0 || sampleCoord.y < 0 || 
+                sampleCoord.x >= i32(frameData.viewportSize.x) || 
+                sampleCoord.y >= i32(frameData.viewportSize.y)) {
+                continue;
+            }
+            
+            let sampleAO = textureLoad(aoBuffer, sampleCoord, 0).r;
+            let samplePos = textureLoad(positionBuffer, sampleCoord, 0).xyz;
+            let sampleNormal = textureLoad(normalBuffer, sampleCoord, 0).xyz * 2.0 - 1.0;
+            let sampleDepth = length(samplePos - frameData.cameraPosition.xyz);
+            
+            // Skip invalid samples (sky)
+            if (length(sampleNormal) < 0.1) { continue; }
+            
+            // Spatial weight (Gaussian falloff)
+            let dist = length(vec2<f32>(f32(x), f32(y)));
+            let spatialWeight = exp(-dist * dist / 4.0);
+            
+            // Depth weight - reject samples across depth discontinuities
+            let depthDiff = abs(centerDepth - sampleDepth);
+            let depthWeight = exp(-depthDiff * depthDiff / (params.depthThreshold * params.depthThreshold));
+            
+            // Normal weight - reject samples with different normals
+            let normalDot = max(0.0, dot(centerNormal, sampleNormal));
+            let normalWeight = pow(normalDot, params.normalThreshold);
+            
+            // Combined weight
+            let weight = spatialWeight * depthWeight * normalWeight;
+            
+            totalAO += sampleAO * weight;
+            totalWeight += weight;
+        }
+    }
+    
+    let result = totalAO / totalWeight;
+    return vec4<f32>(result, result, result, 1.0);
+}
+`;
+
 // Post-processing shader
 const postProcessingShader = /* wgsl */ `
 ${FrameDataStruct}
@@ -1004,8 +1101,8 @@ fn fs_main(input: SSAOOutput) -> @location(0) vec4<f32> {
     var randomVec = textureSample(noiseTexture, bufferSampler, uv * params.noiseScale).xyz;
     randomVec = randomVec * 2.0 - 1.0;
     
-    // Skip skybox or non-lightmapped - but calculate AO conditionally instead of early return
-    let skipAO = length(normal) < 0.1 || hasLightmap < 0.5;
+    // Only skip skybox - apply SSAO to all geometry including dynamic objects
+    let isSkybox = length(normal) < 0.1;
     
     let currentLinearDepth = length(fragPos - frameData.cameraPosition.xyz);
     
@@ -1014,6 +1111,7 @@ fn fs_main(input: SSAOOutput) -> @location(0) vec4<f32> {
     let TBN = mat3x3<f32>(tangent, bitangent, normal);
     
     var occlusion = 0.0;
+    var validSamples = 0.0;
     
     for (var i = 0; i < 16; i++) {
         var samplePos = TBN * params.kernel[i].xyz;
@@ -1029,6 +1127,19 @@ fn fs_main(input: SSAOOutput) -> @location(0) vec4<f32> {
         let flippedY = 1.0 - sampleUV.y;
         let rawCoord = vec2<i32>(i32(sampleUV.x * frameData.viewportSize.x), i32(flippedY * frameData.viewportSize.y));
         let sampleCoord = clamp(rawCoord, vec2<i32>(0, 0), vec2<i32>(i32(frameData.viewportSize.x) - 1, i32(frameData.viewportSize.y) - 1));
+        
+        // Check if sample crosses static/dynamic boundary - reject if so
+        let sampleNormalData = textureLoad(normalBuffer, sampleCoord, 0);
+        let sampleHasLightmap = sampleNormalData.w;
+        
+        // Skip samples that cross the lightmap boundary (static <-> dynamic)
+        // This prevents floor from getting false occlusion from pickups
+        if ((hasLightmap > 0.5 && sampleHasLightmap < 0.5) || (hasLightmap < 0.5 && sampleHasLightmap > 0.5)) {
+            continue;
+        }
+        
+        validSamples += 1.0;
+        
         let sampleWorldPos = textureLoad(positionBuffer, sampleCoord, 0).rgb;
         let sampleLinearDepth = length(sampleWorldPos - frameData.cameraPosition.xyz);
         
@@ -1040,10 +1151,17 @@ fn fs_main(input: SSAOOutput) -> @location(0) vec4<f32> {
         }
     }
     
-    occlusion = 1.0 - (occlusion / 16.0);
+    // Divide by actual valid samples to avoid flickering when many samples are rejected
+    // Use max to avoid division by zero
+    occlusion = 1.0 - (occlusion / max(validSamples, 1.0));
     
-    // Return 1.0 (no AO) for skipped pixels, otherwise return calculated occlusion
-    let result = select(occlusion, 1.0, skipAO);
+    // Skip SSAO for dynamic objects entirely - they get 1.0 (no darkening)
+    if (hasLightmap < 0.5) {
+        occlusion = 1.0;
+    }
+    
+    // Return 1.0 (no AO) for skybox only
+    let result = select(occlusion, 1.0, isSkybox);
     return vec4<f32>(result, result, result, 1.0);
 }
 `;
@@ -1227,6 +1345,18 @@ export const WgslShaderSources = {
 				{ binding: 0, type: "uniform", name: "blurParams" },
 				{ binding: 1, type: "sampler", unit: 0 },
 				{ binding: 2, type: "texture", unit: 0 },
+			],
+		},
+	},
+	bilateralBlur: {
+		label: "bilateralBlur",
+		code: bilateralBlurShader,
+		bindings: {
+			group1: [
+				{ binding: 0, type: "uniform", name: "bilateralParams" },
+				{ binding: 2, type: "texture", unit: 0 }, // aoBuffer
+				{ binding: 3, type: "texture", unit: 1 }, // positionBuffer
+				{ binding: 4, type: "texture", unit: 2 }, // normalBuffer
 			],
 		},
 	},
