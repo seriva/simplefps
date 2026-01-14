@@ -170,6 +170,10 @@ class RenderBackend {
 		throw new Error("RenderBackend.setCullState() must be implemented");
 	}
 
+	setPolygonOffset(_enabled, _factor = 0, _units = 0) {
+		throw new Error("RenderBackend.setPolygonOffset() must be implemented");
+	}
+
 	setViewport(_x, _y, _width, _height) {
 		throw new Error("RenderBackend.setViewport() must be implemented");
 	}

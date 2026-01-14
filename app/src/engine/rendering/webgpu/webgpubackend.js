@@ -118,9 +118,10 @@ class WebGPUBackend extends RenderBackend {
 			pointLight: new Float32Array(8),
 			directionalLight: new Float32Array(8),
 			spotLight: new Float32Array(12),
-			postProcessParams: new Float32Array(16),
+			postProcessParams: new Float32Array(20),
 			ssaoParams: new Float32Array(68),
 			shadowParams: new Float32Array(24),
+			skinnedShadowParams: new Float32Array(20),
 			blurParams: new Float32Array(8),
 		};
 	}
@@ -491,6 +492,16 @@ class WebGPUBackend extends RenderBackend {
 		};
 	}
 
+	setPolygonOffset(enabled, factor = 0, units = 0) {
+		// WebGPU handles depth bias in the render pipeline, store for pipeline creation
+		this._depthBias = {
+			enabled,
+			depthBias: enabled ? Math.round(units) : 0,
+			depthBiasSlopeScale: enabled ? factor : 0,
+			depthBiasClamp: 0,
+		};
+	}
+
 	_beginPass(colorLoadOp = "clear", depthLoadOp = "clear") {
 		// End any active render pass before starting a new one
 		if (this._currentPass) {
@@ -676,18 +687,10 @@ class WebGPUBackend extends RenderBackend {
 	// WebGPU-specific accessors
 	// =========================================================================
 
-	/**
-	 * Get the WebGPU device
-	 * @returns {GPUDevice}
-	 */
 	getDevice() {
 		return this._device;
 	}
 
-	/**
-	 * Get the preferred canvas format
-	 * @returns {string}
-	 */
 	getFormat() {
 		return this._format;
 	}
@@ -1227,8 +1230,12 @@ class WebGPUBackend extends RenderBackend {
 		const layoutKey = vertexState.layout
 			.map((l) => `${l.arrayStride}:${l.attributes[0]?.shaderLocation}`)
 			.join("|");
+		// Include depth bias in key
+		const biasKey = this._depthBias?.enabled
+			? `${this._depthBias.depthBias}_${this._depthBias.depthBiasSlopeScale}`
+			: "0";
 
-		return `${shaderLabel}|${primitive.topology}|${cullMode}|${blendKey}|${depthKey}|${formatKey}|${layoutKey}`;
+		return `${shaderLabel}|${primitive.topology}|${cullMode}|${blendKey}|${depthKey}|${formatKey}|${layoutKey}|${biasKey}`;
 	}
 
 	drawIndexed(indexBuffer, indexCount, indexOffset = 0, mode = null) {
@@ -1311,6 +1318,10 @@ class WebGPUBackend extends RenderBackend {
 					depthCompare: this._depthState.test
 						? this._depthState.func
 						: "always",
+					// Depth bias for polygon offset (shadow z-fighting prevention)
+					depthBias: this._depthBias?.depthBias ?? 0,
+					depthBiasSlopeScale: this._depthBias?.depthBiasSlopeScale ?? 0,
+					depthBiasClamp: this._depthBias?.depthBiasClamp ?? 0,
 				};
 			}
 
@@ -1460,9 +1471,23 @@ class WebGPUBackend extends RenderBackend {
 						pass.setBindGroup(1, bg1);
 						// Update cache (though it's a new obj every time unless we cache BG creation too)
 						this._passCache.bindGroups.set(1, bg1);
-					} catch (_e) {
-						// console.warn("Missing bindings for group 1", e);
+					} catch (e) {
+						console.warn(
+							"Missing bindings for group 1:",
+							e,
+							"entries:",
+							entries,
+							"shader:",
+							shader?._gpuShaderModule?.label,
+						);
 					}
+				} else if (bindings.group1.length > 0) {
+					console.warn(
+						"No entries for group 1, expected:",
+						bindings.group1,
+						"shader:",
+						shader?._gpuShaderModule?.label,
+					);
 				}
 			}
 
@@ -1571,15 +1596,22 @@ class WebGPUBackend extends RenderBackend {
 			const ssaoStrength = this._uniforms.get("ssaoStrength");
 			const dirtIntensity = this._uniforms.get("dirtIntensity");
 			const doFXAA = this._uniforms.get("doFXAA");
+			const shadowIntensity = this._uniforms.get("shadowIntensity");
 			const ambient =
-				this._uniforms.get("ambient") ?? this._uniforms.get("params.ambient");
+				this._uniforms.get("ambient") ??
+				this._uniforms.get("uAmbient") ??
+				this._uniforms.get("params.ambient");
 
 			if (gamma !== undefined) arr[0] = gamma;
 			if (emissiveMult !== undefined) arr[1] = emissiveMult;
 			if (ssaoStrength !== undefined) arr[2] = ssaoStrength;
 			if (dirtIntensity !== undefined) arr[3] = dirtIntensity;
 			if (doFXAA !== undefined) arr[4] = doFXAA;
-			if (ambient) arr.set(ambient, 12);
+			if (shadowIntensity !== undefined) arr[5] = shadowIntensity;
+			// arr[6-7] = _pad (vec2)
+			// arr[8-10] = ambient (vec4, 16-byte aligned at offset 32)
+			if (ambient) arr.set(ambient, 8);
+			// arr[11] = _pad (w component of vec4)
 
 			return arr;
 		} else if (name === "ssaoParams") {
@@ -1615,6 +1647,22 @@ class WebGPUBackend extends RenderBackend {
 			if (lightVP) arr.set(lightVP, 0);
 			if (ambient) arr.set(ambient, 16);
 			if (bias !== undefined) arr[20] = bias;
+
+			return arr;
+		} else if (name === "skinnedShadowParams") {
+			// SkinnedShadowParams struct:
+			// matWorld: mat4x4<f32> (0-15)
+			// ambient: vec3<f32> (16-18, 16-byte aligned)
+			// shadowHeight: f32 (19)
+			const arr = bufs.skinnedShadowParams;
+			arr.fill(0);
+			const matWorld = this._uniforms.get("matWorld");
+			const ambient = this._uniforms.get("ambient");
+			const shadowHeight = this._uniforms.get("shadowHeight");
+
+			if (matWorld) arr.set(matWorld, 0);
+			if (ambient) arr.set(ambient, 16);
+			if (shadowHeight !== undefined) arr[19] = shadowHeight;
 
 			return arr;
 		} else if (name === "blurParams") {

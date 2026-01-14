@@ -23,8 +23,9 @@ const _defaults = {
 	emissiveMult: 1.75,
 	emissiveIteration: 6,
 	showStats: false,
-	shadowBlurIterations: 2,
-	shadowBlurOffset: 0.8,
+	shadowBlurIterations: 1,
+	shadowBlurOffset: 0.3,
+	shadowIntensity: 0.5,
 
 	// SSAO settings
 	doSSAO: false,

@@ -765,6 +765,16 @@ class WebGLBackend extends RenderBackend {
 		}
 	}
 
+	setPolygonOffset(enabled, factor = 0, units = 0) {
+		const gl = this._gl;
+		if (enabled) {
+			gl.enable(gl.POLYGON_OFFSET_FILL);
+			gl.polygonOffset(factor, units);
+		} else {
+			gl.disable(gl.POLYGON_OFFSET_FILL);
+		}
+	}
+
 	setViewport(x, y, width, height) {
 		this._gl.viewport(x, y, width, height);
 	}

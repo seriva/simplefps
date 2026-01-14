@@ -13,7 +13,6 @@ const _rayTo = new CANNON.Vec3();
 const _rayResult = new CANNON.RaycastResult();
 const _rayOptions = {}; // Empty options - hit everything
 const _MAX_RAYCAST_DISTANCE = 200; // Maximum distance to search for ground
-const _SHADOW_OFFSET = 0.2; // Small offset to prevent z-fighting
 
 // Reusable temporaries to avoid per-frame allocations
 const _tempMatrix = mat4.create();
@@ -57,7 +56,9 @@ class MeshEntity extends Entity {
 	calculateShadowHeight() {
 		mat4.getTranslation(_tempPos, this.base_matrix);
 
-		_rayFrom.set(_tempPos[0], _tempPos[1], _tempPos[2]);
+		// Start raycast slightly above the position to ensure we hit the ground
+		// even if the entity is exactly at ground level
+		_rayFrom.set(_tempPos[0], _tempPos[1] + 1.0, _tempPos[2]);
 		_rayTo.set(_tempPos[0], _tempPos[1] - _MAX_RAYCAST_DISTANCE, _tempPos[2]);
 		_rayResult.reset();
 
@@ -69,7 +70,7 @@ class MeshEntity extends Entity {
 		);
 
 		if (_rayResult.hasHit) {
-			this.shadowHeight = _rayResult.hitPointWorld.y + _SHADOW_OFFSET;
+			this.shadowHeight = _rayResult.hitPointWorld.y;
 		} else {
 			this.shadowHeight = undefined; // No shadow if no ground
 		}

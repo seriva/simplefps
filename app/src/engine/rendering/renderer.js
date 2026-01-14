@@ -365,9 +365,16 @@ const _shadowPass = () => {
 	Backend.setDepthRange(0.1, 1.0);
 	Backend.bindFramebuffer(_s.framebuffer);
 	Backend.clear({ color: [1.0, 1.0, 1.0, 1.0] });
+	Backend.setDepthState(true, false, "lequal");
+	Backend.setPolygonOffset(true, -1.0, -1.0);
+	Backend.setCullState(false);
 
 	RenderPasses.renderShadows();
 
+	// Restore default state
+	Backend.setCullState(true);
+	Backend.setPolygonOffset(false);
+	Backend.setDepthState(true, true);
 	Backend.bindFramebuffer(null);
 	Backend.setDepthRange(0.0, 1.0);
 };
@@ -512,6 +519,8 @@ const _postProcessingPass = () => {
 	const dirt = Resources.get("system/dirt.webp");
 	dirt.bind(4);
 	_ao.ssao.bind(5);
+	_s.shadow.bind(6);
+	_g.worldPosition.bind(7);
 	Shaders.postProcessing.bind();
 	Shaders.postProcessing.setInt("doFXAA", Settings.doFXAA);
 
@@ -521,6 +530,8 @@ const _postProcessingPass = () => {
 	Shaders.postProcessing.setInt("emissiveBuffer", 3);
 	Shaders.postProcessing.setInt("dirtBuffer", 4);
 	Shaders.postProcessing.setInt("aoBuffer", 5);
+	Shaders.postProcessing.setInt("shadowBuffer", 6);
+	Shaders.postProcessing.setInt("positionBuffer", 7);
 
 	Shaders.postProcessing.setFloat("emissiveMult", Settings.emissiveMult);
 	Shaders.postProcessing.setFloat("gamma", Settings.gamma);
@@ -532,11 +543,12 @@ const _postProcessingPass = () => {
 		"dirtIntensity",
 		Settings.doDirt ? Settings.dirtIntensity : 0.0,
 	);
+	Shaders.postProcessing.setFloat("shadowIntensity", Settings.shadowIntensity);
 	Shaders.postProcessing.setVec3("uAmbient", Scene.getAmbient());
 	Shapes.screenQuad.renderSingle();
 
 	Backend.unbindShader();
-	Texture.unBindRange(0, 6);
+	Texture.unBindRange(0, 8);
 };
 
 const _debugPass = () => {
