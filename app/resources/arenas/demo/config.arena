@@ -1,43 +1,30 @@
 {
     "skybox": 1,
-    "lighting": {
-        "ambient": [
-            0.15,
-            0.15,
-            0.2
-        ],
-        "directional": [
-            {
-                "direction": [
-                    0.5,
-                    -0.7,
-                    0.5
-                ],
-                "color": [
-                    0.7,
-                    0.65,
-                    0.55
-                ]
-            },
-            {
-                "direction": [
-                    -0.5,
-                    0.0,
-                    -0.5
-                ],
-                "color": [
-                    0.3,
-                    0.4,
-                    0.5
-                ]
-            }
-        ],
-        "spot": [],
-        "point": []
-    },
     "chunks": [
         "arenas/demo/geometry.bmesh"
     ],
+    "directional": {
+        "direction": [0.5, 1.0, 0.3],
+        "color": [0.125, 0.125, 0.15]
+    },
+    "lightGrid": {
+        "src": "arenas/demo/lightgrid.bin",
+        "origin": [
+            512,
+            -128,
+            768
+        ],
+        "counts": [
+            19,
+            27,
+            7
+        ],
+        "step": [
+            64,
+            64,
+            128
+        ]
+    },
     "spawnpoints": [
         {
             "position": [

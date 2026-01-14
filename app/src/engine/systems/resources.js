@@ -8,17 +8,6 @@ import Console from "./console.js";
 import Sound from "./sound.js";
 
 // Public Resources API
-const _loadMesh = async (data, context, isSkinned = false) => {
-	// If data is a string/json
-	if (typeof data === "string") {
-		data = JSON.parse(data);
-	}
-	// Use SkinnedMesh for skeletal meshes
-	const MeshClass = isSkinned ? SkinnedMesh : Mesh;
-	const mesh = new MeshClass(data, context);
-	await mesh.ready;
-	return mesh;
-};
 
 const Resources = {
 	// Callbacks for load lifecycle (set by game layer)
@@ -97,6 +86,10 @@ const Resources = {
 	has(key) {
 		return _resources.has(key);
 	},
+
+	register(key, resource) {
+		_resources.set(key, resource);
+	},
 };
 
 export default Resources;
@@ -110,48 +103,32 @@ const _fileExtRegex = /(?:\.([^.]+))?$/;
 // Private constants
 const _RESOURCE_TYPES = {
 	webp: (data) => new Texture({ data }),
-	mesh: (data, context) => _loadMesh(data, context, false),
-	smesh: (data, context) => _loadMesh(data, context, true), // Skinned JSON mesh
-	bmesh: (data, context) => _loadMesh(data, context, false),
-	sbmesh: (data, context) => _loadMesh(data, context, true), // Skinned binary mesh
-	anim: (data) => new Animation(JSON.parse(data)),
-	banim: (data) => Animation.fromBlob(data),
-	mat: (data, context) => {
-		const matData = JSON.parse(data);
-		const materials = matData.materials;
-
-		// Build lookup map for inheritance resolution
-		const matLookup = new Map();
-		for (const mat of materials) {
-			matLookup.set(mat.name, mat);
-		}
-
-		// Resolve inheritance for each material
-		for (const mat of materials) {
-			if (mat.base) {
-				const baseMat = matLookup.get(mat.base);
-				if (baseMat) {
-					// Merge textures (child overrides base)
-					mat.textures = { ...baseMat.textures, ...mat.textures };
-					// Inherit other properties if not defined
-					mat.reflectionStrength ??= baseMat.reflectionStrength;
-					mat.translucent ??= baseMat.translucent;
-					mat.opacity ??= baseMat.opacity;
-					mat.geomType ??= baseMat.geomType;
-				}
-			}
-		}
-
-		// Create materials and store them
-		let firstMaterial = null;
-		for (const mat of materials) {
-			const material = new Material(mat, context);
-			_resources.set(mat.name, material);
-			if (!firstMaterial) firstMaterial = material;
-		}
-
-		return firstMaterial;
+	mesh: (data, context) => {
+		const mesh = new Mesh(JSON.parse(data), context);
+		return mesh.ready.then(() => mesh);
 	},
+	smesh: (data, context) => {
+		const mesh = new SkinnedMesh(JSON.parse(data), context);
+		return mesh.ready.then(() => mesh);
+	},
+	bmesh: (data, context) => {
+		const mesh = new Mesh(data, context);
+		return mesh.ready.then(() => mesh);
+	},
+	sbmesh: (data, context) => {
+		const mesh = new SkinnedMesh(data, context);
+		return mesh.ready.then(() => mesh);
+	},
+	anim: (data) => {
+		const anim = new Animation(JSON.parse(data));
+		return anim.ready.then(() => anim);
+	},
+	banim: (data) => {
+		const anim = new Animation(data);
+		return anim.ready.then(() => anim);
+	},
+	mat: (data, context) => Material.loadLibrary(JSON.parse(data), context),
 	sfx: (data) => new Sound(JSON.parse(data)),
 	list: (data, _context) => Resources.load(JSON.parse(data).resources),
+	bin: (data) => data.arrayBuffer(),
 };

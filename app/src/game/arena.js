@@ -6,12 +6,10 @@ import {
 	DirectionalLightEntity,
 	MeshEntity,
 	Physics,
-	PointLightEntity,
 	Resources,
 	Scene,
 	SkinnedMeshEntity,
 	SkyboxEntity,
-	SpotLightEntity,
 	Utils,
 } from "../engine/core/engine.js";
 import Loading from "./loading.js";
@@ -51,26 +49,20 @@ const _setupEnvironment = ({ skybox, chunks = [] }) => {
 	}
 };
 
-const _setupLighting = ({
-	ambient,
-	directional = [],
-	point = [],
-	spot = [],
-}) => {
-	Scene.setAmbient(ambient || _DEFAULT_AMBIENT);
-
-	for (const { direction, color } of directional) {
-		Scene.addEntities(new DirectionalLightEntity(direction, color));
+const _setupLighting = async (lightGrid, directional, arenaName) => {
+	// Load Light Grid (Base Lighting)
+	if (lightGrid?.origin) {
+		await Scene.loadLightGrid({ lightGrid, arenaName });
 	}
 
-	for (const { position, size, color, intensity } of point) {
-		Scene.addEntities(new PointLightEntity(position, size, color, intensity));
-	}
-
-	for (const { position, direction, color, intensity, angle, range } of spot) {
-		Scene.addEntities(
-			new SpotLightEntity(position, direction, color, intensity, angle, range),
+	// Add directional light for dynamic object shading
+	if (directional) {
+		const light = new DirectionalLightEntity(
+			directional.direction || [0.5, 1.0, 0.3],
+			directional.color || [1.0, 1.0, 1.0],
+			null, // updateCallback
 		);
+		Scene.addEntities(light);
 	}
 };
 
@@ -169,7 +161,7 @@ const _load = async (name) => {
 		_state.arena = arenaData;
 		Scene.init();
 
-		const { spawnpoint, spawnpoints, lighting, pickups } = _state.arena;
+		const { spawnpoint, spawnpoints, pickups } = _state.arena;
 
 		let startSpawn = spawnpoint || {};
 		if (spawnpoints && spawnpoints.length > 0) {
@@ -183,7 +175,15 @@ const _load = async (name) => {
 		_state.currentSpawnPoint = startSpawn;
 
 		_setupCamera(startSpawn);
-		_setupLighting(lighting || {});
+		// Pass the whole arena config to setupLighting because lightGrid is at root level or under lighting?
+		// In bsp2map.js we wrote: { ..., lightGrid: { ... } } at root level.
+		// So we need to pass arenaData.lightGrid.
+
+		await _setupLighting(
+			_state.arena.lightGrid,
+			_state.arena.directional,
+			name,
+		);
 		_setupEnvironment(_state.arena);
 		_setupCollision(
 			_state.arena.chunks || [],

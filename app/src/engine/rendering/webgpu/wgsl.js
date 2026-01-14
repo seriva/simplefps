@@ -81,6 +81,7 @@ struct FragmentOutput {
 @group(0) @binding(0) var<uniform> frameData: FrameData;
 @group(1) @binding(0) var<uniform> materialData: MaterialData;
 @group(1) @binding(1) var<uniform> matWorld: mat4x4<f32>;
+@group(1) @binding(2) var<uniform> uProbeColor: vec3<f32>;
 
 @group(2) @binding(0) var colorSampler: sampler;
 @group(2) @binding(1) var colorTexture: texture_2d<f32>;
@@ -112,6 +113,13 @@ fn fs_main(input: GeomVertexOutput) -> FragmentOutput {
     var color = textureSample(colorTexture, colorSampler, input.uv);
     if (color.a < 0.5) {
         discard;
+    }
+    
+    // Apply Probe Color for dynamic objects (no lightmap)
+    // Static objects (lightmapFlag == 1) ignore this as they use texture mixing below
+    // Skybox (flag x == SKYBOX) should also ignore this
+    if (materialData.flags.w == 0 && materialData.flags.x != SKYBOX) {
+        color = vec4<f32>(color.rgb * uProbeColor, color.a);
     }
     
     // Apply lightmap if available and not skybox
@@ -195,6 +203,7 @@ struct FragmentOutput {
 @group(0) @binding(0) var<uniform> frameData: FrameData;
 @group(1) @binding(0) var<uniform> materialData: MaterialData;
 @group(1) @binding(1) var<uniform> matWorld: mat4x4<f32>;
+@group(1) @binding(3) var<uniform> uProbeColor: vec3<f32>;
 ${SkinningUniformBinding}
 
 @group(2) @binding(0) var colorSampler: sampler;
@@ -235,6 +244,9 @@ fn fs_main(input: GeomVertexOutput) -> FragmentOutput {
     if (color.a < 0.5) {
         discard;
     }
+
+    // Apply Probe Color
+    color = vec4<f32>(color.rgb * uProbeColor, color.a);
 
     // Apply Detail Noise
     if (frameData.viewportSize.z > 0.5) {
@@ -1088,6 +1100,7 @@ export const WgslShaderSources = {
 			group1: [
 				{ binding: 0, type: "ubo", id: 1 }, // MaterialData
 				{ binding: 1, type: "uniform", name: "matWorld" },
+				{ binding: 2, type: "uniform", name: "uProbeColor" },
 			],
 			group2: [
 				{ binding: 0, type: "sampler", unit: 0 },
@@ -1108,6 +1121,7 @@ export const WgslShaderSources = {
 				{ binding: 0, type: "ubo", id: 1 },
 				{ binding: 1, type: "uniform", name: "matWorld" },
 				{ binding: 2, type: "uniform", name: "boneMatrices" },
+				{ binding: 3, type: "uniform", name: "uProbeColor" },
 			],
 			group2: [
 				{ binding: 0, type: "sampler", unit: 0 },
