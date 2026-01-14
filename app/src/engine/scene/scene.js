@@ -49,10 +49,10 @@ const _entityCache = new Map();
 const _getEntities = (type) => {
 	if (_entityCache.has(type)) return _entityCache.get(type);
 
-	const selection = _entities.reduce((acc, entity) => {
-		if (entity.type === type) acc.push(entity);
-		return acc;
-	}, []);
+	const selection = [];
+	for (let i = 0; i < _entities.length; i++) {
+		if (_entities[i].type === type) selection.push(_entities[i]);
+	}
 
 	_entityCache.set(type, selection);
 	return selection;

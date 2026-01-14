@@ -8,6 +8,16 @@ let _counts = [0, 0, 0];
 let _step = [64, 64, 64];
 let _bounds = { min: [0, 0, 0], max: [0, 0, 0] };
 
+// Pre-allocated temp arrays for trilinear interpolation (avoid GC pressure)
+const _c000 = [0, 0, 0];
+const _c100 = [0, 0, 0];
+const _c010 = [0, 0, 0];
+const _c110 = [0, 0, 0];
+const _c001 = [0, 0, 0];
+const _c101 = [0, 0, 0];
+const _c011 = [0, 0, 0];
+const _c111 = [0, 0, 0];
+
 // ============================================================================
 // Private Functions
 // ============================================================================
@@ -104,81 +114,83 @@ const _getAmbient = (position, outColor = null) => {
 	let z0 = Math.floor(fz);
 
 	// Clamp to valid range (0 to count-2 for safe +1 access)
-	x0 = Math.max(0, Math.min(x0, _counts[0] - 2));
-	y0 = Math.max(0, Math.min(y0, _counts[1] - 2));
-	z0 = Math.max(0, Math.min(z0, _counts[2] - 2));
+	const maxX = _counts[0] - 2;
+	const maxY = _counts[1] - 2;
+	const maxZ = _counts[2] - 2;
+	x0 = x0 < 0 ? 0 : x0 > maxX ? maxX : x0;
+	y0 = y0 < 0 ? 0 : y0 > maxY ? maxY : y0;
+	z0 = z0 < 0 ? 0 : z0 > maxZ ? maxZ : z0;
 
 	const x1 = x0 + 1;
 	const y1 = y0 + 1;
 	const z1 = z0 + 1;
 
-	// Weights (fractional part)
-	const wx = Math.max(0, Math.min(1, fx - x0));
-	const wy = Math.max(0, Math.min(1, fy - y0));
-	const wz = Math.max(0, Math.min(1, fz - z0));
+	// Weights (fractional part, clamped)
+	let wx = fx - x0;
+	let wy = fy - y0;
+	let wz = fz - z0;
+	wx = wx < 0 ? 0 : wx > 1 ? 1 : wx;
+	wy = wy < 0 ? 0 : wy > 1 ? 1 : wy;
+	wz = wz < 0 ? 0 : wz > 1 ? 1 : wz;
 
-	// Helper to sample raw index
-	const getSample = (ix, iy, iz) => {
-		const index = iz * (_counts[0] * _counts[1]) + iy * _counts[0] + ix;
-		const byteOffset = index * 3;
-		if (byteOffset + 2 < _data.length) {
-			return [
-				_data[byteOffset] / 255.0,
-				_data[byteOffset + 1] / 255.0,
-				_data[byteOffset + 2] / 255.0,
-			];
+	// Pre-compute stride values
+	const strideY = _counts[0];
+	const strideZ = _counts[0] * _counts[1];
+	const dataLen = _data.length;
+
+	// Helper to sample raw index into a pre-allocated array
+	const getSample = (ix, iy, iz, out) => {
+		const byteOffset = (iz * strideZ + iy * strideY + ix) * 3;
+		if (byteOffset + 2 < dataLen) {
+			out[0] = _data[byteOffset] * 0.00392156862745098; // / 255.0
+			out[1] = _data[byteOffset + 1] * 0.00392156862745098;
+			out[2] = _data[byteOffset + 2] * 0.00392156862745098;
+		} else {
+			out[0] = out[1] = out[2] = 0;
 		}
-		return [0, 0, 0];
 	};
 
-	// Sample 8 neighbors
-	const c000 = getSample(x0, y0, z0);
-	const c100 = getSample(x1, y0, z0);
-	const c010 = getSample(x0, y1, z0);
-	const c110 = getSample(x1, y1, z0);
-	const c001 = getSample(x0, y0, z1);
-	const c101 = getSample(x1, y0, z1);
-	const c011 = getSample(x0, y1, z1);
-	const c111 = getSample(x1, y1, z1);
+	// Sample 8 neighbors into pre-allocated arrays
+	getSample(x0, y0, z0, _c000);
+	getSample(x1, y0, z0, _c100);
+	getSample(x0, y1, z0, _c010);
+	getSample(x1, y1, z0, _c110);
+	getSample(x0, y0, z1, _c001);
+	getSample(x1, y0, z1, _c101);
+	getSample(x0, y1, z1, _c011);
+	getSample(x1, y1, z1, _c111);
 
-	// Interpolate
-	const mix = (a, b, w) => a + (b - a) * w;
+	// Trilinear interpolation (inlined for performance)
+	const wx1 = 1 - wx;
+	const wy1 = 1 - wy;
+	const wz1 = 1 - wz;
 
-	const cx00 = [
-		mix(c000[0], c100[0], wx),
-		mix(c000[1], c100[1], wx),
-		mix(c000[2], c100[2], wx),
-	];
-	const cx10 = [
-		mix(c010[0], c110[0], wx),
-		mix(c010[1], c110[1], wx),
-		mix(c010[2], c110[2], wx),
-	];
-	const cx01 = [
-		mix(c001[0], c101[0], wx),
-		mix(c001[1], c101[1], wx),
-		mix(c001[2], c101[2], wx),
-	];
-	const cx11 = [
-		mix(c011[0], c111[0], wx),
-		mix(c011[1], c111[1], wx),
-		mix(c011[2], c111[2], wx),
-	];
+	// Interpolate X direction first
+	const cx00_0 = _c000[0] * wx1 + _c100[0] * wx;
+	const cx00_1 = _c000[1] * wx1 + _c100[1] * wx;
+	const cx00_2 = _c000[2] * wx1 + _c100[2] * wx;
+	const cx10_0 = _c010[0] * wx1 + _c110[0] * wx;
+	const cx10_1 = _c010[1] * wx1 + _c110[1] * wx;
+	const cx10_2 = _c010[2] * wx1 + _c110[2] * wx;
+	const cx01_0 = _c001[0] * wx1 + _c101[0] * wx;
+	const cx01_1 = _c001[1] * wx1 + _c101[1] * wx;
+	const cx01_2 = _c001[2] * wx1 + _c101[2] * wx;
+	const cx11_0 = _c011[0] * wx1 + _c111[0] * wx;
+	const cx11_1 = _c011[1] * wx1 + _c111[1] * wx;
+	const cx11_2 = _c011[2] * wx1 + _c111[2] * wx;
 
-	const cxy0 = [
-		mix(cx00[0], cx10[0], wy),
-		mix(cx00[1], cx10[1], wy),
-		mix(cx00[2], cx10[2], wy),
-	];
-	const cxy1 = [
-		mix(cx01[0], cx11[0], wy),
-		mix(cx01[1], cx11[1], wy),
-		mix(cx01[2], cx11[2], wy),
-	];
+	// Interpolate Y direction
+	const cxy0_0 = cx00_0 * wy1 + cx10_0 * wy;
+	const cxy0_1 = cx00_1 * wy1 + cx10_1 * wy;
+	const cxy0_2 = cx00_2 * wy1 + cx10_2 * wy;
+	const cxy1_0 = cx01_0 * wy1 + cx11_0 * wy;
+	const cxy1_1 = cx01_1 * wy1 + cx11_1 * wy;
+	const cxy1_2 = cx01_2 * wy1 + cx11_2 * wy;
 
-	outColor[0] = mix(cxy0[0], cxy1[0], wz);
-	outColor[1] = mix(cxy0[1], cxy1[1], wz);
-	outColor[2] = mix(cxy0[2], cxy1[2], wz);
+	// Interpolate Z direction (final result)
+	outColor[0] = cxy0_0 * wz1 + cxy1_0 * wz;
+	outColor[1] = cxy0_1 * wz1 + cxy1_1 * wz;
+	outColor[2] = cxy0_2 * wz1 + cxy1_2 * wz;
 
 	return outColor;
 };

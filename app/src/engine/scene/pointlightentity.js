@@ -1,13 +1,15 @@
 import { mat4, vec3 } from "../../dependencies/gl-matrix.js";
+import BoundingBox from "../core/boundingbox.js";
 import { Shaders } from "../rendering/shaders.js";
 import Shapes from "../rendering/shapes.js";
 import { Entity, EntityTypes } from "./entity.js";
 
 class PointLightEntity extends Entity {
 	static SCALE_FACTOR = 0.625;
+	static #tempMatrix = mat4.create();
 
 	#getTransformMatrix() {
-		const m = mat4.create();
+		const m = PointLightEntity.#tempMatrix;
 		mat4.multiply(m, this.base_matrix, this.ani_matrix);
 		const size = this.size * PointLightEntity.SCALE_FACTOR;
 		mat4.scale(m, m, [size, size, size]);
@@ -50,7 +52,10 @@ class PointLightEntity extends Entity {
 	updateBoundingVolume() {
 		const unitBox = Shapes.pointLightVolume.boundingBox;
 		const m = this.#getTransformMatrix();
-		this.boundingBox = unitBox.transform(m);
+		if (!this.boundingBox) {
+			this.boundingBox = new BoundingBox([0, 0, 0], [1, 1, 1]);
+		}
+		unitBox.transformInto(m, this.boundingBox);
 	}
 }
 

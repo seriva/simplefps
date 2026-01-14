@@ -4,6 +4,9 @@ import { Shaders } from "../rendering/shaders.js";
 import Shapes from "../rendering/shapes.js";
 import { Entity, EntityTypes } from "./entity.js";
 
+// Reusable temp matrix to avoid allocations
+const _tempMatrix = mat4.create();
+
 class SpotLightEntity extends Entity {
 	constructor(
 		position,
@@ -69,9 +72,8 @@ class SpotLightEntity extends Entity {
 
 	// Private helper to get world transform matrix
 	#getWorldMatrix() {
-		const m = mat4.create();
-		mat4.multiply(m, this.base_matrix, this.ani_matrix);
-		return m;
+		mat4.multiply(_tempMatrix, this.base_matrix, this.ani_matrix);
+		return _tempMatrix;
 	}
 
 	setPosition(position) {
@@ -112,7 +114,10 @@ class SpotLightEntity extends Entity {
 	updateBoundingVolume() {
 		const unitBox = Shapes.spotlightVolume.boundingBox;
 		const m = this.#getWorldMatrix();
-		this.boundingBox = unitBox.transform(m);
+		if (!this.boundingBox) {
+			this.boundingBox = new BoundingBox([0, 0, 0], [1, 1, 1]);
+		}
+		unitBox.transformInto(m, this.boundingBox);
 	}
 }
 
