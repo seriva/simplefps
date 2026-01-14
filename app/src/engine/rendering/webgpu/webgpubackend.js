@@ -36,6 +36,13 @@ const _DEPTH_FUNCS = {
 	always: "always",
 };
 
+// Wrap mode mapping
+const _WRAP_MODES = {
+	repeat: "repeat",
+	"clamp-to-edge": "clamp-to-edge",
+	"mirrored-repeat": "mirror-repeat",
+};
+
 class WebGPUBackend extends RenderBackend {
 	constructor() {
 		super();
@@ -105,6 +112,17 @@ class WebGPUBackend extends RenderBackend {
 		};
 		// Optimization: Temporary array to avoid GC
 		this._tempEntries = [];
+
+		// Pre-allocated struct arrays for _packStruct (avoid per-frame allocations)
+		this._packStructBuffers = {
+			pointLight: new Float32Array(8),
+			directionalLight: new Float32Array(8),
+			spotLight: new Float32Array(12),
+			postProcessParams: new Float32Array(16),
+			ssaoParams: new Float32Array(68),
+			shadowParams: new Float32Array(24),
+			blurParams: new Float32Array(8),
+		};
 	}
 
 	// =========================================================================
@@ -1015,21 +1033,7 @@ class WebGPUBackend extends RenderBackend {
 	setTextureWrapMode(texture, mode) {
 		if (!texture || !this._device) return;
 
-		// Map mode string to WebGPU address mode
-		let addressMode;
-		switch (mode) {
-			case "repeat":
-				addressMode = "repeat";
-				break;
-			case "clamp-to-edge":
-				addressMode = "clamp-to-edge";
-				break;
-			case "mirrored-repeat":
-				addressMode = "mirror-repeat";
-				break;
-			default:
-				addressMode = "repeat";
-		}
+		const addressMode = _WRAP_MODES[mode] || "repeat";
 
 		// Store the current wrap mode on the texture for future sampler recreation
 		texture._wrapMode = addressMode;
@@ -1518,23 +1522,24 @@ class WebGPUBackend extends RenderBackend {
 
 	_packStruct(name) {
 		if (!this._uniforms) return null;
+		const bufs = this._packStructBuffers;
 
 		if (name === "pointLight") {
-			// 32 bytes = 8 floats
-			const arr = new Float32Array(8);
-			const pos = this._uniforms.get("pointLight.position"); // vec3
-			const size = this._uniforms.get("pointLight.size"); // f32
-			const col = this._uniforms.get("pointLight.color"); // vec3
-			const intensity = this._uniforms.get("pointLight.intensity"); // f32
+			const arr = bufs.pointLight;
+			arr.fill(0);
+			const pos = this._uniforms.get("pointLight.position");
+			const size = this._uniforms.get("pointLight.size");
+			const col = this._uniforms.get("pointLight.color");
+			const intensity = this._uniforms.get("pointLight.intensity");
 
-			if (pos) arr.set(pos, 0); // 0,1,2
+			if (pos) arr.set(pos, 0);
 			if (size !== undefined) arr[3] = size;
-			if (col) arr.set(col, 4); // 4,5,6
+			if (col) arr.set(col, 4);
 			if (intensity !== undefined) arr[7] = intensity;
 			return arr;
 		} else if (name === "directionalLight") {
-			// 32 bytes = 8 floats
-			const arr = new Float32Array(8);
+			const arr = bufs.directionalLight;
+			arr.fill(0);
 			const dir = this._uniforms.get("directionalLight.direction");
 			const col = this._uniforms.get("directionalLight.color");
 
@@ -1542,9 +1547,8 @@ class WebGPUBackend extends RenderBackend {
 			if (col) arr.set(col, 4);
 			return arr;
 		} else if (name === "spotLight") {
-			// 48 bytes = 12 floats
-			const arr = new Float32Array(12);
-			// pos(0), cutoff(3), dir(4), range(7), col(8), intensity(11)
+			const arr = bufs.spotLight;
+			arr.fill(0);
 			const pos = this._uniforms.get("spotLight.position");
 			const cutoff = this._uniforms.get("spotLight.cutoff");
 			const dir = this._uniforms.get("spotLight.direction");
@@ -1560,11 +1564,8 @@ class WebGPUBackend extends RenderBackend {
 			if (intensity !== undefined) arr[11] = intensity;
 			return arr;
 		} else if (name === "postProcessParams") {
-			// Renamed from params
-			// PostProcess
-			// 64 bytes = 16 floats
-			const arr = new Float32Array(16);
-			// gamma(0), emissiveMult(1), ssaoStrength(2), dirtIntensity(3)
+			const arr = bufs.postProcessParams;
+			arr.fill(0);
 			const gamma = this._uniforms.get("gamma");
 			const emissiveMult = this._uniforms.get("emissiveMult");
 			const ssaoStrength = this._uniforms.get("ssaoStrength");
@@ -1582,82 +1583,48 @@ class WebGPUBackend extends RenderBackend {
 
 			return arr;
 		} else if (name === "ssaoParams") {
-			// SSAOParams: radius(f32), bias(f32), noiseScale(vec2), kernel(array<vec4,16>)
-			// Size: 8 + 8 + 256 = 272 bytes?
-			// Layout:
-			// 0: radius, 4: bias, 8: noiseScale (vec2), 16: kernel array (aligned 16)
-			// Total size = 16 + 256 = 272 bytes.
-			const arr = new Float32Array(4 + 16 * 4); // 4 + 64 floats = 68 floats = 272 bytes
-
+			const arr = bufs.ssaoParams;
+			arr.fill(0);
 			const radius = this._uniforms.get("radius");
 			const bias = this._uniforms.get("bias");
 			const noiseScale = this._uniforms.get("noiseScale");
-			const kernel = this._uniforms.get("uKernel"); // Float32Array(48) (16*3) - renderer uses "uKernel"
+			const kernel = this._uniforms.get("uKernel");
 
 			if (radius !== undefined) arr[0] = radius;
 			if (bias !== undefined) arr[1] = bias;
-			if (noiseScale) arr.set(noiseScale, 2); // vec2 at index 2 (offset 8)
+			if (noiseScale) arr.set(noiseScale, 2);
 
-			// Kernel (index 4 = offset 16).
-			// If kernel is vec3 array (flat), we must expand to vec4.
 			if (kernel) {
 				for (let i = 0; i < 16; i++) {
 					if (i * 3 + 2 < kernel.length) {
 						arr[4 + i * 4] = kernel[i * 3];
 						arr[4 + i * 4 + 1] = kernel[i * 3 + 1];
 						arr[4 + i * 4 + 2] = kernel[i * 3 + 2];
-						arr[4 + i * 4 + 3] = 0.0; // pad
+						arr[4 + i * 4 + 3] = 0.0;
 					}
 				}
 			}
 			return arr;
 		} else if (name === "shadowParams") {
-			// ShadowParams: lightVP(mat4), ambient(vec3), _pad, bias(f32)
-			// lightVP: 64 bytes.
-			// ambient: offset 64. (vec3).
-			// bias: offset 80? (align 16 for vec3 pad? no, bias is f32).
-			// Struct: lightVP, ambient, _pad(f32), bias(f32). ??
-			// entityShadowsShader: lightVP, ambient, _pad, bias, _pad2.
-
-			const arr = new Float32Array(24); // 96 bytes implies ~24 floats.
+			const arr = bufs.shadowParams;
+			arr.fill(0);
 			const lightVP = this._uniforms.get("lightVP");
 			const ambient = this._uniforms.get("ambient");
 			const bias = this._uniforms.get("bias");
 
-			if (lightVP) arr.set(lightVP, 0); // 0..15
-			if (ambient) arr.set(ambient, 16); // 16..18
-			// bias at? offset 80? index 20?
-			// 16 floats = 64 bytes.
-			// ambient at 64. (index 16).
-			// bias at 76? (index 19?).
-			// Check alignment.
-			// vec3 ambient (12 bytes). 64+12 = 76.
-			// Next f32 (bias)?
-			// Wait, struct: ambient(vec3), _pad(f32), bias(f32).
-			// ambient: 64. _pad: 76. bias: 80.
-			// index 16, 17, 18 used. 19 is _pad. 20 is bias.
+			if (lightVP) arr.set(lightVP, 0);
+			if (ambient) arr.set(ambient, 16);
 			if (bias !== undefined) arr[20] = bias;
 
 			return arr;
 		} else if (name === "blurParams") {
-			// offset: f32 (0). _pad: vec3 (4..16)? NO.
-			// vec3 alignment is 16.
-			// offset (0-4). Pad (4-16).
-			// _pad (vec3) at 16 (16-28).
-			// Struct size aligned to 16 -> 32 bytes.
-			const arr = new Float32Array(8); // 32 bytes
+			const arr = bufs.blurParams;
+			arr.fill(0);
 			const offset = this._uniforms.get("offset");
 
 			if (offset !== undefined) arr[0] = offset;
 			return arr;
 		} else if (name === "ambient") {
-			// Shadow shader "ambient" vec3
-			// entityShadowsShader: var<uniform> ambient: vec3<f32>;
-			// Wait, struct? No, var<uniform> ambient: vec3<f32>.
-			// This is NOT a struct. It's a raw vec3.
-			// Renderer calls setVec3("ambient").
-			// drawIndexed will find "ambient" in _uniforms (Float32Array).
-			// So "val" will be found. No pack needed.
 			return null;
 		}
 		return null;

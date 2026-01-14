@@ -61,6 +61,8 @@ class WebGLBackend extends RenderBackend {
 		this._afExt = null;
 		this._capabilities = {};
 		this._currentShader = null;
+		this._textureUnit0 = 0; // Cached gl.TEXTURE0
+		this._wrapModes = null; // Cached wrap mode lookup
 	}
 
 	// =========================================================================
@@ -154,6 +156,14 @@ class WebGLBackend extends RenderBackend {
 			_TEXTURE_FORMATS.depth = gl.DEPTH_COMPONENT;
 			_TEXTURE_FORMATS.ubyte = gl.UNSIGNED_BYTE;
 			_TEXTURE_FORMATS.float = gl.FLOAT;
+
+			// Cache frequently used values
+			this._textureUnit0 = gl.TEXTURE0;
+			this._wrapModes = {
+				repeat: gl.REPEAT,
+				"clamp-to-edge": gl.CLAMP_TO_EDGE,
+				"mirrored-repeat": gl.MIRRORED_REPEAT,
+			};
 
 			// Log context information
 			Console.log("Initialized WebGL2 backend");
@@ -644,23 +654,13 @@ class WebGLBackend extends RenderBackend {
 
 	bindTexture(texture, unit) {
 		const gl = this._gl;
-		// Handle whether unit is passed as index (0) or Enum (gl.TEXTURE0)
-		if (unit >= gl.TEXTURE0) {
-			gl.activeTexture(unit);
-		} else {
-			gl.activeTexture(gl.TEXTURE0 + unit);
-		}
+		gl.activeTexture(this._textureUnit0 + unit);
 		gl.bindTexture(gl.TEXTURE_2D, texture._glTexture);
 	}
 
 	unbindTexture(unit) {
 		const gl = this._gl;
-		// Handle whether unit is passed as index (0) or Enum (gl.TEXTURE0)
-		if (unit >= gl.TEXTURE0) {
-			gl.activeTexture(unit);
-		} else {
-			gl.activeTexture(gl.TEXTURE0 + unit);
-		}
+		gl.activeTexture(this._textureUnit0 + unit);
 		gl.bindTexture(gl.TEXTURE_2D, null);
 	}
 
@@ -706,21 +706,7 @@ class WebGLBackend extends RenderBackend {
 
 	setTextureWrapMode(texture, mode) {
 		const gl = this._gl;
-		let glMode;
-		switch (mode) {
-			case "repeat":
-				glMode = gl.REPEAT;
-				break;
-			case "clamp-to-edge":
-				glMode = gl.CLAMP_TO_EDGE;
-				break;
-			case "mirrored-repeat":
-				glMode = gl.MIRRORED_REPEAT;
-				break;
-			default:
-				glMode = gl.REPEAT;
-		}
-
+		const glMode = this._wrapModes[mode] || this._wrapModes.repeat;
 		gl.bindTexture(gl.TEXTURE_2D, texture._glTexture);
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, glMode);
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, glMode);
@@ -736,8 +722,8 @@ class WebGLBackend extends RenderBackend {
 		const gl = this._gl;
 		const ext = this._afExt;
 		if (ext) {
-			const maxAniso = gl.getParameter(ext.MAX_TEXTURE_MAX_ANISOTROPY_EXT);
-			const af = Math.min(Math.max(level, 1), maxAniso);
+			const maxAniso = this._capabilities.maxAnisotropy;
+			const af = level < 1 ? 1 : level > maxAniso ? maxAniso : level;
 			gl.bindTexture(gl.TEXTURE_2D, texture._glTexture);
 			gl.texParameterf(gl.TEXTURE_2D, ext.TEXTURE_MAX_ANISOTROPY_EXT, af);
 			gl.bindTexture(gl.TEXTURE_2D, null);
