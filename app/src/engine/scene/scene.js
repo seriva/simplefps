@@ -2,9 +2,11 @@ import Console from "../systems/console.js";
 import Physics from "../systems/physics.js";
 import Stats from "../systems/stats.js";
 import { EntityTypes } from "./entity.js";
+import LightGrid from "./lightgrid.js";
 
 // Private constants
 const _DEFAULT_AMBIENT = [0.5, 0.5, 0.5];
+const _BLACK = [0, 0, 0];
 
 // Private state
 let _entities = [];
@@ -93,17 +95,31 @@ const _init = () => {
 	Physics.init();
 };
 
-const _getAmbient = () => _ambient;
-const _setAmbient = (a) => {
-	if (
-		!Array.isArray(a) ||
-		a.length !== 3 ||
-		!a.every((v) => typeof v === "number")
-	) {
-		Console.warn("Invalid ambient light values. Expected array of 3 numbers.");
-		return;
+const _getAmbient = (position = null, outColor = null) => {
+	if (LightGrid.hasData) {
+		if (position) return LightGrid.getAmbient(position, outColor);
+		if (outColor) {
+			outColor[0] = 0;
+			outColor[1] = 0;
+			outColor[2] = 0;
+			return outColor;
+		}
+		return _BLACK;
 	}
+	if (outColor) {
+		outColor[0] = _ambient[0];
+		outColor[1] = _ambient[1];
+		outColor[2] = _ambient[2];
+		return outColor;
+	}
+	return _ambient;
+};
+const _setAmbient = (a) => {
 	_ambient = a;
+};
+
+const _loadLightGrid = (config) => {
+	return LightGrid.load(config);
 };
 
 const _pause = (doPause) => {
@@ -178,6 +194,7 @@ const Scene = {
 	removeEntity: _removeEntity,
 	getEntities: _getEntities,
 	visibilityCache: _visibilityCache,
+	loadLightGrid: _loadLightGrid,
 };
 
 export default Scene;

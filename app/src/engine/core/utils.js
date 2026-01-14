@@ -21,7 +21,7 @@ const Utils = {
 			throw new Error(`HTTP error! status: ${response.status} for ${path}`);
 		}
 
-		return /\.(webp|bmesh|sbmesh|banim)$/.test(path)
+		return /\.(webp|bmesh|sbmesh|banim|bin)$/.test(path)
 			? await response.blob()
 			: await response.text();
 	},
