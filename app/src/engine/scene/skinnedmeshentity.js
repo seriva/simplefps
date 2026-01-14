@@ -77,21 +77,16 @@ class SkinnedMeshEntity extends MeshEntity {
 		if (!this.visible || !this._boneMatrices) return;
 		if (!this.castShadow) return;
 		if (!shader) return;
-		if (this.shadowHeight === null) {
-			this.calculateShadowHeight();
-		}
+
+		// Always recalculate shadow height for skinned meshes since they move
+		this.calculateShadowHeight();
 		if (this.shadowHeight === undefined) return;
 
-		// Build shadow matrix
-		mat4.multiply(_tempMatrix, this.base_matrix, this.ani_matrix);
-		_tempMatrix[1] *= 0.1;
-		_tempMatrix[5] *= 0.1;
-		_tempMatrix[9] *= 0.1;
-		_tempMatrix[13] = this.shadowHeight;
-
-		shader.setMat4("matWorld", _tempMatrix);
+		// Use the original base_matrix (shader will flatten Y to shadowHeight)
+		shader.setMat4("matWorld", this.base_matrix);
+		shader.setFloat("shadowHeight", this.shadowHeight);
 		shader.setMat4Array("boneMatrices", this._boneMatrices);
-		this.mesh.renderSingle(false, null, mode, null, true);
+		this.mesh.renderSingle(false, null, mode, shader, true);
 	}
 
 	// Render animated wireframe using skinnedDebug shader

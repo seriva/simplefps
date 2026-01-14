@@ -80,8 +80,6 @@ const _load = (config) => {
 					_origin[1] + (_counts[1] - 1) * _step[1],
 					_origin[2] + (_counts[2] - 1) * _step[2],
 				];
-
-				console.log("LightGrid initialized:", _counts, "Origin:", _origin);
 			}
 		})
 		.catch((err) => {

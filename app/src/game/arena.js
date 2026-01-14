@@ -110,7 +110,7 @@ const _setupSpawnpointModels = (spawnpoints = [], currentSpawn = null) => {
 			null,
 			0.035, // Scaled down for robot
 		);
-		character.castShadow = false;
+		character.castShadow = true;
 		character.playAnimation("models/robot/robot.banim");
 
 		// Build rotation: first yaw (Y), then stand upright (X -90)

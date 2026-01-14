@@ -323,11 +323,16 @@ struct SkinnedShadowVertexInput {
     ${SkinnedVertexInputAttribs}
 }
 
+struct SkinnedShadowParams {
+    matWorld: mat4x4<f32>,
+    ambient: vec3<f32>,
+    shadowHeight: f32,
+}
+
 ${ShadowVertexOutputStruct}
 
 @group(0) @binding(0) var<uniform> frameData: FrameData;
-@group(1) @binding(0) var<uniform> matWorld: mat4x4<f32>;
-@group(1) @binding(1) var<uniform> ambient: vec3<f32>;
+@group(1) @binding(0) var<uniform> params: SkinnedShadowParams;
 ${SkinningUniformBinding}
 
 ${SkinningCalcFn}
@@ -341,13 +346,18 @@ fn vs_main(input: SkinnedShadowVertexInput) -> ShadowVertexOutput {
     // Apply skinning to position
     let skinnedPosition = (skinMatrix * vec4<f32>(input.position, 1.0)).xyz;
     
-    output.clipPosition = frameData.matViewProj * matWorld * vec4<f32>(skinnedPosition, 1.0);
+    // Transform to world space
+    var worldPos = params.matWorld * vec4<f32>(skinnedPosition, 1.0);
+    // Flatten to shadow height
+    worldPos.y = params.shadowHeight;
+    
+    output.clipPosition = frameData.matViewProj * worldPos;
     return output;
 }
 
 @fragment
 fn fs_main() -> @location(0) vec4<f32> {
-    return vec4<f32>(ambient, 1.0);
+    return vec4<f32>(params.ambient.xyz, 1.0);
 }
 `;
 
@@ -614,9 +624,9 @@ struct PostProcessParams {
     ssaoStrength: f32,
     dirtIntensity: f32,
     doFXAA: i32,
-    _pad: vec3<f32>,
-    ambient: vec3<f32>,
-    _pad2: f32,
+    shadowIntensity: f32,
+    _pad: vec2<f32>,
+    ambient: vec4<f32>,
 }
 
 struct PostOutput {
@@ -633,6 +643,8 @@ struct PostOutput {
 @group(1) @binding(5) var emissiveBuffer: texture_2d<f32>;
 @group(1) @binding(6) var dirtBuffer: texture_2d<f32>;
 @group(1) @binding(7) var aoBuffer: texture_2d<f32>;
+@group(1) @binding(8) var shadowBuffer: texture_2d<f32>;
+@group(1) @binding(9) var positionBuffer: texture_2d<f32>;
 
 // FXAA constants
 const FXAA_EDGE_THRESHOLD_MIN: f32 = 0.0312;
@@ -737,8 +749,18 @@ fn fs_main(input: PostOutput) -> @location(0) vec4<f32> {
     let hasLightmap = normalData.w;
     
     // Add dynamic lighting
-    let dynamicLight = max(light.rgb - params.ambient, vec3<f32>(0.0));
+    let dynamicLight = max(light.rgb - params.ambient.xyz, vec3<f32>(0.0));
     var fragColor = vec4<f32>(color.rgb + dynamicLight, color.a);
+
+    // Apply shadows - multiply by shadow buffer
+    // Skip shadows for sky (position.w == 0)
+    let position = textureLoad(positionBuffer, fragCoord, 0);
+    let shadow = textureLoad(shadowBuffer, fragCoord, 0).rgb;
+    if (position.w > 0.0) {
+        // Soften shadows - mix between full brightness and shadow value
+        let softShadow = mix(vec3<f32>(1.0), shadow, params.shadowIntensity);
+        fragColor = vec4<f32>(fragColor.rgb * softShadow, fragColor.a);
+    }
     
     // Apply SSAO
     let aoFactor = mix(1.0, ao.r, params.ssaoStrength);
@@ -1148,8 +1170,7 @@ export const WgslShaderSources = {
 		code: skinnedEntityShadowsShader,
 		bindings: {
 			group1: [
-				{ binding: 0, type: "uniform", name: "matWorld" },
-				{ binding: 1, type: "uniform", name: "ambient" },
+				{ binding: 0, type: "uniform", name: "skinnedShadowParams" },
 				{ binding: 2, type: "uniform", name: "boneMatrices" },
 			],
 		},
@@ -1222,6 +1243,8 @@ export const WgslShaderSources = {
 				{ binding: 5, type: "texture", unit: 3 },
 				{ binding: 6, type: "texture", unit: 4 },
 				{ binding: 7, type: "texture", unit: 5 },
+				{ binding: 8, type: "texture", unit: 6 },
+				{ binding: 9, type: "texture", unit: 7 },
 			],
 		},
 	},

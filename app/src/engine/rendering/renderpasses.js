@@ -275,13 +275,6 @@ const renderLighting = () => {
 	Shaders.spotLight.setInt("normalBuffer", 1);
 	_renderEntities(EntityTypes.SPOT_LIGHT);
 	Backend.unbindShader();
-
-	// Apply shadows
-	Backend.setBlendState(true, "dst-color", "zero");
-	Shaders.applyShadows.bind();
-	Shaders.applyShadows.setInt("shadowBuffer", 2);
-	Shapes.screenQuad.renderSingle();
-	Backend.unbindShader();
 };
 
 const renderShadows = () => {

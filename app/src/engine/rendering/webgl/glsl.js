@@ -304,6 +304,7 @@ export const ShaderSources = {
             ${_frameDataUBO}
 
             uniform mat4 matWorld;
+            uniform float shadowHeight;
             ${_skinningUniform}
 
             void main()
@@ -311,7 +312,11 @@ export const ShaderSources = {
                 ${_skinningCalc}
 
                 vec3 skinnedPosition = (skinMatrix * vec4(aPosition, 1.0)).xyz;
-                gl_Position = matViewProj * matWorld * vec4(skinnedPosition, 1.0);
+                // Transform to world space
+                vec4 worldPos = matWorld * vec4(skinnedPosition, 1.0);
+                // Flatten to shadow height
+                worldPos.y = shadowHeight;
+                gl_Position = matViewProj * worldPos;
             }`,
 		fragment: _shadowFragment,
 	},
@@ -549,10 +554,13 @@ export const ShaderSources = {
             uniform sampler2D emissiveBuffer;
             uniform sampler2D dirtBuffer;
             uniform sampler2D aoBuffer;
+            uniform sampler2D shadowBuffer;
+            uniform sampler2D positionBuffer;
             uniform float emissiveMult;
             uniform float gamma;
             uniform float ssaoStrength;
             uniform float dirtIntensity;
+            uniform float shadowIntensity;
             uniform vec3 uAmbient;
 
             #define FXAA_EDGE_THRESHOLD_MIN 0.0312
@@ -650,6 +658,16 @@ export const ShaderSources = {
                     // This matches the behavior before refactoring where they were incorrectly treated as lightmapped
                     vec3 dynamicLight = max(light.rgb - uAmbient, vec3(0.0));
                     fragColor = vec4(color.rgb + dynamicLight, color.a);
+                }
+
+                // Apply shadows - multiply by shadow buffer
+                // Skip shadows for sky (position.w == 0 or very far distance)
+                vec4 position = texelFetch(positionBuffer, fragCoord, 0);
+                vec3 shadow = texelFetch(shadowBuffer, fragCoord, 0).rgb;
+                if (position.w > 0.0) {
+                    // Soften shadows - mix between full brightness and shadow value
+                    vec3 softShadow = mix(vec3(1.0), shadow, shadowIntensity);
+                    fragColor.rgb *= softShadow;
                 }
                 
                 // Apply SSAO with configurable strength (blend between full brightness and AO)
