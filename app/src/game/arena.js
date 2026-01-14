@@ -49,10 +49,10 @@ const _setupEnvironment = ({ skybox, chunks = [] }) => {
 	}
 };
 
-const _setupLighting = (lightGrid, directional, arenaName) => {
+const _setupLighting = async (lightGrid, directional, arenaName) => {
 	// Load Light Grid (Base Lighting)
 	if (lightGrid?.origin) {
-		Scene.loadLightGrid({ lightGrid, arenaName });
+		await Scene.loadLightGrid({ lightGrid, arenaName });
 	}
 
 	// Add directional light for dynamic object shading
@@ -179,7 +179,11 @@ const _load = async (name) => {
 		// In bsp2map.js we wrote: { ..., lightGrid: { ... } } at root level.
 		// So we need to pass arenaData.lightGrid.
 
-		_setupLighting(_state.arena.lightGrid, _state.arena.directional, name);
+		await _setupLighting(
+			_state.arena.lightGrid,
+			_state.arena.directional,
+			name,
+		);
 		_setupEnvironment(_state.arena);
 		_setupCollision(
 			_state.arena.chunks || [],

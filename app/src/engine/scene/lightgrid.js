@@ -21,9 +21,11 @@ const _reset = () => {
 };
 
 const _load = (config) => {
+	_reset();
+
 	if (!config || !config.lightGrid) {
 		console.warn("No light grid configuration found in arena config.");
-		return;
+		return Promise.resolve();
 	}
 
 	const lgConfig = config.lightGrid;
@@ -32,48 +34,51 @@ const _load = (config) => {
 	const resourceName = lgConfig.src
 		? lgConfig.src
 		: `arenas/${config.arenaName}/lightgrid.bin`;
-	Resources.load([resourceName]).then(() => {
-		const buffer = Resources.get(resourceName);
-		if (buffer) {
-			// Determine format based on size
-			// We expect RGB (3 bytes per probe)
-			const totalProbes =
-				lgConfig.counts[0] * lgConfig.counts[1] * lgConfig.counts[2];
-			if (buffer.byteLength === totalProbes * 3) {
-				_data = new Uint8Array(buffer);
-			} else {
-				console.error(
-					`LightGrid size mismatch. Config expects ${totalProbes} probes, buffer is ${buffer.byteLength} bytes.`,
-				);
-				// Fallback: use partial buffer if larger
-				if (buffer.byteLength >= totalProbes * 3) {
+
+	return Resources.load([resourceName])
+		.then(() => {
+			const buffer = Resources.get(resourceName);
+			if (buffer) {
+				// Determine format based on size
+				// We expect RGB (3 bytes per probe)
+				const totalProbes =
+					lgConfig.counts[0] * lgConfig.counts[1] * lgConfig.counts[2];
+
+				if (buffer.byteLength === totalProbes * 3) {
 					_data = new Uint8Array(buffer);
+				} else if (buffer.byteLength >= totalProbes * 3) {
+					console.warn(
+						`LightGrid size mismatch. Config expects ${totalProbes} probes, buffer is ${buffer.byteLength} bytes. Using partial buffer.`,
+					);
+					_data = new Uint8Array(buffer);
+				} else {
+					console.error(
+						`LightGrid size mismatch. Config expects ${totalProbes} probes, buffer is ${buffer.byteLength} bytes. Too small.`,
+					);
+					return;
 				}
+
+				// Only set metadata if we successfully loaded data
+				_origin = lgConfig.origin;
+				_counts = lgConfig.counts;
+				_step = lgConfig.step;
+
+				// Calculate bounds for safer clamping
+				_bounds.min = [..._origin];
+				_bounds.max = [
+					_origin[0] + (_counts[0] - 1) * _step[0],
+					_origin[1] + (_counts[1] - 1) * _step[1],
+					_origin[2] + (_counts[2] - 1) * _step[2],
+				];
+
+				console.log("LightGrid initialized:", _counts, "Origin:", _origin);
 			}
-		}
-	});
-
-	_origin = lgConfig.origin;
-	_counts = lgConfig.counts;
-	_step = lgConfig.step;
-
-	// Calculate bounds for safer clamping
-	_bounds.min = [..._origin];
-	_bounds.max = [
-		_origin[0] + (_counts[0] - 1) * _step[0],
-		_origin[1] + (_counts[1] - 1) * _step[1],
-		_origin[2] + (_counts[2] - 1) * _step[2],
-	];
-
-	console.log("LightGrid initialized:", _counts, "Origin:", _origin);
+		})
+		.catch((err) => {
+			console.error("Failed to load LightGrid:", err);
+		});
 };
 
-/**
- * Get ambient light color at position
- * @param {vec3} position - World position (Engine Y-Up)
- * @param {vec3} outColor - Optional output vector
- * @returns {vec3} Normalized RGB color (0-1)
- */
 const _getAmbient = (position, outColor = null) => {
 	if (!outColor) outColor = vec3.create();
 
@@ -186,7 +191,6 @@ const LightGrid = {
 	get hasData() {
 		return _data !== null;
 	},
-	reset: _reset,
 	load: _load,
 	getAmbient: _getAmbient,
 };

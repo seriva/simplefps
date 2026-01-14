@@ -2,16 +2,27 @@ import { Pose } from "./skeleton.js";
 
 class Animation {
 	constructor(data) {
-		this.name = data.name || "unnamed";
-		this.frameRate = data.frameRate || 24;
-		this.frames = data.frames || [];
+		this.ready = this._initialize(data);
+	}
+
+	async _initialize(data) {
+		let parsedData = data;
+
+		// Handle Blob input (binary animation)
+		if (data instanceof Blob) {
+			parsedData = await this._parseBlob(data);
+		}
+
+		this.name = parsedData.name || "unnamed";
+		this.frameRate = parsedData.frameRate || 24;
+		this.frames = parsedData.frames || [];
 		this.numFrames = this.frames.length;
 		this.duration =
 			this.numFrames > 0 ? (this.numFrames - 1) / this.frameRate : 0;
 		this.jointCount = this.frames[0]?.joints?.length || 0;
 
 		// Per-frame bounding boxes (min/max pairs)
-		this.bounds = data.bounds || null;
+		this.bounds = parsedData.bounds || null;
 
 		// Pre-compute frame poses from raw frame data
 		this._framePoses = this.frames.map((frame) => {
@@ -28,6 +39,86 @@ class Animation {
 
 		// Reusable bounds object to avoid allocations
 		this._boundsResult = { min: [0, 0, 0], max: [0, 0, 0] };
+	}
+
+	async _parseBlob(blob) {
+		const buffer = await blob.arrayBuffer();
+		const view = new DataView(buffer);
+		let offset = 0;
+
+		// Check if this is version 2 format (first value would be 2)
+		// Version 1 had frameRate first (typically 24-60)
+		const firstValue = view.getUint32(0, true);
+		const isVersion2 = firstValue === 2;
+
+		let frameRate, numFrames, numJoints, hasBounds;
+
+		if (isVersion2) {
+			// Version 2: version(4) + frameRate(4) + numFrames(4) + numJoints(4) + hasBounds(4)
+			offset = 4; // Skip version
+			frameRate = view.getUint32(offset, true);
+			offset += 4;
+			numFrames = view.getUint32(offset, true);
+			offset += 4;
+			numJoints = view.getUint32(offset, true);
+			offset += 4;
+			hasBounds = view.getUint32(offset, true) === 1;
+			offset += 4;
+		} else {
+			// Version 1: frameRate(4) + numFrames(4) + numJoints(4)
+			frameRate = firstValue;
+			offset = 4;
+			numFrames = view.getUint32(offset, true);
+			offset += 4;
+			numJoints = view.getUint32(offset, true);
+			offset += 4;
+			hasBounds = false;
+		}
+
+		const frames = [];
+		for (let f = 0; f < numFrames; f++) {
+			const joints = [];
+			for (let j = 0; j < numJoints; j++) {
+				const pos = [
+					view.getFloat32(offset, true),
+					view.getFloat32(offset + 4, true),
+					view.getFloat32(offset + 8, true),
+				];
+				offset += 12;
+				const rot = [
+					view.getFloat32(offset, true),
+					view.getFloat32(offset + 4, true),
+					view.getFloat32(offset + 8, true),
+					view.getFloat32(offset + 12, true),
+				];
+				offset += 16;
+				joints.push({ pos, rot });
+			}
+			frames.push({ joints });
+		}
+
+		// Read bounding boxes if present
+		let bounds = null;
+		if (hasBounds) {
+			bounds = [];
+			for (let f = 0; f < numFrames; f++) {
+				const min = [
+					view.getFloat32(offset, true),
+					view.getFloat32(offset + 4, true),
+					view.getFloat32(offset + 8, true),
+				];
+				offset += 12;
+				const max = [
+					view.getFloat32(offset, true),
+					view.getFloat32(offset + 4, true),
+					view.getFloat32(offset + 8, true),
+				];
+				offset += 12;
+				bounds.push({ min, max });
+			}
+		}
+
+		return { frameRate, frames, bounds };
 	}
 
 	// Calculate frame indices and interpolation factor for a given time
@@ -97,87 +188,6 @@ class Animation {
 		}
 
 		return out;
-	}
-
-	static fromBlob(blob) {
-		return blob.arrayBuffer().then((buffer) => {
-			const view = new DataView(buffer);
-			let offset = 0;
-
-			// Check if this is version 2 format (first value would be 2)
-			// Version 1 had frameRate first (typically 24-60)
-			const firstValue = view.getUint32(0, true);
-			const isVersion2 = firstValue === 2;
-
-			let frameRate, numFrames, numJoints, hasBounds;
-
-			if (isVersion2) {
-				// Version 2: version(4) + frameRate(4) + numFrames(4) + numJoints(4) + hasBounds(4)
-				offset = 4; // Skip version
-				frameRate = view.getUint32(offset, true);
-				offset += 4;
-				numFrames = view.getUint32(offset, true);
-				offset += 4;
-				numJoints = view.getUint32(offset, true);
-				offset += 4;
-				hasBounds = view.getUint32(offset, true) === 1;
-				offset += 4;
-			} else {
-				// Version 1: frameRate(4) + numFrames(4) + numJoints(4)
-				frameRate = firstValue;
-				offset = 4;
-				numFrames = view.getUint32(offset, true);
-				offset += 4;
-				numJoints = view.getUint32(offset, true);
-				offset += 4;
-				hasBounds = false;
-			}
-
-			const frames = [];
-			for (let f = 0; f < numFrames; f++) {
-				const joints = [];
-				for (let j = 0; j < numJoints; j++) {
-					const pos = [
-						view.getFloat32(offset, true),
-						view.getFloat32(offset + 4, true),
-						view.getFloat32(offset + 8, true),
-					];
-					offset += 12;
-					const rot = [
-						view.getFloat32(offset, true),
-						view.getFloat32(offset + 4, true),
-						view.getFloat32(offset + 8, true),
-						view.getFloat32(offset + 12, true),
-					];
-					offset += 16;
-					joints.push({ pos, rot });
-				}
-				frames.push({ joints });
-			}
-
-			// Read bounding boxes if present
-			let bounds = null;
-			if (hasBounds) {
-				bounds = [];
-				for (let f = 0; f < numFrames; f++) {
-					const min = [
-						view.getFloat32(offset, true),
-						view.getFloat32(offset + 4, true),
-						view.getFloat32(offset + 8, true),
-					];
-					offset += 12;
-					const max = [
-						view.getFloat32(offset, true),
-						view.getFloat32(offset + 4, true),
-						view.getFloat32(offset + 8, true),
-					];
-					offset += 12;
-					bounds.push({ min, max });
-				}
-			}
-
-			return new Animation({ frameRate, frames, bounds });
-		});
 	}
 }
 

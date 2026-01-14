@@ -115,12 +115,11 @@ const _getAmbient = (position = null, outColor = null) => {
 	return _ambient;
 };
 const _setAmbient = (a) => {
-	// Deprecated: used to set global ambient, now driven by LightGrid
 	_ambient = a;
 };
 
 const _loadLightGrid = (config) => {
-	LightGrid.load(config);
+	return LightGrid.load(config);
 };
 
 const _pause = (doPause) => {

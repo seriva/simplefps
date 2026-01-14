@@ -112,6 +112,48 @@ class Material {
 			this.ubo = null;
 		}
 	}
+
+	/**
+	 * Load a material library (.mat file) with inheritance resolution.
+	 * @param {Object} data - Parsed JSON data from .mat file
+	 * @param {Object} resources - Resources context for texture loading and material registration
+	 * @returns {Material} The first material in the library (for compatibility)
+	 */
+	static loadLibrary(data, resources) {
+		const materials = data.materials;
+
+		// Build lookup map for inheritance resolution
+		const matLookup = new Map();
+		for (const mat of materials) {
+			matLookup.set(mat.name, mat);
+		}
+
+		// Resolve inheritance for each material
+		for (const mat of materials) {
+			if (mat.base) {
+				const baseMat = matLookup.get(mat.base);
+				if (baseMat) {
+					// Merge textures (child overrides base)
+					mat.textures = { ...baseMat.textures, ...mat.textures };
+					// Inherit other properties if not defined
+					mat.reflectionStrength ??= baseMat.reflectionStrength;
+					mat.translucent ??= baseMat.translucent;
+					mat.opacity ??= baseMat.opacity;
+					mat.geomType ??= baseMat.geomType;
+				}
+			}
+		}
+
+		// Create materials and register them
+		let firstMaterial = null;
+		for (const mat of materials) {
+			const material = new Material(mat, resources);
+			resources.register(mat.name, material);
+			if (!firstMaterial) firstMaterial = material;
+		}
+
+		return firstMaterial;
+	}
 }
 
 export default Material;
