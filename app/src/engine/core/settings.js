@@ -30,7 +30,7 @@ const _defaults = {
 	// SSAO settings
 	doSSAO: false,
 	ssaoRadius: 12,
-	ssaoBias: 1.5,
+	ssaoBias: 2.0,
 	ssaoStrength: 0.8,
 	ssaoBlurIterations: 5,
 
