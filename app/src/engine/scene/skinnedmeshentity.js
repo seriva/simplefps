@@ -209,9 +209,6 @@ class SkinnedMeshEntity extends MeshEntity {
 		}
 	}
 
-	/**
-	 * Dispose of entity resources including skeleton debug mesh.
-	 */
 	dispose() {
 		super.dispose();
 		this.animationPlayer = null;

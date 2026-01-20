@@ -47,10 +47,6 @@ class Mesh {
 		return Backend.createBuffer(typedArray, usage);
 	}
 
-	/**
-	 * Creates common buffers shared between Mesh and SkinnedMesh.
-	 * Returns an object with the created buffers and base attributes.
-	 */
 	_createBaseBuffers() {
 		this.hasUVs = this.uvs.length > 0;
 		this.hasNormals = this.normals.length > 0;
@@ -177,9 +173,6 @@ class Mesh {
 		}
 	}
 
-	/**
-	 * Dispose of all GPU resources. Call when mesh is no longer needed.
-	 */
 	dispose() {
 		this.deleteMeshBuffers();
 	}
