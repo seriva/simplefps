@@ -106,9 +106,6 @@ class Material {
 		}
 	}
 
-	/**
-	 * Dispose of material GPU resources (UBO).
-	 */
 	dispose() {
 		if (this.ubo) {
 			Backend.deleteUBO(this.ubo);
@@ -116,12 +113,6 @@ class Material {
 		}
 	}
 
-	/**
-	 * Load a material library (.mat file) with inheritance resolution.
-	 * @param {Object} data - Parsed JSON data from .mat file
-	 * @param {Object} resources - Resources context for texture loading and material registration
-	 * @returns {Material} The first material in the library (for compatibility)
-	 */
 	static loadLibrary(data, resources) {
 		const materials = data.materials;
 

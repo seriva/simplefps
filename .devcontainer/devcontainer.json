@@ -1,16 +1,29 @@
-// For format details, see https://aka.ms/devcontainer.json. For config options, see the README at:
-// https://github.com/microsoft/vscode-dev-containers/tree/v0.195.0/containers/javascript-node
+// For format details, see https://aka.ms/devcontainer.json
 {
-	"name": "Node.js",
-	"build": {
-		"dockerfile": "Dockerfile",
-		// Update 'VARIANT' to pick a Node version: 22, 20, 18.
-		// Append -bookworm, -bullseye, or -buster to pin to an OS version.
-		// Use -bookworm variants for latest Debian (recommended).
-		"args": {
-			"VARIANT": "22-bookworm"
+	"name": "Container",
+	"image": "mcr.microsoft.com/devcontainers/base:ubuntu24.04",
+	"features": {
+		"ghcr.io/devcontainers/features/common-utils:2": {
+			"configureZshAsDefaultShell": true
+		},
+		"ghcr.io/devcontainers/features/node:1": {},
+		"ghcr.io/devcontainers-extra/features/apt-packages:1": {
+			"packages": "imagemagick"
 		}
 	},
+	"onCreateCommand": {
+		"chown-local": "sudo chown -R $(id -un):$(id -gn) $HOME/.local"
+	},
+	"postCreateCommand": {
+		"git-safe-dir": "git config --global --add safe.directory ${containerWorkspaceFolder}",
+		"npm-install": "npm install"
+	},
+	"remoteUser": "vscode",
+	"remoteEnv": {
+		"LOCAL_WORKSPACE_FOLDER": "${localWorkspaceFolder}"
+	},
+	"workspaceFolder": "/workspace",
+	"workspaceMount": "source=${localWorkspaceFolder},target=${containerWorkspaceFolder},type=bind,consistency=cached",
 	"customizations": {
 		"vscode": {
 			"extensions": [
@@ -30,24 +43,5 @@
 				}
 			}
 		}
-	},
-	// Use 'forwardPorts' to make a list of ports inside the container available locally.
-	"forwardPorts": [
-		8181
-	],
-	// Use 'portsAttributes' to set default properties for specific forwarded ports. More info: https://code.visualstudio.com/docs/remote/devcontainerjson-reference.
-	"portsAttributes": {
-		"8081": {
-			"label": "devserver",
-			"onAutoForward": "notify"
-		}
-	},
-	// Use 'otherPortsAttributes' to configure any ports that aren't configured using 'portsAttributes'.
-	// "otherPortsAttributes": {
-	// 		"onAutoForward": "silent"
-	// },
-	// Use 'postCreateCommand' to run commands after the container is created.
-	"postCreateCommand": "npm install",
-	// Use non-root user for better security. More info: https://aka.ms/vscode-remote/containers/non-root.
-	"remoteUser": "node"
+	}
 }

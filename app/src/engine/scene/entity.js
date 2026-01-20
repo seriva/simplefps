@@ -59,9 +59,6 @@ class Entity {
 		Shapes.boundingBox.renderSingle(true, drawMode);
 	}
 
-	/**
-	 * Dispose of entity resources. Override in subclasses to clean up specific resources.
-	 */
 	dispose() {
 		this.updateCallback = null;
 		this.boundingBox = null;

@@ -1170,11 +1170,6 @@ class WebGPUBackend extends RenderBackend {
 	// Optimization: Pooled uniform buffer allocation
 	// =========================================================================
 
-	/**
-	 * Get a uniform buffer from the pool (or create one if needed)
-	 * @param {number} size - Required size in bytes (will be aligned to 16)
-	 * @returns {GPUBuffer}
-	 */
 	_getPooledUniformBuffer(size) {
 		// Align size to 16 bytes
 		const alignedSize = Math.ceil(size / 16) * 16;

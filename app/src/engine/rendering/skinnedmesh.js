@@ -82,9 +82,6 @@ class SkinnedMesh extends Mesh {
 		}
 	}
 
-	/**
-	 * Dispose of all GPU resources. Call when mesh is no longer needed.
-	 */
 	dispose() {
 		this.deleteMeshBuffers();
 		this._boneMatrixBuffer = null;
