@@ -2,6 +2,7 @@ import { glMatrix, vec3 } from "../dependencies/gl-matrix.js";
 import { Camera, Console, Input, Settings } from "../engine/core/engine.js";
 import Arena from "./arena.js";
 import FPSController from "./fpscontroller.js";
+import Multiplayer from "./multiplayer.js";
 import State from "./state.js";
 import Weapons from "./weapons.js";
 
@@ -15,9 +16,13 @@ let _controller = null;
 const Game = {
 	async load(mapName) {
 		await Arena.load(mapName);
-		const spawnPoint = Arena.getSpawnPoint();
 
+		// Initialize Multiplayer (starts Local Server)
+		await Multiplayer.init(mapName);
+
+		const spawnPoint = Arena.getSpawnPoint();
 		const pos = spawnPoint.position || _defaultSpawn;
+
 		_controller = new FPSController(pos, {
 			onLand: Weapons.onLand,
 			onJump: Weapons.onJump,
@@ -36,6 +41,9 @@ const Game = {
 		if (State.current !== "GAME" || Console.isVisible()) return;
 
 		const ft = frameTime / 1000;
+
+		// Multiplayer Update (Server + Remote Players)
+		Multiplayer.update(ft);
 
 		// Look direction from mouse input
 		const cursor = Input.cursorMovement();
@@ -74,6 +82,27 @@ const Game = {
 		if (_controller) {
 			_controller.update(ft);
 			_controller.move(strafe, move, _horizontalForward, _strafeDir, ft);
+
+			// Send Input to Server
+			const inputState = _controller.getInputState(
+				strafe,
+				move,
+				_horizontalForward,
+				_strafeDir,
+			);
+
+			// Add other inputs (jump, shoot)
+			// Shoot is handled by Weapons, but should be networked eventually.
+			// Jump:
+			// inputState.jump = Input.isPressed(Settings.jump); // FPSController handles jump internally?
+			// Actually FPSController has a jump() method. The input state above sends 'jump: false'.
+			// If we want to network jump, we need to capture the event "Jump Pressed" and send it.
+			// For now, movement sync is priority.
+
+			inputState.yaw = Camera.rotation[1]; // Send visual rotation
+			inputState.pitch = Camera.rotation[0];
+
+			Multiplayer.sendInput(inputState);
 		}
 	},
 
@@ -88,5 +117,17 @@ const Game = {
 		return _controller;
 	},
 };
+
+Console.registerCmd("host", () => {
+	Multiplayer.host();
+});
+
+Console.registerCmd("join", (id) => {
+	if (!id) {
+		Console.log("Usage: join <hostId>");
+		return;
+	}
+	Multiplayer.join(id);
+});
 
 export default Game;
