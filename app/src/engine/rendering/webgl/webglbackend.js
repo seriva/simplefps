@@ -166,13 +166,16 @@ class WebGLBackend extends RenderBackend {
 			};
 
 			// Log context information
-			Console.log("Initialized WebGL2 backend");
-			Console.log(`Renderer: ${this._capabilities.renderer}`);
-			Console.log(`Vendor: ${this._capabilities.vendor}`);
-			Console.log(`WebGL version: ${this._capabilities.version}`);
-			Console.log(`GLSL version: ${this._capabilities.glslVersion}`);
+			Console.log(`[WebGL] Initialized WebGL2 backend`);
+			Console.log(`[WebGL] Renderer: ${this._capabilities.renderer}`);
+			Console.log(`[WebGL] Vendor: ${this._capabilities.vendor}`);
+			Console.log(`[WebGL] WebGL version: ${this._capabilities.version}`);
+			Console.log(`[WebGL] GLSL version: ${this._capabilities.glslVersion}`);
 			Console.log(
-				`Max anisotropic filtering: ${this._capabilities.maxAnisotropy}`,
+				`[WebGL] Max texture size: ${this._capabilities.maxTextureSize}`,
+			);
+			Console.log(
+				`[WebGL] Max anisotropic filtering: ${this._capabilities.maxAnisotropy}`,
 			);
 		} catch (error) {
 			Console.error(`WebGL initialization failed: ${error.message}`);

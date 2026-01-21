@@ -168,7 +168,7 @@ const _load = async (name) => {
 			const randomIndex = Math.floor(Math.random() * spawnpoints.length);
 			startSpawn = spawnpoints[randomIndex];
 			Console.log(
-				`Selected spawn point ${randomIndex} from ${spawnpoints.length} available.`,
+				`[Arena] Selected spawn point ${randomIndex} from ${spawnpoints.length} available.`,
 			);
 		}
 
@@ -192,9 +192,9 @@ const _load = async (name) => {
 		_setupPickups(pickups);
 		_setupSpawnpointModels(spawnpoints || [], startSpawn);
 
-		Console.log(`Loaded arena: ${name}`);
+		Console.log(`[Arena] Loaded arena: ${name}`);
 	} catch (error) {
-		Console.log(`Failed to load arena ${name}: ${error.message}`);
+		Console.log(`[Arena] Failed to load arena ${name}: ${error.message}`);
 		_state.arena = {};
 		throw error;
 	} finally {

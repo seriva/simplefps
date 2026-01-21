@@ -225,18 +225,22 @@ class WebGPUBackend extends RenderBackend {
 
 			// Log context information
 			const info = this._adapter.info;
-			Console.log("Initialized WebGPU backend");
-			Console.log(`Adapter: ${info?.description || "Unknown"}`);
+			Console.log(`[WebGPU] Initialized WebGPU backend`);
+			Console.log(`[WebGPU] Adapter: ${info?.description || "Unknown"}`);
 			Console.log(
-				`Vendor: ${info?.vendor || "Unknown"} [${
+				`[WebGPU] Vendor: ${info?.vendor || "Unknown"} (Architecture: ${
 					info?.architecture || "Unknown"
-				}]`,
+				})`,
 			);
-			Console.log(`Preferred format: ${this._format}`);
-			Console.log(`Max texture size: ${this._capabilities.maxTextureSize}`);
-			Console.log(`Max anisotropy: ${this._capabilities.maxAnisotropy}`);
+			Console.log(`[WebGPU] Preferred format: ${this._format}`);
 			Console.log(
-				`Max storage/uniform buffer: ${this._device.limits.maxStorageBufferBindingSize} / ${this._device.limits.maxUniformBufferBindingSize}`,
+				`[WebGPU] Max texture size: ${this._capabilities.maxTextureSize}`,
+			);
+			Console.log(
+				`[WebGPU] Max anisotropy: ${this._capabilities.maxAnisotropy}`,
+			);
+			Console.log(
+				`[WebGPU] Max storage buffer size: ${this._device.limits.maxStorageBufferBindingSize} / ${this._device.limits.maxUniformBufferBindingSize}`,
 			);
 		} catch (error) {
 			Console.error(`WebGPU initialization failed: ${error.message}`);

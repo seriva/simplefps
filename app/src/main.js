@@ -1,6 +1,7 @@
 import { init, setCallbacks, start, Utils } from "./engine/core/engine.js";
 import Game from "./game/game.js";
 import Loading from "./game/loading.js";
+import Multiplayer from "./game/multiplayer.js";
 import State from "./game/state.js";
 
 // Side-effect imports (controls, menus, hud register themselves)
@@ -17,7 +18,10 @@ import "./game/hud.js";
 
 		// Load map and initialize game
 		await Game.load("demo");
-		setCallbacks(Game.update, Game.postPhysicsUpdate);
+		// Pass Multiplayer.update as alwaysUpdate so it runs even when paused
+		setCallbacks(Game.update, Game.postPhysicsUpdate, (dt) =>
+			Multiplayer.update(dt / 1000),
+		);
 
 		// Enter game state to render first frame, then show menu with backdrop
 		State.enterGame();

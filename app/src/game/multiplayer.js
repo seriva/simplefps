@@ -1,166 +1,179 @@
-import { Console } from "../engine/core/engine.js";
+import { Camera, Console } from "../engine/core/engine.js";
 import { NetworkClient } from "../engine/networking/networkclient.js";
-import { GameServer } from "../server/gameserver.js";
-import Game from "./game.js";
+import { NetworkHost } from "../engine/networking/networkhost.js";
 import { RemotePlayer } from "./remoteplayer.js";
 
-// Private state
-let _server = null;
-let _client = null;
-const _remotePlayers = new Map(); // id -> RemotePlayer
-let _myClientId = null;
+// ============================================================================
+// Private State
+// ============================================================================
+
+let _host = null; // NetworkHost (if hosting)
+let _client = null; // NetworkClient (if joined)
+const _remotePlayers = new Map(); // peerId -> RemotePlayer
+let _myId = null;
 let _isHost = false;
 
-// Helpers
-const _onInit = (payload) => {
-	// payload: { id, pos }
-	// Teleport local player to server-assigned spawn point
-	Console.log(`[Multiplayer] Received Init. Teleporting to ${payload.pos}`);
-	const controller = Game.getController();
-	if (controller && payload.pos) {
-		controller.body.position.set(
-			payload.pos[0],
-			payload.pos[1],
-			payload.pos[2],
-		);
-		controller.body.velocity.set(0, 0, 0);
-		// Sync visual
-		controller.syncCamera(0);
-		// Reset "air time" or other physics state if needed
-		controller.wasGrounded = true; // prevent fall damage on spawn?
-	}
-};
+// Track positions from all peers (host only)
+const _peerPositions = new Map(); // peerId -> { pos, rot }
 
-const _onStateUpdate = (state, _ts) => {
-	// state: { players: [ { id, pos, vel, rot } ], time }
+// ============================================================================
+// State Update Handler (called when receiving positions from network)
+// ============================================================================
 
-	// Update players
+const _onStateUpdate = (state) => {
+	// state: { players: [{ id, pos, rot }] }
+	if (!state.players) return;
+
 	const activeIds = new Set();
 
-	if (state.players) {
-		// Console.log(`[Multiplayer] State players: ${state.players.length}`);
-		for (const pState of state.players) {
-			// Skip myself (Client Side Prediction handles me)
-			if (pState.id === _myClientId) {
-				// Console.log(`[Multiplayer] Skipping self: ${pState.id}`);
-				continue;
-			}
+	for (const player of state.players) {
+		// Skip ourselves
+		if (player.id === _myId) continue;
 
-			activeIds.add(pState.id);
+		activeIds.add(player.id);
 
-			let remote = _remotePlayers.get(pState.id);
-			if (!remote) {
-				Console.log(
-					`[Multiplayer] Creating Remote Player: ${pState.id} at ${pState.pos}`,
-				);
-				remote = new RemotePlayer(pState.id, pState.pos);
-				_remotePlayers.set(pState.id, remote);
-			}
-
-			remote.updateState(pState);
+		let remote = _remotePlayers.get(player.id);
+		if (!remote) {
+			Console.log(`[Multiplayer] New player: ${player.id}`);
+			remote = new RemotePlayer(player.id, player.pos);
+			_remotePlayers.set(player.id, remote);
 		}
+
+		remote.updateState(player);
 	}
 
 	// Remove disconnected players
 	for (const [id, player] of _remotePlayers) {
 		if (!activeIds.has(id)) {
+			Console.log(`[Multiplayer] Player left: ${id}`);
 			player.destroy();
 			_remotePlayers.delete(id);
 		}
 	}
 };
 
+// ============================================================================
+// Position callbacks for NetworkHost
+// ============================================================================
+
+const _onPeerPosition = (peerId, data) => {
+	// Store position from a peer (host only)
+	_peerPositions.set(peerId, {
+		pos: data.pos,
+		rot: data.rot,
+	});
+};
+
+const _onPeerDisconnect = (peerId) => {
+	_peerPositions.delete(peerId);
+};
+
+// ============================================================================
 // Public API
+// ============================================================================
+
 const Multiplayer = {
-	async init(mapName = "demo") {
-		if (_server || _client) return; // Already initialized
-
-		Console.log("[Multiplayer] Initializing Local Server...");
-		_server = new GameServer();
-		_isHost = true;
-		_myClientId = "host"; // Default ID for local play
-
-		// Load map data
-		const response = await fetch(`resources/arenas/${mapName}/config.arena`);
-		const mapData = await response.json();
-
-		// Get current position (if re-initializing?)
-		// Usually init is called on game load, so no player yet.
-		// But if we support map change, we might need it.
-		// For now: Fresh start
-
-		_server.startLocal(mapData);
-	},
-
-	async host() {
-		if (!_server) {
-			Console.error("[Multiplayer] Server not running locally!");
-			return;
+	host: async () => {
+		if (_host || _client) {
+			Console.warn("[Multiplayer] Already hosting or connected");
+			return null;
 		}
 
-		Console.log("[Multiplayer] Enabling Networking...");
-		const hostId = await _server.enableNetworking();
+		_host = new NetworkHost({
+			onPeerPosition: _onPeerPosition,
+			onPeerDisconnect: _onPeerDisconnect,
+		});
 
-		Console.log(`[Multiplayer] Host Started! ID: ${hostId}`);
-		Console.log(`[Multiplayer] Share this ID to others.`);
+		const hostId = await _host.start();
+		_myId = "host";
+		_isHost = true;
 
-		// We are already connected locally as 'host'.
-		// Do we need to change our ID to the PeerID?
-		// Or can we keep 'host'?
-		// The clients will see us with ID 'host' if we broadcast it?
-		// Wait, NetworkHost broadcasts state.
-
-		// In GameServer._broadcastState:
-		// this.players.forEach((p, id) => { ... })
-		// Our ID is 'host'.
-		// So clients will see a player with ID 'host'.
-
-		// Clients connect with their PeerID.
-
+		Console.log(`[Multiplayer] Hosting! Share this ID: ${hostId}`);
 		return hostId;
 	},
 
-	async join(hostId) {
-		if (_client) return;
-
-		if (_server) {
-			Console.log("[Multiplayer] Stopping Local Server to Join...");
-			_server.stop();
-			_server = null;
-			_isHost = false;
+	join: async (hostId) => {
+		if (_host || _client) {
+			Console.warn("[Multiplayer] Already hosting or connected");
+			return;
 		}
 
-		Console.log(`[Multiplayer] Joining ${hostId}...`);
 		_client = new NetworkClient({
 			onStateUpdate: _onStateUpdate,
-			onInit: _onInit,
 		});
 
 		await _client.connect(hostId);
-		_myClientId = _client.peer.id;
-		Console.log(`[Multiplayer] Joined! My ID: ${_myClientId}`);
+		_myId = _client.peer.id;
+		_isHost = false;
+
+		Console.log(`[Multiplayer] Joined! My ID: ${_myId}`);
 	},
 
-	update(dt) {
-		// Update Server
-		if (_server) {
-			_server.update(dt);
-		}
+	update: (dt) => {
+		// Get our current position from the camera
+		const myPos = Camera.position;
+		const myRot = Camera.rotation;
 
-		// Update Remote Players
-		_remotePlayers.forEach((p) => {
-			p.update(dt);
-		});
-	},
+		if (_isHost && _host) {
+			// Host: Collect all positions and broadcast
+			const players = [{ id: "host", pos: [...myPos], rot: [...myRot] }];
 
-	sendInput(input) {
-		if (_server) {
-			// Local Play: Direct Input
-			_server.handleInput("host", input);
+			// Add all connected peers
+			for (const [peerId, data] of _peerPositions) {
+				players.push({ id: peerId, pos: data.pos, rot: data.rot });
+			}
+
+			// Broadcast combined state to all clients
+			_host.broadcast({ players });
+
+			// Also update our own view of remote players
+			_onStateUpdate({ players });
 		} else if (_client) {
-			_client.sendInput(input);
+			// Client: Send our position to host
+			_client.sendPosition({
+				pos: [...myPos],
+				rot: [...myRot],
+			});
 		}
+
+		// Update all remote player visuals (lerping)
+		for (const remote of _remotePlayers.values()) {
+			remote.update(dt);
+		}
+	},
+
+	isConnected: () => {
+		return _isHost || _client !== null;
+	},
+
+	disconnect: () => {
+		if (_host) {
+			_host.stop();
+			_host = null;
+		}
+		if (_client) {
+			_client.disconnect();
+			_client = null;
+		}
+		_remotePlayers.forEach((p) => {
+			p.destroy();
+		});
+		_remotePlayers.clear();
+		_peerPositions.clear();
+		_myId = null;
+		_isHost = false;
+		Console.log("[Multiplayer] Disconnected");
 	},
 };
+
+// Console commands
+Console.registerCmd("host", () => Multiplayer.host());
+Console.registerCmd("join", (id) => {
+	if (!id) {
+		Console.log("Usage: join <hostId>");
+		return;
+	}
+	Multiplayer.join(id);
+});
 
 export default Multiplayer;

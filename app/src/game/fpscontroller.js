@@ -1,124 +1,269 @@
+import * as CANNON from "../dependencies/cannon-es.js";
 import { vec3 } from "../dependencies/gl-matrix.js";
 import { Camera, Console, Physics } from "../engine/core/engine.js";
-import { SharedPlayerController } from "../shared/playercontroller.js";
-import { ClientPhysicsAdapter } from "./clientphysicsadapter.js";
 
 const _worldUp = vec3.fromValues(0, 1, 0);
 const _rightVector = vec3.create();
+
+// Internal physics vectors (reused)
+const _rayFrom = new CANNON.Vec3();
+const _rayTo = new CANNON.Vec3();
+const _rayResult = new CANNON.RaycastResult();
+const _rayOptions = { skipBackfaces: true };
+const _wishDir = vec3.create();
+const _currentVel = vec3.create();
+
+// Constants
+const JUMP_THRESHOLD = 10;
+const LAND_TIME_THRESHOLD = 0.15;
+const DIRECTION_CHANGE_TIME = 0.15;
+const MAX_VELOCITY_CHANGE = 50;
+const ACCEL_REDUCTION = 0.3;
+const COYOTE_TIME = 0.2;
+
+// Collision groups
+const COLLISION_GROUPS = {
+	WORLD: 1,
+	PLAYER: 2,
+	PROJECTILE: 4,
+};
 
 let _noclip = false;
 const _NOCLIP_SPEED = 500;
 
 class FPSController {
 	constructor(position, config = {}) {
-		this.adapter = new ClientPhysicsAdapter();
-		this.sharedController = new SharedPlayerController(
-			this.adapter,
-			position,
-			config,
-		);
+		// Configuration
+		this.config = {
+			radius: config.radius || 35,
+			height: config.height || 60,
+			eyeHeight: config.eyeHeight || 56,
+			mass: config.mass || 80,
+			linearDamping: config.linearDamping || 0,
+			jumpVelocity: config.jumpVelocity || 350,
+			groundAcceleration: config.groundAcceleration || 550000,
+			airAcceleration: config.airAcceleration || 800,
+			friction: config.friction || 450,
+			maxSpeed: config.maxSpeed || 300,
+			onLand: config.onLand || (() => {}),
+			onJump: config.onJump || (() => {}),
 
-		// Expose body for legacy access if needed (though we should avoid it)
-		this.body = this.sharedController.body;
-
-		// Camera wobble config
-		this.wobbleConfig = {
+			// Wobble config
 			wobbleFrequency: config.wobbleFrequency || 8,
 			wobbleIntensity: config.wobbleIntensity || 1,
 		};
-		// Camera wobble state
+
+		// Physics Body
+		const shape = new CANNON.Sphere(this.config.radius);
+		this.body = new CANNON.Body({
+			mass: this.config.mass,
+			shape: shape,
+			position: new CANNON.Vec3(
+				position[0],
+				position[1] + this.config.height / 2,
+				position[2],
+			),
+			fixedRotation: true,
+			linearDamping: this.config.linearDamping,
+			collisionFilterGroup: COLLISION_GROUPS.PLAYER,
+			collisionFilterMask:
+				COLLISION_GROUPS.WORLD |
+				COLLISION_GROUPS.PLAYER |
+				COLLISION_GROUPS.PROJECTILE,
+		});
+
+		this.body.material = new CANNON.Material("player");
+		this.body.allowSleep = false;
+		Physics.addBody(this.body);
+
+		// Contact Material
+		const worldMaterial = Physics.getWorldMaterial();
+		if (worldMaterial) {
+			Physics.addContactMaterial(this.body.material, worldMaterial, {
+				friction: 0.0,
+				restitution: 0.0,
+				contactEquationStiffness: 1e8,
+				contactEquationRelaxation: 3,
+			});
+		}
+
+		// State
+		this.lastWishDir = vec3.create();
+		this.directionChangeTimer = 0;
+		this.wasGrounded = true;
+		this.airTime = 0;
 		this.bobPhase = 0;
+		this.currentRoll = 0;
 	}
 
 	isGrounded() {
-		return this.sharedController.isGrounded();
+		if (this.body.velocity.y > JUMP_THRESHOLD) {
+			return false;
+		}
+
+		const rayLength = this.config.radius + 5;
+		_rayFrom.set(
+			this.body.position.x,
+			this.body.position.y,
+			this.body.position.z,
+		);
+		_rayTo.set(
+			this.body.position.x,
+			this.body.position.y - rayLength,
+			this.body.position.z,
+		);
+
+		_rayResult.reset();
+		Physics.getWorld().raycastClosest(
+			_rayFrom,
+			_rayTo,
+			_rayOptions,
+			_rayResult,
+		);
+
+		return _rayResult.hasHit && _rayResult.body !== this.body;
 	}
 
 	update(frameTime) {
 		if (_noclip) return;
 
-		// Shared controller update (damping etc)
-		// Note: frameTime is in seconds in SharedPlayerController?
-		// Game.js calls it with seconds usually?
-		// Let's check Game.js: "const ft = frameTime / 1000;" -> Yes, seconds.
-		this.sharedController.update(frameTime);
+		const dt = frameTime;
+		const grounded = this.isGrounded();
+		if (grounded) {
+			if (!this.wasGrounded && this.airTime > LAND_TIME_THRESHOLD) {
+				this.config.onLand();
+			}
+			this.airTime = 0;
+
+			const horizontalDamping = 0.98;
+			const dampingFactorXZ = (1 - horizontalDamping) ** dt;
+			this.body.velocity.x *= dampingFactorXZ;
+			this.body.velocity.z *= dampingFactorXZ;
+		} else {
+			this.airTime += dt;
+		}
+
+		this.wasGrounded = grounded;
+
+		const verticalDamping = 0.01;
+		const dampingFactorY = (1 - verticalDamping) ** dt;
+		this.body.velocity.y *= dampingFactorY;
 	}
 
-	// Legacy move method called by Game.js
 	move(strafe, move, cameraForward, cameraRight, frameTime) {
 		if (_noclip) {
 			this._noclipMove(strafe, move, cameraForward, cameraRight, frameTime);
 			return;
 		}
 
-		// Map inputs to SharedController format
-		// Input: { moveX, moveZ, forwardDir (vec3), rightDir (vec3) }
-		// strafe is X (Right), move is Z (Forward)
+		const dt = frameTime;
+		const grounded = this.isGrounded();
 
-		const input = {
-			moveX: strafe,
-			moveZ: move,
-			forwardDir: cameraForward,
-			rightDir: cameraRight,
-		};
+		// Calculate wish direction
+		vec3.zero(_wishDir);
+		vec3.scaleAndAdd(_wishDir, _wishDir, cameraForward, move);
+		vec3.scaleAndAdd(_wishDir, _wishDir, cameraRight, strafe);
+		_wishDir[1] = 0; // Enforce horizontal
 
-		this.sharedController.applyInput(input, frameTime);
+		const wishDirLength = vec3.length(_wishDir);
+		if (wishDirLength > 0.001) {
+			vec3.scale(_wishDir, _wishDir, 1 / wishDirLength);
+		}
+
+		// Detect rapid direction changes
+		const directionDot = vec3.dot(_wishDir, this.lastWishDir);
+		if (directionDot < 0 && wishDirLength > 0.1) {
+			this.directionChangeTimer = DIRECTION_CHANGE_TIME;
+		}
+		vec3.copy(this.lastWishDir, _wishDir);
+
+		this.directionChangeTimer = Math.max(0, this.directionChangeTimer - dt);
+
+		const clampedLength = Math.min(wishDirLength, 1.0);
+		const wishSpeed = this.config.maxSpeed * clampedLength;
+
+		if (grounded) {
+			this._applyGroundMovement(_wishDir, wishSpeed, dt);
+		} else {
+			this._applyAirMovement(_wishDir, wishSpeed, dt);
+		}
 	}
 
 	jump() {
-		this.sharedController.jump();
+		if (this.isGrounded() || this.airTime < COYOTE_TIME) {
+			this.body.velocity.y = this.config.jumpVelocity;
+			this.config.onJump();
+			this.airTime = COYOTE_TIME;
+		}
 	}
 
-	// Helper to get input state for networking
-	getInputState(strafe, move, cameraForward, cameraRight) {
-		// We need serialized vectors for the network
-		return {
-			moveX: strafe,
-			moveZ: move,
-			forwardDir: [cameraForward[0], cameraForward[1], cameraForward[2]],
-			rightDir: [cameraRight[0], cameraRight[1], cameraRight[2]],
-			jump: false, // Handled separately? Or need to poll jump key?
-			// Actually jump is an event "onJump".
-		};
+	_applyGroundMovement(wishDir, wishSpeed, dt) {
+		if (wishSpeed < 0.1) {
+			this.body.velocity.x = 0;
+			this.body.velocity.z = 0;
+			return;
+		}
+
+		let acceleration = this.config.groundAcceleration;
+		if (this.directionChangeTimer > 0) {
+			acceleration *= ACCEL_REDUCTION;
+		}
+
+		this._accelerate(wishDir, wishSpeed, acceleration, dt);
 	}
 
-	setVelocity(x, y, z) {
-		this.sharedController.setVelocity([x, y, z]);
+	_applyAirMovement(wishDir, wishSpeed, dt) {
+		this._accelerate(wishDir, wishSpeed, this.config.airAcceleration, dt);
 	}
 
-	getPosition() {
-		return this.sharedController.getPosition();
-	}
+	_accelerate(wishDir, wishSpeed, acceleration, dt) {
+		const vel = this.body.velocity;
+		vec3.set(_currentVel, vel.x, vel.y, vel.z);
 
-	getVelocity() {
-		return this.sharedController.getVelocity();
+		const currentSpeed = vec3.dot(_currentVel, wishDir);
+		const addSpeed = wishSpeed - currentSpeed;
+
+		if (addSpeed <= 0) return;
+
+		let accelSpeed = acceleration * dt;
+		if (accelSpeed > addSpeed) {
+			accelSpeed = addSpeed;
+		}
+
+		const maxVelocityChangePerFrame = MAX_VELOCITY_CHANGE;
+		if (accelSpeed > maxVelocityChangePerFrame) {
+			accelSpeed = maxVelocityChangePerFrame;
+		}
+
+		vel.x += wishDir[0] * accelSpeed;
+		vel.z += wishDir[2] * accelSpeed;
 	}
 
 	syncCamera(frameTime) {
 		if (_noclip) return;
 
-		const pos = this.getPosition();
-		if (pos[0] !== 0 || pos[1] !== 0 || pos[2] !== 0) {
-			Camera.position[0] = pos[0];
-			Camera.position[1] = pos[1];
-			Camera.position[2] = pos[2];
+		const pos = this.body.position;
+		if (pos.x !== 0 || pos.y !== 0 || pos.z !== 0) {
+			Camera.position[0] = pos.x;
+
+			// Body is at height/2 (30), Eye is at 56.
+			// So CameraY = BodyY - 30 + 56 = BodyY + 26
+			const eyeOffset = this.config.eyeHeight - this.config.height / 2;
+			Camera.position[1] = pos.y + eyeOffset;
+
+			Camera.position[2] = pos.z;
 
 			// Wobble Logic (Visuals only)
-			const vel = this.getVelocity();
-			const horizontalSpeed = Math.sqrt(vel[0] * vel[0] + vel[2] * vel[2]);
+			const vel = this.body.velocity;
+			const horizontalSpeed = Math.sqrt(vel.x * vel.x + vel.z * vel.z);
 
 			let targetRoll = 0;
 			if (horizontalSpeed > 10 && this.isGrounded()) {
-				const speedFactor = Math.min(
-					horizontalSpeed / this.sharedController.config.maxSpeed,
-					1,
-				);
-				this.bobPhase +=
-					speedFactor * this.wobbleConfig.wobbleFrequency * frameTime;
+				const speedFactor = Math.min(horizontalSpeed / this.config.maxSpeed, 1);
+				this.bobPhase += speedFactor * this.config.wobbleFrequency * frameTime;
 
 				targetRoll =
-					((Math.sin(this.bobPhase) *
-						(this.wobbleConfig.wobbleIntensity * Math.PI)) /
+					((Math.sin(this.bobPhase) * (this.config.wobbleIntensity * Math.PI)) /
 						180) *
 					speedFactor;
 			} else {
@@ -143,7 +288,7 @@ class FPSController {
 	}
 
 	destroy() {
-		this.sharedController.destroy();
+		Physics.removeBody(this.body);
 	}
 
 	_noclipMove(inputX, inputZ, _cameraForward, cameraRight, frameTime) {
