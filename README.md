@@ -9,10 +9,10 @@ Simple first person arena shooter game written in ES6 and WebGL with a PWA distr
 ## Features
 
 - **Gameplay**: Arena-based FPS with physics-based projectiles, multiple weapons (Energy Scepter, Plasma Pistol, Pulse Cannon, Laser Gatling), and cross-platform controls
-- **Rendering**: Hybrid WebGL/WebGPU engine with PBR-like lighting, UBOs, SSAO, detail textures, emissive materials, and post-processing pipeline
+- **Rendering**: Hybrid WebGL/WebGPU engine with PBR-like lighting, UBOs, SSAO, detail textures, emissive materials, and post-processing pipeline. See [Rendering Architecture](docs/rendering.md).
 - **UI**: Modern, reactive UI system with state management for menus and HUD
 - **Performance**: Optimized rendering with linear depth buffer, physics simulation (Cannon.js), and PWA support
-- **Architecture**: Modular ES6 design with entity system, scene management, and comprehensive input handling
+- **Architecture**: Modular ES6 design with entity system, scene management, and comprehensive input handling. See [Scene System](docs/scene.md).
 - **Cross-Platform**: Runs on Desktop, Android, and iOS with touch controls and responsive design
 - **Settings**: In-game settings menu with graphics (including renderer selection) and input configuration
 - **Networking**: Client-authoritative P2P multiplayer via PeerJS (WebRTC) for simple host/join sessions. See [Networking Architecture](docs/networking.md).
@@ -45,6 +45,7 @@ app/
 └── index.html            # Main HTML file
 scripts/
 ├── bsp2map.js            # Quake 3 BSP to game format converter
+├── md5tomesh.js          # Doom 3 MD5 to mesh format converter
 └── obj2mesh.js           # OBJ to mesh format converter
 ```
 

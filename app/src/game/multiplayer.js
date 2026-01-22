@@ -1,14 +1,16 @@
 import { Camera, Console } from "../engine/core/engine.js";
-import { NetworkClient } from "../engine/networking/networkclient.js";
-import { NetworkHost } from "../engine/networking/networkhost.js";
+import { Network } from "../engine/systems/network.js";
 import { RemotePlayer } from "./remoteplayer.js";
 
 // ============================================================================
 // Private State
 // ============================================================================
 
-let _host = null; // NetworkHost (if hosting)
-let _client = null; // NetworkClient (if joined)
+// Network throttling configuration
+const UPDATE_INTERVAL = 1000 / 30; // 30 updates per second
+let _lastUpdateTime = 0;
+
+let _network = null; // Unified Network instance
 const _remotePlayers = new Map(); // peerId -> RemotePlayer
 let _myId = null;
 let _isHost = false;
@@ -74,17 +76,17 @@ const _onPeerDisconnect = (peerId) => {
 
 const Multiplayer = {
 	host: async () => {
-		if (_host || _client) {
+		if (_network) {
 			Console.warn("[Multiplayer] Already hosting or connected");
 			return null;
 		}
 
-		_host = new NetworkHost({
+		_network = new Network();
+		const hostId = await _network.host({
 			onPeerPosition: _onPeerPosition,
 			onPeerDisconnect: _onPeerDisconnect,
 		});
 
-		const hostId = await _host.start();
 		_myId = "host";
 		_isHost = true;
 
@@ -93,47 +95,53 @@ const Multiplayer = {
 	},
 
 	join: async (hostId) => {
-		if (_host || _client) {
+		if (_network) {
 			Console.warn("[Multiplayer] Already hosting or connected");
 			return;
 		}
 
-		_client = new NetworkClient({
+		_network = new Network();
+		await _network.connect(hostId, {
 			onStateUpdate: _onStateUpdate,
 		});
 
-		await _client.connect(hostId);
-		_myId = _client.peer.id;
+		_myId = _network.getPeerId();
 		_isHost = false;
 
 		Console.log(`[Multiplayer] Joined! My ID: ${_myId}`);
 	},
 
 	update: (dt) => {
-		// Get our current position from the camera
-		const myPos = Camera.position;
-		const myRot = Camera.rotation;
+		// Throttle network updates to reduce bandwidth
+		const now = performance.now();
+		if (now - _lastUpdateTime >= UPDATE_INTERVAL) {
+			_lastUpdateTime = now;
 
-		if (_isHost && _host) {
-			// Host: Collect all positions and broadcast
-			const players = [{ id: "host", pos: [...myPos], rot: [...myRot] }];
+			// Get our current position from the camera
+			const myPos = Camera.position;
+			const myRot = Camera.rotation;
 
-			// Add all connected peers
-			for (const [peerId, data] of _peerPositions) {
-				players.push({ id: peerId, pos: data.pos, rot: data.rot });
+			if (_isHost && _network) {
+				// Host: Collect all positions and broadcast
+				const players = [{ id: "host", pos: [...myPos], rot: [...myRot] }];
+
+				// Add all connected peers
+				for (const [peerId, data] of _peerPositions) {
+					players.push({ id: peerId, pos: data.pos, rot: data.rot });
+				}
+
+				// Broadcast combined state to all clients
+				_network.broadcast({ players });
+
+				// Also update our own view of remote players
+				_onStateUpdate({ players });
+			} else if (_network) {
+				// Client: Send our position to host
+				_network.sendPosition({
+					pos: [...myPos],
+					rot: [...myRot],
+				});
 			}
-
-			// Broadcast combined state to all clients
-			_host.broadcast({ players });
-
-			// Also update our own view of remote players
-			_onStateUpdate({ players });
-		} else if (_client) {
-			// Client: Send our position to host
-			_client.sendPosition({
-				pos: [...myPos],
-				rot: [...myRot],
-			});
 		}
 
 		// Update all remote player visuals (lerping)
@@ -143,17 +151,13 @@ const Multiplayer = {
 	},
 
 	isConnected: () => {
-		return _isHost || _client !== null;
+		return _network !== null;
 	},
 
 	disconnect: () => {
-		if (_host) {
-			_host.stop();
-			_host = null;
-		}
-		if (_client) {
-			_client.disconnect();
-			_client = null;
+		if (_network) {
+			_network.disconnect();
+			_network = null;
 		}
 		_remotePlayers.forEach((p) => {
 			p.destroy();
@@ -162,6 +166,7 @@ const Multiplayer = {
 		_peerPositions.clear();
 		_myId = null;
 		_isHost = false;
+		_lastUpdateTime = 0;
 		Console.log("[Multiplayer] Disconnected");
 	},
 };

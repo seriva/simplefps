@@ -11,9 +11,8 @@ app/src/
 ├── game/
 │   ├── multiplayer.js     # Main orchestrator (Host/Join/Update logic)
 │   └── remoteplayer.js    # Visual representation of other players (prediction/smoothing)
-└── engine/networking/
-    ├── networkhost.js     # PeerJS wrapper for Host (accepts connections, broadcasts state)
-    └── networkclient.js   # PeerJS wrapper for Client (connects to host, sends position)
+└── engine/systems/
+    └── network.js         # Unified PeerJS wrapper (handles both Host and Client roles)
 ```
 
 ## Component Relationships
@@ -24,30 +23,32 @@ The Host acts as a central relay. Clients do not connect to each other directly;
 flowchart TB
     subgraph Host["Host Browser"]
         H_Main[main.js] -->|alwaysUpdate| H_Multi[Multiplayer]
-        H_Multi --> H_NetHost[NetworkHost]
+        H_Multi --> H_Net[Network (host mode)]
         H_Multi --> H_Remote[RemotePlayers]
         H_Camera[Camera] -.->|position| H_Multi
     end
     
     subgraph Client["Client Browser"]
         C_Main[main.js] -->|alwaysUpdate| C_Multi[Multiplayer]
-        C_Multi --> C_NetClient[NetworkClient]
+        C_Multi --> C_Net[Network (client mode)]
         C_Multi --> C_Remote[RemotePlayers]
         C_Camera[Camera] -.->|position| C_Multi
     end
     
-    H_NetHost <-->|WebRTC via PeerJS| C_NetClient
+    H_Net <-->|WebRTC via PeerJS| C_Net
 ```
 
 ## Data Flow: Position Synchronization
 
 Since the game is **Client-Authoritative**, each player simulates their own physics locally and simply tells the Host "I am here". The Host collects these positions and broadcasts the full game state to everyone.
 
-1.  **Client Update**:
+**Update Throttling:** To optimize bandwidth, position updates are throttled to 30 updates per second (configurable via `UPDATE_INTERVAL` in `multiplayer.js`), reducing network traffic by ~50% compared to per-frame updates.
+
+1.  **Client Update** (throttled to 30 Hz):
     *   Reads local `Camera.position` and `Camera.rotation`.
     *   Sends `POS` message to Host: `{ pos: [x,y,z], rot: [pitch,yaw] }`.
 
-2.  **Host Update**:
+2.  **Host Update** (throttled to 30 Hz):
     *   Receives `POS` messages from all clients and updates its `_peerPositions` map.
     *   Reads its own local `Camera` position.
     *   Compiles a `STATE` message containing all player locations.
