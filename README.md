@@ -15,6 +15,7 @@ Simple first person arena shooter game written in ES6 and WebGL with a PWA distr
 - **Architecture**: Modular ES6 design with entity system, scene management, and comprehensive input handling
 - **Cross-Platform**: Runs on Desktop, Android, and iOS with touch controls and responsive design
 - **Settings**: In-game settings menu with graphics (including renderer selection) and input configuration
+- **Networking**: Client-authoritative P2P multiplayer via PeerJS (WebRTC) for simple host/join sessions. See [Networking Architecture](docs/networking.md).
 
 ## Tech Stack
 
