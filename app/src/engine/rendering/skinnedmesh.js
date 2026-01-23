@@ -7,9 +7,11 @@ class SkinnedMesh extends Mesh {
 		super(data, context);
 
 		// Skeletal data
+
 		this.skeleton = null;
 		this.gpuJointIndices = null;
 		this.gpuJointWeights = null;
+		this.skinnedVao = null;
 	}
 
 	initMeshBuffers() {
@@ -130,8 +132,6 @@ class SkinnedMesh extends Mesh {
 	}
 
 	async _loadExtraDataFromBlob(reader, context) {
-		const { readInt32, readFloat32, readUint32, readFloat32Array, bytes } =
-			reader;
 		const {
 			hasSkeletal,
 			jointCount,
@@ -144,32 +144,24 @@ class SkinnedMesh extends Mesh {
 			const joints = [];
 
 			for (let i = 0; i < jointCount; i++) {
-				const parent = readInt32();
-				const pos = [readFloat32(), readFloat32(), readFloat32()];
+				const parent = reader.readInt32();
+				const pos = [
+					reader.readFloat32(),
+					reader.readFloat32(),
+					reader.readFloat32(),
+				];
 				const rot = [
-					readFloat32(),
-					readFloat32(),
-					readFloat32(),
-					readFloat32(),
+					reader.readFloat32(),
+					reader.readFloat32(),
+					reader.readFloat32(),
+					reader.readFloat32(),
 				];
 				joints.push({ name: "", parent, pos, rot });
 			}
 
 			// Read joint names
 			for (let i = 0; i < jointCount; i++) {
-				let name = "";
-				// We need to manage offset manually since we are accessing bytes directly here for strings
-				let offset = reader.getOffset();
-				while (offset < bytes.length && bytes[offset] !== 0) {
-					name += String.fromCharCode(bytes[offset++]);
-				}
-				offset++; // Skip null terminator
-
-				// Update the reader's offset!
-				// We need to calculate how many bytes we advanced
-				const delta = offset - reader.getOffset();
-				reader.skip(delta);
-
+				const name = reader.readStringNullTerminated();
 				joints[i].name = name;
 			}
 
@@ -177,18 +169,18 @@ class SkinnedMesh extends Mesh {
 
 			// Skip over legacy weight data (kept for file format compatibility)
 			for (let i = 0; i < weightCount; i++) {
-				readUint32(); // vertex
-				const count = readUint32();
+				reader.readUint32(); // vertex
+				const count = reader.readUint32();
 				for (let j = 0; j < count; j++) {
-					readUint32(); // joint index
-					readFloat32(); // weight
-					readFloat32();
-					readFloat32();
-					readFloat32(); // position
+					reader.readUint32(); // joint index
+					reader.readFloat32(); // weight
+					reader.readFloat32();
+					reader.readFloat32();
+					reader.readFloat32(); // position
 					if (hasWeightNormals) {
-						readFloat32();
-						readFloat32();
-						readFloat32(); // normal
+						reader.readFloat32();
+						reader.readFloat32();
+						reader.readFloat32(); // normal
 					}
 				}
 			}
@@ -197,17 +189,10 @@ class SkinnedMesh extends Mesh {
 			if (hasGPUSkinning) {
 				const numVertices = this.vertices.length / 3;
 				// Joint indices: 4 uint8 per vertex
-				this.gpuJointIndices = new Uint8Array(numVertices * 4);
-				// We need to read raw bytes for Uint8Array
-				let offset = reader.getOffset();
-				for (let i = 0; i < numVertices * 4; i++) {
-					this.gpuJointIndices[i] = bytes[offset++];
-				}
-				// Sync offset again
-				reader.skip(numVertices * 4);
+				this.gpuJointIndices = reader.readUint8Array(numVertices * 4);
 
 				// Joint weights: 4 float32 per vertex
-				this.gpuJointWeights = readFloat32Array(numVertices * 4);
+				this.gpuJointWeights = reader.readFloat32Array(numVertices * 4);
 			}
 		}
 	}

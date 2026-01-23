@@ -1,4 +1,5 @@
 // Skeleton import removed - moved to skinnedmesh.js
+import { BinaryReader } from "../core/binaryreader.js";
 import BoundingBox from "../core/boundingbox.js";
 import { Backend } from "./backend.js";
 
@@ -13,7 +14,6 @@ class Mesh {
 	constructor(data, context) {
 		this.resources = context;
 		this.vao = null;
-		this.skinnedVao = null;
 		this._buffers = [];
 
 		this.ready = this.initialize(data);
@@ -47,6 +47,18 @@ class Mesh {
 		return Backend.createBuffer(typedArray, usage);
 	}
 
+	// Helper to create and push a buffer
+	_createAttributeBuffer(data, usage, slot, size) {
+		const buffer = Mesh.buildBuffer(null, data, usage);
+		this._buffers.push(buffer);
+		return {
+			buffer,
+			slot,
+			size,
+			type: "float",
+		};
+	}
+
 	_createBaseBuffers() {
 		this.hasUVs = this.uvs.length > 0;
 		this.hasNormals = this.normals.length > 0;
@@ -63,54 +75,38 @@ class Mesh {
 		const vertexCount = this.vertices.length / 3;
 
 		// Position (Always present)
-		this.vertexBuffer = Mesh.buildBuffer(null, this.vertices, "vertex");
-		this._buffers.push(this.vertexBuffer);
+		const positionAttribute = this._createAttributeBuffer(
+			this.vertices,
+			"vertex",
+			Mesh.ATTR_POSITIONS,
+			3,
+		);
+		this.vertexBuffer = positionAttribute.buffer;
 
-		// UVs (Always provide buffer)
-		if (this.hasUVs) {
-			this.uvBuffer = Mesh.buildBuffer(null, this.uvs, "vertex");
-		} else {
-			this.uvBuffer = Mesh.buildBuffer(
-				null,
-				new Float32Array(vertexCount * 2),
-				"vertex",
-			);
-		}
-		this._buffers.push(this.uvBuffer);
+		// UVs
+		const uvs = this.hasUVs ? this.uvs : new Float32Array(vertexCount * 2);
+		const uvAttribute = this._createAttributeBuffer(
+			uvs,
+			"vertex",
+			Mesh.ATTR_UVS,
+			2,
+		);
+		this.uvBuffer = uvAttribute.buffer;
 
-		// Normals (Always provide buffer)
-		if (this.hasNormals) {
-			this.normalBuffer = Mesh.buildBuffer(null, this.normals, "vertex");
-		} else {
-			this.normalBuffer = Mesh.buildBuffer(
-				null,
-				new Float32Array(vertexCount * 3),
-				"vertex",
-			);
-		}
-		this._buffers.push(this.normalBuffer);
+		// Normals
+		const normals = this.hasNormals
+			? this.normals
+			: new Float32Array(vertexCount * 3);
+		const normalAttribute = this._createAttributeBuffer(
+			normals,
+			"vertex",
+			Mesh.ATTR_NORMALS,
+			3,
+		);
+		this.normalBuffer = normalAttribute.buffer;
 
 		// Return base attributes for VAO creation
-		return [
-			{
-				buffer: this.vertexBuffer,
-				slot: Mesh.ATTR_POSITIONS,
-				size: 3,
-				type: "float",
-			},
-			{
-				buffer: this.uvBuffer,
-				slot: Mesh.ATTR_UVS,
-				size: 2,
-				type: "float",
-			},
-			{
-				buffer: this.normalBuffer,
-				slot: Mesh.ATTR_NORMALS,
-				size: 3,
-				type: "float",
-			},
-		];
+		return [positionAttribute, uvAttribute, normalAttribute];
 	}
 
 	initMeshBuffers() {
@@ -119,32 +115,21 @@ class Mesh {
 
 		const vertexCount = this.vertices.length / 3;
 
-		// Lightmap UVs (Always provide buffer)
-		if (this.hasLightmapUVs) {
-			this.lightmapUVBuffer = Mesh.buildBuffer(
-				null,
-				this.lightmapUVs,
-				"vertex",
-			);
-		} else {
-			this.lightmapUVBuffer = Mesh.buildBuffer(
-				null,
-				new Float32Array(vertexCount * 2),
-				"vertex",
-			);
-		}
-		this._buffers.push(this.lightmapUVBuffer);
+		// Lightmap UVs
+		const lightmapUVs = this.hasLightmapUVs
+			? this.lightmapUVs
+			: new Float32Array(vertexCount * 2);
+
+		const lightmapAttribute = this._createAttributeBuffer(
+			lightmapUVs,
+			"vertex",
+			Mesh.ATTR_LIGHTMAP_UVS,
+			2,
+		);
+		this.lightmapUVBuffer = lightmapAttribute.buffer;
 
 		// Add lightmap attribute
-		const allAttributes = [
-			...baseAttributes,
-			{
-				buffer: this.lightmapUVBuffer,
-				slot: Mesh.ATTR_LIGHTMAP_UVS,
-				size: 2,
-				type: "float",
-			},
-		];
+		const allAttributes = [...baseAttributes, lightmapAttribute];
 
 		// Create base VAO (for non-skinned shaders)
 		this.vao = Backend.createVertexState({ attributes: allAttributes });
@@ -311,54 +296,21 @@ class Mesh {
 
 	async loadFromBlob(blob) {
 		const arrayBuffer = await blob.arrayBuffer();
-		const bytes = new Uint8Array(arrayBuffer);
-		let offset = 0;
+		const reader = new BinaryReader(arrayBuffer);
 
-		const readUint32 = () => {
-			const value =
-				bytes[offset] |
-				(bytes[offset + 1] << 8) |
-				(bytes[offset + 2] << 16) |
-				(bytes[offset + 3] << 24);
-			offset += 4;
-			return value;
-		};
-
-		const readInt32 = () => {
-			const value = readUint32();
-			return value > 0x7fffffff ? value - 0x100000000 : value;
-		};
-
-		const readFloat32 = () => {
-			const view = new DataView(bytes.buffer, bytes.byteOffset + offset, 4);
-			offset += 4;
-			return view.getFloat32(0, true);
-		};
-
-		const readFloat32Array = (count) => {
-			if (count === 0) return new Float32Array(0);
-			const floatArray = new Float32Array(
-				bytes.buffer,
-				bytes.byteOffset + offset,
-				count,
-			);
-			offset += count * 4;
-			return new Float32Array(floatArray);
-		};
-
-		const version = readUint32();
-		const vertexCount = readUint32();
-		const uvCount = readUint32();
+		const version = reader.readUint32();
+		const vertexCount = reader.readUint32();
+		const uvCount = reader.readUint32();
 
 		let lightmapUVCount = 0;
 		if (version >= 2) {
-			lightmapUVCount = readUint32();
+			lightmapUVCount = reader.readUint32();
 		} else {
-			readUint32();
+			reader.readUint32();
 		}
 
-		const normalCount = readUint32();
-		const indexGroupCount = readUint32();
+		const normalCount = reader.readUint32();
+		const indexGroupCount = reader.readUint32();
 
 		let jointCount = 0;
 		let weightCount = 0;
@@ -367,68 +319,45 @@ class Mesh {
 		const hasGPUSkinning = version >= 5;
 
 		if (hasSkeletal) {
-			jointCount = readUint32();
-			weightCount = readUint32();
+			jointCount = reader.readUint32();
+			weightCount = reader.readUint32();
 		}
 
-		this.vertices = readFloat32Array(vertexCount);
-		this.uvs = readFloat32Array(uvCount);
+		this.vertices = reader.readFloat32Array(vertexCount);
+		this.uvs = reader.readFloat32Array(uvCount);
 
 		if (version === 2) {
-			this.lightmapUVs = readFloat32Array(lightmapUVCount);
+			this.lightmapUVs = reader.readFloat32Array(lightmapUVCount);
 		} else {
 			this.lightmapUVs = new Float32Array(0);
 		}
 
-		this.normals = readFloat32Array(normalCount);
+		this.normals = reader.readFloat32Array(normalCount);
 
 		this.indices = [];
 		const MATERIAL_NAME_SIZE = 64;
 
 		for (let i = 0; i < indexGroupCount; i++) {
-			const materialNameBytes = bytes.slice(
-				offset,
-				offset + MATERIAL_NAME_SIZE,
-			);
-			let materialName = "";
-			for (
-				let j = 0;
-				j < MATERIAL_NAME_SIZE && materialNameBytes[j] !== 0;
-				j++
-			) {
-				materialName += String.fromCharCode(materialNameBytes[j]);
-			}
-			offset += MATERIAL_NAME_SIZE;
+			const materialName = reader.readString(MATERIAL_NAME_SIZE);
 
-			const indexCount = readUint32();
+			const indexCount = reader.readUint32();
 			if (indexCount === 0) continue;
 
-			const indexArrayBuffer = bytes.buffer.slice(
-				bytes.byteOffset + offset,
-				bytes.byteOffset + offset + indexCount * 4,
+			// Read indices manually (Uint32Array)
+			// We can't use reader.readUint32() one by one efficiently, or readFloat32Array
+			// BinaryReader exposes bytes, let's use that.
+			const indexArrayBuffer = reader.bytes.buffer.slice(
+				reader.bytes.byteOffset + reader.offset,
+				reader.bytes.byteOffset + reader.offset + indexCount * 4,
 			);
 			const indexArray = Array.from(new Uint32Array(indexArrayBuffer));
-			offset += indexCount * 4;
+			reader.skip(indexCount * 4);
 
 			this.indices.push({
 				array: indexArray,
 				material: materialName || "none",
 			});
 		}
-
-		// Allow subclasses to load extra data (e.g. skinning)
-		// We pass the reader functions so they share the same closure state (offset, bytes)
-		const reader = {
-			readUint32,
-			readInt32,
-			readFloat32,
-			readFloat32Array,
-			bytes, // Expose bytes for manual reading if needed
-			getOffset: () => offset, // Helper to get current offset
-			skip: (n) => {
-				offset += n;
-			},
-		};
 
 		// Pass context for version-specific logic
 		const context = {
