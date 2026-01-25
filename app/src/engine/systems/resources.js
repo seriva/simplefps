@@ -48,7 +48,7 @@ const Resources = {
 								resourceHandler(response, this),
 							);
 							if (result) _resources.set(path, result);
-							Console.log(`Loaded: ${path}`);
+							Console.log(`[Resources] Loaded: ${path}`);
 						} catch (err) {
 							Console.error(`Error loading ${path}: ${err}`);
 							throw err;
@@ -70,7 +70,7 @@ const Resources = {
 		} finally {
 			Resources.onLoadEnd?.();
 			const _loadTime = performance.now() - startTime;
-			// Console.log(`Loaded resources in ${Math.round(loadTime)} ms`);
+			// Console.log(`[Resources] Loaded resources in ${Math.round(loadTime)} ms`);
 		}
 	},
 

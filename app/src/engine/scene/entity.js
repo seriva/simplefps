@@ -1,4 +1,5 @@
 import { mat4 } from "../../dependencies/gl-matrix.js";
+import { Backend } from "../rendering/backend.js";
 import { Shaders } from "../rendering/shaders.js";
 import Shapes from "../rendering/shapes.js";
 
@@ -19,6 +20,13 @@ class Entity {
 		this.updateCallback = updateCallback;
 		this.animationTime = 0;
 		this.visible = true;
+		this.castShadow = true;
+		this.receiveShadow = true;
+
+		// Occlusion culling
+		this.isOccluder = false; // Is this a large occluder (e.g. wall)?
+		this.isVisible = true; // Visibility state from occlusion query (default true)
+
 		this.base_matrix = mat4.create();
 		this.ani_matrix = mat4.create();
 		mat4.identity(this.base_matrix);
@@ -60,6 +68,14 @@ class Entity {
 	}
 
 	dispose() {
+		// Clean up occlusion queries to prevent GPU resource leaks
+		if (this._occQueries) {
+			for (const query of this._occQueries) {
+				Backend.deleteQuery(query);
+			}
+			this._occQueries = null;
+		}
+
 		this.updateCallback = null;
 		this.boundingBox = null;
 	}

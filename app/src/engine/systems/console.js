@@ -40,6 +40,22 @@ const _parseCommand = (cmd) => {
 				: [],
 		};
 	}
+	// Try space-separated syntax: command arg1 arg2
+	const spaceMatch = cmd.match(/^([\w.]+)(?:\s+(.+))?$/);
+	if (spaceMatch) {
+		return {
+			type: "function",
+			func: spaceMatch[1],
+			// Split by space, keeping quotes intact? For simplicity, split by space.
+			// But we should treat them as strings if they are simple words.
+			// _safeEval might fail on bare words (looking for vars).
+			// Let's passed them as strings if safeEval fails?
+			// Actually, for "join <UUID>", UUID is a string.
+			// If we just pass strings, it's safer for console commands.
+			params: spaceMatch[2] ? spaceMatch[2].split(/\s+/) : [],
+		};
+	}
+
 	throw new Error("Invalid command syntax");
 };
 

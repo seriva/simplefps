@@ -9,11 +9,11 @@ let _defaultBackend;
 if (Settings.useWebGPU && navigator.gpu) {
 	_defaultBackend = new WebGPUBackend();
 	_defaultBackend.name = "WebGPU";
-	Console.log("Using WebGPU backend");
+	Console.log("[Backend] Using WebGPU backend");
 } else {
 	_defaultBackend = new WebGLBackend();
 	_defaultBackend.name = "WebGL";
-	Console.log("Using WebGL backend");
+	Console.log("[Backend] Using WebGL backend");
 }
 
 // Initialize backend (async for WebGPU, sync for WebGL)

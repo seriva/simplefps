@@ -26,6 +26,7 @@ const _defaults = {
 	shadowBlurIterations: 1,
 	shadowBlurOffset: 0.3,
 	shadowIntensity: 0.5,
+	occlusionCulling: true,
 
 	// SSAO settings
 	doSSAO: false,
@@ -57,7 +58,7 @@ const _saveSettings = () => {
 // Initialize settings
 const _stored = localStorage?.getItem("settings") ?? null;
 if (_stored) {
-	Console.log("Using stored settings");
+	Console.log("[Settings] Using stored settings");
 	// Merge stored settings into defaults (so new defaults get added)
 	Object.assign(Settings, _defaults, JSON.parse(_stored));
 	// Ensure new properties from defaults exist
@@ -67,7 +68,7 @@ if (_stored) {
 		}
 	}
 } else {
-	Console.log("Using default settings");
+	Console.log("[Settings] Using default settings");
 	Object.assign(Settings, _defaults);
 	_saveSettings();
 }

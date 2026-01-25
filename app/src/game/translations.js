@@ -44,7 +44,7 @@ const _currentLanguage = (() => {
 	return browserLang in _translations ? browserLang : _DEFAULT_LANGUAGE;
 })();
 
-Console.log(`Language ${_currentLanguage}`);
+Console.log(`[Translations] Language ${_currentLanguage}`);
 
 // ============================================================================
 // Public API

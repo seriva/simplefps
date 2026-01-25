@@ -15,9 +15,10 @@ let _controller = null;
 const Game = {
 	async load(mapName) {
 		await Arena.load(mapName);
-		const spawnPoint = Arena.getSpawnPoint();
 
+		const spawnPoint = Arena.getSpawnPoint();
 		const pos = spawnPoint.position || _defaultSpawn;
+
 		_controller = new FPSController(pos, {
 			onLand: Weapons.onLand,
 			onJump: Weapons.onJump,

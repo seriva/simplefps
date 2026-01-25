@@ -47,10 +47,11 @@ class SkinnedMeshEntity extends MeshEntity {
 		if (!this.visible) return;
 
 		if (this.animationPlayer && this.mesh?.skeleton) {
-			// deltaTime is in milliseconds, convert to seconds for animation
 			const pose = this.animationPlayer.update(deltaTime / 1000);
-			// Compute bone matrices for GPU skinning
-			this._boneMatrices = this.mesh.getBoneMatricesForGPU(pose);
+
+			if (this.isVisible) {
+				this._boneMatrices = this.mesh.getBoneMatricesForGPU(pose);
+			}
 		}
 
 		super.update?.(deltaTime);

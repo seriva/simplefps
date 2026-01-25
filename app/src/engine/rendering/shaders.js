@@ -87,7 +87,9 @@ const Shaders = {
 				} else {
 					Shaders[name] = new Shader(backend, source.vertex, source.fragment);
 				}
-				Console.log(`Loaded shader: ${name} [${isWebGPU ? "WGSL" : "GLSL"}]`);
+				Console.log(
+					`[Shaders] Loaded shader: ${name} [${isWebGPU ? "WGSL" : "GLSL"}]`,
+				);
 			} catch (_error) {
 				Console.error(
 					`Failed to load shader ${name}. Linker/Compiler Error might be above.`,
