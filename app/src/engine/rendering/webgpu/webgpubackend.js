@@ -770,7 +770,7 @@ class WebGPUBackend extends RenderBackend {
 		this._currentPass.beginOcclusionQuery(query.index);
 	}
 
-	endQuery(query) {
+	endQuery(_query) {
 		if (!this._currentPass) return;
 		this._currentPass.endOcclusionQuery();
 	}

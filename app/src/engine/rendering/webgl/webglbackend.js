@@ -846,7 +846,7 @@ class WebGLBackend extends RenderBackend {
 		gl.beginQuery(queryType, query);
 	}
 
-	endQuery(query) {
+	endQuery(_query) {
 		const gl = this._gl;
 		const queryType =
 			gl.ANY_SAMPLES_PASSED_CONSERVATIVE || gl.ANY_SAMPLES_PASSED;
