@@ -23,7 +23,8 @@
   },
   "dependencies": {
     "cannon-es": "^0.20.0",
-    "gl-matrix": "^3.4.4"
+    "gl-matrix": "^3.4.4",
+    "peerjs": "^1.5.5"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.3.7",

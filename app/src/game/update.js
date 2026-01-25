@@ -17,7 +17,7 @@ const _update = () => {
 		});
 	} else {
 		State.enterGame();
-		Console.log("SW - No new service worker found to update");
+		Console.log("[ServiceWorker] No new service worker found to update");
 	}
 };
 
@@ -25,7 +25,7 @@ if (navigator.serviceWorker) {
 	navigator.serviceWorker
 		.register("./sw.js")
 		.then((reg) => {
-			Console.log("SW - Registered: ", reg);
+			Console.log("[ServiceWorker] Registered: ", reg);
 			_registration = reg;
 			_registration.update();
 			if (_registration.waiting) {
@@ -33,7 +33,7 @@ if (navigator.serviceWorker) {
 				State.enterMenu("UPDATE_MENU");
 			} else {
 				_registration.addEventListener("updatefound", () => {
-					Console.log("SW - Service worker update found");
+					Console.log("[ServiceWorker] Service worker update found");
 					_newServiceWorker = _registration.installing;
 					_newServiceWorker.addEventListener("statechange", () => {
 						if (_newServiceWorker.state === "installed") {
@@ -50,7 +50,7 @@ if (navigator.serviceWorker) {
 	let refreshing;
 	navigator.serviceWorker.addEventListener("controllerchange", () => {
 		if (refreshing) return;
-		Console.log("SW - Refreshing to load new version");
+		Console.log("[ServiceWorker] Refreshing to load new version");
 		window.location.reload();
 		refreshing = true;
 	});

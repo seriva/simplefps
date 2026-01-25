@@ -30,6 +30,7 @@ import Utils from "./utils.js";
 let _gameUpdate;
 let _gameUpdateBacking;
 let _gamePostPhysics;
+let _alwaysUpdate; // Runs even when paused (for multiplayer)
 let _time;
 let _frameTime = 0;
 let _rafId;
@@ -58,6 +59,7 @@ const _frame = () => {
 
 	Stats.update();
 	Input.update();
+	if (_alwaysUpdate) _alwaysUpdate(_frameTime); // Runs even when paused
 	if (_gameUpdate) _gameUpdate(_frameTime);
 	Physics.update(_frameTime / 1000);
 	if (_gamePostPhysics) _gamePostPhysics(_frameTime);
@@ -99,10 +101,11 @@ const init = async (config = {}) => {
 	}
 };
 
-const setCallbacks = (update, postPhysics) => {
+const setCallbacks = (update, postPhysics, alwaysUpdate = null) => {
 	_gameUpdate = update;
 	_gameUpdateBacking = update;
 	_gamePostPhysics = postPhysics;
+	_alwaysUpdate = alwaysUpdate;
 };
 
 const getCanvas = () => Backend.getCanvas();
