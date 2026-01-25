@@ -810,9 +810,58 @@ class WebGLBackend extends RenderBackend {
 			bits |= gl.STENCIL_BUFFER_BIT;
 		}
 
-		if (bits) {
+		if (bits > 0) {
 			gl.clear(bits);
 		}
+	}
+
+	setColorMask(red, green, blue, alpha) {
+		this._gl.colorMask(red, green, blue, alpha);
+	}
+
+	setDepthMask(flag) {
+		this._gl.depthMask(flag);
+	}
+
+	// =========================================================================
+	// Occlusion Queries
+	// =========================================================================
+
+	createQuery() {
+		return this._gl.createQuery();
+	}
+
+	deleteQuery(query) {
+		if (query) {
+			this._gl.deleteQuery(query);
+		}
+	}
+
+	beginQuery(query) {
+		// Use ANY_SAMPLES_PASSED_CONSERVATIVE for better performance (may return false positives)
+		// Falls back to ANY_SAMPLES_PASSED if not available
+		const gl = this._gl;
+		const queryType =
+			gl.ANY_SAMPLES_PASSED_CONSERVATIVE || gl.ANY_SAMPLES_PASSED;
+		gl.beginQuery(queryType, query);
+	}
+
+	endQuery(query) {
+		const gl = this._gl;
+		const queryType =
+			gl.ANY_SAMPLES_PASSED_CONSERVATIVE || gl.ANY_SAMPLES_PASSED;
+		gl.endQuery(queryType);
+	}
+
+	getQueryResult(query) {
+		const gl = this._gl;
+		const available = gl.getQueryParameter(query, gl.QUERY_RESULT_AVAILABLE);
+		const result = available ? gl.getQueryParameter(query, gl.QUERY_RESULT) : 0;
+
+		return {
+			available: !!available,
+			hasPassed: result !== 0,
+		};
 	}
 
 	// =========================================================================

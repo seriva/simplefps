@@ -109,10 +109,15 @@ Console commands: `tbv` (bounds), `twf` (wireframe), `tlv` (lights), `tsk` (skel
 ## Performance Optimizations
 
 1. **Visibility Culling:** Scene maintains type-segregated visible entity cache
-2. **Pre-allocated Arrays:** `Float32Array` reused per-frame (no GC)
-3. **Depth Range Partitioning:** World (0.1-1.0) / FPS (0.0-0.1) avoids z-fighting
-4. **Kawase Blur:** Iterative passes instead of large kernels
-5. **Bilateral SSAO Blur:** Edge-aware smoothing
+2. **Occlusion Culling:** Hardware-accelerated visibility testing
+   - **Temporal Buffering:** 6-frame latency buffer to prevent pipeline stalls
+   - **Render Order:** Occluders → Queries → Occludees (Meshes & Lights)
+   - **WebGPU Back-End:** 3-buffer ring buffer for non-blocking readback
+   - **Culls:** Meshes, SkinnedMeshes, PointLights, SpotLights
+3. **Pre-allocated Arrays:** `Float32Array` reused per-frame (no GC)
+4. **Depth Range Partitioning:** World (0.1-1.0) / FPS (0.0-0.1) avoids z-fighting
+5. **Kawase Blur:** Iterative passes instead of large kernels
+6. **Bilateral SSAO Blur:** Edge-aware smoothing
 
 ## WebGL vs WebGPU
 

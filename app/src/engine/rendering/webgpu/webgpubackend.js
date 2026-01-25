@@ -85,6 +85,7 @@ class WebGPUBackend extends RenderBackend {
 		this._currentPassFormats = null;
 		this._activeFramebuffer = null;
 		this._clearColor = { r: 0, g: 0, b: 0, a: 1 };
+		this._colorMask = { r: true, g: true, b: true, a: true }; // Default enabled
 		this._boundTextures = new Map();
 		this._boundUBOs = new Map();
 
@@ -146,6 +147,18 @@ class WebGPUBackend extends RenderBackend {
 		} else {
 			this._canvas = canvas;
 		}
+
+		// Occlusion Query State
+		this._querySet = null;
+		this._queryBuffer = null;
+		this._queryReadBuffer = null; // Deprecated
+		this._queryReadBuffers = []; // Ring buffer for async reading
+		this._queryReadIndex = 0; // Current ring index
+		this._queryCount = 1024; // Max number of occlusion queries
+		this._queryIndices = new Set(); // Track used indices
+		for (let i = 0; i < this._queryCount; i++) this._queryIndices.add(i);
+		this._activeQueries = new Map(); // Map query object -> index
+		this._queryResults = new BigUint64Array(this._queryCount); // Local cache of results
 
 		try {
 			// Request adapter
@@ -242,6 +255,30 @@ class WebGPUBackend extends RenderBackend {
 			Console.log(
 				`[WebGPU] Max storage buffer size: ${this._device.limits.maxStorageBufferBindingSize} / ${this._device.limits.maxUniformBufferBindingSize}`,
 			);
+
+			// Create QuerySet
+			this._querySet = this._device.createQuerySet({
+				type: "occlusion",
+				count: this._queryCount,
+			});
+
+			// Create Query Resolve Buffer (destination for resolveQuerySet)
+			this._queryBuffer = this._device.createBuffer({
+				size: this._queryCount * 8, // 64-bit results
+				usage: GPUBufferUsage.QUERY_RESOLVE | GPUBufferUsage.COPY_SRC,
+			});
+
+			// Create Query Read Buffers (ring buffer for non-blocking readback)
+			this._queryReadBuffers = [];
+			for (let i = 0; i < 3; i++) {
+				this._queryReadBuffers.push(
+					this._device.createBuffer({
+						size: this._queryCount * 8,
+						usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
+						label: `OcclusionReadBuffer_${i}`,
+					}),
+				);
+			}
 		} catch (error) {
 			Console.error(`WebGPU initialization failed: ${error.message}`);
 			return false;
@@ -282,17 +319,63 @@ class WebGPUBackend extends RenderBackend {
 		this._bindGroupCache.clear();
 	}
 
-	endFrame() {
+	async endFrame() {
+		let didCopy = false;
+
 		// End any active render pass
 		if (this._currentPass) {
 			this._currentPass.end();
 			this._currentPass = null;
 		}
 
+		// Resolve Occlusion Queries
+		if (this._commandEncoder && this._querySet) {
+			// Resolve query set to buffer
+			this._commandEncoder.resolveQuerySet(
+				this._querySet,
+				0,
+				this._queryCount,
+				this._queryBuffer,
+				0,
+			);
+
+			// Copy resolved buffer to read buffer (if available)
+			const readBuffer = this._queryReadBuffers[this._queryReadIndex];
+
+			if (readBuffer.mapState === "unmapped") {
+				this._commandEncoder.copyBufferToBuffer(
+					this._queryBuffer,
+					0,
+					readBuffer,
+					0,
+					this._queryCount * 8,
+				);
+				didCopy = true;
+			}
+		}
+
 		// Submit all commands
 		if (this._commandEncoder) {
 			this._device.queue.submit([this._commandEncoder.finish()]);
 			this._commandEncoder = null;
+		}
+
+		// Read back results asynchronously (no await!)
+		if (didCopy) {
+			const readBuffer = this._queryReadBuffers[this._queryReadIndex];
+			readBuffer
+				.mapAsync(GPUMapMode.READ)
+				.then(() => {
+					const arrayBuffer = readBuffer.getMappedRange();
+					this._queryResults.set(new BigUint64Array(arrayBuffer));
+					readBuffer.unmap();
+				})
+				.catch(() => {
+					// Buffer mapping failed (device lost or unmapped early)
+				});
+
+			// Advance ring buffer index
+			this._queryReadIndex = (this._queryReadIndex + 1) % 3;
 		}
 
 		this._currentTexture = null;
@@ -590,6 +673,11 @@ class WebGPUBackend extends RenderBackend {
 			descriptor.depthStencilAttachment = depthAttachment;
 		}
 
+		// Add occlusion query set if available
+		if (this._querySet) {
+			descriptor.occlusionQuerySet = this._querySet;
+		}
+
 		this._currentPass = encoder.beginRenderPass(descriptor);
 
 		// OPTIMIZATION: Reset state cache for new pass
@@ -634,6 +722,68 @@ class WebGPUBackend extends RenderBackend {
 
 		// Begin new pass with specific loadOps
 		this._beginPass(colorLoadOp, depthLoadOp);
+	}
+
+	setColorMask(red, green, blue, alpha) {
+		// WebGPU handles color masking in the render pipeline state
+		// We need to store this state and use it when creating pipelines
+		this._colorMask = { r: red, g: green, b: blue, a: alpha };
+	}
+
+	setDepthMask(flag) {
+		this._depthState.write = flag;
+	}
+
+	// =========================================================================
+	// Occlusion Queries
+	// =========================================================================
+
+	createQuery() {
+		if (this._queryIndices.size === 0) {
+			Console.warn("WebGPU: No more occlusion query indices available");
+			return null;
+		}
+		const index = this._queryIndices.values().next().value;
+		this._queryIndices.delete(index);
+		const query = { index }; // Opaque handle
+		this._activeQueries.set(query, index);
+		return query;
+	}
+
+	deleteQuery(query) {
+		if (!query) return;
+		const index = this._activeQueries.get(query);
+		if (index !== undefined) {
+			this._queryIndices.add(index);
+			this._activeQueries.delete(query);
+		}
+	}
+
+	beginQuery(query) {
+		if (!this._currentPass) {
+			// Must be inside a pass to begin occlusion query in WebGPU
+			// However, our architecture expects beginQuery -> draw -> endQuery.
+			// If we are not in a pass, we should warn or maybe start one?
+			// The renderer controls passes, so we should assume a pass is active.
+			return;
+		}
+		this._currentPass.beginOcclusionQuery(query.index);
+	}
+
+	endQuery(query) {
+		if (!this._currentPass) return;
+		this._currentPass.endOcclusionQuery();
+	}
+
+	getQueryResult(query) {
+		// Return cached result from previous frame(s)
+		const index = query.index;
+		const pixels = Number(this._queryResults[index]);
+		return {
+			available: true, // Always "available" from cache (might be old)
+			hasPassed: pixels > 0,
+			pixelCount: pixels,
+		};
 	}
 
 	// =========================================================================
@@ -1235,8 +1385,10 @@ class WebGPUBackend extends RenderBackend {
 		const biasKey = this._depthBias?.enabled
 			? `${this._depthBias.depthBias}_${this._depthBias.depthBiasSlopeScale}`
 			: "0";
+		// Include color mask in key
+		const colorMaskKey = `${this._colorMask.r ? 1 : 0}${this._colorMask.g ? 1 : 0}${this._colorMask.b ? 1 : 0}${this._colorMask.a ? 1 : 0}`;
 
-		return `${shaderLabel}|${primitive.topology}|${cullMode}|${blendKey}|${depthKey}|${formatKey}|${layoutKey}|${biasKey}`;
+		return `${shaderLabel}|${primitive.topology}|${cullMode}|${blendKey}|${depthKey}|${formatKey}|${layoutKey}|${biasKey}|${colorMaskKey}`;
 	}
 
 	drawIndexed(indexBuffer, indexCount, indexOffset = 0, mode = null) {
@@ -1280,6 +1432,30 @@ class WebGPUBackend extends RenderBackend {
 		let pipeline = this._pipelineCache.get(key);
 
 		if (!pipeline) {
+			// Build targets array with color mask
+			const targets = this._currentPassFormats.targets.map((format) => ({
+				format,
+				blend: this._blendState.enabled
+					? {
+							color: {
+								srcFactor: this._blendState.srcFactor,
+								dstFactor: this._blendState.dstFactor,
+								operation: "add",
+							},
+							alpha: {
+								srcFactor: this._blendState.srcFactor,
+								dstFactor: this._blendState.dstFactor,
+								operation: "add",
+							},
+						}
+					: undefined,
+				writeMask:
+					(this._colorMask.r ? GPUColorWrite.RED : 0) |
+					(this._colorMask.g ? GPUColorWrite.GREEN : 0) |
+					(this._colorMask.b ? GPUColorWrite.BLUE : 0) |
+					(this._colorMask.a ? GPUColorWrite.ALPHA : 0),
+			}));
+
 			const descriptor = {
 				layout: "auto",
 				vertex: {
@@ -1290,24 +1466,7 @@ class WebGPUBackend extends RenderBackend {
 				fragment: {
 					module: this._currentShader._gpuShaderModule,
 					entryPoint: "fs_main",
-					targets: this._currentPassFormats.targets.map((format) => ({
-						format,
-						blend: this._blendState.enabled
-							? {
-									color: {
-										srcFactor: this._blendState.srcFactor,
-										dstFactor: this._blendState.dstFactor,
-										operation: "add",
-									},
-									alpha: {
-										srcFactor: this._blendState.srcFactor,
-										dstFactor: this._blendState.dstFactor,
-										operation: "add",
-									},
-								}
-							: undefined,
-						writeMask: GPUColorWrite.ALL,
-					})),
+					targets,
 				},
 				primitive,
 			};
