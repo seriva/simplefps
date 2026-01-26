@@ -120,7 +120,7 @@ class WebGPUBackend extends RenderBackend {
 			directionalLight: new Float32Array(8),
 			spotLight: new Float32Array(12),
 			postProcessParams: new Float32Array(20),
-			ssaoParams: new Float32Array(68),
+			ssaoParams: new Float32Array(76),
 			shadowParams: new Float32Array(24),
 			skinnedShadowParams: new Float32Array(20),
 			blurParams: new Float32Array(8),
@@ -696,6 +696,29 @@ class WebGPUBackend extends RenderBackend {
 				this._depthRange?.min ?? 0.0,
 				this._depthRange?.max ?? 1.0,
 			);
+		} else {
+			// Auto-set viewport if none cached
+			let width = this.getWidth();
+			let height = this.getHeight();
+
+			// If rendering to dataframe, use its size
+			if (this._activeFramebuffer) {
+				// We need to ensure we have width/height stored on framebuffer
+				// WebGLBackend stores it on the object, let's assume we do too or get it from attachment
+				if (this._activeFramebuffer.width)
+					width = this._activeFramebuffer.width;
+				if (this._activeFramebuffer.height)
+					height = this._activeFramebuffer.height;
+			}
+
+			this._currentPass.setViewport(
+				0,
+				0,
+				width,
+				height,
+				this._depthRange?.min ?? 0.0,
+				this._depthRange?.max ?? 1.0,
+			);
 		}
 	}
 
@@ -962,10 +985,26 @@ class WebGPUBackend extends RenderBackend {
 	}
 
 	createFramebuffer(descriptor) {
+		// Try to determine size from attachments
+		let width = descriptor.width;
+		let height = descriptor.height;
+
+		if (!width || !height) {
+			const att =
+				(descriptor.colorAttachments && descriptor.colorAttachments[0]) ||
+				descriptor.depthAttachment;
+			if (att) {
+				width = att.width;
+				height = att.height;
+			}
+		}
+
 		// Store descriptor to know attachments and formats later
 		return {
 			colorAttachments: descriptor.colorAttachments || [],
 			depthAttachment: descriptor.depthAttachment || null,
+			width: width || this.getWidth(),
+			height: height || this.getHeight(),
 		};
 	}
 
@@ -1780,19 +1819,24 @@ class WebGPUBackend extends RenderBackend {
 			const radius = this._uniforms.get("radius");
 			const bias = this._uniforms.get("bias");
 			const noiseScale = this._uniforms.get("noiseScale");
+			const gBufferScale = this._uniforms.get("gBufferScale");
 			const kernel = this._uniforms.get("uKernel");
 
 			if (radius !== undefined) arr[0] = radius;
 			if (bias !== undefined) arr[1] = bias;
 			if (noiseScale) arr.set(noiseScale, 2);
+			if (gBufferScale !== undefined) arr[4] = gBufferScale;
+			// arr[5-7] = padding
 
 			if (kernel) {
 				for (let i = 0; i < 16; i++) {
 					if (i * 3 + 2 < kernel.length) {
-						arr[4 + i * 4] = kernel[i * 3];
-						arr[4 + i * 4 + 1] = kernel[i * 3 + 1];
-						arr[4 + i * 4 + 2] = kernel[i * 3 + 2];
-						arr[4 + i * 4 + 3] = 0.0;
+						// Kernel starts at offset 8 (32 bytes)
+						const offset = 8 + i * 4;
+						arr[offset] = kernel[i * 3];
+						arr[offset + 1] = kernel[i * 3 + 1];
+						arr[offset + 2] = kernel[i * 3 + 2];
+						arr[offset + 3] = 0.0;
 					}
 				}
 			}
@@ -1837,9 +1881,11 @@ class WebGPUBackend extends RenderBackend {
 			arr.fill(0);
 			const depthThreshold = this._uniforms.get("depthThreshold");
 			const normalThreshold = this._uniforms.get("normalThreshold");
+			const gBufferScale = this._uniforms.get("gBufferScale");
 
 			if (depthThreshold !== undefined) arr[0] = depthThreshold;
 			if (normalThreshold !== undefined) arr[1] = normalThreshold;
+			if (gBufferScale !== undefined) arr[2] = gBufferScale;
 			return arr;
 		} else if (name === "ambient") {
 			return null;

@@ -621,7 +621,8 @@ ${FrameDataStruct}
 struct BilateralParams {
     depthThreshold: f32,
     normalThreshold: f32,
-    _pad: vec2<f32>,
+    gBufferScale: f32,
+    _pad: f32,
 }
 
 struct BilateralOutput {
@@ -652,8 +653,12 @@ fn fs_main(input: BilateralOutput) -> @location(0) vec4<f32> {
     
     // Get center pixel data
     let centerAO = textureLoad(aoBuffer, fragCoord, 0).r;
-    let centerPos = textureLoad(positionBuffer, fragCoord, 0).xyz;
-    let centerNormal = textureLoad(normalBuffer, fragCoord, 0).xyz * 2.0 - 1.0;
+    
+    // Calculate G-buffer coordinates (full res)
+    let gBufferCoord = vec2<i32>(input.position.xy * params.gBufferScale);
+    
+    let centerPos = textureLoad(positionBuffer, gBufferCoord, 0).xyz;
+    let centerNormal = textureLoad(normalBuffer, gBufferCoord, 0).xyz * 2.0 - 1.0;
     let centerDepth = length(centerPos - frameData.cameraPosition.xyz);
     
     // If center is sky or invalid, just return the center value
@@ -671,16 +676,24 @@ fn fs_main(input: BilateralOutput) -> @location(0) vec4<f32> {
             
             let sampleCoord = fragCoord + vec2<i32>(x, y);
             
-            // Bounds check
+            // Bounds check (against half-res effective size)
+            // viewportSize is full-res (e.g. 1920).
+            // We are rendering to a half-res target (e.g. 960).
+            // So valid range is 0..960.
+            // gBufferScale is 2.0. So 1920 / 2.0 = 960.
             if (sampleCoord.x < 0 || sampleCoord.y < 0 || 
-                sampleCoord.x >= i32(frameData.viewportSize.x) || 
-                sampleCoord.y >= i32(frameData.viewportSize.y)) {
+                f32(sampleCoord.x) >= frameData.viewportSize.x / params.gBufferScale || 
+                f32(sampleCoord.y) >= frameData.viewportSize.y / params.gBufferScale) {
                 continue;
             }
             
             let sampleAO = textureLoad(aoBuffer, sampleCoord, 0).r;
-            let samplePos = textureLoad(positionBuffer, sampleCoord, 0).xyz;
-            let sampleNormal = textureLoad(normalBuffer, sampleCoord, 0).xyz * 2.0 - 1.0;
+            
+            // Sample G-Buffer at full res
+            let gSampleCoord = vec2<i32>(vec2<f32>(sampleCoord) * params.gBufferScale);
+            
+            let samplePos = textureLoad(positionBuffer, gSampleCoord, 0).xyz;
+            let sampleNormal = textureLoad(normalBuffer, gSampleCoord, 0).xyz * 2.0 - 1.0;
             let sampleDepth = length(samplePos - frameData.cameraPosition.xyz);
             
             // Skip invalid samples (sky)
@@ -841,7 +854,8 @@ fn fs_main(input: PostOutput) -> @location(0) vec4<f32> {
     let normalData = textureLoad(normalBuffer, fragCoord, 0);
     let emissive = textureLoad(emissiveBuffer, fragCoord, 0);
     let dirt = textureSample(dirtBuffer, bufferSampler, uv);
-    let ao = textureLoad(aoBuffer, fragCoord, 0);
+    // Sample AO with linear filtering (textureSample instead of textureLoad) to smoothly upscale from half-res
+    let ao = textureSample(aoBuffer, bufferSampler, uv);
     
     let hasLightmap = normalData.w;
     
@@ -1062,6 +1076,8 @@ struct SSAOParams {
     radius: f32,
     bias: f32,
     noiseScale: vec2<f32>,
+    gBufferScale: f32,
+    _pad: vec3<f32>,
     kernel: array<vec4<f32>, 16>,  // vec3 + padding
 }
 
@@ -1089,11 +1105,18 @@ fn vs_main(@builtin(vertex_index) vertexIndex: u32) -> SSAOOutput {
 
 @fragment
 fn fs_main(input: SSAOOutput) -> @location(0) vec4<f32> {
-    let uv = input.position.xy / frameData.viewportSize.xy;
+    // Calculate UVs based on effective viewport size (which is scaled down by gBufferScale = 2.0)
+    // input.position.xy is in pixels (half-res).
+    // viewportSize is full-res.
+    // UV = (fragCoord * scale) / viewportSize
+    let uv = (input.position.xy * params.gBufferScale) / frameData.viewportSize.xy;
     let fragCoord = vec2<i32>(input.position.xy);
     
-    let fragPos = textureLoad(positionBuffer, fragCoord, 0).rgb;
-    let normalData = textureLoad(normalBuffer, fragCoord, 0);
+    // Scale for G-buffer reads (full res)
+    let gCoord = vec2<i32>(input.position.xy * params.gBufferScale);
+    
+    let fragPos = textureLoad(positionBuffer, gCoord, 0).rgb;
+    let normalData = textureLoad(normalBuffer, gCoord, 0);
     let normal = normalData.xyz * 2.0 - 1.0;
     let hasLightmap = normalData.w;
     
@@ -1125,8 +1148,15 @@ fn fs_main(input: SSAOOutput) -> @location(0) vec4<f32> {
         // WebGPU: Flip Y when converting from NDC to pixel coords
         // NDC Y=0 maps to bottom of screen, but pixel Y=0 is at top in WebGPU
         let flippedY = 1.0 - sampleUV.y;
-        let rawCoord = vec2<i32>(i32(sampleUV.x * frameData.viewportSize.x), i32(flippedY * frameData.viewportSize.y));
-        let sampleCoord = clamp(rawCoord, vec2<i32>(0, 0), vec2<i32>(i32(frameData.viewportSize.x) - 1, i32(frameData.viewportSize.y) - 1));
+        
+        // Scale to full-res viewport size for sample lookup
+        // frameData.viewportSize is already full resolution (canvas size).
+        // So we don't need to scale it.
+        let fullWidth = frameData.viewportSize.x;
+        let fullHeight = frameData.viewportSize.y;
+        
+        let rawCoord = vec2<i32>(i32(sampleUV.x * fullWidth), i32(flippedY * fullHeight));
+        let sampleCoord = clamp(rawCoord, vec2<i32>(0, 0), vec2<i32>(i32(fullWidth) - 1, i32(fullHeight) - 1));
         
         // Check if sample crosses static/dynamic boundary - reject if so
         let sampleNormalData = textureLoad(normalBuffer, sampleCoord, 0);

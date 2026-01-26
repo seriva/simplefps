@@ -47,6 +47,8 @@ const _ao = {
 	framebuffer: null,
 	ssao: null,
 	noise: null,
+	blur: null,
+	blurFramebuffer: null,
 };
 
 let _detailNoise = null;
@@ -80,6 +82,10 @@ const _disposeResources = () => {
 	if (_ao.framebuffer) {
 		Backend.deleteFramebuffer(_ao.framebuffer);
 		if (_ao.ssao) _ao.ssao.dispose();
+	}
+	if (_ao.blurFramebuffer) {
+		Backend.deleteFramebuffer(_ao.blurFramebuffer);
+		if (_ao.blur) _ao.blur.dispose();
 	}
 };
 
@@ -161,11 +167,25 @@ const _resize = (width, height) => {
 	_b.framebuffer = blurRes.fb;
 
 	// **********************************
-	// SSAO buffer
+	// SSAO buffer (Half Resolution)
 	// **********************************
-	const ssaoRes = _createFB({ format: "rgba8", width, height }, {});
+	const ssaoWidth = Math.floor(width / 2) || 1;
+	const ssaoHeight = Math.floor(height / 2) || 1;
+
+	const ssaoRes = _createFB(
+		{ format: "rgba8", width: ssaoWidth, height: ssaoHeight },
+		{},
+	);
 	_ao.ssao = ssaoRes.texture;
 	_ao.framebuffer = ssaoRes.fb;
+
+	// Dedicated blur buffer for SSAO (also Half Resolution)
+	const aoBlurRes = _createFB(
+		{ format: "rgba8", width: ssaoWidth, height: ssaoHeight },
+		{},
+	);
+	_ao.blur = aoBlurRes.texture;
+	_ao.blurFramebuffer = aoBlurRes.fb;
 
 	// Initialize SSAO noise texture (only once, doesn't need resize)
 	if (!_ao.noise) {
@@ -394,12 +414,15 @@ const _ssaoPass = () => {
 	Shaders.ssao.setInt("positionBuffer", 1);
 	Shaders.ssao.setInt("noiseTexture", 2);
 	// Set uniforms
+	// Noise scale should be based on SSAO resolution to ensure 1:1 mapping (avoiding aliasing)
+	// _ao.framebuffer.width is the half-res width
 	Shaders.ssao.setVec2("noiseScale", [
-		Backend.getWidth() / 4.0,
-		Backend.getHeight() / 4.0,
+		_ao.framebuffer.width / 4.0,
+		_ao.framebuffer.height / 4.0,
 	]);
 	Shaders.ssao.setFloat("radius", Settings.ssaoRadius);
 	Shaders.ssao.setFloat("bias", Settings.ssaoBias);
+	Shaders.ssao.setFloat("gBufferScale", 2.0); // Read from full-res G-buffer while rendering at half-res
 	Shaders.ssao.setVec3Array("uKernel", _ssaoKernel);
 
 	Backend.setDepthState(false, false);
@@ -458,23 +481,39 @@ const _shadowBlurPass = () => {
 };
 
 const _ssaoBlurPass = () => {
-	// Blur SSAO with bilateral filter for edge-aware blurring
-	Backend.bindFramebuffer(_b.framebuffer);
+	// Blur SSAO with bilateral filter for edge-aware blurring (at half res)
+	Backend.bindFramebuffer(_ao.blurFramebuffer);
 
 	// Bind position and normal buffers for edge detection
 	_g.worldPosition.bind(1);
 	_g.normal.bind(2);
 
 	// Ping-pong blur for SSAO using bilateral filter
-	for (let i = 0; i < Settings.ssaoBlurIterations; i++) {
+	// Force even number of iterations to ensure result ends up back in _ao.ssao
+	const iterations =
+		Settings.ssaoBlurIterations % 2 === 0
+			? Settings.ssaoBlurIterations
+			: Settings.ssaoBlurIterations + 1;
+
+	for (let i = 0; i < iterations; i++) {
 		if (i % 2 === 0) {
-			Backend.setFramebufferAttachment(_b.framebuffer, 0, _b.blur.getHandle());
-			Backend.bindFramebuffer(_b.framebuffer);
+			// Render to blurFB, read from SSAO
+			Backend.setFramebufferAttachment(
+				_ao.blurFramebuffer,
+				0,
+				_ao.blur.getHandle(),
+			);
+			Backend.bindFramebuffer(_ao.blurFramebuffer);
 			_ao.ssao.bind(0);
 		} else {
-			Backend.setFramebufferAttachment(_b.framebuffer, 0, _ao.ssao.getHandle());
-			Backend.bindFramebuffer(_b.framebuffer);
-			_b.blur.bind(0);
+			// Render to SSAO FB, read from blur
+			Backend.setFramebufferAttachment(
+				_ao.blurFramebuffer,
+				0,
+				_ao.ssao.getHandle(),
+			);
+			Backend.bindFramebuffer(_ao.blurFramebuffer);
+			_ao.blur.bind(0);
 		}
 		Backend.clear({ color: [0, 0, 0, 0] });
 
@@ -482,6 +521,7 @@ const _ssaoBlurPass = () => {
 		Shaders.bilateralBlur.setInt("aoBuffer", 0);
 		Shaders.bilateralBlur.setInt("positionBuffer", 1);
 		Shaders.bilateralBlur.setInt("normalBuffer", 2);
+		Shaders.bilateralBlur.setFloat("gBufferScale", 2.0); // Read G-buffer at 2x coord scale
 		Shaders.bilateralBlur.setFloat("depthThreshold", 20.0); // Very permissive depth threshold
 		Shaders.bilateralBlur.setFloat("normalThreshold", 2.0); // Very gentle normal falloff
 		Shapes.screenQuad.renderSingle();

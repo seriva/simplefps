@@ -588,6 +588,8 @@ class WebGLBackend extends RenderBackend {
 			_glFramebuffer: framebuffer,
 			colorTextures: textures,
 			depthTexture,
+			width: descriptor.width || this._canvas.width,
+			height: descriptor.height || this._canvas.height,
 		};
 	}
 
@@ -646,8 +648,10 @@ class WebGLBackend extends RenderBackend {
 		const gl = this._gl;
 		if (framebuffer) {
 			gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer._glFramebuffer);
+			gl.viewport(0, 0, framebuffer.width, framebuffer.height);
 		} else {
 			gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+			gl.viewport(0, 0, this._canvas.width, this._canvas.height);
 		}
 	}
 
