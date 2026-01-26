@@ -550,15 +550,21 @@ export const ShaderSources = {
             uniform sampler2D normalBuffer;
             uniform float depthThreshold;
             uniform float normalThreshold;
+            uniform float gBufferScale;
 
             void main()
             {
                 ivec2 fragCoord = ivec2(gl_FragCoord.xy);
                 
                 // Get center pixel data
+                // Read AO from current buffer (half-res)
                 float centerAO = texelFetch(aoBuffer, fragCoord, 0).r;
-                vec3 centerPos = texelFetch(positionBuffer, fragCoord, 0).xyz;
-                vec3 centerNormal = texelFetch(normalBuffer, fragCoord, 0).xyz * 2.0 - 1.0;
+                
+                // Read G-buffer data from scaled coords (full-res)
+                ivec2 gBufferCoord = ivec2(fragCoord * int(gBufferScale));
+                
+                vec3 centerPos = texelFetch(positionBuffer, gBufferCoord, 0).xyz;
+                vec3 centerNormal = texelFetch(normalBuffer, gBufferCoord, 0).xyz * 2.0 - 1.0;
                 float centerDepth = length(centerPos - cameraPosition.xyz);
                 
                 // If center is sky or invalid, just return the center value
@@ -577,16 +583,20 @@ export const ShaderSources = {
                         
                         ivec2 sampleCoord = fragCoord + ivec2(x, y);
                         
-                        // Bounds check
+                        // Bounds check (against half-res effective size)
                         if (sampleCoord.x < 0 || sampleCoord.y < 0 || 
-                            sampleCoord.x >= int(viewportSize.x) || 
-                            sampleCoord.y >= int(viewportSize.y)) {
+                            sampleCoord.x >= int(viewportSize.x / gBufferScale) || 
+                            sampleCoord.y >= int(viewportSize.y / gBufferScale)) {
                             continue;
                         }
                         
                         float sampleAO = texelFetch(aoBuffer, sampleCoord, 0).r;
-                        vec3 samplePos = texelFetch(positionBuffer, sampleCoord, 0).xyz;
-                        vec3 sampleNormal = texelFetch(normalBuffer, sampleCoord, 0).xyz * 2.0 - 1.0;
+                        
+                        // Read G-buffer at full res
+                        ivec2 sampleGBufferCoord = ivec2(sampleCoord * int(gBufferScale));
+                        
+                        vec3 samplePos = texelFetch(positionBuffer, sampleGBufferCoord, 0).xyz;
+                        vec3 sampleNormal = texelFetch(normalBuffer, sampleGBufferCoord, 0).xyz * 2.0 - 1.0;
                         float sampleDepth = length(samplePos - cameraPosition.xyz);
                         
                         // Skip invalid samples (sky)
@@ -727,7 +737,8 @@ export const ShaderSources = {
                 vec4 normal = vec4(normalVec, normalData.w); // Keep w component as is
                 vec4 emissive = texelFetch(emissiveBuffer, fragCoord, 0);
                 vec4 dirt = texture(dirtBuffer, uv); // Dirt uses tiled texture, needs filtering
-                vec4 ao = texelFetch(aoBuffer, fragCoord, 0);
+                // Sample AO with linear filtering (texture instead of texelFetch) to smoothly upscale from half-res
+                vec4 ao = texture(aoBuffer, uv);
 
                 // Read lightmap flag from normal.w
                 // 1.0 = has lightmap (additive lighting), 0.0 = dynamic object (multiplicative lighting)
@@ -931,11 +942,15 @@ export const ShaderSources = {
             uniform float radius;
             uniform float bias;
             uniform vec3 uKernel[16];
+            uniform float gBufferScale;
 
             void main()
             {
-                vec2 uv = gl_FragCoord.xy / viewportSize.xy;
-                ivec2 fragCoord = ivec2(gl_FragCoord.xy);
+                // Calculate UVs based on effective viewport size (which is scaled down)
+                vec2 uv = (gl_FragCoord.xy * gBufferScale) / viewportSize.xy;
+                
+                // Scale fragCoord to read from full-res G-buffer
+                ivec2 fragCoord = ivec2(gl_FragCoord.xy * gBufferScale);
                 
                 // Read position and normal from G-buffer
                 vec3 fragPos = texelFetch(positionBuffer, fragCoord, 0).rgb;
@@ -977,7 +992,7 @@ export const ShaderSources = {
                     offset.xyz /= offset.w;
                     offset.xy = offset.xy * 0.5 + 0.5;
                     
-                    // Read position at sample location
+                    // Read position at sample location (scale from UV [0,1] to full res coords)
                     ivec2 sampleCoord = ivec2(offset.xy * viewportSize.xy);
                     
                     // Check if sample crosses static/dynamic boundary - reject if so
