@@ -991,8 +991,7 @@ class WebGPUBackend extends RenderBackend {
 
 		if (!width || !height) {
 			const att =
-				(descriptor.colorAttachments && descriptor.colorAttachments[0]) ||
-				descriptor.depthAttachment;
+				descriptor.colorAttachments?.[0] || descriptor.depthAttachment;
 			if (att) {
 				width = att.width;
 				height = att.height;

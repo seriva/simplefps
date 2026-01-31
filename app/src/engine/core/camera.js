@@ -167,13 +167,23 @@ const Camera = {
 	},
 
 	updateProjection() {
-		mat4.perspective(
-			_projection,
-			glMatrix.toRadian(_fov),
-			Backend.getAspectRatio(),
-			_nearPlane ?? Settings.zNear,
-			_farPlane ?? Settings.zFar,
-		);
+		if (Backend.name === "WebGPU") {
+			mat4.perspectiveZO(
+				_projection,
+				glMatrix.toRadian(_fov),
+				Backend.getAspectRatio(),
+				_nearPlane ?? Settings.zNear,
+				_farPlane ?? Settings.zFar,
+			);
+		} else {
+			mat4.perspective(
+				_projection,
+				glMatrix.toRadian(_fov),
+				Backend.getAspectRatio(),
+				_nearPlane ?? Settings.zNear,
+				_farPlane ?? Settings.zFar,
+			);
+		}
 	},
 };
 
