@@ -80,19 +80,38 @@ const _removeEntity = (entity) => {
 		_entities.splice(index, 1);
 		_entityCache.clear();
 
-		// Dispose entity resources
-		entity.dispose?.();
-
-		// Remove physics body if it exists
+		// Remove physics body if it exists (BEFORE disposal clears the reference)
 		if (entity.physicsBody) {
 			Physics.removeBody(entity.physicsBody);
 		}
+
+		// Dispose entity resources
+		entity.dispose?.();
 	}
 };
 
 const _init = () => {
 	_entities.length = 0;
 	Physics.init();
+};
+
+const _dispose = () => {
+	// Dispose all entities and clean up resources
+	for (const entity of _entities) {
+		if (entity.physicsBody) {
+			Physics.removeBody(entity.physicsBody);
+		}
+		entity.dispose?.();
+	}
+	_entities.length = 0;
+	_entityCache.clear();
+	_ambient = _DEFAULT_AMBIENT;
+	_pauseUpdate = false;
+
+	// Reset visibility cache
+	for (let t = 0; t < _visibilityCacheTypes.length; t++) {
+		_visibilityCache[_visibilityCacheTypes[t]].length = 0;
+	}
 };
 
 const _getAmbient = (position = null, outColor = null) => {
@@ -130,19 +149,28 @@ const _update = (frameTime) => {
 	if (_pauseUpdate) return;
 
 	// Track entities to remove
-	const entitiesToRemove = [];
+	let entitiesToRemove = null;
 
-	for (const entity of _entities) {
+	for (let i = 0; i < _entities.length; i++) {
+		const entity = _entities[i];
 		const result = entity.update(frameTime);
 		// If update returns false, mark for removal
 		if (result === false) {
-			entitiesToRemove.push(entity);
+			if (!entitiesToRemove) entitiesToRemove = new Set();
+			entitiesToRemove.add(entity);
 		}
 	}
 
-	// Remove entities that returned false
-	for (const entity of entitiesToRemove) {
-		_removeEntity(entity);
+	// Batch remove entities - O(n) instead of O(n²)
+	if (entitiesToRemove) {
+		_entities = _entities.filter((e) => !entitiesToRemove.has(e));
+		_entityCache.clear();
+		for (const entity of entitiesToRemove) {
+			if (entity.physicsBody) {
+				Physics.removeBody(entity.physicsBody);
+			}
+			entity.dispose?.();
+		}
 	}
 
 	_updateVisibility();
@@ -186,6 +214,7 @@ const _updateVisibility = () => {
 // Public Scene API - Entity management only, no rendering
 const Scene = {
 	init: _init,
+	dispose: _dispose,
 	pause: _pause,
 	update: _update,
 	getAmbient: _getAmbient,
