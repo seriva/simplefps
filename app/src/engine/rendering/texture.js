@@ -2,10 +2,6 @@ import Settings from "../core/settings.js";
 import Console from "../systems/console.js";
 import { Backend } from "./backend.js";
 
-// We import gl from backend.js to access constants like REPEAT, CLAMP_TO_EDGE, etc.
-// These constants are passed to the backend, which (in WebGLBackend case) understands them directly.
-// For WebGPU, the backend would need to map these constants or we'd refactor to use string constants.
-
 class Texture {
 	constructor(data) {
 		this._handle = null;
@@ -15,11 +11,6 @@ class Texture {
 	// Public accessor for the backend handle (opaque to the user)
 	getHandle() {
 		return this._handle;
-	}
-
-	// Backward compatibility: expose the raw GL texture (if supported by backend)
-	get texture() {
-		return this._handle ? this._handle._glTexture : null;
 	}
 
 	init(data) {
@@ -46,13 +37,6 @@ class Texture {
 		}
 	}
 
-	// Static helper to set params - handled by backend methods now, but kept for compatibility if called externally?
-	// Existing code calls Texture.setTextureParameters(true/false).
-	// We'll leave it as a no-op or deprecated since backend handles defaults in createTexture.
-	static setTextureParameters(_isImage) {
-		// Handled by backend creation logic + generateMipmaps
-	}
-
 	static createSolidColor(r, g, b, a = 255) {
 		const texture = new Texture({});
 		texture._handle = Backend.createTexture({
@@ -62,6 +46,16 @@ class Texture {
 			pdata: new Uint8Array([r, g, b, a]),
 		});
 		return texture;
+	}
+
+	static unBind(unit) {
+		Backend.unbindTexture(unit);
+	}
+
+	static unBindRange(start, count) {
+		for (let i = 0; i < count; i++) {
+			Backend.unbindTexture(start + i);
+		}
 	}
 
 	loadImageTexture(imageData) {
@@ -94,24 +88,9 @@ class Texture {
 		image.src = URL.createObjectURL(imageData);
 	}
 
-	createRenderTexture(_data) {
-		// Deprecated: logic moved to init.
-		// Kept only if external callers use it, but usage seems internal to old init().
-	}
-
 	bind(unit) {
 		if (this._handle) {
 			Backend.bindTexture(this._handle, unit);
-		}
-	}
-
-	static unBind(unit) {
-		Backend.unbindTexture(unit);
-	}
-
-	static unBindRange(startUnit, count) {
-		for (let i = 0; i < count; i++) {
-			Backend.unbindTexture(startUnit + i);
 		}
 	}
 

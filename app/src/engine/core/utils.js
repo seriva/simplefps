@@ -26,24 +26,8 @@ const Utils = {
 			: await response.text();
 	},
 
-	dispatchEvent(event) {
-		window?.dispatchEvent(new Event(event));
-	},
-
 	dispatchCustomEvent(event, detail) {
 		window?.dispatchEvent(new CustomEvent(event, { detail }));
-	},
-
-	download(data, filename, type) {
-		const url = URL.createObjectURL(new Blob([data], { type }));
-		const a = document.createElement("a");
-		a.href = url;
-		a.download = filename;
-		a.style.display = "none";
-		document.body.appendChild(a);
-		a.click();
-		document.body.removeChild(a);
-		URL.revokeObjectURL(url);
 	},
 
 	wait(ms = 100) {

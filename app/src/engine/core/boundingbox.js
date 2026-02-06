@@ -38,21 +38,16 @@ class BoundingBox {
 			Number.NEGATIVE_INFINITY,
 		);
 
-		// Process points in chunks for better performance
-		const chunkSize = 300;
-		for (let i = 0; i < points.length; i += chunkSize) {
-			const end = Math.min(i + chunkSize, points.length);
-			for (let j = i; j < end; j += 3) {
-				const x = points[j];
-				const y = points[j + 1];
-				const z = points[j + 2];
-				min[0] = Math.min(min[0], x);
-				min[1] = Math.min(min[1], y);
-				min[2] = Math.min(min[2], z);
-				max[0] = Math.max(max[0], x);
-				max[1] = Math.max(max[1], y);
-				max[2] = Math.max(max[2], z);
-			}
+		for (let i = 0; i < points.length; i += 3) {
+			const x = points[i];
+			const y = points[i + 1];
+			const z = points[i + 2];
+			min[0] = Math.min(min[0], x);
+			min[1] = Math.min(min[1], y);
+			min[2] = Math.min(min[2], z);
+			max[0] = Math.max(max[0], x);
+			max[1] = Math.max(max[1], y);
+			max[2] = Math.max(max[2], z);
 		}
 
 		return new BoundingBox(min, max);
