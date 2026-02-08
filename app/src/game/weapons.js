@@ -119,69 +119,101 @@ const _projectileRight = vec3.create();
 const _worldUp = [0, 1, 0];
 const _translationVec = [0, 0, 0]; // Simple array for vec3 operations that don't need glMatrix
 
-// Raycast helpers for projectile anti-tunneling
+// Raycast helpers for trajectory calculation
 const _rayFrom = new CANNON.Vec3();
 const _rayTo = new CANNON.Vec3();
 const _rayResult = new CANNON.RaycastResult();
 
-// Track active projectiles for pre-step raycast checking
+// Projectile trajectory constants
+const _TRAJECTORY = {
+	MAX_BOUNCES: 5,
+	MAX_DISTANCE: 2000, // Max raycast distance per segment
+	SPEED: 900, // Units per second
+	GRAVITY: 300, // Affects arc curvature
+	LIFETIME: 15000, // Max lifetime in ms
+};
+
+// Track active projectiles for update
 const _activeProjectiles = new Set();
 
-// Pre-step raycast check - runs BEFORE physics moves bodies
-const _preStepRaycast = () => {
-	for (const body of _activeProjectiles) {
-		const p = body.position;
-		const v = body.velocity;
-		const speed = Math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
+// Raycast to find where trajectory hits
+const _raycastTrajectory = (from, direction, maxDistance) => {
+	_rayFrom.set(from[0], from[1], from[2]);
+	_rayTo.set(
+		from[0] + direction[0] * maxDistance,
+		from[1] + direction[1] * maxDistance,
+		from[2] + direction[2] * maxDistance,
+	);
 
-		if (speed < 10) continue; // Skip slow-moving projectiles
+	_rayResult.reset();
+	Physics.getWorld().raycastClosest(
+		_rayFrom,
+		_rayTo,
+		{ skipBackfaces: false, collisionFilterMask: 1 }, // WORLD only
+		_rayResult,
+	);
 
-		const radius = _PROJECTILE.radius;
-		// At 900 velocity and 120hz physics, grenade moves 7.5 units/step
-		// Check ahead by 2x that distance to catch tunneling
-		const lookAhead = Math.max(radius * 3, speed / 60);
+	if (_rayResult.hasHit) {
+		const hp = _rayResult.hitPointWorld;
+		const hn = _rayResult.hitNormalWorld;
 
-		// Normalize velocity direction
-		const dirX = v.x / speed;
-		const dirY = v.y / speed;
-		const dirZ = v.z / speed;
+		// Calculate distance from start to hit
+		const dx = hp.x - from[0];
+		const dy = hp.y - from[1];
+		const dz = hp.z - from[2];
+		const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
 
-		// Ray from current position in velocity direction
-		_rayFrom.set(p.x, p.y, p.z);
-		_rayTo.set(
-			p.x + dirX * lookAhead,
-			p.y + dirY * lookAhead,
-			p.z + dirZ * lookAhead,
-		);
-
-		_rayResult.reset();
-		// Only raycast against WORLD (group 1), skip player (group 2) and projectiles (group 4)
-		Physics.getWorld().raycastClosest(
-			_rayFrom,
-			_rayTo,
-			{ skipBackfaces: false, collisionFilterMask: 1 },
-			_rayResult,
-		);
-
-		if (_rayResult.hasHit && _rayResult.body !== body) {
-			// Will hit something before next step - stop and bounce
-			const hitNormal = _rayResult.hitNormalWorld;
-			const hitPoint = _rayResult.hitPointWorld;
-
-			// Position at hit point, offset by radius
-			p.x = hitPoint.x + hitNormal.x * radius;
-			p.y = hitPoint.y + hitNormal.y * radius;
-			p.z = hitPoint.z + hitNormal.z * radius;
-
-			// Reflect velocity: v' = v - 2(v·n)n
-			const dot = v.x * hitNormal.x + v.y * hitNormal.y + v.z * hitNormal.z;
-			const restitution = 0.6;
-
-			v.x = (v.x - 2 * dot * hitNormal.x) * restitution;
-			v.y = (v.y - 2 * dot * hitNormal.y) * restitution;
-			v.z = (v.z - 2 * dot * hitNormal.z) * restitution;
-		}
+		// Offset hit point slightly away from surface to prevent getting stuck
+		const offset = 1.0;
+		return {
+			hit: true,
+			point: [hp.x + hn.x * offset, hp.y + hn.y * offset, hp.z + hn.z * offset],
+			normal: [hn.x, hn.y, hn.z],
+			distance: distance,
+		};
 	}
+
+	return {
+		hit: false,
+		point: [
+			from[0] + direction[0] * maxDistance,
+			from[1] + direction[1] * maxDistance,
+			from[2] + direction[2] * maxDistance,
+		],
+		normal: [0, 1, 0],
+		distance: maxDistance,
+	};
+};
+
+// Calculate bounce direction: reflect incoming across normal
+const _calculateBounceDirection = (incoming, normal) => {
+	const dot =
+		incoming[0] * normal[0] + incoming[1] * normal[1] + incoming[2] * normal[2];
+	return [
+		incoming[0] - 2 * dot * normal[0],
+		incoming[1] - 2 * dot * normal[1],
+		incoming[2] - 2 * dot * normal[2],
+	];
+};
+
+// Calculate next trajectory segment from current position and direction
+const _calculateNextSegment = (startPos, direction, speed) => {
+	const result = _raycastTrajectory(
+		startPos,
+		direction,
+		_TRAJECTORY.MAX_DISTANCE,
+	);
+	const duration = (result.distance / speed) * 1000; // Convert to ms
+
+	return {
+		start: [...startPos],
+		end: result.point,
+		normal: result.normal,
+		direction: [...direction],
+		duration: duration,
+		startTime: performance.now(),
+		hit: result.hit,
+	};
 };
 
 // Reuse animation objects to avoid GC
@@ -195,14 +227,7 @@ const _aniValues = {
 	switch: 0,
 };
 
-const _grenadeShape = new CANNON.Sphere(_PROJECTILE.radius);
-
-// Create bouncy material for grenades
-const _grenadeMaterial = new CANNON.Material("grenade");
-_grenadeMaterial.restitution = 1;
-
-// Create world material for BSP geometry
-const _worldMaterial = new CANNON.Material("world");
+// Projectiles use raycast trajectories, no physics shapes/materials needed
 
 const _setIsMoving = (value) => {
 	_state.isMoving = value;
@@ -245,39 +270,138 @@ const _onJump = () => {
 	_state.recoil.vel += _ANIMATION.JUMP_IMPULSE;
 };
 
-const _updateGrenade = (entity, _frameTime) => {
-	const body = entity.physicsBody;
-	const { quaternion: q, position: p } = body;
+// Update projectile - simple velocity-based physics
+const _updateProjectile = (entity, frameTime) => {
+	const traj = entity.trajectory;
 	const scale = entity.data.meshScale || 1;
+	const now = performance.now();
 
-	// Check lifetime and signal removal if expired
-	const LIFETIME = 15000; // 15 seconds
-	if (performance.now() - entity.data.createdAt > LIFETIME) {
-		// Remove linked light
+	// Check lifetime
+	if (now - entity.data.createdAt > _TRAJECTORY.LIFETIME) {
 		if (entity.linkedLight) {
 			Scene.removeEntity(entity.linkedLight);
 		}
-		// Unregister from pre-step raycast
-		_activeProjectiles.delete(body);
-		return false; // Signal this entity should be removed
+		_activeProjectiles.delete(entity);
+		console.log("Grenade removed: lifetime expired");
+		return false;
 	}
 
-	// Build transform: position + rotation + scale
-	mat4.fromRotationTranslation(
-		entity.ani_matrix,
-		[q.x, q.y, q.z, q.w],
-		[p.x, p.y, p.z],
-	);
-	mat4.scale(entity.ani_matrix, entity.ani_matrix, [scale, scale, scale]);
+	// Max bounces check disabled for now
+	// if (traj.bounceCount >= _TRAJECTORY.MAX_BOUNCES) {
+	// 	if (entity.linkedLight) {
+	// 		Scene.removeEntity(entity.linkedLight);
+	// 	}
+	// 	_activeProjectiles.delete(entity);
+	// 	console.log("Grenade removed: max bounces reached");
+	// 	return false;
+	// }
 
-	// Reset base_matrix to identity
+	// Physics step
+	const dt = frameTime / 1000; // Convert to seconds
+
+	// Apply gravity to velocity
+	traj.velocity[1] -= _TRAJECTORY.GRAVITY * dt;
+
+	// Calculate next position
+	const nextPos = [
+		traj.position[0] + traj.velocity[0] * dt,
+		traj.position[1] + traj.velocity[1] * dt,
+		traj.position[2] + traj.velocity[2] * dt,
+	];
+
+	// Raycast from current to next position + lookahead for slow projectiles
+	const dx = nextPos[0] - traj.position[0];
+	const dy = nextPos[1] - traj.position[1];
+	const dz = nextPos[2] - traj.position[2];
+	const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+
+	// Minimum lookahead to prevent tunneling when moving slowly
+	const minLookahead = 5;
+	const lookahead = Math.max(dist, minLookahead);
+	const dirX = dist > 0.01 ? dx / dist : 0;
+	const dirY = dist > 0.01 ? dy / dist : -1;
+	const dirZ = dist > 0.01 ? dz / dist : 0;
+
+	_rayFrom.set(traj.position[0], traj.position[1], traj.position[2]);
+	_rayTo.set(
+		traj.position[0] + dirX * lookahead,
+		traj.position[1] + dirY * lookahead,
+		traj.position[2] + dirZ * lookahead,
+	);
+	_rayResult.reset();
+
+	Physics.getWorld().raycastClosest(
+		_rayFrom,
+		_rayTo,
+		{ skipBackfaces: false, collisionFilterMask: 1 },
+		_rayResult,
+	);
+
+	if (_rayResult.hasHit) {
+		// Bounce!
+		const hp = _rayResult.hitPointWorld;
+		const hn = _rayResult.hitNormalWorld;
+
+		traj.bounceCount++;
+
+		// Normalize velocity for reflection
+		const speed = Math.sqrt(
+			traj.velocity[0] ** 2 + traj.velocity[1] ** 2 + traj.velocity[2] ** 2,
+		);
+
+		// If too slow, just stop (prevents floor tunneling)
+		if (speed < 50) {
+			if (entity.linkedLight) {
+				Scene.removeEntity(entity.linkedLight);
+			}
+			_activeProjectiles.delete(entity);
+			console.log("Grenade removed: too slow (speed:", speed.toFixed(1), ")");
+			return false;
+		}
+
+		const inDir = [
+			traj.velocity[0] / speed,
+			traj.velocity[1] / speed,
+			traj.velocity[2] / speed,
+		];
+
+		// Reflect: v' = v - 2(v·n)n
+		const dot = inDir[0] * hn.x + inDir[1] * hn.y + inDir[2] * hn.z;
+		const reflectDir = [
+			inDir[0] - 2 * dot * hn.x,
+			inDir[1] - 2 * dot * hn.y,
+			inDir[2] - 2 * dot * hn.z,
+		];
+
+		// Apply restitution (energy loss)
+		const newSpeed = speed * 0.6;
+		traj.velocity[0] = reflectDir[0] * newSpeed;
+		traj.velocity[1] = reflectDir[1] * newSpeed;
+		traj.velocity[2] = reflectDir[2] * newSpeed;
+
+		// Move to hit point + larger offset to stay above surface
+		const offset = 3.0;
+		traj.position[0] = hp.x + hn.x * offset;
+		traj.position[1] = hp.y + hn.y * offset;
+		traj.position[2] = hp.z + hn.z * offset;
+	} else {
+		// No hit, update position
+		traj.position[0] = nextPos[0];
+		traj.position[1] = nextPos[1];
+		traj.position[2] = nextPos[2];
+	}
+
+	// Build transform (no rotation)
+	mat4.fromTranslation(entity.ani_matrix, traj.position);
+	mat4.scale(entity.ani_matrix, entity.ani_matrix, [scale, scale, scale]);
 	mat4.identity(entity.base_matrix);
 
+	// Update light
 	if (entity.linkedLight) {
-		mat4.fromTranslation(entity.linkedLight.ani_matrix, [p.x, p.y, p.z]);
+		mat4.fromTranslation(entity.linkedLight.ani_matrix, traj.position);
 	}
 
-	return true; // Continue existing
+	return true;
 };
 
 const _createWeaponAnimation = (entity, frameTime) => {
@@ -484,44 +608,42 @@ const _calculateProjectileSpawnPosition = () => {
 };
 
 const _createProjectile = (spawnPos, config) => {
-	const entity = new MeshEntity([0, 0, 0], config.mesh, _updateGrenade);
-	entity.data.meshScale = config.meshScale || 1; // Store scale for update callback
+	const entity = new MeshEntity([0, 0, 0], config.mesh, _updateProjectile);
+	entity.data.meshScale = config.meshScale || 1;
 
-	entity.physicsBody = new CANNON.Body({
-		mass: config.mass,
-		material: _grenadeMaterial, // Bouncy material
-		allowSleep: true, // Allow grenades to sleep when stationary
-		sleepSpeedLimit: 0.5, // Sleep threshold
-		sleepTimeLimit: 1, // Seconds before sleeping
-		collisionFilterGroup: 4, // PROJECTILE group
-		collisionFilterMask: 1, // Only collide with WORLD (not other projectiles)
-		isTrigger: false, // Normal collision
-		linearDamping: 0.0, // Very low air resistance for fast projectile flight
-	});
-	// Custom gravity scale for longer flight distance
-	entity.physicsBody.gravityScale = 0.4; // 40% of normal gravity
-	entity.physicsBody.position.set(...spawnPos);
-	entity.physicsBody.addShape(_grenadeShape);
+	// Get firing direction
+	const direction = [
+		Camera.direction[0],
+		Camera.direction[1],
+		Camera.direction[2],
+	];
 
-	// Add to physics world with gravity
-	Physics.addBody(entity.physicsBody);
-
-	// Register for pre-step raycast anti-tunneling
-	_activeProjectiles.add(entity.physicsBody);
-
-	// Set velocity AFTER adding to physics world
-	const dx = Camera.direction[0];
-	const dy = Camera.direction[1];
-	const dz = Camera.direction[2];
-
-	// Apply impulse for launch
-	const impulse = new CANNON.Vec3(
-		dx * config.velocity * config.mass,
-		dy * config.velocity * config.mass,
-		dz * config.velocity * config.mass,
+	// Normalize direction
+	const len = Math.sqrt(
+		direction[0] ** 2 + direction[1] ** 2 + direction[2] ** 2,
 	);
-	entity.physicsBody.applyImpulse(impulse, new CANNON.Vec3(0, 0, 0));
+	direction[0] /= len;
+	direction[1] /= len;
+	direction[2] /= len;
 
+	// Initial speed
+	const speed = config.velocity || _TRAJECTORY.SPEED;
+
+	// Store trajectory data on entity - simple position/velocity
+	entity.trajectory = {
+		position: [...spawnPos],
+		velocity: [
+			direction[0] * speed,
+			direction[1] * speed,
+			direction[2] * speed,
+		],
+		bounceCount: 0,
+	};
+
+	// Register for tracking
+	_activeProjectiles.add(entity);
+
+	// Create light
 	const light = new PointLightEntity(
 		[0, 0, 0],
 		config.light.radius,
@@ -530,24 +652,14 @@ const _createProjectile = (spawnPos, config) => {
 	);
 	light.visible = true;
 
-	// Link light to entity for cleanup
 	entity.linkedLight = light;
-
-	// Store creation time for lifetime tracking
 	entity.data.createdAt = performance.now();
 
 	return { entity, light };
 };
 
 const _load = () => {
-	// Register pre-step raycast callback for anti-tunneling
-	Physics.getWorld().addEventListener("preStep", _preStepRaycast);
-
-	// Register contact material between grenades and world
-	Physics.addContactMaterial(_grenadeMaterial, _worldMaterial, {
-		restitution: 0.95,
-		friction: 0.3,
-	});
+	// Projectiles now use raycast-animated trajectories, no physics registration needed
 
 	_state.rocketLauncher = new FpsMeshEntity(
 		[0, 0, 0],

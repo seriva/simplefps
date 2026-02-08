@@ -43,8 +43,8 @@ class FPSController {
 			jumpVelocity: config.jumpVelocity || 350,
 			groundAcceleration: config.groundAcceleration || 550000,
 			airAcceleration: config.airAcceleration || 800,
-			friction: config.friction || 450,
-			maxSpeed: config.maxSpeed || 300,
+			friction: config.friction || 475,
+			maxSpeed: config.maxSpeed || 325,
 			onLand: config.onLand || (() => {}),
 			onJump: config.onJump || (() => {}),
 
