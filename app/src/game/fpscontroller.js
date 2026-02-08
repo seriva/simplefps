@@ -2,6 +2,8 @@ import * as CANNON from "../dependencies/cannon-es.js";
 import { vec3 } from "../dependencies/gl-matrix.js";
 import { Camera, Console, Physics } from "../engine/core/engine.js";
 
+const { COLLISION_GROUPS } = Physics;
+
 const _worldUp = vec3.fromValues(0, 1, 0);
 const _rightVector = vec3.create();
 
@@ -11,7 +13,7 @@ const _rayTo = new CANNON.Vec3();
 const _rayResult = new CANNON.RaycastResult();
 const _rayOptions = {
 	skipBackfaces: true,
-	collisionFilterMask: 1 | 4, // WORLD | PROJECTILE (Exclude PLAYER)
+	collisionFilterMask: 1, // WORLD only (set per-raycast if needed)
 };
 const _wishDir = vec3.create();
 
@@ -27,19 +29,11 @@ const _groundCheckOffsets = [
 // Constants
 const JUMP_THRESHOLD = 50; // Increased threshold for explicit jump check
 const LAND_TIME_THRESHOLD = 0.15;
-const MAX_VELOCITY_CHANGE = 50;
+const MAX_VELOCITY_CHANGE = 100;
 const COYOTE_TIME = 0.2;
 const GRAVITY = 9.82 * 80; // Match Physics system gravity scale
 const STEP_HEIGHT = 50; // Use a generous step height since we don't have a capsule
 const GROUND_DECEL = 25; // Smooth deceleration rate (higher = faster stop)
-const ACCEL_EASE_POWER = 1.0; // Acceleration easing curve (1 = linear, disabled)
-
-// Collision groups
-const COLLISION_GROUPS = {
-	WORLD: 1,
-	PLAYER: 2,
-	PROJECTILE: 4,
-};
 
 let _noclip = false;
 const _NOCLIP_SPEED = 500;
@@ -51,13 +45,10 @@ class FPSController {
 			radius: config.radius || 35,
 			height: config.height || 60,
 			eyeHeight: config.eyeHeight || 56,
-			mass: config.mass || 80,
-			linearDamping: config.linearDamping || 0,
-			jumpVelocity: config.jumpVelocity || 250,
-			groundAcceleration: config.groundAcceleration || 2000,
+			jumpVelocity: config.jumpVelocity || 320,
+			groundAcceleration: config.groundAcceleration || 4000,
 			airAcceleration: config.airAcceleration || 100,
-			friction: config.friction || 475,
-			maxSpeed: config.maxSpeed || 250,
+			maxSpeed: config.maxSpeed || 400,
 			onLand: config.onLand || (() => {}),
 			onJump: config.onJump || (() => {}),
 
@@ -218,11 +209,7 @@ class FPSController {
 
 		if (addSpeed <= 0) return;
 
-		// Apply ease-in curve for smoother acceleration start
-		const speedRatio = currentSpeed / Math.max(wishSpeed, 1);
-		const easeFactor = Math.pow(1 - speedRatio, ACCEL_EASE_POWER);
-
-		let accelSpeed = acceleration * dt * easeFactor;
+		let accelSpeed = acceleration * dt;
 		if (accelSpeed > addSpeed) {
 			accelSpeed = addSpeed;
 		}
