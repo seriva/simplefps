@@ -255,19 +255,21 @@ class FPSController {
 			const dirX = dx / horizontalDist;
 			const dirZ = dz / horizontalDist;
 			const padding = 2.0;
+			const rayLength = horizontalDist + this.config.radius + padding;
 
 			// Check at multiple heights for better wall detection
 			let hitWall = false;
 			let wallNormal = null;
+			let closestHitDist = Infinity;
 
 			for (const heightOffset of _horizontalCheckHeights) {
 				const checkY = startPos.y + heightOffset * this.config.height * 0.5;
 
 				_rayFrom.set(startPos.x, checkY, startPos.z);
 				_rayTo.set(
-					startPos.x + dx + dirX * (this.config.radius + padding),
+					startPos.x + dirX * rayLength,
 					checkY,
-					startPos.z + dz + dirZ * (this.config.radius + padding),
+					startPos.z + dirZ * rayLength,
 				);
 
 				_rayResult.reset();
@@ -280,26 +282,39 @@ class FPSController {
 				);
 
 				if (_rayResult.hasHit) {
-					hitWall = true;
-					wallNormal = _rayResult.hitNormalWorld;
-					break; // Use first hit
+					// Calculate distance to hit
+					const hp = _rayResult.hitPointWorld;
+					const hitDist = Math.sqrt(
+						(hp.x - startPos.x) ** 2 + (hp.z - startPos.z) ** 2,
+					);
+					if (hitDist < closestHitDist) {
+						closestHitDist = hitDist;
+						hitWall = true;
+						wallNormal = _rayResult.hitNormalWorld;
+					}
 				}
 			}
 
 			if (hitWall && wallNormal) {
-				const dot =
-					this.velocity[0] * wallNormal.x +
-					this.velocity[1] * wallNormal.y +
-					this.velocity[2] * wallNormal.z;
+				// Calculate how far we can safely move (stop before wall)
+				const safeMoveDist = Math.max(
+					0,
+					closestHitDist - this.config.radius - 1,
+				);
 
-				if (dot < 0) {
-					this.velocity[0] -= dot * wallNormal.x;
-					this.velocity[1] -= dot * wallNormal.y;
-					this.velocity[2] -= dot * wallNormal.z;
+				if (safeMoveDist < horizontalDist) {
+					// We would hit the wall, limit movement
+					finalX = startPos.x + dirX * safeMoveDist;
+					finalZ = startPos.z + dirZ * safeMoveDist;
 
-					// Re-calculate final position based on slid velocity
-					finalX = startPos.x + this.velocity[0] * dt;
-					finalZ = startPos.z + this.velocity[2] * dt;
+					// Also apply wall slide for remaining velocity
+					const dot =
+						this.velocity[0] * wallNormal.x + this.velocity[2] * wallNormal.z;
+
+					if (dot < 0) {
+						this.velocity[0] -= dot * wallNormal.x;
+						this.velocity[2] -= dot * wallNormal.z;
+					}
 				}
 			}
 		}
