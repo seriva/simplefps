@@ -16,6 +16,7 @@ const _rayOptions = {
 	collisionFilterMask: 1, // WORLD only (set per-raycast if needed)
 };
 const _wishDir = vec3.create();
+const _noclipDir = vec3.create(); // Pre-allocated for noclip movement
 
 // Pre-allocated offsets for multi-ray ground check (8-point pattern for better edge coverage)
 const _groundCheckOffsets = [
@@ -145,13 +146,6 @@ class FPSController {
 		const verticalDamping = 0.01;
 		const dampingFactorY = (1 - verticalDamping) ** dt;
 		this.velocity[1] *= dampingFactorY;
-
-		// Update Cannon Body velocity for other systems to see (optional, mostly for debug/projectiles)
-		this.body.velocity.set(
-			this.velocity[0],
-			this.velocity[1],
-			this.velocity[2],
-		);
 	}
 
 	move(strafe, move, cameraForward, cameraRight, frameTime) {
@@ -496,21 +490,21 @@ class FPSController {
 	}
 
 	_noclipMove(inputX, inputZ, _cameraForward, cameraRight, frameTime) {
-		const moveDir = vec3.create();
-		vec3.scaleAndAdd(moveDir, moveDir, Camera.direction, inputZ);
-		vec3.scaleAndAdd(moveDir, moveDir, cameraRight, inputX);
+		vec3.zero(_noclipDir);
+		vec3.scaleAndAdd(_noclipDir, _noclipDir, Camera.direction, inputZ);
+		vec3.scaleAndAdd(_noclipDir, _noclipDir, cameraRight, inputX);
 
-		const len = vec3.length(moveDir);
+		const len = vec3.length(_noclipDir);
 		if (len > 0.001) {
-			vec3.scale(moveDir, moveDir, 1 / len);
+			vec3.scale(_noclipDir, _noclipDir, 1 / len);
 		}
 
 		const speed = _NOCLIP_SPEED * frameTime;
-		Camera.position[0] += moveDir[0] * speed;
-		Camera.position[1] += moveDir[1] * speed;
-		Camera.position[2] += moveDir[2] * speed;
+		Camera.position[0] += _noclipDir[0] * speed;
+		Camera.position[1] += _noclipDir[1] * speed;
+		Camera.position[2] += _noclipDir[2] * speed;
 
-		// update body for noclip so physics doesn't desync too hard if we toggle back
+		// Update body position for noclip so physics doesn't desync if we toggle back
 		this.body.position.set(
 			Camera.position[0],
 			Camera.position[1] - (this.config.eyeHeight - this.config.height / 2),
