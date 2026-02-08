@@ -31,6 +31,8 @@ const MAX_VELOCITY_CHANGE = 50;
 const COYOTE_TIME = 0.2;
 const GRAVITY = 9.82 * 80; // Match Physics system gravity scale
 const STEP_HEIGHT = 50; // Use a generous step height since we don't have a capsule
+const GROUND_DECEL = 25; // Smooth deceleration rate (higher = faster stop)
+const ACCEL_EASE_POWER = 1.0; // Acceleration easing curve (1 = linear, disabled)
 
 // Collision groups
 const COLLISION_GROUPS = {
@@ -52,7 +54,7 @@ class FPSController {
 			mass: config.mass || 80,
 			linearDamping: config.linearDamping || 0,
 			jumpVelocity: config.jumpVelocity || 250,
-			groundAcceleration: config.groundAcceleration || 1000,
+			groundAcceleration: config.groundAcceleration || 2000,
 			airAcceleration: config.airAcceleration || 100,
 			friction: config.friction || 475,
 			maxSpeed: config.maxSpeed || 250,
@@ -79,26 +81,14 @@ class FPSController {
 			),
 			fixedRotation: true,
 			collisionFilterGroup: COLLISION_GROUPS.PLAYER,
-			collisionFilterMask:
-				COLLISION_GROUPS.WORLD |
-				COLLISION_GROUPS.PLAYER |
-				COLLISION_GROUPS.PROJECTILE,
+			// Don't collide with WORLD or PROJECTILE - we handle those via raycasts/sphere checks
+			// Keep PLAYER for multiplayer pushing
+			collisionFilterMask: COLLISION_GROUPS.PLAYER,
 		});
 
 		this.body.gravityScale = 0; // Disable engine gravity
-		this.body.material = new CANNON.Material("player");
 		this.body.allowSleep = false;
 		Physics.addBody(this.body);
-
-		// Contact Material - Keeping this for potential projectile interactions,
-		// though manual movement won't trigger standard friction/restitution.
-		const worldMaterial = Physics.getWorldMaterial();
-		if (worldMaterial) {
-			Physics.addContactMaterial(this.body.material, worldMaterial, {
-				friction: 0.0,
-				restitution: 0.0,
-			});
-		}
 
 		// State
 		this.velocity = vec3.create(); // Manual velocity tracking
@@ -107,6 +97,14 @@ class FPSController {
 		this.airTime = 0;
 		this.bobPhase = 0;
 		this.currentRoll = 0;
+
+		// Camera smoothing state
+		this.smoothX = undefined;
+		this.smoothY = undefined;
+		this.smoothZ = undefined;
+		this.landingDip = 0; // Landing impact effect
+		this.bobOffsetX = 0; // Figure-8 horizontal bob
+		this.bobOffsetY = 0; // Figure-8 vertical bob
 	}
 
 	isGrounded() {
@@ -121,10 +119,13 @@ class FPSController {
 		// 1. Integrate Physics (Gravity, Collision, Move)
 		this._integratePhysics(dt);
 
-		// 2. Friction
+		// 2. Handle landing and friction
 		if (this.grounded) {
 			if (!this.wasGrounded && this.airTime > LAND_TIME_THRESHOLD) {
 				this.config.onLand();
+				// Trigger landing dip based on air time (capped)
+				const dipAmount = Math.min(this.airTime * 3, 8);
+				this.landingDip = dipAmount;
 			}
 			this.airTime = 0;
 
@@ -190,10 +191,14 @@ class FPSController {
 	}
 
 	_applyGroundMovement(wishDir, wishSpeed, dt) {
-		// Instant stop if no input (fixes skating)
+		// Smooth deceleration if no input (instead of instant stop)
 		if (wishSpeed < 0.1) {
-			this.velocity[0] = 0;
-			this.velocity[2] = 0;
+			const decelAlpha = 1 - Math.exp(-GROUND_DECEL * dt);
+			this.velocity[0] *= 1 - decelAlpha;
+			this.velocity[2] *= 1 - decelAlpha;
+			// Snap to zero if very slow
+			if (Math.abs(this.velocity[0]) < 1) this.velocity[0] = 0;
+			if (Math.abs(this.velocity[2]) < 1) this.velocity[2] = 0;
 			return;
 		}
 
@@ -213,7 +218,11 @@ class FPSController {
 
 		if (addSpeed <= 0) return;
 
-		let accelSpeed = acceleration * dt;
+		// Apply ease-in curve for smoother acceleration start
+		const speedRatio = currentSpeed / Math.max(wishSpeed, 1);
+		const easeFactor = Math.pow(1 - speedRatio, ACCEL_EASE_POWER);
+
+		let accelSpeed = acceleration * dt * easeFactor;
 		if (accelSpeed > addSpeed) {
 			accelSpeed = addSpeed;
 		}
@@ -245,9 +254,12 @@ class FPSController {
 		let finalX = startPos.x + dx;
 		let finalZ = startPos.z + dz;
 
-		// Check for horizontal collision
+		// Check for horizontal collision (skip if barely moving to save performance)
+		const horizontalSpeed = Math.sqrt(
+			this.velocity[0] * this.velocity[0] + this.velocity[2] * this.velocity[2],
+		);
 		const horizontalDist = Math.sqrt(dx * dx + dz * dz);
-		if (horizontalDist > 0.001) {
+		if (horizontalDist > 0.001 && horizontalSpeed > 1) {
 			const dirX = dx / horizontalDist;
 			const dirZ = dz / horizontalDist;
 			const padding = 2.0;
@@ -387,46 +399,69 @@ class FPSController {
 
 		const pos = this.body.position;
 
-		// Initialize smoothY if not set
-		if (this.smoothY === undefined) {
+		// Initialize smooth positions if not set
+		if (this.smoothX === undefined) {
+			this.smoothX = pos.x;
 			this.smoothY = pos.y;
+			this.smoothZ = pos.z;
 		}
 
-		// Smooth the vertical camera movement (fixes stutter on steps/snaps)
-		// Use a high lerp factor so it's responsive but filters out instant snaps
-		const decay = 25;
-		const alpha = 1 - Math.exp(-decay * frameTime);
-		this.smoothY += (pos.y - this.smoothY) * alpha;
+		// Smooth all axes (Y more aggressively, XZ lightly)
+		const decayY = 25;
+		const decayXZ = 40; // Higher = more responsive
+		const alphaY = 1 - Math.exp(-decayY * frameTime);
+		const alphaXZ = 1 - Math.exp(-decayXZ * frameTime);
 
-		// If we are very close, just snap to avoid micro-jitter at rest
-		if (Math.abs(pos.y - this.smoothY) < 0.01) {
-			this.smoothY = pos.y;
-		}
+		this.smoothX += (pos.x - this.smoothX) * alphaXZ;
+		this.smoothY += (pos.y - this.smoothY) * alphaY;
+		this.smoothZ += (pos.z - this.smoothZ) * alphaXZ;
 
-		Camera.position[0] = pos.x;
+		// Snap if very close
+		if (Math.abs(pos.x - this.smoothX) < 0.01) this.smoothX = pos.x;
+		if (Math.abs(pos.y - this.smoothY) < 0.01) this.smoothY = pos.y;
+		if (Math.abs(pos.z - this.smoothZ) < 0.01) this.smoothZ = pos.z;
 
-		// Eye offset: BodyY is center. Eye is offset from center.
+		// Landing dip decay
+		this.landingDip *= Math.exp(-10 * frameTime);
+		if (this.landingDip < 0.01) this.landingDip = 0;
+
+		// Eye offset
 		const eyeOffset = this.config.eyeHeight - this.config.height / 2;
 
-		// Use smoothed Y for camera
-		Camera.position[1] = this.smoothY + eyeOffset;
-		Camera.position[2] = pos.z;
-
-		// Wobble Logic (Visuals only)
-		const vel = this.velocity; // Use our manual velocity
+		// Figure-8 head bob
+		const vel = this.velocity;
 		const horizontalSpeed = Math.sqrt(vel[0] * vel[0] + vel[2] * vel[2]);
 
-		let targetRoll = 0;
 		if (horizontalSpeed > 10 && this.grounded) {
 			const speedFactor = Math.min(horizontalSpeed / this.config.maxSpeed, 1);
 			this.bobPhase += speedFactor * this.config.wobbleFrequency * frameTime;
 
+			// Figure-8 pattern: vertical = sin(phase), horizontal = sin(2*phase)
+			const bobIntensity = this.config.wobbleIntensity * speedFactor;
+			this.bobOffsetY = Math.sin(this.bobPhase) * bobIntensity * 1.5;
+			this.bobOffsetX = Math.sin(this.bobPhase * 2) * bobIntensity * 0.8;
+		} else {
+			// Decay bob offsets
+			const bobDecay = Math.exp(-10 * frameTime);
+			this.bobOffsetX *= bobDecay;
+			this.bobOffsetY *= bobDecay;
+			this.bobPhase *= 0.9;
+		}
+
+		// Apply smoothed position + bob + landing dip
+		Camera.position[0] = this.smoothX + this.bobOffsetX;
+		Camera.position[1] =
+			this.smoothY + eyeOffset + this.bobOffsetY - this.landingDip;
+		Camera.position[2] = this.smoothZ;
+
+		// Roll effect (tilt when moving)
+		let targetRoll = 0;
+		if (horizontalSpeed > 10 && this.grounded) {
+			const speedFactor = Math.min(horizontalSpeed / this.config.maxSpeed, 1);
 			targetRoll =
 				((Math.sin(this.bobPhase) * (this.config.wobbleIntensity * Math.PI)) /
 					180) *
 				speedFactor;
-		} else {
-			this.bobPhase *= 0.9;
 		}
 
 		const smoothing = 1 - 0.001 ** frameTime;
