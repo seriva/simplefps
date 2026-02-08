@@ -17,13 +17,24 @@ const _rayOptions = {
 };
 const _wishDir = vec3.create();
 
-// Pre-allocated offsets for multi-ray ground check
+// Pre-allocated offsets for multi-ray ground check (8-point pattern for better edge coverage)
 const _groundCheckOffsets = [
-	{ x: 0, z: 0 },
-	{ x: 1, z: 0 },
+	{ x: 0, z: 0 }, // Center
+	{ x: 1, z: 0 }, // Cardinal
 	{ x: -1, z: 0 },
 	{ x: 0, z: 1 },
 	{ x: 0, z: -1 },
+	{ x: 0.707, z: 0.707 }, // Diagonals (normalized)
+	{ x: -0.707, z: 0.707 },
+	{ x: 0.707, z: -0.707 },
+	{ x: -0.707, z: -0.707 },
+];
+
+// Height offsets for horizontal collision checks (relative to center)
+const _horizontalCheckHeights = [
+	0, // Center
+	0.35, // Upper (35% toward top)
+	-0.35, // Lower (35% toward bottom)
 ];
 
 // Constants
@@ -251,33 +262,46 @@ class FPSController {
 			const dirZ = dz / horizontalDist;
 			const padding = 2.0;
 
-			_rayFrom.set(startPos.x, startPos.y, startPos.z);
-			_rayTo.set(
-				startPos.x + dx + dirX * (this.config.radius + padding),
-				startPos.y, // Check at center height
-				startPos.z + dz + dirZ * (this.config.radius + padding),
-			);
+			// Check at multiple heights for better wall detection
+			let hitWall = false;
+			let wallNormal = null;
 
-			_rayResult.reset();
-			_rayOptions.collisionFilterMask = COLLISION_GROUPS.WORLD;
-			Physics.getWorld().raycastClosest(
-				_rayFrom,
-				_rayTo,
-				_rayOptions,
-				_rayResult,
-			);
+			for (const heightOffset of _horizontalCheckHeights) {
+				const checkY = startPos.y + heightOffset * this.config.height * 0.5;
 
-			if (_rayResult.hasHit) {
-				const normal = _rayResult.hitNormalWorld;
+				_rayFrom.set(startPos.x, checkY, startPos.z);
+				_rayTo.set(
+					startPos.x + dx + dirX * (this.config.radius + padding),
+					checkY,
+					startPos.z + dz + dirZ * (this.config.radius + padding),
+				);
+
+				_rayResult.reset();
+				_rayOptions.collisionFilterMask = COLLISION_GROUPS.WORLD;
+				Physics.getWorld().raycastClosest(
+					_rayFrom,
+					_rayTo,
+					_rayOptions,
+					_rayResult,
+				);
+
+				if (_rayResult.hasHit) {
+					hitWall = true;
+					wallNormal = _rayResult.hitNormalWorld;
+					break; // Use first hit
+				}
+			}
+
+			if (hitWall && wallNormal) {
 				const dot =
-					this.velocity[0] * normal.x +
-					this.velocity[1] * normal.y +
-					this.velocity[2] * normal.z;
+					this.velocity[0] * wallNormal.x +
+					this.velocity[1] * wallNormal.y +
+					this.velocity[2] * wallNormal.z;
 
 				if (dot < 0) {
-					this.velocity[0] -= dot * normal.x;
-					this.velocity[1] -= dot * normal.y;
-					this.velocity[2] -= dot * normal.z;
+					this.velocity[0] -= dot * wallNormal.x;
+					this.velocity[1] -= dot * wallNormal.y;
+					this.velocity[2] -= dot * wallNormal.z;
 
 					// Re-calculate final position based on slid velocity
 					finalX = startPos.x + this.velocity[0] * dt;
