@@ -14,14 +14,20 @@ const _rayOptions = {
 	collisionFilterMask: 1 | 4, // WORLD | PROJECTILE (Exclude PLAYER)
 };
 const _wishDir = vec3.create();
-const _currentVel = vec3.create();
+
+// Pre-allocated offsets for multi-ray ground check
+const _groundCheckOffsets = [
+	{ x: 0, z: 0 },
+	{ x: 1, z: 0 },
+	{ x: -1, z: 0 },
+	{ x: 0, z: 1 },
+	{ x: 0, z: -1 },
+];
 
 // Constants
 const JUMP_THRESHOLD = 50; // Increased threshold for explicit jump check
 const LAND_TIME_THRESHOLD = 0.15;
-const DIRECTION_CHANGE_TIME = 0.15;
 const MAX_VELOCITY_CHANGE = 50;
-const ACCEL_REDUCTION = 0.3;
 const COYOTE_TIME = 0.2;
 const GRAVITY = 9.82 * 80; // Match Physics system gravity scale
 const STEP_HEIGHT = 50; // Use a generous step height since we don't have a capsule
@@ -96,8 +102,6 @@ class FPSController {
 
 		// State
 		this.velocity = vec3.create(); // Manual velocity tracking
-		this.lastWishDir = vec3.create();
-		this.directionChangeTimer = 0;
 		this.grounded = false; // Explicit grounded state
 		this.wasGrounded = true;
 		this.airTime = 0;
@@ -165,15 +169,6 @@ class FPSController {
 		if (wishDirLength > 0.001) {
 			vec3.scale(_wishDir, _wishDir, 1 / wishDirLength);
 		}
-
-		// Detect rapid direction changes
-		const directionDot = vec3.dot(_wishDir, this.lastWishDir);
-		if (directionDot < 0 && wishDirLength > 0.1) {
-			this.directionChangeTimer = DIRECTION_CHANGE_TIME;
-		}
-		vec3.copy(this.lastWishDir, _wishDir);
-
-		this.directionChangeTimer = Math.max(0, this.directionChangeTimer - dt);
 
 		const clampedLength = Math.min(wishDirLength, 1.0);
 		const wishSpeed = this.config.maxSpeed * clampedLength;
@@ -306,22 +301,13 @@ class FPSController {
 		const groundCheckDist = footOffset + STEP_HEIGHT;
 		const checkRadius = this.config.radius * 0.8; // Slightly inside the sphere
 
-		const offsets = [
-			{ x: 0, z: 0 },
-			{ x: checkRadius, z: 0 },
-			{ x: -checkRadius, z: 0 },
-			{ x: 0, z: checkRadius },
-			{ x: 0, z: -checkRadius },
-		];
-
 		let bestHitY = -Infinity;
 		let hasGroundHit = false;
 
-		for (const offset of offsets) {
-			// Start ray slightly above center to ensure we don't start inside geometry if we clipped
-			// But careful not to hit ceilings. Center is safe.
-			const testX = finalX + offset.x;
-			const testZ = finalZ + offset.z;
+		for (const offset of _groundCheckOffsets) {
+			// Scale offset by checkRadius (pre-allocated offsets are normalized)
+			const testX = finalX + offset.x * checkRadius;
+			const testZ = finalZ + offset.z * checkRadius;
 
 			_rayFrom.set(testX, startPos.y, testZ);
 			_rayTo.set(testX, startPos.y - groundCheckDist, testZ);
