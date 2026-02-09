@@ -22,7 +22,7 @@ const _PROJECTILE = {
 	meshScale: 33,
 	radius: 2,
 	mass: 0.5,
-	velocity: 900,
+	velocity: 1200,
 	light: {
 		radius: 150,
 		intensity: 4,

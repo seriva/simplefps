@@ -411,30 +411,22 @@ class FPSController {
 		}
 
 		if (hasGroundHit) {
-			// Check if valid ground (slope check could be added here)
-			// For now, just distance check
-			// We check distance relative to the *intended* new vertical position (without snap) logic?
-			// Actually, bestHitY is the absolute Y of the ground.
-			// Our feet are currently at (startPos.y - radius).
-			// If velocity is downwards or small upwards
+			// Only snap if not jumping upward
 			if (this.velocity[1] <= JUMP_THRESHOLD) {
-				// dist from feet to floor
-				// Predicted feet Y = finalY - radius
-				// We want to snap if we are close enough.
-				// However, we used groundCheckDist from Center.
-				// If bestHitY is within [finalY - radius - tolerance, finalY - radius + stepHeight]
+				// Current feet position (before any vertical movement)
+				const currentFeetY = startPos.y - radius;
 
-				// Calculate distance from feet to floor (bestHitY)
-				// dist > 0 means we are above ground, dist < 0 means penetrating
-				const distToFloor = startPos.y + dy - radius - bestHitY;
+				// Distance from current feet to detected ground
+				// Positive = ground is below current feet, Negative = ground is above (stairs)
+				const distFromFeet = currentFeetY - bestHitY;
 
-				// Snap threshold logic:
-				// If we were grounded, use STEP_HEIGHT to maintain contact (slope/stairs).
-				// If we were AIRBORNE, only snap if we are very close (actual landing) to avoid teleporting.
-				const snapThreshold = this.wasGrounded ? STEP_HEIGHT : 5.0;
+				// Snap threshold: how far up/down we'll snap to maintain ground contact
+				// Airborne needs higher thresholds to land reliably on stairs
+				const snapUp = this.wasGrounded ? STEP_HEIGHT : STEP_HEIGHT * 0.5;
+				const snapDown = this.wasGrounded ? STEP_HEIGHT : STEP_HEIGHT;
 
-				// Snap if we are penetrating (dist < 0) or close above (dist < snapThreshold)
-				if (distToFloor < snapThreshold && distToFloor > -snapThreshold) {
+				// Snap if ground is within range (above or below current feet)
+				if (distFromFeet > -snapUp && distFromFeet < snapDown) {
 					finalY = bestHitY + radius;
 					this.velocity[1] = 0;
 					this.grounded = true;
