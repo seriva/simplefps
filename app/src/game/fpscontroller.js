@@ -420,10 +420,21 @@ class FPSController {
 				// Positive = ground is below current feet, Negative = ground is above (stairs)
 				const distFromFeet = currentFeetY - bestHitY;
 
-				// Snap threshold: how far up/down we'll snap to maintain ground contact
-				// Airborne needs higher thresholds to land reliably on stairs
-				const snapUp = this.wasGrounded ? STEP_HEIGHT : STEP_HEIGHT * 0.5;
-				const snapDown = this.wasGrounded ? STEP_HEIGHT : STEP_HEIGHT;
+				// Snap threshold depends on state
+				let snapUp, snapDown;
+				if (this.wasGrounded) {
+					// Walking on ground - generous step height
+					snapUp = STEP_HEIGHT;
+					snapDown = STEP_HEIGHT;
+				} else if (this.velocity[1] <= 0) {
+					// Falling - balance between stair reliability and smooth landings
+					snapUp = 20;
+					snapDown = 20;
+				} else {
+					// Still ascending - very tight snap to avoid premature landing
+					snapUp = 2;
+					snapDown = 5;
+				}
 
 				// Snap if ground is within range (above or below current feet)
 				if (distFromFeet > -snapUp && distFromFeet < snapDown) {
