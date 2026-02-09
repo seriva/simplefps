@@ -25,10 +25,10 @@ const _groundCheckOffsets = [
 	{ x: -1, z: 0 },
 	{ x: 0, z: 1 },
 	{ x: 0, z: -1 },
-	{ x: 0.707, z: 0.707 }, // Diagonals (normalized)
-	{ x: -0.707, z: 0.707 },
-	{ x: 0.707, z: -0.707 },
-	{ x: -0.707, z: -0.707 },
+	{ x: Math.SQRT1_2, z: Math.SQRT1_2 }, // Diagonals (normalized)
+	{ x: -Math.SQRT1_2, z: Math.SQRT1_2 },
+	{ x: Math.SQRT1_2, z: -Math.SQRT1_2 },
+	{ x: -Math.SQRT1_2, z: -Math.SQRT1_2 },
 ];
 
 // Height offsets for horizontal collision checks (relative to center)
@@ -59,7 +59,7 @@ class FPSController {
 			eyeHeight: config.eyeHeight || 56,
 			jumpVelocity: config.jumpVelocity || 320,
 			groundAcceleration: config.groundAcceleration || 4000,
-			airAcceleration: config.airAcceleration || 100,
+			airAcceleration: config.airAcceleration || 200,
 			maxSpeed: config.maxSpeed || 400,
 			onLand: config.onLand || (() => {}),
 			onJump: config.onJump || (() => {}),
@@ -315,6 +315,49 @@ class FPSController {
 						this.velocity[0] -= dot * wallNormal.x;
 						this.velocity[2] -= dot * wallNormal.z;
 					}
+				}
+			}
+		}
+
+		// Radial depenetration check - cast rays outward from final position to detect overlap
+		// This catches cases where the movement ray missed a wall at an oblique angle
+		const depenetrationDirs = [
+			{ x: 1, z: 0 },
+			{ x: -1, z: 0 },
+			{ x: 0, z: 1 },
+			{ x: 0, z: -1 },
+			{ x: Math.SQRT1_2, z: Math.SQRT1_2 },
+			{ x: -Math.SQRT1_2, z: Math.SQRT1_2 },
+			{ x: Math.SQRT1_2, z: -Math.SQRT1_2 },
+			{ x: -Math.SQRT1_2, z: -Math.SQRT1_2 },
+		];
+
+		const depenetrationRadius = this.config.radius + 1;
+		for (const dir of depenetrationDirs) {
+			_rayFrom.set(finalX, startPos.y, finalZ);
+			_rayTo.set(
+				finalX + dir.x * depenetrationRadius,
+				startPos.y,
+				finalZ + dir.z * depenetrationRadius,
+			);
+
+			_rayResult.reset();
+			_rayOptions.collisionFilterMask = COLLISION_GROUPS.WORLD;
+			Physics.getWorld().raycastClosest(
+				_rayFrom,
+				_rayTo,
+				_rayOptions,
+				_rayResult,
+			);
+
+			if (_rayResult.hasHit) {
+				const hp = _rayResult.hitPointWorld;
+				const hitDist = Math.sqrt((hp.x - finalX) ** 2 + (hp.z - finalZ) ** 2);
+				// If wall is closer than radius, push out
+				if (hitDist < this.config.radius) {
+					const pushDist = this.config.radius - hitDist + 1;
+					finalX -= dir.x * pushDist;
+					finalZ -= dir.z * pushDist;
 				}
 			}
 		}
