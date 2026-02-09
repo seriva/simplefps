@@ -31,6 +31,18 @@ const _groundCheckOffsets = [
 	{ x: -Math.SQRT1_2, z: -Math.SQRT1_2 },
 ];
 
+// Pre-allocated directions for radial depenetration check
+const _depenetrationDirs = [
+	{ x: 1, z: 0 },
+	{ x: -1, z: 0 },
+	{ x: 0, z: 1 },
+	{ x: 0, z: -1 },
+	{ x: Math.SQRT1_2, z: Math.SQRT1_2 },
+	{ x: -Math.SQRT1_2, z: Math.SQRT1_2 },
+	{ x: Math.SQRT1_2, z: -Math.SQRT1_2 },
+	{ x: -Math.SQRT1_2, z: -Math.SQRT1_2 },
+];
+
 // Height offsets for horizontal collision checks (relative to center)
 const _horizontalCheckHeights = [
 	0, // Center
@@ -117,10 +129,8 @@ class FPSController {
 	update(frameTime) {
 		if (_noclip) return;
 
-		const dt = frameTime;
-
 		// 1. Integrate Physics (Gravity, Collision, Move)
-		this._integratePhysics(dt);
+		this._integratePhysics(frameTime);
 
 		// 2. Handle landing and friction
 		if (this.grounded) {
@@ -132,19 +142,19 @@ class FPSController {
 			}
 			this.airTime = 0;
 
-			const horizontalDamping = 0.98; // Original damping
-			const dampingFactorXZ = (1 - horizontalDamping) ** dt;
+			const horizontalDamping = 0.98;
+			const dampingFactorXZ = (1 - horizontalDamping) ** frameTime;
 			this.velocity[0] *= dampingFactorXZ;
 			this.velocity[2] *= dampingFactorXZ;
 		} else {
-			this.airTime += dt;
+			this.airTime += frameTime;
 		}
 
 		this.wasGrounded = this.grounded;
 
 		// Keep vertical damping small (air resistance)
 		const verticalDamping = 0.01;
-		const dampingFactorY = (1 - verticalDamping) ** dt;
+		const dampingFactorY = (1 - verticalDamping) ** frameTime;
 		this.velocity[1] *= dampingFactorY;
 	}
 
@@ -153,8 +163,6 @@ class FPSController {
 			this._noclipMove(strafe, move, cameraForward, cameraRight, frameTime);
 			return;
 		}
-
-		const dt = frameTime;
 
 		// Calculate wish direction
 		vec3.zero(_wishDir);
@@ -171,9 +179,14 @@ class FPSController {
 		const wishSpeed = this.config.maxSpeed * clampedLength;
 
 		if (this.grounded) {
-			this._applyGroundMovement(_wishDir, wishSpeed, dt);
+			this._applyGroundMovement(_wishDir, wishSpeed, frameTime);
 		} else {
-			this._applyAirMovement(_wishDir, wishSpeed, dt);
+			this._accelerate(
+				_wishDir,
+				wishSpeed,
+				this.config.airAcceleration,
+				frameTime,
+			);
 		}
 	}
 
@@ -200,10 +213,6 @@ class FPSController {
 
 		const acceleration = this.config.groundAcceleration;
 		this._accelerate(wishDir, wishSpeed, acceleration, dt);
-	}
-
-	_applyAirMovement(wishDir, wishSpeed, dt) {
-		this._accelerate(wishDir, wishSpeed, this.config.airAcceleration, dt);
 	}
 
 	_accelerate(wishDir, wishSpeed, acceleration, dt) {
@@ -240,6 +249,8 @@ class FPSController {
 		const dy = this.velocity[1] * dt;
 		const dz = this.velocity[2] * dt;
 
+		const radius = this.config.radius; // Cache for hot path
+
 		const startPos = this.body.position; // CANNON.Vec3 (reference)
 
 		// --- Interaction 1: Horizontal Collision (Wall Slide) ---
@@ -250,12 +261,12 @@ class FPSController {
 		const horizontalSpeed = Math.sqrt(
 			this.velocity[0] * this.velocity[0] + this.velocity[2] * this.velocity[2],
 		);
-		const horizontalDist = Math.sqrt(dx * dx + dz * dz);
+		const horizontalDist = horizontalSpeed * dt; // Derived from speed to avoid redundant sqrt
 		if (horizontalDist > 0.001 && horizontalSpeed > 1) {
 			const dirX = dx / horizontalDist;
 			const dirZ = dz / horizontalDist;
 			const padding = 2.0;
-			const rayLength = horizontalDist + this.config.radius + padding;
+			const rayLength = horizontalDist + radius + padding;
 
 			// Check at multiple heights for better wall detection
 			let hitWall = false;
@@ -297,10 +308,7 @@ class FPSController {
 
 			if (hitWall && wallNormal) {
 				// Calculate how far we can safely move (stop before wall)
-				const safeMoveDist = Math.max(
-					0,
-					closestHitDist - this.config.radius - 1,
-				);
+				const safeMoveDist = Math.max(0, closestHitDist - radius - 1);
 
 				if (safeMoveDist < horizontalDist) {
 					// We would hit the wall, limit movement
@@ -321,19 +329,8 @@ class FPSController {
 
 		// Radial depenetration check - cast rays outward from final position to detect overlap
 		// This catches cases where the movement ray missed a wall at an oblique angle
-		const depenetrationDirs = [
-			{ x: 1, z: 0 },
-			{ x: -1, z: 0 },
-			{ x: 0, z: 1 },
-			{ x: 0, z: -1 },
-			{ x: Math.SQRT1_2, z: Math.SQRT1_2 },
-			{ x: -Math.SQRT1_2, z: Math.SQRT1_2 },
-			{ x: Math.SQRT1_2, z: -Math.SQRT1_2 },
-			{ x: -Math.SQRT1_2, z: -Math.SQRT1_2 },
-		];
-
-		const depenetrationRadius = this.config.radius + 1;
-		for (const dir of depenetrationDirs) {
+		const depenetrationRadius = radius + 1;
+		for (const dir of _depenetrationDirs) {
 			_rayFrom.set(finalX, startPos.y, finalZ);
 			_rayTo.set(
 				finalX + dir.x * depenetrationRadius,
@@ -354,8 +351,8 @@ class FPSController {
 				const hp = _rayResult.hitPointWorld;
 				const hitDist = Math.sqrt((hp.x - finalX) ** 2 + (hp.z - finalZ) ** 2);
 				// If wall is closer than radius, push out
-				if (hitDist < this.config.radius) {
-					const pushDist = this.config.radius - hitDist + 1;
+				if (hitDist < radius) {
+					const pushDist = radius - hitDist + 1;
 					finalX -= dir.x * pushDist;
 					finalZ -= dir.z * pushDist;
 				}
@@ -372,9 +369,17 @@ class FPSController {
 
 		// Multi-Ray Ground Check (Center + 4 offsets)
 		// This prevents falling through cracks or edges
-		const footOffset = this.config.radius;
+		const footOffset = radius;
 		const groundCheckDist = footOffset + STEP_HEIGHT;
-		const checkRadius = this.config.radius * 0.8; // Slightly inside the sphere
+		const checkRadius = radius * 0.8; // Slightly inside the sphere
+
+		// When grounded and moving forward (e.g. stairs), start ray from higher up
+		// to detect steps ahead that are above our current feet position
+		const rayStartY = this.wasGrounded
+			? startPos.y + STEP_HEIGHT * 0.5
+			: startPos.y;
+		const rayEndY =
+			rayStartY - groundCheckDist - (this.wasGrounded ? STEP_HEIGHT * 0.5 : 0);
 
 		let bestHitY = -Infinity;
 		let hasGroundHit = false;
@@ -384,8 +389,8 @@ class FPSController {
 			const testX = finalX + offset.x * checkRadius;
 			const testZ = finalZ + offset.z * checkRadius;
 
-			_rayFrom.set(testX, startPos.y, testZ);
-			_rayTo.set(testX, startPos.y - groundCheckDist, testZ);
+			_rayFrom.set(testX, rayStartY, testZ);
+			_rayTo.set(testX, rayEndY, testZ);
 
 			_rayResult.reset();
 			Physics.getWorld().raycastClosest(
@@ -421,7 +426,7 @@ class FPSController {
 
 				// Calculate distance from feet to floor (bestHitY)
 				// dist > 0 means we are above ground, dist < 0 means penetrating
-				const distToFloor = startPos.y + dy - this.config.radius - bestHitY;
+				const distToFloor = startPos.y + dy - radius - bestHitY;
 
 				// Snap threshold logic:
 				// If we were grounded, use STEP_HEIGHT to maintain contact (slope/stairs).
@@ -430,7 +435,7 @@ class FPSController {
 
 				// Snap if we are penetrating (dist < 0) or close above (dist < snapThreshold)
 				if (distToFloor < snapThreshold && distToFloor > -snapThreshold) {
-					finalY = bestHitY + this.config.radius;
+					finalY = bestHitY + radius;
 					this.velocity[1] = 0;
 					this.grounded = true;
 				}
@@ -443,7 +448,7 @@ class FPSController {
 		// --- Interaction 3: Ceiling Collision ---
 		if (this.velocity[1] > 0) {
 			_rayFrom.set(finalX, startPos.y, finalZ);
-			_rayTo.set(finalX, startPos.y + this.config.radius + 10, finalZ);
+			_rayTo.set(finalX, startPos.y + radius + 10, finalZ);
 			_rayResult.reset();
 			Physics.getWorld().raycastClosest(
 				_rayFrom,
