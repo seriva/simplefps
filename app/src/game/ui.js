@@ -1,4 +1,10 @@
-import { css, html, Reactive } from "../dependencies/reactive.js";
+import {
+	css,
+	html,
+	join,
+	Reactive,
+	trusted,
+} from "../dependencies/reactive.js";
 
 // ============================================================================
 // Private
@@ -464,33 +470,24 @@ class _MenuUI extends Reactive.Component {
 		`;
 	}
 
-	// New internal method for showing dialog
 	showDialogInternal(title, message, onYes, onNo) {
 		this.refs.dialogHeader.textContent = title;
 		this.refs.dialogBody.textContent = message;
 
-		this.refs.dialogFooter.innerHTML = "";
-
-		// Yes Button
-		const yesBtn = document.createElement("button");
-		yesBtn.className = "dialog-btn confirm";
-		yesBtn.textContent = Translations.get("YES");
-		yesBtn.onclick = () => {
+		const dismiss = (callback) => () => {
 			this.dialogVisible.set(false);
-			if (onYes) onYes();
+			if (callback) callback();
 		};
 
-		// No Button
-		const noBtn = document.createElement("button");
-		noBtn.className = "dialog-btn cancel";
-		noBtn.textContent = Translations.get("NO");
-		noBtn.onclick = () => {
-			this.dialogVisible.set(false);
-			if (onNo) onNo();
-		};
+		this.refs.dialogFooter.innerHTML = html`
+			<button class="dialog-btn cancel" data-dialog="no">${Translations.get("NO")}</button>
+			<button class="dialog-btn confirm" data-dialog="yes">${Translations.get("YES")}</button>
+		`.content;
 
-		this.refs.dialogFooter.appendChild(noBtn);
-		this.refs.dialogFooter.appendChild(yesBtn);
+		this.refs.dialogFooter.querySelector("[data-dialog=no]").onclick =
+			dismiss(onNo);
+		this.refs.dialogFooter.querySelector("[data-dialog=yes]").onclick =
+			dismiss(onYes);
 
 		this.dialogVisible.set(true);
 	}
@@ -573,96 +570,91 @@ class _MenuUI extends Reactive.Component {
 		});
 	}
 
+	_renderControlRow(control, index) {
+		let input;
+
+		switch (control.type) {
+			case "slider":
+				input = html`<input type="range" class="menu-slider"
+					min="${control.min}" max="${control.max}"
+					step="${control.step}" value="${control.value()}" />`;
+				break;
+			case "checkbox":
+				input = html`<label class="menu-checkbox-label"><input type="checkbox"
+					class="menu-checkbox" ${trusted(control.value() ? "checked" : "")} /></label>`;
+				break;
+			case "link":
+				input = html`<a href="${control.url}" target="_blank" rel="noopener noreferrer"
+					style="color:#6cb4ff;text-decoration:none">${control.linkText || control.url}</a>`;
+				break;
+			case "select": {
+				const currentValue = String(control.value());
+				const opts = join(
+					control.options.map(
+						(opt) =>
+							html`<option value="${opt.value}"
+								${trusted(String(opt.value) === currentValue ? "selected" : "")}>${opt.label}</option>`,
+					),
+				);
+				input = html`<select class="menu-select">${opts}</select>`;
+				break;
+			}
+		}
+
+		return html`<div class="menu-row" data-ctrl="${index}">
+			<span>${control.text}</span>${input}
+		</div>`;
+	}
+
 	_buildControls(controls, container) {
-		let currentPanel = null;
+		const parts = [];
+		let panelRows = [];
 
-		controls.forEach((control) => {
-			const isButton = !control.type || control.type === "button";
+		const flushPanel = () => {
+			if (!panelRows.length) return;
+			parts.push(html`<div class="menu-panel">${join(panelRows)}</div>`);
+			panelRows = [];
+		};
 
-			if (!isButton) {
-				// It's a setting control (slider or checkbox)
-				if (!currentPanel) {
-					currentPanel = document.createElement("div");
-					currentPanel.className = "menu-panel";
-					container.appendChild(currentPanel);
-				}
-
-				const row = document.createElement("div");
-				row.className = "menu-row";
-
-				const label = document.createElement("span");
-				label.textContent = control.text;
-				row.appendChild(label);
-
-				if (control.type === "slider") {
-					const slider = document.createElement("input");
-					slider.type = "range";
-					slider.className = "menu-slider";
-					slider.min = control.min;
-					slider.max = control.max;
-					slider.step = control.step;
-					slider.value = control.value();
-					slider.oninput = (e) => control.set(e.target.value);
-					row.appendChild(slider);
-				} else if (control.type === "checkbox") {
-					const label = document.createElement("label");
-					label.className = "menu-checkbox-label";
-					const checkbox = document.createElement("input");
-					checkbox.type = "checkbox";
-					checkbox.className = "menu-checkbox";
-					checkbox.checked = control.value();
-					checkbox.onchange = (e) => control.set(e.target.checked);
-					label.appendChild(checkbox);
-					row.appendChild(label);
-					// Make entire row toggle checkbox
-					row.style.cursor = "pointer";
-					row.onclick = (e) => {
-						if (e.target !== checkbox) {
-							checkbox.checked = !checkbox.checked;
-							control.set(checkbox.checked);
-						}
-					};
-				} else if (control.type === "link") {
-					const link = document.createElement("a");
-					link.href = control.url;
-					link.target = "_blank";
-					link.rel = "noopener noreferrer";
-					link.textContent = control.linkText || control.url;
-					link.style.color = "#6cb4ff";
-					link.style.textDecoration = "none";
-					row.appendChild(link);
-				} else if (control.type === "select") {
-					const select = document.createElement("select");
-					select.className = "menu-select";
-
-					const currentValue = control.value();
-
-					control.options.forEach((opt) => {
-						const option = document.createElement("option");
-						option.value = opt.value;
-						option.textContent = opt.label;
-						if (String(opt.value) === String(currentValue)) {
-							// loose equality for string/bool match
-							option.selected = true;
-						}
-						select.appendChild(option);
-					});
-
-					select.onchange = (e) => control.set(e.target.value);
-					row.appendChild(select);
-				}
-				currentPanel.appendChild(row);
+		controls.forEach((control, i) => {
+			if (!control.type || control.type === "button") {
+				flushPanel();
+				parts.push(
+					html`<div class="menu-button" data-ctrl="${i}">${control.text}</div>`,
+				);
 			} else {
-				// It's a button
-				currentPanel = null;
-
-				const button = document.createElement("div");
-				button.className = "menu-button";
-				button.textContent = control.text;
-				button.onclick = control.callback;
-				container.appendChild(button);
+				panelRows.push(this._renderControlRow(control, i));
 			}
 		});
+		flushPanel();
+
+		container.innerHTML = join(parts).content;
+		this._wireControlEvents(container, controls);
+	}
+
+	_wireControlEvents(container, controls) {
+		for (const el of container.querySelectorAll("[data-ctrl]")) {
+			const control = controls[el.dataset.ctrl];
+
+			if (!control.type || control.type === "button") {
+				el.onclick = control.callback;
+			} else if (control.type === "slider") {
+				el.querySelector("input").oninput = (e) => control.set(e.target.value);
+			} else if (control.type === "checkbox") {
+				const cb = el.querySelector("input");
+				cb.onchange = (e) => control.set(e.target.checked);
+				el.style.cursor = "pointer";
+				el.onclick = (e) => {
+					if (e.target !== cb) {
+						cb.checked = !cb.checked;
+						control.set(cb.checked);
+					}
+				};
+			} else if (control.type === "select") {
+				el.querySelector("select").onchange = (e) =>
+					control.set(e.target.value);
+			}
+		}
 	}
 
 	register(name, ui) {
