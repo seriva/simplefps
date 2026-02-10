@@ -1,4 +1,3 @@
-import * as CANNON from "../dependencies/cannon-es.js";
 import { mat4 } from "../dependencies/gl-matrix.js";
 import {
 	Camera,
@@ -23,10 +22,6 @@ const _BASE_URL = `${window.location}resources/arenas/`;
 const _DEFAULT_POSITION = [0, 0, 0];
 const _DEFAULT_AMBIENT = [1, 1, 1];
 
-// Raycast helpers
-const _rayFrom = new CANNON.Vec3();
-const _rayTo = new CANNON.Vec3();
-const _rayResult = new CANNON.RaycastResult();
 const _MAX_RAYCAST_DISTANCE = 500;
 
 const _state = {
@@ -79,16 +74,15 @@ const _setupPickups = (pickups = []) => {
 
 // Raycast to find ground position
 const _getGroundHeight = (x, y, z) => {
-	_rayFrom.set(x, y + 100, z); // Start above
-	_rayTo.set(x, y - _MAX_RAYCAST_DISTANCE, z);
-	_rayResult.reset();
-
-	Physics.getWorld().raycastClosest(_rayFrom, _rayTo, {}, _rayResult);
-
-	if (_rayResult.hasHit) {
-		return _rayResult.hitPointWorld.y;
-	}
-	return y; // Fallback to original height
+	const result = Physics.raycast(
+		x,
+		y + 100,
+		z,
+		x,
+		y - _MAX_RAYCAST_DISTANCE,
+		z,
+	);
+	return result.hasHit ? result.hitPointWorld.y : y;
 };
 
 // Setup player models at all spawnpoints except the current one

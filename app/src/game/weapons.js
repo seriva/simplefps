@@ -1,4 +1,3 @@
-import * as CANNON from "../dependencies/cannon-es.js";
 import { glMatrix, mat4, vec3 } from "../dependencies/gl-matrix.js";
 import {
 	Camera,
@@ -119,10 +118,8 @@ const _projectileRight = vec3.create();
 const _worldUp = [0, 1, 0];
 const _translationVec = [0, 0, 0]; // Simple array for vec3 operations that don't need glMatrix
 
-// Raycast helpers for trajectory calculation
-const _rayFrom = new CANNON.Vec3();
-const _rayTo = new CANNON.Vec3();
-const _rayResult = new CANNON.RaycastResult();
+// Weapons use both-sided faces for projectile hits
+const _bothSidesRayOptions = { skipBackfaces: false, collisionFilterMask: 1 };
 
 // Projectile trajectory constants
 const _TRAJECTORY = {
@@ -138,32 +135,25 @@ const _activeProjectiles = new Set();
 
 // Raycast to find where trajectory hits
 const _raycastTrajectory = (from, direction, maxDistance) => {
-	_rayFrom.set(from[0], from[1], from[2]);
-	_rayTo.set(
+	const result = Physics.raycast(
+		from[0],
+		from[1],
+		from[2],
 		from[0] + direction[0] * maxDistance,
 		from[1] + direction[1] * maxDistance,
 		from[2] + direction[2] * maxDistance,
+		_bothSidesRayOptions,
 	);
 
-	_rayResult.reset();
-	Physics.getWorld().raycastClosest(
-		_rayFrom,
-		_rayTo,
-		{ skipBackfaces: false, collisionFilterMask: 1 }, // WORLD only
-		_rayResult,
-	);
+	if (result.hasHit) {
+		const hp = result.hitPointWorld;
+		const hn = result.hitNormalWorld;
 
-	if (_rayResult.hasHit) {
-		const hp = _rayResult.hitPointWorld;
-		const hn = _rayResult.hitNormalWorld;
-
-		// Calculate distance from start to hit
 		const dx = hp.x - from[0];
 		const dy = hp.y - from[1];
 		const dz = hp.z - from[2];
 		const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
 
-		// Offset hit point slightly away from surface to prevent getting stuck
 		const offset = 1.0;
 		return {
 			hit: true,
@@ -322,25 +312,20 @@ const _updateProjectile = (entity, frameTime) => {
 	const dirY = dist > 0.01 ? dy / dist : -1;
 	const dirZ = dist > 0.01 ? dz / dist : 0;
 
-	_rayFrom.set(traj.position[0], traj.position[1], traj.position[2]);
-	_rayTo.set(
+	const result = Physics.raycast(
+		traj.position[0],
+		traj.position[1],
+		traj.position[2],
 		traj.position[0] + dirX * lookahead,
 		traj.position[1] + dirY * lookahead,
 		traj.position[2] + dirZ * lookahead,
-	);
-	_rayResult.reset();
-
-	Physics.getWorld().raycastClosest(
-		_rayFrom,
-		_rayTo,
-		{ skipBackfaces: false, collisionFilterMask: 1 },
-		_rayResult,
+		_bothSidesRayOptions,
 	);
 
-	if (_rayResult.hasHit) {
+	if (result.hasHit) {
 		// Bounce!
-		const hp = _rayResult.hitPointWorld;
-		const hn = _rayResult.hitNormalWorld;
+		const hp = result.hitPointWorld;
+		const hn = result.hitNormalWorld;
 
 		traj.bounceCount++;
 

@@ -12,6 +12,33 @@ const COLLISION_GROUPS = {
 	PROJECTILE: 4,
 };
 
+// Shared raycast state (reused to avoid GC pressure)
+const _rayFrom = new CANNON.Vec3();
+const _rayTo = new CANNON.Vec3();
+const _rayResult = new CANNON.RaycastResult();
+const _defaultRayOptions = {
+	skipBackfaces: true,
+	collisionFilterMask: COLLISION_GROUPS.WORLD,
+};
+
+/**
+ * Perform a raycast from (fromX,fromY,fromZ) to (toX,toY,toZ).
+ * Returns the shared result object — check result.hasHit, result.hitPointWorld, result.hitNormalWorld.
+ * WARNING: The returned object is reused across calls — copy values if you need to keep them.
+ */
+const _raycast = (fromX, fromY, fromZ, toX, toY, toZ, options) => {
+	_rayFrom.set(fromX, fromY, fromZ);
+	_rayTo.set(toX, toY, toZ);
+	_rayResult.reset();
+	_world.raycastClosest(
+		_rayFrom,
+		_rayTo,
+		options || _defaultRayOptions,
+		_rayResult,
+	);
+	return _rayResult;
+};
+
 const _init = () => {
 	_world = new CANNON.World();
 	_world.broadphase = new CANNON.SAPBroadphase(_world);
@@ -79,6 +106,7 @@ const Physics = {
 	addBody: _addBody,
 	removeBody: _removeBody,
 	addTrimesh: _addTrimesh,
+	raycast: _raycast,
 	getWorld: () => _world,
 	COLLISION_GROUPS,
 };
