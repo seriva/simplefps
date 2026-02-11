@@ -512,56 +512,62 @@ class _MenuUI extends Reactive.Component {
 
 			// Check if menu has tabs
 			if (menu.tabs) {
-				// Create tab bar
-				const tabBar = document.createElement("div");
-				tabBar.className = "menu-tabs";
+				const tabBar = join(
+					menu.tabs.map(
+						(tab, i) =>
+							html`<div class="menu-tab${trusted(i === 0 ? " active" : "")}" data-tab="${i}">${tab.label}</div>`,
+					),
+				);
 
-				const tabContents = [];
+				const tabPanels = join(
+					menu.tabs.map(
+						(_, i) =>
+							html`<div class="menu-tab-content${trusted(i === 0 ? " active" : "")}" data-tab-panel="${i}"></div>`,
+					),
+				);
 
-				menu.tabs.forEach((tab, index) => {
-					// Create tab button
-					const tabBtn = document.createElement("div");
-					tabBtn.className = `menu-tab${index === 0 ? " active" : ""}`;
-					tabBtn.textContent = tab.label;
+				const bottomBtns = menu.bottomControls
+					? join(
+							menu.bottomControls.map(
+								(control, i) =>
+									html`<div class="menu-button" data-bottom="${i}">${control.text}</div>`,
+							),
+						)
+					: trusted("");
 
-					// Create tab content container
-					const tabContent = document.createElement("div");
-					tabContent.className = `menu-tab-content${index === 0 ? " active" : ""}`;
+				this.refs.controls.innerHTML = html`
+					<div class="menu-tabs">${tabBar}</div>
+					${tabPanels}
+					${bottomBtns}
+				`.content;
 
-					// Build controls for this tab
-					this._buildControls(tab.controls, tabContent);
-
-					tabBtn.onclick = () => {
-						// Deactivate all tabs
-						for (const t of tabBar.querySelectorAll(".menu-tab")) {
-							t.classList.remove("active");
-						}
-						for (const c of tabContents) {
-							c.classList.remove("active");
-						}
-						// Activate this tab
-						tabBtn.classList.add("active");
-						tabContent.classList.add("active");
-					};
-
-					tabBar.appendChild(tabBtn);
-					tabContents.push(tabContent);
-				});
-
-				this.refs.controls.appendChild(tabBar);
-				for (const c of tabContents) {
-					this.refs.controls.appendChild(c);
+				// Build controls into each tab panel
+				for (const [i, tab] of menu.tabs.entries()) {
+					const panel = this.refs.controls.querySelector(
+						`[data-tab-panel="${i}"]`,
+					);
+					this._buildControls(tab.controls, panel);
 				}
 
-				// Add bottom buttons (like Back button)
+				// Wire tab switching
+				const tabs = this.refs.controls.querySelectorAll("[data-tab]");
+				const panels = this.refs.controls.querySelectorAll("[data-tab-panel]");
+				for (const tab of tabs) {
+					tab.onclick = () => {
+						for (const t of tabs) t.classList.remove("active");
+						for (const p of panels) p.classList.remove("active");
+						tab.classList.add("active");
+						panels[tab.dataset.tab].classList.add("active");
+					};
+				}
+
+				// Wire bottom buttons
 				if (menu.bottomControls) {
-					menu.bottomControls.forEach((control) => {
-						const button = document.createElement("div");
-						button.className = "menu-button";
-						button.textContent = control.text;
-						button.onclick = control.callback;
-						this.refs.controls.appendChild(button);
-					});
+					for (const el of this.refs.controls.querySelectorAll(
+						"[data-bottom]",
+					)) {
+						el.onclick = menu.bottomControls[el.dataset.bottom].callback;
+					}
 				}
 			} else {
 				// Original non-tabbed logic
