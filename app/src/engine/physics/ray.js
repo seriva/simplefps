@@ -1,5 +1,5 @@
 import { vec3 } from "../../dependencies/gl-matrix.js";
-import { Transform } from "./math.js";
+import { Transform } from "./transform.js";
 
 export const RAY_MODES = {
 	CLOSEST: 1,
@@ -229,8 +229,8 @@ export class Ray {
 	}
 
 	getAABB(result) {
-		vec3.min(result.lowerBound, this.from, this.to);
-		vec3.max(result.upperBound, this.from, this.to);
+		vec3.min(result.min, this.from, this.to);
+		vec3.max(result.max, this.from, this.to);
 		return result;
 	}
 }

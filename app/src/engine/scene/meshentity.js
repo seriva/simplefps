@@ -1,5 +1,5 @@
 import { mat4 } from "../../dependencies/gl-matrix.js";
-import BoundingBox from "../core/boundingbox.js";
+import BoundingBox from "../physics/boundingbox.js";
 import { Shaders } from "../rendering/shaders.js";
 import Physics from "../systems/physics.js";
 import Resources from "../systems/resources.js";

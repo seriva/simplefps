@@ -1,6 +1,6 @@
 import { vec3 } from "../../dependencies/gl-matrix.js";
-import { AABB } from "./math.js";
-import { Octree } from "./spatial.js";
+import BoundingBox from "./boundingbox.js";
+import { Octree } from "./octree.js";
 
 export class Shape {
 	constructor(options = {}) {
@@ -56,7 +56,7 @@ const vb = vec3.create();
 const vc = vec3.create();
 const ab = vec3.create();
 const cb = vec3.create();
-const unscaledAABB = new AABB();
+const unscaledAABB = new BoundingBox();
 
 export class Trimesh extends Shape {
 	constructor(vertices, indices) {
@@ -64,7 +64,7 @@ export class Trimesh extends Shape {
 		this.vertices = new Float32Array(vertices);
 		this.indices = new Int16Array(indices);
 		this.normals = new Float32Array(indices.length);
-		this.aabb = new AABB();
+		this.aabb = new BoundingBox();
 		this.scale = vec3.fromValues(1, 1, 1);
 		this.tree = new Octree();
 
@@ -81,14 +81,14 @@ export class Trimesh extends Shape {
 		tree.aabb.copy(this.aabb);
 		const scale = this.scale;
 
-		tree.aabb.lowerBound[0] *= 1 / scale[0];
-		tree.aabb.lowerBound[1] *= 1 / scale[1];
-		tree.aabb.lowerBound[2] *= 1 / scale[2];
-		tree.aabb.upperBound[0] *= 1 / scale[0];
-		tree.aabb.upperBound[1] *= 1 / scale[1];
-		tree.aabb.upperBound[2] *= 1 / scale[2];
+		tree.aabb.min[0] *= 1 / scale[0];
+		tree.aabb.min[1] *= 1 / scale[1];
+		tree.aabb.min[2] *= 1 / scale[2];
+		tree.aabb.max[0] *= 1 / scale[0];
+		tree.aabb.max[1] *= 1 / scale[1];
+		tree.aabb.max[2] *= 1 / scale[2];
 
-		const triangleAABB = new AABB();
+		const triangleAABB = new BoundingBox();
 		const a = vec3.create();
 		const b = vec3.create();
 		const c = vec3.create();
@@ -108,8 +108,8 @@ export class Trimesh extends Shape {
 	getTrianglesInAABB(aabb, result) {
 		unscaledAABB.copy(aabb);
 		const scale = this.scale;
-		const l = unscaledAABB.lowerBound;
-		const u = unscaledAABB.upperBound;
+		const l = unscaledAABB.min;
+		const u = unscaledAABB.max;
 		l[0] /= scale[0];
 		l[1] /= scale[1];
 		l[2] /= scale[2];
@@ -222,8 +222,8 @@ export class Trimesh extends Shape {
 	}
 
 	computeLocalAABB(aabb) {
-		const l = aabb.lowerBound;
-		const u = aabb.upperBound;
+		const l = aabb.min;
+		const u = aabb.max;
 		const n = this.vertices.length;
 		const vertices = this.vertices;
 		const s = this.scale;

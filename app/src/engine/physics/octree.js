@@ -1,14 +1,14 @@
 import { vec3 } from "../../dependencies/gl-matrix.js";
-import { AABB } from "./math.js";
+import BoundingBox from "./boundingbox.js";
 
 const halfDiagonal = vec3.create();
-const tmpAABB = new AABB();
+const tmpAABB = new BoundingBox();
 const tmpVec3 = vec3.create();
 
 class OctreeNode {
 	constructor(options = {}) {
 		this.root = options.root || null;
-		this.aabb = options.aabb ? options.aabb.clone() : new AABB();
+		this.aabb = options.aabb ? options.aabb.clone() : new BoundingBox();
 		this.data = [];
 		this.children = [];
 		this.maxDepth = options.maxDepth;
@@ -51,34 +51,34 @@ class OctreeNode {
 
 	subdivide() {
 		const aabb = this.aabb;
-		const l = aabb.lowerBound;
-		const u = aabb.upperBound;
+		const l = aabb.min;
+		const u = aabb.max;
 		const children = this.children;
 
 		children.push(
 			new OctreeNode({
-				aabb: new AABB({ lowerBound: vec3.fromValues(0, 0, 0) }),
+				aabb: new BoundingBox({ min: vec3.fromValues(0, 0, 0) }),
 			}),
 			new OctreeNode({
-				aabb: new AABB({ lowerBound: vec3.fromValues(1, 0, 0) }),
+				aabb: new BoundingBox({ min: vec3.fromValues(1, 0, 0) }),
 			}),
 			new OctreeNode({
-				aabb: new AABB({ lowerBound: vec3.fromValues(1, 1, 0) }),
+				aabb: new BoundingBox({ min: vec3.fromValues(1, 1, 0) }),
 			}),
 			new OctreeNode({
-				aabb: new AABB({ lowerBound: vec3.fromValues(1, 1, 1) }),
+				aabb: new BoundingBox({ min: vec3.fromValues(1, 1, 1) }),
 			}),
 			new OctreeNode({
-				aabb: new AABB({ lowerBound: vec3.fromValues(0, 1, 1) }),
+				aabb: new BoundingBox({ min: vec3.fromValues(0, 1, 1) }),
 			}),
 			new OctreeNode({
-				aabb: new AABB({ lowerBound: vec3.fromValues(0, 0, 1) }),
+				aabb: new BoundingBox({ min: vec3.fromValues(0, 0, 1) }),
 			}),
 			new OctreeNode({
-				aabb: new AABB({ lowerBound: vec3.fromValues(1, 0, 1) }),
+				aabb: new BoundingBox({ min: vec3.fromValues(1, 0, 1) }),
 			}),
 			new OctreeNode({
-				aabb: new AABB({ lowerBound: vec3.fromValues(0, 1, 0) }),
+				aabb: new BoundingBox({ min: vec3.fromValues(0, 1, 0) }),
 			}),
 		);
 
@@ -90,12 +90,12 @@ class OctreeNode {
 		for (let i = 0; i !== 8; i++) {
 			const child = children[i];
 			child.root = root;
-			const lowerBound = child.aabb.lowerBound;
-			lowerBound[0] *= halfDiagonal[0];
-			lowerBound[1] *= halfDiagonal[1];
-			lowerBound[2] *= halfDiagonal[2];
-			vec3.add(lowerBound, lowerBound, l);
-			vec3.add(child.aabb.upperBound, lowerBound, halfDiagonal);
+			const min = child.aabb.min;
+			min[0] *= halfDiagonal[0];
+			min[1] *= halfDiagonal[1];
+			min[2] *= halfDiagonal[2];
+			vec3.add(min, min, l);
+			vec3.add(child.aabb.max, min, halfDiagonal);
 		}
 	}
 
