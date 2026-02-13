@@ -54,7 +54,7 @@ class MeshEntity extends Entity {
 		);
 
 		if (result.hasHit) {
-			this.shadowHeight = result.hitPointWorld.y;
+			this.shadowHeight = result.hitPointWorld[1];
 		} else {
 			this.shadowHeight = undefined;
 		}

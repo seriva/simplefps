@@ -82,7 +82,7 @@ const _getGroundHeight = (x, y, z) => {
 		y - _MAX_RAYCAST_DISTANCE,
 		z,
 	);
-	return result.hasHit ? result.hitPointWorld.y : y;
+	return result.hasHit ? result.hitPointWorld[1] : y;
 };
 
 // Setup player models at all spawnpoints except the current one

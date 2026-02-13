@@ -149,16 +149,20 @@ const _raycastTrajectory = (from, direction, maxDistance) => {
 		const hp = result.hitPointWorld;
 		const hn = result.hitNormalWorld;
 
-		const dx = hp.x - from[0];
-		const dy = hp.y - from[1];
-		const dz = hp.z - from[2];
+		const dx = hp[0] - from[0];
+		const dy = hp[1] - from[1];
+		const dz = hp[2] - from[2];
 		const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
 
 		const offset = 1.0;
 		return {
 			hit: true,
-			point: [hp.x + hn.x * offset, hp.y + hn.y * offset, hp.z + hn.z * offset],
-			normal: [hn.x, hn.y, hn.z],
+			point: [
+				hp[0] + hn[0] * offset,
+				hp[1] + hn[1] * offset,
+				hp[2] + hn[2] * offset,
+			],
+			normal: [hn[0], hn[1], hn[2]],
 			distance: distance,
 		};
 	}
@@ -351,11 +355,11 @@ const _updateProjectile = (entity, frameTime) => {
 		];
 
 		// Reflect: v' = v - 2(v·n)n
-		const dot = inDir[0] * hn.x + inDir[1] * hn.y + inDir[2] * hn.z;
+		const dot = inDir[0] * hn[0] + inDir[1] * hn[1] + inDir[2] * hn[2];
 		const reflectDir = [
-			inDir[0] - 2 * dot * hn.x,
-			inDir[1] - 2 * dot * hn.y,
-			inDir[2] - 2 * dot * hn.z,
+			inDir[0] - 2 * dot * hn[0],
+			inDir[1] - 2 * dot * hn[1],
+			inDir[2] - 2 * dot * hn[2],
 		];
 
 		// Apply restitution (energy loss)
@@ -366,9 +370,9 @@ const _updateProjectile = (entity, frameTime) => {
 
 		// Move to hit point + larger offset to stay above surface
 		const offset = 3.0;
-		traj.position[0] = hp.x + hn.x * offset;
-		traj.position[1] = hp.y + hn.y * offset;
-		traj.position[2] = hp.z + hn.z * offset;
+		traj.position[0] = hp[0] + hn[0] * offset;
+		traj.position[1] = hp[1] + hn[1] * offset;
+		traj.position[2] = hp[2] + hn[2] * offset;
 	} else {
 		// No hit, update position
 		traj.position[0] = nextPos[0];

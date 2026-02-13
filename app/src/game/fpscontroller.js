@@ -238,7 +238,7 @@ class FPSController {
 			if (result.hasHit) {
 				const hp = result.hitPointWorld;
 				const hitDist = Math.sqrt(
-					(hp.x - startPos.x) ** 2 + (hp.z - startPos.z) ** 2,
+					(hp[0] - startPos.x) ** 2 + (hp[2] - startPos.z) ** 2,
 				);
 				if (hitDist < closestHitDist) {
 					closestHitDist = hitDist;
@@ -256,10 +256,10 @@ class FPSController {
 
 				// Wall slide: remove velocity component into wall
 				const dot =
-					this.velocity[0] * wallNormal.x + this.velocity[2] * wallNormal.z;
+					this.velocity[0] * wallNormal[0] + this.velocity[2] * wallNormal[2];
 				if (dot < 0) {
-					this.velocity[0] -= dot * wallNormal.x;
-					this.velocity[2] -= dot * wallNormal.z;
+					this.velocity[0] -= dot * wallNormal[0];
+					this.velocity[2] -= dot * wallNormal[2];
 				}
 			}
 		}
@@ -283,7 +283,7 @@ class FPSController {
 
 			if (result.hasHit) {
 				const hp = result.hitPointWorld;
-				const hitDist = Math.sqrt((hp.x - x) ** 2 + (hp.z - z) ** 2);
+				const hitDist = Math.sqrt((hp[0] - x) ** 2 + (hp[2] - z) ** 2);
 				if (hitDist < radius) {
 					const pushDist = radius - hitDist + 1;
 					x -= dir.x * pushDist;
@@ -325,8 +325,8 @@ class FPSController {
 				finalZ + oz,
 			);
 
-			if (result.hasHit && result.hitPointWorld.y > bestHitY) {
-				bestHitY = result.hitPointWorld.y;
+			if (result.hasHit && result.hitPointWorld[1] > bestHitY) {
+				bestHitY = result.hitPointWorld[1];
 				hasGroundHit = true;
 			}
 		}

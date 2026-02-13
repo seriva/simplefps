@@ -1,99 +1,123 @@
-import * as CANNON from "../../dependencies/cannon-es.js";
+import { quat, vec3 } from "../../dependencies/gl-matrix.js";
+import { Ray, RaycastResult } from "../../engine/physics/ray.js";
+import { Trimesh } from "../../engine/physics/shapes.js";
 
 // Private state
-let _world = null;
+const _staticObjects = [];
 let _paused = false;
-let _simulationEnabled = false; // Disabled by default - we use raycasts only
+let _simulationEnabled = false;
 
-// Collision groups for filtering (exported for use in other modules)
+// Collision groups
 const COLLISION_GROUPS = {
 	WORLD: 1,
 	PLAYER: 2,
 	PROJECTILE: 4,
 };
 
-// Shared raycast state (reused to avoid GC pressure)
-const _rayFrom = new CANNON.Vec3();
-const _rayTo = new CANNON.Vec3();
-const _rayResult = new CANNON.RaycastResult();
+// Shared raycast state
+const _rayFrom = vec3.create();
+const _rayTo = vec3.create();
+const _rayResult = new RaycastResult();
+const _ray = new Ray();
 const _defaultRayOptions = {
 	skipBackfaces: true,
 	collisionFilterMask: COLLISION_GROUPS.WORLD,
 };
 
-/**
- * Perform a raycast from (fromX,fromY,fromZ) to (toX,toY,toZ).
- * Returns the shared result object — check result.hasHit, result.hitPointWorld, result.hitNormalWorld.
- * WARNING: The returned object is reused across calls — copy values if you need to keep them.
- */
 const _raycast = (fromX, fromY, fromZ, toX, toY, toZ, options) => {
-	_rayFrom.set(fromX, fromY, fromZ);
-	_rayTo.set(toX, toY, toZ);
+	vec3.set(_rayFrom, fromX, fromY, fromZ);
+	vec3.set(_rayTo, toX, toY, toZ);
 	_rayResult.reset();
-	_world.raycastClosest(
-		_rayFrom,
-		_rayTo,
-		options || _defaultRayOptions,
-		_rayResult,
-	);
+
+	vec3.copy(_ray.from, _rayFrom);
+	vec3.copy(_ray.to, _rayTo);
+	_ray.updateDirection();
+	_ray.result = _rayResult;
+
+	const opts = options || _defaultRayOptions;
+	_ray.skipBackfaces =
+		typeof opts.skipBackfaces !== "undefined" ? opts.skipBackfaces : true;
+	_ray.collisionFilterMask =
+		typeof opts.collisionFilterMask !== "undefined"
+			? opts.collisionFilterMask
+			: -1;
+	_ray.collisionFilterGroup =
+		typeof opts.collisionFilterGroup !== "undefined"
+			? opts.collisionFilterGroup
+			: -1;
+	_ray.mode = 1; // CLOSEST
+
+	_ray.hasHit = false;
+	_rayResult.distance = Infinity;
+
+	for (let i = 0; i < _staticObjects.length; i++) {
+		const obj = _staticObjects[i];
+		_ray.intersectTrimesh(
+			obj.shape,
+			obj.quaternion,
+			obj.position,
+			obj, // body
+			opts,
+		);
+	}
+
 	return _rayResult;
 };
 
 const _init = () => {
-	_world = new CANNON.World();
-	_world.broadphase = new CANNON.SAPBroadphase(_world);
-	_world.gravity.set(0, 0, 0);
-	_world.allowSleep = true;
+	_staticObjects.length = 0;
 };
 
 const _addBody = (body) => {
-	_world.addBody(body);
+	console.warn("Physics.addBody not fully supported in simplified physics");
+	if (body && body.shape) {
+		_staticObjects.push({
+			shape: body.shape,
+			position: body.position || vec3.create(),
+			quaternion: body.quaternion || quat.create(),
+		});
+	}
 };
 
 const _removeBody = (body) => {
-	_world.removeBody(body);
+	for (let i = 0; i < _staticObjects.length; i++) {
+		if (_staticObjects[i] === body) {
+			_staticObjects.splice(i, 1);
+			return;
+		}
+	}
 };
 
 const _addTrimesh = (vertices, indices) => {
-	// Convert flat vertex array to CANNON format
 	const cannonVertices = [];
 	for (let i = 0; i < vertices.length; i += 3) {
 		cannonVertices.push(vertices[i], vertices[i + 1], vertices[i + 2]);
 	}
 
-	// Flatten all index groups into one array (double-sided: add both windings)
 	const cannonIndices = [];
 	for (const indexGroup of indices) {
 		for (let i = 0; i < indexGroup.array.length; i += 3) {
 			const a = indexGroup.array[i];
 			const b = indexGroup.array[i + 1];
 			const c = indexGroup.array[i + 2];
-			// Original winding
 			cannonIndices.push(a, b, c);
-			// Reversed winding for double-sided collision
 			cannonIndices.push(a, c, b);
 		}
 	}
 
-	const trimesh = new CANNON.Trimesh(cannonVertices, cannonIndices);
-	const body = new CANNON.Body({
-		mass: 0, // Static body
-		type: CANNON.Body.STATIC,
-	});
-	body.addShape(trimesh);
-	_world.addBody(body);
+	const trimesh = new Trimesh(cannonVertices, cannonIndices);
+	const body = {
+		position: vec3.create(),
+		quaternion: quat.create(),
+		shape: trimesh,
+		mass: 0,
+	};
+	_staticObjects.push(body);
 	return body;
 };
 
-const _timeStep = 1 / 120;
-const _MAX_SUBSTEPS = 10;
+const _update = (dt) => {};
 
-const _update = (dt) => {
-	if (_paused || !_simulationEnabled) return;
-	_world.step(_timeStep, dt, _MAX_SUBSTEPS);
-};
-
-// Public Physics API
 const Physics = {
 	init: _init,
 	update: _update,
@@ -107,7 +131,7 @@ const Physics = {
 	removeBody: _removeBody,
 	addTrimesh: _addTrimesh,
 	raycast: _raycast,
-	getWorld: () => _world,
+	getWorld: () => ({ bodies: _staticObjects }),
 	COLLISION_GROUPS,
 };
 
