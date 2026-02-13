@@ -1,6 +1,6 @@
 import { quat, vec3 } from "../../dependencies/gl-matrix.js";
 import { Ray, RaycastResult } from "../../engine/physics/ray.js";
-import { Trimesh } from "../../engine/physics/shapes.js";
+import { Trimesh } from "../../engine/physics/trimesh.js";
 
 // Private state
 const _staticObjects = [];
@@ -116,7 +116,7 @@ const _addTrimesh = (vertices, indices) => {
 	return body;
 };
 
-const _update = (dt) => {};
+const _update = (dt) => { };
 
 const Physics = {
 	init: _init,
