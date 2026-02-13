@@ -1,4 +1,4 @@
-import { mat4, quat } from "../../dependencies/gl-matrix.js";
+import { mat4 } from "../../dependencies/gl-matrix.js";
 import BoundingBox from "../core/boundingbox.js";
 import { Shaders } from "../rendering/shaders.js";
 import Physics from "../systems/physics.js";
@@ -11,12 +11,6 @@ const _MAX_RAYCAST_DISTANCE = 200;
 // Reusable temporaries to avoid per-frame allocations
 const _tempMatrix = mat4.create();
 const _tempPos = new Float32Array(3);
-const _tempScale = new Float32Array(3);
-const _tempShadowPos = new Float32Array(3);
-const _tempShadowScale = new Float32Array(3);
-const _tempQuat1 = quat.create();
-const _tempQuat2 = quat.create();
-const _tempQuat3 = quat.create();
 const _tempProbeColor = new Float32Array(3);
 
 class MeshEntity extends Entity {
@@ -130,7 +124,6 @@ class MeshEntity extends Entity {
 	dispose() {
 		super.dispose();
 		this.mesh = null;
-		this.physicsBody = null;
 	}
 }
 
