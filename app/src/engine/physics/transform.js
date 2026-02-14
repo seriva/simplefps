@@ -1,6 +1,6 @@
 import { quat, vec3 } from "../../dependencies/gl-matrix.js";
 
-const tmpQuat = quat.create();
+const _tmpQuat = quat.create();
 
 class Transform {
 	constructor(options = {}) {
@@ -40,8 +40,8 @@ class Transform {
 		result = vec3.create(),
 	) {
 		vec3.sub(result, worldPoint, position);
-		quat.conjugate(tmpQuat, quaternion);
-		vec3.transformQuat(result, result, tmpQuat);
+		quat.conjugate(_tmpQuat, quaternion);
+		vec3.transformQuat(result, result, _tmpQuat);
 		return result;
 	}
 
@@ -67,8 +67,8 @@ class Transform {
 		worldVector,
 		result = vec3.create(),
 	) {
-		quat.conjugate(tmpQuat, quaternion);
-		vec3.transformQuat(result, worldVector, tmpQuat);
+		quat.conjugate(_tmpQuat, quaternion);
+		vec3.transformQuat(result, worldVector, _tmpQuat);
 		return result;
 	}
 }

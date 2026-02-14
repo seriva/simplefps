@@ -5,11 +5,45 @@ import Stats from "../systems/stats.js";
 import { EntityTypes } from "./entity.js";
 import LightGrid from "./lightgrid.js";
 
+// ============================================================================
 // Private constants
+// ============================================================================
+
 const _DEFAULT_AMBIENT = [0.5, 0.5, 0.5];
 const _BLACK = [0, 0, 0];
 
+const _VISIBILITY_CACHE_TYPES = [
+	EntityTypes.SKYBOX,
+	EntityTypes.MESH,
+	EntityTypes.SKINNED_MESH,
+	EntityTypes.FPS_MESH,
+	EntityTypes.DIRECTIONAL_LIGHT,
+	EntityTypes.POINT_LIGHT,
+	EntityTypes.SPOT_LIGHT,
+];
+
+const _MESH_TYPES = new Set([
+	EntityTypes.MESH,
+	EntityTypes.SKINNED_MESH,
+	EntityTypes.FPS_MESH,
+]);
+
+const _LIGHT_TYPES = new Set([
+	EntityTypes.POINT_LIGHT,
+	EntityTypes.SPOT_LIGHT,
+	EntityTypes.DIRECTIONAL_LIGHT,
+]);
+
+const _DEFAULT_RAY_OPTIONS = {
+	skipBackfaces: true,
+	collisionFilterMask: 1, // Default to WORLD
+	collisionFilterGroup: -1,
+};
+
+// ============================================================================
 // Private state
+// ============================================================================
+
 let _entities = [];
 const _collidables = [];
 let _ambient = _DEFAULT_AMBIENT;
@@ -20,10 +54,6 @@ const _rayFrom = vec3.create();
 const _rayTo = vec3.create();
 const _rayResult = new RaycastResult();
 const _ray = new Ray();
-const _defaultRayOptions = {
-	skipBackfaces: true,
-	collisionFilterMask: 1, // Default to WORLD (TODO: use constant)
-};
 
 const _visibilityCache = {
 	[EntityTypes.SKYBOX]: [],
@@ -35,19 +65,6 @@ const _visibilityCache = {
 	[EntityTypes.SPOT_LIGHT]: [],
 };
 
-// Pre-computed type arrays for fast lookup (avoids .includes() in hot path)
-const _visibilityCacheTypes = Object.keys(_visibilityCache).map(Number);
-const _meshTypes = new Set([
-	EntityTypes.MESH,
-	EntityTypes.SKINNED_MESH,
-	EntityTypes.FPS_MESH,
-]);
-const _lightTypes = new Set([
-	EntityTypes.POINT_LIGHT,
-	EntityTypes.SPOT_LIGHT,
-	EntityTypes.DIRECTIONAL_LIGHT,
-]);
-
 const _renderStats = {
 	visibleMeshCount: 0,
 	visibleLightCount: 0,
@@ -57,7 +74,10 @@ const _renderStats = {
 // Private entity cache
 const _entityCache = new Map();
 
+// ============================================================================
 // Private functions
+// ============================================================================
+
 const _getEntities = (type) => {
 	if (_entityCache.has(type)) return _entityCache.get(type);
 
@@ -124,8 +144,9 @@ const _dispose = () => {
 	_pauseUpdate = false;
 
 	// Reset visibility cache
-	for (let t = 0; t < _visibilityCacheTypes.length; t++) {
-		_visibilityCache[_visibilityCacheTypes[t]].length = 0;
+	for (let i = 0; i < _VISIBILITY_CACHE_TYPES.length; i++) {
+		const type = _VISIBILITY_CACHE_TYPES[i];
+		_visibilityCache[type].length = 0;
 	}
 };
 
@@ -133,21 +154,18 @@ const _getAmbient = (position = null, outColor = null) => {
 	if (LightGrid.hasData) {
 		if (position) return LightGrid.getAmbient(position, outColor);
 		if (outColor) {
-			outColor[0] = 0;
-			outColor[1] = 0;
-			outColor[2] = 0;
+			vec3.set(outColor, 0, 0, 0);
 			return outColor;
 		}
 		return _BLACK;
 	}
 	if (outColor) {
-		outColor[0] = _ambient[0];
-		outColor[1] = _ambient[1];
-		outColor[2] = _ambient[2];
+		vec3.copy(outColor, _ambient);
 		return outColor;
 	}
 	return _ambient;
 };
+
 const _setAmbient = (a) => {
 	_ambient = a;
 };
@@ -195,9 +213,10 @@ const _updateVisibility = () => {
 	stats.visibleLightCount = 0;
 	stats.triangleCount = 0;
 
-	// Reset visibility lists using pre-computed type array
-	for (let t = 0; t < _visibilityCacheTypes.length; t++) {
-		_visibilityCache[_visibilityCacheTypes[t]].length = 0;
+	// Reset visibility lists
+	for (let i = 0; i < _VISIBILITY_CACHE_TYPES.length; i++) {
+		const type = _VISIBILITY_CACHE_TYPES[i];
+		_visibilityCache[type].length = 0;
 	}
 
 	// Sort entities into visible/invisible lists
@@ -207,10 +226,10 @@ const _updateVisibility = () => {
 			_visibilityCache[entity.type].push(entity);
 			const type = entity.type;
 
-			if (_meshTypes.has(type)) {
+			if (_MESH_TYPES.has(type)) {
 				stats.visibleMeshCount++;
 				stats.triangleCount += entity.mesh?.triangleCount || 0;
-			} else if (_lightTypes.has(type)) {
+			} else if (_LIGHT_TYPES.has(type)) {
 				stats.visibleLightCount++;
 			}
 		}
@@ -223,7 +242,15 @@ const _updateVisibility = () => {
 	);
 };
 
-const _raycast = (fromX, fromY, fromZ, toX, toY, toZ, options) => {
+const _raycast = (
+	fromX,
+	fromY,
+	fromZ,
+	toX,
+	toY,
+	toZ,
+	options = _DEFAULT_RAY_OPTIONS,
+) => {
 	vec3.set(_rayFrom, fromX, fromY, fromZ);
 	vec3.set(_rayTo, toX, toY, toZ);
 	_rayResult.reset();
@@ -233,36 +260,27 @@ const _raycast = (fromX, fromY, fromZ, toX, toY, toZ, options) => {
 	_ray.updateDirection();
 	_ray.result = _rayResult;
 
-	const opts = options || _defaultRayOptions;
-	_ray.skipBackfaces =
-		typeof opts.skipBackfaces !== "undefined" ? opts.skipBackfaces : true;
-	_ray.collisionFilterMask =
-		typeof opts.collisionFilterMask !== "undefined"
-			? opts.collisionFilterMask
-			: -1;
-	_ray.collisionFilterGroup =
-		typeof opts.collisionFilterGroup !== "undefined"
-			? opts.collisionFilterGroup
-			: -1;
+	_ray.skipBackfaces = options.skipBackfaces ?? true;
+	_ray.collisionFilterMask = options.collisionFilterMask ?? -1;
+	_ray.collisionFilterGroup = options.collisionFilterGroup ?? -1;
 	_ray.mode = 1; // CLOSEST
 
 	_ray.hasHit = false;
 	_rayResult.distance = Infinity;
 
-	// DEBUG:
-	// if (_collidables.length === 0) console.warn("No collidables!");
 	for (let i = 0; i < _collidables.length; i++) {
 		const entity = _collidables[i];
 		// Use base_matrix for static geometry.
-		// For dynamic objects, we might need to support passed transforms or use ani_matrix?
-		// Currently FPSController casts against WORLD (static).
-		_ray.intersectTrimesh(entity.collider, entity.base_matrix, opts);
+		_ray.intersectTrimesh(entity.collider, entity.base_matrix, options);
 	}
 
 	return _rayResult;
 };
 
-// Public Scene API - Entity management only, no rendering
+// ============================================================================
+// Public Scene API
+// ============================================================================
+
 const Scene = {
 	init: _init,
 	dispose: _dispose,

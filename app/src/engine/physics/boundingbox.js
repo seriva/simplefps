@@ -1,39 +1,41 @@
 import { mat4, vec3 } from "../../dependencies/gl-matrix.js";
 import Camera from "../core/camera.js";
 
+// ============================================================================
+// Private state (Module-scoped temporary variables)
+// ============================================================================
+
+const _cornersBuffer = new Float32Array(24);
+const _transformedMin = vec3.create();
+const _transformedMax = vec3.create();
+const _tempCorner = vec3.create();
+
+// Temps for isVisible
+const _p = vec3.create();
+const _n = vec3.create();
+
+// Corners for frame transformation
+const _transformIntoFrameCorners = [
+	vec3.create(),
+	vec3.create(),
+	vec3.create(),
+	vec3.create(),
+	vec3.create(),
+	vec3.create(),
+	vec3.create(),
+	vec3.create(),
+];
+
+// ============================================================================
+// Public BoundingBox Class
+// ============================================================================
+
 class BoundingBox {
-	static #vectorPool = Array(32)
-		.fill()
-		.map(() => vec3.create());
-	static #poolIndex = 0;
-
-	static #cornersBuffer = new Float32Array(24);
-	static #transformedMin = vec3.create();
-	static #transformedMax = vec3.create();
-
-	static #transformIntoFrameCorners = [
-		vec3.create(),
-		vec3.create(),
-		vec3.create(),
-		vec3.create(),
-		vec3.create(),
-		vec3.create(),
-		vec3.create(),
-		vec3.create(),
-	];
-
 	constructor(min, max) {
 		this.min = vec3.create();
 		this.max = vec3.create();
 		if (min) vec3.copy(this.min, min);
 		if (max) vec3.copy(this.max, max);
-	}
-
-	static #getVector() {
-		const vector = BoundingBox.#vectorPool[BoundingBox.#poolIndex];
-		BoundingBox.#poolIndex =
-			(BoundingBox.#poolIndex + 1) % BoundingBox.#vectorPool.length;
-		return vector;
 	}
 
 	static fromPoints(points) {
@@ -136,14 +138,14 @@ class BoundingBox {
 	}
 
 	toLocalFrame(frame, target) {
-		const corners = BoundingBox.#transformIntoFrameCorners;
+		const corners = _transformIntoFrameCorners;
 		this.getCorners(...corners);
 		for (let i = 0; i < 8; i++) frame.pointToLocal(corners[i], corners[i]);
 		return target.setFromPoints(corners);
 	}
 
 	toWorldFrame(frame, target) {
-		const corners = BoundingBox.#transformIntoFrameCorners;
+		const corners = _transformIntoFrameCorners;
 		this.getCorners(...corners);
 		for (let i = 0; i < 8; i++) frame.pointToWorld(corners[i], corners[i]);
 		return target.setFromPoints(corners);
@@ -174,8 +176,8 @@ class BoundingBox {
 	}
 
 	transformInto(matrix, out) {
-		const corners = BoundingBox.#cornersBuffer;
-		const corner = BoundingBox.#getVector();
+		const corners = _cornersBuffer;
+		const corner = _tempCorner;
 
 		for (let i = 0; i < 8; i++) {
 			vec3.set(
@@ -190,8 +192,8 @@ class BoundingBox {
 			corners[i * 3 + 2] = corner[2];
 		}
 
-		const tMin = BoundingBox.#transformedMin,
-			tMax = BoundingBox.#transformedMax;
+		const tMin = _transformedMin,
+			tMax = _transformedMax;
 		tMin[0] = tMax[0] = corners[0];
 		tMin[1] = tMax[1] = corners[1];
 		tMin[2] = tMax[2] = corners[2];
@@ -209,25 +211,21 @@ class BoundingBox {
 	}
 
 	isVisible() {
-		const p = BoundingBox.#getVector();
-		const n = BoundingBox.#getVector();
+		// Use dedicated temps _p and _n (no allocation)
+		const p = _p;
 		const planes = Camera.frustumPlanesArray;
 
 		for (let i = 0; i < 6; i++) {
 			const plane = planes[i];
+			// Find the point on the AABB furthest in the direction of the plane normal
 			p[0] = plane[0] > 0 ? this.max[0] : this.min[0];
 			p[1] = plane[1] > 0 ? this.max[1] : this.min[1];
 			p[2] = plane[2] > 0 ? this.max[2] : this.min[2];
 
-			n[0] = plane[0] > 0 ? this.min[0] : this.max[0];
-			n[1] = plane[1] > 0 ? this.min[1] : this.max[1];
-			n[2] = plane[2] > 0 ? this.min[2] : this.max[2];
-
-			if (
-				vec3.dot(p, plane) + plane[3] < 0 &&
-				vec3.dot(n, plane) + plane[3] < 0
-			)
+			// If that point is behind the plane, the entire AABB is outside
+			if (vec3.dot(p, plane) + plane[3] < 0) {
 				return false;
+			}
 		}
 		return true;
 	}
