@@ -19,13 +19,13 @@ const c = vec3.create();
 const intersectPoint = vec3.create();
 const _invMatrix = mat4.create();
 
-export const RAY_MODES = {
+const RAY_MODES = {
 	CLOSEST: 1,
 	ANY: 2,
 	ALL: 4,
 };
 
-export class RaycastResult {
+class RaycastResult {
 	constructor() {
 		this.rayFromWorld = vec3.create();
 		this.rayToWorld = vec3.create();
@@ -63,7 +63,7 @@ export class RaycastResult {
 	}
 }
 
-export class Ray {
+class Ray {
 	constructor(from, to) {
 		this.from = vec3.create();
 		this.to = vec3.create();
@@ -245,3 +245,6 @@ export class Ray {
 }
 
 const _localRay = new Ray();
+
+export { RAY_MODES, RaycastResult, Ray };
+

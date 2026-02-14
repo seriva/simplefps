@@ -132,10 +132,13 @@ class OctreeNode {
 	}
 }
 
-export class Octree extends OctreeNode {
+class Octree extends OctreeNode {
 	constructor(aabb, options = {}) {
 		super({ root: null, aabb: aabb });
 		this.maxDepth =
 			typeof options.maxDepth !== "undefined" ? options.maxDepth : 8;
 	}
 }
+
+export { Octree };
+
