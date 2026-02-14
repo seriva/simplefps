@@ -44,16 +44,6 @@ const _setupEnvironment = ({ skybox, chunks = [] }) => {
 
 		// Create collision mesh for this chunk
 		try {
-			// MeshEntity loads model in constructor but resource might not be ready if async?
-			// MeshEntity constructor uses Resources.get(url). If url is string, it assumes loaded?
-			// Actually Resources.load was called before _load checks logic?
-			// Arena._load uses Utils.fetch for config, then ... Resources logic?
-			// Wait, MeshEntity logic: `this.mesh = typeof mesh === "string" ? Resources.get(mesh) : mesh;`
-			// So resources must be loaded.
-			// However, in _load, we don't explicitly wait for chunks?
-			// Actually Loading.toggle(true) suggest we might wait?
-			// But Resources.get() returns null if not loaded.
-
 			// Let's check if the mesh data is available.
 			if (entity.mesh) {
 				const mesh = entity.mesh; // 'mesh' property of MeshEntity
