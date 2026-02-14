@@ -1,22 +1,22 @@
 import { mat4, vec3 } from "../../dependencies/gl-matrix.js";
 import { Transform } from "./transform.js";
 
-const intersectTrimesh_normal = vec3.create();
-const intersectTrimesh_triangles = [];
-const intersectTrimesh_treeTransform = new Transform();
-const intersectTrimesh_vector = vec3.create();
-const intersectTrimesh_localDirection = vec3.create();
-const intersectTrimesh_localFrom = vec3.create();
-const intersectTrimesh_localTo = vec3.create();
-const intersectTrimesh_worldIntersectPoint = vec3.create();
-const intersectTrimesh_worldNormal = vec3.create();
-const v0 = vec3.create();
-const v1 = vec3.create();
-const v2 = vec3.create();
-const a = vec3.create();
-const b = vec3.create();
-const c = vec3.create();
-const intersectPoint = vec3.create();
+const _itNormal = vec3.create();
+const _itTriangles = [];
+const _itTreeTransform = new Transform();
+const _itVector = vec3.create();
+const _itLocalDir = vec3.create();
+const _itLocalFrom = vec3.create();
+const _itLocalTo = vec3.create();
+const _itWorldPoint = vec3.create();
+const _itWorldNormal = vec3.create();
+const _v0 = vec3.create();
+const _v1 = vec3.create();
+const _v2 = vec3.create();
+const _a = vec3.create();
+const _b = vec3.create();
+const _c = vec3.create();
+const _intersectPoint = vec3.create();
 const _invMatrix = mat4.create();
 
 const RAY_MODES = {
@@ -88,33 +88,23 @@ class Ray {
 	}
 
 	intersectTrimesh(mesh, worldMatrix, _options) {
-		const normal = intersectTrimesh_normal;
-		const triangles = intersectTrimesh_triangles;
-		const treeTransform = intersectTrimesh_treeTransform;
-		const vector = intersectTrimesh_vector;
-		const localDirection = intersectTrimesh_localDirection;
-		const localFrom = intersectTrimesh_localFrom;
-		const localTo = intersectTrimesh_localTo;
-		const worldIntersectPoint = intersectTrimesh_worldIntersectPoint;
-		const worldNormal = intersectTrimesh_worldNormal;
-
 		const indices = mesh.indices;
 
 		// Transform ray to local space
 		mat4.invert(_invMatrix, worldMatrix);
-		vec3.transformMat4(localFrom, this.from, _invMatrix);
-		vec3.transformMat4(localTo, this.to, _invMatrix);
+		vec3.transformMat4(_itLocalFrom, this.from, _invMatrix);
+		vec3.transformMat4(_itLocalTo, this.to, _invMatrix);
 
-		vec3.sub(localDirection, localTo, localFrom);
-		vec3.normalize(localDirection, localDirection);
+		vec3.sub(_itLocalDir, _itLocalTo, _itLocalFrom);
+		vec3.normalize(_itLocalDir, _itLocalDir);
 
 		// Prepare tree transform (identity, as we transformed ray to local)
-		vec3.set(treeTransform.position, 0, 0, 0);
-		treeTransform.quaternion.set([0, 0, 0, 1]); // Identity quat
+		vec3.set(_itTreeTransform.position, 0, 0, 0);
+		_itTreeTransform.quaternion.set([0, 0, 0, 1]); // Identity quat
 
-		_localRay.from = localFrom;
-		_localRay.to = localTo;
-		_localRay.direction = localDirection;
+		_localRay.from = _itLocalFrom;
+		_localRay.to = _itLocalTo;
+		_localRay.direction = _itLocalDir;
 		// Copy other props
 		_localRay.precision = this.precision;
 		_localRay.checkCollisionResponse = this.checkCollisionResponse;
@@ -124,38 +114,38 @@ class Ray {
 		_localRay.mode = this.mode;
 		_localRay.result.shouldStop = false;
 
-		mesh.tree.rayQuery(_localRay, treeTransform, triangles);
+		mesh.tree.rayQuery(_localRay, _itTreeTransform, _itTriangles);
 
-		const fromToDistanceSquaredVal = vec3.sqrDist(localFrom, localTo);
+		const fromToDistanceSquaredVal = vec3.sqrDist(_itLocalFrom, _itLocalTo);
 
 		for (
-			let i = 0, N = triangles.length;
+			let i = 0, N = _itTriangles.length;
 			!this.result.shouldStop && i !== N;
 			i++
 		) {
-			const trianglesIndex = triangles[i];
-			mesh.getNormal(trianglesIndex, normal);
-			mesh.getVertex(indices[trianglesIndex * 3], a);
+			const trianglesIndex = _itTriangles[i];
+			mesh.getNormal(trianglesIndex, _itNormal);
+			mesh.getVertex(indices[trianglesIndex * 3], _a);
 
-			vec3.sub(vector, a, localFrom);
-			const dot = vec3.dot(localDirection, normal);
+			vec3.sub(_itVector, _a, _itLocalFrom);
+			const dot = vec3.dot(_itLocalDir, _itNormal);
 
-			const scalar = vec3.dot(normal, vector) / dot;
+			const scalar = vec3.dot(_itNormal, _itVector) / dot;
 			if (scalar < 0) {
 				continue;
 			}
 
-			vec3.scaleAndAdd(intersectPoint, localFrom, localDirection, scalar);
+			vec3.scaleAndAdd(_intersectPoint, _itLocalFrom, _itLocalDir, scalar);
 
-			mesh.getVertex(indices[trianglesIndex * 3 + 1], b);
-			mesh.getVertex(indices[trianglesIndex * 3 + 2], c);
+			mesh.getVertex(indices[trianglesIndex * 3 + 1], _b);
+			mesh.getVertex(indices[trianglesIndex * 3 + 2], _c);
 
-			const squaredDistance = vec3.sqrDist(intersectPoint, localFrom);
+			const squaredDistance = vec3.sqrDist(_intersectPoint, _itLocalFrom);
 
 			if (
 				!(
-					Ray.pointInTriangle(intersectPoint, b, a, c) ||
-					Ray.pointInTriangle(intersectPoint, a, b, c)
+					Ray.pointInTriangle(_intersectPoint, _b, _a, _c) ||
+					Ray.pointInTriangle(_intersectPoint, _a, _b, _c)
 				) ||
 				squaredDistance > fromToDistanceSquaredVal
 			) {
@@ -163,24 +153,27 @@ class Ray {
 			}
 
 			// Transform Hit Point local -> world
-			vec3.transformMat4(worldIntersectPoint, intersectPoint, worldMatrix);
+			vec3.transformMat4(_itWorldPoint, _intersectPoint, worldMatrix);
 
 			// Transform Normal local -> world (rotate only)
 			const m = worldMatrix;
-			worldNormal[0] = normal[0] * m[0] + normal[1] * m[4] + normal[2] * m[8];
-			worldNormal[1] = normal[0] * m[1] + normal[1] * m[5] + normal[2] * m[9];
-			worldNormal[2] = normal[0] * m[2] + normal[1] * m[6] + normal[2] * m[10];
-			vec3.normalize(worldNormal, worldNormal);
+			_itWorldNormal[0] =
+				_itNormal[0] * m[0] + _itNormal[1] * m[4] + _itNormal[2] * m[8];
+			_itWorldNormal[1] =
+				_itNormal[0] * m[1] + _itNormal[1] * m[5] + _itNormal[2] * m[9];
+			_itWorldNormal[2] =
+				_itNormal[0] * m[2] + _itNormal[1] * m[6] + _itNormal[2] * m[10];
+			vec3.normalize(_itWorldNormal, _itWorldNormal);
 
 			this.reportIntersection(
-				worldNormal,
-				worldIntersectPoint,
+				_itWorldNormal,
+				_itWorldPoint,
 				mesh,
 				null, // body, deprecated
 				trianglesIndex,
 			);
 		}
-		triangles.length = 0;
+		_itTriangles.length = 0;
 	}
 
 	reportIntersection(normal, hitPointWorld, shape, body, hitFaceIndex) {
@@ -222,15 +215,15 @@ class Ray {
 	}
 
 	static pointInTriangle(p, a, b, c) {
-		vec3.sub(v0, c, a);
-		vec3.sub(v1, b, a);
-		vec3.sub(v2, p, a);
+		vec3.sub(_v0, c, a);
+		vec3.sub(_v1, b, a);
+		vec3.sub(_v2, p, a);
 
-		const dot00 = vec3.dot(v0, v0);
-		const dot01 = vec3.dot(v0, v1);
-		const dot02 = vec3.dot(v0, v2);
-		const dot11 = vec3.dot(v1, v1);
-		const dot12 = vec3.dot(v1, v2);
+		const dot00 = vec3.dot(_v0, _v0);
+		const dot01 = vec3.dot(_v0, _v1);
+		const dot02 = vec3.dot(_v0, _v2);
+		const dot11 = vec3.dot(_v1, _v1);
+		const dot12 = vec3.dot(_v1, _v2);
 
 		const u = dot11 * dot02 - dot01 * dot12;
 		const v = dot00 * dot12 - dot01 * dot02;

@@ -2,12 +2,13 @@ import { vec3 } from "../../dependencies/gl-matrix.js";
 import BoundingBox from "./boundingbox.js";
 import { Octree } from "./octree.js";
 
-const va = vec3.create();
-const vb = vec3.create();
-const vc = vec3.create();
-const n = vec3.create();
-const ab = vec3.create();
-const cb = vec3.create();
+// Temp variables
+const _va = vec3.create();
+const _vb = vec3.create();
+const _vc = vec3.create();
+const _n = vec3.create();
+const _ab = vec3.create();
+const _cb = vec3.create();
 
 class Trimesh {
 	constructor(vertices, indices) {
@@ -40,16 +41,16 @@ class Trimesh {
 		tree.aabb.max[2] *= invSz;
 
 		const triangleAABB = new BoundingBox();
-		const points = [va, vb, vc];
+		const points = [_va, _vb, _vc];
 
 		for (let i = 0, len = indices.length; i < len; i += 3) {
 			const i0 = indices[i] * 3;
 			const i1 = indices[i + 1] * 3;
 			const i2 = indices[i + 2] * 3;
 
-			vec3.set(va, vertices[i0], vertices[i0 + 1], vertices[i0 + 2]);
-			vec3.set(vb, vertices[i1], vertices[i1 + 1], vertices[i1 + 2]);
-			vec3.set(vc, vertices[i2], vertices[i2 + 1], vertices[i2 + 2]);
+			vec3.set(_va, vertices[i0], vertices[i0 + 1], vertices[i0 + 2]);
+			vec3.set(_vb, vertices[i1], vertices[i1 + 1], vertices[i1 + 2]);
+			vec3.set(_vc, vertices[i2], vertices[i2 + 1], vertices[i2 + 2]);
 
 			triangleAABB.setFromPoints(points);
 			tree.insert(triangleAABB, i / 3);
@@ -69,29 +70,29 @@ class Trimesh {
 			const i2 = indices[i + 2] * 3;
 
 			vec3.set(
-				va,
+				_va,
 				vertices[i0] * sx,
 				vertices[i0 + 1] * sy,
 				vertices[i0 + 2] * sz,
 			);
 			vec3.set(
-				vb,
+				_vb,
 				vertices[i1] * sx,
 				vertices[i1 + 1] * sy,
 				vertices[i1 + 2] * sz,
 			);
 			vec3.set(
-				vc,
+				_vc,
 				vertices[i2] * sx,
 				vertices[i2 + 1] * sy,
 				vertices[i2 + 2] * sz,
 			);
 
-			Trimesh.computeNormal(vb, va, vc, n);
+			Trimesh.computeNormal(_vb, _va, _vc, _n);
 
-			normals[i] = n[0];
-			normals[i + 1] = n[1];
-			normals[i + 2] = n[2];
+			normals[i] = _n[0];
+			normals[i + 1] = _n[1];
+			normals[i + 2] = _n[2];
 		}
 	}
 
@@ -141,9 +142,9 @@ class Trimesh {
 	}
 
 	static computeNormal(va, vb, vc, target) {
-		vec3.sub(ab, vb, va);
-		vec3.sub(cb, vc, vb);
-		vec3.cross(target, cb, ab);
+		vec3.sub(_ab, vb, va);
+		vec3.sub(_cb, vc, vb);
+		vec3.cross(target, _cb, _ab);
 		if (vec3.length(target) > 0) {
 			vec3.normalize(target, target);
 		}

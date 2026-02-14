@@ -1,8 +1,8 @@
 import { vec3 } from "../../dependencies/gl-matrix.js";
 import BoundingBox from "./boundingbox.js";
 
-const halfDiagonal = vec3.create();
-const tmpAABB = new BoundingBox();
+const _halfDiagonal = vec3.create();
+const _tmpAABB = new BoundingBox();
 const _tmpVec3 = vec3.create();
 
 class OctreeNode {
@@ -82,8 +82,8 @@ class OctreeNode {
 			}),
 		);
 
-		vec3.sub(halfDiagonal, u, l);
-		vec3.scale(halfDiagonal, halfDiagonal, 0.5);
+		vec3.sub(_halfDiagonal, u, l);
+		vec3.scale(_halfDiagonal, _halfDiagonal, 0.5);
 
 		const root = this.root || this;
 
@@ -91,11 +91,11 @@ class OctreeNode {
 			const child = children[i];
 			child.root = root;
 			const min = child.aabb.min;
-			min[0] *= halfDiagonal[0];
-			min[1] *= halfDiagonal[1];
-			min[2] *= halfDiagonal[2];
+			min[0] *= _halfDiagonal[0];
+			min[1] *= _halfDiagonal[1];
+			min[2] *= _halfDiagonal[2];
 			vec3.add(min, min, l);
-			vec3.add(child.aabb.max, min, halfDiagonal);
+			vec3.add(child.aabb.max, min, _halfDiagonal);
 		}
 	}
 
@@ -116,9 +116,9 @@ class OctreeNode {
 	}
 
 	rayQuery(ray, treeTransform, result) {
-		ray.getAABB(tmpAABB);
-		tmpAABB.toLocalFrame(treeTransform, tmpAABB);
-		this.aabbQuery(tmpAABB, result);
+		ray.getAABB(_tmpAABB);
+		_tmpAABB.toLocalFrame(treeTransform, _tmpAABB);
+		this.aabbQuery(_tmpAABB, result);
 		return result;
 	}
 
