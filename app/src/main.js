@@ -19,9 +19,7 @@ import "./game/hud.js";
 		// Load map and initialize game
 		await Game.load("demo");
 		// Pass Multiplayer.update as alwaysUpdate so it runs even when paused
-		setCallbacks(Game.update, Game.postPhysicsUpdate, (dt) =>
-			Multiplayer.update(dt / 1000),
-		);
+		setCallbacks(Game.update, (dt) => Multiplayer.update(dt / 1000));
 
 		// Enter game state to render first frame, then show menu with backdrop
 		State.enterGame();

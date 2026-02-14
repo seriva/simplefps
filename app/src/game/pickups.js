@@ -9,61 +9,60 @@ import {
 // Private
 // ============================================================================
 
-const _WEAPON_LIGHT_COLOR = [1.0, 1.0, 1.0];
+const _WEAPON_DEFAULTS = {
+	lightColor: [1.0, 1.0, 1.0],
+	scale: 1.4,
+	hasSpotlight: true,
+};
 
 const _PICKUP_MAP = {
 	health: {
 		meshName: "meshes/health/health.bmesh",
 		lightColor: [1.0, 0.1, 0.1],
-		yOffset: 0.05, // Lower than default
-		hasSpotlight: false,
+		yOffset: 0.05,
 	},
 	armor: {
 		meshName: "meshes/armor/armor.bmesh",
 		lightColor: [0, 0.352, 0.662],
-		yOffset: 0.05, // Lower than default
-		hasSpotlight: false,
+		yOffset: 0.05,
 	},
 	ammo: {
 		meshName: "meshes/ammo/ammo.bmesh",
 		lightColor: [0.623, 0.486, 0.133],
-		yOffset: 0.05, // Lower than default
-		hasSpotlight: false,
+		yOffset: 0.05,
 	},
 	rocket_launcher: {
+		..._WEAPON_DEFAULTS,
 		meshName: "meshes/rocket_launcher/rocket_launcher.bmesh",
-		lightColor: _WEAPON_LIGHT_COLOR,
-		scale: 1.4,
 	},
 	energy_scepter: {
+		..._WEAPON_DEFAULTS,
 		meshName: "meshes/energy_scepter/energy_sceptre.bmesh",
-		lightColor: _WEAPON_LIGHT_COLOR,
-		scale: 1.4,
 	},
 	laser_gatling: {
+		..._WEAPON_DEFAULTS,
 		meshName: "meshes/laser_gatling/laser_gatling.bmesh",
-		lightColor: _WEAPON_LIGHT_COLOR,
-		scale: 1.4,
 	},
 	pulse_cannon: {
+		..._WEAPON_DEFAULTS,
 		meshName: "meshes/pulse_cannon/pulse_cannon.bmesh",
-		lightColor: _WEAPON_LIGHT_COLOR,
-		scale: 1.4,
 	},
 };
 
 const _SCALE = 35;
 const _ROTATION_SPEED = 1000;
-const _BOBBING_AMPLITUDE = 2.5; // World units
+const _BOBBING_AMPLITUDE = 2.5;
 const _LIGHT_OFFSET_Y = 0.2 * _SCALE;
-const _LIGHT_INTENSITY = 3.0; // Increased from 2.0
-const _LIGHT_RADIUS = 2.5 * _SCALE; // Increased from 1.8 (was 2.2 originally)
-const _SPOTLIGHT_INTENSITY = 0.6; // Increased from 0.4
+const _LIGHT_INTENSITY = 3.0;
+const _LIGHT_RADIUS = 2.5 * _SCALE;
+const _SPOTLIGHT_INTENSITY = 0.6;
 const _SPOTLIGHT_OFFSET_Y = 2.5 * _SCALE;
-const _SPOTLIGHT_ANGLE = 30; // Reduced from 40
+const _SPOTLIGHT_ANGLE = 30;
 const _SPOTLIGHT_RANGE = 6.0 * _SCALE;
-const _PICKUP_OFFSET_Y = 0.15 * _SCALE; // Slightly higher default for weapons
-const _SHADOW_HEIGHT = -15; // World units relative to pickup center
+const _PICKUP_OFFSET_Y = 0.15 * _SCALE;
+
+const _getBobOffset = (animationTime, amplitude) =>
+	Math.cos(Math.PI * (animationTime / _ROTATION_SPEED)) * amplitude;
 
 const _updatePickupEntity = (
 	entity,
@@ -72,16 +71,19 @@ const _updatePickupEntity = (
 	shouldRotate = false,
 ) => {
 	entity.animationTime += frameTime;
-	const animationTimeInSeconds = entity.animationTime / _ROTATION_SPEED;
 	mat4.identity(entity.ani_matrix);
 
 	if (shouldRotate) {
-		mat4.fromRotation(entity.ani_matrix, animationTimeInSeconds, [0, 1, 0]);
+		mat4.fromRotation(
+			entity.ani_matrix,
+			entity.animationTime / _ROTATION_SPEED,
+			[0, 1, 0],
+		);
 	}
 
 	mat4.translate(entity.ani_matrix, entity.ani_matrix, [
 		0,
-		Math.cos(Math.PI * animationTimeInSeconds) * amplitude,
+		_getBobOffset(entity.animationTime, amplitude),
 		0,
 	]);
 };
@@ -96,11 +98,11 @@ const _createPickup = (type, pos) => {
 		lightColor,
 		scale = 1.0,
 		yOffset,
-		hasSpotlight = true,
+		hasSpotlight = false,
 	} = _PICKUP_MAP[type];
 
 	const hoverHeight =
-		(yOffset !== undefined ? yOffset : _PICKUP_OFFSET_Y / _SCALE) * _SCALE;
+		yOffset !== undefined ? yOffset * _SCALE : _PICKUP_OFFSET_Y;
 
 	const pickup = new MeshEntity(
 		[pos[0], pos[1] + hoverHeight, pos[2]],
@@ -124,9 +126,7 @@ const _createPickup = (type, pos) => {
 			_SPOTLIGHT_RANGE,
 			(entity, frameTime) => {
 				entity.animationTime = (entity.animationTime || 0) + frameTime;
-				const animationTimeInSeconds = entity.animationTime / _ROTATION_SPEED;
-				const offset =
-					Math.cos(Math.PI * animationTimeInSeconds) * _BOBBING_AMPLITUDE;
+				const offset = _getBobOffset(entity.animationTime, _BOBBING_AMPLITUDE);
 				entity.setPosition([pos[0], spotBaseY + offset, pos[2]]);
 			},
 		);

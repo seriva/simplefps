@@ -32,6 +32,7 @@ class Entity {
 		mat4.identity(this.base_matrix);
 		mat4.identity(this.ani_matrix);
 		this.boundingBox = null;
+		this.collider = null;
 	}
 
 	update(frametime) {

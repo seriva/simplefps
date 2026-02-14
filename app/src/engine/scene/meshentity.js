@@ -1,28 +1,16 @@
-import * as CANNON from "../../dependencies/cannon-es.js";
-import { mat4, quat } from "../../dependencies/gl-matrix.js";
-import BoundingBox from "../core/boundingbox.js";
+import { mat4 } from "../../dependencies/gl-matrix.js";
+import BoundingBox from "../physics/boundingbox.js";
 import { Shaders } from "../rendering/shaders.js";
-import Physics from "../systems/physics.js";
+
 import Resources from "../systems/resources.js";
 import { Entity, EntityTypes } from "./entity.js";
 import Scene from "./scene.js";
 
-// Raycast helpers (reused to avoid GC pressure)
-const _rayFrom = new CANNON.Vec3();
-const _rayTo = new CANNON.Vec3();
-const _rayResult = new CANNON.RaycastResult();
-const _rayOptions = {}; // Empty options - hit everything
-const _MAX_RAYCAST_DISTANCE = 200; // Maximum distance to search for ground
+const _MAX_RAYCAST_DISTANCE = 200;
 
 // Reusable temporaries to avoid per-frame allocations
 const _tempMatrix = mat4.create();
 const _tempPos = new Float32Array(3);
-const _tempScale = new Float32Array(3);
-const _tempShadowPos = new Float32Array(3);
-const _tempShadowScale = new Float32Array(3);
-const _tempQuat1 = quat.create();
-const _tempQuat2 = quat.create();
-const _tempQuat3 = quat.create();
 const _tempProbeColor = new Float32Array(3);
 
 class MeshEntity extends Entity {
@@ -56,23 +44,19 @@ class MeshEntity extends Entity {
 	calculateShadowHeight() {
 		mat4.getTranslation(_tempPos, this.base_matrix);
 
-		// Start raycast slightly above the position to ensure we hit the ground
-		// even if the entity is exactly at ground level
-		_rayFrom.set(_tempPos[0], _tempPos[1] + 1.0, _tempPos[2]);
-		_rayTo.set(_tempPos[0], _tempPos[1] - _MAX_RAYCAST_DISTANCE, _tempPos[2]);
-		_rayResult.reset();
-
-		Physics.getWorld().raycastClosest(
-			_rayFrom,
-			_rayTo,
-			_rayOptions,
-			_rayResult,
+		const result = Scene.raycast(
+			_tempPos[0],
+			_tempPos[1] + 1.0,
+			_tempPos[2],
+			_tempPos[0],
+			_tempPos[1] - _MAX_RAYCAST_DISTANCE,
+			_tempPos[2],
 		);
 
-		if (_rayResult.hasHit) {
-			this.shadowHeight = _rayResult.hitPointWorld.y;
+		if (result.hasHit) {
+			this.shadowHeight = result.hitPointWorld[1];
 		} else {
-			this.shadowHeight = undefined; // No shadow if no ground
+			this.shadowHeight = undefined;
 		}
 	}
 
@@ -140,7 +124,6 @@ class MeshEntity extends Entity {
 	dispose() {
 		super.dispose();
 		this.mesh = null;
-		this.physicsBody = null;
 	}
 }
 
