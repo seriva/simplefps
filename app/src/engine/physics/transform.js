@@ -1,6 +1,6 @@
 import { quat, vec3 } from "../../dependencies/gl-matrix.js";
 
-const _tmpVec3 = vec3.create();
+
 
 /**
  * Transform

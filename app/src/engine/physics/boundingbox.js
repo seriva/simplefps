@@ -1,8 +1,5 @@
-import { mat4, quat, vec3 } from "../../dependencies/gl-matrix.js";
+import { mat4, vec3 } from "../../dependencies/gl-matrix.js";
 import Camera from "../core/camera.js";
-
-const tmpVec3 = vec3.create();
-const _tmpQuat = quat.create();
 
 class BoundingBox {
 	// Increase pool size for better performance in scenes with many boxes
@@ -91,20 +88,15 @@ class BoundingBox {
 		return new BoundingBox(this.min, this.max);
 	}
 
-	// Legacy AABB support / Physics support
 	// Points is Array of vec3
-	setFromPoints(points, position, quaternion, skinSize) {
+	setFromPoints(points) {
 		const l = this.min;
 		const u = this.max;
 
 		// Set to first point
 		if (points.length > 0) {
 			const p = points[0];
-			if (quaternion) {
-				vec3.transformQuat(l, p, quaternion);
-			} else {
-				vec3.copy(l, p);
-			}
+			vec3.copy(l, p);
 			vec3.copy(u, l);
 		} else {
 			vec3.set(l, 0, 0, 0);
@@ -112,11 +104,7 @@ class BoundingBox {
 		}
 
 		for (let i = 1; i < points.length; i++) {
-			let p = points[i];
-			if (quaternion) {
-				vec3.transformQuat(tmpVec3, p, quaternion);
-				p = tmpVec3;
-			}
+			const p = points[i];
 
 			if (p[0] > u[0]) u[0] = p[0];
 			if (p[0] < l[0]) l[0] = p[0];
@@ -126,19 +114,6 @@ class BoundingBox {
 			if (p[2] < l[2]) l[2] = p[2];
 		}
 
-		if (position) {
-			vec3.add(l, l, position);
-			vec3.add(u, u, position);
-		}
-
-		if (skinSize) {
-			l[0] -= skinSize;
-			l[1] -= skinSize;
-			l[2] -= skinSize;
-			u[0] += skinSize;
-			u[1] += skinSize;
-			u[2] += skinSize;
-		}
 		return this;
 	}
 
