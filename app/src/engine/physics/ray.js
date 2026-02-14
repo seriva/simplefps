@@ -1,6 +1,24 @@
 import { mat4, vec3 } from "../../dependencies/gl-matrix.js";
 import { Transform } from "./transform.js";
 
+const intersectTrimesh_normal = vec3.create();
+const intersectTrimesh_triangles = [];
+const intersectTrimesh_treeTransform = new Transform();
+const intersectTrimesh_vector = vec3.create();
+const intersectTrimesh_localDirection = vec3.create();
+const intersectTrimesh_localFrom = vec3.create();
+const intersectTrimesh_localTo = vec3.create();
+const intersectTrimesh_worldIntersectPoint = vec3.create();
+const intersectTrimesh_worldNormal = vec3.create();
+const v0 = vec3.create();
+const v1 = vec3.create();
+const v2 = vec3.create();
+const a = vec3.create();
+const b = vec3.create();
+const c = vec3.create();
+const intersectPoint = vec3.create();
+const _invMatrix = mat4.create();
+
 export const RAY_MODES = {
 	CLOSEST: 1,
 	ANY: 2,
@@ -61,7 +79,7 @@ export class Ray {
 		this.mode = RAY_MODES.ANY;
 		this.result = new RaycastResult();
 		this.hasHit = false;
-		this.callback = (_result) => {};
+		this.callback = (_result) => { };
 	}
 
 	updateDirection() {
@@ -91,25 +109,8 @@ export class Ray {
 		vec3.normalize(localDirection, localDirection);
 
 		// Prepare tree transform (identity, as we transformed ray to local)
-		// Tree query expects a Transform object, but we can pass null/dummy if we handle logic?
-		// Trimesh.tree.rayQuery uses `transform` to transform AABB?
-		// Actually, `Octree.rayQuery(ray, treeTransform, result)`
-		// It transforms the RAY into tree space using treeTransform.
-		// Since we already transformed the ray to local space (world -> mesh local),
-		// and the tree is in mesh local space, we can pass Identity transform to rayQuery.
-		// Or even better: if we pass "local" ray to rayQuery, we want treeTransform to be Identity.
-
 		vec3.set(treeTransform.position, 0, 0, 0);
 		treeTransform.quaternion.set([0, 0, 0, 1]); // Identity quat
-
-		// To use rayQuery, updating the ray object itself might be needed?
-		// The rayQuery method takes (ray, transform, result).
-		// It uses ray.from and ray.direction.
-		// But `this.from` is World. `localFrom` is Local.
-		// We should create a temporary "local ray" wrapper?
-		// Or, since `this` is the Ray object, we can temporarily swap properties? No, unsafe.
-		// Let's copy values to a temp ray?
-		// `_tempLocalRay`
 
 		_localRay.from = localFrom;
 		_localRay.to = localTo;
@@ -121,14 +122,9 @@ export class Ray {
 		_localRay.collisionFilterMask = this.collisionFilterMask;
 		_localRay.collisionFilterGroup = this.collisionFilterGroup;
 		_localRay.mode = this.mode;
-		_localRay.result.shouldStop = false; // Reset stop flag on local ray?
-		// Actually rayQuery just pushes to triangles array. It doesn't check mode/result?
-		// Checking Octree.js... `rayQuery` calls `aabbQuery` or manual?
-		// `rayQuery` uses `ray.from`, `ray.direction`.
+		_localRay.result.shouldStop = false;
 
 		mesh.tree.rayQuery(_localRay, treeTransform, triangles);
-
-		// if (triangles.length > 0) console.log("Ray found triangles:", triangles.length);
 
 		const fromToDistanceSquaredVal = vec3.sqrDist(localFrom, localTo);
 
@@ -248,22 +244,4 @@ export class Ray {
 	}
 }
 
-const intersectTrimesh_normal = vec3.create();
-const intersectTrimesh_triangles = [];
-const intersectTrimesh_treeTransform = new Transform();
-const intersectTrimesh_vector = vec3.create();
-const intersectTrimesh_localDirection = vec3.create();
-const intersectTrimesh_localFrom = vec3.create();
-const intersectTrimesh_localTo = vec3.create();
-const intersectTrimesh_worldIntersectPoint = vec3.create();
-const intersectTrimesh_worldNormal = vec3.create();
-const v0 = vec3.create();
-const v1 = vec3.create();
-const v2 = vec3.create();
-const a = vec3.create();
-const b = vec3.create();
-const c = vec3.create();
-const intersectPoint = vec3.create();
-const _invMatrix = mat4.create();
-// Simple object to mimic Ray for recursion
 const _localRay = new Ray();

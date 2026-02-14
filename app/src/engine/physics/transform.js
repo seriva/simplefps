@@ -1,11 +1,8 @@
 import { quat, vec3 } from "../../dependencies/gl-matrix.js";
 
+const tmpQuat = quat.create();
 
-
-/**
- * Transform
- */
-export class Transform {
+class Transform {
 	constructor(options = {}) {
 		this.position = vec3.create();
 		this.quaternion = quat.create();
@@ -76,4 +73,4 @@ export class Transform {
 	}
 }
 
-const tmpQuat = quat.create();
+export { Transform };
