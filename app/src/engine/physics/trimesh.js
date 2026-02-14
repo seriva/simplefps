@@ -9,17 +9,11 @@ const vb = vec3.create();
 const vc = vec3.create();
 const ab = vec3.create();
 const cb = vec3.create();
-const unscaledAABB = new BoundingBox();
+
 
 export class Trimesh {
     constructor(vertices, indices) {
         this.id = Trimesh.idCounter++;
-        this.type = Trimesh.types.TRIMESH;
-        this.boundingSphereRadius = 0;
-        this.collisionResponse = true;
-        this.collisionFilterGroup = 1;
-        this.collisionFilterMask = -1;
-        this.body = null;
 
         this.vertices = new Float32Array(vertices);
         this.indices = new Int16Array(indices);
@@ -28,10 +22,8 @@ export class Trimesh {
         this.scale = vec3.fromValues(1, 1, 1);
         this.tree = new Octree();
 
-        this.updateEdges();
         this.updateNormals();
-        this.updateAABB();
-        this.updateBoundingSphereRadius();
+        this.computeLocalAABB(this.aabb);
         this.updateTree();
     }
 
@@ -65,32 +57,7 @@ export class Trimesh {
         tree.removeEmptyNodes();
     }
 
-    getTrianglesInAABB(aabb, result) {
-        unscaledAABB.copy(aabb);
-        const scale = this.scale;
-        const l = unscaledAABB.min;
-        const u = unscaledAABB.max;
-        l[0] /= scale[0];
-        l[1] /= scale[1];
-        l[2] /= scale[2];
-        u[0] /= scale[0];
-        u[1] /= scale[1];
-        u[2] /= scale[2];
-        return this.tree.aabbQuery(unscaledAABB, result);
-    }
 
-    setScale(scale) {
-        const wasUniform =
-            this.scale[0] === this.scale[1] && this.scale[1] === this.scale[2];
-        const isUniform = scale[0] === scale[1] && scale[1] === scale[2];
-
-        if (!(wasUniform && isUniform)) {
-            this.updateNormals();
-        }
-        vec3.copy(this.scale, scale);
-        this.updateAABB();
-        this.updateBoundingSphereRadius();
-    }
 
     updateNormals() {
         const n = computeNormals_n;
@@ -111,37 +78,9 @@ export class Trimesh {
         }
     }
 
-    updateEdges() {
-        const edges = {};
-        const add = (a, b) => {
-            const key = a < b ? `${a}_${b}` : `${b}_${a}`;
-            edges[key] = true;
-        };
 
-        for (let i = 0; i < this.indices.length / 3; i++) {
-            const i3 = i * 3;
-            const a = this.indices[i3];
-            const b = this.indices[i3 + 1];
-            const c = this.indices[i3 + 2];
-            add(a, b);
-            add(b, c);
-            add(c, a);
-        }
 
-        const keys = Object.keys(edges);
-        this.edges = new Int16Array(keys.length * 2);
 
-        for (let i = 0; i < keys.length; i++) {
-            const indices = keys[i].split("_");
-            this.edges[2 * i] = parseInt(indices[0], 10);
-            this.edges[2 * i + 1] = parseInt(indices[1], 10);
-        }
-    }
-
-    getEdgeVertex(edgeIndex, firstOrSecond, vertexStore) {
-        const vertexIndex = this.edges[edgeIndex * 2 + (firstOrSecond ? 1 : 0)];
-        this.getVertex(vertexIndex, vertexStore);
-    }
 
     getNormal(i, target) {
         const i3 = i * 3;
@@ -174,12 +113,7 @@ export class Trimesh {
         return out;
     }
 
-    getTriangleVertices(i, a, b, c) {
-        const i3 = i * 3;
-        this.getVertex(this.indices[i3], a);
-        this.getVertex(this.indices[i3 + 1], b);
-        this.getVertex(this.indices[i3 + 2], c);
-    }
+
 
     computeLocalAABB(aabb) {
         const l = aabb.min;
@@ -205,32 +139,9 @@ export class Trimesh {
         }
     }
 
-    updateAABB() {
-        this.computeLocalAABB(this.aabb);
-    }
 
-    updateBoundingSphereRadius() {
-        this.boundingSphereRadius = Number.MAX_VALUE;
-        let maxDistSq = 0;
-        const vertices = this.vertices;
-        const s = this.scale;
-        for (let i = 0; i < vertices.length; i += 3) {
-            const x = vertices[i] * s[0];
-            const y = vertices[i + 1] * s[1];
-            const z = vertices[i + 2] * s[2];
-            const d2 = x * x + y * y + z * z;
-            if (d2 > maxDistSq) maxDistSq = d2;
-        }
-        this.boundingSphereRadius = Math.sqrt(maxDistSq);
-    }
 
-    volume() {
-        throw "volume() not implemented for shape type " + this.type;
-    }
 
-    calculateLocalInertia(mass, target) {
-        throw "calculateLocalInertia() not implemented for shape type " + this.type;
-    }
 
     static computeNormal(va, vb, vc, target) {
         vec3.sub(ab, vb, va);
@@ -243,15 +154,5 @@ export class Trimesh {
 }
 
 Trimesh.idCounter = 0;
-Trimesh.types = {
-    SPHERE: 1,
-    PLANE: 2,
-    BOX: 4,
-    COMPOUND: 8,
-    CONVEXPOLYHEDRON: 16,
-    HEIGHTFIELD: 32,
-    PARTICLE: 64,
-    CYLINDER: 128,
-    TRIMESH: 256,
-};
+
 
