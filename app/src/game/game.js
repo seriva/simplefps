@@ -1,7 +1,7 @@
 import { glMatrix, vec3 } from "../dependencies/gl-matrix.js";
 import { Camera, Console, Input, Settings } from "../engine/core/engine.js";
+import FPSController from "../engine/physics/fpscontroller.js";
 import Arena from "./arena.js";
-import FPSController from "./fpscontroller.js";
 import State from "./state.js";
 import Weapons from "./weapons.js";
 
@@ -75,13 +75,7 @@ const Game = {
 		if (_controller) {
 			_controller.update(ft);
 			_controller.move(strafe, move, _horizontalForward, _strafeDir, ft);
-		}
-	},
-
-	postPhysicsUpdate(frameTime) {
-		// Sync camera position from physics body
-		if (_controller) {
-			_controller.syncCamera(frameTime / 1000);
+			_controller.syncCamera(ft);
 		}
 	},
 

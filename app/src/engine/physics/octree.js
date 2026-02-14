@@ -141,4 +141,3 @@ class Octree extends OctreeNode {
 }
 
 export { Octree };
-

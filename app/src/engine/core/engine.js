@@ -29,7 +29,7 @@ import Utils from "./utils.js";
 
 let _gameUpdate;
 let _gameUpdateBacking;
-let _gamePostPhysics;
+
 let _alwaysUpdate; // Runs even when paused (for multiplayer)
 let _time;
 let _frameTime = 0;
@@ -61,7 +61,7 @@ const _frame = () => {
 	Input.update();
 	if (_alwaysUpdate) _alwaysUpdate(_frameTime); // Runs even when paused
 	if (_gameUpdate) _gameUpdate(_frameTime);
-	if (_gamePostPhysics) _gamePostPhysics(_frameTime);
+
 	Camera.update();
 	Scene.update(_frameTime);
 	Renderer.render();
@@ -99,10 +99,9 @@ const init = async (config = {}) => {
 	}
 };
 
-const setCallbacks = (update, postPhysics, alwaysUpdate = null) => {
+const setCallbacks = (update, alwaysUpdate = null) => {
 	_gameUpdate = update;
 	_gameUpdateBacking = update;
-	_gamePostPhysics = postPhysics;
 	_alwaysUpdate = alwaysUpdate;
 };
 

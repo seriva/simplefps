@@ -2,7 +2,9 @@ import { mat4, vec3 } from "../../dependencies/gl-matrix.js";
 import Camera from "../core/camera.js";
 
 class BoundingBox {
-	static #vectorPool = Array(32).fill().map(() => vec3.create());
+	static #vectorPool = Array(32)
+		.fill()
+		.map(() => vec3.create());
 	static #poolIndex = 0;
 
 	static #cornersBuffer = new Float32Array(24);
@@ -10,8 +12,14 @@ class BoundingBox {
 	static #transformedMax = vec3.create();
 
 	static #transformIntoFrameCorners = [
-		vec3.create(), vec3.create(), vec3.create(), vec3.create(),
-		vec3.create(), vec3.create(), vec3.create(), vec3.create(),
+		vec3.create(),
+		vec3.create(),
+		vec3.create(),
+		vec3.create(),
+		vec3.create(),
+		vec3.create(),
+		vec3.create(),
+		vec3.create(),
 	];
 
 	constructor(min, max) {
@@ -23,7 +31,8 @@ class BoundingBox {
 
 	static #getVector() {
 		const vector = BoundingBox.#vectorPool[BoundingBox.#poolIndex];
-		BoundingBox.#poolIndex = (BoundingBox.#poolIndex + 1) % BoundingBox.#vectorPool.length;
+		BoundingBox.#poolIndex =
+			(BoundingBox.#poolIndex + 1) % BoundingBox.#vectorPool.length;
 		return vector;
 	}
 
@@ -32,7 +41,9 @@ class BoundingBox {
 		const max = vec3.fromValues(-Infinity, -Infinity, -Infinity);
 
 		for (let i = 0; i < points.length; i += 3) {
-			const x = points[i], y = points[i + 1], z = points[i + 2];
+			const x = points[i],
+				y = points[i + 1],
+				z = points[i + 2];
 			min[0] = Math.min(min[0], x);
 			min[1] = Math.min(min[1], y);
 			min[2] = Math.min(min[2], z);
@@ -60,7 +71,8 @@ class BoundingBox {
 	}
 
 	setFromPoints(points) {
-		const l = this.min, u = this.max;
+		const l = this.min,
+			u = this.max;
 		if (points.length > 0) {
 			vec3.copy(l, points[0]);
 			vec3.copy(u, l);
@@ -82,25 +94,37 @@ class BoundingBox {
 	}
 
 	overlaps(aabb) {
-		const l1 = this.min, u1 = this.max, l2 = aabb.min, u2 = aabb.max;
+		const l1 = this.min,
+			u1 = this.max,
+			l2 = aabb.min,
+			u2 = aabb.max;
 		return (
-			((l2[0] <= u1[0] && u1[0] <= u2[0]) || (l1[0] <= u2[0] && u2[0] <= u1[0])) &&
-			((l2[1] <= u1[1] && u1[1] <= u2[1]) || (l1[1] <= u2[1] && u2[1] <= u1[1])) &&
+			((l2[0] <= u1[0] && u1[0] <= u2[0]) ||
+				(l1[0] <= u2[0] && u2[0] <= u1[0])) &&
+			((l2[1] <= u1[1] && u1[1] <= u2[1]) ||
+				(l1[1] <= u2[1] && u2[1] <= u1[1])) &&
 			((l2[2] <= u1[2] && u1[2] <= u2[2]) || (l1[2] <= u2[2] && u2[2] <= u1[2]))
 		);
 	}
 
 	contains(aabb) {
-		const l1 = this.min, u1 = this.max, l2 = aabb.min, u2 = aabb.max;
+		const l1 = this.min,
+			u1 = this.max,
+			l2 = aabb.min,
+			u2 = aabb.max;
 		return (
-			l1[0] <= l2[0] && u1[0] >= u2[0] &&
-			l1[1] <= l2[1] && u1[1] >= u2[1] &&
-			l1[2] <= l2[2] && u1[2] >= u2[2]
+			l1[0] <= l2[0] &&
+			u1[0] >= u2[0] &&
+			l1[1] <= l2[1] &&
+			u1[1] >= u2[1] &&
+			l1[2] <= l2[2] &&
+			u1[2] >= u2[2]
 		);
 	}
 
 	getCorners(a, b, c, d, e, f, g, h) {
-		const l = this.min, u = this.max;
+		const l = this.min,
+			u = this.max;
 		vec3.copy(a, l);
 		vec3.set(b, u[0], l[1], l[2]);
 		vec3.set(c, u[0], u[1], l[2]);
@@ -166,7 +190,8 @@ class BoundingBox {
 			corners[i * 3 + 2] = corner[2];
 		}
 
-		const tMin = BoundingBox.#transformedMin, tMax = BoundingBox.#transformedMax;
+		const tMin = BoundingBox.#transformedMin,
+			tMax = BoundingBox.#transformedMax;
 		tMin[0] = tMax[0] = corners[0];
 		tMin[1] = tMax[1] = corners[1];
 		tMin[2] = tMax[2] = corners[2];
@@ -198,7 +223,11 @@ class BoundingBox {
 			n[1] = plane[1] > 0 ? this.min[1] : this.max[1];
 			n[2] = plane[2] > 0 ? this.min[2] : this.max[2];
 
-			if (vec3.dot(p, plane) + plane[3] < 0 && vec3.dot(n, plane) + plane[3] < 0) return false;
+			if (
+				vec3.dot(p, plane) + plane[3] < 0 &&
+				vec3.dot(n, plane) + plane[3] < 0
+			)
+				return false;
 		}
 		return true;
 	}

@@ -79,7 +79,7 @@ class Ray {
 		this.mode = RAY_MODES.ANY;
 		this.result = new RaycastResult();
 		this.hasHit = false;
-		this.callback = (_result) => { };
+		this.callback = (_result) => {};
 	}
 
 	updateDirection() {
@@ -247,4 +247,3 @@ class Ray {
 const _localRay = new Ray();
 
 export { RAY_MODES, RaycastResult, Ray };
-
