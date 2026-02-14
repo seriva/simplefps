@@ -1,6 +1,6 @@
 import { mat4 } from "../../dependencies/gl-matrix.js";
 import AnimationPlayer from "../animation/animationplayer.js";
-import BoundingBox from "../core/boundingbox.js";
+import BoundingBox from "../physics/boundingbox.js";
 import Mesh from "../rendering/mesh.js";
 import { Shaders } from "../rendering/shaders.js";
 import Resources from "../systems/resources.js";

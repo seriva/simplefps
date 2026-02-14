@@ -3,25 +3,26 @@ import Console from "../systems/console.js";
 import { Backend } from "./backend.js";
 
 class Texture {
+	#handle = null;
+
 	constructor(data) {
-		this._handle = null;
 		this.init(data);
 	}
 
 	// Public accessor for the backend handle (opaque to the user)
 	getHandle() {
-		return this._handle;
+		return this.#handle;
 	}
 
 	init(data) {
-		if (this._handle) {
+		if (this.#handle) {
 			this.dispose();
 		}
 
 		if (data.data) {
 			// Image texture case
 			// Create a 1x1 mutable placeholder (defaults to black)
-			this._handle = Backend.createTexture({
+			this.#handle = Backend.createTexture({
 				width: 1,
 				height: 1,
 				// format defaults to RGBA, type to UNSIGNED_BYTE
@@ -32,14 +33,23 @@ class Texture {
 		} else {
 			// Render texture case
 			// data contains format, width, height, etc.
-			this._handle = Backend.createTexture(data);
-			Backend.setTextureWrapMode(this._handle, "clamp-to-edge");
+			this.#handle = Backend.createTexture(data);
+			Backend.setTextureWrapMode(this.#handle, "clamp-to-edge");
 		}
 	}
 
 	static createSolidColor(r, g, b, a = 255) {
 		const texture = new Texture({});
-		texture._handle = Backend.createTexture({
+		// We can't access #handle of another instance directly if we are in a static method?
+		// Actually, private fields are accessible within the class body, including static methods operating on instances of the same class.
+		// However, let's be safe and use the constructor logic or a helper if needed.
+		// Wait, the existing code:
+		// texture._handle = Backend.createTexture(...)
+		// Converting to:
+		// texture.#handle = ...
+		// This IS allowed in JS for instances of the same class.
+
+		texture.#handle = Backend.createTexture({
 			width: 1,
 			height: 1,
 			mutable: true,
@@ -61,20 +71,20 @@ class Texture {
 	loadImageTexture(imageData) {
 		const image = new Image();
 		image.onload = async () => {
-			if (!this._handle) return; // Disposed?
+			if (!this.#handle) return; // Disposed?
 
 			// Upload image data (this updates the texture content and might resize usage in WebGL)
-			await Backend.uploadTextureFromImage(this._handle, image);
+			await Backend.uploadTextureFromImage(this.#handle, image);
 
 			// Generate mipmaps
-			Backend.generateMipmaps(this._handle);
+			Backend.generateMipmaps(this.#handle);
 
 			// Apply settings
-			Backend.setTextureWrapMode(this._handle, "repeat");
+			Backend.setTextureWrapMode(this.#handle, "repeat");
 
 			if (Settings.anisotropicFiltering > 1) {
 				Backend.setTextureAnisotropy(
-					this._handle,
+					this.#handle,
 					Settings.anisotropicFiltering,
 				);
 			}
@@ -89,20 +99,20 @@ class Texture {
 	}
 
 	bind(unit) {
-		if (this._handle) {
-			Backend.bindTexture(this._handle, unit);
+		if (this.#handle) {
+			Backend.bindTexture(this.#handle, unit);
 		}
 	}
 
 	setTextureWrapMode(mode) {
-		if (!this._handle) return;
-		Backend.setTextureWrapMode(this._handle, mode);
+		if (!this.#handle) return;
+		Backend.setTextureWrapMode(this.#handle, mode);
 	}
 
 	dispose() {
-		if (this._handle) {
-			Backend.disposeTexture(this._handle);
-			this._handle = null;
+		if (this.#handle) {
+			Backend.disposeTexture(this.#handle);
+			this.#handle = null;
 		}
 	}
 }

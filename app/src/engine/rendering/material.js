@@ -2,6 +2,10 @@ import { Backend } from "./backend.js";
 import { Shaders } from "./shaders.js";
 import Texture from "./texture.js";
 
+// ============================================================================
+// Private state
+// ============================================================================
+
 // Texture slot definitions: maps slot name → texture unit + shader sampler
 const TEXTURE_SLOTS = {
 	albedo: { unit: 0, sampler: "colorSampler" },
@@ -20,7 +24,13 @@ const TEXTURE_SLOT_SAMPLERS = TEXTURE_SLOT_NAMES.map(
 	(name) => TEXTURE_SLOTS[name].sampler,
 );
 
+// ============================================================================
+// Public Material Class
+// ============================================================================
+
 class Material {
+	#ubo = null;
+
 	constructor(data, resources) {
 		if (!data || !resources) {
 			throw new Error("Material requires data and resources");
@@ -34,7 +44,6 @@ class Material {
 		this.translucent = data.translucent || false;
 		this.doubleSided = data.doubleSided || false;
 		this.opacity = data.opacity !== undefined ? data.opacity : 1.0;
-		this.ubo = null;
 
 		// Load all referenced textures
 		for (const texturePath of Object.values(this.textures)) {
@@ -60,11 +69,11 @@ class Material {
 		}
 
 		// Material UBO (Binding Point 1)
-		if (!this.ubo) {
-			this._createUBO();
+		if (!this.#ubo) {
+			this.#createUBO();
 		}
 
-		Backend.bindUniformBuffer(this.ubo);
+		Backend.bindUniformBuffer(this.#ubo);
 
 		// Handle double-sided materials
 		if (this.doubleSided) {
@@ -74,7 +83,7 @@ class Material {
 		}
 	}
 
-	_createUBO() {
+	#createUBO() {
 		// Layout std140:
 		// ivec4 flags;  // 16 bytes (geomType, doEmissive, doReflection, hasLightmap)
 		// vec4 params;  // 16 bytes (reflectionStrength, opacity, pad, pad)
@@ -94,10 +103,10 @@ class Material {
 
 		// Create UBO via backend (size 32 bytes, binding point 1)
 		// We create it first
-		this.ubo = Backend.createUBO(32, 1);
+		this.#ubo = Backend.createUBO(32, 1);
 
 		// Then update logic
-		Backend.updateUBO(this.ubo, data);
+		Backend.updateUBO(this.#ubo, data);
 	}
 
 	unBind() {
@@ -107,9 +116,9 @@ class Material {
 	}
 
 	dispose() {
-		if (this.ubo) {
-			Backend.deleteUBO(this.ubo);
-			this.ubo = null;
+		if (this.#ubo) {
+			Backend.deleteUBO(this.#ubo);
+			this.#ubo = null;
 		}
 	}
 

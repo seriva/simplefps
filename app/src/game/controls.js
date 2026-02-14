@@ -35,7 +35,6 @@ const _initializeEventListeners = () => {
 	);
 
 	// Weapon controls
-	// Weapon controls
 	window.addEventListener("click", (e) => {
 		if (e.button > 0) return;
 		if (Utils.isMobile()) return; // Disable tap to shoot on mobile

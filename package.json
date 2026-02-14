@@ -22,7 +22,6 @@
     "check": "biome check ."
   },
   "dependencies": {
-    "cannon-es": "^0.20.0",
     "gl-matrix": "^3.4.4",
     "peerjs": "^1.5.5"
   },

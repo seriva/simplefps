@@ -7,7 +7,51 @@ import Texture from "../rendering/texture.js";
 import Console from "./console.js";
 import Sound from "./sound.js";
 
+// ============================================================================
+// Private state
+// ============================================================================
+
+const _resources = new Map();
+const _loadingPromises = new Map();
+const _basepath = "resources/";
+const _fileExtRegex = /(?:\.([^.]+))?$/;
+
+// Private constants
+const _RESOURCE_TYPES = {
+	webp: (data) => new Texture({ data }),
+	mesh: (data, context) => {
+		const mesh = new Mesh(JSON.parse(data), context);
+		return mesh.ready.then(() => mesh);
+	},
+	smesh: (data, context) => {
+		const mesh = new SkinnedMesh(JSON.parse(data), context);
+		return mesh.ready.then(() => mesh);
+	},
+	bmesh: (data, context) => {
+		const mesh = new Mesh(data, context);
+		return mesh.ready.then(() => mesh);
+	},
+	sbmesh: (data, context) => {
+		const mesh = new SkinnedMesh(data, context);
+		return mesh.ready.then(() => mesh);
+	},
+	anim: (data) => {
+		const anim = new Animation(JSON.parse(data));
+		return anim.ready.then(() => anim);
+	},
+	banim: (data) => {
+		const anim = new Animation(data);
+		return anim.ready.then(() => anim);
+	},
+	mat: (data, context) => Material.loadLibrary(JSON.parse(data), context),
+	sfx: (data) => new Sound(JSON.parse(data)),
+	list: (data, _context) => Resources.load(JSON.parse(data).resources),
+	bin: (data) => data.arrayBuffer(),
+};
+
+// ============================================================================
 // Public Resources API
+// ============================================================================
 
 const Resources = {
 	// Callbacks for load lifecycle (set by game layer)
@@ -93,42 +137,3 @@ const Resources = {
 };
 
 export default Resources;
-
-// Private state
-const _resources = new Map();
-const _loadingPromises = new Map();
-const _basepath = "resources/";
-const _fileExtRegex = /(?:\.([^.]+))?$/;
-
-// Private constants
-const _RESOURCE_TYPES = {
-	webp: (data) => new Texture({ data }),
-	mesh: (data, context) => {
-		const mesh = new Mesh(JSON.parse(data), context);
-		return mesh.ready.then(() => mesh);
-	},
-	smesh: (data, context) => {
-		const mesh = new SkinnedMesh(JSON.parse(data), context);
-		return mesh.ready.then(() => mesh);
-	},
-	bmesh: (data, context) => {
-		const mesh = new Mesh(data, context);
-		return mesh.ready.then(() => mesh);
-	},
-	sbmesh: (data, context) => {
-		const mesh = new SkinnedMesh(data, context);
-		return mesh.ready.then(() => mesh);
-	},
-	anim: (data) => {
-		const anim = new Animation(JSON.parse(data));
-		return anim.ready.then(() => anim);
-	},
-	banim: (data) => {
-		const anim = new Animation(data);
-		return anim.ready.then(() => anim);
-	},
-	mat: (data, context) => Material.loadLibrary(JSON.parse(data), context),
-	sfx: (data) => new Sound(JSON.parse(data)),
-	list: (data, _context) => Resources.load(JSON.parse(data).resources),
-	bin: (data) => data.arrayBuffer(),
-};

@@ -1,15 +1,13 @@
-import * as CANNON from "../dependencies/cannon-es.js";
 import { mat4 } from "../dependencies/gl-matrix.js";
 import {
 	Camera,
 	Console,
 	DirectionalLightEntity,
 	MeshEntity,
-	Physics,
-	Resources,
 	Scene,
 	SkinnedMeshEntity,
 	SkyboxEntity,
+	Trimesh,
 	Utils,
 } from "../engine/core/engine.js";
 import Loading from "./loading.js";
@@ -23,10 +21,6 @@ const _BASE_URL = `${window.location}resources/arenas/`;
 const _DEFAULT_POSITION = [0, 0, 0];
 const _DEFAULT_AMBIENT = [1, 1, 1];
 
-// Raycast helpers
-const _rayFrom = new CANNON.Vec3();
-const _rayTo = new CANNON.Vec3();
-const _rayResult = new CANNON.RaycastResult();
 const _MAX_RAYCAST_DISTANCE = 500;
 
 const _state = {
@@ -47,6 +41,30 @@ const _setupEnvironment = ({ skybox, chunks = [] }) => {
 	for (const chunk of chunks) {
 		const entity = new MeshEntity(_DEFAULT_POSITION, chunk);
 		entity.isOccluder = true; // The arena geometry occludes other objects
+
+		// Create collision mesh for this chunk
+		try {
+			// Let's check if the mesh data is available.
+			if (entity.mesh) {
+				const mesh = entity.mesh; // 'mesh' property of MeshEntity
+				// We need raw vertices/indices for Trimesh
+				if (mesh.vertices && mesh.indices) {
+					// Flatten indices from all material groups
+					const flattenedIndices = [];
+					for (const group of mesh.indices) {
+						for (let k = 0; k < group.array.length; k++) {
+							flattenedIndices.push(group.array[k]);
+						}
+					}
+					entity.collider = new Trimesh(mesh.vertices, flattenedIndices);
+				}
+			}
+		} catch (e) {
+			Console.warn(
+				`Failed to create collider for chunk ${chunk}: ${e.message}`,
+			);
+		}
+
 		Scene.addEntities(entity);
 	}
 };
@@ -79,16 +97,8 @@ const _setupPickups = (pickups = []) => {
 
 // Raycast to find ground position
 const _getGroundHeight = (x, y, z) => {
-	_rayFrom.set(x, y + 100, z); // Start above
-	_rayTo.set(x, y - _MAX_RAYCAST_DISTANCE, z);
-	_rayResult.reset();
-
-	Physics.getWorld().raycastClosest(_rayFrom, _rayTo, {}, _rayResult);
-
-	if (_rayResult.hasHit) {
-		return _rayResult.hitPointWorld.y;
-	}
-	return y; // Fallback to original height
+	const result = Scene.raycast(x, y + 100, z, x, y - _MAX_RAYCAST_DISTANCE, z);
+	return result.hasHit ? result.hitPointWorld[1] : y;
 };
 
 // Setup player models at all spawnpoints except the current one
@@ -135,20 +145,6 @@ const _setupSpawnpointModels = (spawnpoints = [], currentSpawn = null) => {
 	}
 };
 
-const _setupCollision = (chunks, _spawnPosition) => {
-	// Create collision bodies for each map chunk
-	for (const chunkPath of chunks) {
-		try {
-			const mesh = Resources.get(chunkPath);
-			if (mesh?.vertices && mesh.indices) {
-				Physics.addTrimesh(mesh.vertices, mesh.indices);
-			}
-		} catch (e) {
-			Console.warn(`Failed to create collision for ${chunkPath}: ${e.message}`);
-		}
-	}
-};
-
 const _load = async (name) => {
 	Loading.toggle(true);
 
@@ -187,10 +183,7 @@ const _load = async (name) => {
 			name,
 		);
 		_setupEnvironment(_state.arena);
-		_setupCollision(
-			_state.arena.chunks || [],
-			startSpawn.position || _DEFAULT_POSITION,
-		);
+
 		_setupPickups(pickups);
 		_setupSpawnpointModels(spawnpoints || [], startSpawn);
 

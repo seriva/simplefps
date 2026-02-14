@@ -2,7 +2,39 @@ import { glMatrix, mat4, vec3, vec4 } from "../../dependencies/gl-matrix.js";
 import { Backend } from "../rendering/backend.js";
 import Settings from "./settings.js";
 
+// ============================================================================
+// Private state
+// ============================================================================
+
+const _projection = mat4.create();
+const _target = vec3.create();
+
+let _fov = 45;
+let _nearPlane = null;
+let _farPlane = null;
+
+// ============================================================================
 // Public Camera API
+// ============================================================================
+
+const _frustumPlanes = {
+	near: vec4.create(),
+	far: vec4.create(),
+	left: vec4.create(),
+	right: vec4.create(),
+	top: vec4.create(),
+	bottom: vec4.create(),
+};
+
+const _frustumPlanesArray = [
+	_frustumPlanes.left,
+	_frustumPlanes.right,
+	_frustumPlanes.bottom,
+	_frustumPlanes.top,
+	_frustumPlanes.near,
+	_frustumPlanes.far,
+];
+
 const Camera = {
 	position: vec3.fromValues(0, 0, 0),
 	rotation: vec3.fromValues(0, 0, 0),
@@ -11,19 +43,13 @@ const Camera = {
 	view: mat4.create(),
 	viewProjection: mat4.create(),
 	inverseViewProjection: mat4.create(),
+
+	frustumPlanes: _frustumPlanes,
+	frustumPlanesArray: _frustumPlanesArray,
+
 	get projection() {
 		return _projection;
 	},
-	frustumPlanes: {
-		near: vec4.create(),
-		far: vec4.create(),
-		left: vec4.create(),
-		right: vec4.create(),
-		top: vec4.create(),
-		bottom: vec4.create(),
-	},
-	// Array view for fast iteration (references same vec4s)
-	frustumPlanesArray: null,
 
 	setProjection(inFov, inNearPlane, inFarPlane) {
 		_fov = inFov;
@@ -83,19 +109,6 @@ const Camera = {
 	},
 
 	update() {
-		// Initialize array view on first update (after frustumPlanes is populated)
-		if (!this.frustumPlanesArray) {
-			const fp = this.frustumPlanes;
-			this.frustumPlanesArray = [
-				fp.left,
-				fp.right,
-				fp.bottom,
-				fp.top,
-				fp.near,
-				fp.far,
-			];
-		}
-
 		vec3.add(_target, this.position, this.direction);
 		mat4.lookAt(this.view, this.position, _target, this.upVector);
 		mat4.mul(this.viewProjection, _projection, this.view);
@@ -188,11 +201,3 @@ const Camera = {
 };
 
 export default Camera;
-
-// Private state
-const _projection = mat4.create();
-const _target = vec3.create();
-
-let _fov = 45;
-let _nearPlane = null;
-let _farPlane = null;
