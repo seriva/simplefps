@@ -1,8 +1,8 @@
-import { mat4, vec3, quat } from "../../dependencies/gl-matrix.js";
+import { mat4, quat, vec3 } from "../../dependencies/gl-matrix.js";
 import Camera from "../core/camera.js";
 
 const tmpVec3 = vec3.create();
-const tmpQuat = quat.create();
+const _tmpQuat = quat.create();
 
 class BoundingBox {
 	// Increase pool size for better performance in scenes with many boxes

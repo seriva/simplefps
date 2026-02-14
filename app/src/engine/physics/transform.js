@@ -1,6 +1,6 @@
 import { quat, vec3 } from "../../dependencies/gl-matrix.js";
 
-const tmpVec3 = vec3.create();
+const _tmpVec3 = vec3.create();
 
 /**
  * Transform
@@ -65,7 +65,7 @@ export class Transform {
 	}
 
 	static vectorToLocalFrame(
-		position,
+		_position,
 		quaternion,
 		worldVector,
 		result = vec3.create(),

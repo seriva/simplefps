@@ -1,5 +1,6 @@
+import { vec3 } from "../../dependencies/gl-matrix.js";
+import { Ray, RaycastResult } from "../physics/ray.js";
 import Console from "../systems/console.js";
-import Physics from "../systems/physics.js";
 import Stats from "../systems/stats.js";
 import { EntityTypes } from "./entity.js";
 import LightGrid from "./lightgrid.js";
@@ -10,8 +11,19 @@ const _BLACK = [0, 0, 0];
 
 // Private state
 let _entities = [];
+const _collidables = [];
 let _ambient = _DEFAULT_AMBIENT;
 let _pauseUpdate = false;
+
+// Shared raycast state
+const _rayFrom = vec3.create();
+const _rayTo = vec3.create();
+const _rayResult = new RaycastResult();
+const _ray = new Ray();
+const _defaultRayOptions = {
+	skipBackfaces: true,
+	collisionFilterMask: 1, // Default to WORLD (TODO: use constant)
+};
 
 const _visibilityCache = {
 	[EntityTypes.SKYBOX]: [],
@@ -66,9 +78,14 @@ const _addEntities = (e) => {
 
 	_entityCache.clear();
 	if (Array.isArray(e)) {
-		_entities = _entities.concat(e.filter((entity) => entity != null));
+		const newEntities = e.filter((entity) => entity != null);
+		_entities = _entities.concat(newEntities);
+		for (const entity of newEntities) {
+			if (entity.collider) _collidables.push(entity);
+		}
 	} else {
 		_entities.push(e);
+		if (e.collider) _collidables.push(e);
 	}
 };
 
@@ -80,9 +97,10 @@ const _removeEntity = (entity) => {
 		_entities.splice(index, 1);
 		_entityCache.clear();
 
-		// Remove physics body if it exists (BEFORE disposal clears the reference)
-		if (entity.physicsBody) {
-			Physics.removeBody(entity.physicsBody);
+		// Remove from collidables
+		const colIndex = _collidables.indexOf(entity);
+		if (colIndex !== -1) {
+			_collidables.splice(colIndex, 1);
 		}
 
 		// Dispose entity resources
@@ -92,15 +110,12 @@ const _removeEntity = (entity) => {
 
 const _init = () => {
 	_entities.length = 0;
-	Physics.init();
+	_collidables.length = 0;
 };
 
 const _dispose = () => {
 	// Dispose all entities and clean up resources
 	for (const entity of _entities) {
-		if (entity.physicsBody) {
-			Physics.removeBody(entity.physicsBody);
-		}
 		entity.dispose?.();
 	}
 	_entities.length = 0;
@@ -166,9 +181,6 @@ const _update = (frameTime) => {
 		_entities = _entities.filter((e) => !entitiesToRemove.has(e));
 		_entityCache.clear();
 		for (const entity of entitiesToRemove) {
-			if (entity.physicsBody) {
-				Physics.removeBody(entity.physicsBody);
-			}
 			entity.dispose?.();
 		}
 	}
@@ -211,6 +223,45 @@ const _updateVisibility = () => {
 	);
 };
 
+const _raycast = (fromX, fromY, fromZ, toX, toY, toZ, options) => {
+	vec3.set(_rayFrom, fromX, fromY, fromZ);
+	vec3.set(_rayTo, toX, toY, toZ);
+	_rayResult.reset();
+
+	vec3.copy(_ray.from, _rayFrom);
+	vec3.copy(_ray.to, _rayTo);
+	_ray.updateDirection();
+	_ray.result = _rayResult;
+
+	const opts = options || _defaultRayOptions;
+	_ray.skipBackfaces =
+		typeof opts.skipBackfaces !== "undefined" ? opts.skipBackfaces : true;
+	_ray.collisionFilterMask =
+		typeof opts.collisionFilterMask !== "undefined"
+			? opts.collisionFilterMask
+			: -1;
+	_ray.collisionFilterGroup =
+		typeof opts.collisionFilterGroup !== "undefined"
+			? opts.collisionFilterGroup
+			: -1;
+	_ray.mode = 1; // CLOSEST
+
+	_ray.hasHit = false;
+	_rayResult.distance = Infinity;
+
+	// DEBUG:
+	// if (_collidables.length === 0) console.warn("No collidables!");
+	for (let i = 0; i < _collidables.length; i++) {
+		const entity = _collidables[i];
+		// Use base_matrix for static geometry.
+		// For dynamic objects, we might need to support passed transforms or use ani_matrix?
+		// Currently FPSController casts against WORLD (static).
+		_ray.intersectTrimesh(entity.collider, entity.base_matrix, opts);
+	}
+
+	return _rayResult;
+};
+
 // Public Scene API - Entity management only, no rendering
 const Scene = {
 	init: _init,
@@ -224,6 +275,7 @@ const Scene = {
 	getEntities: _getEntities,
 	visibilityCache: _visibilityCache,
 	loadLightGrid: _loadLightGrid,
+	raycast: _raycast,
 };
 
 export default Scene;

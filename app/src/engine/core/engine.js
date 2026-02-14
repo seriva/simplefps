@@ -1,5 +1,6 @@
 import Animation from "../animation/animation.js";
 import AnimationPlayer from "../animation/animationplayer.js";
+import { Trimesh } from "../physics/trimesh.js";
 import { Backend, backendReady } from "../rendering/backend.js";
 import Renderer from "../rendering/renderer.js";
 import { Shaders } from "../rendering/shaders.js";
@@ -15,7 +16,6 @@ import SkyboxEntity from "../scene/skyboxentity.js";
 import SpotLightEntity from "../scene/spotlightentity.js";
 import Console from "../systems/console.js";
 import Input from "../systems/input.js";
-import Physics from "../systems/physics.js";
 import Resources from "../systems/resources.js";
 import Sound from "../systems/sound.js";
 import Stats from "../systems/stats.js";
@@ -61,7 +61,6 @@ const _frame = () => {
 	Input.update();
 	if (_alwaysUpdate) _alwaysUpdate(_frameTime); // Runs even when paused
 	if (_gameUpdate) _gameUpdate(_frameTime);
-	Physics.update(_frameTime / 1000);
 	if (_gamePostPhysics) _gamePostPhysics(_frameTime);
 	Camera.update();
 	Scene.update(_frameTime);
@@ -71,7 +70,6 @@ const _frame = () => {
 };
 
 const pause = (paused) => {
-	Physics.pause(paused);
 	Scene.pause(paused);
 	// Also pause game updates if provided via setGameLoop
 	if (paused) {
@@ -122,7 +120,6 @@ export {
 	Utils,
 	Stats,
 	Input,
-	Physics,
 	Resources,
 	Camera,
 	Renderer,
@@ -138,4 +135,5 @@ export {
 	PointLightEntity,
 	SpotLightEntity,
 	SkyboxEntity,
+	Trimesh,
 };

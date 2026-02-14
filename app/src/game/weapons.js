@@ -4,7 +4,6 @@ import {
 	EntityTypes,
 	FpsMeshEntity,
 	MeshEntity,
-	Physics,
 	PointLightEntity,
 	Resources,
 	Scene,
@@ -135,7 +134,7 @@ const _activeProjectiles = new Set();
 
 // Raycast to find where trajectory hits
 const _raycastTrajectory = (from, direction, maxDistance) => {
-	const result = Physics.raycast(
+	const result = Scene.raycast(
 		from[0],
 		from[1],
 		from[2],
@@ -316,7 +315,7 @@ const _updateProjectile = (entity, frameTime) => {
 	const dirY = dist > 0.01 ? dy / dist : -1;
 	const dirZ = dist > 0.01 ? dz / dist : 0;
 
-	const result = Physics.raycast(
+	const result = Scene.raycast(
 		traj.position[0],
 		traj.position[1],
 		traj.position[2],

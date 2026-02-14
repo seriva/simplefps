@@ -1,7 +1,7 @@
 import { mat4 } from "../../dependencies/gl-matrix.js";
 import BoundingBox from "../physics/boundingbox.js";
 import { Shaders } from "../rendering/shaders.js";
-import Physics from "../systems/physics.js";
+
 import Resources from "../systems/resources.js";
 import { Entity, EntityTypes } from "./entity.js";
 import Scene from "./scene.js";
@@ -44,7 +44,7 @@ class MeshEntity extends Entity {
 	calculateShadowHeight() {
 		mat4.getTranslation(_tempPos, this.base_matrix);
 
-		const result = Physics.raycast(
+		const result = Scene.raycast(
 			_tempPos[0],
 			_tempPos[1] + 1.0,
 			_tempPos[2],

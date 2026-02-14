@@ -1,4 +1,4 @@
-import { vec3 } from "../../dependencies/gl-matrix.js";
+import { mat4, vec3 } from "../../dependencies/gl-matrix.js";
 import { Transform } from "./transform.js";
 
 export const RAY_MODES = {
@@ -61,7 +61,7 @@ export class Ray {
 		this.mode = RAY_MODES.ANY;
 		this.result = new RaycastResult();
 		this.hasHit = false;
-		this.callback = (result) => {};
+		this.callback = (_result) => {};
 	}
 
 	updateDirection() {
@@ -69,7 +69,7 @@ export class Ray {
 		vec3.normalize(this.direction, this.direction);
 	}
 
-	intersectTrimesh(mesh, quat, position, body, options) {
+	intersectTrimesh(mesh, worldMatrix, _options) {
 		const normal = intersectTrimesh_normal;
 		const triangles = intersectTrimesh_triangles;
 		const treeTransform = intersectTrimesh_treeTransform;
@@ -82,37 +82,55 @@ export class Ray {
 
 		const indices = mesh.indices;
 
-		vec3.copy(treeTransform.position, position);
-		// quat.copy(treeTransform.quaternion, quat); // quat is array/typedarray, copy works
-		// BUT wait, is quat passed here a gl-matrix quat (Float32Array)? Yes, expected.
-		// math.js Transform expects quat property.
-		treeTransform.quaternion.set(quat);
-
-		Transform.vectorToLocalFrame(
-			position,
-			quat,
-			this.direction,
-			localDirection,
-		);
-		Transform.pointToLocalFrame(position, quat, this.from, localFrom);
-		Transform.pointToLocalFrame(position, quat, this.to, localTo);
-
-		const scale = mesh.scale;
-		localTo[0] *= scale[0];
-		localTo[1] *= scale[1];
-		localTo[2] *= scale[2];
-		localFrom[0] *= scale[0];
-		localFrom[1] *= scale[1];
-		localFrom[2] *= scale[2];
+		// Transform ray to local space
+		mat4.invert(_invMatrix, worldMatrix);
+		vec3.transformMat4(localFrom, this.from, _invMatrix);
+		vec3.transformMat4(localTo, this.to, _invMatrix);
 
 		vec3.sub(localDirection, localTo, localFrom);
 		vec3.normalize(localDirection, localDirection);
 
-		const fromToDistanceSquared = vec3.dist(localFrom, localTo); // dist is sqrt(distSq)
-		// Wait, distSquared? gl-matrix has squaredDistance? No, squaredDistance is sqrDist
-		const fromToDistanceSquaredVal = vec3.sqrDist(localFrom, localTo);
+		// Prepare tree transform (identity, as we transformed ray to local)
+		// Tree query expects a Transform object, but we can pass null/dummy if we handle logic?
+		// Trimesh.tree.rayQuery uses `transform` to transform AABB?
+		// Actually, `Octree.rayQuery(ray, treeTransform, result)`
+		// It transforms the RAY into tree space using treeTransform.
+		// Since we already transformed the ray to local space (world -> mesh local),
+		// and the tree is in mesh local space, we can pass Identity transform to rayQuery.
+		// Or even better: if we pass "local" ray to rayQuery, we want treeTransform to be Identity.
 
-		mesh.tree.rayQuery(this, treeTransform, triangles);
+		vec3.set(treeTransform.position, 0, 0, 0);
+		treeTransform.quaternion.set([0, 0, 0, 1]); // Identity quat
+
+		// To use rayQuery, updating the ray object itself might be needed?
+		// The rayQuery method takes (ray, transform, result).
+		// It uses ray.from and ray.direction.
+		// But `this.from` is World. `localFrom` is Local.
+		// We should create a temporary "local ray" wrapper?
+		// Or, since `this` is the Ray object, we can temporarily swap properties? No, unsafe.
+		// Let's copy values to a temp ray?
+		// `_tempLocalRay`
+
+		_localRay.from = localFrom;
+		_localRay.to = localTo;
+		_localRay.direction = localDirection;
+		// Copy other props
+		_localRay.precision = this.precision;
+		_localRay.checkCollisionResponse = this.checkCollisionResponse;
+		_localRay.skipBackfaces = this.skipBackfaces;
+		_localRay.collisionFilterMask = this.collisionFilterMask;
+		_localRay.collisionFilterGroup = this.collisionFilterGroup;
+		_localRay.mode = this.mode;
+		_localRay.result.shouldStop = false; // Reset stop flag on local ray?
+		// Actually rayQuery just pushes to triangles array. It doesn't check mode/result?
+		// Checking Octree.js... `rayQuery` calls `aabbQuery` or manual?
+		// `rayQuery` uses `ray.from`, `ray.direction`.
+
+		mesh.tree.rayQuery(_localRay, treeTransform, triangles);
+
+		// if (triangles.length > 0) console.log("Ray found triangles:", triangles.length);
+
+		const fromToDistanceSquaredVal = vec3.sqrDist(localFrom, localTo);
 
 		for (
 			let i = 0, N = triangles.length;
@@ -125,10 +143,6 @@ export class Ray {
 
 			vec3.sub(vector, a, localFrom);
 			const dot = vec3.dot(localDirection, normal);
-
-			// Backface culling
-			// if (this.skipBackfaces && dot > 0) ... no, normal and direction same way?
-			// Cannon: if (this.skipBackfaces && normal.dot(this.direction) > 0)
 
 			const scalar = vec3.dot(normal, vector) / dot;
 			if (scalar < 0) {
@@ -152,19 +166,21 @@ export class Ray {
 				continue;
 			}
 
-			Transform.vectorToWorldFrame(quat, normal, worldNormal);
-			Transform.pointToWorldFrame(
-				position,
-				quat,
-				intersectPoint,
-				worldIntersectPoint,
-			);
+			// Transform Hit Point local -> world
+			vec3.transformMat4(worldIntersectPoint, intersectPoint, worldMatrix);
+
+			// Transform Normal local -> world (rotate only)
+			const m = worldMatrix;
+			worldNormal[0] = normal[0] * m[0] + normal[1] * m[4] + normal[2] * m[8];
+			worldNormal[1] = normal[0] * m[1] + normal[1] * m[5] + normal[2] * m[9];
+			worldNormal[2] = normal[0] * m[2] + normal[1] * m[6] + normal[2] * m[10];
+			vec3.normalize(worldNormal, worldNormal);
 
 			this.reportIntersection(
 				worldNormal,
 				worldIntersectPoint,
 				mesh,
-				body,
+				null, // body, deprecated
 				trianglesIndex,
 			);
 		}
@@ -220,12 +236,9 @@ export class Ray {
 		const dot11 = vec3.dot(v1, v1);
 		const dot12 = vec3.dot(v1, v2);
 
-		let u, v;
-		return (
-			(u = dot11 * dot02 - dot01 * dot12) >= 0 &&
-			(v = dot00 * dot12 - dot01 * dot02) >= 0 &&
-			u + v < dot00 * dot11 - dot01 * dot01
-		);
+		const u = dot11 * dot02 - dot01 * dot12;
+		const v = dot00 * dot12 - dot01 * dot02;
+		return u >= 0 && v >= 0 && u + v < dot00 * dot11 - dot01 * dot01;
 	}
 
 	getAABB(result) {
@@ -251,3 +264,6 @@ const a = vec3.create();
 const b = vec3.create();
 const c = vec3.create();
 const intersectPoint = vec3.create();
+const _invMatrix = mat4.create();
+// Simple object to mimic Ray for recursion
+const _localRay = new Ray();

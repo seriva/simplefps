@@ -1,5 +1,5 @@
 import { vec3 } from "../dependencies/gl-matrix.js";
-import { Camera, Console, Physics } from "../engine/core/engine.js";
+import { Camera, Console, Scene } from "../engine/core/engine.js";
 
 const _worldUp = vec3.fromValues(0, 1, 0);
 const _rightVector = vec3.create();
@@ -226,7 +226,7 @@ class FPSController {
 
 		for (const heightOffset of _horizontalCheckHeights) {
 			const checkY = startPos.y + heightOffset * this.config.height * 0.5;
-			const result = Physics.raycast(
+			const result = Scene.raycast(
 				startPos.x,
 				checkY,
 				startPos.z,
@@ -272,7 +272,7 @@ class FPSController {
 		const depenetrationRadius = radius + 1;
 
 		for (const dir of _radialDirs) {
-			const result = Physics.raycast(
+			const result = Scene.raycast(
 				x,
 				y,
 				z,
@@ -316,7 +316,7 @@ class FPSController {
 			const ox = i < 0 ? 0 : _radialDirs[i].x * checkRadius;
 			const oz = i < 0 ? 0 : _radialDirs[i].z * checkRadius;
 
-			const result = Physics.raycast(
+			const result = Scene.raycast(
 				finalX + ox,
 				rayStartY,
 				finalZ + oz,
@@ -361,7 +361,7 @@ class FPSController {
 
 		const radius = this.config.radius;
 		if (
-			Physics.raycast(
+			Scene.raycast(
 				finalX,
 				startY,
 				finalZ,
