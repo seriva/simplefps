@@ -284,6 +284,7 @@ const Console = {
 	},
 
 	error(message) {
+		this._addLog(message, "#F44", console.error);
 		throw new Error(message);
 	},
 

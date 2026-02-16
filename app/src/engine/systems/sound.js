@@ -6,6 +6,10 @@ const _audioContext = new (window.AudioContext || window.webkitAudioContext)();
 // Private function to load audio
 const _load = async (file, speed = 1, volume = 1, loop = false) => {
 	const response = await fetch(file);
+	if (!response?.ok) {
+		Console.warn(`[Sound] Failed to load: ${file} (${response.status})`);
+		return null;
+	}
 	const arrayBuffer = await response.arrayBuffer();
 	const audioBuffer = await _audioContext.decodeAudioData(arrayBuffer);
 
