@@ -39,6 +39,9 @@ class Animation {
 
 		// Reusable bounds object to avoid allocations
 		this._boundsResult = { min: [0, 0, 0], max: [0, 0, 0] };
+
+		// Reusable frame info object to avoid allocations in hot path
+		this._frameInfo = { frame0: 0, frame1: 0, alpha: 0 };
 	}
 
 	async _parseBlob(blob) {
@@ -123,8 +126,12 @@ class Animation {
 
 	// Calculate frame indices and interpolation factor for a given time
 	_getFrameInfo(time, loop) {
+		const info = this._frameInfo;
 		if (this.numFrames <= 1) {
-			return { frame0: 0, frame1: 0, alpha: 0 };
+			info.frame0 = 0;
+			info.frame1 = 0;
+			info.alpha = 0;
+			return info;
 		}
 
 		let t = time;
@@ -136,11 +143,11 @@ class Animation {
 		}
 
 		const frameTime = t * this.frameRate;
-		const frame0 = Math.min(Math.floor(frameTime), this.numFrames - 1);
-		const frame1 = Math.min(frame0 + 1, this.numFrames - 1);
-		const alpha = frameTime - Math.floor(frameTime);
+		info.frame0 = Math.min(Math.floor(frameTime), this.numFrames - 1);
+		info.frame1 = Math.min(info.frame0 + 1, this.numFrames - 1);
+		info.alpha = frameTime - Math.floor(frameTime);
 
-		return { frame0, frame1, alpha };
+		return info;
 	}
 
 	sample(time, outPose, loop = true) {

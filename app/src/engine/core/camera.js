@@ -12,6 +12,7 @@ const _target = vec3.create();
 let _fov = 45;
 let _nearPlane = null;
 let _farPlane = null;
+const _origin = [0, 0, 0];
 
 // ============================================================================
 // Public Camera API
@@ -96,13 +97,13 @@ const Camera = {
 		vec3.rotateX(
 			this.direction,
 			this.direction,
-			[0, 0, 0],
+			_origin,
 			glMatrix.toRadian(this.rotation[0]),
 		);
 		vec3.rotateY(
 			this.direction,
 			this.direction,
-			[0, 0, 0],
+			_origin,
 			glMatrix.toRadian(this.rotation[1]),
 		);
 		vec3.normalize(this.direction, this.direction);

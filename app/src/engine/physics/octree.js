@@ -3,7 +3,6 @@ import BoundingBox from "./boundingbox.js";
 
 const _halfDiagonal = vec3.create();
 const _tmpAABB = new BoundingBox();
-const _tmpVec3 = vec3.create();
 
 class OctreeNode {
 	constructor(options = {}) {
