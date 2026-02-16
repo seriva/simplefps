@@ -111,9 +111,7 @@ _initializeConsoleControls();
 _initializeKeyboardControls();
 
 // ============================================================================
-// Public API
+// Public API (side-effect only module)
 // ============================================================================
 
-const Controls = {};
-
-export default Controls;
+export default {};

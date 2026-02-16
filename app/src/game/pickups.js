@@ -1,5 +1,6 @@
 import { mat4 } from "../dependencies/gl-matrix.js";
 import {
+	Console,
 	MeshEntity,
 	PointLightEntity,
 	SpotLightEntity,
@@ -60,6 +61,8 @@ const _SPOTLIGHT_OFFSET_Y = 2.5 * _SCALE;
 const _SPOTLIGHT_ANGLE = 30;
 const _SPOTLIGHT_RANGE = 6.0 * _SCALE;
 const _PICKUP_OFFSET_Y = 0.15 * _SCALE;
+const _UP_AXIS = [0, 1, 0];
+const _bobTranslation = [0, 0, 0];
 
 const _getBobOffset = (animationTime, amplitude) =>
 	Math.cos(Math.PI * (animationTime / _ROTATION_SPEED)) * amplitude;
@@ -77,15 +80,12 @@ const _updatePickupEntity = (
 		mat4.fromRotation(
 			entity.ani_matrix,
 			entity.animationTime / _ROTATION_SPEED,
-			[0, 1, 0],
+			_UP_AXIS,
 		);
 	}
 
-	mat4.translate(entity.ani_matrix, entity.ani_matrix, [
-		0,
-		_getBobOffset(entity.animationTime, amplitude),
-		0,
-	]);
+	_bobTranslation[1] = _getBobOffset(entity.animationTime, amplitude);
+	mat4.translate(entity.ani_matrix, entity.ani_matrix, _bobTranslation);
 };
 
 const _createPickup = (type, pos) => {
@@ -142,7 +142,7 @@ const _createPickup = (type, pos) => {
 			lightOffsetX = bbCenter[0] * meshScale;
 			lightOffsetZ = bbCenter[2] * meshScale;
 		} else {
-			console.warn(
+			Console.warn(
 				`Mesh bounding box not loaded yet for ${type}, using default light position`,
 			);
 		}
