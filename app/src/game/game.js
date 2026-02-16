@@ -9,6 +9,7 @@ const _horizontalForward = vec3.create();
 const _strafeDir = vec3.create();
 const _origin = vec3.create();
 const _defaultSpawn = [0, 0, 0];
+const _STRAFE_ANGLE = glMatrix.toRadian(-90);
 
 let _controller = null;
 
@@ -64,12 +65,7 @@ const Game = {
 		vec3.copy(_horizontalForward, Camera.direction);
 		_horizontalForward[1] = 0;
 		vec3.normalize(_horizontalForward, _horizontalForward);
-		vec3.rotateY(
-			_strafeDir,
-			_horizontalForward,
-			_origin,
-			glMatrix.toRadian(-90),
-		);
+		vec3.rotateY(_strafeDir, _horizontalForward, _origin, _STRAFE_ANGLE);
 
 		// Update FPS controller
 		if (_controller) {

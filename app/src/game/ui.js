@@ -407,7 +407,6 @@ class _MenuUI extends Reactive.Component {
 					padding-bottom: 10px;
 				}
 
-
 			}
 
 			/* Landscape mobile - limit menu height */

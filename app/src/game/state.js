@@ -24,8 +24,7 @@ _canvas.classList.add(_blurStyle);
 _canvas.style.filter = "blur(8px)";
 
 _isBlurred.subscribe((blurred) => {
-	const canvas = getCanvas();
-	if (canvas) canvas.style.filter = blurred ? "blur(8px)" : "blur(0px)";
+	if (_canvas) _canvas.style.filter = blurred ? "blur(8px)" : "blur(0px)";
 });
 
 // Subscribe to state changes to orchestrate system transitions

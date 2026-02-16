@@ -87,11 +87,6 @@ const _ANIMATION = {
 const _state = {
 	list: [],
 	selected: -1,
-	rocketLauncher: null,
-	energyScepter: null,
-	laserGatling: null,
-	plasmaPistol: null,
-	pulseCannon: null,
 	firing: false,
 	firingStart: 0,
 	firingTimer: 0,
@@ -116,13 +111,18 @@ const _projectileRight = vec3.create();
 const _worldUp = [0, 1, 0];
 const _translationVec = [0, 0, 0]; // Simple array for vec3 operations that don't need glMatrix
 const _weaponScaleVec = [_WEAPON_SCALE.x, _WEAPON_SCALE.y, _WEAPON_SCALE.z];
+const _nextPos = [0, 0, 0];
+const _inDir = [0, 0, 0];
+const _reflectDir = [0, 0, 0];
+const _projectileScaleVec = [1, 1, 1];
+const _ROT_Y_180 = glMatrix.toRadian(180);
+const _ROT_X_NEG2_5 = glMatrix.toRadian(-2.5);
 
 // Weapons use both-sided faces for projectile hits
 const _bothSidesRayOptions = { skipBackfaces: false, collisionFilterMask: 1 };
 
 // Projectile trajectory constants
 const _TRAJECTORY = {
-	MAX_DISTANCE: 2000, // Max raycast distance per segment
 	SPEED: 900, // Units per second
 	GRAVITY: 300, // Affects arc curvature
 	LIFETIME: 15000, // Max lifetime in ms
@@ -206,16 +206,14 @@ const _updateProjectile = (entity, frameTime) => {
 	traj.velocity[1] -= _TRAJECTORY.GRAVITY * dt;
 
 	// Calculate next position
-	const nextPos = [
-		traj.position[0] + traj.velocity[0] * dt,
-		traj.position[1] + traj.velocity[1] * dt,
-		traj.position[2] + traj.velocity[2] * dt,
-	];
+	_nextPos[0] = traj.position[0] + traj.velocity[0] * dt;
+	_nextPos[1] = traj.position[1] + traj.velocity[1] * dt;
+	_nextPos[2] = traj.position[2] + traj.velocity[2] * dt;
 
 	// Raycast from current to next position + lookahead for slow projectiles
-	const dx = nextPos[0] - traj.position[0];
-	const dy = nextPos[1] - traj.position[1];
-	const dz = nextPos[2] - traj.position[2];
+	const dx = _nextPos[0] - traj.position[0];
+	const dy = _nextPos[1] - traj.position[1];
+	const dz = _nextPos[2] - traj.position[2];
 	const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
 
 	// Minimum lookahead to prevent tunneling when moving slowly
@@ -257,25 +255,21 @@ const _updateProjectile = (entity, frameTime) => {
 			return false;
 		}
 
-		const inDir = [
-			traj.velocity[0] / speed,
-			traj.velocity[1] / speed,
-			traj.velocity[2] / speed,
-		];
+		_inDir[0] = traj.velocity[0] / speed;
+		_inDir[1] = traj.velocity[1] / speed;
+		_inDir[2] = traj.velocity[2] / speed;
 
 		// Reflect: v' = v - 2(v·n)n
-		const dot = inDir[0] * hn[0] + inDir[1] * hn[1] + inDir[2] * hn[2];
-		const reflectDir = [
-			inDir[0] - 2 * dot * hn[0],
-			inDir[1] - 2 * dot * hn[1],
-			inDir[2] - 2 * dot * hn[2],
-		];
+		const dot = _inDir[0] * hn[0] + _inDir[1] * hn[1] + _inDir[2] * hn[2];
+		_reflectDir[0] = _inDir[0] - 2 * dot * hn[0];
+		_reflectDir[1] = _inDir[1] - 2 * dot * hn[1];
+		_reflectDir[2] = _inDir[2] - 2 * dot * hn[2];
 
 		// Apply restitution (energy loss)
 		const newSpeed = speed * 0.6;
-		traj.velocity[0] = reflectDir[0] * newSpeed;
-		traj.velocity[1] = reflectDir[1] * newSpeed;
-		traj.velocity[2] = reflectDir[2] * newSpeed;
+		traj.velocity[0] = _reflectDir[0] * newSpeed;
+		traj.velocity[1] = _reflectDir[1] * newSpeed;
+		traj.velocity[2] = _reflectDir[2] * newSpeed;
 
 		// Move to hit point + larger offset to stay above surface
 		const offset = 3.0;
@@ -284,14 +278,18 @@ const _updateProjectile = (entity, frameTime) => {
 		traj.position[2] = hp[2] + hn[2] * offset;
 	} else {
 		// No hit, update position
-		traj.position[0] = nextPos[0];
-		traj.position[1] = nextPos[1];
-		traj.position[2] = nextPos[2];
+		traj.position[0] = _nextPos[0];
+		traj.position[1] = _nextPos[1];
+		traj.position[2] = _nextPos[2];
 	}
 
 	// Build transform (no rotation)
 	mat4.fromTranslation(entity.ani_matrix, traj.position);
-	mat4.scale(entity.ani_matrix, entity.ani_matrix, [scale, scale, scale]);
+	_projectileScaleVec[0] =
+		_projectileScaleVec[1] =
+		_projectileScaleVec[2] =
+			scale;
+	mat4.scale(entity.ani_matrix, entity.ani_matrix, _projectileScaleVec);
 	mat4.identity(entity.base_matrix);
 
 	// Update light
@@ -459,8 +457,8 @@ const _applyWeaponTransforms = (entity, animations) => {
 	_translationVec[2] = _WEAPON_POSITION.z + offset.z + animations.fire;
 
 	mat4.translate(entity.ani_matrix, entity.ani_matrix, _translationVec);
-	mat4.rotateY(entity.ani_matrix, entity.ani_matrix, glMatrix.toRadian(180));
-	mat4.rotateX(entity.ani_matrix, entity.ani_matrix, glMatrix.toRadian(-2.5));
+	mat4.rotateY(entity.ani_matrix, entity.ani_matrix, _ROT_Y_180);
+	mat4.rotateX(entity.ani_matrix, entity.ani_matrix, _ROT_X_NEG2_5);
 	mat4.scale(entity.ani_matrix, entity.ani_matrix, _weaponScaleVec);
 };
 
@@ -552,47 +550,45 @@ const _createProjectile = (spawnPos, config) => {
 };
 
 const _load = () => {
-	// Projectiles now use raycast-animated trajectories, no physics registration needed
-
-	_state.rocketLauncher = new FpsMeshEntity(
+	const rocketLauncher = new FpsMeshEntity(
 		[0, 0, 0],
 		_WEAPONS.ROCKET_LAUNCHER.mesh,
 		_createWeaponAnimation,
 	);
-	_state.rocketLauncher.visible = false;
-	Scene.addEntities(_state.rocketLauncher);
+	rocketLauncher.visible = false;
+	Scene.addEntities(rocketLauncher);
 
-	_state.energyScepter = new FpsMeshEntity(
+	const energyScepter = new FpsMeshEntity(
 		[0, 0, 0],
 		_WEAPONS.ENERGY_SCEPTER.mesh,
 		_createWeaponAnimation,
 	);
-	_state.energyScepter.visible = false;
-	Scene.addEntities(_state.energyScepter);
+	energyScepter.visible = false;
+	Scene.addEntities(energyScepter);
 
-	_state.laserGatling = new FpsMeshEntity(
+	const laserGatling = new FpsMeshEntity(
 		[0, 0, 0],
 		_WEAPONS.LASER_GATLING.mesh,
 		_createWeaponAnimation,
 	);
-	_state.laserGatling.weaponConfig = _WEAPONS.LASER_GATLING;
-	_state.laserGatling.visible = false;
-	Scene.addEntities(_state.laserGatling);
+	laserGatling.weaponConfig = _WEAPONS.LASER_GATLING;
+	laserGatling.visible = false;
+	Scene.addEntities(laserGatling);
 
-	_state.plasmaPistol = new FpsMeshEntity(
+	const plasmaPistol = new FpsMeshEntity(
 		[0, 0, 0],
 		_WEAPONS.PLASMA_PISTOL.mesh,
 		_createWeaponAnimation,
 	);
-	Scene.addEntities(_state.plasmaPistol);
+	Scene.addEntities(plasmaPistol);
 
-	_state.pulseCannon = new FpsMeshEntity(
+	const pulseCannon = new FpsMeshEntity(
 		[0, 0, 0],
 		_WEAPONS.PULSE_CANNON.mesh,
 		_createWeaponAnimation,
 	);
-	_state.pulseCannon.visible = false;
-	Scene.addEntities(_state.pulseCannon);
+	pulseCannon.visible = false;
+	Scene.addEntities(pulseCannon);
 
 	_state.list = Scene.getEntities(EntityTypes.FPS_MESH);
 	// Default to Plasma Pistol (index 3 in the list order)

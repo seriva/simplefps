@@ -58,7 +58,11 @@ const _initializeEventListeners = () => {
 
 	window.addEventListener("wheel", (e) => {
 		if (State.current !== "GAME") return;
-		Weapons.selectNext(e.deltaY < 0);
+		if (e.deltaY < 0) {
+			Weapons.selectPrevious();
+		} else {
+			Weapons.selectNext();
+		}
 	});
 };
 
