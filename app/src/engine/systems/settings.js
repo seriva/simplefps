@@ -1,8 +1,14 @@
-import Console from "../systems/console.js";
-import Utils from "./utils.js";
+import Console from "./console.js";
+
+// Compute once at init — device type never changes at runtime
+const _isMobile =
+	navigator.userAgentData?.mobile ??
+	(window.matchMedia("(max-width: 768px)").matches ||
+		/Mobi|Android/i.test(navigator.userAgent));
 
 // Public Settings object
 const Settings = {
+	isMobile: _isMobile,
 	save: () => _saveSettings(),
 };
 
@@ -14,7 +20,7 @@ const _defaults = {
 	useWebGPU: true,
 	zNear: 0.1,
 	zFar: 8192,
-	renderScale: Utils.isMobile() ? 0.5 : 1.0,
+	renderScale: _isMobile ? 0.5 : 1.0,
 	anisotropicFiltering: 16,
 	gamma: 1.0,
 	doFXAA: true,

@@ -1,8 +1,8 @@
 import { mat4 } from "../../dependencies/gl-matrix.js";
-import Settings from "../core/settings.js";
 import { EntityTypes } from "../scene/entity.js";
 import Scene from "../scene/scene.js";
 import Console from "../systems/console.js";
+import Settings from "../systems/settings.js";
 import Stats from "../systems/stats.js";
 import { Backend } from "./backend.js";
 import { Shaders } from "./shaders.js";

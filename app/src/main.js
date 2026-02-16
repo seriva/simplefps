@@ -1,4 +1,4 @@
-import { init, setCallbacks, start, Utils } from "./engine/core/engine.js";
+import { init, setCallbacks, start } from "./engine/engine.js";
 import Game from "./game/game.js";
 import Loading from "./game/loading.js";
 import Multiplayer from "./game/multiplayer.js";
@@ -24,7 +24,7 @@ import "./game/hud.js";
 		// Enter game state to render first frame, then show menu with backdrop
 		State.enterGame();
 		start();
-		await Utils.wait();
+		await new Promise((r) => setTimeout(r, 100));
 		Loading.toggle(false);
 		State.enterMenu("MAIN_MENU");
 	} catch (e) {

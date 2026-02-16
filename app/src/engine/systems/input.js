@@ -1,6 +1,5 @@
 import { css, html, Reactive } from "../../dependencies/reactive.js";
-import Settings from "../core/settings.js";
-import Utils from "../core/utils.js";
+import Settings from "./settings.js";
 
 // ============================================================================
 // Private
@@ -409,7 +408,7 @@ class _VirtualInputUI extends Reactive.Component {
 			ev.preventDefault();
 			ev.stopPropagation();
 			this.refs.btnShoot.classList.add("pressed");
-			Utils.dispatchCustomEvent("game:shoot");
+			window.dispatchEvent(new CustomEvent("game:shoot"));
 		});
 		this.on(this.refs.btnShoot, "touchend", () => {
 			this.refs.btnShoot.classList.remove("pressed");
@@ -422,7 +421,7 @@ class _VirtualInputUI extends Reactive.Component {
 			ev.preventDefault();
 			ev.stopPropagation();
 			this.refs.btnJump.classList.add("pressed");
-			Utils.dispatchCustomEvent("game:jump");
+			window.dispatchEvent(new CustomEvent("game:jump"));
 		});
 		this.on(this.refs.btnJump, "touchend", () => {
 			this.refs.btnJump.classList.remove("pressed");
@@ -455,7 +454,7 @@ class _VirtualInputUI extends Reactive.Component {
 
 let _virtualInput = null;
 
-if (Utils.isMobile()) {
+if (Settings.isMobile) {
 	_virtualInput = new _VirtualInputUI();
 	_virtualInput.appendTo("body");
 }
@@ -470,7 +469,7 @@ const Input = {
 	},
 
 	toggleCursor(show) {
-		if (Utils.isMobile()) return;
+		if (Settings.isMobile) return;
 		if (show === undefined) {
 			_visibleCursor = !_visibleCursor;
 		} else {
@@ -484,7 +483,7 @@ const Input = {
 	},
 
 	toggleVirtualInput(show) {
-		if (!Utils.isMobile() || !_virtualInput) return;
+		if (!Settings.isMobile || !_virtualInput) return;
 		_virtualInput.toggle(show);
 	},
 

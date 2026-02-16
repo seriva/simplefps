@@ -1,5 +1,4 @@
 import Animation from "../animation/animation.js";
-import Utils from "../core/utils.js";
 import Material from "../rendering/material.js";
 import Mesh from "../rendering/mesh.js";
 import SkinnedMesh from "../rendering/skinnedmesh.js";
@@ -86,7 +85,7 @@ const Resources = {
 
 					if (resourceHandler) {
 						try {
-							const response = await Utils.fetch(fullpath);
+							const response = await Resources.fetch(fullpath);
 							const result = await Promise.resolve(
 								resourceHandler(response, this),
 							);
@@ -130,6 +129,21 @@ const Resources = {
 
 	register(key, resource) {
 		_resources.set(key, resource);
+	},
+
+	async fetch(path) {
+		const response = await fetch(path).catch((error) => {
+			Console.error(`Fetch error for ${path}:`, error);
+			throw error;
+		});
+
+		if (!response?.ok) {
+			throw new Error(`HTTP error! status: ${response.status} for ${path}`);
+		}
+
+		return /\.(webp|bmesh|sbmesh|banim|bin)$/.test(path)
+			? await response.blob()
+			: await response.text();
 	},
 };
 

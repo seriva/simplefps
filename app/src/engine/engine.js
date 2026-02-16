@@ -1,27 +1,26 @@
-import Animation from "../animation/animation.js";
-import AnimationPlayer from "../animation/animationplayer.js";
-import { Trimesh } from "../physics/trimesh.js";
-import { Backend, backendReady } from "../rendering/backend.js";
-import Renderer from "../rendering/renderer.js";
-import { Shaders } from "../rendering/shaders.js";
-import Shapes from "../rendering/shapes.js";
-import DirectionalLightEntity from "../scene/directionallightentity.js";
-import { EntityTypes } from "../scene/entity.js";
-import FpsMeshEntity from "../scene/fpsmeshentity.js";
-import MeshEntity from "../scene/meshentity.js";
-import PointLightEntity from "../scene/pointlightentity.js";
-import Scene from "../scene/scene.js";
-import SkinnedMeshEntity from "../scene/skinnedmeshentity.js";
-import SkyboxEntity from "../scene/skyboxentity.js";
-import SpotLightEntity from "../scene/spotlightentity.js";
-import Console from "../systems/console.js";
-import Input from "../systems/input.js";
-import Resources from "../systems/resources.js";
-import Sound from "../systems/sound.js";
-import Stats from "../systems/stats.js";
-import Camera from "./camera.js";
-import Settings from "./settings.js";
-import Utils from "./utils.js";
+import Animation from "./animation/animation.js";
+import AnimationPlayer from "./animation/animationplayer.js";
+import { Trimesh } from "./physics/trimesh.js";
+import { Backend, backendReady } from "./rendering/backend.js";
+import Renderer from "./rendering/renderer.js";
+import { Shaders } from "./rendering/shaders.js";
+import Shapes from "./rendering/shapes.js";
+import DirectionalLightEntity from "./scene/directionallightentity.js";
+import { EntityTypes } from "./scene/entity.js";
+import FpsMeshEntity from "./scene/fpsmeshentity.js";
+import MeshEntity from "./scene/meshentity.js";
+import PointLightEntity from "./scene/pointlightentity.js";
+import Scene from "./scene/scene.js";
+import SkinnedMeshEntity from "./scene/skinnedmeshentity.js";
+import SkyboxEntity from "./scene/skyboxentity.js";
+import SpotLightEntity from "./scene/spotlightentity.js";
+import Camera from "./systems/camera.js";
+import Console from "./systems/console.js";
+import Input from "./systems/input.js";
+import Resources from "./systems/resources.js";
+import Settings from "./systems/settings.js";
+import Sound from "./systems/sound.js";
+import Stats from "./systems/stats.js";
 
 // ============================================================================
 // Private
@@ -116,7 +115,6 @@ export {
 	getCanvas,
 	Console,
 	Settings,
-	Utils,
 	Stats,
 	Input,
 	Resources,

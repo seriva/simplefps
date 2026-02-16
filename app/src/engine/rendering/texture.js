@@ -1,5 +1,5 @@
-import Settings from "../core/settings.js";
 import Console from "../systems/console.js";
+import Settings from "../systems/settings.js";
 import { Backend } from "./backend.js";
 
 class Texture {

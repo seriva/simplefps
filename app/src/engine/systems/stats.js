@@ -1,8 +1,8 @@
 import { css, html, Reactive } from "../../dependencies/reactive.js";
-import Camera from "../core/camera.js";
-import Settings from "../core/settings.js";
 import { Backend } from "../rendering/backend.js";
+import Camera from "./camera.js";
 import Console from "./console.js";
+import Settings from "./settings.js";
 
 // Private Stats UI component
 class _StatsUI extends Reactive.Component {

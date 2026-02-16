@@ -8,7 +8,7 @@ import {
 	PointLightEntity,
 	Resources,
 	Scene,
-} from "../engine/core/engine.js";
+} from "../engine/engine.js";
 import { Backend } from "../engine/rendering/backend.js";
 
 // ============================================================================

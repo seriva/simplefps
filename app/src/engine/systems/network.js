@@ -1,5 +1,5 @@
 import { Peer } from "../../dependencies/peerjs.js";
-import { Console } from "../core/engine.js";
+import { Console } from "../engine.js";
 
 // Shared ICE configuration for STUN servers
 const ICE_CONFIG = {
