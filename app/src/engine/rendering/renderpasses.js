@@ -42,6 +42,10 @@ const _renderStats = {
 	triangleCount: 0,
 };
 
+// Pre-allocated arrays for occlusion splitting (avoid per-frame allocations)
+const _occluders = [];
+const _occludees = [];
+
 // Pre-computed arrays for debug rendering (avoid per-frame allocations)
 const _debugMeshTypes = [
 	EntityTypes.MESH,
@@ -202,18 +206,18 @@ const renderWorldGeometry = () => {
 	// Render opaque materials
 	// Split into occluders and occludees
 	const meshEntities = Scene.visibilityCache[EntityTypes.MESH];
-	const occluders = [];
-	const occludees = [];
+	_occluders.length = 0;
+	_occludees.length = 0;
 	for (const entity of meshEntities) {
 		if (entity.isOccluder) {
-			occluders.push(entity);
+			_occluders.push(entity);
 		} else {
-			occludees.push(entity);
+			_occludees.push(entity);
 		}
 	}
 
 	// Render Occluders (always) - these populate the depth buffer
-	for (const entity of occluders) {
+	for (const entity of _occluders) {
 		entity.render("opaque", Shaders.geometry);
 		_renderStats.meshCount++;
 		_renderStats.triangleCount += entity.mesh?.triangleCount || 0;
@@ -226,7 +230,7 @@ const renderWorldGeometry = () => {
 	// This is when we test if occludees and lights would be visible
 	if (Settings.occlusionCulling) {
 		// Query mesh occludees
-		_performOcclusionQueries(occludees);
+		_performOcclusionQueries(_occludees);
 
 		// Query lights for occlusion culling
 		const pointLights = Scene.visibilityCache[EntityTypes.POINT_LIGHT] || [];
@@ -239,7 +243,7 @@ const renderWorldGeometry = () => {
 	Shaders.geometry.setMat4("matWorld", _matModel);
 
 	// Render Occludees (only visible ones if occlusion enabled)
-	for (const entity of occludees) {
+	for (const entity of _occludees) {
 		if (Settings.occlusionCulling && !entity.isVisible) {
 			continue;
 		}

@@ -1,4 +1,5 @@
 import { vec3 } from "../../dependencies/gl-matrix.js";
+import Console from "../systems/console.js";
 import Resources from "../systems/resources.js";
 
 // Private state
@@ -34,7 +35,7 @@ const _load = (config) => {
 	_reset();
 
 	if (!config || !config.lightGrid) {
-		console.warn("No light grid configuration found in arena config.");
+		Console.warn("No light grid configuration found in arena config.");
 		return Promise.resolve();
 	}
 
@@ -57,12 +58,12 @@ const _load = (config) => {
 				if (buffer.byteLength === totalProbes * 3) {
 					_data = new Uint8Array(buffer);
 				} else if (buffer.byteLength >= totalProbes * 3) {
-					console.warn(
+					Console.warn(
 						`LightGrid size mismatch. Config expects ${totalProbes} probes, buffer is ${buffer.byteLength} bytes. Using partial buffer.`,
 					);
 					_data = new Uint8Array(buffer);
 				} else {
-					console.error(
+					Console.error(
 						`LightGrid size mismatch. Config expects ${totalProbes} probes, buffer is ${buffer.byteLength} bytes. Too small.`,
 					);
 					return;
@@ -83,7 +84,7 @@ const _load = (config) => {
 			}
 		})
 		.catch((err) => {
-			console.error("Failed to load LightGrid:", err);
+			Console.error("Failed to load LightGrid:", err);
 		});
 };
 

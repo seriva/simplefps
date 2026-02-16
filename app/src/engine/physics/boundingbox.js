@@ -8,6 +8,9 @@ import Camera from "../core/camera.js";
 const _cornersBuffer = new Float32Array(24);
 const _transformedMin = vec3.create();
 const _transformedMax = vec3.create();
+const _tempCenter = vec3.create();
+const _tempDimensions = vec3.create();
+const _tempTransformMat = mat4.create();
 const _tempCorner = vec3.create();
 
 // Temps for isVisible
@@ -152,23 +155,21 @@ class BoundingBox {
 	}
 
 	get center() {
-		const c = vec3.create();
-		vec3.add(c, this.min, this.max);
-		vec3.scale(c, c, 0.5);
-		return c;
+		vec3.add(_tempCenter, this.min, this.max);
+		vec3.scale(_tempCenter, _tempCenter, 0.5);
+		return _tempCenter;
 	}
 
 	get dimensions() {
-		const d = vec3.create();
-		vec3.subtract(d, this.max, this.min);
-		return d;
+		vec3.subtract(_tempDimensions, this.max, this.min);
+		return _tempDimensions;
 	}
 
 	get transformMatrix() {
-		const mat = mat4.create();
-		mat4.translate(mat, mat, this.center);
-		mat4.scale(mat, mat, this.dimensions);
-		return mat;
+		mat4.identity(_tempTransformMat);
+		mat4.translate(_tempTransformMat, _tempTransformMat, this.center);
+		mat4.scale(_tempTransformMat, _tempTransformMat, this.dimensions);
+		return _tempTransformMat;
 	}
 
 	transform(matrix) {
