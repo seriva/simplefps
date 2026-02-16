@@ -1,7 +1,6 @@
 import { vec3 } from "../../dependencies/gl-matrix.js";
 import { Ray, RaycastResult } from "../physics/ray.js";
 import Console from "../systems/console.js";
-import Stats from "../systems/stats.js";
 import { EntityTypes } from "./entity.js";
 import LightGrid from "./lightgrid.js";
 
@@ -21,18 +20,6 @@ const _VISIBILITY_CACHE_TYPES = [
 	EntityTypes.POINT_LIGHT,
 	EntityTypes.SPOT_LIGHT,
 ];
-
-const _MESH_TYPES = new Set([
-	EntityTypes.MESH,
-	EntityTypes.SKINNED_MESH,
-	EntityTypes.FPS_MESH,
-]);
-
-const _LIGHT_TYPES = new Set([
-	EntityTypes.POINT_LIGHT,
-	EntityTypes.SPOT_LIGHT,
-	EntityTypes.DIRECTIONAL_LIGHT,
-]);
 
 const _DEFAULT_RAY_OPTIONS = {
 	skipBackfaces: true,
@@ -63,12 +50,6 @@ const _visibilityCache = {
 	[EntityTypes.DIRECTIONAL_LIGHT]: [],
 	[EntityTypes.POINT_LIGHT]: [],
 	[EntityTypes.SPOT_LIGHT]: [],
-};
-
-const _renderStats = {
-	visibleMeshCount: 0,
-	visibleLightCount: 0,
-	triangleCount: 0,
 };
 
 // Private entity cache
@@ -208,10 +189,6 @@ const _update = (frameTime) => {
 
 const _updateVisibility = () => {
 	_entityCache.clear();
-	const stats = _renderStats;
-	stats.visibleMeshCount = 0;
-	stats.visibleLightCount = 0;
-	stats.triangleCount = 0;
 
 	// Reset visibility lists
 	for (let i = 0; i < _VISIBILITY_CACHE_TYPES.length; i++) {
@@ -219,27 +196,13 @@ const _updateVisibility = () => {
 		_visibilityCache[type].length = 0;
 	}
 
-	// Sort entities into visible/invisible lists
+	// Sort entities into visible lists
 	for (let i = 0; i < _entities.length; i++) {
 		const entity = _entities[i];
 		if (!entity.boundingBox || entity.boundingBox.isVisible()) {
 			_visibilityCache[entity.type].push(entity);
-			const type = entity.type;
-
-			if (_MESH_TYPES.has(type)) {
-				stats.visibleMeshCount++;
-				stats.triangleCount += entity.mesh?.triangleCount || 0;
-			} else if (_LIGHT_TYPES.has(type)) {
-				stats.visibleLightCount++;
-			}
 		}
 	}
-
-	Stats.setRenderStats(
-		stats.visibleMeshCount,
-		stats.visibleLightCount,
-		stats.triangleCount,
-	);
 };
 
 const _raycast = (

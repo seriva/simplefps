@@ -495,6 +495,15 @@ const _ssaoBlurPass = () => {
 			? Settings.ssaoBlurIterations
 			: Settings.ssaoBlurIterations + 1;
 
+	// Bind shader and set static uniforms once before the loop
+	Shaders.bilateralBlur.bind();
+	Shaders.bilateralBlur.setInt("aoBuffer", 0);
+	Shaders.bilateralBlur.setInt("positionBuffer", 1);
+	Shaders.bilateralBlur.setInt("normalBuffer", 2);
+	Shaders.bilateralBlur.setFloat("gBufferScale", 2.0); // Read G-buffer at 2x coord scale
+	Shaders.bilateralBlur.setFloat("depthThreshold", 20.0); // Very permissive depth threshold
+	Shaders.bilateralBlur.setFloat("normalThreshold", 2.0); // Very gentle normal falloff
+
 	for (let i = 0; i < iterations; i++) {
 		if (i % 2 === 0) {
 			// Render to blurFB, read from SSAO
@@ -516,17 +525,9 @@ const _ssaoBlurPass = () => {
 			_ao.blur.bind(0);
 		}
 		Backend.clear({ color: [0, 0, 0, 0] });
-
-		Shaders.bilateralBlur.bind();
-		Shaders.bilateralBlur.setInt("aoBuffer", 0);
-		Shaders.bilateralBlur.setInt("positionBuffer", 1);
-		Shaders.bilateralBlur.setInt("normalBuffer", 2);
-		Shaders.bilateralBlur.setFloat("gBufferScale", 2.0); // Read G-buffer at 2x coord scale
-		Shaders.bilateralBlur.setFloat("depthThreshold", 20.0); // Very permissive depth threshold
-		Shaders.bilateralBlur.setFloat("normalThreshold", 2.0); // Very gentle normal falloff
 		Shapes.screenQuad.renderSingle();
-		Backend.unbindShader();
 	}
+	Backend.unbindShader();
 
 	Texture.unBindRange(0, 3);
 	Backend.bindFramebuffer(null);

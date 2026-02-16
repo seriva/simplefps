@@ -50,9 +50,7 @@ const _defaults = {
 
 // Private functions
 const _saveSettings = () => {
-	const success =
-		localStorage?.setItem("settings", JSON.stringify(Settings)) ?? false;
-	return success;
+	localStorage?.setItem("settings", JSON.stringify(Settings));
 };
 
 // Initialize settings
@@ -61,12 +59,6 @@ if (_stored) {
 	Console.log("[Settings] Using stored settings");
 	// Merge stored settings into defaults (so new defaults get added)
 	Object.assign(Settings, _defaults, JSON.parse(_stored));
-	// Ensure new properties from defaults exist
-	for (const key in _defaults) {
-		if (!(key in Settings)) {
-			Settings[key] = _defaults[key];
-		}
-	}
 } else {
 	Console.log("[Settings] Using default settings");
 	Object.assign(Settings, _defaults);

@@ -68,7 +68,6 @@ const Resources = {
 		if (!Array.isArray(paths)) return null;
 		if (!paths.length) return Promise.resolve();
 
-		const startTime = performance.now();
 		Resources.onLoadStart?.();
 
 		try {
@@ -113,8 +112,6 @@ const Resources = {
 			await Promise.all(loadPromises);
 		} finally {
 			Resources.onLoadEnd?.();
-			const _loadTime = performance.now() - startTime;
-			// Console.log(`[Resources] Loaded resources in ${Math.round(loadTime)} ms`);
 		}
 	},
 

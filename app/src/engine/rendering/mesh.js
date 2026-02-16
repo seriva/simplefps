@@ -35,7 +35,7 @@ class Mesh {
 		this.updateBoundingBox();
 	}
 
-	static buildBuffer(_type, data, usage) {
+	static buildBuffer(data, usage) {
 		let typedArray;
 
 		if (usage === "index") {
@@ -49,7 +49,7 @@ class Mesh {
 
 	// Helper to create and push a buffer
 	_createAttributeBuffer(data, usage, slot, size) {
-		const buffer = Mesh.buildBuffer(null, data, usage);
+		const buffer = Mesh.buildBuffer(data, usage);
 		this._buffers.push(buffer);
 		return {
 			buffer,
@@ -67,7 +67,7 @@ class Mesh {
 
 		// Create Index Buffers
 		for (const indexObj of this.indices) {
-			indexObj.indexBuffer = Mesh.buildBuffer(null, indexObj.array, "index");
+			indexObj.indexBuffer = Mesh.buildBuffer(indexObj.array, "index");
 			this._buffers.push(indexObj.indexBuffer);
 			this.triangleCount += indexObj.array.length / 3;
 		}

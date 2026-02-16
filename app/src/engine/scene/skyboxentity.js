@@ -9,8 +9,7 @@ class SkyboxEntity extends Entity {
 	static FACE_NAMES = ["front", "back", "top", "bottom", "right", "left"];
 
 	constructor(id, updateCallback) {
-		super([0, 0, 0], updateCallback);
-		this.type = EntityTypes.SKYBOX;
+		super(EntityTypes.SKYBOX, updateCallback);
 		this.shader = Shaders.geometry;
 
 		// Initialize shape resources once
