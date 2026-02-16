@@ -21,6 +21,7 @@ const _BASE_URL = `${window.location}resources/arenas/`;
 const _DEFAULT_POSITION = [0, 0, 0];
 
 const _MAX_RAYCAST_DISTANCE = 500;
+const _MODEL_ROT_X = (-90 * Math.PI) / 180;
 
 const _state = {
 	arena: {},
@@ -128,11 +129,7 @@ const _setupSpawnpointModels = (spawnpoints = [], currentSpawn = null) => {
 			character.base_matrix,
 			spawn.rotation ? spawn.rotation[1] : 0,
 		);
-		mat4.rotateX(
-			character.base_matrix,
-			character.base_matrix,
-			(-90 * Math.PI) / 180,
-		);
+		mat4.rotateX(character.base_matrix, character.base_matrix, _MODEL_ROT_X);
 
 		// Now apply scale
 		mat4.scale(character.base_matrix, character.base_matrix, [10, 10, 10]);
