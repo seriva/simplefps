@@ -1,5 +1,5 @@
 import { css, html, Reactive } from "../dependencies/reactive.js";
-import { Utils } from "../engine/core/engine.js";
+import { Settings } from "../engine/engine.js";
 import State from "./state.js";
 
 // ============================================================================
@@ -9,7 +9,7 @@ import State from "./state.js";
 class _HUDUI extends Reactive.Component {
 	constructor() {
 		super();
-		this._isMobile = Utils.isMobile();
+		this._isMobile = Settings.isMobile;
 	}
 
 	state() {

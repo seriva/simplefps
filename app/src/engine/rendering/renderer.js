@@ -1,8 +1,7 @@
-import Camera from "../core/camera.js";
-import Settings from "../core/settings.js";
 import Scene from "../scene/scene.js";
-
+import Camera from "../systems/camera.js";
 import Resources from "../systems/resources.js";
+import Settings from "../systems/settings.js";
 import { Backend } from "./backend.js";
 import RenderPasses from "./renderpasses.js";
 import { Shaders } from "./shaders.js";

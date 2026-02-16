@@ -1,4 +1,4 @@
-import { Console } from "../engine/core/engine.js";
+import { Console } from "../engine/engine.js";
 
 // ============================================================================
 // Private

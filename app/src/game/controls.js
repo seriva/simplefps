@@ -1,4 +1,4 @@
-import { Console, Input, Settings, Utils } from "../engine/core/engine.js";
+import { Console, Input, Settings } from "../engine/engine.js";
 import Game from "./game.js";
 import State from "./state.js";
 import Weapons from "./weapons.js";
@@ -37,7 +37,7 @@ const _initializeEventListeners = () => {
 	// Weapon controls
 	window.addEventListener("click", (e) => {
 		if (e.button > 0) return;
-		if (Utils.isMobile()) return; // Disable tap to shoot on mobile
+		if (Settings.isMobile) return; // Disable tap to shoot on mobile
 		if (e.target.tagName.toUpperCase() !== "BODY") return;
 		Weapons.shootGrenade();
 	});

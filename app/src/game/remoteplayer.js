@@ -1,5 +1,5 @@
 import { mat4, vec3 } from "../dependencies/gl-matrix.js";
-import { MeshEntity, Scene } from "../engine/core/engine.js";
+import { MeshEntity, Scene } from "../engine/engine.js";
 
 // Smooth interpolation factor
 

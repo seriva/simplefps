@@ -4,12 +4,12 @@ import {
 	Console,
 	DirectionalLightEntity,
 	MeshEntity,
+	Resources,
 	Scene,
 	SkinnedMeshEntity,
 	SkyboxEntity,
 	Trimesh,
-	Utils,
-} from "../engine/core/engine.js";
+} from "../engine/engine.js";
 import Loading from "./loading.js";
 import Pickup from "./pickups.js";
 
@@ -142,7 +142,7 @@ const _load = async (name) => {
 	Loading.toggle(true);
 
 	try {
-		const response = await Utils.fetch(`${_BASE_URL}${name}/config.arena`);
+		const response = await Resources.fetch(`${_BASE_URL}${name}/config.arena`);
 		const arenaData = JSON.parse(response);
 
 		if (!arenaData) {

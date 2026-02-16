@@ -31,10 +31,12 @@ app/
 ├── src/
 │   ├── dependencies/     # Bundled 3rd party libs (reactive, etc)
 │   ├── engine/           # Core engine modules
-│   │   ├── core/         # Engine loop, camera, utils
+│   │   ├── engine.js     # Single entry point (barrel export + game loop)
+│   │   ├── animation/    # Skeletal animation system
+│   │   ├── physics/      # FPS controller, collision, octree
 │   │   ├── rendering/    # WebGPU/WebGL backends, shaders
 │   │   ├── scene/        # Entity system & scene graph
-│   │   └── systems/      # Physics, input, audio, resources
+│   │   └── systems/      # Camera, settings, input, audio, resources, console
 │   ├── game/             # Game-specific modules
 │   │   ├── weapons.js    # Weapon system
 │   │   ├── controls.js   # Game controls

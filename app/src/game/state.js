@@ -1,5 +1,5 @@
 import { css, Signals } from "../dependencies/reactive.js";
-import { getCanvas, Input, pause } from "../engine/core/engine.js";
+import { getCanvas, Input, pause } from "../engine/engine.js";
 import UI from "./ui.js";
 
 // ============================================================================

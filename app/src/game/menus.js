@@ -1,4 +1,4 @@
-import { resize, Settings, Stats } from "../engine/core/engine.js";
+import { resize, Settings, Stats } from "../engine/engine.js";
 import State from "./state.js";
 import Translations from "./translations.js";
 import UI from "./ui.js";

@@ -4,7 +4,7 @@ import {
 	MeshEntity,
 	PointLightEntity,
 	SpotLightEntity,
-} from "../engine/core/engine.js";
+} from "../engine/engine.js";
 
 // ============================================================================
 // Private

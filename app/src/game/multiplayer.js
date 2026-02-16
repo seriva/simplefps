@@ -1,4 +1,4 @@
-import { Camera, Console } from "../engine/core/engine.js";
+import { Camera, Console } from "../engine/engine.js";
 import { Network } from "../engine/systems/network.js";
 import { RemotePlayer } from "./remoteplayer.js";
 

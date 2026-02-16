@@ -1,6 +1,7 @@
 // Skeleton import removed - moved to skinnedmesh.js
-import { BinaryReader } from "../core/binaryreader.js";
+
 import BoundingBox from "../physics/boundingbox.js";
+import { BinaryReader } from "../systems/binaryreader.js";
 import { Backend } from "./backend.js";
 
 class Mesh {
