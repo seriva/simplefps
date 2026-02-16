@@ -1,6 +1,7 @@
 import { glMatrix, mat4, vec3 } from "../dependencies/gl-matrix.js";
 import {
 	Camera,
+	Console,
 	EntityTypes,
 	FpsMeshEntity,
 	MeshEntity,
@@ -18,8 +19,6 @@ import { Backend } from "../engine/rendering/backend.js";
 const _PROJECTILE = {
 	mesh: "meshes/ball.mesh",
 	meshScale: 33,
-	radius: 2,
-	mass: 0.5,
 	velocity: 1200,
 	light: {
 		radius: 150,
@@ -116,13 +115,13 @@ const _lookTarget = vec3.create();
 const _projectileRight = vec3.create();
 const _worldUp = [0, 1, 0];
 const _translationVec = [0, 0, 0]; // Simple array for vec3 operations that don't need glMatrix
+const _weaponScaleVec = [_WEAPON_SCALE.x, _WEAPON_SCALE.y, _WEAPON_SCALE.z];
 
 // Weapons use both-sided faces for projectile hits
 const _bothSidesRayOptions = { skipBackfaces: false, collisionFilterMask: 1 };
 
 // Projectile trajectory constants
 const _TRAJECTORY = {
-	MAX_BOUNCES: 5,
 	MAX_DISTANCE: 2000, // Max raycast distance per segment
 	SPEED: 900, // Units per second
 	GRAVITY: 300, // Affects arc curvature
@@ -131,83 +130,6 @@ const _TRAJECTORY = {
 
 // Track active projectiles for update
 const _activeProjectiles = new Set();
-
-// Raycast to find where trajectory hits
-const _raycastTrajectory = (from, direction, maxDistance) => {
-	const result = Scene.raycast(
-		from[0],
-		from[1],
-		from[2],
-		from[0] + direction[0] * maxDistance,
-		from[1] + direction[1] * maxDistance,
-		from[2] + direction[2] * maxDistance,
-		_bothSidesRayOptions,
-	);
-
-	if (result.hasHit) {
-		const hp = result.hitPointWorld;
-		const hn = result.hitNormalWorld;
-
-		const dx = hp[0] - from[0];
-		const dy = hp[1] - from[1];
-		const dz = hp[2] - from[2];
-		const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
-
-		const offset = 1.0;
-		return {
-			hit: true,
-			point: [
-				hp[0] + hn[0] * offset,
-				hp[1] + hn[1] * offset,
-				hp[2] + hn[2] * offset,
-			],
-			normal: [hn[0], hn[1], hn[2]],
-			distance: distance,
-		};
-	}
-
-	return {
-		hit: false,
-		point: [
-			from[0] + direction[0] * maxDistance,
-			from[1] + direction[1] * maxDistance,
-			from[2] + direction[2] * maxDistance,
-		],
-		normal: [0, 1, 0],
-		distance: maxDistance,
-	};
-};
-
-// Calculate bounce direction: reflect incoming across normal
-const _calculateBounceDirection = (incoming, normal) => {
-	const dot =
-		incoming[0] * normal[0] + incoming[1] * normal[1] + incoming[2] * normal[2];
-	return [
-		incoming[0] - 2 * dot * normal[0],
-		incoming[1] - 2 * dot * normal[1],
-		incoming[2] - 2 * dot * normal[2],
-	];
-};
-
-// Calculate next trajectory segment from current position and direction
-const _calculateNextSegment = (startPos, direction, speed) => {
-	const result = _raycastTrajectory(
-		startPos,
-		direction,
-		_TRAJECTORY.MAX_DISTANCE,
-	);
-	const duration = (result.distance / speed) * 1000; // Convert to ms
-
-	return {
-		start: [...startPos],
-		end: result.point,
-		normal: result.normal,
-		direction: [...direction],
-		duration: duration,
-		startTime: performance.now(),
-		hit: result.hit,
-	};
-};
 
 // Reuse animation objects to avoid GC
 const _movementAni = { horizontal: 0, vertical: 0 };
@@ -219,8 +141,6 @@ const _aniValues = {
 	land: 0,
 	switch: 0,
 };
-
-// Projectiles use raycast trajectories, no physics shapes/materials needed
 
 const _setIsMoving = (value) => {
 	_state.isMoving = value;
@@ -275,19 +195,9 @@ const _updateProjectile = (entity, frameTime) => {
 			Scene.removeEntity(entity.linkedLight);
 		}
 		_activeProjectiles.delete(entity);
-		console.log("Grenade removed: lifetime expired");
+		Console.log("Grenade removed: lifetime expired");
 		return false;
 	}
-
-	// Max bounces check disabled for now
-	// if (traj.bounceCount >= _TRAJECTORY.MAX_BOUNCES) {
-	// 	if (entity.linkedLight) {
-	// 		Scene.removeEntity(entity.linkedLight);
-	// 	}
-	// 	_activeProjectiles.delete(entity);
-	// 	console.log("Grenade removed: max bounces reached");
-	// 	return false;
-	// }
 
 	// Physics step
 	const dt = frameTime / 1000; // Convert to seconds
@@ -343,7 +253,7 @@ const _updateProjectile = (entity, frameTime) => {
 				Scene.removeEntity(entity.linkedLight);
 			}
 			_activeProjectiles.delete(entity);
-			console.log("Grenade removed: too slow (speed:", speed.toFixed(1), ")");
+			Console.log(`Grenade removed: too slow (speed: ${speed.toFixed(1)})`);
 			return false;
 		}
 
@@ -529,7 +439,6 @@ const _applyWeaponTransforms = (entity, animations) => {
 	// Update reusable translation vector
 	// Correct for aspect ratio (pull closer to center on wide screens to avoid distortion)
 	// We mix the correction 50% so it's not too aggressive
-	// We mix the correction 50% so it's not too aggressive
 	const aspect = Backend.getAspectRatio();
 	const targetFactor = 1.8 / Math.max(1.8, aspect);
 	const aspectFactor = 0.5 + targetFactor * 0.5;
@@ -552,11 +461,7 @@ const _applyWeaponTransforms = (entity, animations) => {
 	mat4.translate(entity.ani_matrix, entity.ani_matrix, _translationVec);
 	mat4.rotateY(entity.ani_matrix, entity.ani_matrix, glMatrix.toRadian(180));
 	mat4.rotateX(entity.ani_matrix, entity.ani_matrix, glMatrix.toRadian(-2.5));
-	mat4.scale(entity.ani_matrix, entity.ani_matrix, [
-		_WEAPON_SCALE.x,
-		_WEAPON_SCALE.y,
-		_WEAPON_SCALE.z,
-	]);
+	mat4.scale(entity.ani_matrix, entity.ani_matrix, _weaponScaleVec);
 };
 
 const _shootGrenade = () => {

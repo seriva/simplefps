@@ -4,6 +4,7 @@ import { MeshEntity, Scene } from "../engine/core/engine.js";
 // Smooth interpolation factor
 
 const PLAYER_SCALE = 33; // Same size as grenade launcher projectile
+const _PLAYER_SCALE_VEC = [PLAYER_SCALE, PLAYER_SCALE, PLAYER_SCALE];
 
 export class RemotePlayer {
 	constructor(id, position) {
@@ -17,8 +18,6 @@ export class RemotePlayer {
 			PLAYER_SCALE,
 		);
 		this.mesh.castShadow = true;
-
-		// Console.log(`[RemotePlayer] Created mesh at ${position}`);
 
 		// Add to scene
 		Scene.addEntities(this.mesh);
@@ -48,11 +47,7 @@ export class RemotePlayer {
 			this.mesh.base_matrix,
 			this.currentPos,
 		);
-		mat4.scale(this.mesh.base_matrix, this.mesh.base_matrix, [
-			PLAYER_SCALE,
-			PLAYER_SCALE,
-			PLAYER_SCALE,
-		]);
+		mat4.scale(this.mesh.base_matrix, this.mesh.base_matrix, _PLAYER_SCALE_VEC);
 	}
 
 	destroy() {

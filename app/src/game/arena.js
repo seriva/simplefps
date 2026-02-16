@@ -19,7 +19,6 @@ import Pickup from "./pickups.js";
 
 const _BASE_URL = `${window.location}resources/arenas/`;
 const _DEFAULT_POSITION = [0, 0, 0];
-const _DEFAULT_AMBIENT = [1, 1, 1];
 
 const _MAX_RAYCAST_DISTANCE = 500;
 
@@ -113,9 +112,6 @@ const _setupSpawnpointModels = (spawnpoints = [], currentSpawn = null) => {
 		const groundY = _getGroundHeight(pos[0], pos[1], pos[2]);
 		const modelPos = [pos[0], groundY, pos[2]];
 
-		// Get yaw in degrees
-		// const yawDegrees = spawn.rotation ? (spawn.rotation[1] * 180) / Math.PI : 0;
-
 		const character = new SkinnedMeshEntity(
 			modelPos,
 			"models/robot/robot.sbmesh",
@@ -189,7 +185,7 @@ const _load = async (name) => {
 
 		Console.log(`[Arena] Loaded arena: ${name}`);
 	} catch (error) {
-		Console.log(`[Arena] Failed to load arena ${name}: ${error.message}`);
+		Console.warn(`[Arena] Failed to load arena ${name}: ${error.message}`);
 		_state.arena = {};
 		throw error;
 	} finally {

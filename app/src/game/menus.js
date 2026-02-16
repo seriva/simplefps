@@ -246,7 +246,7 @@ const _settingsMenu = {
 };
 
 // ============================================================================
-// Public API
+// Public API (side-effect only module)
 // ============================================================================
 
 // Register all menus
@@ -255,6 +255,4 @@ UI.register("SETTINGS_MENU", _settingsMenu);
 UI.register("CREDITS_MENU", _creditsMenu);
 UI.register("UPDATE_MENU", _updateMenu);
 
-const Menus = {};
-
-export default Menus;
+export default {};
