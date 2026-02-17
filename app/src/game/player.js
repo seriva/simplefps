@@ -1,27 +1,28 @@
 import { Signals } from "../dependencies/reactive.js";
+import { PLAYER_DEFS } from "./game_defs.js";
 
 // ============================================================================
 // Private
 // ============================================================================
 
-const _DEFAULTS = {
-	health: 100,
-	armor: 0,
-	ammo: 50,
-};
-
-const _MAX = {
-	health: 100,
-	armor: 100,
-	ammo: 100,
-};
-
-const _health = Signals.create(_DEFAULTS.health, undefined, "player:health");
-const _armor = Signals.create(_DEFAULTS.armor, undefined, "player:armor");
-const _ammo = Signals.create(_DEFAULTS.ammo, undefined, "player:ammo");
+const _health = Signals.create(
+    PLAYER_DEFS.DEFAULTS.health,
+    undefined,
+    "player:health",
+);
+const _armor = Signals.create(
+    PLAYER_DEFS.DEFAULTS.armor,
+    undefined,
+    "player:armor",
+);
+const _ammo = Signals.create(
+    PLAYER_DEFS.DEFAULTS.ammo,
+    undefined,
+    "player:ammo",
+);
 
 const _clampedAdd = (signal, amount, max) => {
-	signal.set(Math.min(signal.get() + amount, max));
+    signal.set(Math.min(signal.get() + amount, max));
 };
 
 // ============================================================================
@@ -29,27 +30,27 @@ const _clampedAdd = (signal, amount, max) => {
 // ============================================================================
 
 const Player = {
-	health: _health,
-	armor: _armor,
-	ammo: _ammo,
+    health: _health,
+    armor: _armor,
+    ammo: _ammo,
 
-	addHealth(amount) {
-		_clampedAdd(_health, amount, _MAX.health);
-	},
+    addHealth(amount) {
+        _clampedAdd(_health, amount, PLAYER_DEFS.MAX.health);
+    },
 
-	addArmor(amount) {
-		_clampedAdd(_armor, amount, _MAX.armor);
-	},
+    addArmor(amount) {
+        _clampedAdd(_armor, amount, PLAYER_DEFS.MAX.armor);
+    },
 
-	addAmmo(amount) {
-		_clampedAdd(_ammo, amount, _MAX.ammo);
-	},
+    addAmmo(amount) {
+        _clampedAdd(_ammo, amount, PLAYER_DEFS.MAX.ammo);
+    },
 
-	reset() {
-		_health.set(_DEFAULTS.health);
-		_armor.set(_DEFAULTS.armor);
-		_ammo.set(_DEFAULTS.ammo);
-	},
+    reset() {
+        _health.set(PLAYER_DEFS.DEFAULTS.health);
+        _armor.set(PLAYER_DEFS.DEFAULTS.armor);
+        _ammo.set(PLAYER_DEFS.DEFAULTS.ammo);
+    },
 };
 
 export default Player;
