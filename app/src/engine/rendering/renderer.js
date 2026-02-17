@@ -311,14 +311,58 @@ const _generateSSAONoise = () => {
 };
 
 const _generateDetailNoise = () => {
-	const size = 256;
+	// Revert to original resolution (modified to 128)
+	const size = 128;
 	const data = new Uint8Array(size * size * 4);
+	const heightMap = new Float32Array(size * size);
+
+	// 1. Generate Height Map (Simple procedural noise: multiple octaves)
 	for (let i = 0; i < size * size; i++) {
-		const val = Math.floor(Math.random() * 255);
-		data[i * 4] = val; // R
-		data[i * 4 + 1] = val; // G
-		data[i * 4 + 2] = val; // B
-		data[i * 4 + 3] = 255; // A
+		const x = i % size;
+		const y = Math.floor(i / size);
+
+		// Simple pseudo-random function (Original implementation)
+		const noise = (x, y) => {
+			const n = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453;
+			return n - Math.floor(n);
+		};
+
+		// Layered noise for better texture
+		let val = 0;
+		val += noise(x * 0.1, y * 0.1) * 0.5;
+		val += noise(x * 0.3, y * 0.3) * 0.25;
+		val += noise(x * 0.8, y * 0.8) * 0.125;
+		val += noise(x * 2.0, y * 2.0) * 0.125;
+
+		heightMap[i] = val;
+	}
+
+	// 2. Compute Normal Map from Height Map
+	for (let i = 0; i < size * size; i++) {
+		const x = i % size;
+		const y = Math.floor(i / size);
+
+		// Sample neighbors (wrapping)
+		const l = heightMap[((x - 1 + size) % size) + y * size];
+		const r = heightMap[((x + 1) % size) + y * size];
+		const u = heightMap[x + ((y - 1 + size) % size) * size];
+		const d = heightMap[x + ((y + 1) % size) * size];
+
+		// Compute gradients (Sobel filter approximation)
+		const dx = (r - l) * 2.0; // strength factor
+		const dy = (d - u) * 2.0;
+
+		// Compute normal
+		const nz = 1.0;
+		let len = Math.sqrt(dx * dx + dy * dy + nz * nz);
+
+		// Pack Normal into RGB [0, 255]
+		data[i * 4] = ((dx / len) * 0.5 + 0.5) * 255;      // R: Normal X
+		data[i * 4 + 1] = ((dy / len) * 0.5 + 0.5) * 255;  // G: Normal Y
+		data[i * 4 + 2] = ((nz / len) * 0.5 + 0.5) * 255;  // B: Normal Z
+
+		// Pack Height into Alpha [0, 255]
+		data[i * 4 + 3] = heightMap[i] * 255;
 	}
 
 	_detailNoise = new Texture({

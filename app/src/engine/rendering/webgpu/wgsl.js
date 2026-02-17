@@ -115,6 +115,8 @@ fn fs_main(input: GeomVertexOutput) -> FragmentOutput {
         discard;
     }
     
+    var N = normalize(input.normal);
+    
     // Apply Probe Color for dynamic objects (no lightmap)
     // Static objects (lightmapFlag == 1) ignore this as they use texture mixing below
     // Skybox (flag x == SKYBOX) should also ignore this
@@ -127,10 +129,46 @@ fn fs_main(input: GeomVertexOutput) -> FragmentOutput {
         color = color * textureSample(lightmapTexture, colorSampler, input.lightmapUV);
     }
 
-    // Apply Detail Noise
+    // Apply Detail Texture (Normal + Parallax)
     if (materialData.flags.x != SKYBOX && frameData.viewportSize.z > 0.5 && materialData.flags.w == 1) {
-         let noise = textureSample(detailTexture, colorSampler, input.uv * 4.0).r;
-         color = vec4<f32>(color.rgb * (0.9 + 0.2 * noise), color.a);
+         // 1. Parallax Mapping
+         let viewDir = normalize(frameData.cameraPosition.xyz - input.worldPosition.xyz);
+         
+         // Calculate TBN
+         let dp1 = dpdx(input.worldPosition.xyz);
+         let dp2 = dpdy(input.worldPosition.xyz);
+         let duv1 = dpdx(input.uv);
+         let duv2 = dpdy(input.uv);
+         
+         let dp2perp = cross(dp2, N);
+         let dp1perp = cross(N, dp1);
+         let T = dp2perp * duv1.x + dp1perp * duv2.x;
+         let B = dp2perp * duv1.y + dp1perp * duv2.y;
+         
+         let invmax = inverseSqrt(max(dot(T,T), dot(B,B)));
+         let TBN = mat3x3<f32>(T * invmax, B * invmax, N);
+         
+         // Transform viewDir to Tangent Space for Parallax
+         let tangentViewDir = normalize(transpose(TBN) * viewDir);
+         
+         // Offset UVs based on height (Alpha channel)
+         // Scale 0.05 for stronger depth effect
+         let height = textureSample(detailTexture, colorSampler, input.uv * 4.0).a;
+         let parallaxUV = input.uv * 4.0 - tangentViewDir.xy * (height * 0.02);
+         
+         // 2. Normal Mapping
+         // Sample normal from detail texture at parallax-offset coords
+         let detailNormalSample = textureSample(detailTexture, colorSampler, parallaxUV).rgb;
+         let detailNormal = detailNormalSample * 2.0 - 1.0;
+         
+         // Mix detail normal with varying normal (strength 0.5)
+         let surfaceNormal = normalize(TBN * detailNormal);
+         
+         // Blend with original vertex normal
+         N = normalize(mix(N, surfaceNormal, 0.5));
+         
+         // Optional: slight darkening based on height
+         color = vec4<f32>(color.rgb * (0.8 + 0.2 * height), color.a);
     }
     
     // Initialize emissive
@@ -138,7 +176,7 @@ fn fs_main(input: GeomVertexOutput) -> FragmentOutput {
     
     if (materialData.flags.x != SKYBOX) {
         let lightmapFlag = f32(materialData.flags.w);
-        output.normal = vec4<f32>(input.normal * 0.5 + 0.5, lightmapFlag);
+        output.normal = vec4<f32>(N * 0.5 + 0.5, lightmapFlag);
         output.position = vec4<f32>(input.worldPosition.xyz, 1.0);
     } else {
         output.normal = vec4<f32>(0.5, 0.5, 0.5, 1.0);
@@ -152,7 +190,7 @@ fn fs_main(input: GeomVertexOutput) -> FragmentOutput {
          
          if (maskSum > 0.2) {
              let viewDir = normalize(frameData.cameraPosition.xyz - input.worldPosition.xyz);
-             let r = reflect(-viewDir, input.normal);
+             let r = reflect(-viewDir, N);
              let m = 2.0 * sqrt(dot(r.xy, r.xy) + (r.z + 1.0) * (r.z + 1.0)) + 0.00001;
              let reflUV = r.xy / m + 0.5;
              // Use textureSampleLevel to allow calling inside non-uniform control flow
@@ -1263,201 +1301,201 @@ fn fs_main() -> @location(0) vec4<f32> {
 // Export shader sources with co-located binding metadata
 // This eliminates duplication between shaders and backend binding code
 export const WgslShaderSources = {
-	geometry: {
-		label: "geometry",
-		code: geometryShader,
-		bindings: {
-			group1: [
-				{ binding: 0, type: "ubo", id: 1 }, // MaterialData
-				{ binding: 1, type: "uniform", name: "matWorld" },
-				{ binding: 2, type: "uniform", name: "uProbeColor" },
-			],
-			group2: [
-				{ binding: 0, type: "sampler", unit: 0 },
-				{ binding: 1, type: "texture", unit: 0 }, // Albedo
-				{ binding: 2, type: "texture", unit: 1 }, // Emissive
-				{ binding: 3, type: "texture", unit: 4 }, // Lightmap
-				{ binding: 4, type: "texture", unit: 5 }, // Detail Noise
-				{ binding: 5, type: "texture", unit: 2 }, // Reflection
-				{ binding: 6, type: "texture", unit: 3 }, // Reflection Mask
-			],
-		},
-	},
-	skinnedGeometry: {
-		label: "skinnedGeometry",
-		code: skinnedGeometryShader,
-		bindings: {
-			group1: [
-				{ binding: 0, type: "ubo", id: 1 },
-				{ binding: 1, type: "uniform", name: "matWorld" },
-				{ binding: 2, type: "uniform", name: "boneMatrices" },
-				{ binding: 3, type: "uniform", name: "uProbeColor" },
-			],
-			group2: [
-				{ binding: 0, type: "sampler", unit: 0 },
-				{ binding: 1, type: "texture", unit: 0 },
-				{ binding: 2, type: "texture", unit: 1 },
-				{ binding: 4, type: "texture", unit: 5 },
-				{ binding: 5, type: "texture", unit: 2 },
-				{ binding: 6, type: "texture", unit: 3 },
-			],
-		},
-	},
-	entityShadows: {
-		label: "entityShadows",
-		code: entityShadowsShader,
-		bindings: {
-			group1: [
-				{ binding: 0, type: "uniform", name: "matWorld" },
-				{ binding: 1, type: "uniform", name: "ambient" },
-			],
-		},
-	},
-	skinnedEntityShadows: {
-		label: "skinnedEntityShadows",
-		code: skinnedEntityShadowsShader,
-		bindings: {
-			group1: [
-				{ binding: 0, type: "uniform", name: "skinnedShadowParams" },
-				{ binding: 2, type: "uniform", name: "boneMatrices" },
-			],
-		},
-	},
-	applyShadows: {
-		label: "applyShadows",
-		code: applyShadowsShader,
-		bindings: {
-			group1: [
-				{ binding: 0, type: "sampler", unit: 2 },
-				{ binding: 1, type: "texture", unit: 2 },
-			],
-		},
-	},
-	directionalLight: {
-		label: "directionalLight",
-		code: directionalLightShader,
-		bindings: {
-			group1: [
-				{ binding: 0, type: "uniform", name: "directionalLight" },
-				{ binding: 2, type: "texture", unit: 1 },
-			],
-		},
-	},
-	pointLight: {
-		label: "pointLight",
-		code: pointLightShader,
-		bindings: {
-			group1: [
-				{ binding: 0, type: "uniform", name: "matWorld" },
-				{ binding: 1, type: "uniform", name: "pointLight" },
-				{ binding: 3, type: "texture", unit: 0 },
-				{ binding: 4, type: "texture", unit: 1 },
-			],
-		},
-	},
-	spotLight: {
-		label: "spotLight",
-		code: spotLightShader,
-		bindings: {
-			group1: [
-				{ binding: 0, type: "uniform", name: "matWorld" },
-				{ binding: 1, type: "uniform", name: "spotLight" },
-				{ binding: 3, type: "texture", unit: 0 },
-				{ binding: 4, type: "texture", unit: 1 },
-			],
-		},
-	},
-	kawaseBlur: {
-		label: "kawaseBlur",
-		code: kawaseBlurShader,
-		bindings: {
-			group1: [
-				{ binding: 0, type: "uniform", name: "blurParams" },
-				{ binding: 1, type: "sampler", unit: 0 },
-				{ binding: 2, type: "texture", unit: 0 },
-			],
-		},
-	},
-	bilateralBlur: {
-		label: "bilateralBlur",
-		code: bilateralBlurShader,
-		bindings: {
-			group1: [
-				{ binding: 0, type: "uniform", name: "bilateralParams" },
-				{ binding: 2, type: "texture", unit: 0 }, // aoBuffer
-				{ binding: 3, type: "texture", unit: 1 }, // positionBuffer
-				{ binding: 4, type: "texture", unit: 2 }, // normalBuffer
-			],
-		},
-	},
-	postProcessing: {
-		label: "postProcessing",
-		code: postProcessingShader,
-		bindings: {
-			group1: [
-				{ binding: 0, type: "uniform", name: "postProcessParams" },
-				{ binding: 1, type: "sampler", unit: 0 },
-				{ binding: 2, type: "texture", unit: 0 },
-				{ binding: 3, type: "texture", unit: 1 },
-				{ binding: 4, type: "texture", unit: 2 },
-				{ binding: 5, type: "texture", unit: 3 },
-				{ binding: 6, type: "texture", unit: 4 },
-				{ binding: 7, type: "texture", unit: 5 },
-				{ binding: 8, type: "texture", unit: 6 },
-				{ binding: 9, type: "texture", unit: 7 },
-			],
-		},
-	},
-	transparent: {
-		label: "transparent",
-		code: transparentShader,
-		bindings: {
-			group1: [
-				{ binding: 0, type: "ubo", id: 1 },
-				{ binding: 1, type: "uniform", name: "matWorld" },
-				{ binding: 2, type: "ubo", id: 2 },
-			],
-			group2: [
-				{ binding: 0, type: "sampler", unit: 0 },
-				{ binding: 1, type: "texture", unit: 0 },
-				{ binding: 2, type: "texture", unit: 1 },
-				{ binding: 3, type: "texture", unit: 2 },
-				{ binding: 4, type: "texture", unit: 3 },
-			],
-		},
-	},
-	ssao: {
-		label: "ssao",
-		code: ssaoShader,
-		bindings: {
-			group1: [
-				{ binding: 0, type: "uniform", name: "ssaoParams" },
-				{ binding: 1, type: "sampler", unit: 0 },
-				{ binding: 2, type: "texture", unit: 1 },
-				{ binding: 3, type: "texture", unit: 0 },
-				{ binding: 4, type: "texture", unit: 2 },
-			],
-		},
-	},
-	debug: {
-		label: "debug",
-		code: debugShader,
-		bindings: {
-			group1: [
-				{ binding: 0, type: "uniform", name: "matWorld" },
-				{ binding: 1, type: "uniform", name: "debugColor" },
-			],
-		},
-	},
-	skinnedDebug: {
-		label: "skinnedDebug",
-		code: skinnedDebugShader,
-		bindings: {
-			group1: [
-				{ binding: 0, type: "uniform", name: "matWorld" },
-				{ binding: 1, type: "uniform", name: "debugColor" },
-				{ binding: 2, type: "uniform", name: "boneMatrices" },
-			],
-		},
-	},
+    geometry: {
+        label: "geometry",
+        code: geometryShader,
+        bindings: {
+            group1: [
+                { binding: 0, type: "ubo", id: 1 }, // MaterialData
+                { binding: 1, type: "uniform", name: "matWorld" },
+                { binding: 2, type: "uniform", name: "uProbeColor" },
+            ],
+            group2: [
+                { binding: 0, type: "sampler", unit: 0 },
+                { binding: 1, type: "texture", unit: 0 }, // Albedo
+                { binding: 2, type: "texture", unit: 1 }, // Emissive
+                { binding: 3, type: "texture", unit: 4 }, // Lightmap
+                { binding: 4, type: "texture", unit: 5 }, // Detail Noise
+                { binding: 5, type: "texture", unit: 2 }, // Reflection
+                { binding: 6, type: "texture", unit: 3 }, // Reflection Mask
+            ],
+        },
+    },
+    skinnedGeometry: {
+        label: "skinnedGeometry",
+        code: skinnedGeometryShader,
+        bindings: {
+            group1: [
+                { binding: 0, type: "ubo", id: 1 },
+                { binding: 1, type: "uniform", name: "matWorld" },
+                { binding: 2, type: "uniform", name: "boneMatrices" },
+                { binding: 3, type: "uniform", name: "uProbeColor" },
+            ],
+            group2: [
+                { binding: 0, type: "sampler", unit: 0 },
+                { binding: 1, type: "texture", unit: 0 },
+                { binding: 2, type: "texture", unit: 1 },
+                { binding: 4, type: "texture", unit: 5 },
+                { binding: 5, type: "texture", unit: 2 },
+                { binding: 6, type: "texture", unit: 3 },
+            ],
+        },
+    },
+    entityShadows: {
+        label: "entityShadows",
+        code: entityShadowsShader,
+        bindings: {
+            group1: [
+                { binding: 0, type: "uniform", name: "matWorld" },
+                { binding: 1, type: "uniform", name: "ambient" },
+            ],
+        },
+    },
+    skinnedEntityShadows: {
+        label: "skinnedEntityShadows",
+        code: skinnedEntityShadowsShader,
+        bindings: {
+            group1: [
+                { binding: 0, type: "uniform", name: "skinnedShadowParams" },
+                { binding: 2, type: "uniform", name: "boneMatrices" },
+            ],
+        },
+    },
+    applyShadows: {
+        label: "applyShadows",
+        code: applyShadowsShader,
+        bindings: {
+            group1: [
+                { binding: 0, type: "sampler", unit: 2 },
+                { binding: 1, type: "texture", unit: 2 },
+            ],
+        },
+    },
+    directionalLight: {
+        label: "directionalLight",
+        code: directionalLightShader,
+        bindings: {
+            group1: [
+                { binding: 0, type: "uniform", name: "directionalLight" },
+                { binding: 2, type: "texture", unit: 1 },
+            ],
+        },
+    },
+    pointLight: {
+        label: "pointLight",
+        code: pointLightShader,
+        bindings: {
+            group1: [
+                { binding: 0, type: "uniform", name: "matWorld" },
+                { binding: 1, type: "uniform", name: "pointLight" },
+                { binding: 3, type: "texture", unit: 0 },
+                { binding: 4, type: "texture", unit: 1 },
+            ],
+        },
+    },
+    spotLight: {
+        label: "spotLight",
+        code: spotLightShader,
+        bindings: {
+            group1: [
+                { binding: 0, type: "uniform", name: "matWorld" },
+                { binding: 1, type: "uniform", name: "spotLight" },
+                { binding: 3, type: "texture", unit: 0 },
+                { binding: 4, type: "texture", unit: 1 },
+            ],
+        },
+    },
+    kawaseBlur: {
+        label: "kawaseBlur",
+        code: kawaseBlurShader,
+        bindings: {
+            group1: [
+                { binding: 0, type: "uniform", name: "blurParams" },
+                { binding: 1, type: "sampler", unit: 0 },
+                { binding: 2, type: "texture", unit: 0 },
+            ],
+        },
+    },
+    bilateralBlur: {
+        label: "bilateralBlur",
+        code: bilateralBlurShader,
+        bindings: {
+            group1: [
+                { binding: 0, type: "uniform", name: "bilateralParams" },
+                { binding: 2, type: "texture", unit: 0 }, // aoBuffer
+                { binding: 3, type: "texture", unit: 1 }, // positionBuffer
+                { binding: 4, type: "texture", unit: 2 }, // normalBuffer
+            ],
+        },
+    },
+    postProcessing: {
+        label: "postProcessing",
+        code: postProcessingShader,
+        bindings: {
+            group1: [
+                { binding: 0, type: "uniform", name: "postProcessParams" },
+                { binding: 1, type: "sampler", unit: 0 },
+                { binding: 2, type: "texture", unit: 0 },
+                { binding: 3, type: "texture", unit: 1 },
+                { binding: 4, type: "texture", unit: 2 },
+                { binding: 5, type: "texture", unit: 3 },
+                { binding: 6, type: "texture", unit: 4 },
+                { binding: 7, type: "texture", unit: 5 },
+                { binding: 8, type: "texture", unit: 6 },
+                { binding: 9, type: "texture", unit: 7 },
+            ],
+        },
+    },
+    transparent: {
+        label: "transparent",
+        code: transparentShader,
+        bindings: {
+            group1: [
+                { binding: 0, type: "ubo", id: 1 },
+                { binding: 1, type: "uniform", name: "matWorld" },
+                { binding: 2, type: "ubo", id: 2 },
+            ],
+            group2: [
+                { binding: 0, type: "sampler", unit: 0 },
+                { binding: 1, type: "texture", unit: 0 },
+                { binding: 2, type: "texture", unit: 1 },
+                { binding: 3, type: "texture", unit: 2 },
+                { binding: 4, type: "texture", unit: 3 },
+            ],
+        },
+    },
+    ssao: {
+        label: "ssao",
+        code: ssaoShader,
+        bindings: {
+            group1: [
+                { binding: 0, type: "uniform", name: "ssaoParams" },
+                { binding: 1, type: "sampler", unit: 0 },
+                { binding: 2, type: "texture", unit: 1 },
+                { binding: 3, type: "texture", unit: 0 },
+                { binding: 4, type: "texture", unit: 2 },
+            ],
+        },
+    },
+    debug: {
+        label: "debug",
+        code: debugShader,
+        bindings: {
+            group1: [
+                { binding: 0, type: "uniform", name: "matWorld" },
+                { binding: 1, type: "uniform", name: "debugColor" },
+            ],
+        },
+    },
+    skinnedDebug: {
+        label: "skinnedDebug",
+        code: skinnedDebugShader,
+        bindings: {
+            group1: [
+                { binding: 0, type: "uniform", name: "matWorld" },
+                { binding: 1, type: "uniform", name: "debugColor" },
+                { binding: 2, type: "uniform", name: "boneMatrices" },
+            ],
+        },
+    },
 };
