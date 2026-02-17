@@ -1,8 +1,9 @@
-import { mat4 } from "../../dependencies/gl-matrix.js";
+import { mat4, vec3 } from "../../dependencies/gl-matrix.js";
 import BoundingBox from "../physics/boundingbox.js";
 import { Shaders } from "../rendering/shaders.js";
 
 import Resources from "../systems/resources.js";
+import Console from "../systems/console.js";
 import { Entity, EntityTypes } from "./entity.js";
 import Scene from "./scene.js";
 
@@ -18,12 +19,17 @@ class MeshEntity extends Entity {
 		super(EntityTypes.MESH, updateCallback);
 		this.mesh = Resources.get(name);
 		this.castShadow = false;
+		this.isStatic = false;
 		this.shadowHeight = null; // null = needs calculation, undefined = no ground found
 		mat4.translate(this.base_matrix, this.base_matrix, position);
 		mat4.scale(this.base_matrix, this.base_matrix, [scale, scale, scale]);
 	}
 
 	setRotation(rotation) {
+		if (this.isStatic) {
+			Console.warn("Cannot transform a static MeshEntity");
+			return;
+		}
 		mat4.rotateX(
 			this.base_matrix,
 			this.base_matrix,
@@ -39,6 +45,38 @@ class MeshEntity extends Entity {
 			this.base_matrix,
 			(rotation[2] * Math.PI) / 180,
 		);
+	}
+
+	makeStatic() {
+		if (this.isStatic) return;
+		if (!this.mesh?.vertices || !this.mesh?.indices) {
+			Console.warn("Cannot make static: mesh has no vertex/index data");
+			return;
+		}
+
+		// Flatten indices from all material groups
+		const flatIndices = [];
+		for (const group of this.mesh.indices) {
+			for (let k = 0; k < group.array.length; k++) {
+				flatIndices.push(group.array[k]);
+			}
+		}
+
+		// Transform vertices into world space using base_matrix
+		const src = this.mesh.vertices;
+		const worldVerts = new Float32Array(src.length);
+		const _v = vec3.create();
+
+		for (let i = 0; i < src.length; i += 3) {
+			vec3.set(_v, src[i], src[i + 1], src[i + 2]);
+			vec3.transformMat4(_v, _v, this.base_matrix);
+			worldVerts[i] = _v[0];
+			worldVerts[i + 1] = _v[1];
+			worldVerts[i + 2] = _v[2];
+		}
+
+		Scene.addStaticMesh(worldVerts, flatIndices);
+		this.isStatic = true;
 	}
 
 	calculateShadowHeight() {
