@@ -5,6 +5,15 @@ import {
 	PointLightEntity,
 	SpotLightEntity,
 } from "../engine/engine.js";
+
+import {
+	PICKUP_AMOUNTS,
+	PICKUP_CONSTANTS,
+	PICKUP_MAP_BASE,
+	WEAPON_CONFIG,
+	WEAPON_INDEX,
+	WEAPON_PICKUP_DEFAULTS,
+} from "./game_defs.js";
 import Player from "./player.js";
 import Weapons from "./weapons.js";
 
@@ -12,68 +21,29 @@ import Weapons from "./weapons.js";
 // Private
 // ============================================================================
 
-const _WEAPON_DEFAULTS = {
-	lightColor: [1.0, 1.0, 1.0],
-	scale: 1.4,
-	hasSpotlight: true,
-};
+const _PICKUP_MAP = { ...PICKUP_MAP_BASE };
 
-const _PICKUP_MAP = {
-	health: {
-		meshName: "meshes/health/health.bmesh",
-		lightColor: [1.0, 0.1, 0.1],
-		yOffset: 0.05,
-	},
-	armor: {
-		meshName: "meshes/armor/armor.bmesh",
-		lightColor: [0, 0.352, 0.662],
-		yOffset: 0.05,
-	},
-	ammo: {
-		meshName: "meshes/ammo/ammo.bmesh",
-		lightColor: [0.623, 0.486, 0.133],
-		yOffset: 0.05,
-	},
-	rocket_launcher: {
-		..._WEAPON_DEFAULTS,
-		meshName: "meshes/rocket_launcher/rocket_launcher.bmesh",
-	},
-	energy_scepter: {
-		..._WEAPON_DEFAULTS,
-		meshName: "meshes/energy_scepter/energy_sceptre.bmesh",
-	},
-	laser_gatling: {
-		..._WEAPON_DEFAULTS,
-		meshName: "meshes/laser_gatling/laser_gatling.bmesh",
-	},
-	pulse_cannon: {
-		..._WEAPON_DEFAULTS,
-		meshName: "meshes/pulse_cannon/pulse_cannon.bmesh",
-	},
-};
+// Merge weapon configs into pickup map
+for (const key in WEAPON_CONFIG) {
+	const weapon = WEAPON_CONFIG[key];
+	// Use weapon_defs config but apply pickup-specific defaults
+	_PICKUP_MAP[weapon.pickupType] = {
+		...WEAPON_PICKUP_DEFAULTS,
+		meshName: weapon.mesh,
+	};
+}
 
-const _PICKUP_AMOUNTS = {
-	health: 25,
-	armor: 25,
-	ammo: 25,
-	rocket_launcher: 25,
-	energy_scepter: 25,
-	laser_gatling: 25,
-	pulse_cannon: 25,
-};
+const _PICKUP_AMOUNTS = PICKUP_AMOUNTS;
 
-const _PICKUP_RADIUS = 60;
-const _RESPAWN_TIME = 30000; // 30 seconds
-
-const _SCALE = 35;
-const _ROTATION_SPEED = 1000;
-const _BOBBING_AMPLITUDE = 2.5;
+const _SCALE = PICKUP_CONSTANTS.SCALE;
+const _ROTATION_SPEED = PICKUP_CONSTANTS.ROTATION_SPEED;
+const _BOBBING_AMPLITUDE = PICKUP_CONSTANTS.BOBBING_AMPLITUDE;
 const _LIGHT_OFFSET_Y = 0.2 * _SCALE;
-const _LIGHT_INTENSITY = 3.0;
+const _LIGHT_INTENSITY = PICKUP_CONSTANTS.LIGHT_INTENSITY;
 const _LIGHT_RADIUS = 2.5 * _SCALE;
-const _SPOTLIGHT_INTENSITY = 0.6;
+const _SPOTLIGHT_INTENSITY = PICKUP_CONSTANTS.SPOTLIGHT_INTENSITY;
 const _SPOTLIGHT_OFFSET_Y = 2.5 * _SCALE;
-const _SPOTLIGHT_ANGLE = 30;
+const _SPOTLIGHT_ANGLE = PICKUP_CONSTANTS.SPOTLIGHT_ANGLE;
 const _SPOTLIGHT_RANGE = 6.0 * _SCALE;
 const _PICKUP_OFFSET_Y = 0.15 * _SCALE;
 const _UP_AXIS = [0, 1, 0];
@@ -106,14 +76,7 @@ const _updatePickupEntity = (
 // Active pickup tracking
 const _activePickups = [];
 
-const _isWeaponType = (type) =>
-	type in _WEAPON_DEFAULTS ||
-	[
-		"rocket_launcher",
-		"energy_scepter",
-		"laser_gatling",
-		"pulse_cannon",
-	].includes(type);
+const _isWeaponType = (type) => type in WEAPON_INDEX;
 
 const _applyPickup = (type) => {
 	const amount = _PICKUP_AMOUNTS[type] || 25;
@@ -267,11 +230,11 @@ const _update = (playerPosition) => {
 		const dz = pz - pickup.position[2];
 		const distSq = dx * dx + dy * dy + dz * dz;
 
-		if (distSq < _PICKUP_RADIUS * _PICKUP_RADIUS) {
+		if (distSq < PICKUP_CONSTANTS.RADIUS * PICKUP_CONSTANTS.RADIUS) {
 			if (_canPickup(pickup.type)) {
 				_applyPickup(pickup.type);
 				pickup.collected = true;
-				pickup.respawnAt = now + _RESPAWN_TIME;
+				pickup.respawnAt = now + PICKUP_CONSTANTS.RESPAWN_TIME;
 				for (const entity of pickup.entities) {
 					entity.visible = false;
 				}

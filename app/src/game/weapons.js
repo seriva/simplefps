@@ -10,82 +10,25 @@ import {
 	Scene,
 } from "../engine/engine.js";
 import { Backend } from "../engine/rendering/backend.js";
+import {
+	ANIMATION_CONFIG,
+	PROJECTILE_CONFIG,
+	WEAPON_CONFIG,
+	WEAPON_INDEX,
+	WEAPON_POSITION_BASE,
+	WEAPON_SCALE_BASE,
+} from "./game_defs.js";
 
 // ============================================================================
 // Private
 // ============================================================================
 
-// Projectile config (used by all weapons as placeholder)
-const _PROJECTILE = {
-	mesh: "meshes/ball.mesh",
-	meshScale: 33,
-	velocity: 1200,
-	light: {
-		radius: 150,
-		intensity: 4,
-		color: [0.988, 0.31, 0.051],
-	},
-};
-
-const _WEAPONS = {
-	ROCKET_LAUNCHER: {
-		mesh: "meshes/rocket_launcher/rocket_launcher.bmesh",
-	},
-	ENERGY_SCEPTER: {
-		mesh: "meshes/energy_scepter/energy_sceptre.bmesh",
-	},
-	LASER_GATLING: {
-		mesh: "meshes/laser_gatling/laser_gatling.bmesh",
-		positionOffset: { x: 0, y: -0.05, z: 0 },
-	},
-	PLASMA_PISTOL: {
-		mesh: "meshes/plasma_pistol/plasma_pistol.bmesh",
-	},
-	PULSE_CANNON: {
-		mesh: "meshes/pulse_cannon/pulse_cannon.bmesh",
-	},
-};
-
-const _WEAPON_POSITION = {
-	x: 0.19,
-	y: -0.25,
-	z: -0.45,
-};
-
-const _WEAPON_SCALE = {
-	x: 1.05,
-	y: 1.05,
-	z: 0.7, // Squash depth to hide backfaces
-};
-
-const _ANIMATION = {
-	FIRE_DURATION: 500,
-	HORIZONTAL_PERIOD: 350,
-	VERTICAL_PERIOD: 300,
-	IDLE_PERIOD: {
-		HORIZONTAL: 1500,
-		VERTICAL: 1400,
-	},
-	AMPLITUDES: {
-		FIRE: 0.12,
-		HORIZONTAL_MOVE: 0.0125,
-		VERTICAL_MOVE: 0.002,
-		IDLE: {
-			HORIZONTAL: 0.005,
-			VERTICAL: 0.01,
-		},
-	},
-	MOVEMENT_FADE_SPEED: 0.005,
-	LAND_SPRING_STIFFNESS: 60.0,
-	LAND_SPRING_DAMPING: 8.0,
-	LAND_IMPULSE: -0.6,
-	JUMP_IMPULSE: 0.35,
-	SWITCH_DURATION: 150, // ms for one phase (lower or raise)
-	SWITCH_LOWER_Y: -0.4, // Units to lower the weapon
-};
+// ============================================================================
+// Private
+// ============================================================================
 
 const _state = {
-	list: [],
+	list: [], // Will be populated based on Scene entities
 	selected: -1,
 	unlocked: [], // tracks which weapon indices are available
 	firing: false,
@@ -103,15 +46,6 @@ const _state = {
 	},
 };
 
-// Maps pickup type names to weapon list indices
-const _WEAPON_INDEX = {
-	rocket_launcher: 0,
-	energy_scepter: 1,
-	laser_gatling: 2,
-	plasma_pistol: 3,
-	pulse_cannon: 4,
-};
-
 // Pre-allocated vectors to avoid per-frame allocations
 const _weaponDir = vec3.create();
 const _weaponPos = vec3.create();
@@ -120,7 +54,11 @@ const _lookTarget = vec3.create();
 const _projectileRight = vec3.create();
 const _worldUp = [0, 1, 0];
 const _translationVec = [0, 0, 0]; // Simple array for vec3 operations that don't need glMatrix
-const _weaponScaleVec = [_WEAPON_SCALE.x, _WEAPON_SCALE.y, _WEAPON_SCALE.z];
+const _weaponScaleVec = [
+	WEAPON_SCALE_BASE.x,
+	WEAPON_SCALE_BASE.y,
+	WEAPON_SCALE_BASE.z,
+];
 const _nextPos = [0, 0, 0];
 const _inDir = [0, 0, 0];
 const _reflectDir = [0, 0, 0];
@@ -198,11 +136,11 @@ const _selectPrevious = () => {
 };
 
 const _onLand = () => {
-	_state.recoil.vel += _ANIMATION.LAND_IMPULSE;
+	_state.recoil.vel += ANIMATION_CONFIG.LAND_IMPULSE;
 };
 
 const _onJump = () => {
-	_state.recoil.vel += _ANIMATION.JUMP_IMPULSE;
+	_state.recoil.vel += ANIMATION_CONFIG.JUMP_IMPULSE;
 };
 
 // Update projectile - simple velocity-based physics
@@ -330,14 +268,14 @@ const _createWeaponAnimation = (entity, frameTime) => {
 	const targetBlend = _state.isMoving && _state.isGrounded ? 1 : 0;
 	_state.movementBlend +=
 		(targetBlend - _state.movementBlend) *
-		_ANIMATION.MOVEMENT_FADE_SPEED *
+		ANIMATION_CONFIG.MOVEMENT_FADE_SPEED *
 		frameTime;
 
 	// Simulate spring physics for recoil/landing
 	const dt = frameTime / 1000;
 	const force =
-		-_ANIMATION.LAND_SPRING_STIFFNESS * _state.recoil.pos -
-		_ANIMATION.LAND_SPRING_DAMPING * _state.recoil.vel;
+		-ANIMATION_CONFIG.LAND_SPRING_STIFFNESS * _state.recoil.pos -
+		ANIMATION_CONFIG.LAND_SPRING_DAMPING * _state.recoil.vel;
 	const accel = force; // mass = 1
 	_state.recoil.vel += accel * dt;
 	_state.recoil.pos += _state.recoil.vel * dt;
@@ -347,13 +285,13 @@ const _createWeaponAnimation = (entity, frameTime) => {
 	if (_state.switchState.active) {
 		const now = performance.now();
 		const dt = now - _state.switchState.startTime;
-		const progress = Math.min(dt / _ANIMATION.SWITCH_DURATION, 1.0);
+		const progress = Math.min(dt / ANIMATION_CONFIG.SWITCH_DURATION, 1.0);
 
 		// Simple ease-in/out
 		const ease = progress * progress * (3 - 2 * progress);
 
 		if (_state.switchState.phase === "LOWER") {
-			switchOffset = ease * _ANIMATION.SWITCH_LOWER_Y;
+			switchOffset = ease * ANIMATION_CONFIG.SWITCH_LOWER_Y;
 
 			if (progress >= 1.0) {
 				// Finish lowering, swap models
@@ -371,7 +309,7 @@ const _createWeaponAnimation = (entity, frameTime) => {
 				entity.animationTime = 0;
 			}
 		} else if (_state.switchState.phase === "RAISE") {
-			switchOffset = (1.0 - ease) * _ANIMATION.SWITCH_LOWER_Y;
+			switchOffset = (1.0 - ease) * ANIMATION_CONFIG.SWITCH_LOWER_Y;
 
 			if (progress >= 1.0) {
 				_state.switchState.active = false;
@@ -396,23 +334,24 @@ const _calculateFireAnimation = (frameTime) => {
 	const dt = performance.now() - _state.firingStart;
 	_state.firingTimer += frameTime;
 
-	if (dt > _ANIMATION.FIRE_DURATION) {
+	if (dt > ANIMATION_CONFIG.FIRE_DURATION) {
 		_state.firing = false;
 	}
 
 	return (
-		Math.cos(Math.PI * (_state.firingTimer / 1000)) * _ANIMATION.AMPLITUDES.FIRE
+		Math.cos(Math.PI * (_state.firingTimer / 1000)) *
+		ANIMATION_CONFIG.AMPLITUDES.FIRE
 	);
 };
 
 const _calculateMovementAnimation = (animationTime) => {
 	_movementAni.horizontal =
-		Math.cos(Math.PI * (animationTime / _ANIMATION.HORIZONTAL_PERIOD)) *
-		_ANIMATION.AMPLITUDES.HORIZONTAL_MOVE *
+		Math.cos(Math.PI * (animationTime / ANIMATION_CONFIG.HORIZONTAL_PERIOD)) *
+		ANIMATION_CONFIG.AMPLITUDES.HORIZONTAL_MOVE *
 		_state.movementBlend;
 	_movementAni.vertical =
-		-Math.cos(Math.PI * (animationTime / _ANIMATION.VERTICAL_PERIOD)) *
-		_ANIMATION.AMPLITUDES.VERTICAL_MOVE *
+		-Math.cos(Math.PI * (animationTime / ANIMATION_CONFIG.VERTICAL_PERIOD)) *
+		ANIMATION_CONFIG.AMPLITUDES.VERTICAL_MOVE *
 		_state.movementBlend;
 
 	return _movementAni;
@@ -420,11 +359,11 @@ const _calculateMovementAnimation = (animationTime) => {
 
 const _calculateIdleAnimation = (animationTime) => {
 	_idleAni.horizontal =
-		Math.cos(Math.PI * (animationTime / _ANIMATION.IDLE_PERIOD.HORIZONTAL)) *
-		_ANIMATION.AMPLITUDES.IDLE.HORIZONTAL;
+		Math.cos(Math.PI * (animationTime / ANIMATION_CONFIG.IDLE_PERIOD.HORIZONTAL)) *
+		ANIMATION_CONFIG.AMPLITUDES.IDLE.HORIZONTAL;
 	_idleAni.vertical =
-		Math.sin(Math.PI * (animationTime / _ANIMATION.IDLE_PERIOD.VERTICAL)) *
-		_ANIMATION.AMPLITUDES.IDLE.VERTICAL;
+		Math.sin(Math.PI * (animationTime / ANIMATION_CONFIG.IDLE_PERIOD.VERTICAL)) *
+		ANIMATION_CONFIG.AMPLITUDES.IDLE.VERTICAL;
 
 	return _idleAni;
 };
@@ -466,17 +405,17 @@ const _applyWeaponTransforms = (entity, animations) => {
 	const offset = entity.weaponConfig?.positionOffset || { x: 0, y: 0, z: 0 };
 
 	_translationVec[0] =
-		(_WEAPON_POSITION.x + offset.x) * aspectFactor +
+		(WEAPON_POSITION_BASE.x + offset.x) * aspectFactor +
 		animations.idle.horizontal +
 		animations.movement.horizontal;
 	_translationVec[1] =
-		_WEAPON_POSITION.y +
+		WEAPON_POSITION_BASE.y +
 		offset.y +
 		animations.idle.vertical +
 		animations.movement.vertical +
 		animations.land +
 		animations.switch;
-	_translationVec[2] = _WEAPON_POSITION.z + offset.z + animations.fire;
+	_translationVec[2] = WEAPON_POSITION_BASE.z + offset.z + animations.fire;
 
 	mat4.translate(entity.ani_matrix, entity.ani_matrix, _translationVec);
 	mat4.rotateY(entity.ani_matrix, entity.ani_matrix, _ROT_Y_180);
@@ -493,7 +432,9 @@ const _shootGrenade = () => {
 
 	Resources.get("sounds/shoot.sfx").play();
 
-	const projectileConfig = _PROJECTILE;
+	Resources.get("sounds/shoot.sfx").play();
+
+	const projectileConfig = PROJECTILE_CONFIG;
 	const spawnPosition = _calculateProjectileSpawnPosition();
 	const projectile = _createProjectile(spawnPosition, projectileConfig);
 
@@ -572,55 +513,42 @@ const _createProjectile = (spawnPos, config) => {
 };
 
 const _load = () => {
-	const rocketLauncher = new FpsMeshEntity(
-		[0, 0, 0],
-		_WEAPONS.ROCKET_LAUNCHER.mesh,
-		_createWeaponAnimation,
+	// Dynamically load all weapons from config
+	// Sort by index to ensure correct order in list
+	const configs = Object.values(WEAPON_CONFIG).sort(
+		(a, b) => a.index - b.index,
 	);
-	rocketLauncher.visible = false;
-	Scene.addEntities(rocketLauncher);
 
-	const energyScepter = new FpsMeshEntity(
-		[0, 0, 0],
-		_WEAPONS.ENERGY_SCEPTER.mesh,
-		_createWeaponAnimation,
-	);
-	energyScepter.visible = false;
-	Scene.addEntities(energyScepter);
-
-	const laserGatling = new FpsMeshEntity(
-		[0, 0, 0],
-		_WEAPONS.LASER_GATLING.mesh,
-		_createWeaponAnimation,
-	);
-	laserGatling.weaponConfig = _WEAPONS.LASER_GATLING;
-	laserGatling.visible = false;
-	Scene.addEntities(laserGatling);
-
-	const plasmaPistol = new FpsMeshEntity(
-		[0, 0, 0],
-		_WEAPONS.PLASMA_PISTOL.mesh,
-		_createWeaponAnimation,
-	);
-	Scene.addEntities(plasmaPistol);
-
-	const pulseCannon = new FpsMeshEntity(
-		[0, 0, 0],
-		_WEAPONS.PULSE_CANNON.mesh,
-		_createWeaponAnimation,
-	);
-	pulseCannon.visible = false;
-	Scene.addEntities(pulseCannon);
+	for (const config of configs) {
+		const weapon = new FpsMeshEntity(
+			[0, 0, 0],
+			config.mesh,
+			_createWeaponAnimation,
+		);
+		weapon.weaponConfig = config; // Attach config for offets etc
+		weapon.visible = false;
+		Scene.addEntities(weapon);
+	}
 
 	_state.list = Scene.getEntities(EntityTypes.FPS_MESH);
 
-	// Initialize unlock state — only plasma pistol (index 3) unlocked by default
+	// Initialize unlock state - ensures we match the list size
 	_state.unlocked = new Array(_state.list.length).fill(false);
-	_state.unlocked[_WEAPON_INDEX.plasma_pistol] = true;
 
-	_state.selected = _WEAPON_INDEX.plasma_pistol;
+	// Default unlock (Plasma Pistol)
+	if (WEAPON_INDEX.plasma_pistol < _state.list.length) {
+		_state.unlocked[WEAPON_INDEX.plasma_pistol] = true;
+		_state.selected = WEAPON_INDEX.plasma_pistol;
+	} else {
+		// Fallback if plasma pistol missing
+		_state.unlocked[0] = true;
+		_state.selected = 0;
+	}
+
 	_hideAll();
-	_state.list[_state.selected].visible = true;
+	if (_state.selected >= 0 && _state.selected < _state.list.length) {
+		_state.list[_state.selected].visible = true;
+	}
 };
 
 const _unlock = (index) => {
@@ -632,9 +560,10 @@ const _unlock = (index) => {
 
 const _reset = () => {
 	_state.unlocked = new Array(_state.list.length).fill(false);
-	if (_state.list.length > _WEAPON_INDEX.plasma_pistol) {
-		_state.unlocked[_WEAPON_INDEX.plasma_pistol] = true;
-		_state.selected = _WEAPON_INDEX.plasma_pistol;
+	_state.unlocked = new Array(_state.list.length).fill(false);
+	if (_state.list.length > WEAPON_INDEX.plasma_pistol) {
+		_state.unlocked[WEAPON_INDEX.plasma_pistol] = true;
+		_state.selected = WEAPON_INDEX.plasma_pistol;
 		_hideAll();
 		_state.list[_state.selected].visible = true;
 	}
@@ -656,7 +585,7 @@ const Weapons = {
 	unlock: _unlock,
 	isUnlocked: (index) => _state.unlocked[index],
 	reset: _reset,
-	WEAPON_INDEX: _WEAPON_INDEX,
+	WEAPON_INDEX: WEAPON_INDEX,
 };
 
 export { Weapons as default };
