@@ -248,7 +248,7 @@ const _updateProjectile = (entity, frameTime) => {
 	_projectileScaleVec[0] =
 		_projectileScaleVec[1] =
 		_projectileScaleVec[2] =
-		scale;
+			scale;
 	mat4.scale(entity.ani_matrix, entity.ani_matrix, _projectileScaleVec);
 	mat4.identity(entity.base_matrix);
 
@@ -359,11 +359,13 @@ const _calculateMovementAnimation = (animationTime) => {
 
 const _calculateIdleAnimation = (animationTime) => {
 	_idleAni.horizontal =
-		Math.cos(Math.PI * (animationTime / ANIMATION_CONFIG.IDLE_PERIOD.HORIZONTAL)) *
-		ANIMATION_CONFIG.AMPLITUDES.IDLE.HORIZONTAL;
+		Math.cos(
+			Math.PI * (animationTime / ANIMATION_CONFIG.IDLE_PERIOD.HORIZONTAL),
+		) * ANIMATION_CONFIG.AMPLITUDES.IDLE.HORIZONTAL;
 	_idleAni.vertical =
-		Math.sin(Math.PI * (animationTime / ANIMATION_CONFIG.IDLE_PERIOD.VERTICAL)) *
-		ANIMATION_CONFIG.AMPLITUDES.IDLE.VERTICAL;
+		Math.sin(
+			Math.PI * (animationTime / ANIMATION_CONFIG.IDLE_PERIOD.VERTICAL),
+		) * ANIMATION_CONFIG.AMPLITUDES.IDLE.VERTICAL;
 
 	return _idleAni;
 };

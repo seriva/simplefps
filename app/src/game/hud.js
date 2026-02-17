@@ -163,13 +163,14 @@ class _HUDUI extends Reactive.Component {
 	template() {
 		return html`
 			<div id="hud" data-class-visible="visible">
-				${this._isMobile
-				? html`
+				${
+					this._isMobile
+						? html`
 					<div id="button-menu" data-ref="menuBtn">
 						<svg viewBox="0 0 24 24"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
 					</div>`
-				: html``
-			}
+						: html``
+				}
 				<div id="crosshair"></div>
 				<div id="player-stats">
 					<div class="stat-item">
