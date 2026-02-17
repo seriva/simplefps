@@ -35,7 +35,9 @@ class Trimesh {
 		const vertexOffset = this.vertices.length / 3;
 
 		// Grow vertices
-		const newVertices = new Float32Array(this.vertices.length + vertices.length);
+		const newVertices = new Float32Array(
+			this.vertices.length + vertices.length,
+		);
 		newVertices.set(this.vertices);
 		newVertices.set(vertices, this.vertices.length);
 		this.vertices = newVertices;

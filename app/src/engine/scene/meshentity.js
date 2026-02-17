@@ -1,9 +1,8 @@
 import { mat4, vec3 } from "../../dependencies/gl-matrix.js";
 import BoundingBox from "../physics/boundingbox.js";
 import { Shaders } from "../rendering/shaders.js";
-
-import Resources from "../systems/resources.js";
 import Console from "../systems/console.js";
+import Resources from "../systems/resources.js";
 import { Entity, EntityTypes } from "./entity.js";
 import Scene from "./scene.js";
 
