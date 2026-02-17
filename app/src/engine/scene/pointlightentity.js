@@ -5,7 +5,7 @@ import Shapes from "../rendering/shapes.js";
 import { Entity, EntityTypes } from "./entity.js";
 
 class PointLightEntity extends Entity {
-	static SCALE_FACTOR = 0.625;
+	static SCALE_FACTOR = 1.0;
 	static #tempMatrix = mat4.create();
 	static #tempPos = new Float32Array(3);
 

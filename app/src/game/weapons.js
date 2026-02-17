@@ -155,7 +155,6 @@ const _updateProjectile = (entity, frameTime) => {
 			Scene.removeEntity(entity.linkedLight);
 		}
 		_activeProjectiles.delete(entity);
-		Console.log("Grenade removed: lifetime expired");
 		return false;
 	}
 
@@ -211,7 +210,6 @@ const _updateProjectile = (entity, frameTime) => {
 				Scene.removeEntity(entity.linkedLight);
 			}
 			_activeProjectiles.delete(entity);
-			Console.log(`Grenade removed: too slow (speed: ${speed.toFixed(1)})`);
 			return false;
 		}
 
@@ -248,7 +246,7 @@ const _updateProjectile = (entity, frameTime) => {
 	_projectileScaleVec[0] =
 		_projectileScaleVec[1] =
 		_projectileScaleVec[2] =
-			scale;
+		scale;
 	mat4.scale(entity.ani_matrix, entity.ani_matrix, _projectileScaleVec);
 	mat4.identity(entity.base_matrix);
 
