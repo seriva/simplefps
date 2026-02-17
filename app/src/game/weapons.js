@@ -87,6 +87,7 @@ const _ANIMATION = {
 const _state = {
 	list: [],
 	selected: -1,
+	unlocked: [], // tracks which weapon indices are available
 	firing: false,
 	firingStart: 0,
 	firingTimer: 0,
@@ -100,6 +101,15 @@ const _state = {
 		startTime: 0,
 		nextIndex: -1,
 	},
+};
+
+// Maps pickup type names to weapon list indices
+const _WEAPON_INDEX = {
+	rocket_launcher: 0,
+	energy_scepter: 1,
+	laser_gatling: 2,
+	plasma_pistol: 3,
+	pulse_cannon: 4,
 };
 
 // Pre-allocated vectors to avoid per-frame allocations
@@ -166,13 +176,25 @@ const _startSwitch = (nextIndex) => {
 };
 
 const _selectNext = () => {
-	const next = (_state.selected + 1) % _state.list.length;
-	_startSwitch(next);
+	const count = _state.list.length;
+	for (let i = 1; i < count; i++) {
+		const idx = (_state.selected + i) % count;
+		if (_state.unlocked[idx]) {
+			_startSwitch(idx);
+			return;
+		}
+	}
 };
 
 const _selectPrevious = () => {
-	const next = (_state.selected - 1 + _state.list.length) % _state.list.length;
-	_startSwitch(next);
+	const count = _state.list.length;
+	for (let i = 1; i < count; i++) {
+		const idx = (_state.selected - i + count) % count;
+		if (_state.unlocked[idx]) {
+			_startSwitch(idx);
+			return;
+		}
+	}
 };
 
 const _onLand = () => {
@@ -288,7 +310,7 @@ const _updateProjectile = (entity, frameTime) => {
 	_projectileScaleVec[0] =
 		_projectileScaleVec[1] =
 		_projectileScaleVec[2] =
-			scale;
+		scale;
 	mat4.scale(entity.ani_matrix, entity.ani_matrix, _projectileScaleVec);
 	mat4.identity(entity.base_matrix);
 
@@ -591,10 +613,31 @@ const _load = () => {
 	Scene.addEntities(pulseCannon);
 
 	_state.list = Scene.getEntities(EntityTypes.FPS_MESH);
-	// Default to Plasma Pistol (index 3 in the list order)
-	_state.selected = 3;
+
+	// Initialize unlock state — only plasma pistol (index 3) unlocked by default
+	_state.unlocked = new Array(_state.list.length).fill(false);
+	_state.unlocked[_WEAPON_INDEX.plasma_pistol] = true;
+
+	_state.selected = _WEAPON_INDEX.plasma_pistol;
 	_hideAll();
 	_state.list[_state.selected].visible = true;
+};
+
+const _unlock = (index) => {
+	if (index < 0 || index >= _state.list.length) return;
+	if (_state.unlocked[index]) return; // already unlocked
+	_state.unlocked[index] = true;
+	_startSwitch(index); // auto-switch to newly unlocked weapon
+};
+
+const _reset = () => {
+	_state.unlocked = new Array(_state.list.length).fill(false);
+	if (_state.list.length > _WEAPON_INDEX.plasma_pistol) {
+		_state.unlocked[_WEAPON_INDEX.plasma_pistol] = true;
+		_state.selected = _WEAPON_INDEX.plasma_pistol;
+		_hideAll();
+		_state.list[_state.selected].visible = true;
+	}
 };
 
 // ============================================================================
@@ -610,6 +653,10 @@ const Weapons = {
 	selectPrevious: _selectPrevious,
 	onLand: _onLand,
 	onJump: _onJump,
+	unlock: _unlock,
+	isUnlocked: (index) => _state.unlocked[index],
+	reset: _reset,
+	WEAPON_INDEX: _WEAPON_INDEX,
 };
 
 export { Weapons as default };

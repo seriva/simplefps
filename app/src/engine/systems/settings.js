@@ -71,6 +71,9 @@ if (_stored) {
 	_saveSettings();
 }
 
+// Ensure isMobile is always the detected value, not what was stored
+Settings.isMobile = _isMobile;
+
 // Register console commands
 Console.registerCmd("settings", Settings);
 Console.registerCmd("sstore", _saveSettings);

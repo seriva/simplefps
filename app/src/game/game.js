@@ -2,6 +2,8 @@ import { glMatrix, vec3 } from "../dependencies/gl-matrix.js";
 import { Camera, Console, Input, Settings } from "../engine/engine.js";
 import FPSController from "../engine/physics/fpscontroller.js";
 import Arena from "./arena.js";
+import Pickup from "./pickups.js";
+import Player from "./player.js";
 import State from "./state.js";
 import Weapons from "./weapons.js";
 
@@ -32,6 +34,8 @@ const Game = {
 		}
 
 		Weapons.load();
+		Player.reset();
+		Weapons.reset();
 	},
 
 	update(frameTime) {
@@ -72,6 +76,9 @@ const Game = {
 			_controller.update(ft);
 			_controller.move(strafe, move, _horizontalForward, _strafeDir, ft);
 			_controller.syncCamera(ft);
+
+			// Check pickup collection
+			Pickup.update(_controller.position);
 		}
 	},
 

@@ -5,6 +5,8 @@ import {
 	PointLightEntity,
 	SpotLightEntity,
 } from "../engine/engine.js";
+import Player from "./player.js";
+import Weapons from "./weapons.js";
 
 // ============================================================================
 // Private
@@ -50,6 +52,19 @@ const _PICKUP_MAP = {
 	},
 };
 
+const _PICKUP_AMOUNTS = {
+	health: 25,
+	armor: 25,
+	ammo: 25,
+	rocket_launcher: 25,
+	energy_scepter: 25,
+	laser_gatling: 25,
+	pulse_cannon: 25,
+};
+
+const _PICKUP_RADIUS = 60;
+const _RESPAWN_TIME = 30000; // 30 seconds
+
 const _SCALE = 35;
 const _ROTATION_SPEED = 1000;
 const _BOBBING_AMPLITUDE = 2.5;
@@ -86,6 +101,64 @@ const _updatePickupEntity = (
 
 	_bobTranslation[1] = _getBobOffset(entity.animationTime, amplitude);
 	mat4.translate(entity.ani_matrix, entity.ani_matrix, _bobTranslation);
+};
+
+// Active pickup tracking
+const _activePickups = [];
+
+const _isWeaponType = (type) =>
+	type in _WEAPON_DEFAULTS ||
+	[
+		"rocket_launcher",
+		"energy_scepter",
+		"laser_gatling",
+		"pulse_cannon",
+	].includes(type);
+
+const _applyPickup = (type) => {
+	const amount = _PICKUP_AMOUNTS[type] || 25;
+
+	switch (type) {
+		case "health":
+			Player.addHealth(amount);
+			break;
+		case "armor":
+			Player.addArmor(amount);
+			break;
+		case "ammo":
+			Player.addAmmo(amount);
+			break;
+		default:
+			if (_isWeaponType(type)) {
+				const idx = Weapons.WEAPON_INDEX[type];
+				if (idx !== undefined) {
+					Weapons.unlock(idx);
+				}
+				Console.log(`[Pickup] Weapon collected: ${type}`);
+			}
+			break;
+	}
+};
+
+const _canPickup = (type) => {
+	switch (type) {
+		case "health":
+			return Player.health.get() < 100;
+		case "armor":
+			return Player.armor.get() < 100;
+		case "ammo":
+			return Player.ammo.get() < 100;
+		default:
+			if (_isWeaponType(type)) {
+				const idx = Weapons.WEAPON_INDEX[type];
+				if (idx !== undefined) {
+					// Don't pick up if already unlocked
+					// (User requirement: "When any of the wepaons is already picked up ... dont pick it up")
+					return !Weapons.isUnlocked(idx);
+				}
+			}
+			return true;
+	}
 };
 
 const _createPickup = (type, pos) => {
@@ -158,7 +231,57 @@ const _createPickup = (type, pos) => {
 		entities.push(light);
 	}
 
+	// Track for collection checks
+	_activePickups.push({
+		type,
+		position: [pos[0], pos[1], pos[2]],
+		entities,
+		collected: false,
+		respawnAt: 0,
+	});
+
 	return entities;
+};
+
+const _update = (playerPosition) => {
+	const px = playerPosition.x;
+	const py = playerPosition.y;
+	const pz = playerPosition.z;
+	const now = performance.now();
+
+	for (const pickup of _activePickups) {
+		if (pickup.collected) {
+			// Check respawn
+			if (now >= pickup.respawnAt) {
+				pickup.collected = false;
+				for (const entity of pickup.entities) {
+					entity.visible = true;
+				}
+			}
+			continue;
+		}
+
+		// Sphere distance check
+		const dx = px - pickup.position[0];
+		const dy = py - pickup.position[1];
+		const dz = pz - pickup.position[2];
+		const distSq = dx * dx + dy * dy + dz * dz;
+
+		if (distSq < _PICKUP_RADIUS * _PICKUP_RADIUS) {
+			if (_canPickup(pickup.type)) {
+				_applyPickup(pickup.type);
+				pickup.collected = true;
+				pickup.respawnAt = now + _RESPAWN_TIME;
+				for (const entity of pickup.entities) {
+					entity.visible = false;
+				}
+			}
+		}
+	}
+};
+
+const _reset = () => {
+	_activePickups.length = 0;
 };
 
 // ============================================================================
@@ -167,6 +290,8 @@ const _createPickup = (type, pos) => {
 
 const Pickup = {
 	createPickup: _createPickup,
+	update: _update,
+	reset: _reset,
 };
 
 export default Pickup;
