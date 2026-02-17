@@ -57,10 +57,11 @@ class _MenuUI extends Reactive.Component {
 			}
 			
 			.dialog-box {
-				background: #252525;
+				background: rgba(30, 30, 30, 0.8);
+				backdrop-filter: blur(12px);
 				border: 1px solid rgba(255, 255, 255, 0.15);
-				border-radius: 8px;
-				box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+				border-radius: 16px;
+				box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
 				width: 400px;
 				max-width: 90vw;
 				padding: 24px;
@@ -145,12 +146,13 @@ class _MenuUI extends Reactive.Component {
 				position: absolute;
 				top: 50%;
 				left: 50%;
-				background: linear-gradient(135deg, rgba(40, 40, 40, 0.95), rgba(20, 20, 20, 0.98));
-				border: 1px solid rgba(255, 255, 255, 0.1);
-				border-radius: 8px;
-				box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05);
+				background: rgba(30, 30, 30, 0.8);
+				border: 1px solid rgba(255, 255, 255, 0.15);
+				border-radius: 16px;
+				backdrop-filter: blur(12px);
+				box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
 				color: #fff;
-				padding: 20px;
+				padding: 24px;
 				font-size: 16px;
 				width: 400px;
 				max-width: 90vw;
@@ -191,7 +193,7 @@ class _MenuUI extends Reactive.Component {
 				flex: 1;
 				text-align: center;
 				padding: 10px 15px;
-				background: rgba(20, 20, 20, 0.6);
+				background: rgba(50, 50, 50, 0.6);
 				border: 1px solid rgba(255, 255, 255, 0.1);
 				border-bottom: none;
 				border-radius: 6px 6px 0 0;
@@ -245,7 +247,7 @@ class _MenuUI extends Reactive.Component {
 
 			.menu-button {
 				text-align: center;
-				background: rgba(40, 40, 40, 0.6);
+				background: rgba(50, 50, 50, 0.6);
 				border: 1px solid rgba(255, 255, 255, 0.2);
 				border-radius: 4px;
 				margin-bottom: 10px;
@@ -283,7 +285,7 @@ class _MenuUI extends Reactive.Component {
 			}
 
 			.menu-panel {
-				background: rgba(0, 0, 0, 0.2);
+				background: rgba(0, 0, 0, 0.1);
 				border-radius: 6px;
 				margin-bottom: 15px;
 				padding: 15px;
@@ -527,11 +529,11 @@ class _MenuUI extends Reactive.Component {
 
 				const bottomBtns = menu.bottomControls
 					? join(
-							menu.bottomControls.map(
-								(control, i) =>
-									html`<div class="menu-button" data-bottom="${i}">${control.text}</div>`,
-							),
-						)
+						menu.bottomControls.map(
+							(control, i) =>
+								html`<div class="menu-button" data-bottom="${i}">${control.text}</div>`,
+						),
+					)
 					: trusted("");
 
 				this.refs.controls.innerHTML = html`
