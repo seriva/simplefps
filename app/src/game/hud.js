@@ -90,7 +90,7 @@ class _HUDUI extends Reactive.Component {
 
 			#player-stats {
 				position: fixed;
-				bottom: max(24px, env(safe-area-inset-bottom));
+				bottom: max(10px, env(safe-area-inset-bottom));
 				left: 50%;
 				transform: translateX(-50%);
 				z-index: 1001;
@@ -129,6 +129,34 @@ class _HUDUI extends Reactive.Component {
 				font-variant-numeric: tabular-nums;
 				text-shadow: 0 1px 2px rgba(0,0,0,0.5);
 			}
+
+			@keyframes scale-icon {
+				0% { transform: scale(1); }
+				50% { transform: scale(1.5); }
+				100% { transform: scale(1); }
+			}
+
+			.icon-animate {
+				animation: scale-icon 0.3s ease-in-out;
+			}
+
+			@media (min-width: 1024px) {
+				.stat-icon {
+					width: 48px;
+					height: 48px;
+				}
+
+				.stat-value {
+					font-size: 32px;
+				}
+
+				#player-stats {
+					bottom: 32px;
+					gap: 64px;
+					padding: 24px 48px;
+					border-radius: 24px;
+				}
+			}
 		`;
 	}
 
@@ -145,15 +173,15 @@ class _HUDUI extends Reactive.Component {
 				<div id="crosshair"></div>
 				<div id="player-stats">
 					<div class="stat-item">
-						<svg class="stat-icon health" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+						<svg class="stat-icon health" data-ref="healthIcon" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
 						<span class="stat-value" data-ref="healthVal">100</span>
 					</div>
 					<div class="stat-item">
-						<svg class="stat-icon armor" viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/></svg>
+						<svg class="stat-icon armor" data-ref="armorIcon" viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/></svg>
 						<span class="stat-value" data-ref="armorVal">0</span>
 					</div>
 					<div class="stat-item">
-						<svg class="stat-icon ammo" viewBox="0 0 24 24"><path d="M7 2h10v2H7zm0 4h10v2H7zm0 4h10v2H7zM7 14h10v2H7zm0 4h10v2H7z"/></svg>
+						<svg class="stat-icon ammo" data-ref="ammoIcon" viewBox="0 0 24 24"><path d="M7 2h10v2H7zm0 4h10v2H7zm0 4h10v2H7zM7 14h10v2H7zm0 4h10v2H7z"/></svg>
 						<span class="stat-value" data-ref="ammoVal">50</span>
 					</div>
 				</div>
@@ -181,15 +209,43 @@ class _HUDUI extends Reactive.Component {
 		});
 
 		// Subscribe to player stats for HUD bars
+		let prevHealth = Player.health.get();
+		let prevArmor = Player.armor.get();
+		let prevAmmo = Player.ammo.get();
+
 		Player.health.subscribe((v) => {
 			this.refs.healthVal.textContent = v;
+			if (v > prevHealth) this.triggerAnimation("health");
+			prevHealth = v;
 		});
 		Player.armor.subscribe((v) => {
 			this.refs.armorVal.textContent = v;
+			if (v > prevArmor) this.triggerAnimation("armor");
+			prevArmor = v;
 		});
 		Player.ammo.subscribe((v) => {
 			this.refs.ammoVal.textContent = v;
+			if (v > prevAmmo) this.triggerAnimation("ammo");
+			prevAmmo = v;
 		});
+	}
+
+	triggerAnimation(type) {
+		const iconRef = this.refs[`${type}Icon`];
+		if (!iconRef) return;
+
+		// Reset animation if currently playing
+		iconRef.classList.remove("icon-animate");
+
+		// Trigger reflow to restart animation
+		void iconRef.offsetWidth;
+
+		iconRef.classList.add("icon-animate");
+
+		// Cleanup after animation
+		setTimeout(() => {
+			iconRef.classList.remove("icon-animate");
+		}, 300);
 	}
 
 	toggle(show) {
