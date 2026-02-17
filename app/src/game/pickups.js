@@ -38,6 +38,7 @@ const _PICKUP_AMOUNTS = PICKUP_AMOUNTS;
 const _SCALE = PICKUP_CONSTANTS.SCALE;
 const _ROTATION_SPEED = PICKUP_CONSTANTS.ROTATION_SPEED;
 const _BOBBING_AMPLITUDE = PICKUP_CONSTANTS.BOBBING_AMPLITUDE;
+const _RESPAWN_ANIMATION_DURATION = 500;
 const _LIGHT_OFFSET_Y = 0.2 * _SCALE;
 const _LIGHT_INTENSITY = PICKUP_CONSTANTS.LIGHT_INTENSITY;
 const _LIGHT_RADIUS = 2.5 * _SCALE;
@@ -59,6 +60,7 @@ const _updatePickupEntity = (
 	shouldRotate = false,
 ) => {
 	entity.animationTime += frameTime;
+	// Always reset transformation matrix first!
 	mat4.identity(entity.ani_matrix);
 
 	if (shouldRotate) {
@@ -71,6 +73,13 @@ const _updatePickupEntity = (
 
 	_bobTranslation[1] = _getBobOffset(entity.animationTime, amplitude);
 	mat4.translate(entity.ani_matrix, entity.ani_matrix, _bobTranslation);
+
+	const spawnScale = entity.spawnScale ?? 1.0;
+	mat4.scale(entity.ani_matrix, entity.ani_matrix, [
+		spawnScale,
+		spawnScale,
+		spawnScale,
+	]);
 };
 
 // Active pickup tracking
@@ -184,7 +193,7 @@ const _createPickup = (type, pos) => {
 		}
 
 		const light = new PointLightEntity(
-			[pos[0] + lightOffsetX, pos[1] + _LIGHT_OFFSET_Y, pos[2] + lightOffsetZ],
+			[pos[0] + lightOffsetX, pos[1] + hoverHeight, pos[2] + lightOffsetZ],
 			_LIGHT_RADIUS,
 			lightColor,
 			_LIGHT_INTENSITY,
@@ -200,7 +209,9 @@ const _createPickup = (type, pos) => {
 		position: [pos[0], pos[1], pos[2]],
 		entities,
 		collected: false,
+		collectAnimationStart: 0,
 		respawnAt: 0,
+		respawnAnimationStart: 0,
 	});
 
 	return entities;
@@ -217,11 +228,35 @@ const _update = (playerPosition) => {
 			// Check respawn
 			if (now >= pickup.respawnAt) {
 				pickup.collected = false;
+				pickup.respawnAnimationStart = now;
 				for (const entity of pickup.entities) {
 					entity.visible = true;
+					// Start small
+					entity.spawnScale = 0.0;
 				}
 			}
 			continue;
+		}
+
+		// Handle respawn animation
+		if (pickup.respawnAnimationStart > 0) {
+			const progress =
+				(now - pickup.respawnAnimationStart) / _RESPAWN_ANIMATION_DURATION;
+
+			if (progress >= 1.0) {
+				pickup.respawnAnimationStart = 0;
+				for (const entity of pickup.entities) {
+					entity.spawnScale = 1.0;
+				}
+			} else {
+				// Ease out back
+				const t = progress - 1;
+				const scale = t * t * t + 1; // Cubic ease out
+
+				for (const entity of pickup.entities) {
+					entity.spawnScale = scale;
+				}
+			}
 		}
 
 		// Sphere distance check
