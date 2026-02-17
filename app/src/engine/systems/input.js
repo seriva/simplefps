@@ -90,7 +90,7 @@ class _VirtualInputUI extends Reactive.Component {
 	styles() {
 		return css`
 			#input {
-				z-index: 500;
+				z-index: 2000;
 				display: none;
 			}
 
@@ -106,7 +106,7 @@ class _VirtualInputUI extends Reactive.Component {
 				margin: 0;
 				padding: 0;
 				position: absolute;
-				z-index: 502;
+				z-index: 2002;
 			}
 
 			#cursor {
@@ -117,7 +117,7 @@ class _VirtualInputUI extends Reactive.Component {
 				margin-left: -25px;
 				margin-top: -25px;
 				border-radius: 50%;
-				z-index: 501;
+				z-index: 2001;
 				user-select: none;
 				transition: opacity 100ms ease-in;
 				pointer-events: none;
@@ -135,7 +135,7 @@ class _VirtualInputUI extends Reactive.Component {
 				bottom: 30px;
 				position: absolute;
 				border-radius: 50%;
-				z-index: 501;
+				z-index: 2001;
 
 				background: rgba(40, 40, 40, 0.6);
 				border: 1px solid rgba(255, 255, 255, 0.2);
@@ -156,7 +156,7 @@ class _VirtualInputUI extends Reactive.Component {
 				left: 52px;
 				bottom: 52px;
 				position: absolute;
-				z-index: 502;
+				z-index: 2002;
 				transition: transform 0.2s;
 			}
 
@@ -169,7 +169,7 @@ class _VirtualInputUI extends Reactive.Component {
 				height: 70px;
 				border-radius: 50%;
 				position: absolute;
-				z-index: 503;
+				z-index: 2003;
 				pointer-events: auto;
 				
 				background: rgba(40, 40, 40, 0.6);

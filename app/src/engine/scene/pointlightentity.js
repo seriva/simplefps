@@ -26,6 +26,8 @@ class PointLightEntity extends Entity {
 	}
 
 	render() {
+		if (!this.visible) return;
+
 		// Get the actual light position (without volume scaling)
 		mat4.multiply(
 			PointLightEntity.#tempMatrix,

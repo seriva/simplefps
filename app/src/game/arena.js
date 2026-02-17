@@ -155,6 +155,7 @@ const _load = async (name) => {
 		);
 		_setupEnvironment(_state.arena);
 
+		Pickup.reset();
 		_setupPickups(pickups);
 		_setupSpawnpointModels(spawnpoints || [], startSpawn);
 
