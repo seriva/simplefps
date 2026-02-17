@@ -1,5 +1,6 @@
-import { vec3 } from "../../dependencies/gl-matrix.js";
+import { mat4, vec3 } from "../../dependencies/gl-matrix.js";
 import { Ray, RaycastResult } from "../physics/ray.js";
+import { Trimesh } from "../physics/trimesh.js";
 import Console from "../systems/console.js";
 import { EntityTypes } from "./entity.js";
 import LightGrid from "./lightgrid.js";
@@ -35,6 +36,13 @@ let _entities = [];
 const _collidables = [];
 let _ambient = _DEFAULT_AMBIENT;
 let _pauseUpdate = false;
+
+// Static trimesh for merged static geometry
+let _staticTrimesh = null;
+const _staticCollidable = {
+	collider: null,
+	base_matrix: mat4.create(), // Identity — vertices are already in world space
+};
 
 // Shared raycast state
 const _rayFrom = vec3.create();
@@ -112,6 +120,8 @@ const _removeEntity = (entity) => {
 const _init = () => {
 	_entities.length = 0;
 	_collidables.length = 0;
+	_staticTrimesh = null;
+	_staticCollidable.collider = null;
 };
 
 const _dispose = () => {
@@ -120,9 +130,17 @@ const _dispose = () => {
 		entity.dispose?.();
 	}
 	_entities.length = 0;
+	_collidables.length = 0;
 	_entityCache.clear();
 	_ambient = _DEFAULT_AMBIENT;
 	_pauseUpdate = false;
+
+	// Reset static trimesh
+	if (_staticTrimesh) {
+		_staticTrimesh.dispose();
+		_staticTrimesh = null;
+	}
+	_staticCollidable.collider = null;
 
 	// Reset visibility cache
 	for (let i = 0; i < _VISIBILITY_CACHE_TYPES.length; i++) {
@@ -153,6 +171,22 @@ const _setAmbient = (a) => {
 
 const _loadLightGrid = (config) => {
 	return LightGrid.load(config);
+};
+
+const _addStaticMesh = (vertices, indices) => {
+	if (!_staticTrimesh) {
+		_staticTrimesh = new Trimesh();
+		_staticCollidable.collider = _staticTrimesh;
+		_collidables.push(_staticCollidable);
+	}
+	_staticTrimesh.addMesh(vertices, indices);
+};
+
+const _finalizeStaticMesh = () => {
+	if (!_staticTrimesh) return;
+	_staticTrimesh.finalize();
+	const triCount = _staticTrimesh.indices.length / 3;
+	Console.log(`[Scene] Static trimesh finalized: ${triCount} triangles`);
 };
 
 const _pause = (doPause) => {
@@ -254,6 +288,8 @@ const Scene = {
 	addEntities: _addEntities,
 	removeEntity: _removeEntity,
 	getEntities: _getEntities,
+	addStaticMesh: _addStaticMesh,
+	finalizeStaticMesh: _finalizeStaticMesh,
 	visibilityCache: _visibilityCache,
 	loadLightGrid: _loadLightGrid,
 	raycast: _raycast,

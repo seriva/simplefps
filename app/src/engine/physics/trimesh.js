@@ -12,16 +12,58 @@ const _cb = vec3.create();
 
 class Trimesh {
 	constructor(vertices, indices) {
-		this.vertices = new Float32Array(vertices);
-		this.indices = new Int16Array(indices);
-		this.normals = new Float32Array(indices.length);
 		this.aabb = new BoundingBox();
 		this.scale = vec3.fromValues(1, 1, 1);
 		this.tree = new Octree();
 
+		if (vertices && indices) {
+			this.vertices = new Float32Array(vertices);
+			this.indices = new Int32Array(indices);
+			this.normals = new Float32Array(indices.length);
+			this.updateNormals();
+			this.computeLocalAABB(this.aabb);
+			this.updateTree();
+		} else {
+			// Empty trimesh — will be populated via addMesh()
+			this.vertices = new Float32Array(0);
+			this.indices = new Int32Array(0);
+			this.normals = new Float32Array(0);
+		}
+	}
+
+	addMesh(vertices, indices) {
+		const vertexOffset = this.vertices.length / 3;
+
+		// Grow vertices
+		const newVertices = new Float32Array(this.vertices.length + vertices.length);
+		newVertices.set(this.vertices);
+		newVertices.set(vertices, this.vertices.length);
+		this.vertices = newVertices;
+
+		// Grow indices (offset by existing vertex count)
+		const newIndices = new Int32Array(this.indices.length + indices.length);
+		newIndices.set(this.indices);
+		for (let i = 0; i < indices.length; i++) {
+			newIndices[this.indices.length + i] = indices[i] + vertexOffset;
+		}
+		this.indices = newIndices;
+		this._dirty = true;
+	}
+
+	finalize() {
+		if (!this._dirty) return;
+		this.normals = new Float32Array(this.indices.length);
 		this.updateNormals();
 		this.computeLocalAABB(this.aabb);
 		this.updateTree();
+		this._dirty = false;
+	}
+
+	dispose() {
+		this.vertices = null;
+		this.indices = null;
+		this.normals = null;
+		this.tree = null;
 	}
 
 	updateTree() {

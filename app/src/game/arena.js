@@ -8,7 +8,6 @@ import {
 	Scene,
 	SkinnedMeshEntity,
 	SkyboxEntity,
-	Trimesh,
 } from "../engine/engine.js";
 import Loading from "./loading.js";
 import Pickup from "./pickups.js";
@@ -41,32 +40,11 @@ const _setupEnvironment = ({ skybox, chunks = [] }) => {
 	for (const chunk of chunks) {
 		const entity = new MeshEntity(_DEFAULT_POSITION, chunk);
 		entity.isOccluder = true; // The arena geometry occludes other objects
-
-		// Create collision mesh for this chunk
-		try {
-			// Let's check if the mesh data is available.
-			if (entity.mesh) {
-				const mesh = entity.mesh; // 'mesh' property of MeshEntity
-				// We need raw vertices/indices for Trimesh
-				if (mesh.vertices && mesh.indices) {
-					// Flatten indices from all material groups
-					const flattenedIndices = [];
-					for (const group of mesh.indices) {
-						for (let k = 0; k < group.array.length; k++) {
-							flattenedIndices.push(group.array[k]);
-						}
-					}
-					entity.collider = new Trimesh(mesh.vertices, flattenedIndices);
-				}
-			}
-		} catch (e) {
-			Console.warn(
-				`Failed to create collider for chunk ${chunk}: ${e.message}`,
-			);
-		}
-
+		entity.makeStatic();
 		Scene.addEntities(entity);
 	}
+
+	Scene.finalizeStaticMesh();
 };
 
 const _setupLighting = async (lightGrid, directional, arenaName) => {
