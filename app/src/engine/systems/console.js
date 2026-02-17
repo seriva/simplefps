@@ -128,8 +128,9 @@ class _ConsoleUI extends Reactive.Component {
 			.console-content {
 				display: flex;
 				flex-direction: column-reverse;
-				border: 1px solid #999;
-				background-color: rgba(153, 153, 153, 0.75);
+				border: 1px solid rgba(255, 255, 255, 0.15);
+				background-color: rgba(40, 40, 40, 0.8);
+				backdrop-filter: blur(12px);
 				width: 100%;
 				height: calc(100% - 30px);
 				overflow-y: auto;
@@ -152,10 +153,10 @@ class _ConsoleUI extends Reactive.Component {
 				left: 0;
 				width: 100%;
 				height: 30px;
-				border: 1px solid #999;
-				border-bottom: 2px solid #fff;
-				border-top: 2px solid #fff;
-				background-color: rgba(153, 153, 153, 0.75);
+				border: 1px solid rgba(255, 255, 255, 0.15);
+				border-top: 1px solid rgba(255, 255, 255, 0.4);
+				background-color: rgba(40, 40, 40, 0.8);
+				backdrop-filter: blur(12px);
 				outline: none;
 				box-sizing: border-box;
 			}
