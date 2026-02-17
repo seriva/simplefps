@@ -529,11 +529,11 @@ class _MenuUI extends Reactive.Component {
 
 				const bottomBtns = menu.bottomControls
 					? join(
-						menu.bottomControls.map(
-							(control, i) =>
-								html`<div class="menu-button" data-bottom="${i}">${control.text}</div>`,
-						),
-					)
+							menu.bottomControls.map(
+								(control, i) =>
+									html`<div class="menu-button" data-bottom="${i}">${control.text}</div>`,
+							),
+						)
 					: trusted("");
 
 				this.refs.controls.innerHTML = html`
