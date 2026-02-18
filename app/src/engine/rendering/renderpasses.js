@@ -196,8 +196,8 @@ const renderWorldGeometry = () => {
 	Shaders.geometry.bind();
 	mat4.identity(_matModel);
 
-	Shaders.geometry.setInt("detailNoise", 5);
-	Shaders.geometry.setInt("doDetailTexture", Settings.detailTexture ? 1 : 0);
+	Shaders.geometry.setInt("proceduralNoise", 5);
+	Shaders.geometry.setInt("doProceduralDetail", Settings.proceduralDetail ? 1 : 0);
 	Shaders.geometry.setMat4("matWorld", _matModel);
 
 	// Render skybox with special GL state
@@ -267,10 +267,10 @@ const renderWorldGeometry = () => {
 		}
 
 		Shaders.skinnedGeometry.bind();
-		Shaders.skinnedGeometry.setInt("detailNoise", 5);
+		Shaders.skinnedGeometry.setInt("proceduralNoise", 5);
 		Shaders.skinnedGeometry.setInt(
-			"doDetailTexture",
-			Settings.detailTexture ? 1 : 0,
+			"doProceduralDetail",
+			Settings.proceduralDetail ? 1 : 0,
 		);
 
 		// Render skinned meshes with occlusion visibility check
@@ -483,8 +483,8 @@ const renderFPSGeometry = () => {
 
 	mat4.identity(_matModel);
 
-	Shaders.geometry.setInt("detailNoise", 5);
-	Shaders.geometry.setInt("doDetailTexture", Settings.detailTexture ? 1 : 0);
+	Shaders.geometry.setInt("proceduralNoise", 5);
+	Shaders.geometry.setInt("doProceduralDetail", Settings.proceduralDetail ? 1 : 0);
 	Shaders.geometry.setMat4("matWorld", _matModel);
 
 	_renderEntities(EntityTypes.FPS_MESH);

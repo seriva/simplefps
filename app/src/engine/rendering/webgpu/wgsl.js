@@ -9,7 +9,7 @@ struct FrameData {
     matView: mat4x4<f32>,
     matProjection: mat4x4<f32>,
     cameraPosition: vec4<f32>,  // .w = time
-    viewportSize: vec4<f32>,    // .zw = unused
+    viewportSize: vec4<f32>,    // .zw = doProceduralDetail, unused
 }
 `;
 
@@ -87,7 +87,7 @@ struct FragmentOutput {
 @group(2) @binding(1) var colorTexture: texture_2d<f32>;
 @group(2) @binding(2) var emissiveTexture: texture_2d<f32>;
 @group(2) @binding(3) var lightmapTexture: texture_2d<f32>;
-@group(2) @binding(4) var detailTexture: texture_2d<f32>;
+@group(2) @binding(4) var proceduralNoise: texture_2d<f32>;
 @group(2) @binding(5) var reflectionTexture: texture_2d<f32>;
 @group(2) @binding(6) var reflectionMaskTexture: texture_2d<f32>;
 
@@ -157,12 +157,12 @@ fn fs_main(input: GeomVertexOutput) -> FragmentOutput {
              let rot = mat2x2<f32>(0.829, 0.559, -0.559, 0.829); 
              let uv2 = (rot * (input.uv * 7.37)) + vec2<f32>(0.43, 0.81);
              
-             let h1 = textureSampleLevel(detailTexture, colorSampler, uv1, 0.0).a;
+             let h1 = textureSampleLevel(proceduralNoise, colorSampler, uv1, 0.0).a;
              let parallaxOffset = tangentViewDir.xy * (h1 * 0.02 * detailFade);
              
              // Sample both layers with offset
-             let s1 = textureSampleLevel(detailTexture, colorSampler, uv1 - parallaxOffset, 0.0);
-             let s2 = textureSampleLevel(detailTexture, colorSampler, uv2 - parallaxOffset, 0.0);
+             let s1 = textureSampleLevel(proceduralNoise, colorSampler, uv1 - parallaxOffset, 0.0);
+             let s2 = textureSampleLevel(proceduralNoise, colorSampler, uv2 - parallaxOffset, 0.0);
              
              // Blend Normals & Height
              let detailNormal = normalize((s1.rgb * 2.0 - 1.0) + (s2.rgb * 2.0 - 1.0));

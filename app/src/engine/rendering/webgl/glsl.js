@@ -133,8 +133,8 @@ const _geometryFragment = /* glsl */ `#version 300 es
             uniform sampler2D lightmapSampler;
             uniform sampler2D reflectionSampler;
             uniform sampler2D reflectionMaskSampler;
-            uniform sampler2D detailNoise;
-            uniform bool doDetailTexture;
+            uniform sampler2D proceduralNoise;
+            uniform bool doProceduralDetail;
             uniform vec3 uProbeColor;
 
             const int MESH = 1;
@@ -164,7 +164,7 @@ const _geometryFragment = /* glsl */ `#version 300 es
                 // Combine type checks to reduce branching
                 if (flags.x != SKYBOX) {
                      // Apply Detail Texture (Normal + Parallax)
-                    if (doDetailTexture && flags.w == 1) {
+                    if (doProceduralDetail && flags.w == 1) {
                         float dist = length(cameraPosition.xyz - vPosition.xyz);
                         float detailFade = 1.0 - smoothstep(100.0, 500.0, dist);
 
@@ -190,12 +190,12 @@ const _geometryFragment = /* glsl */ `#version 300 es
                             mat2 rot = mat2(0.829, -0.559, 0.559, 0.829); // ~34 deg
                             vec2 uv2 = rot * (vUV * 7.37) + vec2(0.43, 0.81);
                             
-                            float h1 = texture(detailNoise, uv1).a;
+                            float h1 = texture(proceduralNoise, uv1).a;
                             vec2 parallaxOffset = tangentViewDir.xy * (h1 * 0.02 * detailFade);
                             
                             // Dual Layer Sampling
-                            vec4 s1 = texture(detailNoise, uv1 - parallaxOffset);
-                            vec4 s2 = texture(detailNoise, uv2 - parallaxOffset);
+                            vec4 s1 = texture(proceduralNoise, uv1 - parallaxOffset);
+                            vec4 s2 = texture(proceduralNoise, uv2 - parallaxOffset);
                             
                             // Blend Normals & Height
                             vec3 detailNormal = normalize((s1.rgb * 2.0 - 1.0) + (s2.rgb * 2.0 - 1.0));

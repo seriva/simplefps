@@ -50,7 +50,7 @@ const _ao = {
 	blurFramebuffer: null,
 };
 
-let _detailNoise = null;
+let _proceduralNoise = null;
 
 // SSAO sample kernel and noise data
 let _ssaoKernel = null;
@@ -192,8 +192,8 @@ const _resize = (width, height) => {
 		_generateSSAONoise();
 	}
 
-	if (!_detailNoise) {
-		_generateDetailNoise();
+	if (!_proceduralNoise) {
+		_generateProceduralNoise();
 	}
 };
 
@@ -310,7 +310,7 @@ const _generateSSAONoise = () => {
 	_ao.noise.setTextureWrapMode("repeat");
 };
 
-const _generateDetailNoise = () => {
+const _generateProceduralNoise = () => {
 	const size = 128;
 	const data = new Uint8Array(size * size * 4);
 	const heightMap = new Float32Array(size * size);
@@ -394,7 +394,7 @@ const _generateDetailNoise = () => {
 		data[i * 4 + 3] = heightMap[i] * 255;
 	}
 
-	_detailNoise = new Texture({
+	_proceduralNoise = new Texture({
 		format: "rgba8",
 		width: size,
 		height: size,
@@ -403,12 +403,12 @@ const _generateDetailNoise = () => {
 		ptype: "ubyte",
 	});
 
-	_detailNoise.setTextureWrapMode("repeat");
-	Backend.generateMipmaps(_detailNoise.getHandle());
+	_proceduralNoise.setTextureWrapMode("repeat");
+	Backend.generateMipmaps(_proceduralNoise.getHandle());
 
 	if (Settings.anisotropicFiltering > 1) {
 		Backend.setTextureAnisotropy(
-			_detailNoise.getHandle(),
+			_proceduralNoise.getHandle(),
 			Settings.anisotropicFiltering,
 		);
 	}
@@ -433,7 +433,7 @@ const _worldGeomPass = () => {
 	Backend.setDepthRange(0.1, 1.0);
 	_startGeomPass();
 
-	if (_detailNoise) _detailNoise.bind(5); // Bind noise to unit 5
+	if (_proceduralNoise) _proceduralNoise.bind(5); // Bind noise to unit 5
 	RenderPasses.renderWorldGeometry();
 
 	_endGeomPass();
@@ -445,7 +445,7 @@ const _fpsGeomPass = () => {
 	Backend.setDepthRange(0.0, 0.1);
 	Backend.bindFramebuffer(_g.framebuffer);
 
-	if (_detailNoise) _detailNoise.bind(5); // Bind noise to unit 5
+	if (_proceduralNoise) _proceduralNoise.bind(5); // Bind noise to unit 5
 	RenderPasses.renderFPSGeometry();
 
 	Backend.bindFramebuffer(null);
@@ -721,7 +721,7 @@ const _updateFrameData = (time) => {
 	// viewportSize (68-71)
 	_frameData[68] = Backend.getWidth();
 	_frameData[69] = Backend.getHeight();
-	_frameData[70] = Settings.detailTexture ? 1.0 : 0.0; // .z = doDetailTexture flag
+	_frameData[70] = Settings.proceduralDetail ? 1.0 : 0.0; // .z = doProceduralDetail flag
 
 	Backend.updateUBO(_frameDataUBO, _frameData);
 };

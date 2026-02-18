@@ -20,7 +20,7 @@ const _translations = {
 		RENDER_SCALE: "Render Scale",
 		GAMMA: "Gamma",
 		FXAA: "FXAA",
-		DETAIL_TEXTURE: "Detail Textures",
+		PROCEDURAL_DETAIL: "Procedural Detail",
 		SSAO: "SSAO",
 		DIRT: "Dirt",
 		SHOW_STATS: "Show Render Stats",
