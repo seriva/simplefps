@@ -155,26 +155,69 @@ fn fs_main(input: GeomVertexOutput) -> FragmentOutput {
              
              // Transform viewDir to Tangent Space for Parallax
              let tangentViewDir = normalize(transpose(TBN) * viewDir);
+             // 1. Parallax Mapping - Dual Layer
+             let uvScale1 = vec2<f32>(4.0, 4.0);
+             let uv1 = input.uv * uvScale1;
              
-             // Offset UVs based on height (Alpha channel)
-             // Apply Fade
-             let height = textureSample(detailTexture, colorSampler, input.uv * 4.0).a;
-             let parallaxUV = input.uv * 4.0 - tangentViewDir.xy * (height * 0.02 * detailFade);
+             // Layer 2 Rotation (34 deg)
+             let ang = 0.6;
+             let s = sin(ang);
+             let c = cos(ang);
+             let rot = mat2x2<f32>(c, s, -s, c); // Column-major in WGSL? Check standard. Usually col-major. 
+             // c -s
+             // s  c
+             // Vectors are column vectors. 
              
-             // 2. Normal Mapping
-             // Sample normal from detail texture at parallax-offset coords
-             var detailNormal = textureSample(detailTexture, colorSampler, parallaxUV).rgb;
-             detailNormal = detailNormal * 2.0 - 1.0; // Unpack
+             let uvScale2 = vec2<f32>(7.37, 7.37);
+             let uv2Raw = input.uv * uvScale2;
+             let uv2 = (rot * uv2Raw) + vec2<f32>(0.43, 0.81);
              
-             // Mix detail normal with varying normal (strength 0.5)
+             let h1 = textureSample(detailTexture, colorSampler, uv1).a;
+             
+             let parallaxOffset = tangentViewDir.xy * (h1 * 0.02 * detailFade);
+             
+             let pUV1 = uv1 - parallaxOffset;
+             let pUV2 = uv2 - parallaxOffset;
+             
+             // 2. Dual-Layer Normal Mapping
+             let s1 = textureSample(detailTexture, colorSampler, pUV1);
+             let s2 = textureSample(detailTexture, colorSampler, pUV2);
+             
+             let n1 = s1.rgb * 2.0 - 1.0;
+             let n2 = s2.rgb * 2.0 - 1.0;
+             
+             let detailNormal = normalize(n1 + n2);
+             let height = (s1.a + s2.a) * 0.5;
+             
+             // Mix detail normal
              let surfaceNormal = normalize(TBN * detailNormal);
              
-             // Blend with original vertex normal
-             // Apply Fade
-             N = normalize(mix(N, surfaceNormal, 0.5 * detailFade));
+             // Fake Lightmap Bumping
+             let slope = dot(surfaceNormal, N);
              
-             // Optional darkening
-             color = vec4<f32>(color.rgb * (1.0 - (0.2 * height * detailFade)), color.a);
+             // World-Space Modulation - Sum of Sines
+             let macroVar = sin(input.worldPosition.x * 0.13 + input.worldPosition.z * 0.07) + 
+                            sin(input.worldPosition.z * 0.11 - input.worldPosition.x * 0.05) + 
+                            sin(input.worldPosition.y * 0.1);
+             let macroFactor = (macroVar / 3.0) * 0.5 + 0.5;
+             
+             // 1. Slope Shading
+             let currentSlope = clamp(slope, 0.5, 1.0);
+             
+             // 2. Height AO
+             let heightAO = mix(0.5, 1.0, height);
+             
+             // Combine Raw
+             let rawOcclusion = currentSlope * heightAO;
+             
+             // Apply Modulation and Fade
+             let modFactor = detailFade * (0.3 + 0.7 * macroFactor);
+             let totalOcclusion = mix(1.0, rawOcclusion, modFactor);
+             
+             color = vec4<f32>(color.rgb * totalOcclusion, color.a);
+             
+             // Blend with original vertex normal
+             N = normalize(mix(N, surfaceNormal, 0.5 * detailFade));
          }
     }
     
