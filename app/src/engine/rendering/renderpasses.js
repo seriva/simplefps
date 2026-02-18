@@ -197,7 +197,10 @@ const renderWorldGeometry = () => {
 	mat4.identity(_matModel);
 
 	Shaders.geometry.setInt("proceduralNoise", 5);
-	Shaders.geometry.setInt("doProceduralDetail", Settings.proceduralDetail ? 1 : 0);
+	Shaders.geometry.setInt(
+		"doProceduralDetail",
+		Settings.proceduralDetail ? 1 : 0,
+	);
 	Shaders.geometry.setMat4("matWorld", _matModel);
 
 	// Render skybox with special GL state
@@ -484,7 +487,10 @@ const renderFPSGeometry = () => {
 	mat4.identity(_matModel);
 
 	Shaders.geometry.setInt("proceduralNoise", 5);
-	Shaders.geometry.setInt("doProceduralDetail", Settings.proceduralDetail ? 1 : 0);
+	Shaders.geometry.setInt(
+		"doProceduralDetail",
+		Settings.proceduralDetail ? 1 : 0,
+	);
 	Shaders.geometry.setMat4("matWorld", _matModel);
 
 	_renderEntities(EntityTypes.FPS_MESH);

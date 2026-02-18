@@ -255,8 +255,8 @@ const _geometryFragment = /* glsl */ `#version 300 es
             }`;
 
 export const ShaderSources = {
-    geometry: {
-        vertex: /* glsl */ `#version 300 es
+	geometry: {
+		vertex: /* glsl */ `#version 300 es
             precision highp float;
             precision highp int;
 
@@ -286,10 +286,10 @@ export const ShaderSources = {
 
                 gl_Position = matViewProj * vPosition;
             }`,
-        fragment: _geometryFragment,
-    },
-    skinnedGeometry: {
-        vertex: /* glsl */ `#version 300 es
+		fragment: _geometryFragment,
+	},
+	skinnedGeometry: {
+		vertex: /* glsl */ `#version 300 es
             precision highp float;
             precision highp int;
 
@@ -323,10 +323,10 @@ export const ShaderSources = {
 
                 gl_Position = matViewProj * vPosition;
             }`,
-        fragment: _geometryFragment,
-    },
-    entityShadows: {
-        vertex: /* glsl */ `#version 300 es
+		fragment: _geometryFragment,
+	},
+	entityShadows: {
+		vertex: /* glsl */ `#version 300 es
             precision highp float;
             precision highp int;
 
@@ -340,10 +340,10 @@ export const ShaderSources = {
             {
                 gl_Position = matViewProj * matWorld * vec4(aPosition, 1.0);
             }`,
-        fragment: _shadowFragment,
-    },
-    skinnedEntityShadows: {
-        vertex: /* glsl */ `#version 300 es
+		fragment: _shadowFragment,
+	},
+	skinnedEntityShadows: {
+		vertex: /* glsl */ `#version 300 es
             precision highp float;
             precision highp int;
 
@@ -367,10 +367,10 @@ export const ShaderSources = {
                 worldPos.y = shadowHeight;
                 gl_Position = matViewProj * worldPos;
             }`,
-        fragment: _shadowFragment,
-    },
-    applyShadows: {
-        vertex: /* glsl */ `#version 300 es
+		fragment: _shadowFragment,
+	},
+	applyShadows: {
+		vertex: /* glsl */ `#version 300 es
             precision highp float;
 
             layout(location=0) in vec3 aPosition;
@@ -379,7 +379,7 @@ export const ShaderSources = {
             {
                 gl_Position = vec4(aPosition, 1.0);
             }`,
-        fragment: /* glsl */ `#version 300 es
+		fragment: /* glsl */ `#version 300 es
             precision highp float;
 
             layout(location=0) out vec4 fragColor;
@@ -393,9 +393,9 @@ export const ShaderSources = {
                 vec2 uv = vec2(gl_FragCoord.xy / viewportSize.xy);
                 fragColor = texture(shadowBuffer, uv);
             }`,
-    },
-    directionalLight: {
-        vertex: /* glsl */ `#version 300 es
+	},
+	directionalLight: {
+		vertex: /* glsl */ `#version 300 es
             precision highp float;
 
             layout(location=0) in vec3 aPosition;
@@ -404,7 +404,7 @@ export const ShaderSources = {
             {
                 gl_Position = vec4(aPosition, 1.0);
             }`,
-        fragment: /* glsl */ `#version 300 es
+		fragment: /* glsl */ `#version 300 es
             precision highp float;
 
             struct DirectionalLight {
@@ -441,9 +441,9 @@ export const ShaderSources = {
 
                 fragColor = vec4(lightIntensity, 1.0);
             }`,
-    },
-    pointLight: {
-        vertex: /* glsl */ `#version 300 es
+	},
+	pointLight: {
+		vertex: /* glsl */ `#version 300 es
             precision highp float;
             precision highp int;
 
@@ -457,7 +457,7 @@ export const ShaderSources = {
             {
                 gl_Position = matViewProj * matWorld * vec4(aPosition, 1.0);
             }`,
-        fragment: /* glsl */ `#version 300 es
+		fragment: /* glsl */ `#version 300 es
             precision highp float;
             precision highp int;
 
@@ -489,9 +489,9 @@ export const ShaderSources = {
                 if (pl.x <= 0.0) discard;
                 fragColor = vec4(pointLight.color * (pl.x * pl.y * pointLight.intensity), 1.0);
             }`,
-    },
-    spotLight: {
-        vertex: /* glsl */ `#version 300 es
+	},
+	spotLight: {
+		vertex: /* glsl */ `#version 300 es
             precision highp float;
             precision highp int;
 
@@ -504,7 +504,7 @@ export const ShaderSources = {
             void main() {
                 gl_Position = matViewProj * matWorld * vec4(aPosition, 1.0);
             }`,
-        fragment: /* glsl */ `#version 300 es
+		fragment: /* glsl */ `#version 300 es
             precision highp float;
             precision highp int;
 
@@ -538,9 +538,9 @@ export const ShaderSources = {
                 if (sl.x <= 0.0) discard;
                 fragColor = vec4(spotLight.color * spotLight.intensity * sl.x * sl.y * sl.z, 1.0);
             }`,
-    },
-    kawaseBlur: {
-        vertex: /* glsl */ `#version 300 es
+	},
+	kawaseBlur: {
+		vertex: /* glsl */ `#version 300 es
             precision highp float;
 
             layout(location=0) in vec3 aPosition;
@@ -549,7 +549,7 @@ export const ShaderSources = {
             {
                 gl_Position = vec4(aPosition, 1.0);
             }`,
-        fragment: /* glsl */ `#version 300 es
+		fragment: /* glsl */ `#version 300 es
             precision highp float;
 
             out vec4 fragColor;
@@ -576,9 +576,9 @@ export const ShaderSources = {
                 
                 fragColor = color * 0.2; // Average of 5 samples
             }`,
-    },
-    bilateralBlur: {
-        vertex: /* glsl */ `#version 300 es
+	},
+	bilateralBlur: {
+		vertex: /* glsl */ `#version 300 es
             precision highp float;
 
             layout(location=0) in vec3 aPosition;
@@ -587,7 +587,7 @@ export const ShaderSources = {
             {
                 gl_Position = vec4(aPosition, 1.0);
             }`,
-        fragment: /* glsl */ `#version 300 es
+		fragment: /* glsl */ `#version 300 es
             precision highp float;
 
             out vec4 fragColor;
@@ -674,9 +674,9 @@ export const ShaderSources = {
                 float result = totalAO / totalWeight;
                 fragColor = vec4(result, result, result, 1.0);
             }`,
-    },
-    postProcessing: {
-        vertex: /* glsl */ `#version 300 es
+	},
+	postProcessing: {
+		vertex: /* glsl */ `#version 300 es
             precision highp float;
 
             layout(location=0) in vec3 aPosition;
@@ -685,7 +685,7 @@ export const ShaderSources = {
             {
                 gl_Position = vec4(aPosition, 1.0);
             }`,
-        fragment: /* glsl */ `#version 300 es
+		fragment: /* glsl */ `#version 300 es
             precision highp float;
 
             layout(std140, column_major) uniform;
@@ -844,9 +844,9 @@ export const ShaderSources = {
 
                 fragColor.rgb = pow(fragColor.rgb, vec3(1.0 / gamma));
             }`,
-    },
-    transparent: {
-        vertex: /* glsl */ `#version 300 es
+	},
+	transparent: {
+		vertex: /* glsl */ `#version 300 es
             precision highp float;
             precision highp int;
 
@@ -868,7 +868,7 @@ export const ShaderSources = {
                 vNormal = normalize(mat3(matWorld) * aNormal);
                 gl_Position = matViewProj * vPosition;
             }`,
-        fragment: /* glsl */ `#version 300 es
+		fragment: /* glsl */ `#version 300 es
             precision highp float;
             precision highp int;
 
@@ -966,9 +966,9 @@ export const ShaderSources = {
                 // Hardcoded ambient approximation (0.5) to avoid uniform issues and fix brightness
                 fragColor = vec4(color.rgb * 0.5 + color.rgb * dynamicLighting, color.a);
             }`,
-    },
-    ssao: {
-        vertex: /* glsl */ `#version 300 es
+	},
+	ssao: {
+		vertex: /* glsl */ `#version 300 es
             precision highp float;
 
             layout(location=0) in vec3 aPosition;
@@ -977,7 +977,7 @@ export const ShaderSources = {
             {
                 gl_Position = vec4(aPosition, 1.0);
             }`,
-        fragment: /* glsl */ `#version 300 es
+		fragment: /* glsl */ `#version 300 es
             precision highp float;
 
             layout(location=0) out vec4 fragColor;
@@ -1078,9 +1078,9 @@ export const ShaderSources = {
                 
                 fragColor = vec4(occlusion, occlusion, occlusion, 1.0);
             }`,
-    },
-    debug: {
-        vertex: /* glsl */ `#version 300 es
+	},
+	debug: {
+		vertex: /* glsl */ `#version 300 es
             precision highp float;
 
             layout(location=0) in vec3 aPosition;
@@ -1092,10 +1092,10 @@ export const ShaderSources = {
             void main() {
                 gl_Position = matViewProj * matWorld * vec4(aPosition, 1.0);
             }`,
-        fragment: _debugFragment,
-    },
-    skinnedDebug: {
-        vertex: /* glsl */ `#version 300 es
+		fragment: _debugFragment,
+	},
+	skinnedDebug: {
+		vertex: /* glsl */ `#version 300 es
             precision highp float;
             precision highp int;
 
@@ -1115,6 +1115,6 @@ export const ShaderSources = {
 
                 gl_Position = matViewProj * matWorld * vec4(skinnedPosition, 1.0);
             }`,
-        fragment: _debugFragment,
-    },
+		fragment: _debugFragment,
+	},
 };
