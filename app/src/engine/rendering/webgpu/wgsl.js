@@ -131,94 +131,54 @@ fn fs_main(input: GeomVertexOutput) -> FragmentOutput {
 
     // Apply Detail Texture (Normal + Parallax)
     if (materialData.flags.x != SKYBOX && frameData.viewportSize.z > 0.5 && materialData.flags.w == 1) {
-         // Distance Fading
          let dist = distance(frameData.cameraPosition.xyz, input.worldPosition.xyz);
          let detailFade = 1.0 - smoothstep(100.0, 500.0, dist);
          
-         // Calculate derivatives in uniform control flow
+         // Calculate TBN (Must be done in uniform control flow)
          let dp1 = dpdx(input.worldPosition.xyz);
          let dp2 = dpdy(input.worldPosition.xyz);
          let duv1 = dpdx(input.uv);
          let duv2 = dpdy(input.uv);
-         
+
          if (detailFade > 0.01) {
-             // 1. Parallax Mapping
-             let viewDir = normalize(frameData.cameraPosition.xyz - input.worldPosition.xyz);
-             
-             // Calculate TBN
              let dp2perp = cross(dp2, N);
              let dp1perp = cross(N, dp1);
              let T = dp2perp * duv1.x + dp1perp * duv2.x;
              let B = dp2perp * duv1.y + dp1perp * duv2.y;
-             
              let invmax = inverseSqrt(max(dot(T,T), dot(B,B)));
              let TBN = mat3x3<f32>(T * invmax, B * invmax, N);
              
-             // Transform viewDir to Tangent Space for Parallax
+             // Parallax Mapping - Dual Layer
+             let viewDir = normalize(frameData.cameraPosition.xyz - input.worldPosition.xyz);
              let tangentViewDir = normalize(transpose(TBN) * viewDir);
-             // 1. Parallax Mapping - Dual Layer
-             let uvScale1 = vec2<f32>(4.0, 4.0);
-             let uv1 = input.uv * uvScale1;
              
-             // Layer 2 Rotation (34 deg)
-             let ang = 0.6;
-             let s = sin(ang);
-             let c = cos(ang);
-             let rot = mat2x2<f32>(c, s, -s, c); // Column-major in WGSL? Check standard. Usually col-major. 
-             // c -s
-             // s  c
-             // Vectors are column vectors. 
+             let uv1 = input.uv * 4.0;
+             // Rotated second layer (~34 deg)
+             let rot = mat2x2<f32>(0.829, 0.559, -0.559, 0.829); 
+             let uv2 = (rot * (input.uv * 7.37)) + vec2<f32>(0.43, 0.81);
              
-             let uvScale2 = vec2<f32>(7.37, 7.37);
-             let uv2Raw = input.uv * uvScale2;
-             let uv2 = (rot * uv2Raw) + vec2<f32>(0.43, 0.81);
-             
-             // Use Level 0 to avoid non-uniform control flow issues
              let h1 = textureSampleLevel(detailTexture, colorSampler, uv1, 0.0).a;
-             
              let parallaxOffset = tangentViewDir.xy * (h1 * 0.02 * detailFade);
              
-             let pUV1 = uv1 - parallaxOffset;
-             let pUV2 = uv2 - parallaxOffset;
+             // Sample both layers with offset
+             let s1 = textureSampleLevel(detailTexture, colorSampler, uv1 - parallaxOffset, 0.0);
+             let s2 = textureSampleLevel(detailTexture, colorSampler, uv2 - parallaxOffset, 0.0);
              
-             // 2. Dual-Layer Normal Mapping
-             let s1 = textureSampleLevel(detailTexture, colorSampler, pUV1, 0.0);
-             let s2 = textureSampleLevel(detailTexture, colorSampler, pUV2, 0.0);
-             
-             let n1 = s1.rgb * 2.0 - 1.0;
-             let n2 = s2.rgb * 2.0 - 1.0;
-             
-             let detailNormal = normalize(n1 + n2);
+             // Blend Normals & Height
+             let detailNormal = normalize((s1.rgb * 2.0 - 1.0) + (s2.rgb * 2.0 - 1.0));
              let height = (s1.a + s2.a) * 0.5;
-             
-             // Mix detail normal
              let surfaceNormal = normalize(TBN * detailNormal);
              
-             // Fake Lightmap Bumping
-             let slope = dot(surfaceNormal, N);
-             
-             // World-Space Modulation - Sum of Sines
-             let macroVar = sin(input.worldPosition.x * 0.13 + input.worldPosition.z * 0.07) + 
-                            sin(input.worldPosition.z * 0.11 - input.worldPosition.x * 0.05) + 
-                            sin(input.worldPosition.y * 0.1);
+             // Modulation: Sum of Sines
+             let p = input.worldPosition;
+             let macroVar = (sin(p.x * 0.13 + p.z * 0.07) + sin(p.z * 0.11 - p.x * 0.05) + sin(p.y * 0.1));
              let macroFactor = (macroVar / 3.0) * 0.5 + 0.5;
              
-             // 1. Slope Shading
-             let currentSlope = clamp(slope, 0.5, 1.0);
-             
-             // 2. Height AO
-             let heightAO = mix(0.5, 1.0, height);
-             
-             // Combine Raw
-             let rawOcclusion = currentSlope * heightAO;
-             
-             // Apply Modulation and Fade
+             // Combine Occlusion (Slope + Height)
+             let occlusion = clamp(dot(surfaceNormal, N), 0.5, 1.0) * mix(0.5, 1.0, height);
              let modFactor = detailFade * (0.3 + 0.7 * macroFactor);
-             let totalOcclusion = mix(1.0, rawOcclusion, modFactor);
              
-             color = vec4<f32>(color.rgb * totalOcclusion, color.a);
-             
-             // Blend with original vertex normal
+             color = vec4<f32>(color.rgb * mix(1.0, occlusion, modFactor), color.a);
              N = normalize(mix(N, surfaceNormal, 0.5 * detailFade));
          }
     }

@@ -165,110 +165,55 @@ const _geometryFragment = /* glsl */ `#version 300 es
                 if (flags.x != SKYBOX) {
                      // Apply Detail Texture (Normal + Parallax)
                     if (doDetailTexture && flags.w == 1) {
-                         // Distance Fading to prevent noise aliasing
-                         float dist = length(cameraPosition.xyz - vPosition.xyz);
-                         float detailFade = 1.0 - smoothstep(100.0, 500.0, dist);
-                         
-                         if (detailFade > 0.01) {
-                             // 1. Parallax Mapping
-                             vec3 viewDir = normalize(cameraPosition.xyz - vPosition.xyz);
-                             
-                             // Calculate TBN for Parallax and Normal mapping
-                             // http://www.thetenthplanet.de/archives/1180
-                             vec3 dp1 = dFdx(vPosition.xyz);
-                             vec3 dp2 = dFdy(vPosition.xyz);
-                             vec2 duv1 = dFdx(vUV);
-                             vec2 duv2 = dFdy(vUV);
-                             
-                             vec3 dp2perp = cross(dp2, N);
-                             vec3 dp1perp = cross(N, dp1);
-                             vec3 T = dp2perp * duv1.x + dp1perp * duv2.x;
-                             vec3 B = dp2perp * duv1.y + dp1perp * duv2.y;
-                             
-                             float invmax = inversesqrt(max(dot(T,T), dot(B,B)));
-                             mat3 TBN = mat3(T * invmax, B * invmax, N);
-                             
-                             // Transform viewDir to Tangent Space for Parallax
-                             vec3 tangentViewDir = normalize(transpose(TBN) * viewDir);
-                             
-                             // Offset UVs based on height (Alpha channel)
-                             // 1. Parallax Mapping
-             // We use two layers of texture to break the grid pattern (Interference)
-             
-             // Layer 1 (Base - Axis Aligned)
-             vec2 uvScale1 = vec2(4.0);
-             vec2 uv1 = vUV * uvScale1;
-             
-             // Layer 2 (Rotated Interference)
-             // Rotating the second layer ~34 degrees prevents the grids from aligning (Anti-Moire)
-             float ang = 0.6; 
-             float s = sin(ang);
-             float c = cos(ang);
-             mat2 rot = mat2(c, -s, s, c);
-             
-             vec2 uvScale2 = vec2(7.37);
-             vec2 uv2 = rot * (vUV * uvScale2) + vec2(0.43, 0.81);
-             
-             // Sample Height from Main Layer for Parallax
-             float h1 = texture(detailNoise, uv1).a;
-             
-             // Calculate Parallax Offset
-             vec2 parallaxOffset = tangentViewDir.xy * (h1 * 0.02 * detailFade);
-             
-             // Apply offset (Must rotate offset for layer 2 to match texture space? 
-             // Actually, for simple noise interference, applying aligned offset is acceptable and cheaper)
-             vec2 pUV1 = uv1 - parallaxOffset;
-             vec2 pUV2 = uv2 - parallaxOffset; 
-             
-             // 2. Dual-Layer Normal Mapping (Texture Splatting)
-             // Sample both layers
-             vec4 s1 = texture(detailNoise, pUV1);
-             vec4 s2 = texture(detailNoise, pUV2);
-             
-             // Unpack Normals
-             vec3 n1 = s1.rgb * 2.0 - 1.0;
-             vec3 n2 = s2.rgb * 2.0 - 1.0;
-             
-             // Blend Normals (Add and Normalize)
-             vec3 detailNormal = normalize(n1 + n2);
-             
-             // Blend Heights
-             float height = (s1.a + s2.a) * 0.5;
+                        float dist = length(cameraPosition.xyz - vPosition.xyz);
+                        float detailFade = 1.0 - smoothstep(100.0, 500.0, dist);
 
-             // Mix detail normal with surface normal
-             vec3 surfaceNormal = normalize(TBN * detailNormal);
+                        // Calculate TBN (Must be done in uniform control flow or close to it for better results)
+                        vec3 dp1 = dFdx(vPosition.xyz);
+                        vec3 dp2 = dFdy(vPosition.xyz);
+                        vec2 duv1 = dFdx(vUV);
+                        vec2 duv2 = dFdy(vUV);
 
-             // Fake Lightmap Bumping (Slope Shading)
-             float slope = dot(surfaceNormal, N);
-             
-             // World-Space Modulation to break repetition
-             // Improved: Sum of sines at prime frequencies for organic, non-grid variation
-             float macroVar = sin(vPosition.x * 0.13 + vPosition.z * 0.07) + 
-                              sin(vPosition.z * 0.11 - vPosition.x * 0.05) + 
-                              sin(vPosition.y * 0.1);
-             // Range is approx -3 to 3, map to 0..1
-             macroVar = (macroVar / 3.0) * 0.5 + 0.5;
-             
-             // 1. Slope Shading (Darken steep slopes)
-             float currentSlope = clamp(slope, 0.5, 1.0);
-             
-             // 2. Height-Based AO (Darken valleys)
-             // Since we blended two heights, the "valleys" are now complex intersections
-             float heightAO = mix(0.5, 1.0, height); 
-             
-             // Combine raw occlusion
-             float rawOcclusion = currentSlope * heightAO;
-             
-             // Apply Modulation and Fade to the TOTAL occlusion
-             // This ensures BOTH the grid lines and the pits fade out in smooth macro-areas
-             float modFactor = detailFade * (0.3 + 0.7 * macroVar);
-             float totalOcclusion = mix(1.0, rawOcclusion, modFactor);
-
-             color.rgb *= totalOcclusion;
-             
-             // Blend with original vertex normal
-             N = normalize(mix(N, surfaceNormal, 0.5 * detailFade));
-                         }
+                        if (detailFade > 0.01) {
+                            vec3 dp2perp = cross(dp2, N);
+                            vec3 dp1perp = cross(N, dp1);
+                            vec3 T = dp2perp * duv1.x + dp1perp * duv2.x;
+                            vec3 B = dp2perp * duv1.y + dp1perp * duv2.y;
+                            float invmax = inversesqrt(max(dot(T,T), dot(B,B)));
+                            mat3 TBN = mat3(T * invmax, B * invmax, N);
+                            
+                            // Parallax Mapping
+                            vec3 viewDir = normalize(cameraPosition.xyz - vPosition.xyz);
+                            vec3 tangentViewDir = normalize(transpose(TBN) * viewDir);
+                            
+                            vec2 uv1 = vUV * 4.0;
+                            mat2 rot = mat2(0.829, -0.559, 0.559, 0.829); // ~34 deg
+                            vec2 uv2 = rot * (vUV * 7.37) + vec2(0.43, 0.81);
+                            
+                            float h1 = texture(detailNoise, uv1).a;
+                            vec2 parallaxOffset = tangentViewDir.xy * (h1 * 0.02 * detailFade);
+                            
+                            // Dual Layer Sampling
+                            vec4 s1 = texture(detailNoise, uv1 - parallaxOffset);
+                            vec4 s2 = texture(detailNoise, uv2 - parallaxOffset);
+                            
+                            // Blend Normals & Height
+                            vec3 detailNormal = normalize((s1.rgb * 2.0 - 1.0) + (s2.rgb * 2.0 - 1.0));
+                            float height = (s1.a + s2.a) * 0.5;
+                            vec3 surfaceNormal = normalize(TBN * detailNormal);
+                            
+                            // Modulation
+                            vec3 p = vPosition.xyz;
+                            float macroVar = sin(p.x * 0.13 + p.z * 0.07) + sin(p.z * 0.11 - p.x * 0.05) + sin(p.y * 0.1);
+                            float macroFactor = (macroVar / 3.0) * 0.5 + 0.5;
+                            
+                            // Occlusion
+                            float occlusion = clamp(dot(surfaceNormal, N), 0.5, 1.0) * mix(0.5, 1.0, height);
+                            float modFactor = detailFade * (0.3 + 0.7 * macroFactor);
+                            
+                            color.rgb *= mix(1.0, occlusion, modFactor);
+                            N = normalize(mix(N, surfaceNormal, 0.5 * detailFade));
+                        }
                     }
 
                 // Store lightmap flag in normal.w for post-processing
