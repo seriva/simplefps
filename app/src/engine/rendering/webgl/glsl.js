@@ -163,50 +163,57 @@ const _geometryFragment = /* glsl */ `#version 300 es
 
                 // Combine type checks to reduce branching
                 if (flags.x != SKYBOX) {
-                    // Apply Detail Texture (Normal + Parallax)
+                     // Apply Detail Texture (Normal + Parallax)
                     if (doDetailTexture && flags.w == 1) {
-                         // 1. Parallax Mapping
-                         vec3 viewDir = normalize(cameraPosition.xyz - vPosition.xyz);
+                         // Distance Fading to prevent noise aliasing
+                         float dist = length(cameraPosition.xyz - vPosition.xyz);
+                         float detailFade = 1.0 - smoothstep(100.0, 500.0, dist);
                          
-                         // Calculate TBN for Parallax and Normal mapping
-                         // http://www.thetenthplanet.de/archives/1180
-                         vec3 dp1 = dFdx(vPosition.xyz);
-                         vec3 dp2 = dFdy(vPosition.xyz);
-                         vec2 duv1 = dFdx(vUV);
-                         vec2 duv2 = dFdy(vUV);
-                         
-                         vec3 dp2perp = cross(dp2, N);
-                         vec3 dp1perp = cross(N, dp1);
-                         vec3 T = dp2perp * duv1.x + dp1perp * duv2.x;
-                         vec3 B = dp2perp * duv1.y + dp1perp * duv2.y;
-                         
-                         float invmax = inversesqrt(max(dot(T,T), dot(B,B)));
-                         mat3 TBN = mat3(T * invmax, B * invmax, N);
-                         
-                         // Transform viewDir to Tangent Space for Parallax
-                         vec3 tangentViewDir = normalize(transpose(TBN) * viewDir);
-                         
-                         // Offset UVs based on height (Alpha channel)
-                         // Offset UVs based on height (Alpha channel)
-                         // Scale 0.05 for stronger depth effect
-                         float height = texture(detailNoise, vUV * 4.0).a;
-                         vec2 parallaxUV = vUV * 4.0 - tangentViewDir.xy * (height * 0.02);
-                         
-                         // 2. Normal Mapping
-                         // Sample normal from detail texture at parallax-offset coords
-                         vec3 detailNormal = texture(detailNoise, parallaxUV).rgb;
-                         detailNormal = detailNormal * 2.0 - 1.0; // Unpack [0,1] to [-1,1]
-                         
-                         // Mix detail normal with varying normal (strength 0.5)
-                         // We are transforming relevant to the surface, so we apply TBN
-                         vec3 surfaceNormal = normalize(TBN * detailNormal);
-                         
-                         // Blend with original vertex normal to keep overall smoothing
-                         // (Adjust 0.5 to control detail normal strength)
-                         N = normalize(mix(N, surfaceNormal, 0.5));
-                         
-                         // Optional: slight darkening based on height to fake occlusion
-                         color.rgb *= (0.8 + 0.2 * height);
+                         if (detailFade > 0.01) {
+                             // 1. Parallax Mapping
+                             vec3 viewDir = normalize(cameraPosition.xyz - vPosition.xyz);
+                             
+                             // Calculate TBN for Parallax and Normal mapping
+                             // http://www.thetenthplanet.de/archives/1180
+                             vec3 dp1 = dFdx(vPosition.xyz);
+                             vec3 dp2 = dFdy(vPosition.xyz);
+                             vec2 duv1 = dFdx(vUV);
+                             vec2 duv2 = dFdy(vUV);
+                             
+                             vec3 dp2perp = cross(dp2, N);
+                             vec3 dp1perp = cross(N, dp1);
+                             vec3 T = dp2perp * duv1.x + dp1perp * duv2.x;
+                             vec3 B = dp2perp * duv1.y + dp1perp * duv2.y;
+                             
+                             float invmax = inversesqrt(max(dot(T,T), dot(B,B)));
+                             mat3 TBN = mat3(T * invmax, B * invmax, N);
+                             
+                             // Transform viewDir to Tangent Space for Parallax
+                             vec3 tangentViewDir = normalize(transpose(TBN) * viewDir);
+                             
+                             // Offset UVs based on height (Alpha channel)
+                             // Offset UVs based on height (Alpha channel)
+                             // Scale 0.05 for stronger depth effect
+                             // Apply Fade to parallax depth
+                             float height = texture(detailNoise, vUV * 4.0).a;
+                             vec2 parallaxUV = vUV * 4.0 - tangentViewDir.xy * (height * 0.02 * detailFade);
+                             
+                             // 2. Normal Mapping
+                             // Sample normal from detail texture at parallax-offset coords
+                             vec3 detailNormal = texture(detailNoise, parallaxUV).rgb;
+                             detailNormal = detailNormal * 2.0 - 1.0; // Unpack [0,1] to [-1,1]
+                             
+                             // Mix detail normal with varying normal (strength 0.5)
+                             // We are transforming relevant to the surface, so we apply TBN
+                             vec3 surfaceNormal = normalize(TBN * detailNormal);
+                             
+                             // Blend with original vertex normal to keep overall smoothing
+                             // Apply Fade to normal strength
+                             N = normalize(mix(N, surfaceNormal, 0.5 * detailFade));
+                             
+                             // Optional: slight darkening based on height to fake occlusion
+                             color.rgb *= (1.0 - (0.2 * height * detailFade));
+                         }
                     }
 
                 // Store lightmap flag in normal.w for post-processing

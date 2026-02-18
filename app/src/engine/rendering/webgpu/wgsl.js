@@ -131,44 +131,51 @@ fn fs_main(input: GeomVertexOutput) -> FragmentOutput {
 
     // Apply Detail Texture (Normal + Parallax)
     if (materialData.flags.x != SKYBOX && frameData.viewportSize.z > 0.5 && materialData.flags.w == 1) {
-         // 1. Parallax Mapping
-         let viewDir = normalize(frameData.cameraPosition.xyz - input.worldPosition.xyz);
+         // Distance Fading
+         let dist = distance(frameData.cameraPosition.xyz, input.worldPosition.xyz);
+         let detailFade = 1.0 - smoothstep(100.0, 500.0, dist);
          
-         // Calculate TBN
-         let dp1 = dpdx(input.worldPosition.xyz);
-         let dp2 = dpdy(input.worldPosition.xyz);
-         let duv1 = dpdx(input.uv);
-         let duv2 = dpdy(input.uv);
-         
-         let dp2perp = cross(dp2, N);
-         let dp1perp = cross(N, dp1);
-         let T = dp2perp * duv1.x + dp1perp * duv2.x;
-         let B = dp2perp * duv1.y + dp1perp * duv2.y;
-         
-         let invmax = inverseSqrt(max(dot(T,T), dot(B,B)));
-         let TBN = mat3x3<f32>(T * invmax, B * invmax, N);
-         
-         // Transform viewDir to Tangent Space for Parallax
-         let tangentViewDir = normalize(transpose(TBN) * viewDir);
-         
-         // Offset UVs based on height (Alpha channel)
-         // Scale 0.05 for stronger depth effect
-         let height = textureSample(detailTexture, colorSampler, input.uv * 4.0).a;
-         let parallaxUV = input.uv * 4.0 - tangentViewDir.xy * (height * 0.02);
-         
-         // 2. Normal Mapping
-         // Sample normal from detail texture at parallax-offset coords
-         let detailNormalSample = textureSample(detailTexture, colorSampler, parallaxUV).rgb;
-         let detailNormal = detailNormalSample * 2.0 - 1.0;
-         
-         // Mix detail normal with varying normal (strength 0.5)
-         let surfaceNormal = normalize(TBN * detailNormal);
-         
-         // Blend with original vertex normal
-         N = normalize(mix(N, surfaceNormal, 0.5));
-         
-         // Optional: slight darkening based on height
-         color = vec4<f32>(color.rgb * (0.8 + 0.2 * height), color.a);
+         if (detailFade > 0.01) {
+             // 1. Parallax Mapping
+             let viewDir = normalize(frameData.cameraPosition.xyz - input.worldPosition.xyz);
+             
+             // Calculate TBN
+             let dp1 = dpdx(input.worldPosition.xyz);
+             let dp2 = dpdy(input.worldPosition.xyz);
+             let duv1 = dpdx(input.uv);
+             let duv2 = dpdy(input.uv);
+             
+             let dp2perp = cross(dp2, N);
+             let dp1perp = cross(N, dp1);
+             let T = dp2perp * duv1.x + dp1perp * duv2.x;
+             let B = dp2perp * duv1.y + dp1perp * duv2.y;
+             
+             let invmax = inverseSqrt(max(dot(T,T), dot(B,B)));
+             let TBN = mat3x3<f32>(T * invmax, B * invmax, N);
+             
+             // Transform viewDir to Tangent Space for Parallax
+             let tangentViewDir = normalize(transpose(TBN) * viewDir);
+             
+             // Offset UVs based on height (Alpha channel)
+             // Apply Fade
+             let height = textureSample(detailTexture, colorSampler, input.uv * 4.0).a;
+             let parallaxUV = input.uv * 4.0 - tangentViewDir.xy * (height * 0.02 * detailFade);
+             
+             // 2. Normal Mapping
+             // Sample normal from detail texture at parallax-offset coords
+             var detailNormal = textureSample(detailTexture, colorSampler, parallaxUV).rgb;
+             detailNormal = detailNormal * 2.0 - 1.0; // Unpack
+             
+             // Mix detail normal with varying normal (strength 0.5)
+             let surfaceNormal = normalize(TBN * detailNormal);
+             
+             // Blend with original vertex normal
+             // Apply Fade
+             N = normalize(mix(N, surfaceNormal, 0.5 * detailFade));
+             
+             // Optional darkening
+             color = vec4<f32>(color.rgb * (1.0 - (0.2 * height * detailFade)), color.a);
+         }
     }
     
     // Initialize emissive
