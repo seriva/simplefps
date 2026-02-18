@@ -135,16 +135,17 @@ fn fs_main(input: GeomVertexOutput) -> FragmentOutput {
          let dist = distance(frameData.cameraPosition.xyz, input.worldPosition.xyz);
          let detailFade = 1.0 - smoothstep(100.0, 500.0, dist);
          
+         // Calculate derivatives in uniform control flow
+         let dp1 = dpdx(input.worldPosition.xyz);
+         let dp2 = dpdy(input.worldPosition.xyz);
+         let duv1 = dpdx(input.uv);
+         let duv2 = dpdy(input.uv);
+         
          if (detailFade > 0.01) {
              // 1. Parallax Mapping
              let viewDir = normalize(frameData.cameraPosition.xyz - input.worldPosition.xyz);
              
              // Calculate TBN
-             let dp1 = dpdx(input.worldPosition.xyz);
-             let dp2 = dpdy(input.worldPosition.xyz);
-             let duv1 = dpdx(input.uv);
-             let duv2 = dpdy(input.uv);
-             
              let dp2perp = cross(dp2, N);
              let dp1perp = cross(N, dp1);
              let T = dp2perp * duv1.x + dp1perp * duv2.x;
@@ -172,7 +173,8 @@ fn fs_main(input: GeomVertexOutput) -> FragmentOutput {
              let uv2Raw = input.uv * uvScale2;
              let uv2 = (rot * uv2Raw) + vec2<f32>(0.43, 0.81);
              
-             let h1 = textureSample(detailTexture, colorSampler, uv1).a;
+             // Use Level 0 to avoid non-uniform control flow issues
+             let h1 = textureSampleLevel(detailTexture, colorSampler, uv1, 0.0).a;
              
              let parallaxOffset = tangentViewDir.xy * (h1 * 0.02 * detailFade);
              
@@ -180,8 +182,8 @@ fn fs_main(input: GeomVertexOutput) -> FragmentOutput {
              let pUV2 = uv2 - parallaxOffset;
              
              // 2. Dual-Layer Normal Mapping
-             let s1 = textureSample(detailTexture, colorSampler, pUV1);
-             let s2 = textureSample(detailTexture, colorSampler, pUV2);
+             let s1 = textureSampleLevel(detailTexture, colorSampler, pUV1, 0.0);
+             let s2 = textureSampleLevel(detailTexture, colorSampler, pUV2, 0.0);
              
              let n1 = s1.rgb * 2.0 - 1.0;
              let n2 = s2.rgb * 2.0 - 1.0;
