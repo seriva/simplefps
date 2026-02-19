@@ -211,7 +211,7 @@ class BoundingBox {
 	}
 
 	isVisible() {
-		// Use dedicated temps _p and _n (no allocation)
+		// Use dedicated temp _p (no allocation)
 		const p = _p;
 		const planes = Camera.frustumPlanesArray;
 

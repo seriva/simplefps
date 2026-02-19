@@ -28,7 +28,7 @@ window.addEventListener(
 			}
 		}
 		for (let l = 0; l < _downevents.length; l++) {
-			if (_downevents[l].pressed) {
+			if (_downevents[l].key === ev.keyCode && _downevents[l].pressed) {
 				_downevents[l].pressed = false;
 			}
 		}
