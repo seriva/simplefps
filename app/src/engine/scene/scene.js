@@ -120,6 +120,7 @@ const _removeEntity = (entity) => {
 const _init = () => {
 	_entities.length = 0;
 	_collidables.length = 0;
+	_entityCache.clear();
 	_staticTrimesh = null;
 	_staticCollidable.collider = null;
 };

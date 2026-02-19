@@ -32,6 +32,7 @@ class Sound {
 	#startTime = 0;
 	#pausedAt = 0;
 	#isPlaying = false;
+	#nextCacheIndex = 0;
 
 	constructor({
 		file,
@@ -79,12 +80,11 @@ class Sound {
 			return;
 		}
 
-		const availableIndex = Object.keys(this.#cache).find(
-			(key) => this.#cache[key].source.buffer,
-		);
+		const key = `${this.file}_${this.#nextCacheIndex}`;
+		this.#nextCacheIndex = (this.#nextCacheIndex + 1) % this.cacheSize;
+		const cachedSound = this.#cache[key];
 
-		if (availableIndex) {
-			const cachedSound = this.#cache[availableIndex];
+		if (cachedSound) {
 			const newSource = _audioContext.createBufferSource();
 			newSource.buffer = cachedSound.source.buffer;
 			newSource.playbackRate.value = cachedSound.source.playbackRate.value;
@@ -99,7 +99,7 @@ class Sound {
 				newSource.start(0);
 			}
 
-			this.#cache[availableIndex].source = newSource;
+			this.#cache[key].source = newSource;
 			this.#isPlaying = true;
 		}
 	}
