@@ -559,7 +559,7 @@ const _lightingPass = () => {
 	Texture.unBindRange(0, 3);
 	Backend.bindFramebuffer(null);
 
-	_blurImage(_BlurSourceType.LIGHTING, 4, 0.2);
+	_blurImage(_BlurSourceType.LIGHTING, Settings.lightBlurIterations, 0.2);
 };
 
 const _emissiveBlurPass = () => {
