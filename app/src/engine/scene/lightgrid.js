@@ -63,7 +63,7 @@ const _load = (config) => {
 					);
 					_data = new Uint8Array(buffer);
 				} else {
-					Console.error(
+					Console.warn(
 						`LightGrid size mismatch. Config expects ${totalProbes} probes, buffer is ${buffer.byteLength} bytes. Too small.`,
 					);
 					return;

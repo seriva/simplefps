@@ -153,6 +153,7 @@ const _updateProjectile = (entity, frameTime) => {
 		if (entity.linkedLight) {
 			Scene.removeEntity(entity.linkedLight);
 		}
+		Scene.removeEntity(entity);
 		_activeProjectiles.delete(entity);
 		return false;
 	}
@@ -208,6 +209,7 @@ const _updateProjectile = (entity, frameTime) => {
 			if (entity.linkedLight) {
 				Scene.removeEntity(entity.linkedLight);
 			}
+			Scene.removeEntity(entity);
 			_activeProjectiles.delete(entity);
 			return false;
 		}
@@ -247,7 +249,6 @@ const _updateProjectile = (entity, frameTime) => {
 		_projectileScaleVec[2] =
 			scale;
 	mat4.scale(entity.ani_matrix, entity.ani_matrix, _projectileScaleVec);
-	mat4.identity(entity.base_matrix);
 
 	// Update light
 	if (entity.linkedLight) {
@@ -431,8 +432,6 @@ const _shootGrenade = () => {
 
 	Resources.get("sounds/shoot.sfx").play();
 
-	Resources.get("sounds/shoot.sfx").play();
-
 	const projectileConfig = PROJECTILE_CONFIG;
 	const spawnPosition = _calculateProjectileSpawnPosition();
 	const projectile = _createProjectile(spawnPosition, projectileConfig);
@@ -558,7 +557,6 @@ const _unlock = (index) => {
 };
 
 const _reset = () => {
-	_state.unlocked = new Array(_state.list.length).fill(false);
 	_state.unlocked = new Array(_state.list.length).fill(false);
 	if (_state.list.length > WEAPON_INDEX.plasma_pistol) {
 		_state.unlocked[WEAPON_INDEX.plasma_pistol] = true;

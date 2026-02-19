@@ -9,6 +9,18 @@ import Settings from "./settings.js";
 const _projection = mat4.create();
 const _target = vec3.create();
 
+const _normalizePlane = (plane) => {
+	const len = Math.sqrt(
+		plane[0] * plane[0] + plane[1] * plane[1] + plane[2] * plane[2],
+	);
+	if (len > 0) {
+		plane[0] /= len;
+		plane[1] /= len;
+		plane[2] /= len;
+		plane[3] /= len;
+	}
+};
+
 let _fov = 45;
 let _nearPlane = null;
 let _farPlane = null;
@@ -125,7 +137,7 @@ const Camera = {
 			m[11] + m[8],
 			m[15] + m[12],
 		);
-		vec4.normalize(this.frustumPlanes.left, this.frustumPlanes.left);
+		_normalizePlane(this.frustumPlanes.left);
 
 		// Right plane
 		vec4.set(
@@ -135,7 +147,7 @@ const Camera = {
 			m[11] - m[8],
 			m[15] - m[12],
 		);
-		vec4.normalize(this.frustumPlanes.right, this.frustumPlanes.right);
+		_normalizePlane(this.frustumPlanes.right);
 
 		// Bottom plane
 		vec4.set(
@@ -145,7 +157,7 @@ const Camera = {
 			m[11] + m[9],
 			m[15] + m[13],
 		);
-		vec4.normalize(this.frustumPlanes.bottom, this.frustumPlanes.bottom);
+		_normalizePlane(this.frustumPlanes.bottom);
 
 		// Top plane
 		vec4.set(
@@ -155,7 +167,7 @@ const Camera = {
 			m[11] - m[9],
 			m[15] - m[13],
 		);
-		vec4.normalize(this.frustumPlanes.top, this.frustumPlanes.top);
+		_normalizePlane(this.frustumPlanes.top);
 
 		// Near plane
 		vec4.set(
@@ -165,7 +177,7 @@ const Camera = {
 			m[11] + m[10],
 			m[15] + m[14],
 		);
-		vec4.normalize(this.frustumPlanes.near, this.frustumPlanes.near);
+		_normalizePlane(this.frustumPlanes.near);
 
 		// Far plane
 		vec4.set(
@@ -175,7 +187,7 @@ const Camera = {
 			m[11] - m[10],
 			m[15] - m[14],
 		);
-		vec4.normalize(this.frustumPlanes.far, this.frustumPlanes.far);
+		_normalizePlane(this.frustumPlanes.far);
 
 		mat4.invert(this.inverseViewProjection, this.viewProjection);
 	},

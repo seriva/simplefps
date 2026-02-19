@@ -1741,7 +1741,7 @@ class WebGPUBackend extends RenderBackend {
 							this._bindGroupCache.set(cacheKey, bindGroup1);
 						} catch (e) {
 							Console.warn(
-								`BindGroup 1 error: ${e.message} (shader: ${shader?._gpuShaderModule?.label})`,
+								`BindGroup 1 error: ${e.message} (shader: ${this._currentShader?._gpuShaderModule?.label})`,
 							);
 						}
 					}

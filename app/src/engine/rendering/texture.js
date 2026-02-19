@@ -40,15 +40,7 @@ class Texture {
 
 	static createSolidColor(r, g, b, a = 255) {
 		const texture = new Texture({});
-		// We can't access #handle of another instance directly if we are in a static method?
-		// Actually, private fields are accessible within the class body, including static methods operating on instances of the same class.
-		// However, let's be safe and use the constructor logic or a helper if needed.
-		// Wait, the existing code:
-		// texture._handle = Backend.createTexture(...)
-		// Converting to:
-		// texture.#handle = ...
-		// This IS allowed in JS for instances of the same class.
-
+		texture.dispose(); // Free the texture allocated by init({})
 		texture.#handle = Backend.createTexture({
 			width: 1,
 			height: 1,
