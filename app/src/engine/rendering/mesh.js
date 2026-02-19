@@ -40,7 +40,7 @@ class Mesh {
 		let typedArray;
 
 		if (usage === "index") {
-			typedArray = new Uint16Array(data);
+			typedArray = new Uint32Array(data);
 		} else {
 			typedArray = new Float32Array(data);
 		}
@@ -61,6 +61,8 @@ class Mesh {
 	}
 
 	_createBaseBuffers() {
+		const vertexCount = this.vertices.length / 3;
+
 		this.hasUVs = this.uvs.length > 0;
 		this.hasNormals = this.normals.length > 0;
 		this.triangleCount = 0;
@@ -72,8 +74,6 @@ class Mesh {
 			this._buffers.push(indexObj.indexBuffer);
 			this.triangleCount += indexObj.array.length / 3;
 		}
-
-		const vertexCount = this.vertices.length / 3;
 
 		// Position (Always present)
 		const positionAttribute = this._createAttributeBuffer(
@@ -265,8 +265,10 @@ class Mesh {
 			this._wireframeBuffers = [];
 			for (const indexObj of this.indices) {
 				const indices = indexObj.array;
-				// Uint16Array needed for index buffer
-				const tempArray = new Uint16Array(indices.length * 2);
+
+				// Always use Uint32Array for index buffer
+				const tempArray = new Uint32Array(indices.length * 2);
+
 				let lineCount = 0;
 
 				for (let i = 0; i < indices.length; i += 3) {

@@ -1,7 +1,6 @@
 import { glMatrix, mat4, vec3 } from "../dependencies/gl-matrix.js";
 import {
 	Camera,
-	Console,
 	EntityTypes,
 	FpsMeshEntity,
 	MeshEntity,
@@ -246,7 +245,7 @@ const _updateProjectile = (entity, frameTime) => {
 	_projectileScaleVec[0] =
 		_projectileScaleVec[1] =
 		_projectileScaleVec[2] =
-		scale;
+			scale;
 	mat4.scale(entity.ani_matrix, entity.ani_matrix, _projectileScaleVec);
 	mat4.identity(entity.base_matrix);
 
