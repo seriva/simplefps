@@ -353,7 +353,7 @@ class Mesh {
 				reader.bytes.byteOffset + reader.offset,
 				reader.bytes.byteOffset + reader.offset + indexCount * 4,
 			);
-			const indexArray = Array.from(new Uint32Array(indexArrayBuffer));
+			const indexArray = new Uint32Array(indexArrayBuffer);
 			reader.skip(indexCount * 4);
 
 			this.indices.push({

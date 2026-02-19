@@ -28,32 +28,52 @@ class Trimesh {
 			this.vertices = new Float32Array(0);
 			this.indices = new Int32Array(0);
 			this.normals = new Float32Array(0);
+			this._pendingVertices = [];
+			this._pendingIndices = [];
+			this._totalVertexCount = 0;
 		}
 	}
 
 	addMesh(vertices, indices) {
-		const vertexOffset = this.vertices.length / 3;
-
-		// Grow vertices
-		const newVertices = new Float32Array(
-			this.vertices.length + vertices.length,
-		);
-		newVertices.set(this.vertices);
-		newVertices.set(vertices, this.vertices.length);
-		this.vertices = newVertices;
-
-		// Grow indices (offset by existing vertex count)
-		const newIndices = new Int32Array(this.indices.length + indices.length);
-		newIndices.set(this.indices);
-		for (let i = 0; i < indices.length; i++) {
-			newIndices[this.indices.length + i] = indices[i] + vertexOffset;
-		}
-		this.indices = newIndices;
+		const vertexOffset = this._totalVertexCount;
+		this._pendingVertices.push(vertices);
+		this._pendingIndices.push({ data: indices, offset: vertexOffset });
+		this._totalVertexCount += vertices.length / 3;
 		this._dirty = true;
 	}
 
 	finalize() {
 		if (!this._dirty) return;
+
+		// Calculate total sizes
+		let totalVertLen = 0;
+		let totalIdxLen = 0;
+		for (const v of this._pendingVertices) totalVertLen += v.length;
+		for (const idx of this._pendingIndices) totalIdxLen += idx.data.length;
+
+		// Single allocation for each
+		this.vertices = new Float32Array(totalVertLen);
+		this.indices = new Int32Array(totalIdxLen);
+
+		// Copy vertices
+		let vOffset = 0;
+		for (const v of this._pendingVertices) {
+			this.vertices.set(v, vOffset);
+			vOffset += v.length;
+		}
+
+		// Copy indices with offset
+		let iOffset = 0;
+		for (const { data, offset } of this._pendingIndices) {
+			for (let i = 0; i < data.length; i++) {
+				this.indices[iOffset + i] = data[i] + offset;
+			}
+			iOffset += data.length;
+		}
+
+		// Free pending buffers
+		this._pendingVertices = null;
+		this._pendingIndices = null;
 		this.normals = new Float32Array(this.indices.length);
 		this.updateNormals();
 		this.computeLocalAABB(this.aabb);

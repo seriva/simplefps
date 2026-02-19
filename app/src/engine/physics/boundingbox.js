@@ -15,7 +15,6 @@ const _tempCorner = vec3.create();
 
 // Temps for isVisible
 const _p = vec3.create();
-const _n = vec3.create();
 
 // Corners for frame transformation
 const _transformIntoFrameCorners = [

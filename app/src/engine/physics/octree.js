@@ -56,28 +56,28 @@ class OctreeNode {
 
 		children.push(
 			new OctreeNode({
-				aabb: new BoundingBox({ min: vec3.fromValues(0, 0, 0) }),
+				aabb: new BoundingBox(vec3.fromValues(0, 0, 0)),
 			}),
 			new OctreeNode({
-				aabb: new BoundingBox({ min: vec3.fromValues(1, 0, 0) }),
+				aabb: new BoundingBox(vec3.fromValues(1, 0, 0)),
 			}),
 			new OctreeNode({
-				aabb: new BoundingBox({ min: vec3.fromValues(1, 1, 0) }),
+				aabb: new BoundingBox(vec3.fromValues(1, 1, 0)),
 			}),
 			new OctreeNode({
-				aabb: new BoundingBox({ min: vec3.fromValues(1, 1, 1) }),
+				aabb: new BoundingBox(vec3.fromValues(1, 1, 1)),
 			}),
 			new OctreeNode({
-				aabb: new BoundingBox({ min: vec3.fromValues(0, 1, 1) }),
+				aabb: new BoundingBox(vec3.fromValues(0, 1, 1)),
 			}),
 			new OctreeNode({
-				aabb: new BoundingBox({ min: vec3.fromValues(0, 0, 1) }),
+				aabb: new BoundingBox(vec3.fromValues(0, 0, 1)),
 			}),
 			new OctreeNode({
-				aabb: new BoundingBox({ min: vec3.fromValues(1, 0, 1) }),
+				aabb: new BoundingBox(vec3.fromValues(1, 0, 1)),
 			}),
 			new OctreeNode({
-				aabb: new BoundingBox({ min: vec3.fromValues(0, 1, 0) }),
+				aabb: new BoundingBox(vec3.fromValues(0, 1, 0)),
 			}),
 		);
 
