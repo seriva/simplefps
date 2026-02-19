@@ -133,8 +133,8 @@ const _geometryFragment = /* glsl */ `#version 300 es
             uniform sampler2D lightmapSampler;
             uniform sampler2D reflectionSampler;
             uniform sampler2D reflectionMaskSampler;
-            uniform sampler2D detailNoise;
-            uniform bool doDetailTexture;
+            uniform sampler2D proceduralNoise;
+            uniform bool doProceduralDetail;
             uniform vec3 uProbeColor;
 
             const int MESH = 1;
@@ -144,6 +144,9 @@ const _geometryFragment = /* glsl */ `#version 300 es
                 // Early alpha test using textureLod for better performance
                 vec4 color = textureLod(colorSampler, vUV, 0.0);
                 if(color.a < 0.5) discard;
+                
+                // Initialize normal from varying
+                vec3 N = normalize(vNormal);
                 
                 // Apply Probe Color (only for non-lightmapped objects)
                 if (flags.w == 0) {
@@ -160,18 +163,64 @@ const _geometryFragment = /* glsl */ `#version 300 es
 
                 // Combine type checks to reduce branching
                 if (flags.x != SKYBOX) {
-                    // Apply Detail Noise
-                    if (doDetailTexture && flags.w == 1) {
-                        float noise = texture(detailNoise, vUV * 4.0).r;
-                        // Modulate color (0.9 to 1.1 range based on noise)
-                        color.rgb *= (0.9 + 0.2 * noise);
+                     // Apply Detail Texture (Normal + Parallax)
+                    if (doProceduralDetail && flags.w == 1) {
+                        float dist = length(cameraPosition.xyz - vPosition.xyz);
+                        float detailFade = 1.0 - smoothstep(100.0, 500.0, dist);
+
+                        // Calculate TBN (Must be done in uniform control flow or close to it for better results)
+                        vec3 dp1 = dFdx(vPosition.xyz);
+                        vec3 dp2 = dFdy(vPosition.xyz);
+                        vec2 duv1 = dFdx(vUV);
+                        vec2 duv2 = dFdy(vUV);
+
+                        if (detailFade > 0.01) {
+                            vec3 dp2perp = cross(dp2, N);
+                            vec3 dp1perp = cross(N, dp1);
+                            vec3 T = dp2perp * duv1.x + dp1perp * duv2.x;
+                            vec3 B = dp2perp * duv1.y + dp1perp * duv2.y;
+                            float invmax = inversesqrt(max(dot(T,T), dot(B,B)));
+                            mat3 TBN = mat3(T * invmax, B * invmax, N);
+                            
+                            // Parallax Mapping
+                            vec3 viewDir = normalize(cameraPosition.xyz - vPosition.xyz);
+                            vec3 tangentViewDir = normalize(transpose(TBN) * viewDir);
+                            
+                            vec2 uv1 = vUV * 4.0;
+                            mat2 rot = mat2(0.829, -0.559, 0.559, 0.829); // ~34 deg
+                            vec2 uv2 = rot * (vUV * 7.37) + vec2(0.43, 0.81);
+                            
+                            float h1 = texture(proceduralNoise, uv1).a;
+                            vec2 parallaxOffset = tangentViewDir.xy * (h1 * 0.02 * detailFade);
+                            
+                            // Dual Layer Sampling
+                            vec4 s1 = texture(proceduralNoise, uv1 - parallaxOffset);
+                            vec4 s2 = texture(proceduralNoise, uv2 - parallaxOffset);
+                            
+                            // Blend Normals & Height
+                            vec3 detailNormal = normalize((s1.rgb * 2.0 - 1.0) + (s2.rgb * 2.0 - 1.0));
+                            float height = (s1.a + s2.a) * 0.5;
+                            vec3 surfaceNormal = normalize(TBN * detailNormal);
+                            
+                            // Modulation
+                            vec3 p = vPosition.xyz;
+                            float macroVar = sin(p.x * 0.13 + p.z * 0.07) + sin(p.z * 0.11 - p.x * 0.05) + sin(p.y * 0.1);
+                            float macroFactor = (macroVar / 3.0) * 0.5 + 0.5;
+                            
+                            // Occlusion
+                            float occlusion = clamp(dot(surfaceNormal, N), 0.5, 1.0) * mix(0.5, 1.0, height);
+                            float modFactor = detailFade * (0.3 + 0.7 * macroFactor);
+                            
+                            color.rgb *= mix(1.0, occlusion, modFactor);
+                            N = normalize(mix(N, surfaceNormal, 0.5 * detailFade));
+                        }
                     }
 
                 // Store lightmap flag in normal.w for post-processing
                     // 0.0 = use deferred lighting, 1.0 = has lightmap
                     float lightmapFlag = float(flags.w);
                     // Pack normal from [-1,1] to [0,1] for RGBA8 storage
-                    fragNormal = vec4(vNormal * 0.5 + 0.5, lightmapFlag);
+                    fragNormal = vec4(N * 0.5 + 0.5, lightmapFlag);
                     // Output world position directly (w=1.0 for RGBA format)
                     fragPosition = vec4(vPosition.xyz, 1.0);
                 } else {
@@ -187,7 +236,7 @@ const _geometryFragment = /* glsl */ `#version 300 es
                         // Calculate view direction from camera to fragment position in world space
                         vec3 viewDir = normalize(cameraPosition.xyz - vPosition.xyz);
                         // Calculate reflection vector
-                        vec3 r = reflect(-viewDir, vNormal);
+                        vec3 r = reflect(-viewDir, N);
                         // Convert reflection vector to equirectangular UV coordinates
                         // Using improved formula for better accuracy with epsilon for singularity
                         float m = 2.0 * sqrt(dot(r.xy, r.xy) + (r.z + 1.0) * (r.z + 1.0)) + 0.00001;

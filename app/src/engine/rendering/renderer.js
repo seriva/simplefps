@@ -50,7 +50,7 @@ const _ao = {
 	blurFramebuffer: null,
 };
 
-let _detailNoise = null;
+let _proceduralNoise = null;
 
 // SSAO sample kernel and noise data
 let _ssaoKernel = null;
@@ -192,8 +192,8 @@ const _resize = (width, height) => {
 		_generateSSAONoise();
 	}
 
-	if (!_detailNoise) {
-		_generateDetailNoise();
+	if (!_proceduralNoise) {
+		_generateProceduralNoise();
 	}
 };
 
@@ -310,18 +310,117 @@ const _generateSSAONoise = () => {
 	_ao.noise.setTextureWrapMode("repeat");
 };
 
-const _generateDetailNoise = () => {
-	const size = 256;
+const _generateProceduralNoise = () => {
+	const size = 128;
 	const data = new Uint8Array(size * size * 4);
+	const heightMap = new Float32Array(size * size);
+
+	// Periodic Gradient Noise (Perlin)
+	const perm = new Uint8Array(512);
+	const p = [
+		151, 160, 137, 91, 90, 15, 131, 13, 201, 95, 96, 53, 194, 233, 7, 225, 140,
+		36, 103, 30, 69, 142, 8, 99, 37, 240, 21, 10, 23, 190, 6, 148, 247, 120,
+		234, 75, 0, 26, 197, 62, 94, 252, 219, 203, 117, 35, 11, 32, 57, 177, 33,
+		88, 237, 149, 56, 87, 174, 20, 125, 136, 171, 168, 68, 175, 74, 165, 71,
+		134, 139, 48, 27, 166, 77, 146, 158, 231, 83, 111, 229, 122, 60, 211, 133,
+		230, 220, 105, 92, 41, 55, 46, 245, 40, 244, 102, 143, 54, 65, 25, 63, 161,
+		1, 216, 80, 73, 209, 76, 132, 187, 208, 89, 18, 169, 200, 196, 135, 130,
+		116, 188, 159, 86, 164, 100, 109, 198, 173, 186, 3, 64, 52, 217, 226, 250,
+		124, 123, 5, 202, 38, 147, 118, 126, 255, 82, 85, 212, 207, 206, 59, 227,
+		47, 16, 58, 17, 182, 189, 28, 42, 223, 183, 170, 213, 119, 248, 152, 2, 44,
+		154, 163, 70, 221, 153, 101, 155, 167, 43, 172, 9, 129, 22, 39, 253, 19, 98,
+		108, 110, 79, 113, 224, 232, 178, 185, 112, 104, 218, 246, 97, 228, 251, 34,
+		242, 193, 238, 210, 144, 12, 191, 179, 162, 241, 81, 51, 145, 235, 249, 14,
+		239, 107, 49, 192, 214, 31, 181, 199, 106, 157, 184, 84, 204, 176, 115, 121,
+		50, 45, 127, 4, 150, 254, 138, 236, 205, 93, 222, 114, 67, 29, 24, 72, 243,
+		141, 128, 195, 78, 66, 215, 61, 156, 180,
+	];
+	for (let i = 0; i < 256; i++) perm[i] = perm[256 + i] = p[i];
+
+	const grad = (hash, x, y) => {
+		const h = hash & 15;
+		const u = h < 8 ? x : y,
+			v = h < 4 ? y : h === 12 || h === 14 ? x : 0;
+		return ((h & 1) === 0 ? u : -u) + ((h & 2) === 0 ? v : -v);
+	};
+
+	const periodNoise = (x, y, period) => {
+		let X = Math.floor(x),
+			Y = Math.floor(y);
+		const fx = x - X,
+			fy = y - Y;
+		X = X % period;
+		Y = Y % period;
+		// Fade curves
+		const u = fx * fx * fx * (fx * (fx * 6 - 15) + 10);
+		const v = fy * fy * fy * (fy * (fy * 6 - 15) + 10);
+		// Hashing
+		const A = perm[X] + Y,
+			AA = perm[A % 255],
+			AB = perm[(A + 1) % 255];
+		const B = perm[(X + 1) % 255] + Y,
+			BA = perm[B % 255],
+			BB = perm[(B + 1) % 255];
+		// Lerp
+		const lerp = (t, a, b) => a + t * (b - a);
+		return lerp(
+			v,
+			lerp(u, grad(perm[AA], fx, fy), grad(perm[BA], fx - 1, fy)),
+			lerp(u, grad(perm[AB], fx, fy - 1), grad(perm[BB], fx - 1, fy - 1)),
+		);
+	};
+
+	// Simple hash for "Grit" (White Noise)
+	const hashFunc = (x, y) => {
+		const n = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453;
+		return n - Math.floor(n);
+	};
+
 	for (let i = 0; i < size * size; i++) {
-		const val = Math.floor(Math.random() * 255);
-		data[i * 4] = val; // R
-		data[i * 4 + 1] = val; // G
-		data[i * 4 + 2] = val; // B
-		data[i * 4 + 3] = 255; // A
+		const x = i % size,
+			y = Math.floor(i / size);
+		let h = 0,
+			amp = 0.5,
+			freq = 4.0;
+		for (let k = 0; k < 4; k++) {
+			h += periodNoise((x / size) * freq, (y / size) * freq, freq) * amp;
+			amp *= 0.5;
+			freq *= 2.0;
+		}
+		// Contrast & grit
+		h = (h * 0.5 + 0.5) ** 2.0 * (3.0 - 2.0 * (h * 0.5 + 0.5));
+		heightMap[i] = (h * 0.8 + hashFunc(x, y) * 0.2) ** 1.5;
 	}
 
-	_detailNoise = new Texture({
+	// 2. Compute Normal Map from Height Map
+	for (let i = 0; i < size * size; i++) {
+		const x = i % size;
+		const y = Math.floor(i / size);
+
+		// Sample neighbors (wrapping)
+		const l = heightMap[((x - 1 + size) % size) + y * size];
+		const r = heightMap[((x + 1) % size) + y * size];
+		const u = heightMap[x + ((y - 1 + size) % size) * size];
+		const d = heightMap[x + ((y + 1) % size) * size];
+
+		// Compute gradients (Sobel filter approximation)
+		const dx = (r - l) * 2.0; // strength factor
+		const dy = (d - u) * 2.0;
+
+		// Compute normal
+		const nz = 1.0;
+		const len = Math.sqrt(dx * dx + dy * dy + nz * nz);
+
+		// Pack Normal into RGB [0, 255]
+		data[i * 4] = ((dx / len) * 0.5 + 0.5) * 255; // R: Normal X
+		data[i * 4 + 1] = ((dy / len) * 0.5 + 0.5) * 255; // G: Normal Y
+		data[i * 4 + 2] = ((nz / len) * 0.5 + 0.5) * 255; // B: Normal Z
+
+		// Pack Height into Alpha [0, 255]
+		data[i * 4 + 3] = heightMap[i] * 255;
+	}
+
+	_proceduralNoise = new Texture({
 		format: "rgba8",
 		width: size,
 		height: size,
@@ -330,12 +429,12 @@ const _generateDetailNoise = () => {
 		ptype: "ubyte",
 	});
 
-	_detailNoise.setTextureWrapMode("repeat");
-	Backend.generateMipmaps(_detailNoise.getHandle());
+	_proceduralNoise.setTextureWrapMode("repeat");
+	Backend.generateMipmaps(_proceduralNoise.getHandle());
 
 	if (Settings.anisotropicFiltering > 1) {
 		Backend.setTextureAnisotropy(
-			_detailNoise.getHandle(),
+			_proceduralNoise.getHandle(),
 			Settings.anisotropicFiltering,
 		);
 	}
@@ -360,7 +459,7 @@ const _worldGeomPass = () => {
 	Backend.setDepthRange(0.1, 1.0);
 	_startGeomPass();
 
-	if (_detailNoise) _detailNoise.bind(5); // Bind noise to unit 5
+	if (_proceduralNoise) _proceduralNoise.bind(5); // Bind noise to unit 5
 	RenderPasses.renderWorldGeometry();
 
 	_endGeomPass();
@@ -372,7 +471,7 @@ const _fpsGeomPass = () => {
 	Backend.setDepthRange(0.0, 0.1);
 	Backend.bindFramebuffer(_g.framebuffer);
 
-	if (_detailNoise) _detailNoise.bind(5); // Bind noise to unit 5
+	if (_proceduralNoise) _proceduralNoise.bind(5); // Bind noise to unit 5
 	RenderPasses.renderFPSGeometry();
 
 	Backend.bindFramebuffer(null);
@@ -648,7 +747,7 @@ const _updateFrameData = (time) => {
 	// viewportSize (68-71)
 	_frameData[68] = Backend.getWidth();
 	_frameData[69] = Backend.getHeight();
-	_frameData[70] = Settings.detailTexture ? 1.0 : 0.0; // .z = doDetailTexture flag
+	_frameData[70] = Settings.proceduralDetail ? 1.0 : 0.0; // .z = doProceduralDetail flag
 
 	Backend.updateUBO(_frameDataUBO, _frameData);
 };

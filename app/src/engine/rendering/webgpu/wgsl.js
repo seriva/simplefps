@@ -9,7 +9,7 @@ struct FrameData {
     matView: mat4x4<f32>,
     matProjection: mat4x4<f32>,
     cameraPosition: vec4<f32>,  // .w = time
-    viewportSize: vec4<f32>,    // .zw = unused
+    viewportSize: vec4<f32>,    // .zw = doProceduralDetail, unused
 }
 `;
 
@@ -87,7 +87,7 @@ struct FragmentOutput {
 @group(2) @binding(1) var colorTexture: texture_2d<f32>;
 @group(2) @binding(2) var emissiveTexture: texture_2d<f32>;
 @group(2) @binding(3) var lightmapTexture: texture_2d<f32>;
-@group(2) @binding(4) var detailTexture: texture_2d<f32>;
+@group(2) @binding(4) var proceduralNoise: texture_2d<f32>;
 @group(2) @binding(5) var reflectionTexture: texture_2d<f32>;
 @group(2) @binding(6) var reflectionMaskTexture: texture_2d<f32>;
 
@@ -115,6 +115,8 @@ fn fs_main(input: GeomVertexOutput) -> FragmentOutput {
         discard;
     }
     
+    var N = normalize(input.normal);
+    
     // Apply Probe Color for dynamic objects (no lightmap)
     // Static objects (lightmapFlag == 1) ignore this as they use texture mixing below
     // Skybox (flag x == SKYBOX) should also ignore this
@@ -127,10 +129,58 @@ fn fs_main(input: GeomVertexOutput) -> FragmentOutput {
         color = color * textureSample(lightmapTexture, colorSampler, input.lightmapUV);
     }
 
-    // Apply Detail Noise
+    // Apply Detail Texture (Normal + Parallax)
     if (materialData.flags.x != SKYBOX && frameData.viewportSize.z > 0.5 && materialData.flags.w == 1) {
-         let noise = textureSample(detailTexture, colorSampler, input.uv * 4.0).r;
-         color = vec4<f32>(color.rgb * (0.9 + 0.2 * noise), color.a);
+         let dist = distance(frameData.cameraPosition.xyz, input.worldPosition.xyz);
+         let detailFade = 1.0 - smoothstep(100.0, 500.0, dist);
+         
+         // Calculate TBN (Must be done in uniform control flow)
+         let dp1 = dpdx(input.worldPosition.xyz);
+         let dp2 = dpdy(input.worldPosition.xyz);
+         let duv1 = dpdx(input.uv);
+         let duv2 = dpdy(input.uv);
+
+         if (detailFade > 0.01) {
+             let dp2perp = cross(dp2, N);
+             let dp1perp = cross(N, dp1);
+             let T = dp2perp * duv1.x + dp1perp * duv2.x;
+             let B = dp2perp * duv1.y + dp1perp * duv2.y;
+             let invmax = inverseSqrt(max(dot(T,T), dot(B,B)));
+             let TBN = mat3x3<f32>(T * invmax, B * invmax, N);
+             
+             // Parallax Mapping - Dual Layer
+             let viewDir = normalize(frameData.cameraPosition.xyz - input.worldPosition.xyz);
+             let tangentViewDir = normalize(transpose(TBN) * viewDir);
+             
+             let uv1 = input.uv * 4.0;
+             // Rotated second layer (~34 deg)
+             let rot = mat2x2<f32>(0.829, 0.559, -0.559, 0.829); 
+             let uv2 = (rot * (input.uv * 7.37)) + vec2<f32>(0.43, 0.81);
+             
+             let h1 = textureSampleLevel(proceduralNoise, colorSampler, uv1, 0.0).a;
+             let parallaxOffset = tangentViewDir.xy * (h1 * 0.02 * detailFade);
+             
+             // Sample both layers with offset
+             let s1 = textureSampleLevel(proceduralNoise, colorSampler, uv1 - parallaxOffset, 0.0);
+             let s2 = textureSampleLevel(proceduralNoise, colorSampler, uv2 - parallaxOffset, 0.0);
+             
+             // Blend Normals & Height
+             let detailNormal = normalize((s1.rgb * 2.0 - 1.0) + (s2.rgb * 2.0 - 1.0));
+             let height = (s1.a + s2.a) * 0.5;
+             let surfaceNormal = normalize(TBN * detailNormal);
+             
+             // Modulation: Sum of Sines
+             let p = input.worldPosition;
+             let macroVar = (sin(p.x * 0.13 + p.z * 0.07) + sin(p.z * 0.11 - p.x * 0.05) + sin(p.y * 0.1));
+             let macroFactor = (macroVar / 3.0) * 0.5 + 0.5;
+             
+             // Combine Occlusion (Slope + Height)
+             let occlusion = clamp(dot(surfaceNormal, N), 0.5, 1.0) * mix(0.5, 1.0, height);
+             let modFactor = detailFade * (0.3 + 0.7 * macroFactor);
+             
+             color = vec4<f32>(color.rgb * mix(1.0, occlusion, modFactor), color.a);
+             N = normalize(mix(N, surfaceNormal, 0.5 * detailFade));
+         }
     }
     
     // Initialize emissive
@@ -138,7 +188,7 @@ fn fs_main(input: GeomVertexOutput) -> FragmentOutput {
     
     if (materialData.flags.x != SKYBOX) {
         let lightmapFlag = f32(materialData.flags.w);
-        output.normal = vec4<f32>(input.normal * 0.5 + 0.5, lightmapFlag);
+        output.normal = vec4<f32>(N * 0.5 + 0.5, lightmapFlag);
         output.position = vec4<f32>(input.worldPosition.xyz, 1.0);
     } else {
         output.normal = vec4<f32>(0.5, 0.5, 0.5, 1.0);
@@ -152,7 +202,7 @@ fn fs_main(input: GeomVertexOutput) -> FragmentOutput {
          
          if (maskSum > 0.2) {
              let viewDir = normalize(frameData.cameraPosition.xyz - input.worldPosition.xyz);
-             let r = reflect(-viewDir, input.normal);
+             let r = reflect(-viewDir, N);
              let m = 2.0 * sqrt(dot(r.xy, r.xy) + (r.z + 1.0) * (r.z + 1.0)) + 0.00001;
              let reflUV = r.xy / m + 0.5;
              // Use textureSampleLevel to allow calling inside non-uniform control flow

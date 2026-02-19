@@ -597,27 +597,17 @@ function parseShaderFiles(shaderDir) {
 
 function updateResourceList(listPath, newResources) {
     let data = { resources: [] };
-    if (fs.existsSync(listPath)) {
-        try {
-            data = JSON.parse(fs.readFileSync(listPath, 'utf8'));
-        } catch (e) {
-            console.error(`Error reading ${listPath}, starting fresh.`);
-        }
-    }
 
-    const set = new Set(data.resources);
-    let added = 0;
-    for (const res of newResources) {
-        if (!set.has(res)) {
-            data.resources.push(res);
-            added++;
-        }
-    }
+    // We want to overwrite the list for this specific arena to ensure no phantom assets remain from previous runs.
+    // However, if we want to support multiple arenas sharing a single resources.list (which seems unlikely given the path is per-arena),
+    // overwriting is safer. 
+    // Wait, the path passed is `outputDir/resources.list`, which is specific to this arena (e.g., `arenas/demo2/resources.list`).
+    // So distinct arenas have distinct lists. Overwriting is definitely the correct behavior here.
 
-    if (added > 0) {
-        fs.writeFileSync(listPath, JSON.stringify(data, null, 4));
-    }
-    return added;
+    data.resources = [...new Set(newResources)];
+
+    fs.writeFileSync(listPath, JSON.stringify(data, null, 4));
+    return data.resources.length;
 }
 
 function exportMap(vertices, meshVerts, faces, textures, lightmaps, models, lightGridRaw, outputDir, arenaName, textureDir, shaderMap, entities, scale, lightmapScale) {
@@ -720,14 +710,33 @@ function exportMap(vertices, meshVerts, faces, textures, lightmaps, models, ligh
     const vertexLightmapIndex = new Array(vertices.length).fill(-1);
 
     // Mark vertices with their lightmap indices based on faces
+    let conflictCount = 0;
+
     for (const [materialKey, materialData] of facesByMaterial) {
         for (const face of materialData.faces) {
             // Use meshvert indices to get actual vertex indices
             for (let i = 0; i < face.n_meshverts; i++) {
                 const vertIdx = meshVerts[face.meshvert + i] + face.vertex;
+
+                if (vertIdx >= vertices.length) {
+                    console.error(`FATAL: Vertex index out of bounds! Face type ${face.type}, vertIdx ${vertIdx}, max ${vertices.length}`);
+                    continue;
+                }
+
+                if (vertexLightmapIndex[vertIdx] !== -1 && vertexLightmapIndex[vertIdx] !== face.lm_index) {
+                    conflictCount++;
+                    // console.warn(`Conflict at vertex ${vertIdx}: existing lm ${vertexLightmapIndex[vertIdx]} vs new ${face.lm_index}`);
+                }
+
+                // For now, let last writer win, but log it.
+                // NOTE: If this happens often, we MUST split vertices.
                 vertexLightmapIndex[vertIdx] = face.lm_index;
             }
         }
+    }
+
+    if (conflictCount > 0) {
+        console.warn(`WARNING: Found ${conflictCount} vertex lightmap conflicts! Geometry may be corrupted (texture/lightmap UVs).`);
     }
 
     // Build vertex arrays with atlas-adjusted lightmap UVs
@@ -822,6 +831,7 @@ function exportMap(vertices, meshVerts, faces, textures, lightmaps, models, ligh
         const fullPath = textures.find(t => path.basename(t) === group.material) || group.material;
         const name = group.material;
         let blendTexture = null;
+        let resolvedBaseTexture = null;
         let doEmissive = 0;
 
         // Check Shader Definition
@@ -829,32 +839,79 @@ function exportMap(vertices, meshVerts, faces, textures, lightmaps, models, ligh
             const shaderStages = shaderMap.get(fullPath.toLowerCase());
 
             if (shaderStages) {
+                // Try to resolve base albedo from shader if it wasn't found as a direct file
+                // or if we just want to be correct about what the shader specifies.
+                // For now, let's prioritize the shader's "map" directive if it exists.
+
+                let foundBase = false;
+
                 for (const stage of shaderStages) {
                     const lines = stage.split('\n').map(l => l.trim());
-                    const isAdditive = lines.some(l =>
-                        /^blendfunc\s+(add|gl_one\s+gl_one|gl_src_alpha\s+gl_one)/i.test(l)
-                    );
 
-                    if (isAdditive) {
-                        const mapLine = lines.find(l => /^map\s+/i.test(l));
-                        if (mapLine) {
-                            let mapPath = mapLine.split(/\s+/)[1];
-                            if (mapPath && mapPath !== '$lightmap' && textureDir) {
-                                const relativePath = mapPath.replace(/^textures\//, '');
+                    // Look for diffuse map OR clampmap
+                    const mapLine = lines.find(l => /^map\s+/i.test(l) || /^clampmap\s+/i.test(l));
+                    if (mapLine) {
+                        let mapPath = mapLine.split(/\s+/)[1];
+                        if (mapPath && mapPath !== '$lightmap' && textureDir) {
 
-                                const srcFile = path.join(textureDir, relativePath);
+                            // Check if this is an additive blend stage (emissive/glow)
+                            const isAdditive = lines.some(l =>
+                                /^blendfunc\s+(add|gl_one\s+gl_one|gl_src_alpha\s+gl_one)/i.test(l)
+                            );
 
-                                if (fs.existsSync(srcFile)) {
-                                    const blendBaseName = path.basename(mapPath, path.extname(mapPath));
-                                    const blendDestName = `${blendBaseName}.webp`;
-                                    const blendDestPath = path.join(texturesOutputDir, blendDestName);
+                            if (name.includes('grass_mine') || name.includes('fern_brt')) {
+                                console.log(`DEBUG: Checking shader ${name} stage. Map: '${mapPath}'. Additive: ${isAdditive}`);
+                            }
 
-                                    if (convertSingleTexture(srcFile, blendDestPath)) {
-                                        if (!blendTexture) { // Only take first blend texture for now
-                                            blendTexture = `${arenaName}/textures/${blendDestName}`;
-                                            doEmissive = 1;
-                                            console.log(`Found shader blend texture: ${srcFile} -> ${blendDestName}`);
+                            const relativePath = mapPath.replace(/^textures\//, '');
+
+                            // Try to find the file with various extensions in source dir
+                            const srcDir = path.dirname(path.join(textureDir, relativePath));
+                            const srcBase = path.basename(mapPath, path.extname(mapPath));
+                            const extensions = ['.tga', '.jpg', '.jpeg', '.png'];
+                            let srcFile = null;
+
+                            if (fs.existsSync(srcDir)) {
+                                for (const ext of extensions) {
+                                    const p = path.join(srcDir, srcBase + ext);
+                                    if (fs.existsSync(p)) {
+                                        srcFile = p;
+                                        if (name.includes('grass_mine') || name.includes('fern_brt')) {
+                                            console.log(`DEBUG: Found srcFile: ${srcFile}`);
                                         }
+                                        break;
+                                    }
+                                }
+                            }
+
+                            // If direct lookup by extension failed, try the exact path provided if it had an extension
+                            if (!srcFile) {
+                                const exactPath = path.join(textureDir, relativePath);
+                                if (fs.existsSync(exactPath)) srcFile = exactPath;
+                            }
+
+                            if (srcFile) {
+                                const baseName = path.basename(mapPath, path.extname(mapPath));
+                                const destName = `${baseName}.webp`;
+                                const destPath = path.join(texturesOutputDir, destName);
+
+                                const conversionResult = convertSingleTexture(srcFile, destPath);
+                                if (name.includes('grass_mine') || name.includes('fern_brt')) {
+                                    console.log(`DEBUG: Conversion result for ${name}: ${conversionResult}`);
+                                }
+
+                                if (conversionResult) {
+                                    // Resolve Albedo
+                                    if (!isAdditive && !resolvedBaseTexture) {
+                                        resolvedBaseTexture = `${arenaName}/textures/${destName}`;
+                                        console.log(`Resolved shader base texture: ${name} -> ${srcFile}`);
+                                    }
+
+                                    // Resolve Emissive/Blend
+                                    if (isAdditive && !blendTexture) {
+                                        blendTexture = `${arenaName}/textures/${destName}`;
+                                        doEmissive = 1;
+                                        console.log(`Found shader blend texture: ${srcFile} -> ${destName}`);
                                     }
                                 }
                             }
@@ -863,6 +920,11 @@ function exportMap(vertices, meshVerts, faces, textures, lightmaps, models, ligh
                 }
             }
         }
+
+
+
+
+
 
         // Fallback to filename matching if shader lookup failed
         if (textureDir && !blendTexture) {
@@ -892,22 +954,30 @@ function exportMap(vertices, meshVerts, faces, textures, lightmaps, models, ligh
             matDef.base = "lightmapped";
         }
 
-        matDef.textures = {
-            albedo: `${arenaName}/textures/${name}.webp`
-        };
+        // Use resolved base texture if found, otherwise default to name
+        if (resolvedBaseTexture) {
+            matDef.textures = {
+                albedo: resolvedBaseTexture
+            };
+        } else if (blendTexture) {
+            // Fallback: if we found a blend texture but no base (e.g. additive-only shader),
+            // use the blend texture as albedo to avoid 404s and show something.
+            matDef.textures = {
+                albedo: blendTexture
+            };
+        } else {
+            matDef.textures = {
+                albedo: `${arenaName}/textures/${name}.webp`
+            };
+        }
 
         if (blendTexture) {
             matDef.textures.emissive = blendTexture;
-            // doEmissive flag is not strictly needed in new system if texture is present, 
-            // but we can keep it if the engine uses it for optimization. 
-            // (Based on materials.mat example, 'doEmissive' is NOT present, just the texture key)
         }
 
         // Check for glass/transparency
-        if (name.toLowerCase().includes('glass')) {
+        if (name.toLowerCase().includes('glass') || name.toLowerCase().includes('trans')) {
             matDef.translucent = true;
-            // Optional: set default opacity if needed
-            // matDef.opacity = 0.5;
         }
 
         return matDef;

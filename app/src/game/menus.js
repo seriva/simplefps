@@ -180,10 +180,10 @@ const _settingsMenu = {
 				},
 				{
 					type: "checkbox",
-					text: Translations.get("DETAIL_TEXTURE"),
-					value: () => Settings.detailTexture,
+					text: Translations.get("PROCEDURAL_DETAIL"),
+					value: () => Settings.proceduralDetail,
 					set: (v) => {
-						Settings.detailTexture = v;
+						Settings.proceduralDetail = v;
 						Settings.save();
 					},
 				},
