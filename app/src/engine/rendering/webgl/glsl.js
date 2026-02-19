@@ -369,31 +369,6 @@ export const ShaderSources = {
             }`,
 		fragment: _shadowFragment,
 	},
-	applyShadows: {
-		vertex: /* glsl */ `#version 300 es
-            precision highp float;
-
-            layout(location=0) in vec3 aPosition;
-
-            void main()
-            {
-                gl_Position = vec4(aPosition, 1.0);
-            }`,
-		fragment: /* glsl */ `#version 300 es
-            precision highp float;
-
-            layout(location=0) out vec4 fragColor;
-
-            ${_frameDataUBO}
-
-            uniform sampler2D shadowBuffer;
-
-            void main()
-            {
-                vec2 uv = vec2(gl_FragCoord.xy / viewportSize.xy);
-                fragColor = texture(shadowBuffer, uv);
-            }`,
-	},
 	directionalLight: {
 		vertex: /* glsl */ `#version 300 es
             precision highp float;
@@ -422,23 +397,15 @@ export const ShaderSources = {
                 vec4 normalData = texelFetch(normalBuffer, fragCoord, 0);
                 // Unpack normal from [0,1] to [-1,1]
                 vec3 normal = normalData.xyz * 2.0 - 1.0;
-                float lightmapFlag = normalData.w;
-                float isSkybox = normalData.w;
+                float hasLightmap = normalData.w;
 
-                // Skip lightmapped surfaces (lightmapFlag > 0.5)
-                // Directional lights should only affect dynamic objects
-                if (lightmapFlag > 0.5) {
+                // Skip lightmapped surfaces — directional lights only affect dynamic objects
+                if (hasLightmap > 0.5) {
                     fragColor = vec4(0.0, 0.0, 0.0, 1.0);
                     return;
                 }
 
-                // Calculate light intensity only if not a skybox and not lightmapped
-                vec3 lightIntensity = mix(
-                    directionalLight.color * max(dot(normalize(normal), normalize(directionalLight.direction)), 0.0),
-                    vec3(0.0),
-                    isSkybox
-                );
-
+                vec3 lightIntensity = directionalLight.color * max(dot(normalize(normal), normalize(directionalLight.direction)), 0.0);
                 fragColor = vec4(lightIntensity, 1.0);
             }`,
 	},
@@ -712,15 +679,6 @@ export const ShaderSources = {
 
             #define FXAA_EDGE_THRESHOLD_MIN 0.0312
             #define FXAA_EDGE_THRESHOLD_MAX 0.125
-            #define FXAA_ITERATIONS 12
-            #define FXAA_SUBPIX_QUALITY 0.75
-            #define FXAA_SUBPIX_TRIM 0.5
-
-            float applySoftLight(float base, float blend) {
-                return (blend < 0.5)
-                    ? (2.0 * base * blend + base * base * (1.0 - 2.0 * blend))
-                    : (sqrt(base) * (2.0 * blend - 1.0) + 2.0 * base * (1.0 - blend));
-            }
 
             // Simplified FXAA - 5 texture samples instead of 9+
             vec4 applyFXAA(vec2 fragCoord) {
@@ -793,20 +751,10 @@ export const ShaderSources = {
                 // 1.0 = has lightmap (additive lighting), 0.0 = dynamic object (multiplicative lighting)
                 float hasLightmap = normal.w;
 
-                // Hybrid blending:
-                // - Lightmapped surfaces: color already has (albedo * lightmap), add dynamic lights
-                // - Dynamic objects: color has albedo only, multiply by total lighting
-                if (hasLightmap > 0.5) {
-                    // Lightmapped surface: add dynamic lights on top of baked lighting
-                    vec3 dynamicLight = max(light.rgb - uAmbient, vec3(0.0));
-                    fragColor = vec4(color.rgb + dynamicLight, color.a);
-                } else {
-                    // Non-lightmapped object (FPS mesh):
-                    // Use additive lighting model here too to preserve "fullbright" look for weapons
-                    // This matches the behavior before refactoring where they were incorrectly treated as lightmapped
-                    vec3 dynamicLight = max(light.rgb - uAmbient, vec3(0.0));
-                    fragColor = vec4(color.rgb + dynamicLight, color.a);
-                }
+                // Additive dynamic lighting on top of base color
+                // Both lightmapped and dynamic objects use the same model
+                vec3 dynamicLight = max(light.rgb - uAmbient, vec3(0.0));
+                fragColor = vec4(color.rgb + dynamicLight, color.a);
 
                 // Apply shadows - multiply by shadow buffer
                 // Skip shadows for sky (position.w == 0 or very far distance)
@@ -1007,9 +955,9 @@ export const ShaderSources = {
                 vec3 normal = normalData.xyz * 2.0 - 1.0;
                 float hasLightmap = normalData.w;
                 
-                // Only skip skybox - apply SSAO to all geometry including dynamic objects
+                // Skip skybox and dynamic objects (no lightmap) — early out before the sample loop
                 bool isSkybox = length(normal) < 0.1;
-                if (isSkybox) {
+                if (isSkybox || hasLightmap < 0.5) {
                     fragColor = vec4(1.0);
                     return;
                 }
@@ -1070,11 +1018,6 @@ export const ShaderSources = {
                 
                 // Divide by actual valid samples to avoid flickering when many samples are rejected
                 occlusion = 1.0 - (occlusion / max(validSamples, 1.0));
-                
-                // Skip SSAO for dynamic objects entirely - they get 1.0 (no darkening)
-                if (hasLightmap < 0.5) {
-                    occlusion = 1.0;
-                }
                 
                 fragColor = vec4(occlusion, occlusion, occlusion, 1.0);
             }`,

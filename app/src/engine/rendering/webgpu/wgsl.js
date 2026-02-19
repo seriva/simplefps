@@ -51,6 +51,59 @@ struct DebugVertexOutput {
     @builtin(position) clipPosition: vec4<f32>,
 }`;
 
+// Point light falloff calculation - shared between deferred and forward paths
+const PointLightCalcFn = /* wgsl */ `
+fn calcPointLight(lightPos: vec3<f32>, lightSize: f32, fragPos: vec3<f32>, normal: vec3<f32>) -> vec2<f32> {
+    let lightDir = lightPos - fragPos;
+    let distSq = dot(lightDir, lightDir);
+    let sizeSq = lightSize * lightSize;
+    if (distSq > sizeSq) { return vec2<f32>(0.0); }
+    
+    let normalizedDist = sqrt(distSq) / lightSize;
+    var falloff = 1.0 - smoothstep(0.0, 1.0, normalizedDist);
+    falloff = falloff * falloff;
+    
+    let L = normalize(lightDir);
+    let nDotL = max(0.0, dot(normal, L));
+    
+    return vec2<f32>(falloff * falloff, nDotL);
+}`;
+
+// Spot light attenuation calculation - shared between deferred and forward paths
+const SpotLightCalcFn = /* wgsl */ `
+fn calcSpotLight(lightPos: vec3<f32>, lightDir: vec3<f32>, cutoff: f32, range: f32, fragPos: vec3<f32>, normal: vec3<f32>) -> vec3<f32> {
+    let toLight = lightPos - fragPos;
+    let dist = length(toLight);
+    if (dist > range) { return vec3<f32>(0.0); }
+    
+    let toLightNorm = normalize(toLight);
+    let spotEffect = dot(toLightNorm, -normalize(lightDir));
+    if (spotEffect < cutoff) { return vec3<f32>(0.0); }
+    
+    var spotFalloff = (spotEffect - cutoff) / (1.0 - cutoff);
+    spotFalloff = smoothstep(0.0, 1.0, spotFalloff);
+    
+    let attenuation = 1.0 - pow(dist / range, 1.5);
+    let nDotL = max(0.0, dot(normal, toLightNorm));
+    
+    return vec3<f32>(attenuation, spotFalloff, nDotL);
+}`;
+
+// Sphere-map reflection calculation - shared between geometry/skinned/transparent
+const ReflectionCalcFn = /* wgsl */ `
+fn applyReflection(baseColor: vec4<f32>, uv: vec2<f32>, worldPos: vec3<f32>, N: vec3<f32>) -> vec4<f32> {
+    let reflMask = textureSampleLevel(reflectionMaskTexture, colorSampler, uv, 0.0);
+    let maskSum = dot(reflMask.rgb, vec3<f32>(0.333333));
+    if (maskSum <= 0.2) { return baseColor; }
+    
+    let viewDir = normalize(frameData.cameraPosition.xyz - worldPos);
+    let r = reflect(-viewDir, N);
+    let m = 2.0 * sqrt(dot(r.xy, r.xy) + (r.z + 1.0) * (r.z + 1.0)) + 0.00001;
+    let reflUV = r.xy / m + 0.5;
+    let reflColor = textureSampleLevel(reflectionTexture, colorSampler, reflUV, 0.0);
+    return mix(baseColor, reflColor * reflMask, materialData.params.x * maskSum);
+}`;
+
 // Geometry shader - outputs to G-buffer
 const geometryShader = /* wgsl */ `
 ${FrameDataStruct}
@@ -104,6 +157,8 @@ fn vs_main(input: GeomVertexInput) -> GeomVertexOutput {
     output.clipPosition = frameData.matViewProj * output.worldPosition;
     return output;
 }
+
+${ReflectionCalcFn}
 
 @fragment
 fn fs_main(input: GeomVertexOutput) -> FragmentOutput {
@@ -197,20 +252,7 @@ fn fs_main(input: GeomVertexOutput) -> FragmentOutput {
     
     // Apply reflection if enabled (flags.z == 1)
     if (materialData.flags.z == 1) {
-         let reflMask = textureSample(reflectionMaskTexture, colorSampler, input.uv);
-         let maskSum = dot(reflMask.rgb, vec3<f32>(0.333333));
-         
-         if (maskSum > 0.2) {
-             let viewDir = normalize(frameData.cameraPosition.xyz - input.worldPosition.xyz);
-             let r = reflect(-viewDir, N);
-             let m = 2.0 * sqrt(dot(r.xy, r.xy) + (r.z + 1.0) * (r.z + 1.0)) + 0.00001;
-             let reflUV = r.xy / m + 0.5;
-             // Use textureSampleLevel to allow calling inside non-uniform control flow
-             let reflColor = textureSampleLevel(reflectionTexture, colorSampler, reflUV, 0.0);
-             
-             // Blend reflection
-             color = mix(color, reflColor * reflMask, materialData.params.x * maskSum);
-         }
+         color = applyReflection(color, input.uv, input.worldPosition.xyz, N);
     }
 
     // Sample emissive if enabled
@@ -267,6 +309,7 @@ const MESH: i32 = 1;
 const SKYBOX: i32 = 2;
 
 ${SkinningCalcFn}
+${ReflectionCalcFn}
 
 @vertex
 fn vs_main(input: SkinnedVertexInput) -> GeomVertexOutput {
@@ -313,17 +356,7 @@ fn fs_main(input: GeomVertexOutput) -> FragmentOutput {
     
     // Apply reflection if enabled (flags.z == 1)
     if (materialData.flags.z == 1) {
-         let reflMask = textureSample(reflectionMaskTexture, colorSampler, input.uv);
-         let maskSum = dot(reflMask.rgb, vec3<f32>(0.333333));
-         
-         if (maskSum > 0.2) {
-             let viewDir = normalize(frameData.cameraPosition.xyz - input.worldPosition.xyz);
-             let r = reflect(-viewDir, input.normal);
-             let m = 2.0 * sqrt(dot(r.xy, r.xy) + (r.z + 1.0) * (r.z + 1.0)) + 0.00001;
-             let reflUV = r.xy / m + 0.5;
-             let reflColor = textureSampleLevel(reflectionTexture, colorSampler, reflUV, 0.0);
-             color = mix(color, reflColor * reflMask, materialData.params.x * maskSum);
-         }
+         color = applyReflection(color, input.uv, input.worldPosition.xyz, input.normal);
     }
 
     // Sample emissive if enabled
@@ -411,36 +444,6 @@ fn fs_main() -> @location(0) vec4<f32> {
 }
 `;
 
-// Apply shadows shader (fullscreen)
-const applyShadowsShader = /* wgsl */ `
-${FrameDataStruct}
-
-struct FSQuadOutput {
-    @builtin(position) position: vec4<f32>,
-    @location(0) uv: vec2<f32>,
-}
-
-@group(0) @binding(0) var<uniform> frameData: FrameData;
-@group(1) @binding(0) var shadowSampler: sampler;
-@group(1) @binding(1) var shadowBuffer: texture_2d<f32>;
-
-@vertex
-fn vs_main(@builtin(vertex_index) vertexIndex: u32) -> FSQuadOutput {
-    var output: FSQuadOutput;
-    let x = f32((vertexIndex << 1) & 2);
-    let y = f32(vertexIndex & 2);
-    output.position = vec4<f32>(x * 2.0 - 1.0, y * 2.0 - 1.0, 0.0, 1.0);
-    output.uv = vec2<f32>(x, 1.0 - y);
-    return output;
-}
-
-@fragment
-fn fs_main(input: FSQuadOutput) -> @location(0) vec4<f32> {
-    let uv = input.position.xy / frameData.viewportSize.xy;
-    return textureSample(shadowBuffer, shadowSampler, uv);
-}
-`;
-
 // Directional light shader
 const directionalLightShader = /* wgsl */ `
 ${FrameDataStruct}
@@ -513,21 +516,7 @@ struct PointLightVertexOutput {
 @group(1) @binding(3) var positionBuffer: texture_2d<f32>;
 @group(1) @binding(4) var normalBuffer: texture_2d<f32>;
 
-fn calcPointLight(lightPos: vec3<f32>, lightSize: f32, fragPos: vec3<f32>, normal: vec3<f32>) -> vec2<f32> {
-    let lightDir = lightPos - fragPos;
-    let distSq = dot(lightDir, lightDir);
-    let sizeSq = lightSize * lightSize;
-    if (distSq > sizeSq) { return vec2<f32>(0.0); }
-    
-    let normalizedDist = sqrt(distSq) / lightSize;
-    var falloff = 1.0 - smoothstep(0.0, 1.0, normalizedDist);
-    falloff = falloff * falloff;
-    
-    let L = normalize(lightDir);
-    let nDotL = max(0.0, dot(normal, L));
-    
-    return vec2<f32>(falloff * falloff, nDotL);
-}
+${PointLightCalcFn}
 
 @vertex
 fn vs_main(input: PointLightVertexInput) -> PointLightVertexOutput {
@@ -578,23 +567,7 @@ struct SpotLightVertexOutput {
 @group(1) @binding(3) var positionBuffer: texture_2d<f32>;
 @group(1) @binding(4) var normalBuffer: texture_2d<f32>;
 
-fn calcSpotLight(lightPos: vec3<f32>, lightDir: vec3<f32>, cutoff: f32, range: f32, fragPos: vec3<f32>, normal: vec3<f32>) -> vec3<f32> {
-    let toLight = lightPos - fragPos;
-    let dist = length(toLight);
-    if (dist > range) { return vec3<f32>(0.0); }
-    
-    let toLightNorm = normalize(toLight);
-    let spotEffect = dot(toLightNorm, -normalize(lightDir));
-    if (spotEffect < cutoff) { return vec3<f32>(0.0); }
-    
-    var spotFalloff = (spotEffect - cutoff) / (1.0 - cutoff);
-    spotFalloff = smoothstep(0.0, 1.0, spotFalloff);
-    
-    let attenuation = 1.0 - pow(dist / range, 1.5);
-    let nDotL = max(0.0, dot(normal, toLightNorm));
-    
-    return vec3<f32>(attenuation, spotFalloff, nDotL);
-}
+${SpotLightCalcFn}
 
 @vertex
 fn vs_main(input: SpotLightVertexInput) -> SpotLightVertexOutput {
@@ -1004,49 +977,8 @@ fn vs_main(input: TransparentVertexInput) -> TransparentVertexOutput {
     return output;
 }
 
-fn calcPointLight(pos: vec3<f32>, size: f32, fragPos: vec3<f32>, normal: vec3<f32>) -> vec2<f32> {
-    let lightDir = pos - fragPos;
-    let distSq = dot(lightDir, lightDir);
-    let sizeSq = size * size;
-    
-    if (distSq > sizeSq) {
-        return vec2<f32>(0.0);
-    }
-    
-    let normalizedDist = sqrt(distSq) / size;
-    var falloff = 1.0 - smoothstep(0.0, 1.0, normalizedDist);
-    falloff = falloff * falloff;
-    
-    let L = normalize(lightDir);
-    let NdotL = max(dot(normal, L), 0.0);
-    
-    return vec2<f32>(falloff * falloff, NdotL);
-}
-
-fn calcSpotLight(pos: vec3<f32>, dir: vec3<f32>, cutoff: f32, range: f32, fragPos: vec3<f32>, normal: vec3<f32>) -> vec3<f32> {
-    let toLight = pos - fragPos;
-    let dist = length(toLight);
-    
-    if (dist > range) {
-        return vec3<f32>(0.0);
-    }
-    
-    let lightDir = normalize(toLight);
-    
-    let spotEffect = dot(lightDir, -normalize(dir));
-    if (spotEffect < cutoff) {
-        return vec3<f32>(0.0);
-    }
-    
-    var spotFalloff = (spotEffect - cutoff) / (1.0 - cutoff);
-    spotFalloff = smoothstep(0.0, 1.0, spotFalloff);
-    
-    let attenuation = 1.0 - pow(dist / range, 1.5);
-    
-    let NdotL = max(dot(normal, lightDir), 0.0);
-    
-    return vec3<f32>(attenuation, spotFalloff, NdotL);
-}
+${PointLightCalcFn}
+${SpotLightCalcFn}
 
 @fragment
 fn fs_main(input: TransparentVertexOutput) -> @location(0) vec4<f32> {
@@ -1060,7 +992,7 @@ fn fs_main(input: TransparentVertexOutput) -> @location(0) vec4<f32> {
     let fragPos = input.worldPosition.xyz;
     
     // Reflections (Environment Mapping)
-    if (materialData.flags.z == 1) { // doReflection
+    if (materialData.flags.z == 1) {
         let reflMask = textureSample(reflectionMaskTexture, colorSampler, input.uv);
         let maskSum = dot(reflMask.rgb, vec3<f32>(0.333333));
         
@@ -1069,10 +1001,7 @@ fn fs_main(input: TransparentVertexOutput) -> @location(0) vec4<f32> {
             let r = reflect(-viewDir, normal);
             let m = 2.0 * sqrt(dot(r.xy, r.xy) + (r.z + 1.0) * (r.z + 1.0)) + 0.00001;
             let reflUV = r.xy / m + 0.5;
-            
-            // Use textureSampleLevel for non-uniform control flow
             let reflColor = textureSampleLevel(reflectionTexture, colorSampler, reflUV, 0.0);
-            
             baseColor = mix(baseColor, reflColor * reflMask, materialData.params.x * maskSum);
         }
     }
@@ -1174,8 +1103,11 @@ fn fs_main(input: SSAOOutput) -> @location(0) vec4<f32> {
     var randomVec = textureSample(noiseTexture, bufferSampler, uv * params.noiseScale).xyz;
     randomVec = randomVec * 2.0 - 1.0;
     
-    // Only skip skybox - apply SSAO to all geometry including dynamic objects
+    // Skip skybox and dynamic objects (no lightmap) — early out
     let isSkybox = length(normal) < 0.1;
+    if (isSkybox || hasLightmap < 0.5) {
+        return vec4<f32>(1.0, 1.0, 1.0, 1.0);
+    }
     
     let currentLinearDepth = length(fragPos - frameData.cameraPosition.xyz);
     
@@ -1235,14 +1167,7 @@ fn fs_main(input: SSAOOutput) -> @location(0) vec4<f32> {
     // Use max to avoid division by zero
     occlusion = 1.0 - (occlusion / max(validSamples, 1.0));
     
-    // Skip SSAO for dynamic objects entirely - they get 1.0 (no darkening)
-    if (hasLightmap < 0.5) {
-        occlusion = 1.0;
-    }
-    
-    // Return 1.0 (no AO) for skybox only
-    let result = select(occlusion, 1.0, isSkybox);
-    return vec4<f32>(result, result, result, 1.0);
+    return vec4<f32>(occlusion, occlusion, occlusion, 1.0);
 }
 `;
 
@@ -1370,16 +1295,6 @@ export const WgslShaderSources = {
 			group1: [
 				{ binding: 0, type: "uniform", name: "skinnedShadowParams" },
 				{ binding: 2, type: "uniform", name: "boneMatrices" },
-			],
-		},
-	},
-	applyShadows: {
-		label: "applyShadows",
-		code: applyShadowsShader,
-		bindings: {
-			group1: [
-				{ binding: 0, type: "sampler", unit: 2 },
-				{ binding: 1, type: "texture", unit: 2 },
 			],
 		},
 	},
