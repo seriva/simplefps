@@ -3,6 +3,7 @@ import BoundingBox from "./boundingbox.js";
 
 const _halfDiagonal = vec3.create();
 const _tmpAABB = new BoundingBox();
+const _queryQueue = [];
 
 class OctreeNode {
 	constructor(options = {}) {
@@ -99,16 +100,16 @@ class OctreeNode {
 	}
 
 	aabbQuery(aabb, result) {
-		const queue = [this];
-		while (queue.length) {
-			const node = queue.pop();
+		_queryQueue.push(this);
+		while (_queryQueue.length) {
+			const node = _queryQueue.pop();
 			if (node.aabb.overlaps(aabb)) {
 				for (const d of node.data) {
 					result.push(d);
 				}
 			}
 			for (const c of node.children) {
-				queue.push(c);
+				_queryQueue.push(c);
 			}
 		}
 		return result;
