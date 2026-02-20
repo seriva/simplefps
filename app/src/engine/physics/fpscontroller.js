@@ -7,6 +7,9 @@ const _rightVector = vec3.create();
 const _wishDir = vec3.create();
 const _noclipDir = vec3.create();
 
+const _tmpPos1 = { x: 0, z: 0 };
+const _tmpPos2 = { x: 0, z: 0 };
+
 // 8 cardinal + diagonal directions (normalized, reused for ground checks and depenetration)
 const _radialDirs = [
 	{ x: 1, z: 0 },
@@ -213,7 +216,9 @@ class FPSController {
 		const horizontalDist = horizontalSpeed * dt;
 
 		if (horizontalDist <= 0.001 || horizontalSpeed <= 1) {
-			return { x: finalX, z: finalZ };
+			_tmpPos1.x = finalX;
+			_tmpPos1.z = finalZ;
+			return _tmpPos1;
 		}
 
 		const dirX = dx / horizontalDist;
@@ -264,7 +269,9 @@ class FPSController {
 			}
 		}
 
-		return { x: finalX, z: finalZ };
+		_tmpPos1.x = finalX;
+		_tmpPos1.z = finalZ;
+		return _tmpPos1;
 	}
 
 	_resolveDepenetration(x, z, y) {
@@ -292,7 +299,9 @@ class FPSController {
 			}
 		}
 
-		return { x, z };
+		_tmpPos2.x = x;
+		_tmpPos2.z = z;
+		return _tmpPos2;
 	}
 
 	_resolveGroundCollision(finalX, finalZ, startY, dy) {
