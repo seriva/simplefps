@@ -8,9 +8,9 @@ class Animation {
 	async _initialize(data) {
 		let parsedData = data;
 
-		// Handle Blob input (binary animation)
-		if (data instanceof Blob) {
-			parsedData = await this._parseBlob(data);
+		// Handle Blob or ArrayBuffer input (binary animation)
+		if (data instanceof Blob || data instanceof ArrayBuffer) {
+			parsedData = await this._parseBinary(data);
 		}
 
 		this.name = parsedData.name || "unnamed";
@@ -44,8 +44,8 @@ class Animation {
 		this._frameInfo = { frame0: 0, frame1: 0, alpha: 0 };
 	}
 
-	async _parseBlob(blob) {
-		const buffer = await blob.arrayBuffer();
+	async _parseBinary(data) {
+		const buffer = data instanceof Blob ? await data.arrayBuffer() : data;
 		const view = new DataView(buffer);
 		let offset = 0;
 

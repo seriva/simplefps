@@ -45,7 +45,7 @@ const _RESOURCE_TYPES = {
 	mat: (data, context) => Material.loadLibrary(JSON.parse(data), context),
 	sfx: (data) => new Sound(JSON.parse(data)),
 	list: (data, _context) => Resources.load(JSON.parse(data).resources),
-	bin: (data) => data.arrayBuffer(),
+	bin: (data) => data,
 };
 
 // ============================================================================
@@ -141,9 +141,13 @@ const Resources = {
 			throw new Error(`HTTP error! status: ${response.status} for ${path}`);
 		}
 
-		return /\.(webp|bmesh|sbmesh|banim|bin)$/.test(path)
-			? await response.blob()
-			: await response.text();
+		if (/\.(webp)$/.test(path)) {
+			return await response.blob();
+		} else if (/\.(bmesh|sbmesh|banim|bin)$/.test(path)) {
+			return await response.arrayBuffer();
+		} else {
+			return await response.text();
+		}
 	},
 };
 
