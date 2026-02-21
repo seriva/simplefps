@@ -17,7 +17,7 @@ class Mesh {
 		this.vao = null;
 		this._buffers = [];
 
-		this.ready = this.initialize(data);
+		this.ready = Promise.resolve().then(() => this.initialize(data));
 	}
 
 	#bindMaterial(indexObj, applyMaterial, shader) {
@@ -27,8 +27,8 @@ class Mesh {
 	}
 
 	async initialize(data) {
-		if (data instanceof Blob) {
-			await this.loadFromBlob(data);
+		if (data instanceof Blob || data instanceof ArrayBuffer) {
+			await this.loadFromBinary(data);
 		} else {
 			this.loadFromJson(data);
 		}
@@ -297,8 +297,8 @@ class Mesh {
 		this.unBind();
 	}
 
-	async loadFromBlob(blob) {
-		const arrayBuffer = await blob.arrayBuffer();
+	async loadFromBinary(data) {
+		const arrayBuffer = data instanceof Blob ? await data.arrayBuffer() : data;
 		const reader = new BinaryReader(arrayBuffer);
 
 		const version = reader.readUint32();
