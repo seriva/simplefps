@@ -5,10 +5,50 @@ const _halfDiagonal = vec3.create();
 const _tmpAABB = new BoundingBox();
 const _queryQueue = [];
 
-// Temporaries for Ray-AABB intersection (Slab method)
-const _rayOrig = vec3.create();
-const _rayDir = vec3.create();
-const _invDir = vec3.create();
+// Module-scoped Ray-AABB intersection (Slab method)
+// Avoids prototype chain lookups in hot loops
+const _intersectRayAABB = (aabb, origin, invDir, maxDist) => {
+	const min = aabb.min;
+	const max = aabb.max;
+
+	let tmin, tmax, tymin, tymax, tzmin, tzmax;
+
+	if (invDir[0] >= 0) {
+		tmin = (min[0] - origin[0]) * invDir[0];
+		tmax = (max[0] - origin[0]) * invDir[0];
+	} else {
+		tmin = (max[0] - origin[0]) * invDir[0];
+		tmax = (min[0] - origin[0]) * invDir[0];
+	}
+
+	if (invDir[1] >= 0) {
+		tymin = (min[1] - origin[1]) * invDir[1];
+		tymax = (max[1] - origin[1]) * invDir[1];
+	} else {
+		tymin = (max[1] - origin[1]) * invDir[1];
+		tymax = (min[1] - origin[1]) * invDir[1];
+	}
+
+	if (tmin > tymax || tymin > tmax) return false;
+
+	if (tymin > tmin) tmin = tymin;
+	if (tymax < tmax) tmax = tymax;
+
+	if (invDir[2] >= 0) {
+		tzmin = (min[2] - origin[2]) * invDir[2];
+		tzmax = (max[2] - origin[2]) * invDir[2];
+	} else {
+		tzmin = (max[2] - origin[2]) * invDir[2];
+		tzmax = (min[2] - origin[2]) * invDir[2];
+	}
+
+	if (tmin > tzmax || tzmin > tmax) return false;
+
+	if (tzmin > tmin) tmin = tzmin;
+	if (tzmax < tmax) tmax = tzmax;
+
+	return tmax >= 0 && tmin <= maxDist;
+};
 
 class OctreeNode {
 	constructor(options = {}) {
@@ -121,25 +161,33 @@ class OctreeNode {
 	}
 
 	rayQuery(ray, treeTransform, result) {
-		// Transform ray origin and direction to local space of the octree
-		treeTransform.pointToLocal(ray.from, _rayOrig);
-		treeTransform.vectorToLocal(ray.direction, _rayDir);
+		treeTransform.pointToLocal(ray.from, _tmpAABB.min);
+		treeTransform.vectorToLocal(ray.direction, _tmpAABB.max);
 
-		// Calc inverse direction for fast AABB intersection
-		_invDir[0] = 1.0 / _rayDir[0];
-		_invDir[1] = 1.0 / _rayDir[1];
-		_invDir[2] = 1.0 / _rayDir[2];
+		return this.rayQueryLocal(
+			_tmpAABB.min,
+			_tmpAABB.max,
+			vec3.distance(ray.from, ray.to),
+			result,
+		);
+	}
 
-		// Optionally, we could pre-calculate the max ray length if ray.to is reliable,
-		// but standard hitscan rays often rely on infinite length intersection testing
-		// bounded by the octree's own bounds.
-		const maxDist = vec3.distance(ray.from, ray.to);
+	rayQueryLocal(origin, direction, maxDist, result) {
+		const invDirX = 1.0 / direction[0];
+		const invDirY = 1.0 / direction[1];
+		const invDirZ = 1.0 / direction[2];
+
+		// Reuse _tmpAABB.min as invDir storage (caller already consumed it)
+		const invDir = _tmpAABB.max; // Repurpose temporarily
+		invDir[0] = invDirX;
+		invDir[1] = invDirY;
+		invDir[2] = invDirZ;
 
 		_queryQueue.push(this);
 		while (_queryQueue.length) {
 			const node = _queryQueue.pop();
 
-			if (node._intersectRayAABB(node.aabb, _rayOrig, _invDir, maxDist)) {
+			if (_intersectRayAABB(node.aabb, origin, invDir, maxDist)) {
 				for (const d of node.data) {
 					result.push(d);
 				}
@@ -150,49 +198,6 @@ class OctreeNode {
 		}
 
 		return result;
-	}
-
-	_intersectRayAABB(aabb, origin, invDir, maxDist) {
-		const min = aabb.min;
-		const max = aabb.max;
-
-		let tmin, tmax, tymin, tymax, tzmin, tzmax;
-
-		if (invDir[0] >= 0) {
-			tmin = (min[0] - origin[0]) * invDir[0];
-			tmax = (max[0] - origin[0]) * invDir[0];
-		} else {
-			tmin = (max[0] - origin[0]) * invDir[0];
-			tmax = (min[0] - origin[0]) * invDir[0];
-		}
-
-		if (invDir[1] >= 0) {
-			tymin = (min[1] - origin[1]) * invDir[1];
-			tymax = (max[1] - origin[1]) * invDir[1];
-		} else {
-			tymin = (max[1] - origin[1]) * invDir[1];
-			tymax = (min[1] - origin[1]) * invDir[1];
-		}
-
-		if (tmin > tymax || tymin > tmax) return false;
-
-		if (tymin > tmin) tmin = tymin;
-		if (tymax < tmax) tmax = tymax;
-
-		if (invDir[2] >= 0) {
-			tzmin = (min[2] - origin[2]) * invDir[2];
-			tzmax = (max[2] - origin[2]) * invDir[2];
-		} else {
-			tzmin = (max[2] - origin[2]) * invDir[2];
-			tzmax = (min[2] - origin[2]) * invDir[2];
-		}
-
-		if (tmin > tzmax || tzmin > tmax) return false;
-
-		if (tzmin > tmin) tmin = tzmin;
-		if (tzmax < tmax) tmax = tzmax;
-
-		return tmax >= 0 && tmin <= maxDist;
 	}
 
 	removeEmptyNodes() {
@@ -213,4 +218,4 @@ class Octree extends OctreeNode {
 	}
 }
 
-export { Octree };
+export { Octree, _intersectRayAABB };
