@@ -98,6 +98,25 @@ class Ray {
 		vec3.sub(_itLocalDir, _itLocalTo, _itLocalFrom);
 		vec3.normalize(_itLocalDir, _itLocalDir);
 
+		const maxDist = vec3.distance(_itLocalFrom, _itLocalTo);
+
+		// Calc inverse direction for fast AABB intersection
+		const invDirX = 1.0 / _itLocalDir[0];
+		const invDirY = 1.0 / _itLocalDir[1];
+		const invDirZ = 1.0 / _itLocalDir[2];
+
+		// Early rejection: Check if ray intersects the mesh's root bounding box
+		if (
+			!mesh.tree._intersectRayAABB(
+				mesh.aabb,
+				_itLocalFrom,
+				[invDirX, invDirY, invDirZ],
+				maxDist,
+			)
+		) {
+			return; // Ray completely misses the chunk/mesh AABB
+		}
+
 		// Prepare tree transform (identity, as we transformed ray to local)
 		vec3.set(_itTreeTransform.position, 0, 0, 0);
 		_itTreeTransform.quaternion.set([0, 0, 0, 1]); // Identity quat

@@ -5,6 +5,11 @@ const _halfDiagonal = vec3.create();
 const _tmpAABB = new BoundingBox();
 const _queryQueue = [];
 
+// Temporaries for Ray-AABB intersection (Slab method)
+const _rayOrig = vec3.create();
+const _rayDir = vec3.create();
+const _invDir = vec3.create();
+
 class OctreeNode {
 	constructor(options = {}) {
 		this.root = options.root || null;
@@ -107,19 +112,87 @@ class OctreeNode {
 				for (const d of node.data) {
 					result.push(d);
 				}
-			}
-			for (const c of node.children) {
-				_queryQueue.push(c);
+				for (const c of node.children) {
+					_queryQueue.push(c);
+				}
 			}
 		}
 		return result;
 	}
 
 	rayQuery(ray, treeTransform, result) {
-		ray.getAABB(_tmpAABB);
-		_tmpAABB.toLocalFrame(treeTransform, _tmpAABB);
-		this.aabbQuery(_tmpAABB, result);
+		// Transform ray origin and direction to local space of the octree
+		treeTransform.pointToLocal(ray.from, _rayOrig);
+		treeTransform.vectorToLocal(ray.direction, _rayDir);
+
+		// Calc inverse direction for fast AABB intersection
+		_invDir[0] = 1.0 / _rayDir[0];
+		_invDir[1] = 1.0 / _rayDir[1];
+		_invDir[2] = 1.0 / _rayDir[2];
+
+		// Optionally, we could pre-calculate the max ray length if ray.to is reliable,
+		// but standard hitscan rays often rely on infinite length intersection testing
+		// bounded by the octree's own bounds.
+		const maxDist = vec3.distance(ray.from, ray.to);
+
+		_queryQueue.push(this);
+		while (_queryQueue.length) {
+			const node = _queryQueue.pop();
+
+			if (node._intersectRayAABB(node.aabb, _rayOrig, _invDir, maxDist)) {
+				for (const d of node.data) {
+					result.push(d);
+				}
+				for (const c of node.children) {
+					_queryQueue.push(c);
+				}
+			}
+		}
+
 		return result;
+	}
+
+	_intersectRayAABB(aabb, origin, invDir, maxDist) {
+		const min = aabb.min;
+		const max = aabb.max;
+
+		let tmin, tmax, tymin, tymax, tzmin, tzmax;
+
+		if (invDir[0] >= 0) {
+			tmin = (min[0] - origin[0]) * invDir[0];
+			tmax = (max[0] - origin[0]) * invDir[0];
+		} else {
+			tmin = (max[0] - origin[0]) * invDir[0];
+			tmax = (min[0] - origin[0]) * invDir[0];
+		}
+
+		if (invDir[1] >= 0) {
+			tymin = (min[1] - origin[1]) * invDir[1];
+			tymax = (max[1] - origin[1]) * invDir[1];
+		} else {
+			tymin = (max[1] - origin[1]) * invDir[1];
+			tymax = (min[1] - origin[1]) * invDir[1];
+		}
+
+		if (tmin > tymax || tymin > tmax) return false;
+
+		if (tymin > tmin) tmin = tymin;
+		if (tymax < tmax) tmax = tymax;
+
+		if (invDir[2] >= 0) {
+			tzmin = (min[2] - origin[2]) * invDir[2];
+			tzmax = (max[2] - origin[2]) * invDir[2];
+		} else {
+			tzmin = (max[2] - origin[2]) * invDir[2];
+			tzmax = (min[2] - origin[2]) * invDir[2];
+		}
+
+		if (tmin > tzmax || tzmin > tmax) return false;
+
+		if (tzmin > tmin) tmin = tzmin;
+		if (tzmax < tmax) tmax = tzmax;
+
+		return tmax >= 0 && tmin <= maxDist;
 	}
 
 	removeEmptyNodes() {
