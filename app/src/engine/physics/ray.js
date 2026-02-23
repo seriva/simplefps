@@ -1,9 +1,8 @@
 import { mat4, vec3 } from "../../dependencies/gl-matrix.js";
-import { Transform } from "./transform.js";
+import { _intersectRayAABB } from "./octree.js";
 
 const _itNormal = vec3.create();
 const _itTriangles = [];
-const _itTreeTransform = new Transform();
 const _itVector = vec3.create();
 const _itLocalDir = vec3.create();
 const _itLocalFrom = vec3.create();
@@ -18,6 +17,7 @@ const _b = vec3.create();
 const _c = vec3.create();
 const _intersectPoint = vec3.create();
 const _invMatrix = mat4.create();
+const _itInvDir = vec3.create();
 
 const RAY_MODES = {
 	CLOSEST: 1,
@@ -100,40 +100,18 @@ class Ray {
 
 		const maxDist = vec3.distance(_itLocalFrom, _itLocalTo);
 
-		// Calc inverse direction for fast AABB intersection
-		const invDirX = 1.0 / _itLocalDir[0];
-		const invDirY = 1.0 / _itLocalDir[1];
-		const invDirZ = 1.0 / _itLocalDir[2];
+		// Calc inverse direction (pre-allocated, no per-call array)
+		_itInvDir[0] = 1.0 / _itLocalDir[0];
+		_itInvDir[1] = 1.0 / _itLocalDir[1];
+		_itInvDir[2] = 1.0 / _itLocalDir[2];
 
 		// Early rejection: Check if ray intersects the mesh's root bounding box
-		if (
-			!mesh.tree._intersectRayAABB(
-				mesh.aabb,
-				_itLocalFrom,
-				[invDirX, invDirY, invDirZ],
-				maxDist,
-			)
-		) {
-			return; // Ray completely misses the chunk/mesh AABB
+		if (!_intersectRayAABB(mesh.aabb, _itLocalFrom, _itInvDir, maxDist)) {
+			return;
 		}
 
-		// Prepare tree transform (identity, as we transformed ray to local)
-		vec3.set(_itTreeTransform.position, 0, 0, 0);
-		_itTreeTransform.quaternion.set([0, 0, 0, 1]); // Identity quat
-
-		_localRay.from = _itLocalFrom;
-		_localRay.to = _itLocalTo;
-		_localRay.direction = _itLocalDir;
-		// Copy other props
-		_localRay.precision = this.precision;
-		_localRay.checkCollisionResponse = this.checkCollisionResponse;
-		_localRay.skipBackfaces = this.skipBackfaces;
-		_localRay.collisionFilterMask = this.collisionFilterMask;
-		_localRay.collisionFilterGroup = this.collisionFilterGroup;
-		_localRay.mode = this.mode;
-		_localRay.result.shouldStop = false;
-
-		mesh.tree.rayQuery(_localRay, _itTreeTransform, _itTriangles);
+		// Query octree directly in local space (no identity transform overhead)
+		mesh.tree.rayQueryLocal(_itLocalFrom, _itLocalDir, maxDist, _itTriangles);
 
 		const fromToDistanceSquaredVal = vec3.sqrDist(_itLocalFrom, _itLocalTo);
 
@@ -161,13 +139,13 @@ class Ray {
 
 			const squaredDistance = vec3.sqrDist(_intersectPoint, _itLocalFrom);
 
-			if (
-				!(
-					Ray.pointInTriangle(_intersectPoint, _b, _a, _c) ||
-					Ray.pointInTriangle(_intersectPoint, _a, _b, _c)
-				) ||
-				squaredDistance > fromToDistanceSquaredVal
-			) {
+			// Use dot sign to pick correct winding order (single test instead of two)
+			const inTriangle =
+				dot < 0
+					? Ray.pointInTriangle(_intersectPoint, _b, _a, _c)
+					: Ray.pointInTriangle(_intersectPoint, _a, _b, _c);
+
+			if (!inTriangle || squaredDistance > fromToDistanceSquaredVal) {
 				continue;
 			}
 
@@ -255,7 +233,5 @@ class Ray {
 		return result;
 	}
 }
-
-const _localRay = new Ray();
 
 export { RAY_MODES, RaycastResult, Ray };
