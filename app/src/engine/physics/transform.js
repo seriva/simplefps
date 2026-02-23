@@ -33,6 +33,19 @@ class Transform {
 		);
 	}
 
+	vectorToLocal(worldVector, result) {
+		return Transform.vectorToLocalFrame(
+			this.position,
+			this.quaternion,
+			worldVector,
+			result,
+		);
+	}
+
+	vectorToWorld(localVector, result) {
+		return Transform.vectorToWorldFrame(this.quaternion, localVector, result);
+	}
+
 	static pointToLocalFrame(
 		position,
 		quaternion,
