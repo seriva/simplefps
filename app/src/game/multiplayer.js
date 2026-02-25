@@ -123,11 +123,21 @@ const Multiplayer = {
 
 			if (_isHost && _network) {
 				// Host: Collect all positions and broadcast
-				const players = [{ id: "host", pos: [...myPos], rot: [...myRot] }];
+				const players = [
+					{
+						id: "host",
+						pos: new Float32Array(myPos),
+						rot: new Float32Array(myRot),
+					},
+				];
 
 				// Add all connected peers
 				for (const [peerId, data] of _peerPositions) {
-					players.push({ id: peerId, pos: data.pos, rot: data.rot });
+					players.push({
+						id: peerId,
+						pos: new Float32Array(data.pos),
+						rot: new Float32Array(data.rot),
+					});
 				}
 
 				// Broadcast combined state to all clients
@@ -138,8 +148,8 @@ const Multiplayer = {
 			} else if (_network) {
 				// Client: Send our position to host
 				_network.sendPosition({
-					pos: [...myPos],
-					rot: [...myRot],
+					pos: new Float32Array(myPos),
+					rot: new Float32Array(myRot),
 				});
 			}
 		}

@@ -22,8 +22,8 @@ export class RemotePlayer {
 		// Add to scene
 		Scene.addEntities(this.mesh);
 
-		this.targetPos = [...position];
-		this.currentPos = [...position];
+		this.targetPos = new Float32Array(position);
+		this.currentPos = new Float32Array(position);
 	}
 
 	updateState(state) {

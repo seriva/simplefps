@@ -249,30 +249,38 @@ const _raycast = (
 	toZ,
 	options = _DEFAULT_RAY_OPTIONS,
 ) => {
-	vec3.set(_rayFrom, fromX, fromY, fromZ);
-	vec3.set(_rayTo, toX, toY, toZ);
-	_rayResult.reset();
+	// Set ray endpoints directly (no intermediate temps)
+	const from = _ray.from;
+	const to = _ray.to;
+	from[0] = fromX;
+	from[1] = fromY;
+	from[2] = fromZ;
+	to[0] = toX;
+	to[1] = toY;
+	to[2] = toZ;
 
-	vec3.copy(_ray.from, _rayFrom);
-	vec3.copy(_ray.to, _rayTo);
 	_ray.updateDirection();
+
+	// Minimal reset — only flags that matter for CLOSEST mode
+	_ray.hasHit = false;
+	_ray.skipBackfaces = options.skipBackfaces ?? true;
+	_ray.mode = 1; // CLOSEST
 	_ray.result = _rayResult;
 
-	_ray.skipBackfaces = options.skipBackfaces ?? true;
-	_ray.collisionFilterMask = options.collisionFilterMask ?? -1;
-	_ray.collisionFilterGroup = options.collisionFilterGroup ?? -1;
-	_ray.mode = 1; // CLOSEST
-
-	_ray.hasHit = false;
-	_rayResult.distance = Infinity;
+	const result = _rayResult;
+	result.hasHit = false;
+	result.distance = Infinity;
+	result.shouldStop = false;
 
 	for (let i = 0; i < _collidables.length; i++) {
-		const entity = _collidables[i];
-		// Use base_matrix for static geometry.
-		_ray.intersectTrimesh(entity.collider, entity.base_matrix, options);
+		_ray.intersectTrimesh(
+			_collidables[i].collider,
+			_collidables[i].base_matrix,
+			options,
+		);
 	}
 
-	return _rayResult;
+	return result;
 };
 
 // ============================================================================

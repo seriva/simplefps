@@ -54,11 +54,16 @@ class MeshEntity extends Entity {
 		}
 
 		// Flatten indices from all material groups
-		const flatIndices = [];
+		let totalIndexCount = 0;
 		for (const group of this.mesh.indices) {
-			for (let k = 0; k < group.array.length; k++) {
-				flatIndices.push(group.array[k]);
-			}
+			totalIndexCount += group.array.length;
+		}
+
+		const flatIndices = new Int32Array(totalIndexCount);
+		let offset = 0;
+		for (const group of this.mesh.indices) {
+			flatIndices.set(group.array, offset);
+			offset += group.array.length;
 		}
 
 		// Transform vertices into world space using base_matrix

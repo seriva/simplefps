@@ -104,6 +104,15 @@ class Trimesh {
 		tree.aabb.max[1] *= invSy;
 		tree.aabb.max[2] *= invSz;
 
+		// Expand root AABB slightly to cover precision issues during insertion
+		const epsilon = 0.001;
+		tree.aabb.min[0] -= epsilon;
+		tree.aabb.min[1] -= epsilon;
+		tree.aabb.min[2] -= epsilon;
+		tree.aabb.max[0] += epsilon;
+		tree.aabb.max[1] += epsilon;
+		tree.aabb.max[2] += epsilon;
+
 		const triangleAABB = new BoundingBox();
 		const points = [_va, _vb, _vc];
 
