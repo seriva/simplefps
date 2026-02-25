@@ -66,6 +66,27 @@ const _boundingBoxColors = {
 	[EntityTypes.SPOT_LIGHT]: [1, 1, 0, 1], // Yellow
 };
 
+// Pre-computed uniform name strings for WebGL fallback (avoids per-frame template string allocations)
+const _MAX_POINT_LIGHTS = 8;
+const _MAX_SPOT_LIGHTS = 4;
+const _pointLightUniforms = Array.from(
+	{ length: _MAX_POINT_LIGHTS },
+	(_, i) => ({
+		position: `pointLightPositions[${i}]`,
+		color: `pointLightColors[${i}]`,
+		size: `pointLightSizes[${i}]`,
+		intensity: `pointLightIntensities[${i}]`,
+	}),
+);
+const _spotLightUniforms = Array.from({ length: _MAX_SPOT_LIGHTS }, (_, i) => ({
+	position: `spotLightPositions[${i}]`,
+	direction: `spotLightDirections[${i}]`,
+	color: `spotLightColors[${i}]`,
+	intensity: `spotLightIntensities[${i}]`,
+	cutoff: `spotLightCutoffs[${i}]`,
+	range: `spotLightRanges[${i}]`,
+}));
+
 // Toggle functions for debug commands
 const toggleBoundingVolumes = () => {
 	_debugState.showBoundingVolumes = !_debugState.showBoundingVolumes;
@@ -301,13 +322,11 @@ const renderTransparent = () => {
 	Shaders.transparent.setMat4("matWorld", _matModel);
 	Shaders.transparent.setInt("colorSampler", 0);
 
-	const MAX_POINT_LIGHTS = 8;
 	const visiblePointLights = Scene.visibilityCache[EntityTypes.POINT_LIGHT];
-	const numPointLights = Math.min(visiblePointLights.length, MAX_POINT_LIGHTS);
+	const numPointLights = Math.min(visiblePointLights.length, _MAX_POINT_LIGHTS);
 
-	const MAX_SPOT_LIGHTS = 4;
 	const visibleSpotLights = Scene.visibilityCache[EntityTypes.SPOT_LIGHT];
-	const numSpotLights = Math.min(visibleSpotLights.length, MAX_SPOT_LIGHTS);
+	const numSpotLights = Math.min(visibleSpotLights.length, _MAX_SPOT_LIGHTS);
 
 	if (Settings.useWebGPU) {
 		if (!_lightingUBO) {
@@ -372,35 +391,31 @@ const renderTransparent = () => {
 		Backend.updateUBO(_lightingUBO, _lightingData);
 		Backend.bindUniformBuffer(_lightingUBO);
 	} else {
-		// WebGL Fallback
+		// WebGL Fallback — use pre-computed uniform name strings
 		Shaders.transparent.setInt("numPointLights", numPointLights);
 
 		for (let i = 0; i < numPointLights; i++) {
 			const light = visiblePointLights[i];
+			const u = _pointLightUniforms[i];
 			mat4.multiply(_lightMatrix, light.base_matrix, light.ani_matrix);
 			mat4.getTranslation(_lightPos, _lightMatrix);
-			Shaders.transparent.setVec3(`pointLightPositions[${i}]`, _lightPos);
-			Shaders.transparent.setVec3(`pointLightColors[${i}]`, light.color);
-			Shaders.transparent.setFloat(`pointLightSizes[${i}]`, light.size);
-			Shaders.transparent.setFloat(
-				`pointLightIntensities[${i}]`,
-				light.intensity,
-			);
+			Shaders.transparent.setVec3(u.position, _lightPos);
+			Shaders.transparent.setVec3(u.color, light.color);
+			Shaders.transparent.setFloat(u.size, light.size);
+			Shaders.transparent.setFloat(u.intensity, light.intensity);
 		}
 
 		Shaders.transparent.setInt("numSpotLights", numSpotLights);
 
 		for (let i = 0; i < numSpotLights; i++) {
 			const light = visibleSpotLights[i];
-			Shaders.transparent.setVec3(`spotLightPositions[${i}]`, light.position);
-			Shaders.transparent.setVec3(`spotLightDirections[${i}]`, light.direction);
-			Shaders.transparent.setVec3(`spotLightColors[${i}]`, light.color);
-			Shaders.transparent.setFloat(
-				`spotLightIntensities[${i}]`,
-				light.intensity,
-			);
-			Shaders.transparent.setFloat(`spotLightCutoffs[${i}]`, light.cutoff);
-			Shaders.transparent.setFloat(`spotLightRanges[${i}]`, light.range);
+			const u = _spotLightUniforms[i];
+			Shaders.transparent.setVec3(u.position, light.position);
+			Shaders.transparent.setVec3(u.direction, light.direction);
+			Shaders.transparent.setVec3(u.color, light.color);
+			Shaders.transparent.setFloat(u.intensity, light.intensity);
+			Shaders.transparent.setFloat(u.cutoff, light.cutoff);
+			Shaders.transparent.setFloat(u.range, light.range);
 		}
 	}
 

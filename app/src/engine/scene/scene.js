@@ -35,6 +35,7 @@ const _DEFAULT_RAY_OPTIONS = {
 let _entities = [];
 const _collidables = [];
 let _ambient = _DEFAULT_AMBIENT;
+let _visibilityDirty = true;
 let _pauseUpdate = false;
 
 // Static trimesh for merged static geometry
@@ -86,6 +87,7 @@ const _addEntities = (e) => {
 	}
 
 	_entityCache.clear();
+	_visibilityDirty = true;
 	if (Array.isArray(e)) {
 		const newEntities = e.filter((entity) => entity != null);
 		_entities = _entities.concat(newEntities);
@@ -105,6 +107,7 @@ const _removeEntity = (entity) => {
 	if (index !== -1) {
 		_entities.splice(index, 1);
 		_entityCache.clear();
+		_visibilityDirty = true;
 
 		// Remove from collidables
 		const colIndex = _collidables.indexOf(entity);
@@ -121,6 +124,7 @@ const _init = () => {
 	_entities.length = 0;
 	_collidables.length = 0;
 	_entityCache.clear();
+	_visibilityDirty = true;
 	_staticTrimesh = null;
 	_staticCollidable.collider = null;
 };
@@ -214,6 +218,7 @@ const _update = (frameTime) => {
 	if (entitiesToRemove) {
 		_entities = _entities.filter((e) => !entitiesToRemove.has(e));
 		_entityCache.clear();
+		_visibilityDirty = true;
 		for (const entity of entitiesToRemove) {
 			entity.dispose?.();
 		}
@@ -223,12 +228,16 @@ const _update = (frameTime) => {
 };
 
 const _updateVisibility = () => {
-	_entityCache.clear();
+	// Always rebuild visibility — frustum changes every frame even if entities don't
+	// But skip entity cache clear if entities haven't changed
+	if (_visibilityDirty) {
+		_entityCache.clear();
+		_visibilityDirty = false;
+	}
 
 	// Reset visibility lists
 	for (let i = 0; i < _VISIBILITY_CACHE_TYPES.length; i++) {
-		const type = _VISIBILITY_CACHE_TYPES[i];
-		_visibilityCache[type].length = 0;
+		_visibilityCache[_VISIBILITY_CACHE_TYPES[i]].length = 0;
 	}
 
 	// Sort entities into visible lists
