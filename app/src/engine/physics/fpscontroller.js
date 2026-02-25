@@ -281,6 +281,7 @@ class FPSController {
 	_resolveDepenetration(x, z, y) {
 		const radius = this.config.radius;
 		const depenetrationRadius = radius + 1;
+		const radiusSq = radius * radius;
 
 		// Only check 4 cardinal directions (indices 0-3) for performance
 		for (let i = 0; i < 4; i++) {
@@ -296,8 +297,11 @@ class FPSController {
 
 			if (result.hasHit) {
 				const hp = result.hitPointWorld;
-				const hitDist = Math.sqrt((hp[0] - x) ** 2 + (hp[2] - z) ** 2);
-				if (hitDist < radius) {
+				const dx = hp[0] - x;
+				const dz = hp[2] - z;
+				const hitDistSq = dx * dx + dz * dz;
+				if (hitDistSq < radiusSq) {
+					const hitDist = Math.sqrt(hitDistSq);
 					const pushDist = radius - hitDist + 1;
 					x -= dir.x * pushDist;
 					z -= dir.z * pushDist;

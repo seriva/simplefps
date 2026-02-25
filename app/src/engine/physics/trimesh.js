@@ -218,7 +218,7 @@ class Trimesh {
 		vec3.sub(_ab, vb, va);
 		vec3.sub(_cb, vc, vb);
 		vec3.cross(target, _cb, _ab);
-		if (vec3.length(target) > 0) {
+		if (vec3.squaredLength(target) > 0) {
 			vec3.normalize(target, target);
 		}
 	}

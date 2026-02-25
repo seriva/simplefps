@@ -13,9 +13,6 @@ const _tempDimensions = vec3.create();
 const _tempTransformMat = mat4.create();
 const _tempCorner = vec3.create();
 
-// Temps for isVisible
-const _p = vec3.create();
-
 // Corners for frame transformation
 const _transformIntoFrameCorners = [
 	vec3.create(),
@@ -211,21 +208,24 @@ class BoundingBox {
 	}
 
 	isVisible() {
-		// Use dedicated temp _p (no allocation)
-		const p = _p;
 		const planes = Camera.frustumPlanesArray;
+		const minX = this.min[0],
+			minY = this.min[1],
+			minZ = this.min[2];
+		const maxX = this.max[0],
+			maxY = this.max[1],
+			maxZ = this.max[2];
 
 		for (let i = 0; i < 6; i++) {
 			const plane = planes[i];
-			// Find the point on the AABB furthest in the direction of the plane normal
-			p[0] = plane[0] > 0 ? this.max[0] : this.min[0];
-			p[1] = plane[1] > 0 ? this.max[1] : this.min[1];
-			p[2] = plane[2] > 0 ? this.max[2] : this.min[2];
+			// Inline dot product to avoid function call overhead in hot loop
+			const d =
+				(plane[0] > 0 ? maxX : minX) * plane[0] +
+				(plane[1] > 0 ? maxY : minY) * plane[1] +
+				(plane[2] > 0 ? maxZ : minZ) * plane[2] +
+				plane[3];
 
-			// If that point is behind the plane, the entire AABB is outside
-			if (vec3.dot(p, plane) + plane[3] < 0) {
-				return false;
-			}
+			if (d < 0) return false;
 		}
 		return true;
 	}
