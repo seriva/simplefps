@@ -162,21 +162,35 @@ class Ray {
 				_itNormal[0] * m[2] + _itNormal[1] * m[6] + _itNormal[2] * m[10];
 			vec3.normalize(_itWorldNormal, _itWorldNormal);
 
+			// Compute world distance here to avoid recomputing in reportIntersection
+			const worldDist = vec3.dist(this.from, _itWorldPoint);
+
 			this.reportIntersection(
 				_itWorldNormal,
 				_itWorldPoint,
 				mesh,
 				null, // body, deprecated
 				trianglesIndex,
+				worldDist,
 			);
 		}
 		_itTriangles.length = 0;
 	}
 
-	reportIntersection(normal, hitPointWorld, shape, body, hitFaceIndex) {
+	reportIntersection(
+		normal,
+		hitPointWorld,
+		shape,
+		body,
+		hitFaceIndex,
+		distance,
+	) {
 		const from = this.from;
 		const to = this.to;
-		const distance = vec3.dist(from, hitPointWorld);
+		// Use pre-computed distance if provided, otherwise compute it
+		if (distance === undefined) {
+			distance = vec3.dist(from, hitPointWorld);
+		}
 		const result = this.result;
 
 		if (this.skipBackfaces && vec3.dot(normal, this.direction) > 0) {

@@ -226,7 +226,8 @@ class FPSController {
 		const rayLength = horizontalDist + radius + 2;
 
 		let hitWall = false;
-		let wallNormal = null;
+		let wallNormalX = 0;
+		let wallNormalZ = 0;
 		let closestHitDist = Infinity;
 
 		for (const heightOffset of _horizontalCheckHeights) {
@@ -248,12 +249,15 @@ class FPSController {
 				if (hitDist < closestHitDist) {
 					closestHitDist = hitDist;
 					hitWall = true;
-					wallNormal = result.hitNormalWorld;
+					// Snapshot normal values — result.hitNormalWorld is a shared vec3
+					// that gets overwritten by subsequent raycasts
+					wallNormalX = result.hitNormalWorld[0];
+					wallNormalZ = result.hitNormalWorld[2];
 				}
 			}
 		}
 
-		if (hitWall && wallNormal) {
+		if (hitWall) {
 			const safeMoveDist = Math.max(0, closestHitDist - radius - 1);
 			if (safeMoveDist < horizontalDist) {
 				finalX = startPos.x + dirX * safeMoveDist;
@@ -261,10 +265,10 @@ class FPSController {
 
 				// Wall slide: remove velocity component into wall
 				const dot =
-					this.velocity[0] * wallNormal[0] + this.velocity[2] * wallNormal[2];
+					this.velocity[0] * wallNormalX + this.velocity[2] * wallNormalZ;
 				if (dot < 0) {
-					this.velocity[0] -= dot * wallNormal[0];
-					this.velocity[2] -= dot * wallNormal[2];
+					this.velocity[0] -= dot * wallNormalX;
+					this.velocity[2] -= dot * wallNormalZ;
 				}
 			}
 		}
@@ -278,7 +282,9 @@ class FPSController {
 		const radius = this.config.radius;
 		const depenetrationRadius = radius + 1;
 
-		for (const dir of _radialDirs) {
+		// Only check 4 cardinal directions (indices 0-3) for performance
+		for (let i = 0; i < 4; i++) {
+			const dir = _radialDirs[i];
 			const result = Scene.raycast(
 				x,
 				y,
@@ -320,8 +326,8 @@ class FPSController {
 		let bestHitY = -Infinity;
 		let hasGroundHit = false;
 
-		// Center ray + 8 radial offsets
-		for (let i = -1; i < _radialDirs.length; i++) {
+		// Center ray + 4 cardinal offsets (skip diagonals for performance)
+		for (let i = -1; i < 4; i++) {
 			const ox = i < 0 ? 0 : _radialDirs[i].x * checkRadius;
 			const oz = i < 0 ? 0 : _radialDirs[i].z * checkRadius;
 
