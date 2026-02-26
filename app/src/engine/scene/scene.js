@@ -46,8 +46,6 @@ const _staticCollidable = {
 };
 
 // Shared raycast state
-const _rayFrom = vec3.create();
-const _rayTo = vec3.create();
 const _rayResult = new RaycastResult();
 const _ray = new Ray();
 
@@ -178,16 +176,51 @@ const _loadLightGrid = (config) => {
 	return LightGrid.load(config);
 };
 
-const _addStaticMesh = (vertices, indices) => {
+const _addStaticGeometry = (entity) => {
+	const mesh = entity.mesh;
+	if (!mesh?.vertices || !mesh?.indices) {
+		Console.warn("Cannot make static: mesh has no vertex/index data");
+		return;
+	}
+
+	// Lazy-init the merged static trimesh
 	if (!_staticTrimesh) {
 		_staticTrimesh = new Trimesh();
 		_staticCollidable.collider = _staticTrimesh;
 		_collidables.push(_staticCollidable);
 	}
-	_staticTrimesh.addMesh(vertices, indices);
+
+	// Flatten indices from all material groups
+	let totalIndexCount = 0;
+	for (const group of mesh.indices) {
+		totalIndexCount += group.array.length;
+	}
+
+	const flatIndices = new Int32Array(totalIndexCount);
+	let offset = 0;
+	for (const group of mesh.indices) {
+		flatIndices.set(group.array, offset);
+		offset += group.array.length;
+	}
+
+	// Transform vertices into world space using the entity's base_matrix
+	const src = mesh.vertices;
+	const worldVerts = new Float32Array(src.length);
+	const _v = vec3.create();
+
+	for (let i = 0; i < src.length; i += 3) {
+		vec3.set(_v, src[i], src[i + 1], src[i + 2]);
+		vec3.transformMat4(_v, _v, entity.base_matrix);
+		worldVerts[i] = _v[0];
+		worldVerts[i + 1] = _v[1];
+		worldVerts[i + 2] = _v[2];
+	}
+
+	_staticTrimesh.addMesh(worldVerts, flatIndices);
+	entity.isStatic = true;
 };
 
-const _finalizeStaticMesh = () => {
+const _finalizeStaticGeometry = () => {
 	if (!_staticTrimesh) return;
 	_staticTrimesh.finalize();
 	const triCount = _staticTrimesh.indices.length / 3;
@@ -206,6 +239,7 @@ const _update = (frameTime) => {
 
 	for (let i = 0; i < _entities.length; i++) {
 		const entity = _entities[i];
+		if (entity.isStatic) continue;
 		const result = entity.update(frameTime);
 		// If update returns false, mark for removal
 		if (result === false) {
@@ -306,8 +340,8 @@ const Scene = {
 	addEntities: _addEntities,
 	removeEntity: _removeEntity,
 	getEntities: _getEntities,
-	addStaticMesh: _addStaticMesh,
-	finalizeStaticMesh: _finalizeStaticMesh,
+	addStaticGeometry: _addStaticGeometry,
+	finalizeStaticGeometry: _finalizeStaticGeometry,
 	visibilityCache: _visibilityCache,
 	loadLightGrid: _loadLightGrid,
 	raycast: _raycast,

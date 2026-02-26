@@ -13,6 +13,11 @@ const _matModel = mat4.create();
 const _lightMatrix = mat4.create();
 const _lightPos = [0, 0, 0];
 
+// Reusable temporaries for per-entity ambient sampling
+const _probePos = new Float32Array(3);
+const _probeColor = new Float32Array(3);
+const _MAX_SHADOW_RAYCAST_DISTANCE = 200;
+
 // Lighting UBO data (aligned to 16 bytes for WGSL)
 // 8 * 4 * 4 bytes = 128 bytes (positions)
 // 8 * 4 * 4 bytes = 128 bytes (colors)
@@ -115,17 +120,28 @@ Console.registerCmd("tlv", toggleLightVolumes);
 Console.registerCmd("tsk", toggleSkeleton);
 Console.registerCmd("toc", toggleOcclusionCulling);
 
-// Helper to render entities
-const _renderEntities = (
-	entityType,
-	renderMethod = "render",
-	mode = "all",
-	shader = Shaders.geometry,
-) => {
-	const targetEntities = Scene.visibilityCache[entityType];
-	for (const entity of targetEntities) {
-		entity[renderMethod](mode, shader);
-	}
+// Sample ambient probe color for an entity based on its world position
+const _probeMatrix = mat4.create();
+const _sampleProbeColor = (entity) => {
+	mat4.multiply(_probeMatrix, entity.base_matrix, entity.ani_matrix);
+	mat4.getTranslation(_probePos, _probeMatrix);
+	_probePos[1] += 32.0;
+	Scene.getAmbient(_probePos, _probeColor);
+	return _probeColor;
+};
+
+// Calculate shadow height for an entity via downward raycast
+const _calculateShadowHeight = (entity) => {
+	mat4.getTranslation(_probePos, entity.base_matrix);
+	const result = Scene.raycast(
+		_probePos[0],
+		_probePos[1] + 1.0,
+		_probePos[2],
+		_probePos[0],
+		_probePos[1] - _MAX_SHADOW_RAYCAST_DISTANCE,
+		_probePos[2],
+	);
+	entity.shadowHeight = result.hasHit ? result.hitPointWorld[1] : undefined;
 };
 
 const _performOcclusionQueries = (entities) => {
@@ -202,7 +218,9 @@ const renderSkybox = () => {
 	// Disable depth operations for skybox
 	Backend.setDepthState(false, false);
 
-	_renderEntities(EntityTypes.SKYBOX);
+	for (const entity of Scene.visibilityCache[EntityTypes.SKYBOX]) {
+		entity.render();
+	}
 
 	// Restore gl state
 	Backend.setDepthState(true, true);
@@ -242,7 +260,7 @@ const renderWorldGeometry = () => {
 
 	// Render Occluders (always) - these populate the depth buffer
 	for (const entity of _occluders) {
-		entity.render("opaque", Shaders.geometry);
+		entity.render(_sampleProbeColor(entity), "opaque", Shaders.geometry);
 		_renderStats.meshCount++;
 		_renderStats.triangleCount += entity.mesh?.triangleCount || 0;
 	}
@@ -271,12 +289,14 @@ const renderWorldGeometry = () => {
 		if (Settings.occlusionCulling && !entity.isVisible) {
 			continue;
 		}
-		entity.render("opaque", Shaders.geometry);
+		entity.render(_sampleProbeColor(entity), "opaque", Shaders.geometry);
 		_renderStats.meshCount++;
 		_renderStats.triangleCount += entity.mesh?.triangleCount || 0;
 	}
 
-	_renderEntities(EntityTypes.FPS_MESH, "render", "opaque");
+	for (const entity of Scene.visibilityCache[EntityTypes.FPS_MESH]) {
+		entity.render(_sampleProbeColor(entity), "opaque", Shaders.geometry);
+	}
 
 	Backend.unbindShader();
 
@@ -306,7 +326,11 @@ const renderWorldGeometry = () => {
 			) {
 				continue;
 			}
-			entity.render("opaque", Shaders.skinnedGeometry);
+			entity.render(
+				_sampleProbeColor(entity),
+				"opaque",
+				Shaders.skinnedGeometry,
+			);
 			_renderStats.meshCount++;
 			_renderStats.triangleCount += entity.mesh?.triangleCount || 0;
 		}
@@ -419,12 +443,13 @@ const renderTransparent = () => {
 		}
 	}
 
-	_renderEntities(
-		EntityTypes.MESH,
-		"render",
-		"translucent",
-		Shaders.transparent,
-	);
+	for (const entity of Scene.visibilityCache[EntityTypes.MESH]) {
+		entity.render(
+			_sampleProbeColor(entity),
+			"translucent",
+			Shaders.transparent,
+		);
+	}
 
 	Backend.unbindShader();
 };
@@ -433,7 +458,9 @@ const renderLighting = () => {
 	// Directional lights (always render - no occlusion for directional)
 	Shaders.directionalLight.bind();
 	Shaders.directionalLight.setInt("normalBuffer", 1);
-	_renderEntities(EntityTypes.DIRECTIONAL_LIGHT);
+	for (const entity of Scene.visibilityCache[EntityTypes.DIRECTIONAL_LIGHT]) {
+		entity.render();
+	}
 	Backend.unbindShader();
 
 	// Get light entities (occlusion queries already ran during geometry pass)
@@ -479,19 +506,28 @@ const renderLighting = () => {
 const renderShadows = () => {
 	Shaders.entityShadows.bind();
 	Shaders.entityShadows.setVec3("ambient", Scene.getAmbient());
-	_renderEntities(EntityTypes.MESH, "renderShadow");
+
+	// Calculate shadow heights and render mesh shadows
+	const meshEntities = Scene.visibilityCache[EntityTypes.MESH];
+	for (const entity of meshEntities) {
+		if (entity.shadowHeight === null) {
+			_calculateShadowHeight(entity);
+		}
+		entity.renderShadow();
+	}
 	Backend.unbindShader();
 
 	// Render skinned mesh shadows with dedicated shader
 	if (Shaders.skinnedEntityShadows) {
 		Shaders.skinnedEntityShadows.bind();
 		Shaders.skinnedEntityShadows.setVec3("ambient", Scene.getAmbient());
-		_renderEntities(
-			EntityTypes.SKINNED_MESH,
-			"renderShadow",
-			"all",
-			Shaders.skinnedEntityShadows,
-		);
+
+		const skinnedEntities = Scene.visibilityCache[EntityTypes.SKINNED_MESH];
+		for (const entity of skinnedEntities) {
+			// Always recalculate for skinned meshes since they move
+			_calculateShadowHeight(entity);
+			entity.renderShadow("all", Shaders.skinnedEntityShadows);
+		}
 		Backend.unbindShader();
 	}
 };
@@ -508,7 +544,9 @@ const renderFPSGeometry = () => {
 	);
 	Shaders.geometry.setMat4("matWorld", _matModel);
 
-	_renderEntities(EntityTypes.FPS_MESH);
+	for (const entity of Scene.visibilityCache[EntityTypes.FPS_MESH]) {
+		entity.render(_sampleProbeColor(entity));
+	}
 
 	Backend.unbindShader();
 };
