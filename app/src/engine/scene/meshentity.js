@@ -1,17 +1,12 @@
-import { mat4, vec3 } from "../../dependencies/gl-matrix.js";
+import { mat4 } from "../../dependencies/gl-matrix.js";
 import BoundingBox from "../physics/boundingbox.js";
 import { Shaders } from "../rendering/shaders.js";
 import Console from "../systems/console.js";
 import Resources from "../systems/resources.js";
 import { Entity, EntityTypes } from "./entity.js";
-import Scene from "./scene.js";
-
-const _MAX_RAYCAST_DISTANCE = 200;
 
 // Reusable temporaries to avoid per-frame allocations
 const _tempMatrix = mat4.create();
-const _tempPos = new Float32Array(3);
-const _tempProbeColor = new Float32Array(3);
 
 class MeshEntity extends Entity {
 	constructor(position, name, updateCallback, scale = 1) {
@@ -46,72 +41,11 @@ class MeshEntity extends Entity {
 		);
 	}
 
-	makeStatic() {
-		if (this.isStatic) return;
-		if (!this.mesh?.vertices || !this.mesh?.indices) {
-			Console.warn("Cannot make static: mesh has no vertex/index data");
-			return;
-		}
-
-		// Flatten indices from all material groups
-		let totalIndexCount = 0;
-		for (const group of this.mesh.indices) {
-			totalIndexCount += group.array.length;
-		}
-
-		const flatIndices = new Int32Array(totalIndexCount);
-		let offset = 0;
-		for (const group of this.mesh.indices) {
-			flatIndices.set(group.array, offset);
-			offset += group.array.length;
-		}
-
-		// Transform vertices into world space using base_matrix
-		const src = this.mesh.vertices;
-		const worldVerts = new Float32Array(src.length);
-		const _v = vec3.create();
-
-		for (let i = 0; i < src.length; i += 3) {
-			vec3.set(_v, src[i], src[i + 1], src[i + 2]);
-			vec3.transformMat4(_v, _v, this.base_matrix);
-			worldVerts[i] = _v[0];
-			worldVerts[i + 1] = _v[1];
-			worldVerts[i + 2] = _v[2];
-		}
-
-		Scene.addStaticMesh(worldVerts, flatIndices);
-		this.isStatic = true;
-	}
-
-	calculateShadowHeight() {
-		mat4.getTranslation(_tempPos, this.base_matrix);
-
-		const result = Scene.raycast(
-			_tempPos[0],
-			_tempPos[1] + 1.0,
-			_tempPos[2],
-			_tempPos[0],
-			_tempPos[1] - _MAX_RAYCAST_DISTANCE,
-			_tempPos[2],
-		);
-
-		if (result.hasHit) {
-			this.shadowHeight = result.hitPointWorld[1];
-		} else {
-			this.shadowHeight = undefined;
-		}
-	}
-
-	render(filter = null, shader = Shaders.geometry) {
+	render(probeColor, filter = null, shader = Shaders.geometry) {
 		if (!this.visible) return;
 		mat4.multiply(_tempMatrix, this.base_matrix, this.ani_matrix);
 
-		// Sample Light Grid for ambient lighting
-		mat4.getTranslation(_tempPos, _tempMatrix);
-		_tempPos[1] += 32.0;
-		Scene.getAmbient(_tempPos, _tempProbeColor);
-		shader.setVec3("uProbeColor", _tempProbeColor);
-
+		shader.setVec3("uProbeColor", probeColor);
 		shader.setMat4("matWorld", _tempMatrix);
 		this.mesh.renderSingle(true, null, filter, shader);
 	}
@@ -126,13 +60,7 @@ class MeshEntity extends Entity {
 	renderShadow() {
 		if (!this.visible) return;
 		if (!this.castShadow) return;
-
-		// Auto-calculate shadow height if not yet done
-		if (this.shadowHeight === null) {
-			this.calculateShadowHeight();
-		}
-
-		if (this.shadowHeight === undefined) return; // No shadow if no ground
+		if (this.shadowHeight === null || this.shadowHeight === undefined) return;
 
 		// 1. Calculate the standard World Matrix (apply base and ani)
 		mat4.multiply(_tempMatrix, this.base_matrix, this.ani_matrix);

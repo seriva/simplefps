@@ -7,11 +7,8 @@ import Console from "../systems/console.js";
 import Resources from "../systems/resources.js";
 import { EntityTypes } from "./entity.js";
 import MeshEntity from "./meshentity.js";
-import Scene from "./scene.js";
 
 const _tempMatrix = mat4.create();
-const _tempPos = new Float32Array(3);
-const _tempProbeColor = new Float32Array(3);
 
 // Reusable bounding boxes to avoid per-frame allocations
 const _localBB = new BoundingBox([0, 0, 0], [1, 1, 1]);
@@ -62,18 +59,13 @@ class SkinnedMeshEntity extends MeshEntity {
 		super.update?.(deltaTime);
 	}
 
-	render(filter = null, shader = Shaders.skinnedGeometry) {
+	render(probeColor, filter = null, shader = Shaders.skinnedGeometry) {
 		if (!this.visible || !this._boneMatrices) return;
 		if (!shader) return;
 
 		mat4.multiply(_tempMatrix, this.base_matrix, this.ani_matrix);
 
-		// Ambient lighting
-		mat4.getTranslation(_tempPos, _tempMatrix);
-		_tempPos[1] += 32.0;
-		Scene.getAmbient(_tempPos, _tempProbeColor);
-		shader.setVec3("uProbeColor", _tempProbeColor);
-
+		shader.setVec3("uProbeColor", probeColor);
 		shader.setMat4("matWorld", _tempMatrix);
 		shader.setMat4Array("boneMatrices", this._boneMatrices);
 		this.mesh.renderSingle(true, null, filter, shader, true);
@@ -83,10 +75,7 @@ class SkinnedMeshEntity extends MeshEntity {
 		if (!this.visible || !this._boneMatrices) return;
 		if (!this.castShadow) return;
 		if (!shader) return;
-
-		// Always recalculate shadow height for skinned meshes since they move
-		this.calculateShadowHeight();
-		if (this.shadowHeight === undefined) return;
+		if (this.shadowHeight === null || this.shadowHeight === undefined) return;
 
 		// Use the original base_matrix (shader will flatten Y to shadowHeight)
 		shader.setMat4("matWorld", this.base_matrix);
