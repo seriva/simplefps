@@ -131,6 +131,11 @@ class WebGPUBackend extends RenderBackend {
 			bilateralParams: new Float32Array(4), // depthThreshold, normalThreshold, _pad x2
 		};
 
+		// Optimization: Pre-allocated typed arrays for scalar uniforms (avoid per-draw allocations)
+		this._tempFloat1 = new Float32Array(1);
+		this._tempUint1 = new Uint32Array(1);
+		this._tempFloat16 = new Float32Array(16);
+
 		// Optimization: Unique ID counter for resources (for cache keys)
 		this._resourceIdCounter = 1;
 	}
@@ -570,26 +575,20 @@ class WebGPUBackend extends RenderBackend {
 	}
 
 	setBlendState(enabled, srcFactor = "one", dstFactor = "zero") {
-		this._blendState = {
-			enabled,
-			srcFactor: _BLEND_FACTORS[srcFactor] || srcFactor,
-			dstFactor: _BLEND_FACTORS[dstFactor] || dstFactor,
-		};
+		this._blendState.enabled = enabled;
+		this._blendState.srcFactor = _BLEND_FACTORS[srcFactor] || srcFactor;
+		this._blendState.dstFactor = _BLEND_FACTORS[dstFactor] || dstFactor;
 	}
 
 	setDepthState(testEnabled, writeEnabled, func = "lequal") {
-		this._depthState = {
-			test: testEnabled,
-			write: writeEnabled,
-			func: _DEPTH_FUNCS[func] || func,
-		};
+		this._depthState.test = testEnabled;
+		this._depthState.write = writeEnabled;
+		this._depthState.func = _DEPTH_FUNCS[func] || func;
 	}
 
 	setCullState(enabled, face = "back") {
-		this._cullState = {
-			enabled,
-			face,
-		};
+		this._cullState.enabled = enabled;
+		this._cullState.face = face;
 	}
 
 	setPolygonOffset(enabled, factor = 0, units = 0) {
@@ -618,19 +617,18 @@ class WebGPUBackend extends RenderBackend {
 
 		const fb = this._activeFramebuffer;
 
+		// Build render pass descriptor
 		const colorAttachments = [];
 		let depthAttachment = null;
 
-		// Determine color attachments
 		if (fb) {
 			// Render to framebuffer
 			for (let i = 0; i < fb.colorAttachments.length; i++) {
 				const attachment = fb.colorAttachments[i];
-				// handle is { _gpuTexture, _gpuTextureView, ... }
 				if (attachment) {
 					colorAttachments.push({
 						view: attachment._gpuTextureView,
-						clearValue: this._clearColor || { r: 0, g: 0, b: 0, a: 1 },
+						clearValue: this._clearColor,
 						loadOp: colorLoadOp,
 						storeOp: "store",
 					});
@@ -645,13 +643,8 @@ class WebGPUBackend extends RenderBackend {
 				};
 			}
 
-			// Cache formats for pipeline creation
-			this._currentPassFormats = {
-				targets: fb.colorAttachments
-					.map((a) => (a ? a.format : null))
-					.filter((f) => f),
-				depth: fb.depthAttachment ? fb.depthAttachment.format : null,
-			};
+			// Use cached formats from framebuffer (avoids .map/.filter per pass)
+			this._currentPassFormats = fb._cachedFormats;
 		} else {
 			// Render to swapchain
 			if (!this._currentTexture) {
@@ -665,20 +658,20 @@ class WebGPUBackend extends RenderBackend {
 
 			colorAttachments.push({
 				view: this._currentTextureView,
-				clearValue: this._clearColor || { r: 0, g: 0, b: 0, a: 1 },
+				clearValue: this._clearColor,
 				loadOp: colorLoadOp,
 				storeOp: "store",
 			});
 
-			this._currentPassFormats = {
-				targets: [this._format],
-				depth: null,
-			};
+			// Use cached swapchain formats
+			if (!this._swapchainFormats) {
+				this._swapchainFormats = { targets: [this._format], depth: null };
+				this._swapchainFormats._cachedKey = this._format;
+			}
+			this._currentPassFormats = this._swapchainFormats;
 		}
 
-		const descriptor = {
-			colorAttachments,
-		};
+		const descriptor = { colorAttachments };
 
 		if (depthAttachment) {
 			descriptor.depthStencilAttachment = depthAttachment;
@@ -712,10 +705,7 @@ class WebGPUBackend extends RenderBackend {
 			let width = this.getWidth();
 			let height = this.getHeight();
 
-			// If rendering to dataframe, use its size
 			if (this._activeFramebuffer) {
-				// We need to ensure we have width/height stored on framebuffer
-				// WebGLBackend stores it on the object, let's assume we do too or get it from attachment
 				if (this._activeFramebuffer.width)
 					width = this._activeFramebuffer.width;
 				if (this._activeFramebuffer.height)
@@ -1009,13 +999,22 @@ class WebGPUBackend extends RenderBackend {
 			}
 		}
 
-		// Store descriptor to know attachments and formats later
-		return {
+		const fb = {
 			colorAttachments: descriptor.colorAttachments || [],
 			depthAttachment: descriptor.depthAttachment || null,
 			width: width || this.getWidth(),
 			height: height || this.getHeight(),
 		};
+
+		// Cache format descriptors for pipeline creation (avoid per-pass .map/.filter)
+		const targets = fb.colorAttachments
+			.map((a) => (a ? a.format : null))
+			.filter((f) => f);
+		const depthFormat = fb.depthAttachment ? fb.depthAttachment.format : null;
+		fb._cachedFormats = { targets, depth: depthFormat };
+		fb._cachedFormats._cachedKey = targets.join(",") + (depthFormat || "");
+
+		return fb;
 	}
 
 	deleteFramebuffer(framebuffer) {
@@ -1059,6 +1058,17 @@ class WebGPUBackend extends RenderBackend {
 				}
 				fb.colorAttachments[index] = texture;
 			}
+		}
+
+		// Rebuild cached formats since attachments changed
+		if (fb._cachedFormats) {
+			const targets = fb.colorAttachments
+				.map((a) => (a ? a.format : null))
+				.filter((f) => f);
+			const depthFormat = fb.depthAttachment ? fb.depthAttachment.format : null;
+			fb._cachedFormats.targets = targets;
+			fb._cachedFormats.depth = depthFormat;
+			fb._cachedFormats._cachedKey = targets.join(",") + (depthFormat || "");
 		}
 	}
 
@@ -1651,14 +1661,14 @@ class WebGPUBackend extends RenderBackend {
 								binding: b.binding,
 								resource: { buffer: ubo._gpuBuffer },
 							});
-							bg1Key += `${b.binding}:u:${ubo._id}|`;
+							bg1Key += `u${ubo._id}_`;
 						} else {
 							// Fallback to dummy UBO
 							entries.push({
 								binding: b.binding,
 								resource: { buffer: this._dummyUBO },
 							});
-							bg1Key += `${b.binding}:u:dummy|`;
+							bg1Key += "d_";
 						}
 					} else if (b.type === "uniform") {
 						// Create temp buffer for uniforms
@@ -1670,14 +1680,21 @@ class WebGPUBackend extends RenderBackend {
 						}
 
 						if (val !== undefined && val !== null) {
-							// If primitive, wrap in array
+							// Reuse pre-allocated typed arrays to avoid per-draw allocations
 							let bufferVal = val;
 							if (typeof val === "number") {
-								bufferVal = new Float32Array([val]);
+								this._tempFloat1[0] = val;
+								bufferVal = this._tempFloat1;
 							} else if (typeof val === "boolean") {
-								bufferVal = new Uint32Array([val ? 1 : 0]);
+								this._tempUint1[0] = val ? 1 : 0;
+								bufferVal = this._tempUint1;
 							} else if (Array.isArray(val)) {
-								bufferVal = new Float32Array(val);
+								if (val.length <= 16) {
+									this._tempFloat16.set(val);
+									bufferVal = this._tempFloat16.subarray(0, val.length);
+								} else {
+									bufferVal = new Float32Array(val);
+								}
 							}
 
 							// OPTIMIZATION: Use pooled buffer instead of creating new one
@@ -1687,26 +1704,26 @@ class WebGPUBackend extends RenderBackend {
 							this._device.queue.writeBuffer(buf, 0, bufferVal);
 
 							entries.push({ binding: b.binding, resource: { buffer: buf } });
-							bg1Key += `${b.binding}:p:${buf._id}|`;
+							bg1Key += `b${buf._id}_`;
 						} else {
 							// Fallback to dummy UBO
 							entries.push({
 								binding: b.binding,
 								resource: { buffer: this._dummyUBO },
 							});
-							bg1Key += `${b.binding}:u:dummy|`;
+							bg1Key += "d_";
 						}
 					} else if (b.type === "sampler") {
 						const tex = this._boundTextures.get(b.unit);
 						if (tex) {
 							entries.push({ binding: b.binding, resource: tex._gpuSampler });
-							bg1Key += `${b.binding}:s:${tex._samplerId}|`;
+							bg1Key += `s${tex._samplerId}_`;
 						} else {
 							entries.push({
 								binding: b.binding,
 								resource: this._defaultSampler,
 							});
-							bg1Key += `${b.binding}:s:${this._defaultSampler._id}|`;
+							bg1Key += `ds${this._defaultSampler._id}_`;
 						}
 					} else if (b.type === "texture") {
 						const tex = this._boundTextures.get(b.unit);
@@ -1715,20 +1732,20 @@ class WebGPUBackend extends RenderBackend {
 								binding: b.binding,
 								resource: tex._gpuTextureView,
 							});
-							bg1Key += `${b.binding}:t:${tex._gpuTextureView._id}|`;
+							bg1Key += `t${tex._gpuTextureView._id}_`;
 						} else {
 							entries.push({
 								binding: b.binding,
 								resource: this._defaultTextureView,
 							});
-							bg1Key += `${b.binding}:t:${this._defaultTextureView._id}|`;
+							bg1Key += `dt${this._defaultTextureView._id}_`;
 						}
 					}
 				}
 
 				if (entries.length > 0) {
 					// Use the composite key to check cache
-					const cacheKey = `bg1_${key}_${bg1Key}`;
+					const cacheKey = `1_${key}_${bg1Key}`;
 					let bindGroup1 = this._bindGroupCache.get(cacheKey);
 
 					if (!bindGroup1) {
@@ -1764,13 +1781,13 @@ class WebGPUBackend extends RenderBackend {
 					if (tex) {
 						if (b.type === "sampler") {
 							entries.push({ binding: b.binding, resource: tex._gpuSampler });
-							bg2Key += `${b.binding}:s:${tex._samplerId}|`;
+							bg2Key += `s${tex._samplerId}_`;
 						} else if (b.type === "texture") {
 							entries.push({
 								binding: b.binding,
 								resource: tex._gpuTextureView,
 							});
-							bg2Key += `${b.binding}:t:${tex._gpuTextureView._id}|`;
+							bg2Key += `t${tex._gpuTextureView._id}_`;
 						}
 					} else {
 						// Fallback to defaults
@@ -1779,20 +1796,20 @@ class WebGPUBackend extends RenderBackend {
 								binding: b.binding,
 								resource: this._defaultSampler,
 							});
-							bg2Key += `${b.binding}:s:${this._defaultSampler._id}|`;
+							bg2Key += `ds${this._defaultSampler._id}_`;
 						} else if (b.type === "texture") {
 							entries.push({
 								binding: b.binding,
 								resource: this._defaultTextureView,
 							});
-							bg2Key += `${b.binding}:t:${this._defaultTextureView._id}|`;
+							bg2Key += `dt${this._defaultTextureView._id}_`;
 						}
 					}
 				}
 
 				if (entries.length > 0) {
 					// Use the composite key to check cache
-					const cacheKey = `bg2_${key}_${bg2Key}`;
+					const cacheKey = `2_${key}_${bg2Key}`;
 					let bindGroup2 = this._bindGroupCache.get(cacheKey);
 
 					if (!bindGroup2) {
