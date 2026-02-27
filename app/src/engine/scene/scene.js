@@ -251,6 +251,16 @@ const _update = (frameTime) => {
 	// Batch remove entities - O(n) instead of O(n²)
 	if (entitiesToRemove) {
 		_entities = _entities.filter((e) => !entitiesToRemove.has(e));
+
+		// Fix memory leak: also remove dead entities from _collidables
+		let cLen = 0;
+		for (let i = 0; i < _collidables.length; i++) {
+			if (!entitiesToRemove.has(_collidables[i])) {
+				_collidables[cLen++] = _collidables[i];
+			}
+		}
+		_collidables.length = cLen;
+
 		_entityCache.clear();
 		_visibilityDirty = true;
 		for (const entity of entitiesToRemove) {
