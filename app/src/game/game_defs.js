@@ -24,7 +24,7 @@ export const PLAYER_DEFS = {
 // ----------------------------------------------------------------------------
 
 export const WEAPON_INDEX = {
-	rocket_launcher: 0,
+	grenade_launcher: 0,
 	energy_scepter: 1,
 	laser_gatling: 2,
 	plasma_pistol: 3,
@@ -32,10 +32,10 @@ export const WEAPON_INDEX = {
 };
 
 export const WEAPON_CONFIG = {
-	ROCKET_LAUNCHER: {
-		mesh: "meshes/rocket_launcher/rocket_launcher.bmesh",
-		index: WEAPON_INDEX.rocket_launcher,
-		pickupType: "rocket_launcher",
+	GRENADE_LAUNCHER: {
+		mesh: "meshes/grenade_launcher/grenade_launcher.bmesh",
+		index: WEAPON_INDEX.grenade_launcher,
+		pickupType: "grenade_launcher",
 	},
 	ENERGY_SCEPTER: {
 		mesh: "meshes/energy_scepter/energy_sceptre.bmesh",

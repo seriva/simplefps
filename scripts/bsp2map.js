@@ -1064,8 +1064,8 @@ function exportMap(vertices, meshVerts, faces, textures, lightmaps, models, ligh
             'ammo_bfg': 'ammo',
 
             // Weapons
-            'weapon_rocketlauncher': 'rocket_launcher',
-            'weapon_grenadelauncher': 'rocket_launcher', // GL -> Rocket Launcher
+            'weapon_rocketlauncher': 'grenade_launcher',
+            'weapon_grenadelauncher': 'grenade_launcher', // GL -> Grenade Launcher
             'weapon_lightning': 'energy_scepter', // Lightning Gun -> Energy Scepter
             'weapon_bfg': 'energy_scepter',       // BFG -> Energy Scepter
             'weapon_minigun': 'laser_gatling',   // Chaingun -> Laser Gatling
