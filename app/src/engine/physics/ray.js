@@ -122,11 +122,15 @@ class Ray {
 		) {
 			const trianglesIndex = _itTriangles[i];
 			mesh.getNormal(trianglesIndex, _itNormal);
+
+			const dot = vec3.dot(_itLocalDir, _itNormal);
+			if (Math.abs(dot) < 0.000001) continue; // Parallel ray
+
+			if (this.skipBackfaces && dot > 0) continue; // Backface culling early
+
 			mesh.getVertex(indices[trianglesIndex * 3], _a);
 
 			vec3.sub(_itVector, _a, _itLocalFrom);
-			const dot = vec3.dot(_itLocalDir, _itNormal);
-
 			const scalar = vec3.dot(_itNormal, _itVector) / dot;
 			if (scalar < 0) {
 				continue;
@@ -238,7 +242,7 @@ class Ray {
 
 		const u = dot11 * dot02 - dot01 * dot12;
 		const v = dot00 * dot12 - dot01 * dot02;
-		return u >= 0 && v >= 0 && u + v < dot00 * dot11 - dot01 * dot01;
+		return u >= 0 && v >= 0 && u + v <= dot00 * dot11 - dot01 * dot01;
 	}
 
 	getAABB(result) {

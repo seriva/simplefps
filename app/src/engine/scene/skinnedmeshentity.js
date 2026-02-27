@@ -72,8 +72,8 @@ class SkinnedMeshEntity extends MeshEntity {
 		if (!shader) return;
 		if (this.shadowHeight === null || this.shadowHeight === undefined) return;
 
-		// Use the original base_matrix (shader will flatten Y to shadowHeight)
-		shader.setMat4("matWorld", this.base_matrix);
+		mat4.multiply(_tempMatrix, this.base_matrix, this.ani_matrix);
+		shader.setMat4("matWorld", _tempMatrix);
 		shader.setFloat("shadowHeight", this.shadowHeight);
 		shader.setMat4Array("boneMatrices", this._boneMatrices);
 		this.mesh.renderSingle(false, null, mode, shader, true);

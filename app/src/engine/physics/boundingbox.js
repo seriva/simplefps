@@ -5,13 +5,11 @@ import Camera from "../systems/camera.js";
 // Private state (Module-scoped temporary variables)
 // ============================================================================
 
-const _cornersBuffer = new Float32Array(24);
 const _transformedMin = vec3.create();
 const _transformedMax = vec3.create();
 const _tempCenter = vec3.create();
 const _tempDimensions = vec3.create();
 const _tempTransformMat = mat4.create();
-const _tempCorner = vec3.create();
 
 // Corners for frame transformation
 const _transformIntoFrameCorners = [
@@ -173,35 +171,36 @@ class BoundingBox {
 	}
 
 	transformInto(matrix, out) {
-		const corners = _cornersBuffer;
-		const corner = _tempCorner;
+		const m = matrix;
+		const min = this.min;
+		const max = this.max;
 
-		for (let i = 0; i < 8; i++) {
-			vec3.set(
-				corner,
-				i & 1 ? this.max[0] : this.min[0],
-				i & 2 ? this.max[1] : this.min[1],
-				i & 4 ? this.max[2] : this.min[2],
-			);
-			vec3.transformMat4(corner, corner, matrix);
-			corners[i * 3] = corner[0];
-			corners[i * 3 + 1] = corner[1];
-			corners[i * 3 + 2] = corner[2];
-		}
+		const tMin = _transformedMin;
+		const tMax = _transformedMax;
 
-		const tMin = _transformedMin,
-			tMax = _transformedMax;
-		tMin[0] = tMax[0] = corners[0];
-		tMin[1] = tMax[1] = corners[1];
-		tMin[2] = tMax[2] = corners[2];
+		// Translation part
+		tMin[0] = tMax[0] = m[12];
+		tMin[1] = tMax[1] = m[13];
+		tMin[2] = tMax[2] = m[14];
 
-		for (let i = 3; i < 24; i += 3) {
-			tMin[0] = Math.min(tMin[0], corners[i]);
-			tMin[1] = Math.min(tMin[1], corners[i + 1]);
-			tMin[2] = Math.min(tMin[2], corners[i + 2]);
-			tMax[0] = Math.max(tMax[0], corners[i]);
-			tMax[1] = Math.max(tMax[1], corners[i + 1]);
-			tMax[2] = Math.max(tMax[2], corners[i + 2]);
+		// Scale / Rotation part
+		for (let i = 0; i < 3; i++) {
+			const minVal = min[i];
+			const maxVal = max[i];
+			const i4 = i * 4;
+
+			for (let j = 0; j < 3; j++) {
+				const e = m[i4 + j];
+				const a = e * minVal;
+				const b = e * maxVal;
+				if (a < b) {
+					tMin[j] += a;
+					tMax[j] += b;
+				} else {
+					tMin[j] += b;
+					tMax[j] += a;
+				}
+			}
 		}
 
 		return out.set(tMin, tMax);
