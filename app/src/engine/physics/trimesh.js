@@ -13,7 +13,6 @@ const _cb = vec3.create();
 class Trimesh {
 	constructor(vertices, indices) {
 		this.aabb = new BoundingBox();
-		this.scale = vec3.fromValues(1, 1, 1);
 		this.tree = new Octree();
 
 		if (vertices && indices) {
@@ -89,20 +88,9 @@ class Trimesh {
 	}
 
 	updateTree() {
-		const { tree, aabb, scale, indices, vertices } = this;
+		const { tree, aabb, indices, vertices } = this;
 		tree.reset();
 		tree.aabb.copy(aabb);
-
-		const invSx = 1 / scale[0];
-		const invSy = 1 / scale[1];
-		const invSz = 1 / scale[2];
-
-		tree.aabb.min[0] *= invSx;
-		tree.aabb.min[1] *= invSy;
-		tree.aabb.min[2] *= invSz;
-		tree.aabb.max[0] *= invSx;
-		tree.aabb.max[1] *= invSy;
-		tree.aabb.max[2] *= invSz;
 
 		// Expand root AABB slightly to cover precision issues during insertion
 		const epsilon = 0.001;
@@ -132,34 +120,16 @@ class Trimesh {
 	}
 
 	updateNormals() {
-		const { indices, vertices, normals, scale } = this;
-		const sx = scale[0],
-			sy = scale[1],
-			sz = scale[2];
+		const { indices, vertices, normals } = this;
 
 		for (let i = 0, len = indices.length; i < len; i += 3) {
 			const i0 = indices[i] * 3;
 			const i1 = indices[i + 1] * 3;
 			const i2 = indices[i + 2] * 3;
 
-			vec3.set(
-				_va,
-				vertices[i0] * sx,
-				vertices[i0 + 1] * sy,
-				vertices[i0 + 2] * sz,
-			);
-			vec3.set(
-				_vb,
-				vertices[i1] * sx,
-				vertices[i1 + 1] * sy,
-				vertices[i1 + 2] * sz,
-			);
-			vec3.set(
-				_vc,
-				vertices[i2] * sx,
-				vertices[i2 + 1] * sy,
-				vertices[i2 + 2] * sz,
-			);
+			vec3.set(_va, vertices[i0], vertices[i0 + 1], vertices[i0 + 2]);
+			vec3.set(_vb, vertices[i1], vertices[i1 + 1], vertices[i1 + 2]);
+			vec3.set(_vc, vertices[i2], vertices[i2 + 1], vertices[i2 + 2]);
 
 			Trimesh.computeNormal(_vb, _va, _vc, _n);
 
@@ -179,17 +149,14 @@ class Trimesh {
 
 	getVertex(i, out) {
 		const i3 = i * 3;
-		out[0] = this.vertices[i3] * this.scale[0];
-		out[1] = this.vertices[i3 + 1] * this.scale[1];
-		out[2] = this.vertices[i3 + 2] * this.scale[2];
+		out[0] = this.vertices[i3];
+		out[1] = this.vertices[i3 + 1];
+		out[2] = this.vertices[i3 + 2];
 		return out;
 	}
 
 	computeLocalAABB(aabb) {
-		const { vertices, scale } = this;
-		const sx = scale[0],
-			sy = scale[1],
-			sz = scale[2];
+		const { vertices } = this;
 		let minX = Infinity,
 			minY = Infinity,
 			minZ = Infinity;
@@ -198,9 +165,9 @@ class Trimesh {
 			maxZ = -Infinity;
 
 		for (let i = 0, len = vertices.length; i < len; i += 3) {
-			const x = vertices[i] * sx;
-			const y = vertices[i + 1] * sy;
-			const z = vertices[i + 2] * sz;
+			const x = vertices[i];
+			const y = vertices[i + 1];
+			const z = vertices[i + 2];
 
 			if (x < minX) minX = x;
 			if (x > maxX) maxX = x;

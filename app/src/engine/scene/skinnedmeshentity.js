@@ -3,7 +3,6 @@ import AnimationPlayer from "../animation/animationplayer.js";
 import BoundingBox from "../physics/boundingbox.js";
 import Mesh from "../rendering/mesh.js";
 import { Shaders } from "../rendering/shaders.js";
-import Console from "../systems/console.js";
 import Resources from "../systems/resources.js";
 import { EntityTypes } from "./entity.js";
 import MeshEntity from "./meshentity.js";
@@ -39,10 +38,6 @@ class SkinnedMeshEntity extends MeshEntity {
 
 	stopAnimation() {
 		this.animationPlayer?.stop();
-	}
-
-	makeStatic() {
-		Console.warn("SkinnedMeshEntity cannot be made static");
 	}
 
 	update(deltaTime) {
