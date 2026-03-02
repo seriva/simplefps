@@ -184,13 +184,26 @@ const _spawnExplosion = (position) => {
 			scale: EXPLOSION_CONFIG.scale * (0.8 + Math.random() * 0.4),
 			rotation: Math.random() * Math.PI * 2, // Break up the repetition
 			timeOffset: -Math.random() * 100, // Stagger explosions by up to 100ms
-			easeScale: true, // Rapid outward blast
+			scaleFn: (progress) => {
+				const ease = 1.0 - (1.0 - progress) ** 3;
+				return 0.2 + 0.8 * ease; // Pop outward
+			},
+			opacityFn: (progress) => {
+				const fadeStart = 0.7;
+				return progress < fadeStart
+					? 1.0
+					: 1.0 - (progress - fadeStart) / (1.0 - fadeStart);
+			},
 		};
 		entitiesList.push(new AnimatedBillboardEntity(clusterPos, clusterConfig));
 	}
 
 	// 3. Flying Sparks (Particle Emitter)
-	const emitter = new ParticleEmitterEntity("meshes/spark.webp");
+	const emitter = new ParticleEmitterEntity({
+		texture: "meshes/spark.webp",
+		scaleFn: (progress) => 20.0 * (1.0 - progress ** 3), // * 10 base diff, * 2.0 multiplier, and cubic ease out
+		opacityFn: (progress) => 1.0 - progress, // Linear fade out
+	});
 
 	const sparkCount = 15 + Math.floor(Math.random() * 10); // 15-24 sparks
 	for (let i = 0; i < sparkCount; i++) {

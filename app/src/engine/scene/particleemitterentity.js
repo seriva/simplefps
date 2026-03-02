@@ -11,10 +11,17 @@ class ParticleEmitterEntity extends Entity {
 
 	#particles = [];
 	#texture;
+	#scaleFn;
+	#opacityFn;
 
-	constructor(texturePath = "meshes/spark.webp") {
+	constructor(config = {}) {
 		super(EntityTypes.PARTICLE_EMITTER);
-		this.#texture = Resources.get(texturePath);
+		if (!config.texture) {
+			throw new Error("ParticleEmitterEntity requires a texture");
+		}
+		this.#texture = Resources.get(config.texture);
+		this.#scaleFn = config.scaleFn ?? null;
+		this.#opacityFn = config.opacityFn ?? null;
 	}
 	addParticle(
 		position,
@@ -22,7 +29,7 @@ class ParticleEmitterEntity extends Entity {
 		duration,
 		color = [1, 1, 1],
 		startScale = 1.0,
-		gravity = 600.0,
+		gravity = 0.0,
 	) {
 		this.#particles.push({
 			pos: new Float32Array(position),
@@ -89,10 +96,12 @@ class ParticleEmitterEntity extends Entity {
 			if (p.life <= 0) continue;
 
 			const progress = 1.0 - p.life / p.duration;
-			const scale = p.startScale * 2.0 * (1.0 - progress ** 3); // ease out
-			const opacity = 1.0 - progress; // Fade out
 
-			const s = scale * 10.0;
+			const scaleModifier = this.#scaleFn ? this.#scaleFn(progress) : 1.0;
+			const opacityModifier = this.#opacityFn ? this.#opacityFn(progress) : 1.0;
+
+			const s = p.startScale * scaleModifier;
+			const opacity = opacityModifier;
 
 			// Build billboard matrix
 			const mat = ParticleEmitterEntity.#tempMatrix;

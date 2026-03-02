@@ -653,10 +653,9 @@ const _transparentPass = () => {
 
 	RenderPasses.renderTransparent();
 
-	// Render explosions with additive blending directly into the light buffer
+	// Render explosions and particles with additive blending directly into the light buffer
 	Backend.setBlendState(true, "src-alpha", "one");
-	RenderPasses.renderExplosions();
-	RenderPasses.renderParticles();
+	RenderPasses.renderBillboards();
 
 	Backend.setCullState(true);
 	Backend.setDepthState(true, true);

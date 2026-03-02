@@ -22,24 +22,26 @@ class AnimatedBillboardEntity extends Entity {
 	#frameCount;
 	#scale;
 	#rotation;
-	#easeScale;
 	#texture;
+	#scaleFn;
+	#opacityFn;
 
-	/**
-	 * @param {number[]} position  - World position [x, y, z]
-	 * @param {object}   config    - { texture, gridSize, frameCount, duration, scale, rotation, easeScale }
-	 */
 	constructor(position, config = {}) {
 		super(EntityTypes.ANIMATED_BILLBOARD);
 
-		this.#duration = config.duration ?? 800;
-		this.#gridSize = config.gridSize ?? 4;
-		this.#frameCount = config.frameCount ?? 16;
-		this.#scale = config.scale ?? 64;
+		if (!config.texture) {
+			throw new Error("AnimatedBillboardEntity requires a texture");
+		}
+
+		this.#duration = config.duration ?? 1000;
+		this.#gridSize = config.gridSize ?? 1;
+		this.#frameCount = config.frameCount ?? 1;
+		this.#scale = config.scale ?? 1;
 		this.#rotation = config.rotation ?? 0;
-		this.#easeScale = config.easeScale ?? false;
 		this.#time = config.timeOffset ?? 0;
-		this.#texture = Resources.get(config.texture ?? "meshes/explosion.webp");
+		this.#texture = Resources.get(config.texture);
+		this.#scaleFn = config.scaleFn ?? null;
+		this.#opacityFn = config.opacityFn ?? null;
 
 		this.position = [position[0], position[1], position[2]];
 	}
@@ -66,12 +68,8 @@ class AnimatedBillboardEntity extends Entity {
 		const row = Math.floor(frameIndex / this.#gridSize);
 		const cellSize = 1.0 / this.#gridSize;
 
-		// Fade out over the last 30% of the animation
-		const fadeStart = 0.7;
-		const opacity =
-			progress < fadeStart
-				? 1.0
-				: 1.0 - (progress - fadeStart) / (1.0 - fadeStart);
+		// Fade out using opacityFn or default to 1
+		const opacity = this.#opacityFn ? this.#opacityFn(progress) : 1.0;
 
 		// Build CPU-side billboard matrix from camera view matrix
 		const v = Camera.view;
@@ -94,12 +92,10 @@ class AnimatedBillboardEntity extends Entity {
 		const uy = -_right[1] * sinR + _up[1] * cosR;
 		const uz = -_right[2] * sinR + _up[2] * cosR;
 
-		// Apply scale easing (pop outward)
+		// Apply external scaling if valid
 		let s = this.#scale;
-		if (this.#easeScale) {
-			// Cubic ease out
-			const ease = 1.0 - (1.0 - progress) ** 3;
-			s = s * (0.2 + 0.8 * ease);
+		if (this.#scaleFn) {
+			s = s * this.#scaleFn(progress);
 		}
 
 		const px = this.position[0];
