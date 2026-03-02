@@ -213,13 +213,11 @@ const _spawnExplosion = (position) => {
 		const vz = (Math.random() - 0.5) * 1000;
 
 		const sparkDuration = 300 + Math.random() * 500; // Lifetime 300-800ms
-		const sparkColor = [1.0, 0.8, 0.2]; // Yellow-orange
 
 		emitter.addParticle(
 			position,
 			[vx, vy, vz],
 			sparkDuration,
-			sparkColor,
 			1.0, // Scale
 			600.0, // Gravity
 		);

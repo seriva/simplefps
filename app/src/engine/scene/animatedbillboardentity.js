@@ -1,14 +1,13 @@
-import { Backend } from "../rendering/backend.js";
+import { mat4 } from "../../dependencies/gl-matrix.js";
 import { Shaders } from "../rendering/shaders.js";
 import Shapes from "../rendering/shapes.js";
+import Texture from "../rendering/texture.js";
+import Camera from "../systems/camera.js";
 import Resources from "../systems/resources.js";
 import { Entity, EntityTypes } from "./entity.js";
 
-// ============================================================================
-// Animated Billboard Entity — camera-facing sprite sheet animation
-// ============================================================================
-
-// Temporaries completely removed as the math is mostly on the GPU now
+// Reusable temporary matrix to avoid per-frame allocations
+const _tempMatrix = mat4.create();
 
 class AnimatedBillboardEntity extends Entity {
 	#time = 0;
@@ -20,10 +19,6 @@ class AnimatedBillboardEntity extends Entity {
 	#texture;
 	#scaleFn;
 	#opacityFn;
-
-	#vertexState = null;
-	#instanceBuffer = null;
-	#instanceData = new Float32Array(10);
 
 	constructor(position, config = {}) {
 		super(EntityTypes.ANIMATED_BILLBOARD);
@@ -53,140 +48,75 @@ class AnimatedBillboardEntity extends Entity {
 	render() {
 		if (!this.visible || !this.#texture || this.#time < 0) return;
 
-		const shader = Shaders.instancedBillboard;
-		if (!shader) return;
-
 		const progress = Math.min(this.#time / this.#duration, 1.0);
 		const frameIndex = Math.min(
 			Math.floor(progress * this.#frameCount),
 			this.#frameCount - 1,
 		);
-
-		// Compute sprite sheet UV offset and scale
+		const cellSize = 1.0 / this.#gridSize;
 		const col = frameIndex % this.#gridSize;
 		const row = Math.floor(frameIndex / this.#gridSize);
-		const cellSize = 1.0 / this.#gridSize;
-
-		// Fade out using opacityFn or default to 1
 		const opacity = this.#opacityFn ? this.#opacityFn(progress) : 1.0;
-
 		let s = this.#scale;
-		if (this.#scaleFn) {
-			s = s * this.#scaleFn(progress);
-		}
+		if (this.#scaleFn) s *= this.#scaleFn(progress);
 
-		if (!this.#vertexState) {
-			this.#instanceBuffer = Backend.createBuffer(this.#instanceData, "vertex");
-			this.#vertexState = Backend.createVertexState({
-				attributes: [
-					{
-						buffer: Shapes.billboardQuad.vertexBuffer,
-						slot: 0,
-						size: 3,
-						type: "float",
-						offset: 0,
-						stride: 12,
-					},
-					{
-						buffer: Shapes.billboardQuad.uvBuffer,
-						slot: 1,
-						size: 2,
-						type: "float",
-						offset: 0,
-						stride: 8,
-					},
-					{
-						buffer: this.#instanceBuffer,
-						slot: 2,
-						size: 3,
-						type: "float",
-						divisor: 1,
-						stride: 40,
-						offset: 0,
-					},
-					{
-						buffer: this.#instanceBuffer,
-						slot: 3,
-						size: 1,
-						type: "float",
-						divisor: 1,
-						stride: 40,
-						offset: 12,
-					},
-					{
-						buffer: this.#instanceBuffer,
-						slot: 4,
-						size: 1,
-						type: "float",
-						divisor: 1,
-						stride: 40,
-						offset: 16,
-					},
-					{
-						buffer: this.#instanceBuffer,
-						slot: 5,
-						size: 1,
-						type: "float",
-						divisor: 1,
-						stride: 40,
-						offset: 20,
-					},
-					{
-						buffer: this.#instanceBuffer,
-						slot: 6,
-						size: 4,
-						type: "float",
-						divisor: 1,
-						stride: 40,
-						offset: 24,
-					},
-				],
-			});
-		}
+		// Build a billboard world matrix from camera view right/up vectors
+		// Column-major mat4: view[0].xyz = right column, view[1].xyz = up column
+		const v = Camera.view;
+		const rx = v[0],
+			ry = v[4],
+			rz = v[8]; // camera right (view row 0)
+		const ux = v[1],
+			uy = v[5],
+			uz = v[9]; // camera up    (view row 1)
 
-		this.#instanceData[0] = this.position[0];
-		this.#instanceData[1] = this.position[1];
-		this.#instanceData[2] = this.position[2];
+		const c = Math.cos(this.#rotation);
+		const ss = Math.sin(this.#rotation);
 
-		this.#instanceData[3] = s;
-		this.#instanceData[4] = this.#rotation;
-		this.#instanceData[5] = opacity;
+		// Apply in-plane rotation around the billboard normal
+		const lrx = rx * c + ux * ss,
+			lry = ry * c + uy * ss,
+			lrz = rz * c + uz * ss;
+		const lux = -rx * ss + ux * c,
+			luy = -ry * ss + uy * c,
+			luz = -rz * ss + uz * c;
 
-		this.#instanceData[6] = col * cellSize;
-		this.#instanceData[7] = row * cellSize;
-		this.#instanceData[8] = cellSize;
-		this.#instanceData[9] = cellSize;
-
-		Backend.updateBuffer(this.#instanceBuffer, this.#instanceData);
-
-		shader.bind();
-		shader.setInt("colorSampler", 0);
-
-		this.#texture.bind(0);
-
-		Backend.bindVertexState(this.#vertexState);
-		Backend.drawInstanced(
-			Shapes.billboardQuad.indices[0].indexBuffer,
-			Shapes.billboardQuad.indices[0].array.length,
+		// Scale the billboard axes, keep forward (z col) as zero
+		mat4.set(
+			_tempMatrix,
+			lrx * s,
+			lry * s,
+			lrz * s,
+			0,
+			lux * s,
+			luy * s,
+			luz * s,
+			0,
+			0,
+			0,
+			0,
+			0,
+			this.position[0],
+			this.position[1],
+			this.position[2],
 			1,
 		);
-		Backend.bindVertexState(null);
 
-		Backend.unbindTexture(0);
-		Backend.unbindShader();
+		const shader = Shaders.billboard;
+		shader.bind();
+		shader.setMat4("matWorld", _tempMatrix);
+		shader.setVec2("uFrameOffset", [col * cellSize, row * cellSize]);
+		shader.setVec2("uFrameScale", [cellSize, cellSize]);
+		shader.setFloat("uOpacity", opacity);
+
+		this.#texture.bind(0);
+		Shapes.billboardQuad.renderSingle(false);
+		Texture.unBind(0);
 	}
 
 	dispose() {
 		super.dispose();
 		this.#texture = null;
-		if (this.#vertexState) {
-			Backend.deleteVertexState(this.#vertexState);
-			this.#vertexState = null;
-		}
-		if (this.#instanceBuffer) {
-			Backend.deleteBuffer(this.#instanceBuffer);
-			this.#instanceBuffer = null;
-		}
 	}
 }
 

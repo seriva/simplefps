@@ -21,15 +21,10 @@ class ParticleEmitterEntity extends Entity {
 		this.#texture = Resources.get(config.texture);
 		this.#scaleFn = config.scaleFn ?? null;
 		this.#opacityFn = config.opacityFn ?? null;
+		// Pre-allocate enough capacity for a typical burst (128 particles)
+		this.#instanceData = new Float32Array(128 * 10);
 	}
-	addParticle(
-		position,
-		velocity,
-		duration,
-		color = [1, 1, 1],
-		startScale = 1.0,
-		gravity = 0.0,
-	) {
+	addParticle(position, velocity, duration, startScale = 1.0, gravity = 0.0) {
 		this.#particles.push({
 			x: position[0],
 			y: position[1],
@@ -45,59 +40,33 @@ class ParticleEmitterEntity extends Entity {
 	}
 
 	update(frameTime) {
-		let anyAlive = false;
-
 		const dtSec = frameTime / 1000.0;
-
-		// Iterate backwards to safely pop elements
+		// Iterate backwards so swap-and-pop removal is safe
 		for (let i = this.#particles.length - 1; i >= 0; i--) {
 			const p = this.#particles[i];
-
+			p.life -= frameTime;
 			if (p.life > 0) {
-				p.life -= frameTime;
-
-				if (p.life > 0) {
-					anyAlive = true;
-
-					// Apply gravity
-					p.vy -= p.gravity * dtSec;
-
-					// Move particle
-					p.x += p.vx * dtSec;
-					p.y += p.vy * dtSec;
-					p.z += p.vz * dtSec;
-				} else {
-					// Particle died, swap with last element and pop to avoid memory leak
-					const last = this.#particles.pop();
-					if (i < this.#particles.length) {
-						this.#particles[i] = last;
-					}
-				}
+				p.vy -= p.gravity * dtSec;
+				p.x += p.vx * dtSec;
+				p.y += p.vy * dtSec;
+				p.z += p.vz * dtSec;
 			} else {
-				// Cleanup already dead particles just in case
 				const last = this.#particles.pop();
-				if (i < this.#particles.length) {
-					this.#particles[i] = last;
-				}
+				if (i < this.#particles.length) this.#particles[i] = last;
 			}
 		}
-
-		return anyAlive || this.#particles.length > 0;
+		return this.#particles.length > 0;
 	}
 
 	render() {
-		if (!this.visible || !this.#texture || this.#particles.length === 0) return;
+		const n = this.#particles.length;
+		if (!this.visible || !this.#texture || n === 0) return;
 
-		let numActiveParticles = 0;
-		for (let i = 0; i < this.#particles.length; i++) {
-			if (this.#particles[i].life > 0) numActiveParticles++;
-		}
-		if (numActiveParticles === 0) return;
-
+		// All particles in the array are alive (update() removes dead ones)
 		const floatsPerInstance = 10;
-		const requiredSize = numActiveParticles * floatsPerInstance;
+		const requiredSize = n * floatsPerInstance;
 
-		if (!this.#instanceData || this.#instanceData.length < requiredSize) {
+		if (!this.#instanceBuffer || this.#instanceData.length < requiredSize) {
 			const newSize = Math.max(requiredSize * 2, 100 * floatsPerInstance);
 			this.#instanceData = new Float32Array(newSize);
 
@@ -177,9 +146,8 @@ class ParticleEmitterEntity extends Entity {
 		}
 
 		let offset = 0;
-		for (let i = 0; i < this.#particles.length; i++) {
+		for (let i = 0; i < n; i++) {
 			const p = this.#particles[i];
-			if (p.life <= 0) continue;
 
 			const progress = 1.0 - p.life / p.duration;
 
@@ -211,14 +179,13 @@ class ParticleEmitterEntity extends Entity {
 		);
 
 		Shaders.instancedBillboard.bind();
-		Shaders.instancedBillboard.setInt("colorSampler", 0);
 		this.#texture.bind(0);
 
 		Backend.bindVertexState(this.#vertexState);
 		Backend.drawInstanced(
 			Shapes.billboardQuad.indices[0].indexBuffer,
 			Shapes.billboardQuad.indices[0].array.length,
-			numActiveParticles,
+			n,
 		);
 		Backend.bindVertexState(null);
 
