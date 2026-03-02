@@ -44,6 +44,8 @@
         "meshes/pulse_cannon/materials.mat",
         "meshes/pulse_cannon/pulse_cannon.bmesh",
         "meshes/ball.webp",
+        "meshes/explosion.webp",
+        "meshes/spark.webp",
         "meshes/spheremap_neutral.webp",
         "meshes/powerup_sem.webp",
         "meshes/meshes.mat",

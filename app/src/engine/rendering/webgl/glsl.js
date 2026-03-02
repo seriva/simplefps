@@ -1060,4 +1060,44 @@ export const ShaderSources = {
             }`,
 		fragment: _debugFragment,
 	},
+	billboard: {
+		vertex: /* glsl */ `#version 300 es
+            precision highp float;
+
+            layout(location=0) in vec3 aPosition;
+            layout(location=1) in vec2 aUV;
+
+            ${_frameDataUBO}
+
+            uniform mat4 matWorld;
+            uniform vec2 uFrameOffset;
+            uniform vec2 uFrameScale;
+
+            out vec2 vUV;
+
+            void main() {
+                vec4 worldPos = matWorld * vec4(aPosition, 1.0);
+                // Inset UVs slightly (1% on all sides) to prevent texture bleeding
+                // from adjacent frames in the sprite sheet due to linear filtering
+                vec2 insetUV = aUV * 0.98 + 0.01;
+                vUV = uFrameOffset + insetUV * uFrameScale;
+                gl_Position = matViewProj * worldPos;
+            }`,
+		fragment: /* glsl */ `#version 300 es
+            precision highp float;
+
+            in vec2 vUV;
+
+            layout(location=0) out vec4 fragColor;
+
+            uniform sampler2D colorSampler;
+            uniform float uOpacity;
+
+            void main() {
+                vec4 color = texture(colorSampler, vUV);
+                // Use luminance as alpha for additive blending fade
+                float lum = dot(color.rgb, vec3(0.299, 0.587, 0.114));
+                fragColor = vec4(color.rgb * uOpacity, lum * uOpacity);
+            }`,
+	},
 };

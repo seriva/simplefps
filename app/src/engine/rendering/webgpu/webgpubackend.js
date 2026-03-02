@@ -129,6 +129,7 @@ class WebGPUBackend extends RenderBackend {
 			skinnedShadowParams: new Float32Array(20),
 			blurParams: new Float32Array(8),
 			bilateralParams: new Float32Array(4), // depthThreshold, normalThreshold, _pad x2
+			billboardParams: new Float32Array(24), // mat4 + vec2 + vec2 + f32 + pad = 16+2+2+1+3 = 24 floats
 		};
 
 		// Optimization: Pre-allocated typed arrays for scalar uniforms (avoid per-draw allocations)
@@ -1852,6 +1853,20 @@ class WebGPUBackend extends RenderBackend {
 			if (size !== undefined) arr[3] = size;
 			if (col) arr.set(col, 4);
 			if (intensity !== undefined) arr[7] = intensity;
+			return arr;
+		} else if (name === "billboardParams") {
+			const arr = bufs.billboardParams;
+			arr.fill(0);
+			const matWorld = this._uniforms.get("matWorld");
+			const frameOffset = this._uniforms.get("uFrameOffset");
+			const frameScale = this._uniforms.get("uFrameScale");
+			const opacity = this._uniforms.get("uOpacity");
+
+			if (matWorld) arr.set(matWorld, 0); // floats 0-15 (64 bytes)
+			if (frameOffset) arr.set(frameOffset, 16); // floats 16-17
+			if (frameScale) arr.set(frameScale, 18); // floats 18-19
+			if (opacity !== undefined) arr[20] = opacity; // float 20
+
 			return arr;
 		} else if (name === "directionalLight") {
 			const arr = bufs.directionalLight;

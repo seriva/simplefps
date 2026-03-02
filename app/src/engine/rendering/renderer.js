@@ -215,6 +215,10 @@ const _startBlurPass = (blurSource) => {
 
 const _endBlurPass = () => {
 	Texture.unBind(0);
+	// Detach whatever texture was bound to the blur framebuffer's color attachment.
+	// This prevents WebGL feedback loop errors if subsequent passes (like _explosionPass)
+	// try to use that texture as a render target on a different framebuffer.
+	Backend.setFramebufferAttachment(_b.framebuffer, 0, null);
 	Backend.bindFramebuffer(null);
 };
 
@@ -648,6 +652,11 @@ const _transparentPass = () => {
 	Backend.setCullState(false);
 
 	RenderPasses.renderTransparent();
+
+	// Render explosions with additive blending directly into the light buffer
+	Backend.setBlendState(true, "src-alpha", "one");
+	RenderPasses.renderExplosions();
+	RenderPasses.renderParticles();
 
 	Backend.setCullState(true);
 	Backend.setDepthState(true, true);

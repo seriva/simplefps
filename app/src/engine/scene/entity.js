@@ -11,6 +11,8 @@ const EntityTypes = Object.freeze({
 	SPOT_LIGHT: 5,
 	SKYBOX: 6,
 	SKINNED_MESH: 7,
+	ANIMATED_BILLBOARD: 8,
+	PARTICLE_EMITTER: 9,
 });
 
 class Entity {

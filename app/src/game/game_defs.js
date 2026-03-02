@@ -71,6 +71,14 @@ export const PROJECTILE_CONFIG = {
 	},
 };
 
+export const EXPLOSION_CONFIG = {
+	texture: "meshes/explosion.webp",
+	gridSize: 4,
+	frameCount: 16,
+	duration: 650,
+	scale: 80,
+};
+
 export const WEAPON_POSITION_BASE = {
 	x: 0.19,
 	y: -0.25,

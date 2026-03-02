@@ -551,6 +551,18 @@ const renderFPSGeometry = () => {
 	Backend.unbindShader();
 };
 
+const renderExplosions = () => {
+	for (const entity of Scene.visibilityCache[EntityTypes.ANIMATED_BILLBOARD]) {
+		entity.render();
+	}
+};
+
+const renderParticles = () => {
+	for (const entity of Scene.visibilityCache[EntityTypes.PARTICLE_EMITTER]) {
+		entity.render();
+	}
+};
+
 const renderDebug = () => {
 	Shaders.debug.bind();
 
@@ -612,10 +624,11 @@ const renderDebug = () => {
 	Backend.unbindShader();
 };
 
-// Public RenderPasses API
 const RenderPasses = {
 	renderWorldGeometry,
 	renderTransparent,
+	renderExplosions,
+	renderParticles,
 	renderLighting,
 	renderShadows,
 	renderFPSGeometry,

@@ -9,8 +9,11 @@ import {
 	Scene,
 } from "../engine/engine.js";
 import { Backend } from "../engine/rendering/backend.js";
+import AnimatedBillboardEntity from "../engine/scene/animatedbillboardentity.js";
+import ParticleEmitterEntity from "../engine/scene/particleemitterentity.js";
 import {
 	ANIMATION_CONFIG,
+	EXPLOSION_CONFIG,
 	PROJECTILE_CONFIG,
 	WEAPON_CONFIG,
 	WEAPON_INDEX,
@@ -138,6 +141,81 @@ const _onJump = () => {
 	_state.recoil.vel += ANIMATION_CONFIG.JUMP_IMPULSE;
 };
 
+// Spawn a volumetric explosion cluster with light flash and flying sparks
+const _spawnExplosion = (position) => {
+	const entitiesList = [];
+
+	// 1. Point light flash
+	const flashColor = [1.0, 0.5, 0.1];
+	const flashRadius = EXPLOSION_CONFIG.scale * 6.0;
+	// Pull slightly off the wall so it illuminates the impact surface evenly
+	const flashPos = [position[0], position[1], position[2] + 10];
+	const flashEntity = new PointLightEntity(
+		flashPos,
+		flashRadius,
+		flashColor,
+		8, // Low initial intensity
+		(entity, frameTime) => {
+			// Fast decay over ~180ms
+			entity.intensity -= (frameTime / 180) * 8;
+			if (entity.intensity <= 0) {
+				return false; // Remove light
+			}
+			return true;
+		},
+	);
+	entitiesList.push(flashEntity);
+
+	// 2. Billboard Cluster
+	const clusterCount = 4;
+	for (let i = 0; i < clusterCount; i++) {
+		// Scattered offsets within a 22-unit radius
+		const offsetX = (Math.random() - 0.5) * 22;
+		const offsetY = (Math.random() - 0.5) * 22;
+		const offsetZ = (Math.random() - 0.5) * 22;
+		const clusterPos = [
+			position[0] + offsetX,
+			position[1] + offsetY,
+			position[2] + offsetZ,
+		];
+
+		const clusterConfig = {
+			...EXPLOSION_CONFIG,
+			scale: EXPLOSION_CONFIG.scale * (0.8 + Math.random() * 0.4),
+			rotation: Math.random() * Math.PI * 2, // Break up the repetition
+			timeOffset: -Math.random() * 100, // Stagger explosions by up to 100ms
+			easeScale: true, // Rapid outward blast
+		};
+		entitiesList.push(new AnimatedBillboardEntity(clusterPos, clusterConfig));
+	}
+
+	// 3. Flying Sparks (Particle Emitter)
+	const emitter = new ParticleEmitterEntity("meshes/spark.webp");
+
+	const sparkCount = 15 + Math.floor(Math.random() * 10); // 15-24 sparks
+	for (let i = 0; i < sparkCount; i++) {
+		// Random velocity in a hemisphere outwards
+		const vx = (Math.random() - 0.5) * 1000;
+		const vy = (Math.random() - 0.5) * 1000 + 400; // Biased upwards bounce
+		const vz = (Math.random() - 0.5) * 1000;
+
+		const sparkDuration = 300 + Math.random() * 500; // Lifetime 300-800ms
+		const sparkColor = [1.0, 0.8, 0.2]; // Yellow-orange
+
+		emitter.addParticle(
+			position,
+			[vx, vy, vz],
+			sparkDuration,
+			sparkColor,
+			1.0, // Scale
+			600.0, // Gravity
+		);
+	}
+	entitiesList.push(emitter);
+
+	Scene.addEntities(entitiesList);
+};
+
 // Update projectile - simple velocity-based physics
 const _updateProjectile = (entity, frameTime) => {
 	const traj = entity.trajectory;
@@ -146,6 +224,7 @@ const _updateProjectile = (entity, frameTime) => {
 
 	// Check lifetime
 	if (now - entity.data.createdAt > _TRAJECTORY.LIFETIME) {
+		_spawnExplosion(entity.trajectory.position);
 		if (entity.linkedLight) {
 			Scene.removeEntity(entity.linkedLight);
 		}
@@ -202,6 +281,7 @@ const _updateProjectile = (entity, frameTime) => {
 
 		// If too slow, just stop (prevents floor tunneling)
 		if (speed < 50) {
+			_spawnExplosion(traj.position);
 			if (entity.linkedLight) {
 				Scene.removeEntity(entity.linkedLight);
 			}
