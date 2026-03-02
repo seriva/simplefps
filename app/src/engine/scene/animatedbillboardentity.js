@@ -1,8 +1,6 @@
-import { mat4, vec3 } from "../../dependencies/gl-matrix.js";
 import { Backend } from "../rendering/backend.js";
 import { Shaders } from "../rendering/shaders.js";
 import Shapes from "../rendering/shapes.js";
-import Camera from "../systems/camera.js";
 import Resources from "../systems/resources.js";
 import { Entity, EntityTypes } from "./entity.js";
 
@@ -10,10 +8,7 @@ import { Entity, EntityTypes } from "./entity.js";
 // Animated Billboard Entity — camera-facing sprite sheet animation
 // ============================================================================
 
-// Pre-allocated temporaries to avoid per-frame allocations
-const _matWorld = mat4.create();
-const _right = vec3.create();
-const _up = vec3.create();
+// Temporaries completely removed as the math is mostly on the GPU now
 
 class AnimatedBillboardEntity extends Entity {
 	#time = 0;
@@ -25,6 +20,10 @@ class AnimatedBillboardEntity extends Entity {
 	#texture;
 	#scaleFn;
 	#opacityFn;
+
+	#vertexState = null;
+	#instanceBuffer = null;
+	#instanceData = new Float32Array(10);
 
 	constructor(position, config = {}) {
 		super(EntityTypes.ANIMATED_BILLBOARD);
@@ -54,7 +53,7 @@ class AnimatedBillboardEntity extends Entity {
 	render() {
 		if (!this.visible || !this.#texture || this.#time < 0) return;
 
-		const shader = Shaders.billboard;
+		const shader = Shaders.instancedBillboard;
 		if (!shader) return;
 
 		const progress = Math.min(this.#time / this.#duration, 1.0);
@@ -71,74 +70,107 @@ class AnimatedBillboardEntity extends Entity {
 		// Fade out using opacityFn or default to 1
 		const opacity = this.#opacityFn ? this.#opacityFn(progress) : 1.0;
 
-		// Build CPU-side billboard matrix from camera view matrix
-		const v = Camera.view;
-		_right[0] = v[0];
-		_right[1] = v[4];
-		_right[2] = v[8];
-		_up[0] = v[1];
-		_up[1] = v[5];
-		_up[2] = v[9];
-
-		// Apply local 2D rotation around camera-facing axis
-		const cosR = Math.cos(this.#rotation);
-		const sinR = Math.sin(this.#rotation);
-
-		const rx = _right[0] * cosR + _up[0] * sinR;
-		const ry = _right[1] * cosR + _up[1] * sinR;
-		const rz = _right[2] * cosR + _up[2] * sinR;
-
-		const ux = -_right[0] * sinR + _up[0] * cosR;
-		const uy = -_right[1] * sinR + _up[1] * cosR;
-		const uz = -_right[2] * sinR + _up[2] * cosR;
-
-		// Apply external scaling if valid
 		let s = this.#scale;
 		if (this.#scaleFn) {
 			s = s * this.#scaleFn(progress);
 		}
 
-		const px = this.position[0];
-		const py = this.position[1];
-		const pz = this.position[2];
+		if (!this.#vertexState) {
+			this.#instanceBuffer = Backend.createBuffer(this.#instanceData, "vertex");
+			this.#vertexState = Backend.createVertexState({
+				attributes: [
+					{
+						buffer: Shapes.billboardQuad.vertexBuffer,
+						slot: 0,
+						size: 3,
+						type: "float",
+						offset: 0,
+						stride: 12,
+					},
+					{
+						buffer: Shapes.billboardQuad.uvBuffer,
+						slot: 1,
+						size: 2,
+						type: "float",
+						offset: 0,
+						stride: 8,
+					},
+					{
+						buffer: this.#instanceBuffer,
+						slot: 2,
+						size: 3,
+						type: "float",
+						divisor: 1,
+						stride: 40,
+						offset: 0,
+					},
+					{
+						buffer: this.#instanceBuffer,
+						slot: 3,
+						size: 1,
+						type: "float",
+						divisor: 1,
+						stride: 40,
+						offset: 12,
+					},
+					{
+						buffer: this.#instanceBuffer,
+						slot: 4,
+						size: 1,
+						type: "float",
+						divisor: 1,
+						stride: 40,
+						offset: 16,
+					},
+					{
+						buffer: this.#instanceBuffer,
+						slot: 5,
+						size: 1,
+						type: "float",
+						divisor: 1,
+						stride: 40,
+						offset: 20,
+					},
+					{
+						buffer: this.#instanceBuffer,
+						slot: 6,
+						size: 4,
+						type: "float",
+						divisor: 1,
+						stride: 40,
+						offset: 24,
+					},
+				],
+			});
+		}
 
-		// Column 0: right * scale
-		_matWorld[0] = rx * s;
-		_matWorld[1] = ry * s;
-		_matWorld[2] = rz * s;
-		_matWorld[3] = 0;
-		// Column 1: up * scale
-		_matWorld[4] = ux * s;
-		_matWorld[5] = uy * s;
-		_matWorld[6] = uz * s;
-		_matWorld[7] = 0;
-		// Column 2: dummy forward
-		_matWorld[8] = 0;
-		_matWorld[9] = 0;
-		_matWorld[10] = s;
-		_matWorld[11] = 0;
-		// Column 3: translation
-		_matWorld[12] = px;
-		_matWorld[13] = py;
-		_matWorld[14] = pz;
-		_matWorld[15] = 1;
+		this.#instanceData[0] = this.position[0];
+		this.#instanceData[1] = this.position[1];
+		this.#instanceData[2] = this.position[2];
+
+		this.#instanceData[3] = s;
+		this.#instanceData[4] = this.#rotation;
+		this.#instanceData[5] = opacity;
+
+		this.#instanceData[6] = col * cellSize;
+		this.#instanceData[7] = row * cellSize;
+		this.#instanceData[8] = cellSize;
+		this.#instanceData[9] = cellSize;
+
+		Backend.updateBuffer(this.#instanceBuffer, this.#instanceData);
 
 		shader.bind();
-
-		// WebGPU expects uniforms to be passed exactly as the shader expects them
-		// setMat4 handles Float32Array correctly in the backend
-		shader.setMat4("matWorld", _matWorld);
 		shader.setInt("colorSampler", 0);
-		shader.setVec2("uFrameOffset", [col * cellSize, row * cellSize]);
-		shader.setVec2("uFrameScale", [cellSize, cellSize]);
-		shader.setFloat("uOpacity", opacity);
 
 		this.#texture.bind(0);
 
-		const quad = Shapes.billboardQuad;
-		if (quad) {
-			quad.renderSingle(false);
-		}
+		Backend.bindVertexState(this.#vertexState);
+		Backend.drawInstanced(
+			Shapes.billboardQuad.indices[0].indexBuffer,
+			Shapes.billboardQuad.indices[0].array.length,
+			1,
+		);
+		Backend.bindVertexState(null);
 
 		Backend.unbindTexture(0);
 		Backend.unbindShader();
@@ -147,6 +179,14 @@ class AnimatedBillboardEntity extends Entity {
 	dispose() {
 		super.dispose();
 		this.#texture = null;
+		if (this.#vertexState) {
+			Backend.deleteVertexState(this.#vertexState);
+			this.#vertexState = null;
+		}
+		if (this.#instanceBuffer) {
+			Backend.deleteBuffer(this.#instanceBuffer);
+			this.#instanceBuffer = null;
+		}
 	}
 }
 

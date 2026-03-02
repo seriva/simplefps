@@ -1,18 +1,17 @@
-import { mat4 } from "../../dependencies/gl-matrix.js";
 import { Backend } from "../rendering/backend.js";
 import { Shaders } from "../rendering/shaders.js";
 import Shapes from "../rendering/shapes.js";
-import Camera from "../systems/camera.js";
 import Resources from "../systems/resources.js";
 import { Entity, EntityTypes } from "./entity.js";
 
 class ParticleEmitterEntity extends Entity {
-	static #tempMatrix = mat4.create();
-
 	#particles = [];
 	#texture;
 	#scaleFn;
 	#opacityFn;
+	#instanceBuffer;
+	#vertexState;
+	#instanceData;
 
 	constructor(config = {}) {
 		super(EntityTypes.PARTICLE_EMITTER);
@@ -73,24 +72,95 @@ class ParticleEmitterEntity extends Entity {
 	render() {
 		if (!this.visible || !this.#texture || this.#particles.length === 0) return;
 
-		Shaders.billboard.bind();
-		Shaders.billboard.setInt("colorSampler", 0);
+		let numActiveParticles = 0;
+		for (let i = 0; i < this.#particles.length; i++) {
+			if (this.#particles[i].life > 0) numActiveParticles++;
+		}
+		if (numActiveParticles === 0) return;
 
-		// Use full texture
-		Shaders.billboard.setVec2("uFrameOffset", [0, 0]);
-		Shaders.billboard.setVec2("uFrameScale", [1, 1]);
+		const floatsPerInstance = 10;
+		const requiredSize = numActiveParticles * floatsPerInstance;
 
-		this.#texture.bind(0);
+		if (!this.#instanceData || this.#instanceData.length < requiredSize) {
+			const newSize = Math.max(requiredSize * 2, 100 * floatsPerInstance);
+			this.#instanceData = new Float32Array(newSize);
 
-		// Precompute camera axes once for the whole batch
-		const v = Camera.view;
-		const rx = v[0];
-		const ry = v[4];
-		const rz = v[8];
-		const ux = v[1];
-		const uy = v[5];
-		const uz = v[9];
+			if (this.#instanceBuffer) {
+				Backend.deleteBuffer(this.#instanceBuffer);
+			}
+			if (this.#vertexState) {
+				Backend.deleteVertexState(this.#vertexState);
+			}
 
+			this.#instanceBuffer = Backend.createBuffer(this.#instanceData, "vertex");
+			this.#vertexState = Backend.createVertexState({
+				attributes: [
+					{
+						buffer: Shapes.billboardQuad.vertexBuffer,
+						slot: 0,
+						size: 3,
+						type: "float",
+						offset: 0,
+						stride: 12,
+					},
+					{
+						buffer: Shapes.billboardQuad.uvBuffer,
+						slot: 1,
+						size: 2,
+						type: "float",
+						offset: 0,
+						stride: 8,
+					},
+					{
+						buffer: this.#instanceBuffer,
+						slot: 2,
+						size: 3,
+						type: "float",
+						divisor: 1,
+						stride: 40,
+						offset: 0,
+					},
+					{
+						buffer: this.#instanceBuffer,
+						slot: 3,
+						size: 1,
+						type: "float",
+						divisor: 1,
+						stride: 40,
+						offset: 12,
+					},
+					{
+						buffer: this.#instanceBuffer,
+						slot: 4,
+						size: 1,
+						type: "float",
+						divisor: 1,
+						stride: 40,
+						offset: 16,
+					},
+					{
+						buffer: this.#instanceBuffer,
+						slot: 5,
+						size: 1,
+						type: "float",
+						divisor: 1,
+						stride: 40,
+						offset: 20,
+					},
+					{
+						buffer: this.#instanceBuffer,
+						slot: 6,
+						size: 4,
+						type: "float",
+						divisor: 1,
+						stride: 40,
+						offset: 24,
+					},
+				],
+			});
+		}
+
+		let offset = 0;
 		for (let i = 0; i < this.#particles.length; i++) {
 			const p = this.#particles[i];
 			if (p.life <= 0) continue;
@@ -100,38 +170,41 @@ class ParticleEmitterEntity extends Entity {
 			const scaleModifier = this.#scaleFn ? this.#scaleFn(progress) : 1.0;
 			const opacityModifier = this.#opacityFn ? this.#opacityFn(progress) : 1.0;
 
-			const s = p.startScale * scaleModifier;
-			const opacity = opacityModifier;
+			// aInstancePos
+			this.#instanceData[offset++] = p.pos[0];
+			this.#instanceData[offset++] = p.pos[1];
+			this.#instanceData[offset++] = p.pos[2];
 
-			// Build billboard matrix
-			const mat = ParticleEmitterEntity.#tempMatrix;
+			// aInstanceScale
+			this.#instanceData[offset++] = p.startScale * scaleModifier;
+			// aInstanceRotation
+			this.#instanceData[offset++] = p.rotation || 0.0;
+			// aInstanceOpacity
+			this.#instanceData[offset++] = opacityModifier;
 
-			// Right vector
-			mat[0] = rx * s;
-			mat[1] = ry * s;
-			mat[2] = rz * s;
-			mat[3] = 0;
-			// Up vector
-			mat[4] = ux * s;
-			mat[5] = uy * s;
-			mat[6] = uz * s;
-			mat[7] = 0;
-			// Forward / Identity dummy
-			mat[8] = 0;
-			mat[9] = 0;
-			mat[10] = s;
-			mat[11] = 0;
-			// Translation
-			mat[12] = p.pos[0];
-			mat[13] = p.pos[1];
-			mat[14] = p.pos[2];
-			mat[15] = 1;
-
-			Shaders.billboard.setMat4("matWorld", mat);
-			Shaders.billboard.setFloat("uOpacity", opacity);
-
-			Shapes.billboardQuad.renderSingle(false);
+			// aInstanceUVOffsetScale
+			this.#instanceData[offset++] = 0.0;
+			this.#instanceData[offset++] = 0.0;
+			this.#instanceData[offset++] = 1.0;
+			this.#instanceData[offset++] = 1.0;
 		}
+
+		Backend.updateBuffer(
+			this.#instanceBuffer,
+			this.#instanceData.subarray(0, requiredSize),
+		);
+
+		Shaders.instancedBillboard.bind();
+		Shaders.instancedBillboard.setInt("colorSampler", 0);
+		this.#texture.bind(0);
+
+		Backend.bindVertexState(this.#vertexState);
+		Backend.drawInstanced(
+			Shapes.billboardQuad.indices[0].indexBuffer,
+			Shapes.billboardQuad.indices[0].array.length,
+			numActiveParticles,
+		);
+		Backend.bindVertexState(null);
 
 		Backend.unbindTexture(0);
 	}

@@ -400,6 +400,9 @@ class WebGLBackend extends RenderBackend {
 				);
 			}
 			gl.enableVertexAttribArray(attr.slot);
+			if (attr.divisor) {
+				gl.vertexAttribDivisor(attr.slot, attr.divisor);
+			}
 		}
 
 		gl.bindVertexArray(null);
@@ -892,6 +895,39 @@ class WebGLBackend extends RenderBackend {
 
 		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer._glBuffer);
 		gl.drawElements(drawMode, indexCount, type, indexOffset * bytesPerElement);
+	}
+
+	drawInstanced(
+		indexBuffer,
+		indexCount,
+		instanceCount,
+		indexOffset = 0,
+		mode = null,
+	) {
+		const gl = this._gl;
+		let drawMode = gl.TRIANGLES;
+
+		if (mode === "lines") {
+			drawMode = gl.LINES;
+		} else if (mode === "points") {
+			drawMode = gl.POINTS;
+		} else if (mode === "triangle-strip") {
+			drawMode = gl.TRIANGLE_STRIP;
+		} else if (typeof mode === "number") {
+			drawMode = mode;
+		}
+
+		const bytesPerElement = indexBuffer.bytesPerElement || 2;
+		const type = bytesPerElement === 4 ? gl.UNSIGNED_INT : gl.UNSIGNED_SHORT;
+
+		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer._glBuffer);
+		gl.drawElementsInstanced(
+			drawMode,
+			indexCount,
+			type,
+			indexOffset * bytesPerElement,
+			instanceCount,
+		);
 	}
 
 	// =========================================================================
