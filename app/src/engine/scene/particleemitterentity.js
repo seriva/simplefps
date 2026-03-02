@@ -31,9 +31,12 @@ class ParticleEmitterEntity extends Entity {
 		gravity = 0.0,
 	) {
 		this.#particles.push({
-			pos: new Float32Array(position),
-			vel: new Float32Array(velocity),
-			color: new Float32Array(color),
+			x: position[0],
+			y: position[1],
+			z: position[2],
+			vx: velocity[0],
+			vy: velocity[1],
+			vz: velocity[2],
 			duration,
 			life: duration,
 			startScale,
@@ -46,7 +49,8 @@ class ParticleEmitterEntity extends Entity {
 
 		const dtSec = frameTime / 1000.0;
 
-		for (let i = 0; i < this.#particles.length; i++) {
+		// Iterate backwards to safely pop elements
+		for (let i = this.#particles.length - 1; i >= 0; i--) {
 			const p = this.#particles[i];
 
 			if (p.life > 0) {
@@ -56,17 +60,29 @@ class ParticleEmitterEntity extends Entity {
 					anyAlive = true;
 
 					// Apply gravity
-					p.vel[1] -= p.gravity * dtSec;
+					p.vy -= p.gravity * dtSec;
 
 					// Move particle
-					p.pos[0] += p.vel[0] * dtSec;
-					p.pos[1] += p.vel[1] * dtSec;
-					p.pos[2] += p.vel[2] * dtSec;
+					p.x += p.vx * dtSec;
+					p.y += p.vy * dtSec;
+					p.z += p.vz * dtSec;
+				} else {
+					// Particle died, swap with last element and pop to avoid memory leak
+					const last = this.#particles.pop();
+					if (i < this.#particles.length) {
+						this.#particles[i] = last;
+					}
+				}
+			} else {
+				// Cleanup already dead particles just in case
+				const last = this.#particles.pop();
+				if (i < this.#particles.length) {
+					this.#particles[i] = last;
 				}
 			}
 		}
 
-		return anyAlive;
+		return anyAlive || this.#particles.length > 0;
 	}
 
 	render() {
@@ -171,9 +187,9 @@ class ParticleEmitterEntity extends Entity {
 			const opacityModifier = this.#opacityFn ? this.#opacityFn(progress) : 1.0;
 
 			// aInstancePos
-			this.#instanceData[offset++] = p.pos[0];
-			this.#instanceData[offset++] = p.pos[1];
-			this.#instanceData[offset++] = p.pos[2];
+			this.#instanceData[offset++] = p.x;
+			this.#instanceData[offset++] = p.y;
+			this.#instanceData[offset++] = p.z;
 
 			// aInstanceScale
 			this.#instanceData[offset++] = p.startScale * scaleModifier;

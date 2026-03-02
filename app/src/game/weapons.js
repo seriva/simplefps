@@ -227,6 +227,7 @@ const _spawnExplosion = (position) => {
 	entitiesList.push(emitter);
 
 	Scene.addEntities(entitiesList);
+	Resources.get("sounds/explosion.sfx").play();
 };
 
 // Update projectile - simple velocity-based physics

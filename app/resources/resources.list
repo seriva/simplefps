@@ -1,13 +1,13 @@
 {
     "resources": [
         "system/dirt.webp",
-        "skybox/1.mat",
-        "skybox/1_front.webp",
-        "skybox/1_back.webp",
-        "skybox/1_top.webp",
-        "skybox/1_bottom.webp",
-        "skybox/1_left.webp",
-        "skybox/1_right.webp",
+        "skybox/1/1.mat",
+        "skybox/1/1_front.webp",
+        "skybox/1/1_back.webp",
+        "skybox/1/1_top.webp",
+        "skybox/1/1_bottom.webp",
+        "skybox/1/1_left.webp",
+        "skybox/1/1_right.webp",
         "meshes/ammo/ammo.bmesh",
         "meshes/ammo/ammo_diffuse.webp",
         "meshes/ammo/ammo_emissive.webp",
@@ -51,6 +51,7 @@
         "meshes/meshes.mat",
         "meshes/ball.mesh",
         "sounds/shoot.sfx",
+        "sounds/explosion.sfx",
         "models/robot/robot.list",
         "arenas/demo/resources.list"
     ]

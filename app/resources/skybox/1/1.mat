@@ -8,42 +8,42 @@
             "name": "mat_skybox_1_front",
             "base": "skybox_base",
             "textures": {
-                "albedo": "skybox/1_front.webp"
+                "albedo": "skybox/1/1_front.webp"
             }
         },
         {
             "name": "mat_skybox_1_back",
             "base": "skybox_base",
             "textures": {
-                "albedo": "skybox/1_back.webp"
+                "albedo": "skybox/1/1_back.webp"
             }
         },
         {
             "name": "mat_skybox_1_top",
             "base": "skybox_base",
             "textures": {
-                "albedo": "skybox/1_top.webp"
+                "albedo": "skybox/1/1_top.webp"
             }
         },
         {
             "name": "mat_skybox_1_bottom",
             "base": "skybox_base",
             "textures": {
-                "albedo": "skybox/1_bottom.webp"
+                "albedo": "skybox/1/1_bottom.webp"
             }
         },
         {
             "name": "mat_skybox_1_right",
             "base": "skybox_base",
             "textures": {
-                "albedo": "skybox/1_right.webp"
+                "albedo": "skybox/1/1_right.webp"
             }
         },
         {
             "name": "mat_skybox_1_left",
             "base": "skybox_base",
             "textures": {
-                "albedo": "skybox/1_left.webp"
+                "albedo": "skybox/1/1_left.webp"
             }
         }
     ]
