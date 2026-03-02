@@ -960,12 +960,12 @@ class WebGPUBackend extends RenderBackend {
 
 			// Create layout entry for this buffer slot
 			layout.push({
-				arrayStride: stride,
+				arrayStride: attr.stride !== undefined ? attr.stride : stride,
 				stepMode: attr.divisor ? "instance" : "vertex",
 				attributes: [
 					{
 						shaderLocation: attr.slot,
-						offset: 0,
+						offset: attr.offset || 0,
 						format: format,
 					},
 				],
