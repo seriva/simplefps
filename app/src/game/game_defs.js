@@ -92,7 +92,8 @@ export const WEAPON_SCALE_BASE = {
 };
 
 export const ANIMATION_CONFIG = {
-	FIRE_DURATION: 500,
+	FIRE_DURATION: 500, // ms — length of the recoil animation
+	FIRE_COOLDOWN: 900, // ms — minimum time between shots
 	HORIZONTAL_PERIOD: 350,
 	VERTICAL_PERIOD: 300,
 	IDLE_PERIOD: {

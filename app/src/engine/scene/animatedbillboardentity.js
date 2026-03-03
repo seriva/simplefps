@@ -15,7 +15,9 @@ class AnimatedBillboardEntity extends Entity {
 	#gridSize;
 	#frameCount;
 	#scale;
-	#rotation;
+	// Precomputed trig for the fixed rotation — saves two Math.cos/sin calls per frame
+	#cosR;
+	#sinR;
 	#texture;
 	#scaleFn;
 	#opacityFn;
@@ -31,11 +33,15 @@ class AnimatedBillboardEntity extends Entity {
 		this.#gridSize = config.gridSize ?? 1;
 		this.#frameCount = config.frameCount ?? 1;
 		this.#scale = config.scale ?? 1;
-		this.#rotation = config.rotation ?? 0;
 		this.#time = config.timeOffset ?? 0;
 		this.#texture = Resources.get(config.texture);
 		this.#scaleFn = config.scaleFn ?? null;
 		this.#opacityFn = config.opacityFn ?? null;
+
+		// Cache rotation trig once; rotation is fixed for the lifetime of the entity
+		const rotation = config.rotation ?? 0;
+		this.#cosR = Math.cos(rotation);
+		this.#sinR = Math.sin(rotation);
 
 		this.position = [position[0], position[1], position[2]];
 	}
@@ -46,7 +52,8 @@ class AnimatedBillboardEntity extends Entity {
 	}
 
 	render() {
-		if (!this.visible || !this.#texture || this.#time < 0) return;
+		// Skip if invisible, missing texture, or time hasn't started yet (negative timeOffset)
+		if (!this.visible || !this.#texture || this.#time <= 0) return;
 
 		const progress = Math.min(this.#time / this.#duration, 1.0);
 		const frameIndex = Math.min(
@@ -57,8 +64,7 @@ class AnimatedBillboardEntity extends Entity {
 		const col = frameIndex % this.#gridSize;
 		const row = Math.floor(frameIndex / this.#gridSize);
 		const opacity = this.#opacityFn ? this.#opacityFn(progress) : 1.0;
-		let s = this.#scale;
-		if (this.#scaleFn) s *= this.#scaleFn(progress);
+		const scale = this.#scale * (this.#scaleFn ? this.#scaleFn(progress) : 1.0);
 
 		// Build a billboard world matrix from camera view right/up vectors
 		// Column-major mat4: view[0].xyz = right column, view[1].xyz = up column
@@ -70,8 +76,8 @@ class AnimatedBillboardEntity extends Entity {
 			uy = v[5],
 			uz = v[9]; // camera up    (view row 1)
 
-		const c = Math.cos(this.#rotation);
-		const ss = Math.sin(this.#rotation);
+		const c = this.#cosR;
+		const ss = this.#sinR;
 
 		// Apply in-plane rotation around the billboard normal
 		const lrx = rx * c + ux * ss,
@@ -84,13 +90,13 @@ class AnimatedBillboardEntity extends Entity {
 		// Scale the billboard axes, keep forward (z col) as zero
 		mat4.set(
 			_tempMatrix,
-			lrx * s,
-			lry * s,
-			lrz * s,
+			lrx * scale,
+			lry * scale,
+			lrz * scale,
 			0,
-			lux * s,
-			luy * s,
-			luz * s,
+			lux * scale,
+			luy * scale,
+			luz * scale,
 			0,
 			0,
 			0,

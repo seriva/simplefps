@@ -1112,7 +1112,6 @@ export const ShaderSources = {
             layout(location=3) in float aInstanceScale;
             layout(location=4) in float aInstanceRotation;
             layout(location=5) in float aInstanceOpacity;
-            layout(location=6) in vec4 aInstanceUVOffsetScale;
 
             ${_frameDataUBO}
 
@@ -1137,7 +1136,7 @@ export const ShaderSources = {
                               + localUp * aPosition.y * aInstanceScale;
 
                 vec2 insetUV = aUV * 0.98 + 0.01;
-                vUV = aInstanceUVOffsetScale.xy + insetUV * aInstanceUVOffsetScale.zw;
+                vUV = insetUV;
                 vOpacity = aInstanceOpacity;
                 
                 gl_Position = matViewProj * vec4(worldPos, 1.0);

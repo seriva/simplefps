@@ -32,6 +32,7 @@ const _state = {
 	firing: false,
 	firingStart: 0,
 	firingTimer: 0,
+	lastFiredAt: -Infinity, // timestamp of last shot, for cooldown
 	isMoving: false,
 	isGrounded: true,
 	movementBlend: 0,
@@ -512,11 +513,14 @@ const _applyWeaponTransforms = (entity, animations) => {
 };
 
 const _shootGrenade = () => {
+	const now = performance.now();
 	if (_state.firing) return;
+	if (now - _state.lastFiredAt < ANIMATION_CONFIG.FIRE_COOLDOWN) return;
 
 	_state.firing = true;
-	_state.firingStart = performance.now();
+	_state.firingStart = now;
 	_state.firingTimer = 0;
+	_state.lastFiredAt = now;
 
 	Resources.get("sounds/shoot.sfx").play();
 

@@ -1495,7 +1495,6 @@ struct InstancedBillboardVertexInput {
     @location(3) instanceScale: f32,
     @location(4) instanceRotation: f32,
     @location(5) instanceOpacity: f32,
-    @location(6) instanceUVOffsetScale: vec4<f32>,
 }
 
 struct InstancedBillboardVertexOutput {
@@ -1527,7 +1526,7 @@ fn vs_main(input: InstancedBillboardVertexInput) -> InstancedBillboardVertexOutp
                  + localUp * input.position.y * input.instanceScale;
 
     let insetUV = input.uv * 0.98 + 0.01;
-    output.uv = input.instanceUVOffsetScale.xy + insetUV * input.instanceUVOffsetScale.zw;
+    output.uv = insetUV;
     output.opacity = input.instanceOpacity;
     output.clipPosition = frameData.matViewProj * vec4<f32>(worldPos, 1.0);
     return output;
