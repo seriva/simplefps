@@ -1,4 +1,5 @@
-import { mat4 } from "../../dependencies/gl-matrix.js";
+import { mat4, vec3 } from "../../dependencies/gl-matrix.js";
+import BoundingBox from "../physics/boundingbox.js";
 import { Shaders } from "../rendering/shaders.js";
 import Shapes from "../rendering/shapes.js";
 import Texture from "../rendering/texture.js";
@@ -8,6 +9,7 @@ import { Entity, EntityTypes } from "./entity.js";
 
 // Reusable temporary matrix to avoid per-frame allocations
 const _tempMatrix = mat4.create();
+const _worldPos = vec3.create();
 
 class AnimatedBillboardEntity extends Entity {
 	#time = 0;
@@ -43,7 +45,8 @@ class AnimatedBillboardEntity extends Entity {
 		this.#cosR = Math.cos(rotation);
 		this.#sinR = Math.sin(rotation);
 
-		this.position = [position[0], position[1], position[2]];
+		// Store position in base_matrix, consistent with all other entities
+		mat4.translate(this.base_matrix, this.base_matrix, position);
 	}
 
 	update(frameTime) {
@@ -65,6 +68,10 @@ class AnimatedBillboardEntity extends Entity {
 		const row = Math.floor(frameIndex / this.#gridSize);
 		const opacity = this.#opacityFn ? this.#opacityFn(progress) : 1.0;
 		const scale = this.#scale * (this.#scaleFn ? this.#scaleFn(progress) : 1.0);
+
+		// Extract world position from base_matrix (consistent with all other entities)
+		mat4.multiply(_tempMatrix, this.base_matrix, this.ani_matrix);
+		mat4.getTranslation(_worldPos, _tempMatrix);
 
 		// Build a billboard world matrix from camera view right/up vectors
 		// Column-major mat4: view[0].xyz = right column, view[1].xyz = up column
@@ -102,9 +109,9 @@ class AnimatedBillboardEntity extends Entity {
 			0,
 			0,
 			0,
-			this.position[0],
-			this.position[1],
-			this.position[2],
+			_worldPos[0],
+			_worldPos[1],
+			_worldPos[2],
 			1,
 		);
 
@@ -118,6 +125,24 @@ class AnimatedBillboardEntity extends Entity {
 		this.#texture.bind(0);
 		Shapes.billboardQuad.renderSingle(false);
 		Texture.unBind(0);
+	}
+
+	updateBoundingVolume() {
+		// Use the max possible rendered scale as the bounding radius
+		// (worst case: scaleFn returns 1.0 so scale = this.#scale)
+		const r = this.#scale;
+
+		mat4.multiply(_tempMatrix, this.base_matrix, this.ani_matrix);
+		mat4.getTranslation(_worldPos, _tempMatrix);
+
+		if (!this.boundingBox) {
+			this.boundingBox = new BoundingBox([0, 0, 0], [1, 1, 1]);
+		}
+
+		this.boundingBox.set(
+			[_worldPos[0] - r, _worldPos[1] - r, _worldPos[2] - r],
+			[_worldPos[0] + r, _worldPos[1] + r, _worldPos[2] + r],
+		);
 	}
 
 	dispose() {

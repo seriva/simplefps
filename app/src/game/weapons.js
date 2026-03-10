@@ -19,7 +19,7 @@ import {
 	WEAPON_INDEX,
 	WEAPON_POSITION_BASE,
 	WEAPON_SCALE_BASE,
-} from "./game_defs.js";
+} from "./gamedefs.js";
 
 // ============================================================================
 // Private
