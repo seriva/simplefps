@@ -51,10 +51,13 @@ docs/
 - **Biome**: formatter and linter (`npm run format` / `npm run check`).
 - **Entity system**: all scene objects extend a base entity class; entities should be decoupled from the Scene module — pass ambient light, shadow height, etc. as arguments to `render` / `renderShadow` rather than having entities import Scene.
 - **Renderer abstraction**: code that touches GPU must branch on WebGPU vs WebGL backends via the renderer interface in `engine/rendering/`.
-- **reactive.js**: used for UI state management and component lifecycle. Component flow: `state()` → `init()` → `render()` → `mount()` (→ `onCleanup()` on teardown). Create computed/async signals in `init()`, DOM in `render()`, side-effects in `mount()`.
-- **Asset pipeline**: textures, meshes, and maps are pre-processed by scripts in `scripts/`. Do not commit generated binary assets; add them to `.gitignore` if necessary.
+- **reactive.js**: used for UI state management and component lifecycle. Component flow: `state()` → `init()` → `render()` → `mount()` (→ `onCleanup()` on teardown). Define signals in `state()`, create computed/async signals in `init()`, return DOM templates in `render()`, and bind events/side-effects in `mount()`.
+- **Asset pipeline**: textures, meshes, and maps are pre-processed by scripts in `scripts/` (e.g., `node scripts/obj2mesh.js input.obj output.mesh`). Do not commit generated binary assets; add them to `.gitignore` if necessary.
 - **Imports**: always use relative paths with explicit `.js` extensions (ES module browser semantics).
 - **Performance — no per-frame allocations**: never create matrices, vectors, quaternions, or other temporary objects inside functions that run per-frame or per-entity. Pre-allocate all such scratch objects at module level (e.g. `const _tmpMat4 = mat4.create()`) and reuse them via in-place gl-matrix operations (`mat4.multiply(out, a, b)` etc.). Apply this rule to any object that would otherwise be GC'd at high frequency.
+- **Logging & Error Handling**: Use the custom in-game console (`import Console from "engine/systems/console.js"`) for logging. It provides an in-game UI overlay for commands and supports `Console.log`, `Console.warn`, and `Console.error`.
+- **Testing Strategy**: There is currently no formal unit testing framework. Code verification relies on Biome's static analysis (`npm run check`) and manual verification via the dev server (`npm run dev`) or production build (`npm run prod`).
+
 
 ## Naming Conventions
 - **Classes**: PascalCase (e.g., `PhysicsBody`, `SceneEntity`)
@@ -73,4 +76,6 @@ npm run dependencies # Re-bundle 3rd-party dependencies via Microtastic
 npm run prepare      # Husky + microtastic prep (run after npm install)
 ```
 
-> **Workflow**: Always run `npm run check` (lint) and `npm run prod` (production build) before considering any task complete. Never stop at just the dev server.
+## Workflows
+The `.agent/workflows/` directory contains standard operating procedures.
+- **verify**: Run `npm run format`, `npm run check`, and `npm run prod` to ensure the codebase is clean and builds successfully. Always run this workflow before concluding a task.
