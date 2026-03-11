@@ -47,13 +47,21 @@ docs/
 ## Key Conventions & Patterns
 - **No TypeScript** — plain ES6. No JSDoc comments anywhere.
 - **No default exports** — prefer named exports.
+- **`const` over `let`**, never `var`.
 - **Biome**: formatter and linter (`npm run format` / `npm run check`).
 - **Entity system**: all scene objects extend a base entity class; entities should be decoupled from the Scene module — pass ambient light, shadow height, etc. as arguments to `render` / `renderShadow` rather than having entities import Scene.
 - **Renderer abstraction**: code that touches GPU must branch on WebGPU vs WebGL backends via the renderer interface in `engine/rendering/`.
-- **reactive.js**: used for UI state management and component lifecycle. Signals and computed values power menus and HUD.
+- **reactive.js**: used for UI state management and component lifecycle. Component flow: `state()` → `init()` → `render()` → `mount()` (→ `onCleanup()` on teardown). Create computed/async signals in `init()`, DOM in `render()`, side-effects in `mount()`.
 - **Asset pipeline**: textures, meshes, and maps are pre-processed by scripts in `scripts/`. Do not commit generated binary assets; add them to `.gitignore` if necessary.
 - **Imports**: always use relative paths with explicit `.js` extensions (ES module browser semantics).
 - **Performance — no per-frame allocations**: never create matrices, vectors, quaternions, or other temporary objects inside functions that run per-frame or per-entity. Pre-allocate all such scratch objects at module level (e.g. `const _tmpMat4 = mat4.create()`) and reuse them via in-place gl-matrix operations (`mat4.multiply(out, a, b)` etc.). Apply this rule to any object that would otherwise be GC'd at high frequency.
+
+## Naming Conventions
+- **Classes**: PascalCase (e.g., `PhysicsBody`, `SceneEntity`)
+- **Functions / variables**: camelCase (e.g., `loadSettings`, `deltaTime`)
+- **Constants / config objects**: UPPER_SNAKE_CASE (e.g., `MAX_LIGHTS`, `DEFAULT_FOV`)
+- **Private class fields**: `#` prefix (e.g., `#mesh`, `#pipeline`)
+- **Private / scratch module-level variables**: `_` prefix (e.g., `_tmpMat4`, `_activeScene`)
 
 ## Common Commands
 ```bash
