@@ -129,6 +129,7 @@ class WebGPUBackend extends RenderBackend {
 			skinnedShadowParams: new Float32Array(20),
 			blurParams: new Float32Array(8),
 			bilateralParams: new Float32Array(4), // depthThreshold, normalThreshold, _pad x2
+			billboardParams: new Float32Array(24), // mat4 + vec2 + vec2 + f32 + pad = 16+2+2+1+3 = 24 floats
 		};
 
 		// Optimization: Pre-allocated typed arrays for scalar uniforms (avoid per-draw allocations)
@@ -959,12 +960,12 @@ class WebGPUBackend extends RenderBackend {
 
 			// Create layout entry for this buffer slot
 			layout.push({
-				arrayStride: stride,
-				stepMode: "vertex",
+				arrayStride: attr.stride !== undefined ? attr.stride : stride,
+				stepMode: attr.divisor ? "instance" : "vertex",
 				attributes: [
 					{
 						shaderLocation: attr.slot,
-						offset: 0,
+						offset: attr.offset || 0,
 						format: format,
 					},
 				],
@@ -1469,7 +1470,33 @@ class WebGPUBackend extends RenderBackend {
 		return `${shaderLabel}|${primitive.topology}|${cullMode}|${blendKey}|${depthKey}|${formatKey}|${layoutKey}|${biasKey}|${colorMaskKey}`;
 	}
 
+	drawInstanced(
+		indexBuffer,
+		indexCount,
+		instanceCount,
+		indexOffset = 0,
+		mode = null,
+	) {
+		this._drawIndexedInternal(
+			indexBuffer,
+			indexCount,
+			instanceCount,
+			indexOffset,
+			mode,
+		);
+	}
+
 	drawIndexed(indexBuffer, indexCount, indexOffset = 0, mode = null) {
+		this._drawIndexedInternal(indexBuffer, indexCount, 1, indexOffset, mode);
+	}
+
+	_drawIndexedInternal(
+		indexBuffer,
+		indexCount,
+		instanceCount,
+		indexOffset = 0,
+		mode = null,
+	) {
 		if (!this._device || !this._currentVertexState || !this._currentShader)
 			return;
 
@@ -1833,7 +1860,7 @@ class WebGPUBackend extends RenderBackend {
 			}
 		}
 
-		pass.drawIndexed(indexCount, 1, indexOffset, 0, 0);
+		pass.drawIndexed(indexCount, instanceCount, indexOffset, 0, 0);
 	}
 
 	_packStruct(name) {
@@ -1852,6 +1879,20 @@ class WebGPUBackend extends RenderBackend {
 			if (size !== undefined) arr[3] = size;
 			if (col) arr.set(col, 4);
 			if (intensity !== undefined) arr[7] = intensity;
+			return arr;
+		} else if (name === "billboardParams") {
+			const arr = bufs.billboardParams;
+			arr.fill(0);
+			const matWorld = this._uniforms.get("matWorld");
+			const frameOffset = this._uniforms.get("uFrameOffset");
+			const frameScale = this._uniforms.get("uFrameScale");
+			const opacity = this._uniforms.get("uOpacity");
+
+			if (matWorld) arr.set(matWorld, 0); // floats 0-15 (64 bytes)
+			if (frameOffset) arr.set(frameOffset, 16); // floats 16-17
+			if (frameScale) arr.set(frameScale, 18); // floats 18-19
+			if (opacity !== undefined) arr[20] = opacity; // float 20
+
 			return arr;
 		} else if (name === "directionalLight") {
 			const arr = bufs.directionalLight;

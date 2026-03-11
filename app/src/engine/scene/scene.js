@@ -20,6 +20,8 @@ const _VISIBILITY_CACHE_TYPES = [
 	EntityTypes.DIRECTIONAL_LIGHT,
 	EntityTypes.POINT_LIGHT,
 	EntityTypes.SPOT_LIGHT,
+	EntityTypes.ANIMATED_BILLBOARD,
+	EntityTypes.PARTICLE_EMITTER,
 ];
 
 const _DEFAULT_RAY_OPTIONS = {
@@ -57,6 +59,8 @@ const _visibilityCache = {
 	[EntityTypes.DIRECTIONAL_LIGHT]: [],
 	[EntityTypes.POINT_LIGHT]: [],
 	[EntityTypes.SPOT_LIGHT]: [],
+	[EntityTypes.ANIMATED_BILLBOARD]: [],
+	[EntityTypes.PARTICLE_EMITTER]: [],
 };
 
 // Private entity cache

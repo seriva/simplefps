@@ -1060,4 +1060,101 @@ export const ShaderSources = {
             }`,
 		fragment: _debugFragment,
 	},
+	billboard: {
+		vertex: /* glsl */ `#version 300 es
+            precision highp float;
+
+            layout(location=0) in vec3 aPosition;
+            layout(location=1) in vec2 aUV;
+
+            ${_frameDataUBO}
+
+            uniform mat4 matWorld;
+            uniform vec2 uFrameOffset;
+            uniform vec2 uFrameScale;
+
+            out vec2 vUV;
+
+            void main() {
+                vec4 worldPos = matWorld * vec4(aPosition, 1.0);
+                // Inset UVs slightly (1% on all sides) to prevent texture bleeding
+                // from adjacent frames in the sprite sheet due to linear filtering
+                vec2 insetUV = aUV * 0.98 + 0.01;
+                vUV = uFrameOffset + insetUV * uFrameScale;
+                gl_Position = matViewProj * worldPos;
+            }`,
+		fragment: /* glsl */ `#version 300 es
+            precision highp float;
+
+            in vec2 vUV;
+
+            layout(location=0) out vec4 fragColor;
+
+            uniform sampler2D colorSampler;
+            uniform float uOpacity;
+
+            void main() {
+                vec4 color = texture(colorSampler, vUV);
+                // Use luminance as alpha for additive blending fade
+                float lum = dot(color.rgb, vec3(0.299, 0.587, 0.114));
+                fragColor = vec4(color.rgb * uOpacity, lum * uOpacity);
+            }`,
+	},
+	instancedBillboard: {
+		vertex: /* glsl */ `#version 300 es
+            precision highp float;
+
+            layout(location=0) in vec3 aPosition;
+            layout(location=1) in vec2 aUV;
+            
+            // Instanced attributes
+            layout(location=2) in vec3 aInstancePos;
+            layout(location=3) in float aInstanceScale;
+            layout(location=4) in float aInstanceRotation;
+            layout(location=5) in float aInstanceOpacity;
+
+            ${_frameDataUBO}
+
+            out vec2 vUV;
+            out float vOpacity;
+
+            void main() {
+                // Extract camera right and up vectors from view matrix
+                vec3 right = vec3(matView[0][0], matView[1][0], matView[2][0]);
+                vec3 up    = vec3(matView[0][1], matView[1][1], matView[2][1]);
+                
+                // Apply rotation
+                float c = cos(aInstanceRotation);
+                float s = sin(aInstanceRotation);
+                
+                vec3 localRight = right * c + up * s;
+                vec3 localUp    = -right * s + up * c;
+
+                // Build world position
+                vec3 worldPos = aInstancePos 
+                              + localRight * aPosition.x * aInstanceScale 
+                              + localUp * aPosition.y * aInstanceScale;
+
+                vec2 insetUV = aUV * 0.98 + 0.01;
+                vUV = insetUV;
+                vOpacity = aInstanceOpacity;
+                
+                gl_Position = matViewProj * vec4(worldPos, 1.0);
+            }`,
+		fragment: /* glsl */ `#version 300 es
+            precision highp float;
+
+            in vec2 vUV;
+            in float vOpacity;
+
+            layout(location=0) out vec4 fragColor;
+
+            uniform sampler2D colorSampler;
+
+            void main() {
+                vec4 color = texture(colorSampler, vUV);
+                float lum = dot(color.rgb, vec3(0.299, 0.587, 0.114));
+                fragColor = vec4(color.rgb * vOpacity, lum * vOpacity);
+            }`,
+	},
 };

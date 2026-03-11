@@ -13,7 +13,7 @@ import {
 	WEAPON_CONFIG,
 	WEAPON_INDEX,
 	WEAPON_PICKUP_DEFAULTS,
-} from "./game_defs.js";
+} from "./gamedefs.js";
 import Player from "./player.js";
 import Weapons from "./weapons.js";
 

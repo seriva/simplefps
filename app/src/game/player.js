@@ -1,5 +1,5 @@
 import { Signals } from "../dependencies/reactive.js";
-import { PLAYER_DEFS } from "./game_defs.js";
+import { PLAYER_DEFS } from "./gamedefs.js";
 
 // ============================================================================
 // Private
