@@ -8,6 +8,10 @@ import { Entity, EntityTypes } from "./entity.js";
 const _tempMatrix = mat4.create();
 
 class SpotLightEntity extends Entity {
+	// Private fields — single source of truth for position/direction
+	#position;
+	#direction;
+
 	constructor(
 		position,
 		direction,
@@ -19,8 +23,6 @@ class SpotLightEntity extends Entity {
 	) {
 		super(EntityTypes.SPOT_LIGHT, updateCallback);
 
-		this.position = position;
-		this.direction = vec3.normalize(vec3.create(), direction);
 		this.color = color;
 		this.intensity = intensity;
 		this.angle = angle;
@@ -29,43 +31,62 @@ class SpotLightEntity extends Entity {
 		// Calculate cosine of cutoff angle for efficient spotlight calculations
 		this.cutoff = Math.cos((angle * Math.PI) / 180);
 
-		// Build transformation matrix
-		this.base_matrix = this.#buildTransformMatrix(
-			position,
-			direction,
-			angle,
-			range,
-		);
+		// Store position/direction as private fields — base_matrix is derived, never the source
+		this.#position = vec3.clone(position);
+		this.#direction = vec3.normalize(vec3.create(), direction);
+
+		// Build transformation matrix from private fields
+		this.base_matrix = this.#buildTransformMatrix();
 
 		// Create the bounding box with initial values
 		this.boundingBox = new BoundingBox(
-			vec3.clone(position),
-			vec3.clone(position),
+			vec3.clone(this.#position),
+			vec3.clone(this.#position),
 		);
 		this.updateBoundingVolume();
 	}
 
-	// Private method to build the transformation matrix
-	#buildTransformMatrix(position, direction, angle, range) {
+	// Read-only accessors — callers must use setPosition/setDirection to mutate
+	get position() {
+		return this.#position;
+	}
+
+	get direction() {
+		return this.#direction;
+	}
+
+	setPosition(position) {
+		vec3.copy(this.#position, position);
+		this.base_matrix = this.#buildTransformMatrix();
+		this.updateBoundingVolume();
+	}
+
+	setDirection(direction) {
+		vec3.normalize(this.#direction, direction);
+		this.base_matrix = this.#buildTransformMatrix();
+		this.updateBoundingVolume();
+	}
+
+	// Private method to build the transformation matrix from current private state
+	#buildTransformMatrix() {
 		const defaultDir = vec3.fromValues(0, 0, -1);
 
 		// Calculate rotation using quaternion
-		const rotationQuat = quat.rotationTo(quat.create(), defaultDir, direction);
+		const rotationQuat = quat.rotationTo(
+			quat.create(),
+			defaultDir,
+			this.#direction,
+		);
 		const rotationMat = mat4.fromQuat(mat4.create(), rotationQuat);
 
-		// Build transformation matrix in correct order:
-		// 1. Start with identity matrix
 		const matrix = mat4.create();
 
-		// 2. Apply translation first
-		mat4.translate(matrix, matrix, position);
-
-		// 3. Apply rotation
+		// T * R * S
+		mat4.translate(matrix, matrix, this.#position);
 		mat4.multiply(matrix, matrix, rotationMat);
 
-		// 4. Apply scale last
-		const radius = Math.tan((angle * Math.PI) / 180) * range;
-		mat4.scale(matrix, matrix, [radius, radius, range]);
+		const radius = Math.tan((this.angle * Math.PI) / 180) * this.range;
+		mat4.scale(matrix, matrix, [radius, radius, this.range]);
 
 		return matrix;
 	}
@@ -76,17 +97,6 @@ class SpotLightEntity extends Entity {
 		return _tempMatrix;
 	}
 
-	setPosition(position) {
-		this.position = position;
-		this.base_matrix = this.#buildTransformMatrix(
-			this.position,
-			this.direction,
-			this.angle,
-			this.range,
-		);
-		this.updateBoundingVolume();
-	}
-
 	render() {
 		if (!this.visible) return;
 
@@ -94,8 +104,8 @@ class SpotLightEntity extends Entity {
 
 		// Set shader uniforms (shader already bound by RenderPasses)
 		Shaders.spotLight.setMat4("matWorld", m);
-		Shaders.spotLight.setVec3("spotLight.position", this.position);
-		Shaders.spotLight.setVec3("spotLight.direction", this.direction);
+		Shaders.spotLight.setVec3("spotLight.position", this.#position);
+		Shaders.spotLight.setVec3("spotLight.direction", this.#direction);
 		Shaders.spotLight.setVec3("spotLight.color", this.color);
 		Shaders.spotLight.setFloat("spotLight.intensity", this.intensity);
 		Shaders.spotLight.setFloat("spotLight.cutoff", this.cutoff);

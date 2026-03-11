@@ -71,6 +71,14 @@ export const PROJECTILE_CONFIG = {
 	},
 };
 
+export const EXPLOSION_CONFIG = {
+	texture: "meshes/explosion.webp",
+	gridSize: 4,
+	frameCount: 16,
+	duration: 650,
+	scale: 80,
+};
+
 export const WEAPON_POSITION_BASE = {
 	x: 0.19,
 	y: -0.25,
@@ -84,7 +92,8 @@ export const WEAPON_SCALE_BASE = {
 };
 
 export const ANIMATION_CONFIG = {
-	FIRE_DURATION: 500,
+	FIRE_DURATION: 500, // ms — length of the recoil animation
+	FIRE_COOLDOWN: 900, // ms — minimum time between shots
 	HORIZONTAL_PERIOD: 350,
 	VERTICAL_PERIOD: 300,
 	IDLE_PERIOD: {

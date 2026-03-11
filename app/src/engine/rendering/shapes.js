@@ -7,6 +7,7 @@ let _spotlightVolume = null;
 let _pointLightVolume = null;
 let _boundingBox = null;
 let _occlusionCube = null;
+let _billboardQuad = null;
 let _initialized = false;
 
 const _initMeshes = () => {
@@ -560,6 +561,17 @@ const _initMeshes = () => {
 			},
 		],
 	});
+
+	_billboardQuad = new Mesh({
+		vertices: [-0.5, -0.5, 0, 0.5, -0.5, 0, -0.5, 0.5, 0, 0.5, 0.5, 0],
+		uvs: [0, 1, 1, 1, 0, 0, 1, 0],
+		indices: [
+			{
+				array: [0, 1, 2, 2, 1, 3],
+				material: "none",
+			},
+		],
+	});
 };
 
 // Initialize meshes - called by Backend when ready
@@ -587,6 +599,9 @@ const Shapes = {
 	},
 	get occlusionCube() {
 		return _occlusionCube;
+	},
+	get billboardQuad() {
+		return _billboardQuad;
 	},
 	init,
 };
