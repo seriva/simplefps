@@ -723,6 +723,27 @@ class WebGLBackend extends RenderBackend {
 		gl.bindTexture(gl.TEXTURE_2D, null);
 	}
 
+	setTextureFilter(texture, minFilter, magFilter) {
+		const gl = this._gl;
+
+		const filterMap = {
+			nearest: gl.NEAREST,
+			linear: gl.LINEAR,
+			"nearest-mipmap-nearest": gl.NEAREST_MIPMAP_NEAREST,
+			"linear-mipmap-nearest": gl.LINEAR_MIPMAP_NEAREST,
+			"nearest-mipmap-linear": gl.NEAREST_MIPMAP_LINEAR,
+			"linear-mipmap-linear": gl.LINEAR_MIPMAP_LINEAR,
+		};
+
+		const glMinFilter = filterMap[minFilter] || gl.LINEAR_MIPMAP_LINEAR;
+		const glMagFilter = filterMap[magFilter] || gl.LINEAR;
+
+		gl.bindTexture(gl.TEXTURE_2D, texture._glTexture);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, glMinFilter);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, glMagFilter);
+		gl.bindTexture(gl.TEXTURE_2D, null);
+	}
+
 	disposeTexture(texture) {
 		const gl = this._gl;
 		gl.deleteTexture(texture._glTexture);

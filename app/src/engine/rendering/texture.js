@@ -78,6 +78,7 @@ class Texture {
 			Backend.generateMipmaps(this.#handle);
 
 			// Apply settings
+			Backend.setTextureFilter(this.#handle, "linear-mipmap-linear", "linear");
 			Backend.setTextureWrapMode(this.#handle, "repeat");
 
 			if (Settings.anisotropicFiltering > 1) {

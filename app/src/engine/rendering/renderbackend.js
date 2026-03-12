@@ -146,6 +146,10 @@ class RenderBackend {
 		throw new Error("RenderBackend.setTextureWrapMode() must be implemented");
 	}
 
+	setTextureFilter(_texture, _minFilter, _magFilter, _mipmapFilter) {
+		throw new Error("RenderBackend.setTextureFilter() must be implemented");
+	}
+
 	disposeTexture(_texture) {
 		throw new Error("RenderBackend.disposeTexture() must be implemented");
 	}
