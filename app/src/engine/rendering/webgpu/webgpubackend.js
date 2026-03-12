@@ -1259,9 +1259,55 @@ class WebGPUBackend extends RenderBackend {
 
 		// Recreate the sampler with the new wrap mode
 		texture._gpuSampler = this._device.createSampler({
-			magFilter: "linear",
-			minFilter: "linear",
-			mipmapFilter: "linear",
+			magFilter: texture._magFilter || "linear",
+			minFilter: texture._minFilter || "linear",
+			mipmapFilter: texture._mipmapFilter || "linear",
+			addressModeU: addressMode,
+			addressModeV: addressMode,
+			maxAnisotropy: texture._anisotropy || 1,
+		});
+		texture._samplerId = this._resourceIdCounter++;
+	}
+
+	setTextureFilter(texture, minFilter, magFilter, mipmapFilter) {
+		if (!texture || !this._device) return;
+
+		const _filterMap = {
+			nearest: "nearest",
+			linear: "linear",
+			"nearest-mipmap-nearest": "nearest",
+			"linear-mipmap-nearest": "linear",
+			"nearest-mipmap-linear": "nearest",
+			"linear-mipmap-linear": "linear",
+		};
+
+		const _mipMap = {
+			nearest: "nearest",
+			linear: "linear",
+			"nearest-mipmap-nearest": "nearest",
+			"linear-mipmap-nearest": "nearest",
+			"nearest-mipmap-linear": "linear",
+			"linear-mipmap-linear": "linear",
+		};
+
+		// Parse combined filters (e.g. from WebGL terminology) into WebGPU distinct filters
+		const parsedMinFilter = _filterMap[minFilter] || "linear";
+		const parsedMipmapFilter = mipmapFilter
+			? _filterMap[mipmapFilter] || "linear"
+			: _mipMap[minFilter] || "linear";
+		const parsedMagFilter = _filterMap[magFilter] || "linear";
+
+		texture._minFilter = parsedMinFilter;
+		texture._magFilter = parsedMagFilter;
+		texture._mipmapFilter = parsedMipmapFilter;
+
+		const addressMode = texture._wrapMode || "repeat";
+
+		// Recreate the sampler with the new filter modes
+		texture._gpuSampler = this._device.createSampler({
+			magFilter: parsedMagFilter,
+			minFilter: parsedMinFilter,
+			mipmapFilter: parsedMipmapFilter,
 			addressModeU: addressMode,
 			addressModeV: addressMode,
 			maxAnisotropy: texture._anisotropy || 1,
@@ -1290,9 +1336,9 @@ class WebGPUBackend extends RenderBackend {
 
 		// Recreate the sampler with the new anisotropy level
 		texture._gpuSampler = this._device.createSampler({
-			magFilter: "linear",
-			minFilter: "linear",
-			mipmapFilter: "linear",
+			magFilter: texture._magFilter || "linear",
+			minFilter: texture._minFilter || "linear",
+			mipmapFilter: texture._mipmapFilter || "linear",
 			addressModeU: addressMode,
 			addressModeV: addressMode,
 			maxAnisotropy: anisotropy,
