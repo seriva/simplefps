@@ -30,12 +30,12 @@ jobs:
       run: npm run prod
       
     - name: Setup Pages
-      uses: actions/configure-pages@v5
+      uses: actions/configure-pages@v4
       
     - name: Upload artifact
-      uses: actions/upload-pages-artifact@v3
+      uses: actions/upload-pages-artifact@v4
       with:
         path: './public'
         
     - name: Deploy to GitHub Pages
-      uses: actions/deploy-pages@v5
+      uses: actions/deploy-pages@v4 
