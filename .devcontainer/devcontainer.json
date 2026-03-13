@@ -12,7 +12,7 @@
 		}
 	},
 	"onCreateCommand": {
-		"chown-local": "sudo chown -R $(id -un):$(id -gn) $HOME/.local"
+		"chown-local": "mkdir -p $HOME/.local && sudo chown -R $(id -un):$(id -gn) $HOME/.local"
 	},
 	"postCreateCommand": {
 		"git-safe-dir": "git config --global --add safe.directory ${containerWorkspaceFolder}",
