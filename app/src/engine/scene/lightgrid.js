@@ -18,6 +18,7 @@ const _c001 = [0, 0, 0];
 const _c101 = [0, 0, 0];
 const _c011 = [0, 0, 0];
 const _c111 = [0, 0, 0];
+const _outColorFallback = vec3.create(); // used when caller provides no output buffer
 
 // ============================================================================
 // Private Functions
@@ -89,7 +90,7 @@ const _load = (config) => {
 };
 
 const _getAmbient = (position, outColor = null) => {
-	if (!outColor) outColor = vec3.create();
+	if (!outColor) outColor = _outColorFallback;
 
 	// Default to white if no data
 	if (!_data) {

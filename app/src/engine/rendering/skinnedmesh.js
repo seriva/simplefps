@@ -86,7 +86,7 @@ class SkinnedMesh extends Mesh {
 
 	dispose() {
 		this.deleteMeshBuffers();
-		this._boneMatrixBuffer = null;
+		this.#boneMatrixBuffer = null;
 	}
 
 	bind(useSkinned = true) {
@@ -96,7 +96,7 @@ class SkinnedMesh extends Mesh {
 	}
 
 	// Pre-allocated buffer for bone matrices (reused each frame)
-	_boneMatrixBuffer = null;
+	#boneMatrixBuffer = null;
 
 	// Get bone matrices for GPU skinning (flat Float32Array of mat4s)
 	// Reuses internal buffer to avoid allocations
@@ -107,11 +107,11 @@ class SkinnedMesh extends Mesh {
 		const count = skinMatrices.length;
 
 		// Allocate buffer once (64 matrices for uniform buffer alignment)
-		if (!this._boneMatrixBuffer) {
-			this._boneMatrixBuffer = new Float32Array(64 * 16);
+		if (!this.#boneMatrixBuffer) {
+			this.#boneMatrixBuffer = new Float32Array(64 * 16);
 		}
 
-		const result = this._boneMatrixBuffer;
+		const result = this.#boneMatrixBuffer;
 		for (let i = 0; i < count; i++) {
 			result.set(skinMatrices[i], i * 16);
 		}
