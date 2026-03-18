@@ -1,5 +1,5 @@
 import { Shaders } from "../rendering/shaders.js";
-import Shapes from "../rendering/shapes.js";
+import { Shapes } from "../rendering/shapes.js";
 import { Entity, EntityTypes } from "./entity.js";
 
 class DirectionalLightEntity extends Entity {
@@ -19,4 +19,4 @@ class DirectionalLightEntity extends Entity {
 	}
 }
 
-export default DirectionalLightEntity;
+export { DirectionalLightEntity };

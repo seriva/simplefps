@@ -1,8 +1,8 @@
 import { mat4 } from "../../dependencies/gl-matrix.js";
-import BoundingBox from "../physics/boundingbox.js";
+import { BoundingBox } from "../physics/boundingbox.js";
 import { Shaders } from "../rendering/shaders.js";
-import Console from "../systems/console.js";
-import Resources from "../systems/resources.js";
+import { Console } from "../systems/console.js";
+import { Resources } from "../systems/resources.js";
 import { Entity, EntityTypes } from "./entity.js";
 
 // Reusable temporaries to avoid per-frame allocations
@@ -97,4 +97,4 @@ class MeshEntity extends Entity {
 	}
 }
 
-export default MeshEntity;
+export { MeshEntity };

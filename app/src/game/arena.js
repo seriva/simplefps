@@ -9,8 +9,8 @@ import {
 	SkinnedMeshEntity,
 	SkyboxEntity,
 } from "../engine/engine.js";
-import Loading from "./loading.js";
-import Pickup from "./pickups.js";
+import { Loading } from "./loading.js";
+import { Pickup } from "./pickups.js";
 
 // ============================================================================
 // Private
@@ -180,4 +180,4 @@ const Arena = {
 	},
 };
 
-export default Arena;
+export { Arena };

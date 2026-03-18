@@ -14,8 +14,8 @@ import {
 	WEAPON_INDEX,
 	WEAPON_PICKUP_DEFAULTS,
 } from "./gamedefs.js";
-import Player from "./player.js";
-import Weapons from "./weapons.js";
+import { Player } from "./player.js";
+import { Weapons } from "./weapons.js";
 
 // ============================================================================
 // Private
@@ -292,4 +292,4 @@ const Pickup = {
 	reset: _reset,
 };
 
-export default Pickup;
+export { Pickup };

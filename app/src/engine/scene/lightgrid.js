@@ -1,6 +1,6 @@
 import { vec3 } from "../../dependencies/gl-matrix.js";
-import Console from "../systems/console.js";
-import Resources from "../systems/resources.js";
+import { Console } from "../systems/console.js";
+import { Resources } from "../systems/resources.js";
 
 // Private state
 let _data = null;
@@ -206,4 +206,4 @@ const LightGrid = {
 	getAmbient: _getAmbient,
 };
 
-export default LightGrid;
+export { LightGrid };

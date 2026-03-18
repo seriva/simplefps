@@ -1,4 +1,4 @@
-import Mesh from "./mesh.js";
+import { Mesh } from "./mesh.js";
 
 // Lazy-initialized meshes - wait for backend before creating
 let _skyBox = null;
@@ -606,4 +606,4 @@ const Shapes = {
 	init,
 };
 
-export default Shapes;
+export { Shapes };

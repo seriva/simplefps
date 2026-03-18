@@ -1,5 +1,5 @@
 import { vec3 } from "../../dependencies/gl-matrix.js";
-import BoundingBox from "./boundingbox.js";
+import { BoundingBox } from "./boundingbox.js";
 import { Octree } from "./octree.js";
 
 // Temp variables

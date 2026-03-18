@@ -1,6 +1,6 @@
 import { glMatrix, mat4, vec3 } from "../../dependencies/gl-matrix.js";
 import { Backend } from "../rendering/backend.js";
-import Settings from "./settings.js";
+import { Settings } from "./settings.js";
 
 // ============================================================================
 // Private state
@@ -215,4 +215,4 @@ const Camera = {
 	},
 };
 
-export default Camera;
+export { Camera };

@@ -1,4 +1,4 @@
-import Console from "../systems/console.js";
+import { Console } from "../systems/console.js";
 import { Backend } from "./backend.js";
 import { ShaderSources as GlslShaderSources } from "./webgl/glsl.js";
 import { WgslShaderSources } from "./webgpu/wgsl.js";

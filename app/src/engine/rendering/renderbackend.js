@@ -239,4 +239,4 @@ class RenderBackend {
 	}
 }
 
-export default RenderBackend;
+export { RenderBackend };

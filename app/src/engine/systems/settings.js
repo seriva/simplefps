@@ -1,4 +1,4 @@
-import Console from "./console.js";
+import { Console } from "./console.js";
 
 // Compute once at init — device type never changes at runtime
 const _isMobile =
@@ -12,7 +12,7 @@ const Settings = {
 	save: () => _saveSettings(),
 };
 
-export default Settings;
+export { Settings };
 
 // Private defaults
 const _defaults = {

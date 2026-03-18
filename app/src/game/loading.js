@@ -94,4 +94,4 @@ const Loading = {
 Resources.onLoadStart = () => Loading.toggle(true);
 Resources.onLoadEnd = () => Loading.toggle(false);
 
-export default Loading;
+export { Loading };

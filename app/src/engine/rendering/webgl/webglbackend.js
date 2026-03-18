@@ -1,6 +1,6 @@
-import Console from "../../systems/console.js";
-import Settings from "../../systems/settings.js";
-import RenderBackend, { CanvasStyle } from "../renderbackend.js";
+import { Console } from "../../systems/console.js";
+import { Settings } from "../../systems/settings.js";
+import { CanvasStyle, RenderBackend } from "../renderbackend.js";
 
 // Required WebGL extensions
 const _REQUIRED_EXTENSIONS = {
@@ -1044,4 +1044,4 @@ class WebGLBackend extends RenderBackend {
 	}
 }
 
-export default WebGLBackend;
+export { WebGLBackend };

@@ -53,4 +53,4 @@ const Player = {
 	},
 };
 
-export default Player;
+export { Player };

@@ -57,4 +57,4 @@ const Translations = {
 	},
 };
 
-export default Translations;
+export { Translations };

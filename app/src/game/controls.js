@@ -1,7 +1,7 @@
 import { Console, Input, Settings } from "../engine/engine.js";
-import Game from "./game.js";
-import State from "./state.js";
-import Weapons from "./weapons.js";
+import { Game } from "./game.js";
+import { State } from "./state.js";
+import { Weapons } from "./weapons.js";
 
 // ============================================================================
 // Private
@@ -117,5 +117,3 @@ _initializeKeyboardControls();
 // ============================================================================
 // Public API (side-effect only module)
 // ============================================================================
-
-export default {};

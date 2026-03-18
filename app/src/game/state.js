@@ -1,6 +1,6 @@
 import { css, Signals } from "../dependencies/reactive.js";
 import { getCanvas, Input, pause } from "../engine/engine.js";
-import UI from "./ui.js";
+import { UI } from "./ui.js";
 
 // ============================================================================
 // Private
@@ -83,4 +83,4 @@ const State = {
 	isBlurred: _isBlurred,
 };
 
-export default State;
+export { State };

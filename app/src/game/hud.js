@@ -1,7 +1,7 @@
 import { css, html, Reactive } from "../dependencies/reactive.js";
 import { Settings } from "../engine/engine.js";
-import Player from "./player.js";
-import State from "./state.js";
+import { Player } from "./player.js";
+import { State } from "./state.js";
 
 // ============================================================================
 // Private
@@ -272,4 +272,4 @@ const HUD = {
 	},
 };
 
-export default HUD;
+export { HUD };

@@ -1,5 +1,5 @@
 import { EntityTypes } from "./entity.js";
-import MeshEntity from "./meshentity.js";
+import { MeshEntity } from "./meshentity.js";
 
 class FpsMeshEntity extends MeshEntity {
 	constructor(position, name, updateCallback) {
@@ -8,4 +8,4 @@ class FpsMeshEntity extends MeshEntity {
 	}
 }
 
-export default FpsMeshEntity;
+export { FpsMeshEntity };

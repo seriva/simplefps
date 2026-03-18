@@ -1,8 +1,8 @@
 import { resize, Settings, Stats } from "../engine/engine.js";
-import State from "./state.js";
-import Translations from "./translations.js";
-import UI from "./ui.js";
-import Update from "./update.js";
+import { State } from "./state.js";
+import { Translations } from "./translations.js";
+import { UI } from "./ui.js";
+import { Update } from "./update.js";
 
 // ============================================================================
 // Private
@@ -254,5 +254,3 @@ UI.register("MAIN_MENU", _mainMenu);
 UI.register("SETTINGS_MENU", _settingsMenu);
 UI.register("CREDITS_MENU", _creditsMenu);
 UI.register("UPDATE_MENU", _updateMenu);
-
-export default {};
