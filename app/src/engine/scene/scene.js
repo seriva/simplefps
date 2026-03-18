@@ -40,6 +40,9 @@ let _ambient = _DEFAULT_AMBIENT;
 let _visibilityDirty = true;
 let _pauseUpdate = false;
 
+// Pre-allocated set to avoid per-frame allocations during entity removal
+const _entitiesToRemove = new Set();
+
 // Static trimesh for merged static geometry
 let _staticTrimesh = null;
 const _staticCollidable = {
@@ -238,28 +241,28 @@ const _pause = (doPause) => {
 const _update = (frameTime) => {
 	if (_pauseUpdate) return;
 
-	// Track entities to remove
-	let entitiesToRemove = null;
-
 	for (let i = 0; i < _entities.length; i++) {
 		const entity = _entities[i];
 		if (entity.isStatic) continue;
 		const result = entity.update(frameTime);
-		// If update returns false, mark for removal
-		if (result === false) {
-			if (!entitiesToRemove) entitiesToRemove = new Set();
-			entitiesToRemove.add(entity);
-		}
+		if (result === false) _entitiesToRemove.add(entity);
 	}
 
-	// Batch remove entities - O(n) instead of O(n²)
-	if (entitiesToRemove) {
-		_entities = _entities.filter((e) => !entitiesToRemove.has(e));
+	// Batch remove entities — in-place to avoid allocations
+	if (_entitiesToRemove.size > 0) {
+		// In-place truncation of _entities
+		let eLen = 0;
+		for (let i = 0; i < _entities.length; i++) {
+			if (!_entitiesToRemove.has(_entities[i])) {
+				_entities[eLen++] = _entities[i];
+			}
+		}
+		_entities.length = eLen;
 
-		// Fix memory leak: also remove dead entities from _collidables
+		// In-place truncation of _collidables
 		let cLen = 0;
 		for (let i = 0; i < _collidables.length; i++) {
-			if (!entitiesToRemove.has(_collidables[i])) {
+			if (!_entitiesToRemove.has(_collidables[i])) {
 				_collidables[cLen++] = _collidables[i];
 			}
 		}
@@ -267,9 +270,10 @@ const _update = (frameTime) => {
 
 		_entityCache.clear();
 		_visibilityDirty = true;
-		for (const entity of entitiesToRemove) {
+		for (const entity of _entitiesToRemove) {
 			entity.dispose?.();
 		}
+		_entitiesToRemove.clear();
 	}
 
 	_updateVisibility();

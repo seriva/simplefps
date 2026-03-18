@@ -68,13 +68,10 @@ window.addEventListener(
 
 // Mobile Virtual Input Component
 class _VirtualInputUI extends Reactive.Component {
-	constructor() {
-		super();
-		this._cursorPos = null;
-		this._lastPos = null;
-		this._stickPos = null;
-		this._dragStart = null;
-	}
+	#cursorPos = null;
+	#lastPos = null;
+	#stickPos = null;
+	#dragStart = null;
 
 	state() {
 		return {
@@ -253,11 +250,11 @@ class _VirtualInputUI extends Reactive.Component {
 			"touchstart",
 			(ev) => {
 				if (ev.targetTouches) {
-					this._cursorPos = {
+					this.#cursorPos = {
 						x: ev.targetTouches[0].clientX,
 						y: ev.targetTouches[0].clientY,
 					};
-					this._lastPos = { x: this._cursorPos.x, y: this._cursorPos.y };
+					this.#lastPos = { x: this.#cursorPos.x, y: this.#cursorPos.y };
 				}
 				this.cursorOpacity.set(0.35);
 			},
@@ -268,8 +265,8 @@ class _VirtualInputUI extends Reactive.Component {
 			this.refs.look,
 			"touchend",
 			() => {
-				this._cursorPos = null;
-				this._lastPos = null;
+				this.#cursorPos = null;
+				this.#lastPos = null;
 				_cursorMovement.x = 0;
 				_cursorMovement.y = 0;
 				this.cursorOpacity.set(0);
@@ -286,15 +283,15 @@ class _VirtualInputUI extends Reactive.Component {
 					const currentX = ev.targetTouches[0].clientX;
 					const currentY = ev.targetTouches[0].clientY;
 					// Update cursor position for visual feedback
-					this._cursorPos = { x: currentX, y: currentY };
+					this.#cursorPos = { x: currentX, y: currentY };
 					// Mobile needs higher sensitivity multiplier for responsive feel
 					const mobileSensitivity = Settings.lookSensitivity * 2;
 					_setCursorMovement(
-						(currentX - this._lastPos.x) * mobileSensitivity,
-						(currentY - this._lastPos.y) * mobileSensitivity,
+						(currentX - this.#lastPos.x) * mobileSensitivity,
+						(currentY - this.#lastPos.y) * mobileSensitivity,
 					);
-					this._lastPos.x = currentX;
-					this._lastPos.y = currentY;
+					this.#lastPos.x = currentX;
+					this.#lastPos.y = currentY;
 				}
 			},
 			{ passive: false },
@@ -304,20 +301,20 @@ class _VirtualInputUI extends Reactive.Component {
 		this.on(this.refs.stick, "touchstart", (ev) => {
 			this.refs.stick.classList.add("dragging");
 			if (ev.targetTouches) {
-				this._dragStart = {
+				this.#dragStart = {
 					x: ev.targetTouches[0].clientX,
 					y: ev.targetTouches[0].clientY,
 				};
 				return;
 			}
-			this._dragStart = {
+			this.#dragStart = {
 				x: ev.clientX,
 				y: ev.clientY,
 			};
 		});
 
 		this.on(this.refs.stick, "touchend", () => {
-			if (this._dragStart === null) return;
+			if (this.#dragStart === null) return;
 			this.refs.stick.classList.remove("dragging");
 			this.batch(() => {
 				this.stickX.set(0);
@@ -327,8 +324,8 @@ class _VirtualInputUI extends Reactive.Component {
 			delete _pressed[Settings.backwards];
 			delete _pressed[Settings.left];
 			delete _pressed[Settings.right];
-			this._dragStart = null;
-			this._stickPos = null;
+			this.#dragStart = null;
+			this.#stickPos = null;
 		});
 
 		this.on(
@@ -336,26 +333,26 @@ class _VirtualInputUI extends Reactive.Component {
 			"touchmove",
 			(ev) => {
 				ev.preventDefault();
-				if (this._dragStart === null) return;
+				if (this.#dragStart === null) return;
 
 				if (ev.targetTouches) {
 					ev.clientX = ev.targetTouches[0].clientX;
 					ev.clientY = ev.targetTouches[0].clientY;
 				}
 
-				const xDiff = ev.clientX - this._dragStart.x;
-				const yDiff = ev.clientY - this._dragStart.y;
+				const xDiff = ev.clientX - this.#dragStart.x;
+				const yDiff = ev.clientY - this.#dragStart.y;
 				const angle = Math.atan2(yDiff, xDiff);
 				const distance = Math.min(50, Math.hypot(xDiff, yDiff));
 
-				this._stickPos = {
+				this.#stickPos = {
 					x: distance * Math.cos(angle),
 					y: distance * Math.sin(angle),
 				};
 
 				this.batch(() => {
-					this.stickX.set(this._stickPos.x);
-					this.stickY.set(this._stickPos.y);
+					this.stickX.set(this.#stickPos.x);
+					this.stickY.set(this.#stickPos.y);
 				});
 
 				let dAngle = angle * (180 / Math.PI);
@@ -432,10 +429,10 @@ class _VirtualInputUI extends Reactive.Component {
 
 		// Update virtual input positions
 		const updateVirtualInput = () => {
-			if (this._cursorPos !== null) {
+			if (this.#cursorPos !== null) {
 				this.batch(() => {
-					this.cursorX.set(this._cursorPos.x);
-					this.cursorY.set(-window.innerHeight + this._cursorPos.y);
+					this.cursorX.set(this.#cursorPos.x);
+					this.cursorY.set(-window.innerHeight + this.#cursorPos.y);
 				});
 			}
 			window.requestAnimationFrame(updateVirtualInput);

@@ -16,6 +16,8 @@ const EntityTypes = Object.freeze({
 });
 
 class Entity {
+	#occQueries = null;
+
 	constructor(type, updateCallback) {
 		this.type = type;
 		this.data = {};
@@ -70,11 +72,11 @@ class Entity {
 
 	dispose() {
 		// Clean up occlusion queries to prevent GPU resource leaks
-		if (this._occQueries) {
-			for (const query of this._occQueries) {
+		if (this.#occQueries) {
+			for (const query of this.#occQueries) {
 				Backend.deleteQuery(query);
 			}
-			this._occQueries = null;
+			this.#occQueries = null;
 		}
 
 		this.updateCallback = null;

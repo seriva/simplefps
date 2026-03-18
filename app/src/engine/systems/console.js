@@ -99,11 +99,8 @@ const _callFunction = (path, params) => {
 
 // Internal console UI component
 class _ConsoleUI extends Reactive.Component {
-	constructor() {
-		super();
-		this._commandHistory = [];
-		this._historyIndex = -1;
-	}
+	#commandHistory = [];
+	#historyIndex = -1;
 
 	state() {
 		return {
@@ -173,7 +170,7 @@ class _ConsoleUI extends Reactive.Component {
 
 	handleInput(event) {
 		this.command.set(event.target.value);
-		this._historyIndex = -1;
+		this.#historyIndex = -1;
 	}
 
 	handleKeyDown(event) {
@@ -185,24 +182,33 @@ class _ConsoleUI extends Reactive.Component {
 
 		if (event.key === "ArrowUp" || event.key === "ArrowDown") {
 			event.preventDefault();
-			if (this._commandHistory.length === 0) return;
+			if (this.#commandHistory.length === 0) return;
 
-			const len = this._commandHistory.length;
+			const len = this.#commandHistory.length;
 			if (event.key === "ArrowUp") {
-				this._historyIndex =
-					this._historyIndex === -1
+				this.#historyIndex =
+					this.#historyIndex === -1
 						? len - 1
-						: Math.max(0, this._historyIndex - 1);
+						: Math.max(0, this.#historyIndex - 1);
 			} else {
-				this._historyIndex =
-					this._historyIndex < len - 1 ? this._historyIndex + 1 : -1;
+				this.#historyIndex =
+					this.#historyIndex < len - 1 ? this.#historyIndex + 1 : -1;
 			}
 
 			this.command.set(
-				this._historyIndex === -1
+				this.#historyIndex === -1
 					? ""
-					: this._commandHistory[this._historyIndex],
+					: this.#commandHistory[this.#historyIndex],
 			);
+		}
+	}
+
+	pushHistory(cmd) {
+		if (this.#commandHistory[this.#commandHistory.length - 1] !== cmd) {
+			this.#commandHistory.push(cmd);
+			if (this.#commandHistory.length > _DEFAULTS.MAX_HISTORY) {
+				this.#commandHistory.shift();
+			}
 		}
 	}
 
@@ -309,14 +315,7 @@ const Console = {
 		_ui.batch(() => {
 			try {
 				this.log(currentCommand);
-
-				const history = _ui._commandHistory;
-				if (history[history.length - 1] !== currentCommand) {
-					history.push(currentCommand);
-					if (history.length > _DEFAULTS.MAX_HISTORY) {
-						history.shift();
-					}
-				}
+				_ui.pushHistory(currentCommand);
 
 				const cmd = `simplefps.${currentCommand}`;
 				const parsed = _parseCommand(cmd);
@@ -341,7 +340,7 @@ const Console = {
 			}
 
 			_ui.command.set("");
-			_ui._historyIndex = -1;
+			_ui.handleInput({ target: { value: "" } });
 		});
 	},
 };

@@ -177,6 +177,8 @@ class Mesh {
 		}
 	}
 
+	// _buffers and _wireframeBuffers intentionally stay _ (not #) because
+	// SkinnedMesh subclass accesses them directly — JS # fields are inaccessible in subclasses.
 	#groupedIndices = null;
 
 	renderSingle(

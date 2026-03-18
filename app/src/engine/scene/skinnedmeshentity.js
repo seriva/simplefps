@@ -13,13 +13,15 @@ const _tempMatrix = mat4.create();
 const _localBB = new BoundingBox([0, 0, 0], [1, 1, 1]);
 
 class SkinnedMeshEntity extends MeshEntity {
+	#boneMatrices = null;
+	#skeletonMesh = null;
 	constructor(position, meshName, updateCallback, scale = 1) {
 		super(position, meshName, updateCallback, scale);
 		this.type = EntityTypes.SKINNED_MESH;
 		this.mesh = Resources.get(meshName);
 		this.scale = scale;
 		this.debugSkeleton = false;
-		this._boneMatrices = null;
+		this.#boneMatrices = null;
 
 		if (this.mesh?.skeleton) {
 			this.animationPlayer = new AnimationPlayer(this.mesh.skeleton);
@@ -47,7 +49,7 @@ class SkinnedMeshEntity extends MeshEntity {
 			const pose = this.animationPlayer.update(deltaTime / 1000);
 
 			if (this.isVisible) {
-				this._boneMatrices = this.mesh.getBoneMatricesForGPU(pose);
+				this.#boneMatrices = this.mesh.getBoneMatricesForGPU(pose);
 			}
 		}
 
@@ -55,19 +57,19 @@ class SkinnedMeshEntity extends MeshEntity {
 	}
 
 	render(probeColor, filter = null, shader = Shaders.skinnedGeometry) {
-		if (!this.visible || !this._boneMatrices) return;
+		if (!this.visible || !this.#boneMatrices) return;
 		if (!shader) return;
 
 		mat4.multiply(_tempMatrix, this.base_matrix, this.ani_matrix);
 
 		shader.setVec3("uProbeColor", probeColor);
 		shader.setMat4("matWorld", _tempMatrix);
-		shader.setMat4Array("boneMatrices", this._boneMatrices);
+		shader.setMat4Array("boneMatrices", this.#boneMatrices);
 		this.mesh.renderSingle(true, null, filter, shader, true);
 	}
 
 	renderShadow(mode = "all", shader = Shaders.skinnedEntityShadows) {
-		if (!this.visible || !this._boneMatrices) return;
+		if (!this.visible || !this.#boneMatrices) return;
 		if (!this.castShadow) return;
 		if (!shader) return;
 		if (this.shadowHeight === null || this.shadowHeight === undefined) return;
@@ -75,13 +77,13 @@ class SkinnedMeshEntity extends MeshEntity {
 		mat4.multiply(_tempMatrix, this.base_matrix, this.ani_matrix);
 		shader.setMat4("matWorld", _tempMatrix);
 		shader.setFloat("shadowHeight", this.shadowHeight);
-		shader.setMat4Array("boneMatrices", this._boneMatrices);
+		shader.setMat4Array("boneMatrices", this.#boneMatrices);
 		this.mesh.renderSingle(false, null, mode, shader, true);
 	}
 
 	// Render animated wireframe using skinnedDebug shader
 	renderWireFrame() {
-		if (!this.visible || !this._boneMatrices) return;
+		if (!this.visible || !this.#boneMatrices) return;
 
 		const skinnedDebug = Shaders.skinnedDebug;
 		if (!skinnedDebug) {
@@ -95,7 +97,7 @@ class SkinnedMeshEntity extends MeshEntity {
 		skinnedDebug.bind();
 		mat4.multiply(_tempMatrix, this.base_matrix, this.ani_matrix);
 		skinnedDebug.setMat4("matWorld", _tempMatrix);
-		skinnedDebug.setMat4Array("boneMatrices", this._boneMatrices);
+		skinnedDebug.setMat4Array("boneMatrices", this.#boneMatrices);
 		skinnedDebug.setVec4("debugColor", [1, 1, 1, 1]);
 		this.mesh.renderWireFrame(true); // true = use skinned VAO
 
@@ -103,10 +105,8 @@ class SkinnedMeshEntity extends MeshEntity {
 		Shaders.debug.bind();
 	}
 
-	_skeletonMesh = null;
-
-	_initSkeletonMesh() {
-		if (this._skeletonMesh) return;
+	#initSkeletonMesh() {
+		if (this.#skeletonMesh) return;
 		const skeleton = this.mesh?.skeleton;
 		if (!skeleton) return;
 
@@ -123,7 +123,7 @@ class SkinnedMeshEntity extends MeshEntity {
 		const vertices = new Float32Array(skeleton.joints.length * 3);
 
 		// Create mesh
-		this._skeletonMesh = new Mesh({
+		this.#skeletonMesh = new Mesh({
 			vertices: vertices,
 			indices: [{ material: "none", array: indices }],
 			uvs: [],
@@ -134,14 +134,14 @@ class SkinnedMeshEntity extends MeshEntity {
 	renderSkeleton() {
 		if (!this.visible || !this.mesh?.skeleton || !this.animationPlayer) return;
 
-		this._initSkeletonMesh();
-		if (!this._skeletonMesh) return;
+		this.#initSkeletonMesh();
+		if (!this.#skeletonMesh) return;
 
 		const skeleton = this.mesh.skeleton;
 		const pose = this.animationPlayer.getPose();
 		const worldMatrices = skeleton.getWorldMatrices(pose);
 
-		const vertices = this._skeletonMesh.vertices;
+		const vertices = this.#skeletonMesh.vertices;
 		const pos = [0, 0, 0];
 
 		for (let i = 0; i < skeleton.joints.length; i++) {
@@ -151,7 +151,7 @@ class SkinnedMeshEntity extends MeshEntity {
 			vertices[i * 3 + 2] = pos[2];
 		}
 
-		this._skeletonMesh.updateVertexBuffer(vertices);
+		this.#skeletonMesh.updateVertexBuffer(vertices);
 
 		mat4.multiply(_tempMatrix, this.base_matrix, this.ani_matrix);
 
@@ -160,7 +160,7 @@ class SkinnedMeshEntity extends MeshEntity {
 		debugShader.setMat4("matWorld", _tempMatrix);
 		debugShader.setVec4("debugColor", [0, 1, 0, 1]);
 
-		this._skeletonMesh.renderSingle(false, "lines", "all", debugShader);
+		this.#skeletonMesh.renderSingle(false, "lines", "all", debugShader);
 	}
 
 	updateBoundingVolume() {
@@ -202,12 +202,12 @@ class SkinnedMeshEntity extends MeshEntity {
 	dispose() {
 		super.dispose();
 		this.animationPlayer = null;
-		this._boneMatrices = null;
+		this.#boneMatrices = null;
 
 		// Clean up skeleton debug mesh if created
-		if (this._skeletonMesh) {
-			this._skeletonMesh.dispose();
-			this._skeletonMesh = null;
+		if (this.#skeletonMesh) {
+			this.#skeletonMesh.dispose();
+			this.#skeletonMesh = null;
 		}
 	}
 }
