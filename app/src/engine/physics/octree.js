@@ -1,5 +1,5 @@
 import { vec3 } from "../../dependencies/gl-matrix.js";
-import BoundingBox from "./boundingbox.js";
+import { BoundingBox } from "./boundingbox.js";
 
 const _halfDiagonal = vec3.create();
 const _tmpAABB = new BoundingBox();

@@ -504,4 +504,4 @@ Console.registerCmd("tnc", () => {
 	_noclip = !_noclip;
 });
 
-export default FPSController;
+export { FPSController };

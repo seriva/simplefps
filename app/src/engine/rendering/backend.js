@@ -1,7 +1,7 @@
-import Console from "../systems/console.js";
-import Settings from "../systems/settings.js";
-import WebGLBackend from "./webgl/webglbackend.js";
-import WebGPUBackend from "./webgpu/webgpubackend.js";
+import { Console } from "../systems/console.js";
+import { Settings } from "../systems/settings.js";
+import { WebGLBackend } from "./webgl/webglbackend.js";
+import { WebGPUBackend } from "./webgpu/webgpubackend.js";
 
 // Global backend instance - prefer WebGPU if enabled and available
 let _defaultBackend;

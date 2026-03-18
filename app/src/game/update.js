@@ -1,6 +1,6 @@
 import { Console } from "../engine/engine.js";
-import Loading from "./loading.js";
-import State from "./state.js";
+import { Loading } from "./loading.js";
+import { State } from "./state.js";
 
 // ============================================================================
 // Private
@@ -73,4 +73,4 @@ const Update = {
 	},
 };
 
-export default Update;
+export { Update };

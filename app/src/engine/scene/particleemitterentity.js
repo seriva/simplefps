@@ -1,8 +1,8 @@
 import { Backend } from "../rendering/backend.js";
 import { Shaders } from "../rendering/shaders.js";
-import Shapes from "../rendering/shapes.js";
-import Texture from "../rendering/texture.js";
-import Resources from "../systems/resources.js";
+import { Shapes } from "../rendering/shapes.js";
+import { Texture } from "../rendering/texture.js";
+import { Resources } from "../systems/resources.js";
 import { Entity, EntityTypes } from "./entity.js";
 
 // Instance layout (6 floats = 24 bytes per particle):
@@ -197,4 +197,4 @@ class ParticleEmitterEntity extends Entity {
 	}
 }
 
-export default ParticleEmitterEntity;
+export { ParticleEmitterEntity };

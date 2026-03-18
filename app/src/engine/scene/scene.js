@@ -1,9 +1,9 @@
 import { mat4, vec3 } from "../../dependencies/gl-matrix.js";
 import { Ray, RaycastResult } from "../physics/ray.js";
 import { Trimesh } from "../physics/trimesh.js";
-import Console from "../systems/console.js";
+import { Console } from "../systems/console.js";
 import { EntityTypes } from "./entity.js";
-import LightGrid from "./lightgrid.js";
+import { LightGrid } from "./lightgrid.js";
 
 // ============================================================================
 // Private constants
@@ -361,4 +361,4 @@ const Scene = {
 	raycast: _raycast,
 };
 
-export default Scene;
+export { Scene };

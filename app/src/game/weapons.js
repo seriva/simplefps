@@ -9,8 +9,8 @@ import {
 	Scene,
 } from "../engine/engine.js";
 import { Backend } from "../engine/rendering/backend.js";
-import AnimatedBillboardEntity from "../engine/scene/animatedbillboardentity.js";
-import ParticleEmitterEntity from "../engine/scene/particleemitterentity.js";
+import { AnimatedBillboardEntity } from "../engine/scene/animatedbillboardentity.js";
+import { ParticleEmitterEntity } from "../engine/scene/particleemitterentity.js";
 import {
 	ANIMATION_CONFIG,
 	EXPLOSION_CONFIG,
@@ -677,4 +677,4 @@ const Weapons = {
 	WEAPON_INDEX: WEAPON_INDEX,
 };
 
-export { Weapons as default };
+export { Weapons };

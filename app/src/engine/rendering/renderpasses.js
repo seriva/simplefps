@@ -1,12 +1,12 @@
 import { mat4 } from "../../dependencies/gl-matrix.js";
 import { EntityTypes } from "../scene/entity.js";
-import Scene from "../scene/scene.js";
-import Console from "../systems/console.js";
-import Settings from "../systems/settings.js";
-import Stats from "../systems/stats.js";
+import { Scene } from "../scene/scene.js";
+import { Console } from "../systems/console.js";
+import { Settings } from "../systems/settings.js";
+import { Stats } from "../systems/stats.js";
 import { Backend } from "./backend.js";
 import { Shaders } from "./shaders.js";
-import Shapes from "./shapes.js";
+import { Shapes } from "./shapes.js";
 
 // Private constants
 const _matModel = mat4.create();
@@ -631,4 +631,4 @@ const RenderPasses = {
 	renderDebug,
 };
 
-export default RenderPasses;
+export { RenderPasses };

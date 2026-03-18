@@ -1,5 +1,5 @@
 import { mat4, vec3 } from "../../dependencies/gl-matrix.js";
-import Camera from "../systems/camera.js";
+import { Camera } from "../systems/camera.js";
 
 // ============================================================================
 // Private state (Module-scoped temporary variables)
@@ -230,4 +230,4 @@ class BoundingBox {
 	}
 }
 
-export default BoundingBox;
+export { BoundingBox };

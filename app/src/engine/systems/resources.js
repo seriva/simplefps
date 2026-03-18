@@ -1,10 +1,10 @@
-import Animation from "../animation/animation.js";
-import Material from "../rendering/material.js";
-import Mesh from "../rendering/mesh.js";
-import SkinnedMesh from "../rendering/skinnedmesh.js";
-import Texture from "../rendering/texture.js";
-import Console from "./console.js";
-import Sound from "./sound.js";
+import { Animation } from "../animation/animation.js";
+import { Material } from "../rendering/material.js";
+import { Mesh } from "../rendering/mesh.js";
+import { SkinnedMesh } from "../rendering/skinnedmesh.js";
+import { Texture } from "../rendering/texture.js";
+import { Console } from "./console.js";
+import { Sound } from "./sound.js";
 
 // ============================================================================
 // Private state
@@ -151,4 +151,4 @@ const Resources = {
 	},
 };
 
-export default Resources;
+export { Resources };

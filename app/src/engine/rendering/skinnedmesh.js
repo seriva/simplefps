@@ -1,6 +1,6 @@
 import { Skeleton } from "../animation/skeleton.js";
 import { Backend } from "./backend.js";
-import Mesh from "./mesh.js";
+import { Mesh } from "./mesh.js";
 
 class SkinnedMesh extends Mesh {
 	constructor(data, context) {
@@ -198,4 +198,4 @@ class SkinnedMesh extends Mesh {
 	}
 }
 
-export default SkinnedMesh;
+export { SkinnedMesh };

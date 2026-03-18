@@ -191,4 +191,4 @@ Console.registerCmd("join", (id) => {
 	Multiplayer.join(id);
 });
 
-export default Multiplayer;
+export { Multiplayer };

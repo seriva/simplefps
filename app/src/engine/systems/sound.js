@@ -1,4 +1,4 @@
-import Console from "./console.js";
+import { Console } from "./console.js";
 
 // Private audio context
 const _audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -142,4 +142,4 @@ class Sound {
 	}
 }
 
-export default Sound;
+export { Sound };

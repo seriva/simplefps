@@ -1,7 +1,7 @@
 import { mat4, quat, vec3 } from "../../dependencies/gl-matrix.js";
-import BoundingBox from "../physics/boundingbox.js";
+import { BoundingBox } from "../physics/boundingbox.js";
 import { Shaders } from "../rendering/shaders.js";
-import Shapes from "../rendering/shapes.js";
+import { Shapes } from "../rendering/shapes.js";
 import { Entity, EntityTypes } from "./entity.js";
 
 // Reusable temp matrix to avoid allocations
@@ -131,4 +131,4 @@ class SpotLightEntity extends Entity {
 	}
 }
 
-export default SpotLightEntity;
+export { SpotLightEntity };

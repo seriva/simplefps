@@ -1,8 +1,8 @@
 import { css, html, Reactive } from "../../dependencies/reactive.js";
 import { Backend } from "../rendering/backend.js";
-import Camera from "./camera.js";
-import Console from "./console.js";
-import Settings from "./settings.js";
+import { Camera } from "./camera.js";
+import { Console } from "./console.js";
+import { Settings } from "./settings.js";
 
 // Private Stats UI component
 class _StatsUI extends Reactive.Component {
@@ -180,7 +180,7 @@ const Stats = {
 	},
 };
 
-export default Stats;
+export { Stats };
 
 // Register console command
 Console.registerCmd("stats", Stats.toggle);

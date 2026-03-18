@@ -95,4 +95,4 @@ class AnimationPlayer {
 	}
 }
 
-export default AnimationPlayer;
+export { AnimationPlayer };

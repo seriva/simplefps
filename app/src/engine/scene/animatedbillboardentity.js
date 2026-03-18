@@ -1,10 +1,10 @@
 import { mat4, vec3 } from "../../dependencies/gl-matrix.js";
-import BoundingBox from "../physics/boundingbox.js";
+import { BoundingBox } from "../physics/boundingbox.js";
 import { Shaders } from "../rendering/shaders.js";
-import Shapes from "../rendering/shapes.js";
-import Texture from "../rendering/texture.js";
-import Camera from "../systems/camera.js";
-import Resources from "../systems/resources.js";
+import { Shapes } from "../rendering/shapes.js";
+import { Texture } from "../rendering/texture.js";
+import { Camera } from "../systems/camera.js";
+import { Resources } from "../systems/resources.js";
 import { Entity, EntityTypes } from "./entity.js";
 
 // Reusable temporary matrix to avoid per-frame allocations
@@ -151,4 +151,4 @@ class AnimatedBillboardEntity extends Entity {
 	}
 }
 
-export default AnimatedBillboardEntity;
+export { AnimatedBillboardEntity };

@@ -1,8 +1,8 @@
 import { init, setCallbacks, start } from "./engine/engine.js";
-import Game from "./game/game.js";
-import Loading from "./game/loading.js";
-import Multiplayer from "./game/multiplayer.js";
-import State from "./game/state.js";
+import { Game } from "./game/game.js";
+import { Loading } from "./game/loading.js";
+import { Multiplayer } from "./game/multiplayer.js";
+import { State } from "./game/state.js";
 
 // Side-effect imports (controls, menus, hud register themselves)
 import "./game/controls.js";

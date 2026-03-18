@@ -1,8 +1,8 @@
 import { mat4 } from "../../dependencies/gl-matrix.js";
 import { Shaders } from "../rendering/shaders.js";
-import Shapes from "../rendering/shapes.js";
-import Camera from "../systems/camera.js";
-import Resources from "../systems/resources.js";
+import { Shapes } from "../rendering/shapes.js";
+import { Camera } from "../systems/camera.js";
+import { Resources } from "../systems/resources.js";
 import { Entity, EntityTypes } from "./entity.js";
 
 class SkyboxEntity extends Entity {
@@ -53,4 +53,4 @@ class SkyboxEntity extends Entity {
 	}
 }
 
-export default SkyboxEntity;
+export { SkyboxEntity };

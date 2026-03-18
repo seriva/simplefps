@@ -1,5 +1,5 @@
-import Console from "../systems/console.js";
-import Settings from "../systems/settings.js";
+import { Console } from "../systems/console.js";
+import { Settings } from "../systems/settings.js";
 import { Backend } from "./backend.js";
 
 class Texture {
@@ -113,4 +113,4 @@ class Texture {
 	}
 }
 
-export default Texture;
+export { Texture };

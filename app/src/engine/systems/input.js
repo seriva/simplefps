@@ -1,5 +1,5 @@
 import { css, html, Reactive } from "../../dependencies/reactive.js";
-import Settings from "./settings.js";
+import { Settings } from "./settings.js";
 
 // ============================================================================
 // Private
@@ -526,4 +526,4 @@ const Input = {
 	},
 };
 
-export default Input;
+export { Input };

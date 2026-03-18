@@ -10,7 +10,7 @@ import {
 // Private
 // ============================================================================
 
-import Translations from "./translations.js";
+import { Translations } from "./translations.js";
 
 class _MenuUI extends Reactive.Component {
 	constructor() {
@@ -732,4 +732,4 @@ const UI = {
 	},
 };
 
-export default UI;
+export { UI };

@@ -1,6 +1,6 @@
 import { Backend } from "./backend.js";
 import { Shaders } from "./shaders.js";
-import Texture from "./texture.js";
+import { Texture } from "./texture.js";
 
 // ============================================================================
 // Private state
@@ -159,4 +159,4 @@ class Material {
 	}
 }
 
-export default Material;
+export { Material };

@@ -9,6 +9,13 @@ const _DEFAULTS = {
 	MAX_HISTORY: 100,
 };
 
+// Escape HTML special characters for safe log rendering
+const _escapeHtml = (str) =>
+	String(str)
+		.replace(/&/g, "&amp;")
+		.replace(/</g, "&lt;")
+		.replace(/>/g, "&gt;");
+
 // Safe evaluation using Function constructor instead of eval
 const _safeEval = (expr) => {
 	try {
@@ -59,15 +66,16 @@ const _parseCommand = (cmd) => {
 	throw new Error("Invalid command syntax");
 };
 
-// Traverse object path
+// Traverse object path — returns undefined when any segment is missing
 const _getByPath = (path) => {
+	if (!path) return window;
 	const parts = path.split(".");
 	let obj = window;
 	for (const part of parts) {
 		if (obj && typeof obj === "object" && part in obj) {
 			obj = obj[part];
 		} else {
-			return null;
+			return undefined;
 		}
 	}
 	return obj;
@@ -78,7 +86,7 @@ const _setValue = (path, value) => {
 	const parts = path.split(".");
 	const prop = parts.pop();
 	const obj = _getByPath(parts.join("."));
-	if (obj) obj[prop] = value;
+	if (obj !== undefined) obj[prop] = value;
 };
 
 // Call function at object path
@@ -223,7 +231,7 @@ class _ConsoleUI extends Reactive.Component {
 			content: logs
 				.map(
 					(log) =>
-						`<span style="color: ${log.color}">${log.message}<br /></span>`,
+						`<span style="color: ${log.color}">${_escapeHtml(log.message)}<br /></span>`,
 				)
 				.join(""),
 		}));
@@ -316,14 +324,14 @@ const Console = {
 				if (parsed.type === "assignment") {
 					const varPath = parsed.variable.replace("simplefps.", "");
 					const currentValue = _getByPath(`simplefps.${varPath}`);
-					// Check for null specifically (null = doesn't exist, but false/0/"" are valid)
-					if (currentValue === null) {
+					if (currentValue === undefined) {
 						throw new Error(`Variable "${varPath}" does not exist`);
 					}
 					_setValue(parsed.variable, parsed.value);
 				} else {
-					const pathToCheck = parsed.func.split(".").slice(0, -1).join(".");
-					if (!_getByPath(pathToCheck)) {
+					const parts = parsed.func.split(".");
+					const pathToCheck = parts.slice(0, -1).join(".");
+					if (pathToCheck && _getByPath(pathToCheck) === undefined) {
 						throw new Error(`Function path "${pathToCheck}" does not exist`);
 					}
 					_callFunction(parsed.func, parsed.params);
@@ -346,4 +354,4 @@ Console.executeCmd = Console.executeCmd.bind(Console);
 _ui = new _ConsoleUI();
 _ui.appendTo("body");
 
-export default Console;
+export { Console };

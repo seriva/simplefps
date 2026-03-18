@@ -1,12 +1,12 @@
-import Scene from "../scene/scene.js";
-import Camera from "../systems/camera.js";
-import Resources from "../systems/resources.js";
-import Settings from "../systems/settings.js";
+import { Scene } from "../scene/scene.js";
+import { Camera } from "../systems/camera.js";
+import { Resources } from "../systems/resources.js";
+import { Settings } from "../systems/settings.js";
 import { Backend } from "./backend.js";
-import RenderPasses from "./renderpasses.js";
+import { RenderPasses } from "./renderpasses.js";
 import { Shaders } from "./shaders.js";
-import Shapes from "./shapes.js";
-import Texture from "./texture.js";
+import { Shapes } from "./shapes.js";
+import { Texture } from "./texture.js";
 
 // Private state - buffers
 let _depth = null;
@@ -790,4 +790,4 @@ const Renderer = {
 	},
 };
 
-export default Renderer;
+export { Renderer };

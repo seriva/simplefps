@@ -1,7 +1,7 @@
 import { mat4 } from "../../dependencies/gl-matrix.js";
-import BoundingBox from "../physics/boundingbox.js";
+import { BoundingBox } from "../physics/boundingbox.js";
 import { Shaders } from "../rendering/shaders.js";
-import Shapes from "../rendering/shapes.js";
+import { Shapes } from "../rendering/shapes.js";
 import { Entity, EntityTypes } from "./entity.js";
 
 class PointLightEntity extends Entity {
@@ -70,4 +70,4 @@ class PointLightEntity extends Entity {
 	}
 }
 
-export default PointLightEntity;
+export { PointLightEntity };

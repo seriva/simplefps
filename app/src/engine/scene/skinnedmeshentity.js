@@ -1,11 +1,11 @@
 import { mat4 } from "../../dependencies/gl-matrix.js";
-import AnimationPlayer from "../animation/animationplayer.js";
-import BoundingBox from "../physics/boundingbox.js";
-import Mesh from "../rendering/mesh.js";
+import { AnimationPlayer } from "../animation/animationplayer.js";
+import { BoundingBox } from "../physics/boundingbox.js";
+import { Mesh } from "../rendering/mesh.js";
 import { Shaders } from "../rendering/shaders.js";
-import Resources from "../systems/resources.js";
+import { Resources } from "../systems/resources.js";
 import { EntityTypes } from "./entity.js";
-import MeshEntity from "./meshentity.js";
+import { MeshEntity } from "./meshentity.js";
 
 const _tempMatrix = mat4.create();
 
@@ -212,4 +212,4 @@ class SkinnedMeshEntity extends MeshEntity {
 	}
 }
 
-export default SkinnedMeshEntity;
+export { SkinnedMeshEntity };

@@ -198,4 +198,4 @@ class Animation {
 	}
 }
 
-export default Animation;
+export { Animation };

@@ -1,6 +1,6 @@
-import Console from "../../systems/console.js";
-import Settings from "../../systems/settings.js";
-import RenderBackend, { CanvasStyle } from "../renderbackend.js";
+import { Console } from "../../systems/console.js";
+import { Settings } from "../../systems/settings.js";
+import { CanvasStyle, RenderBackend } from "../renderbackend.js";
 import { WgslShaderSources } from "./wgsl.js";
 
 // Texture format mapping (WebGPU formats)
@@ -2078,4 +2078,4 @@ class WebGPUBackend extends RenderBackend {
 	}
 }
 
-export default WebGPUBackend;
+export { WebGPUBackend };
