@@ -3,11 +3,8 @@ import { Resources } from "../engine/engine.js";
 
 // Loading UI component
 class _LoadingUI extends Reactive.Component {
-	constructor() {
-		super();
-		this._forceUntilReload = false;
-		this._loadingCount = 0;
-	}
+	#forceUntilReload = false;
+	#loadingCount = 0;
 
 	state() {
 		return {
@@ -62,21 +59,21 @@ class _LoadingUI extends Reactive.Component {
 	}
 
 	toggle(visible, force) {
-		if (this._forceUntilReload) return;
+		if (this.#forceUntilReload) return;
 
 		if (visible) {
-			this._loadingCount++;
+			this.#loadingCount++;
 		} else {
-			this._loadingCount = Math.max(0, this._loadingCount - 1);
+			this.#loadingCount = Math.max(0, this.#loadingCount - 1);
 		}
 
-		const shouldBeVisible = this._loadingCount > 0;
+		const shouldBeVisible = this.#loadingCount > 0;
 
 		if (this.visible.get() !== shouldBeVisible) {
 			this.visible.set(shouldBeVisible);
 		}
 
-		if (force != null) this._forceUntilReload = force;
+		if (force != null) this.#forceUntilReload = force;
 	}
 }
 

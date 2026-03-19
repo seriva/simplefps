@@ -129,13 +129,7 @@ class WebGPUBackend extends RenderBackend {
 			skinnedShadowParams: new Float32Array(20),
 			blurParams: new Float32Array(8),
 			bilateralParams: new Float32Array(4), // depthThreshold, normalThreshold, _pad x2
-			billboardParams: new Float32Array(24), // mat4 + vec2 + vec2 + f32 + pad = 16+2+2+1+3 = 24 floats
 		};
-
-		// Optimization: Pre-allocated typed arrays for scalar uniforms (avoid per-draw allocations)
-		this._tempFloat1 = new Float32Array(1);
-		this._tempUint1 = new Uint32Array(1);
-		this._tempFloat16 = new Float32Array(16);
 
 		// Optimization: Unique ID counter for resources (for cache keys)
 		this._resourceIdCounter = 1;
@@ -576,20 +570,26 @@ class WebGPUBackend extends RenderBackend {
 	}
 
 	setBlendState(enabled, srcFactor = "one", dstFactor = "zero") {
-		this._blendState.enabled = enabled;
-		this._blendState.srcFactor = _BLEND_FACTORS[srcFactor] || srcFactor;
-		this._blendState.dstFactor = _BLEND_FACTORS[dstFactor] || dstFactor;
+		this._blendState = {
+			enabled,
+			srcFactor: _BLEND_FACTORS[srcFactor] || srcFactor,
+			dstFactor: _BLEND_FACTORS[dstFactor] || dstFactor,
+		};
 	}
 
 	setDepthState(testEnabled, writeEnabled, func = "lequal") {
-		this._depthState.test = testEnabled;
-		this._depthState.write = writeEnabled;
-		this._depthState.func = _DEPTH_FUNCS[func] || func;
+		this._depthState = {
+			test: testEnabled,
+			write: writeEnabled,
+			func: _DEPTH_FUNCS[func] || func,
+		};
 	}
 
 	setCullState(enabled, face = "back") {
-		this._cullState.enabled = enabled;
-		this._cullState.face = face;
+		this._cullState = {
+			enabled,
+			face,
+		};
 	}
 
 	setPolygonOffset(enabled, factor = 0, units = 0) {
@@ -618,18 +618,19 @@ class WebGPUBackend extends RenderBackend {
 
 		const fb = this._activeFramebuffer;
 
-		// Build render pass descriptor
 		const colorAttachments = [];
 		let depthAttachment = null;
 
+		// Determine color attachments
 		if (fb) {
 			// Render to framebuffer
 			for (let i = 0; i < fb.colorAttachments.length; i++) {
 				const attachment = fb.colorAttachments[i];
+				// handle is { _gpuTexture, _gpuTextureView, ... }
 				if (attachment) {
 					colorAttachments.push({
 						view: attachment._gpuTextureView,
-						clearValue: this._clearColor,
+						clearValue: this._clearColor || { r: 0, g: 0, b: 0, a: 1 },
 						loadOp: colorLoadOp,
 						storeOp: "store",
 					});
@@ -644,8 +645,13 @@ class WebGPUBackend extends RenderBackend {
 				};
 			}
 
-			// Use cached formats from framebuffer (avoids .map/.filter per pass)
-			this._currentPassFormats = fb._cachedFormats;
+			// Cache formats for pipeline creation
+			this._currentPassFormats = {
+				targets: fb.colorAttachments
+					.map((a) => (a ? a.format : null))
+					.filter((f) => f),
+				depth: fb.depthAttachment ? fb.depthAttachment.format : null,
+			};
 		} else {
 			// Render to swapchain
 			if (!this._currentTexture) {
@@ -659,20 +665,20 @@ class WebGPUBackend extends RenderBackend {
 
 			colorAttachments.push({
 				view: this._currentTextureView,
-				clearValue: this._clearColor,
+				clearValue: this._clearColor || { r: 0, g: 0, b: 0, a: 1 },
 				loadOp: colorLoadOp,
 				storeOp: "store",
 			});
 
-			// Use cached swapchain formats
-			if (!this._swapchainFormats) {
-				this._swapchainFormats = { targets: [this._format], depth: null };
-				this._swapchainFormats._cachedKey = this._format;
-			}
-			this._currentPassFormats = this._swapchainFormats;
+			this._currentPassFormats = {
+				targets: [this._format],
+				depth: null,
+			};
 		}
 
-		const descriptor = { colorAttachments };
+		const descriptor = {
+			colorAttachments,
+		};
 
 		if (depthAttachment) {
 			descriptor.depthStencilAttachment = depthAttachment;
@@ -706,7 +712,10 @@ class WebGPUBackend extends RenderBackend {
 			let width = this.getWidth();
 			let height = this.getHeight();
 
+			// If rendering to dataframe, use its size
 			if (this._activeFramebuffer) {
+				// We need to ensure we have width/height stored on framebuffer
+				// WebGLBackend stores it on the object, let's assume we do too or get it from attachment
 				if (this._activeFramebuffer.width)
 					width = this._activeFramebuffer.width;
 				if (this._activeFramebuffer.height)
@@ -960,12 +969,12 @@ class WebGPUBackend extends RenderBackend {
 
 			// Create layout entry for this buffer slot
 			layout.push({
-				arrayStride: attr.stride !== undefined ? attr.stride : stride,
-				stepMode: attr.divisor ? "instance" : "vertex",
+				arrayStride: stride,
+				stepMode: "vertex",
 				attributes: [
 					{
 						shaderLocation: attr.slot,
-						offset: attr.offset || 0,
+						offset: 0,
 						format: format,
 					},
 				],
@@ -1000,22 +1009,13 @@ class WebGPUBackend extends RenderBackend {
 			}
 		}
 
-		const fb = {
+		// Store descriptor to know attachments and formats later
+		return {
 			colorAttachments: descriptor.colorAttachments || [],
 			depthAttachment: descriptor.depthAttachment || null,
 			width: width || this.getWidth(),
 			height: height || this.getHeight(),
 		};
-
-		// Cache format descriptors for pipeline creation (avoid per-pass .map/.filter)
-		const targets = fb.colorAttachments
-			.map((a) => (a ? a.format : null))
-			.filter((f) => f);
-		const depthFormat = fb.depthAttachment ? fb.depthAttachment.format : null;
-		fb._cachedFormats = { targets, depth: depthFormat };
-		fb._cachedFormats._cachedKey = targets.join(",") + (depthFormat || "");
-
-		return fb;
 	}
 
 	deleteFramebuffer(framebuffer) {
@@ -1059,17 +1059,6 @@ class WebGPUBackend extends RenderBackend {
 				}
 				fb.colorAttachments[index] = texture;
 			}
-		}
-
-		// Rebuild cached formats since attachments changed
-		if (fb._cachedFormats) {
-			const targets = fb.colorAttachments
-				.map((a) => (a ? a.format : null))
-				.filter((f) => f);
-			const depthFormat = fb.depthAttachment ? fb.depthAttachment.format : null;
-			fb._cachedFormats.targets = targets;
-			fb._cachedFormats.depth = depthFormat;
-			fb._cachedFormats._cachedKey = targets.join(",") + (depthFormat || "");
 		}
 	}
 
@@ -1259,55 +1248,9 @@ class WebGPUBackend extends RenderBackend {
 
 		// Recreate the sampler with the new wrap mode
 		texture._gpuSampler = this._device.createSampler({
-			magFilter: texture._magFilter || "linear",
-			minFilter: texture._minFilter || "linear",
-			mipmapFilter: texture._mipmapFilter || "linear",
-			addressModeU: addressMode,
-			addressModeV: addressMode,
-			maxAnisotropy: texture._anisotropy || 1,
-		});
-		texture._samplerId = this._resourceIdCounter++;
-	}
-
-	setTextureFilter(texture, minFilter, magFilter, mipmapFilter) {
-		if (!texture || !this._device) return;
-
-		const _filterMap = {
-			nearest: "nearest",
-			linear: "linear",
-			"nearest-mipmap-nearest": "nearest",
-			"linear-mipmap-nearest": "linear",
-			"nearest-mipmap-linear": "nearest",
-			"linear-mipmap-linear": "linear",
-		};
-
-		const _mipMap = {
-			nearest: "nearest",
-			linear: "linear",
-			"nearest-mipmap-nearest": "nearest",
-			"linear-mipmap-nearest": "nearest",
-			"nearest-mipmap-linear": "linear",
-			"linear-mipmap-linear": "linear",
-		};
-
-		// Parse combined filters (e.g. from WebGL terminology) into WebGPU distinct filters
-		const parsedMinFilter = _filterMap[minFilter] || "linear";
-		const parsedMipmapFilter = mipmapFilter
-			? _filterMap[mipmapFilter] || "linear"
-			: _mipMap[minFilter] || "linear";
-		const parsedMagFilter = _filterMap[magFilter] || "linear";
-
-		texture._minFilter = parsedMinFilter;
-		texture._magFilter = parsedMagFilter;
-		texture._mipmapFilter = parsedMipmapFilter;
-
-		const addressMode = texture._wrapMode || "repeat";
-
-		// Recreate the sampler with the new filter modes
-		texture._gpuSampler = this._device.createSampler({
-			magFilter: parsedMagFilter,
-			minFilter: parsedMinFilter,
-			mipmapFilter: parsedMipmapFilter,
+			magFilter: "linear",
+			minFilter: "linear",
+			mipmapFilter: "linear",
 			addressModeU: addressMode,
 			addressModeV: addressMode,
 			maxAnisotropy: texture._anisotropy || 1,
@@ -1336,9 +1279,9 @@ class WebGPUBackend extends RenderBackend {
 
 		// Recreate the sampler with the new anisotropy level
 		texture._gpuSampler = this._device.createSampler({
-			magFilter: texture._magFilter || "linear",
-			minFilter: texture._minFilter || "linear",
-			mipmapFilter: texture._mipmapFilter || "linear",
+			magFilter: "linear",
+			minFilter: "linear",
+			mipmapFilter: "linear",
 			addressModeU: addressMode,
 			addressModeV: addressMode,
 			maxAnisotropy: anisotropy,
@@ -1516,33 +1459,7 @@ class WebGPUBackend extends RenderBackend {
 		return `${shaderLabel}|${primitive.topology}|${cullMode}|${blendKey}|${depthKey}|${formatKey}|${layoutKey}|${biasKey}|${colorMaskKey}`;
 	}
 
-	drawInstanced(
-		indexBuffer,
-		indexCount,
-		instanceCount,
-		indexOffset = 0,
-		mode = null,
-	) {
-		this._drawIndexedInternal(
-			indexBuffer,
-			indexCount,
-			instanceCount,
-			indexOffset,
-			mode,
-		);
-	}
-
 	drawIndexed(indexBuffer, indexCount, indexOffset = 0, mode = null) {
-		this._drawIndexedInternal(indexBuffer, indexCount, 1, indexOffset, mode);
-	}
-
-	_drawIndexedInternal(
-		indexBuffer,
-		indexCount,
-		instanceCount,
-		indexOffset = 0,
-		mode = null,
-	) {
 		if (!this._device || !this._currentVertexState || !this._currentShader)
 			return;
 
@@ -1734,14 +1651,14 @@ class WebGPUBackend extends RenderBackend {
 								binding: b.binding,
 								resource: { buffer: ubo._gpuBuffer },
 							});
-							bg1Key += `u${ubo._id}_`;
+							bg1Key += `${b.binding}:u:${ubo._id}|`;
 						} else {
 							// Fallback to dummy UBO
 							entries.push({
 								binding: b.binding,
 								resource: { buffer: this._dummyUBO },
 							});
-							bg1Key += "d_";
+							bg1Key += `${b.binding}:u:dummy|`;
 						}
 					} else if (b.type === "uniform") {
 						// Create temp buffer for uniforms
@@ -1753,21 +1670,14 @@ class WebGPUBackend extends RenderBackend {
 						}
 
 						if (val !== undefined && val !== null) {
-							// Reuse pre-allocated typed arrays to avoid per-draw allocations
+							// If primitive, wrap in array
 							let bufferVal = val;
 							if (typeof val === "number") {
-								this._tempFloat1[0] = val;
-								bufferVal = this._tempFloat1;
+								bufferVal = new Float32Array([val]);
 							} else if (typeof val === "boolean") {
-								this._tempUint1[0] = val ? 1 : 0;
-								bufferVal = this._tempUint1;
+								bufferVal = new Uint32Array([val ? 1 : 0]);
 							} else if (Array.isArray(val)) {
-								if (val.length <= 16) {
-									this._tempFloat16.set(val);
-									bufferVal = this._tempFloat16.subarray(0, val.length);
-								} else {
-									bufferVal = new Float32Array(val);
-								}
+								bufferVal = new Float32Array(val);
 							}
 
 							// OPTIMIZATION: Use pooled buffer instead of creating new one
@@ -1777,26 +1687,26 @@ class WebGPUBackend extends RenderBackend {
 							this._device.queue.writeBuffer(buf, 0, bufferVal);
 
 							entries.push({ binding: b.binding, resource: { buffer: buf } });
-							bg1Key += `b${buf._id}_`;
+							bg1Key += `${b.binding}:p:${buf._id}|`;
 						} else {
 							// Fallback to dummy UBO
 							entries.push({
 								binding: b.binding,
 								resource: { buffer: this._dummyUBO },
 							});
-							bg1Key += "d_";
+							bg1Key += `${b.binding}:u:dummy|`;
 						}
 					} else if (b.type === "sampler") {
 						const tex = this._boundTextures.get(b.unit);
 						if (tex) {
 							entries.push({ binding: b.binding, resource: tex._gpuSampler });
-							bg1Key += `s${tex._samplerId}_`;
+							bg1Key += `${b.binding}:s:${tex._samplerId}|`;
 						} else {
 							entries.push({
 								binding: b.binding,
 								resource: this._defaultSampler,
 							});
-							bg1Key += `ds${this._defaultSampler._id}_`;
+							bg1Key += `${b.binding}:s:${this._defaultSampler._id}|`;
 						}
 					} else if (b.type === "texture") {
 						const tex = this._boundTextures.get(b.unit);
@@ -1805,20 +1715,20 @@ class WebGPUBackend extends RenderBackend {
 								binding: b.binding,
 								resource: tex._gpuTextureView,
 							});
-							bg1Key += `t${tex._gpuTextureView._id}_`;
+							bg1Key += `${b.binding}:t:${tex._gpuTextureView._id}|`;
 						} else {
 							entries.push({
 								binding: b.binding,
 								resource: this._defaultTextureView,
 							});
-							bg1Key += `dt${this._defaultTextureView._id}_`;
+							bg1Key += `${b.binding}:t:${this._defaultTextureView._id}|`;
 						}
 					}
 				}
 
 				if (entries.length > 0) {
 					// Use the composite key to check cache
-					const cacheKey = `1_${key}_${bg1Key}`;
+					const cacheKey = `bg1_${key}_${bg1Key}`;
 					let bindGroup1 = this._bindGroupCache.get(cacheKey);
 
 					if (!bindGroup1) {
@@ -1854,13 +1764,13 @@ class WebGPUBackend extends RenderBackend {
 					if (tex) {
 						if (b.type === "sampler") {
 							entries.push({ binding: b.binding, resource: tex._gpuSampler });
-							bg2Key += `s${tex._samplerId}_`;
+							bg2Key += `${b.binding}:s:${tex._samplerId}|`;
 						} else if (b.type === "texture") {
 							entries.push({
 								binding: b.binding,
 								resource: tex._gpuTextureView,
 							});
-							bg2Key += `t${tex._gpuTextureView._id}_`;
+							bg2Key += `${b.binding}:t:${tex._gpuTextureView._id}|`;
 						}
 					} else {
 						// Fallback to defaults
@@ -1869,20 +1779,20 @@ class WebGPUBackend extends RenderBackend {
 								binding: b.binding,
 								resource: this._defaultSampler,
 							});
-							bg2Key += `ds${this._defaultSampler._id}_`;
+							bg2Key += `${b.binding}:s:${this._defaultSampler._id}|`;
 						} else if (b.type === "texture") {
 							entries.push({
 								binding: b.binding,
 								resource: this._defaultTextureView,
 							});
-							bg2Key += `dt${this._defaultTextureView._id}_`;
+							bg2Key += `${b.binding}:t:${this._defaultTextureView._id}|`;
 						}
 					}
 				}
 
 				if (entries.length > 0) {
 					// Use the composite key to check cache
-					const cacheKey = `2_${key}_${bg2Key}`;
+					const cacheKey = `bg2_${key}_${bg2Key}`;
 					let bindGroup2 = this._bindGroupCache.get(cacheKey);
 
 					if (!bindGroup2) {
@@ -1906,7 +1816,7 @@ class WebGPUBackend extends RenderBackend {
 			}
 		}
 
-		pass.drawIndexed(indexCount, instanceCount, indexOffset, 0, 0);
+		pass.drawIndexed(indexCount, 1, indexOffset, 0, 0);
 	}
 
 	_packStruct(name) {
@@ -1925,20 +1835,6 @@ class WebGPUBackend extends RenderBackend {
 			if (size !== undefined) arr[3] = size;
 			if (col) arr.set(col, 4);
 			if (intensity !== undefined) arr[7] = intensity;
-			return arr;
-		} else if (name === "billboardParams") {
-			const arr = bufs.billboardParams;
-			arr.fill(0);
-			const matWorld = this._uniforms.get("matWorld");
-			const frameOffset = this._uniforms.get("uFrameOffset");
-			const frameScale = this._uniforms.get("uFrameScale");
-			const opacity = this._uniforms.get("uOpacity");
-
-			if (matWorld) arr.set(matWorld, 0); // floats 0-15 (64 bytes)
-			if (frameOffset) arr.set(frameOffset, 16); // floats 16-17
-			if (frameScale) arr.set(frameScale, 18); // floats 18-19
-			if (opacity !== undefined) arr[20] = opacity; // float 20
-
 			return arr;
 		} else if (name === "directionalLight") {
 			const arr = bufs.directionalLight;

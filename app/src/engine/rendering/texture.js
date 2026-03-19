@@ -6,9 +6,7 @@ class Texture {
 	#handle = null;
 
 	constructor(data) {
-		if (data) {
-			this.init(data);
-		}
+		this.init(data);
 	}
 
 	// Public accessor for the backend handle (opaque to the user)
@@ -41,7 +39,8 @@ class Texture {
 	}
 
 	static createSolidColor(r, g, b, a = 255) {
-		const texture = new Texture();
+		const texture = new Texture({});
+		texture.dispose(); // Free the texture allocated by init({})
 		texture.#handle = Backend.createTexture({
 			width: 1,
 			height: 1,
@@ -61,24 +60,18 @@ class Texture {
 		}
 	}
 
-	async loadImageTexture(imageData) {
-		try {
-			// Decode the image data into a bitmap off the main thread.
-			const bitmap = await createImageBitmap(imageData);
-
-			if (!this.#handle) {
-				bitmap.close();
-				return; // Disposed?
-			}
+	loadImageTexture(imageData) {
+		const image = new Image();
+		image.onload = async () => {
+			if (!this.#handle) return; // Disposed?
 
 			// Upload image data (this updates the texture content and might resize usage in WebGL)
-			await Backend.uploadTextureFromImage(this.#handle, bitmap);
+			await Backend.uploadTextureFromImage(this.#handle, image);
 
 			// Generate mipmaps
 			Backend.generateMipmaps(this.#handle);
 
 			// Apply settings
-			Backend.setTextureFilter(this.#handle, "linear-mipmap-linear", "linear");
 			Backend.setTextureWrapMode(this.#handle, "repeat");
 
 			if (Settings.anisotropicFiltering > 1) {
@@ -88,10 +81,13 @@ class Texture {
 				);
 			}
 
-			bitmap.close();
-		} catch (error) {
-			Console.error("Failed to load texture image", error);
-		}
+			URL.revokeObjectURL(image.src); // Clean up the blob URL
+		};
+
+		image.onerror = () => {
+			Console.error("Failed to load texture image");
+		};
+		image.src = URL.createObjectURL(imageData);
 	}
 
 	bind(unit) {

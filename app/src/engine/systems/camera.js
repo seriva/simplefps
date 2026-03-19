@@ -1,4 +1,4 @@
-import { glMatrix, mat4, vec3 } from "../../dependencies/gl-matrix.js";
+import { glMatrix, mat4, vec3, vec4 } from "../../dependencies/gl-matrix.js";
 import { Backend } from "../rendering/backend.js";
 import { Settings } from "./settings.js";
 
@@ -8,6 +8,18 @@ import { Settings } from "./settings.js";
 
 const _projection = mat4.create();
 const _target = vec3.create();
+
+const _normalizePlane = (plane) => {
+	const len = Math.sqrt(
+		plane[0] * plane[0] + plane[1] * plane[1] + plane[2] * plane[2],
+	);
+	if (len > 0) {
+		plane[0] /= len;
+		plane[1] /= len;
+		plane[2] /= len;
+		plane[3] /= len;
+	}
+};
 
 let _fov = 45;
 let _nearPlane = null;
@@ -19,12 +31,12 @@ const _origin = [0, 0, 0];
 // ============================================================================
 
 const _frustumPlanes = {
-	near: new Float32Array(4),
-	far: new Float32Array(4),
-	left: new Float32Array(4),
-	right: new Float32Array(4),
-	top: new Float32Array(4),
-	bottom: new Float32Array(4),
+	near: vec4.create(),
+	far: vec4.create(),
+	left: vec4.create(),
+	right: vec4.create(),
+	top: vec4.create(),
+	bottom: vec4.create(),
 };
 
 const _frustumPlanesArray = [
@@ -114,82 +126,68 @@ const Camera = {
 		mat4.lookAt(this.view, this.position, _target, this.upVector);
 		mat4.mul(this.viewProjection, _projection, this.view);
 
-		// Extract and normalize frustum planes inline (avoids 12 function calls per frame)
+		// Extract frustum planes from view-projection matrix
 		const m = this.viewProjection;
-		const planes = _frustumPlanesArray;
-		let p, len;
 
 		// Left plane
-		p = planes[0];
-		p[0] = m[3] + m[0];
-		p[1] = m[7] + m[4];
-		p[2] = m[11] + m[8];
-		p[3] = m[15] + m[12];
-		len = 1 / Math.sqrt(p[0] * p[0] + p[1] * p[1] + p[2] * p[2]);
-		p[0] *= len;
-		p[1] *= len;
-		p[2] *= len;
-		p[3] *= len;
+		vec4.set(
+			this.frustumPlanes.left,
+			m[3] + m[0],
+			m[7] + m[4],
+			m[11] + m[8],
+			m[15] + m[12],
+		);
+		_normalizePlane(this.frustumPlanes.left);
 
 		// Right plane
-		p = planes[1];
-		p[0] = m[3] - m[0];
-		p[1] = m[7] - m[4];
-		p[2] = m[11] - m[8];
-		p[3] = m[15] - m[12];
-		len = 1 / Math.sqrt(p[0] * p[0] + p[1] * p[1] + p[2] * p[2]);
-		p[0] *= len;
-		p[1] *= len;
-		p[2] *= len;
-		p[3] *= len;
+		vec4.set(
+			this.frustumPlanes.right,
+			m[3] - m[0],
+			m[7] - m[4],
+			m[11] - m[8],
+			m[15] - m[12],
+		);
+		_normalizePlane(this.frustumPlanes.right);
 
 		// Bottom plane
-		p = planes[2];
-		p[0] = m[3] + m[1];
-		p[1] = m[7] + m[5];
-		p[2] = m[11] + m[9];
-		p[3] = m[15] + m[13];
-		len = 1 / Math.sqrt(p[0] * p[0] + p[1] * p[1] + p[2] * p[2]);
-		p[0] *= len;
-		p[1] *= len;
-		p[2] *= len;
-		p[3] *= len;
+		vec4.set(
+			this.frustumPlanes.bottom,
+			m[3] + m[1],
+			m[7] + m[5],
+			m[11] + m[9],
+			m[15] + m[13],
+		);
+		_normalizePlane(this.frustumPlanes.bottom);
 
 		// Top plane
-		p = planes[3];
-		p[0] = m[3] - m[1];
-		p[1] = m[7] - m[5];
-		p[2] = m[11] - m[9];
-		p[3] = m[15] - m[13];
-		len = 1 / Math.sqrt(p[0] * p[0] + p[1] * p[1] + p[2] * p[2]);
-		p[0] *= len;
-		p[1] *= len;
-		p[2] *= len;
-		p[3] *= len;
+		vec4.set(
+			this.frustumPlanes.top,
+			m[3] - m[1],
+			m[7] - m[5],
+			m[11] - m[9],
+			m[15] - m[13],
+		);
+		_normalizePlane(this.frustumPlanes.top);
 
 		// Near plane
-		p = planes[4];
-		p[0] = m[3] + m[2];
-		p[1] = m[7] + m[6];
-		p[2] = m[11] + m[10];
-		p[3] = m[15] + m[14];
-		len = 1 / Math.sqrt(p[0] * p[0] + p[1] * p[1] + p[2] * p[2]);
-		p[0] *= len;
-		p[1] *= len;
-		p[2] *= len;
-		p[3] *= len;
+		vec4.set(
+			this.frustumPlanes.near,
+			m[3] + m[2],
+			m[7] + m[6],
+			m[11] + m[10],
+			m[15] + m[14],
+		);
+		_normalizePlane(this.frustumPlanes.near);
 
 		// Far plane
-		p = planes[5];
-		p[0] = m[3] - m[2];
-		p[1] = m[7] - m[6];
-		p[2] = m[11] - m[10];
-		p[3] = m[15] - m[14];
-		len = 1 / Math.sqrt(p[0] * p[0] + p[1] * p[1] + p[2] * p[2]);
-		p[0] *= len;
-		p[1] *= len;
-		p[2] *= len;
-		p[3] *= len;
+		vec4.set(
+			this.frustumPlanes.far,
+			m[3] - m[2],
+			m[7] - m[6],
+			m[11] - m[10],
+			m[15] - m[14],
+		);
+		_normalizePlane(this.frustumPlanes.far);
 
 		mat4.invert(this.inverseViewProjection, this.viewProjection);
 	},
