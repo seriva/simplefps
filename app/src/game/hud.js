@@ -205,30 +205,38 @@ class _HUDUI extends Reactive.Component {
 		}
 
 		// Subscribe to state changes to toggle visibility
-		State.signal.subscribe((state) => {
-			this.toggle(state === "GAME");
-		});
+		this.track(
+			State.signal.subscribe((state) => {
+				this.toggle(state === "GAME");
+			}),
+		);
 
 		// Subscribe to player stats for HUD bars
 		let prevHealth = Player.health.get();
 		let prevArmor = Player.armor.get();
 		let prevAmmo = Player.ammo.get();
 
-		Player.health.subscribe((v) => {
-			this.refs.healthVal.textContent = v;
-			if (v > prevHealth) this.triggerAnimation("health");
-			prevHealth = v;
-		});
-		Player.armor.subscribe((v) => {
-			this.refs.armorVal.textContent = v;
-			if (v > prevArmor) this.triggerAnimation("armor");
-			prevArmor = v;
-		});
-		Player.ammo.subscribe((v) => {
-			this.refs.ammoVal.textContent = v;
-			if (v > prevAmmo) this.triggerAnimation("ammo");
-			prevAmmo = v;
-		});
+		this.track(
+			Player.health.subscribe((v) => {
+				this.refs.healthVal.textContent = v;
+				if (v > prevHealth) this.triggerAnimation("health");
+				prevHealth = v;
+			}),
+		);
+		this.track(
+			Player.armor.subscribe((v) => {
+				this.refs.armorVal.textContent = v;
+				if (v > prevArmor) this.triggerAnimation("armor");
+				prevArmor = v;
+			}),
+		);
+		this.track(
+			Player.ammo.subscribe((v) => {
+				this.refs.ammoVal.textContent = v;
+				if (v > prevAmmo) this.triggerAnimation("ammo");
+				prevAmmo = v;
+			}),
+		);
 	}
 
 	triggerAnimation(type) {
