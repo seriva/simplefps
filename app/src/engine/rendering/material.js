@@ -46,9 +46,13 @@ class Material {
 		this.opacity = data.opacity !== undefined ? data.opacity : 1.0;
 
 		// Load all referenced textures
-		for (const texturePath of Object.values(this.textures)) {
+		for (const [slot, texturePath] of Object.entries(this.textures)) {
 			if (texturePath) {
-				resources.load([texturePath]);
+				const options =
+					slot === "lightmap"
+						? { filter: { min: "linear", mag: "linear", mip: "linear" } }
+						: {};
+				resources.load([{ path: texturePath, options }]);
 			}
 		}
 	}

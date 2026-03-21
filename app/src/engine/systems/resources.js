@@ -17,7 +17,7 @@ const _fileExtRegex = /(?:\.([^.]+))?$/;
 
 // Private constants
 const _RESOURCE_TYPES = {
-	webp: (data) => new Texture({ data }),
+	webp: (data, _context, options) => new Texture({ data, ...options }),
 	mesh: (data, context) => {
 		const mesh = new Mesh(JSON.parse(data), context);
 		return mesh.ready.then(() => mesh);
@@ -71,7 +71,12 @@ const Resources = {
 
 		try {
 			// Create load promises for all resources
-			const loadPromises = paths.map(async (path) => {
+			const loadPromises = paths.map(async (pathOrItem) => {
+				const path =
+					typeof pathOrItem === "string" ? pathOrItem : pathOrItem.path;
+				const options =
+					typeof pathOrItem === "string" ? {} : pathOrItem.options;
+
 				if (_resources.has(path)) return;
 
 				if (_loadingPromises.has(path)) {
@@ -87,7 +92,7 @@ const Resources = {
 						try {
 							const response = await Resources.fetch(fullpath);
 							const result = await Promise.resolve(
-								resourceHandler(response, this),
+								resourceHandler(response, this, options),
 							);
 							if (result) _resources.set(path, result);
 							Console.log(`[Resources] Loaded: ${path}`);
