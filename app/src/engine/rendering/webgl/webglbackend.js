@@ -723,7 +723,7 @@ class WebGLBackend extends RenderBackend {
 		gl.bindTexture(gl.TEXTURE_2D, null);
 	}
 
-	setTextureFilter(texture, minFilter, magFilter) {
+	setTextureFilter(texture, minFilter, magFilter, mipmapFilter) {
 		const gl = this._gl;
 
 		const filterMap = {
@@ -735,7 +735,16 @@ class WebGLBackend extends RenderBackend {
 			"linear-mipmap-linear": gl.LINEAR_MIPMAP_LINEAR,
 		};
 
-		const glMinFilter = filterMap[minFilter] || gl.LINEAR_MIPMAP_LINEAR;
+		let glMinFilter;
+		if (mipmapFilter && (minFilter === "linear" || minFilter === "nearest")) {
+			const combined = `${minFilter}-mipmap-${mipmapFilter}`;
+			glMinFilter = filterMap[combined] || filterMap[minFilter];
+		} else {
+			glMinFilter = filterMap[minFilter];
+		}
+
+		// Defaults if not found
+		if (glMinFilter === undefined) glMinFilter = gl.LINEAR_MIPMAP_LINEAR;
 		const glMagFilter = filterMap[magFilter] || gl.LINEAR;
 
 		gl.bindTexture(gl.TEXTURE_2D, texture._glTexture);

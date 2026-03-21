@@ -6,6 +6,7 @@ class Texture {
 	#handle = null;
 
 	constructor(data) {
+		this.filter = data.filter;
 		this.init(data);
 	}
 
@@ -74,6 +75,14 @@ class Texture {
 			// Apply settings
 			Backend.setTextureWrapMode(this.#handle, "repeat");
 
+			if (this.filter) {
+				this.setFilter(
+					this.filter.min || "linear",
+					this.filter.mag || "linear",
+					this.filter.mip || "linear",
+				);
+			}
+
 			if (Settings.anisotropicFiltering > 1) {
 				Backend.setTextureAnisotropy(
 					this.#handle,
@@ -99,6 +108,11 @@ class Texture {
 	setTextureWrapMode(mode) {
 		if (!this.#handle) return;
 		Backend.setTextureWrapMode(this.#handle, mode);
+	}
+
+	setFilter(min, mag, mip = "linear") {
+		if (!this.#handle) return;
+		Backend.setTextureFilter(this.#handle, min, mag, mip);
 	}
 
 	dispose() {
