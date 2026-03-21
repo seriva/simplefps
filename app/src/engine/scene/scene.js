@@ -66,23 +66,41 @@ const _visibilityCache = {
 	[EntityTypes.PARTICLE_EMITTER]: [],
 };
 
-// Private entity cache
-const _entityCache = new Map();
+const _entitiesByType = {
+	[EntityTypes.SKYBOX]: [],
+	[EntityTypes.MESH]: [],
+	[EntityTypes.SKINNED_MESH]: [],
+	[EntityTypes.FPS_MESH]: [],
+	[EntityTypes.DIRECTIONAL_LIGHT]: [],
+	[EntityTypes.POINT_LIGHT]: [],
+	[EntityTypes.SPOT_LIGHT]: [],
+	[EntityTypes.ANIMATED_BILLBOARD]: [],
+	[EntityTypes.PARTICLE_EMITTER]: [],
+};
 
 // ============================================================================
 // Private functions
 // ============================================================================
 
 const _getEntities = (type) => {
-	if (_entityCache.has(type)) return _entityCache.get(type);
+	return _entitiesByType[type] || [];
+};
 
-	const selection = [];
-	for (let i = 0; i < _entities.length; i++) {
-		if (_entities[i].type === type) selection.push(_entities[i]);
+const _clearTypeLists = () => {
+	for (let i = 0; i < _VISIBILITY_CACHE_TYPES.length; i++) {
+		const type = _VISIBILITY_CACHE_TYPES[i];
+		_entitiesByType[type].length = 0;
 	}
+};
 
-	_entityCache.set(type, selection);
-	return selection;
+const _rebuildTypeLists = () => {
+	_clearTypeLists();
+	for (let i = 0; i < _entities.length; i++) {
+		const entity = _entities[i];
+		if (_entitiesByType[entity.type]) {
+			_entitiesByType[entity.type].push(entity);
+		}
+	}
 };
 
 const _addEntities = (e) => {
@@ -91,16 +109,21 @@ const _addEntities = (e) => {
 		return;
 	}
 
-	_entityCache.clear();
 	_visibilityDirty = true;
 	if (Array.isArray(e)) {
 		const newEntities = e.filter((entity) => entity != null);
 		_entities = _entities.concat(newEntities);
 		for (const entity of newEntities) {
+			if (_entitiesByType[entity.type]) {
+				_entitiesByType[entity.type].push(entity);
+			}
 			if (entity.collider) _collidables.push(entity);
 		}
 	} else {
 		_entities.push(e);
+		if (_entitiesByType[e.type]) {
+			_entitiesByType[e.type].push(e);
+		}
 		if (e.collider) _collidables.push(e);
 	}
 };
@@ -111,8 +134,15 @@ const _removeEntity = (entity) => {
 	const index = _entities.indexOf(entity);
 	if (index !== -1) {
 		_entities.splice(index, 1);
-		_entityCache.clear();
 		_visibilityDirty = true;
+
+		const typeList = _entitiesByType[entity.type];
+		if (typeList) {
+			const typeIndex = typeList.indexOf(entity);
+			if (typeIndex !== -1) {
+				typeList.splice(typeIndex, 1);
+			}
+		}
 
 		// Remove from collidables
 		const colIndex = _collidables.indexOf(entity);
@@ -128,7 +158,7 @@ const _removeEntity = (entity) => {
 const _init = () => {
 	_entities.length = 0;
 	_collidables.length = 0;
-	_entityCache.clear();
+	_clearTypeLists();
 	_visibilityDirty = true;
 	_staticTrimesh = null;
 	_staticCollidable.collider = null;
@@ -141,7 +171,7 @@ const _dispose = () => {
 	}
 	_entities.length = 0;
 	_collidables.length = 0;
-	_entityCache.clear();
+	_clearTypeLists();
 	_ambient = _DEFAULT_AMBIENT;
 	_pauseUpdate = false;
 
@@ -268,7 +298,7 @@ const _update = (frameTime) => {
 		}
 		_collidables.length = cLen;
 
-		_entityCache.clear();
+		_rebuildTypeLists();
 		_visibilityDirty = true;
 		for (const entity of _entitiesToRemove) {
 			entity.dispose?.();
@@ -281,11 +311,7 @@ const _update = (frameTime) => {
 
 const _updateVisibility = () => {
 	// Always rebuild visibility — frustum changes every frame even if entities don't
-	// But skip entity cache clear if entities haven't changed
-	if (_visibilityDirty) {
-		_entityCache.clear();
-		_visibilityDirty = false;
-	}
+	_visibilityDirty = false;
 
 	// Reset visibility lists
 	for (let i = 0; i < _VISIBILITY_CACHE_TYPES.length; i++) {

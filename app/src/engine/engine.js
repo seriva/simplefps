@@ -51,8 +51,9 @@ Console.registerCmd("rscale", (scale) => {
 });
 
 const _frame = () => {
-	// timing
 	const now = performance.now();
+
+	// timing
 	_frameTime = now - (_time || now);
 	_time = now;
 

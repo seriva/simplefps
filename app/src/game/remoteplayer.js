@@ -1,5 +1,6 @@
 import { mat4, vec3 } from "../dependencies/gl-matrix.js";
 import { MeshEntity, Scene } from "../engine/engine.js";
+import { copyVec3, isVec3 } from "./netvalidation.js";
 
 // Smooth interpolation factor
 
@@ -28,9 +29,8 @@ export class RemotePlayer {
 
 	updateState(state) {
 		// state: { pos: [x,y,z], vel: [x,y,z], rot: { yaw } }
-		if (state.pos) {
-			this.targetPos = state.pos;
-		}
+		if (!state || !isVec3(state.pos)) return;
+		copyVec3(this.targetPos, state.pos);
 	}
 
 	update(dt) {

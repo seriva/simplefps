@@ -967,14 +967,21 @@ class WebGPUBackend extends RenderBackend {
 				else if (attr.size === 4) format = "float32x4";
 			}
 
+			if (attr.stride !== undefined) {
+				stride = attr.stride;
+			}
+
+			const offset = attr.offset || 0;
+			const stepMode = attr.divisor ? "instance" : "vertex";
+
 			// Create layout entry for this buffer slot
 			layout.push({
 				arrayStride: stride,
-				stepMode: "vertex",
+				stepMode: stepMode,
 				attributes: [
 					{
 						shaderLocation: attr.slot,
-						offset: 0,
+						offset: offset,
 						format: format,
 					},
 				],
@@ -1459,7 +1466,33 @@ class WebGPUBackend extends RenderBackend {
 		return `${shaderLabel}|${primitive.topology}|${cullMode}|${blendKey}|${depthKey}|${formatKey}|${layoutKey}|${biasKey}|${colorMaskKey}`;
 	}
 
+	drawInstanced(
+		indexBuffer,
+		indexCount,
+		instanceCount,
+		indexOffset = 0,
+		mode = null,
+	) {
+		this._drawIndexedInternal(
+			indexBuffer,
+			indexCount,
+			instanceCount,
+			indexOffset,
+			mode,
+		);
+	}
+
 	drawIndexed(indexBuffer, indexCount, indexOffset = 0, mode = null) {
+		this._drawIndexedInternal(indexBuffer, indexCount, 1, indexOffset, mode);
+	}
+
+	_drawIndexedInternal(
+		indexBuffer,
+		indexCount,
+		instanceCount,
+		indexOffset = 0,
+		mode = null,
+	) {
 		if (!this._device || !this._currentVertexState || !this._currentShader)
 			return;
 
@@ -1816,7 +1849,7 @@ class WebGPUBackend extends RenderBackend {
 			}
 		}
 
-		pass.drawIndexed(indexCount, 1, indexOffset, 0, 0);
+		pass.drawIndexed(indexCount, instanceCount, indexOffset, 0, 0);
 	}
 
 	_packStruct(name) {

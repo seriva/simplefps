@@ -1,5 +1,6 @@
 import { Camera, Console } from "../engine/engine.js";
 import { Network } from "../engine/systems/network.js";
+import { copyVec3, isVec3 } from "./netvalidation.js";
 import { RemotePlayer } from "./remoteplayer.js";
 
 // ============================================================================
@@ -18,17 +19,44 @@ let _isHost = false;
 // Track positions from all peers (host only)
 const _peerPositions = new Map(); // peerId -> { pos, rot }
 
+const _hostStatePacket = { players: [] };
+const _hostSelfPlayer = {
+	id: "host",
+	pos: [0, 0, 0],
+	rot: [0, 0, 0],
+};
+const _hostPeerPlayers = new Map();
+const _clientPositionPacket = {
+	pos: [0, 0, 0],
+	rot: [0, 0, 0],
+};
+
+const _resetConnectionState = () => {
+	_network = null;
+	_remotePlayers.forEach((p) => {
+		p.destroy();
+	});
+	_remotePlayers.clear();
+	_peerPositions.clear();
+	_hostPeerPlayers.clear();
+	_myId = null;
+	_isHost = false;
+	_lastUpdateTime = 0;
+};
+
 // ============================================================================
 // State Update Handler (called when receiving positions from network)
 // ============================================================================
 
 const _onStateUpdate = (state) => {
 	// state: { players: [{ id, pos, rot }] }
-	if (!state.players) return;
+	if (!state || !Array.isArray(state.players)) return;
 
 	const activeIds = new Set();
 
 	for (const player of state.players) {
+		if (!player || !isVec3(player.pos) || !isVec3(player.rot)) continue;
+
 		// Skip ourselves
 		if (player.id === _myId) continue;
 
@@ -59,11 +87,20 @@ const _onStateUpdate = (state) => {
 // ============================================================================
 
 const _onPeerPosition = (peerId, data) => {
+	if (!data || !isVec3(data.pos) || !isVec3(data.rot)) return;
+
 	// Store position from a peer (host only)
-	_peerPositions.set(peerId, {
-		pos: data.pos,
-		rot: data.rot,
-	});
+	let peerState = _peerPositions.get(peerId);
+	if (!peerState) {
+		peerState = {
+			pos: [0, 0, 0],
+			rot: [0, 0, 0],
+		};
+		_peerPositions.set(peerId, peerState);
+	}
+
+	copyVec3(peerState.pos, data.pos);
+	copyVec3(peerState.rot, data.rot);
 };
 
 const _onPeerDisconnect = (peerId) => {
@@ -81,17 +118,25 @@ const Multiplayer = {
 			return null;
 		}
 
-		_network = new Network();
-		const hostId = await _network.host({
-			onPeerPosition: _onPeerPosition,
-			onPeerDisconnect: _onPeerDisconnect,
-		});
+		const network = new Network();
 
-		_myId = "host";
-		_isHost = true;
+		try {
+			const hostId = await network.host({
+				onPeerPosition: _onPeerPosition,
+				onPeerDisconnect: _onPeerDisconnect,
+			});
 
-		Console.log(`[Multiplayer] Hosting! Share this ID: ${hostId}`);
-		return hostId;
+			_network = network;
+			_myId = "host";
+			_isHost = true;
+
+			Console.log(`[Multiplayer] Hosting! Share this ID: ${hostId}`);
+			return hostId;
+		} catch (error) {
+			network.disconnect();
+			_resetConnectionState();
+			throw error;
+		}
 	},
 
 	join: async (hostId) => {
@@ -100,15 +145,23 @@ const Multiplayer = {
 			return;
 		}
 
-		_network = new Network();
-		await _network.connect(hostId, {
-			onStateUpdate: _onStateUpdate,
-		});
+		const network = new Network();
 
-		_myId = _network.getPeerId();
-		_isHost = false;
+		try {
+			await network.connect(hostId, {
+				onStateUpdate: _onStateUpdate,
+			});
 
-		Console.log(`[Multiplayer] Joined! My ID: ${_myId}`);
+			_network = network;
+			_myId = network.getPeerId();
+			_isHost = false;
+
+			Console.log(`[Multiplayer] Joined! My ID: ${_myId}`);
+		} catch (error) {
+			network.disconnect();
+			_resetConnectionState();
+			throw error;
+		}
 	},
 
 	update: (dt) => {
@@ -122,35 +175,43 @@ const Multiplayer = {
 			const myRot = Camera.rotation;
 
 			if (_isHost && _network) {
-				// Host: Collect all positions and broadcast
-				const players = [
-					{
-						id: "host",
-						pos: new Float32Array(myPos),
-						rot: new Float32Array(myRot),
-					},
-				];
+				// Host: Collect all positions and broadcast (reusing packet objects)
+				const players = _hostStatePacket.players;
+				players.length = 0;
+
+				copyVec3(_hostSelfPlayer.pos, myPos);
+				copyVec3(_hostSelfPlayer.rot, myRot);
+				players.push(_hostSelfPlayer);
 
 				// Add all connected peers
 				for (const [peerId, data] of _peerPositions) {
-					players.push({
-						id: peerId,
-						pos: new Float32Array(data.pos),
-						rot: new Float32Array(data.rot),
-					});
+					if (!isVec3(data.pos) || !isVec3(data.rot)) continue;
+
+					let packetPlayer = _hostPeerPlayers.get(peerId);
+					if (!packetPlayer) {
+						packetPlayer = {
+							id: peerId,
+							pos: [0, 0, 0],
+							rot: [0, 0, 0],
+						};
+						_hostPeerPlayers.set(peerId, packetPlayer);
+					}
+
+					copyVec3(packetPlayer.pos, data.pos);
+					copyVec3(packetPlayer.rot, data.rot);
+					players.push(packetPlayer);
 				}
 
 				// Broadcast combined state to all clients
-				_network.broadcast({ players });
+				_network.broadcast(_hostStatePacket);
 
 				// Also update our own view of remote players
-				_onStateUpdate({ players });
+				_onStateUpdate(_hostStatePacket);
 			} else if (_network) {
 				// Client: Send our position to host
-				_network.sendPosition({
-					pos: new Float32Array(myPos),
-					rot: new Float32Array(myRot),
-				});
+				copyVec3(_clientPositionPacket.pos, myPos);
+				copyVec3(_clientPositionPacket.rot, myRot);
+				_network.sendPosition(_clientPositionPacket);
 			}
 		}
 
@@ -167,17 +228,9 @@ const Multiplayer = {
 	disconnect: () => {
 		if (_network) {
 			_network.disconnect();
-			_network = null;
+			_resetConnectionState();
+			Console.log("[Multiplayer] Disconnected");
 		}
-		_remotePlayers.forEach((p) => {
-			p.destroy();
-		});
-		_remotePlayers.clear();
-		_peerPositions.clear();
-		_myId = null;
-		_isHost = false;
-		_lastUpdateTime = 0;
-		Console.log("[Multiplayer] Disconnected");
 	},
 };
 

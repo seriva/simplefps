@@ -7,6 +7,9 @@ import { Weapons } from "./weapons.js";
 // Private
 // ============================================================================
 
+const _canUseGameplayInput = () =>
+	State.current === "GAME" && !Console.isVisible();
+
 const _initializeEventListeners = () => {
 	// Pointer lock events
 	document.addEventListener(
@@ -36,6 +39,7 @@ const _initializeEventListeners = () => {
 
 	// Weapon controls
 	window.addEventListener("click", (e) => {
+		if (!_canUseGameplayInput()) return;
 		if (e.button > 0) return;
 		if (Settings.isMobile) return; // Disable tap to shoot on mobile
 		if (e.target.tagName.toUpperCase() !== "BODY") return;
@@ -44,20 +48,21 @@ const _initializeEventListeners = () => {
 
 	// Virtual button events
 	window.addEventListener("game:shoot", () => {
+		if (!_canUseGameplayInput()) return;
 		Weapons.shootGrenade();
 	});
 
 	window.addEventListener("game:jump", () => {
-		if (State.current === "GAME" && !Console.isVisible()) {
-			const controller = Game.getController();
-			if (controller) {
-				controller.jump();
-			}
+		if (!_canUseGameplayInput()) return;
+
+		const controller = Game.getController();
+		if (controller) {
+			controller.jump();
 		}
 	});
 
 	window.addEventListener("wheel", (e) => {
-		if (State.current !== "GAME") return;
+		if (!_canUseGameplayInput()) return;
 		if (e.deltaY < 0) {
 			Weapons.selectPrevious();
 		} else {
@@ -91,17 +96,12 @@ const _initializeKeyboardControls = () => {
 
 	// Jump on configurable key (default: Space)
 	window.addEventListener("keydown", (e) => {
-		if (
-			e.keyCode === Settings.jump &&
-			State.current === "GAME" &&
-			!Console.isVisible()
-		) {
-			if (e.repeat) return;
-			e.preventDefault();
-			const controller = Game.getController();
-			if (controller) {
-				controller.jump();
-			}
+		if (e.keyCode !== Settings.jump || !_canUseGameplayInput()) return;
+		if (e.repeat) return;
+		e.preventDefault();
+		const controller = Game.getController();
+		if (controller) {
+			controller.jump();
 		}
 	});
 };
