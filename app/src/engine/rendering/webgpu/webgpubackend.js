@@ -132,6 +132,7 @@ class WebGPUBackend extends RenderBackend {
 			bilateralParams: new Float32Array(4), // depthThreshold, normalThreshold, _pad x2
 			easuParams: new Float32Array(16), // con0, con1, con2, con3 (4 x vec4)
 			rcasParams: new Float32Array(8), // sharpness (f32) + pad to 32 bytes for vec3 alignment
+			billboardParams: new Float32Array(24), // mat4 + vec2 + vec2 + f32 + 3x pad = 96 bytes
 		};
 
 		// Optimization: Unique ID counter for resources (for cache keys)
@@ -2055,6 +2056,18 @@ class WebGPUBackend extends RenderBackend {
 			arr.fill(0);
 			const sharpness = this._uniforms.get("sharpness");
 			if (sharpness !== undefined) arr[0] = sharpness;
+			return arr;
+		} else if (name === "billboardParams") {
+			const arr = bufs.billboardParams;
+			arr.fill(0);
+			const matWorld = this._uniforms.get("matWorld");
+			const frameOffset = this._uniforms.get("uFrameOffset");
+			const frameScale = this._uniforms.get("uFrameScale");
+			const opacity = this._uniforms.get("uOpacity");
+			if (matWorld) arr.set(matWorld, 0);
+			if (frameOffset) arr.set(frameOffset, 16);
+			if (frameScale) arr.set(frameScale, 18);
+			if (opacity !== undefined) arr[20] = opacity;
 			return arr;
 		} else if (name === "ambient") {
 			return null;
