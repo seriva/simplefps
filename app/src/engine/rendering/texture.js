@@ -7,6 +7,7 @@ class Texture {
 
 	constructor(data) {
 		this.filter = data.filter;
+		this.wrap = data.wrap;
 		this.init(data);
 	}
 
@@ -73,7 +74,8 @@ class Texture {
 			Backend.generateMipmaps(this.#handle);
 
 			// Apply settings
-			Backend.setTextureWrapMode(this.#handle, "repeat");
+			const wrapMode = this.wrap || "repeat";
+			Backend.setTextureWrapMode(this.#handle, wrapMode);
 
 			if (this.filter) {
 				this.setFilter(
@@ -106,11 +108,13 @@ class Texture {
 	}
 
 	setTextureWrapMode(mode) {
+		this.wrap = mode;
 		if (!this.#handle) return;
 		Backend.setTextureWrapMode(this.#handle, mode);
 	}
 
 	setFilter(min, mag, mip = "linear") {
+		this.filter = { min, mag, mip };
 		if (!this.#handle) return;
 		Backend.setTextureFilter(this.#handle, min, mag, mip);
 	}
