@@ -750,8 +750,6 @@ fn fs_main(input: BilateralOutput) -> @location(0) vec4<f32> {
 
 // Post-processing shader
 const postProcessingShader = /* wgsl */ `
-${FrameDataStruct}
-
 struct PostProcessParams {
     gamma: f32,
     emissiveMult: f32,
@@ -767,7 +765,6 @@ struct PostOutput {
     @location(0) uv: vec2<f32>,
 }
 
-@group(0) @binding(0) var<uniform> frameData: FrameData;
 @group(1) @binding(0) var<uniform> params: PostProcessParams;
 @group(1) @binding(1) var bufferSampler: sampler;
 @group(1) @binding(2) var colorBuffer: texture_2d<f32>;
@@ -848,13 +845,12 @@ fn fs_main(input: PostOutput) -> @location(0) vec4<f32> {
     // Gamma correction
     fragColor = vec4<f32>(pow(fragColor.rgb, vec3<f32>(1.0 / params.gamma)), fragColor.a);
     
+    return fragColor;
 }
 `;
 
 // FSR 1.0 EASU shader
 const fsrEasuShader = /* wgsl */ `
-${FrameDataStruct}
-
 struct EasuParams {
     con0: vec4<f32>, // InputViewportSize, InputViewportSize, OutputViewportSize, OutputViewportSize
     con1: vec4<f32>,
@@ -867,7 +863,6 @@ struct PostOutput {
     @location(0) uv: vec2<f32>,
 }
 
-@group(0) @binding(0) var<uniform> frameData: FrameData;
 @group(1) @binding(0) var<uniform> params: EasuParams;
 @group(1) @binding(1) var bufferSampler: sampler;
 @group(1) @binding(2) var colorBuffer: texture_2d<f32>;
@@ -910,8 +905,6 @@ fn fs_main(input: PostOutput) -> @location(0) vec4<f32> {
 
 // FSR 1.0 RCAS shader
 const fsrRcasShader = /* wgsl */ `
-${FrameDataStruct}
-
 struct RcasParams {
     sharpness: f32,
     _pad: vec3<f32>,
@@ -922,7 +915,6 @@ struct PostOutput {
     @location(0) uv: vec2<f32>,
 }
 
-@group(0) @binding(0) var<uniform> frameData: FrameData;
 @group(1) @binding(0) var<uniform> params: RcasParams;
 @group(1) @binding(1) var bufferSampler: sampler;
 @group(1) @binding(2) var colorBuffer: texture_2d<f32>;
@@ -952,7 +944,7 @@ fn fs_main(input: PostOutput) -> @location(0) vec4<f32> {
     let mxRGB = max(max(max(b, d), max(f, h)), e);
 
     var wRGB = clamp(min(mnRGB, 1.0 - mxRGB) / mxRGB, vec3<f32>(0.0), vec3<f32>(1.0));
-    wRGB = inversesqrt(max(wRGB, vec3<f32>(0.0001)));
+    wRGB = inverseSqrt(max(wRGB, vec3<f32>(0.0001)));
     
     let peak = -3.0 * params.sharpness + 8.0;
     let w = -1.0 / peak;
@@ -1428,7 +1420,6 @@ export const WgslShaderSources = {
 		bindings: {
 			group1: [
 				{ binding: 0, type: "uniform", name: "rcasParams" },
-				{ binding: 1, type: "sampler", unit: 0 },
 				{ binding: 2, type: "texture", unit: 0 },
 			],
 		},

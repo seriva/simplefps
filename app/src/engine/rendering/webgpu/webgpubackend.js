@@ -130,6 +130,8 @@ class WebGPUBackend extends RenderBackend {
 			skinnedShadowParams: new Float32Array(20),
 			blurParams: new Float32Array(8),
 			bilateralParams: new Float32Array(4), // depthThreshold, normalThreshold, _pad x2
+			easuParams: new Float32Array(16), // con0, con1, con2, con3 (4 x vec4)
+			rcasParams: new Float32Array(8), // sharpness (f32) + pad to 32 bytes for vec3 alignment
 		};
 
 		// Optimization: Unique ID counter for resources (for cache keys)
@@ -1675,8 +1677,14 @@ class WebGPUBackend extends RenderBackend {
 		}
 
 		// 5. Bind Groups
-		// Group 0: FrameData (always expected if shader uses it)
-		if (this._boundUBOs.has(0)) {
+		// Group 0: FrameData (only if shader uses it)
+		const shaderName = this._currentShader._gpuShaderModule.label;
+		const bindings = WgslShaderSources[shaderName]?.bindings;
+		const shaderUsesGroup0 =
+			bindings?.group0 !== undefined ||
+			WgslShaderSources[shaderName]?.code?.includes("@group(0)");
+
+		if (shaderUsesGroup0 && this._boundUBOs.has(0)) {
 			// OPTIMIZATION: Cache BindGroup 0 per pipeline
 			const bg0Key = `bg0_${key}`;
 			let bindGroup0 = this._bindGroupCache.get(bg0Key);
@@ -1709,9 +1717,6 @@ class WebGPUBackend extends RenderBackend {
 		}
 
 		// Shader-specific groups
-		const shaderName = this._currentShader._gpuShaderModule.label;
-		const bindings = WgslShaderSources[shaderName]?.bindings;
-
 		// Key parts for caching
 		let bg1Key = "";
 		let bg2Key = "";
@@ -2038,6 +2043,18 @@ class WebGPUBackend extends RenderBackend {
 			if (depthThreshold !== undefined) arr[0] = depthThreshold;
 			if (normalThreshold !== undefined) arr[1] = normalThreshold;
 			if (gBufferScale !== undefined) arr[2] = gBufferScale;
+			return arr;
+		} else if (name === "easuParams") {
+			const arr = bufs.easuParams;
+			arr.fill(0);
+			const con0 = this._uniforms.get("con0");
+			if (con0) arr.set(con0, 0);
+			return arr;
+		} else if (name === "rcasParams") {
+			const arr = bufs.rcasParams;
+			arr.fill(0);
+			const sharpness = this._uniforms.get("sharpness");
+			if (sharpness !== undefined) arr[0] = sharpness;
 			return arr;
 		} else if (name === "ambient") {
 			return null;

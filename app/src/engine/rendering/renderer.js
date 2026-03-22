@@ -29,6 +29,8 @@ const _g = {
 const _s = {
 	framebuffer: null,
 	shadow: null,
+	width: 0,
+	height: 0,
 };
 
 const _l = {
@@ -168,6 +170,8 @@ const _resize = (width, height) => {
 	);
 	_s.shadow = shadowRes.texture;
 	_s.framebuffer = shadowRes.fb;
+	_s.width = width;
+	_s.height = height;
 
 	// **********************************
 	// lighting buffer
@@ -533,7 +537,7 @@ const _shadowPass = () => {
 	// Match the depth range of the world geometry pass so depth comparisons are valid
 	Backend.setDepthRange(0.1, 1.0);
 	Backend.bindFramebuffer(_s.framebuffer);
-	Backend.setViewport(0, 0, _s.size, _s.size);
+	Backend.setViewport(0, 0, _s.width, _s.height);
 	Backend.clear({ color: [1.0, 1.0, 1.0, 1.0] });
 	Backend.setDepthState(true, false, "lequal");
 	Backend.setPolygonOffset(true, -1.0, -1.0);
@@ -792,14 +796,14 @@ const _fsrPass = () => {
 	const con0 = [_g.width, _g.height, nativeWidth, nativeHeight];
 	Shaders.fsrEasu.setVec4("con0", con0);
 
-	Backend.bindTexture(_pp.color, 0);
+	_pp.color.bind(0);
 	Shapes.screenQuad.renderSingle();
 
 	// RCAS pass
 	Backend.bindFramebuffer(null);
 	Backend.setViewport(0, 0, nativeWidth, nativeHeight);
 	// No clear needed, full screen quad overwrite
-	Backend.bindTexture(_fsr.easu, 0);
+	_fsr.easu.bind(0);
 	Shaders.fsrRcas.bind();
 	Shaders.fsrRcas.setInt("colorBuffer", 0);
 	Shaders.fsrRcas.setFloat("sharpness", Settings.fsrSharpness || 0.2);
