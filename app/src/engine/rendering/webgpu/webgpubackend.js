@@ -57,6 +57,7 @@ class WebGPUBackend extends RenderBackend {
 		this._commandEncoder = null;
 		this._currentPass = null;
 		this._currentTexture = null;
+		this._viewport = null;
 
 		// Render state (for pipeline creation)
 		this._depthState = {
@@ -856,11 +857,31 @@ class WebGPUBackend extends RenderBackend {
 		return this.getWidth() / this.getHeight();
 	}
 
+	getNativeWidth() {
+		return Math.floor(
+			this._canvas.clientWidth * (window.devicePixelRatio || 1),
+		);
+	}
+
+	getNativeHeight() {
+		return Math.floor(
+			this._canvas.clientHeight * (window.devicePixelRatio || 1),
+		);
+	}
+
 	resize() {
-		const width = this.getWidth();
-		const height = this.getHeight();
-		this._canvas.width = width;
-		this._canvas.height = height;
+		const nativeWidth = this.getNativeWidth();
+		const nativeHeight = this.getNativeHeight();
+		const scaledWidth = this.getWidth();
+		const scaledHeight = this.getHeight();
+
+		if (Settings.useFSR) {
+			this._canvas.width = nativeWidth;
+			this._canvas.height = nativeHeight;
+		} else {
+			this._canvas.width = scaledWidth;
+			this._canvas.height = scaledHeight;
+		}
 
 		// Reconfigure context
 		if (this._context && this._device) {
@@ -1050,6 +1071,7 @@ class WebGPUBackend extends RenderBackend {
 			this._currentPass = null;
 		}
 		this._activeFramebuffer = framebuffer;
+		this._viewport = null; // Reset viewport on FB change
 	}
 
 	setFramebufferAttachment(fb, attachment, texture, _level = 0, _layer = 0) {
@@ -1927,7 +1949,6 @@ class WebGPUBackend extends RenderBackend {
 			const emissiveMult = this._uniforms.get("emissiveMult");
 			const ssaoStrength = this._uniforms.get("ssaoStrength");
 			const dirtIntensity = this._uniforms.get("dirtIntensity");
-			const doFXAA = this._uniforms.get("doFXAA");
 			const shadowIntensity = this._uniforms.get("shadowIntensity");
 			const ambient =
 				this._uniforms.get("ambient") ??
@@ -1938,12 +1959,10 @@ class WebGPUBackend extends RenderBackend {
 			if (emissiveMult !== undefined) arr[1] = emissiveMult;
 			if (ssaoStrength !== undefined) arr[2] = ssaoStrength;
 			if (dirtIntensity !== undefined) arr[3] = dirtIntensity;
-			if (doFXAA !== undefined) arr[4] = doFXAA;
 			if (shadowIntensity !== undefined) arr[5] = shadowIntensity;
-			// arr[6-7] = _pad (vec2)
+			// arr[4, 6-7] = _pad
 			// arr[8-10] = ambient (vec4, 16-byte aligned at offset 32)
 			if (ambient) arr.set(ambient, 8);
-			// arr[11] = _pad (w component of vec4)
 
 			return arr;
 		} else if (name === "ssaoParams") {

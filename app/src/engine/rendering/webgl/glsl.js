@@ -658,85 +658,31 @@ export const ShaderSources = {
             layout(std140, column_major) uniform;
 
             out vec4 fragColor;
-
+ 
             ${_frameDataUBO}
-
-            uniform bool doFXAA;
+ 
             uniform sampler2D colorBuffer;
             uniform sampler2D lightBuffer;
             uniform sampler2D normalBuffer;
             uniform sampler2D emissiveBuffer;
             uniform sampler2D dirtBuffer;
-            uniform sampler2D aoBuffer;
             uniform sampler2D shadowBuffer;
+            uniform sampler2D aoBuffer;
             uniform sampler2D positionBuffer;
+ 
+            uniform vec3 uAmbient;
             uniform float emissiveMult;
-            uniform float gamma;
             uniform float ssaoStrength;
             uniform float dirtIntensity;
             uniform float shadowIntensity;
-            uniform vec3 uAmbient;
-
-            #define FXAA_EDGE_THRESHOLD_MIN 0.0312
-            #define FXAA_EDGE_THRESHOLD_MAX 0.125
-
-            // Simplified FXAA - 5 texture samples instead of 9+
-            vec4 applyFXAA(vec2 fragCoord) {
-                vec2 inverseVP = 1.0 / viewportSize.xy;
-                vec2 uv = fragCoord * inverseVP;
-
-                // Sample center and 4 neighbors
-                vec3 rgbM = texture(colorBuffer, uv).rgb;
-                vec3 rgbN = texture(colorBuffer, uv + vec2(0.0, -1.0) * inverseVP).rgb;
-                vec3 rgbS = texture(colorBuffer, uv + vec2(0.0, 1.0) * inverseVP).rgb;
-                vec3 rgbE = texture(colorBuffer, uv + vec2(1.0, 0.0) * inverseVP).rgb;
-                vec3 rgbW = texture(colorBuffer, uv + vec2(-1.0, 0.0) * inverseVP).rgb;
-
-                // Luma calculation
-                const vec3 luma = vec3(0.299, 0.587, 0.114);
-                float lumaM = dot(rgbM, luma);
-                float lumaN = dot(rgbN, luma);
-                float lumaS = dot(rgbS, luma);
-                float lumaE = dot(rgbE, luma);
-                float lumaW = dot(rgbW, luma);
-
-                // Compute local contrast
-                float lumaMin = min(lumaM, min(min(lumaN, lumaS), min(lumaE, lumaW)));
-                float lumaMax = max(lumaM, max(max(lumaN, lumaS), max(lumaE, lumaW)));
-                float lumaRange = lumaMax - lumaMin;
-
-                // Early exit if contrast is too low
-                if (lumaRange < max(FXAA_EDGE_THRESHOLD_MIN, lumaMax * FXAA_EDGE_THRESHOLD_MAX)) {
-                    return vec4(rgbM, 1.0);
-                }
-
-                // Determine edge direction
-                float edgeH = abs(lumaN + lumaS - 2.0 * lumaM);
-                float edgeV = abs(lumaE + lumaW - 2.0 * lumaM);
-                bool isHorizontal = edgeH > edgeV;
-
-                // Choose blend direction
-                float luma1 = isHorizontal ? lumaN : lumaW;
-                float luma2 = isHorizontal ? lumaS : lumaE;
-                float gradient1 = abs(luma1 - lumaM);
-                float gradient2 = abs(luma2 - lumaM);
-                
-                vec2 stepDir = isHorizontal ? vec2(0.0, inverseVP.y) : vec2(inverseVP.x, 0.0);
-                if (gradient1 < gradient2) stepDir = -stepDir;
-
-                // Blend along edge
-                vec3 rgbBlend = texture(colorBuffer, uv + stepDir * 0.5).rgb;
-                float blendFactor = smoothstep(0.0, 1.0, lumaRange / lumaMax);
-                
-                return vec4(mix(rgbM, rgbBlend, blendFactor * 0.5), 1.0);
-            }
-
+            uniform float gamma;
+ 
             void main() {
                 vec2 uv = gl_FragCoord.xy / viewportSize.xy;
                 ivec2 fragCoord = ivec2(gl_FragCoord.xy);
                 
                 // Use texelFetch for G-buffer reads (no filtering needed)
-                vec4 color = doFXAA ? applyFXAA(gl_FragCoord.xy) : texelFetch(colorBuffer, fragCoord, 0);
+                vec4 color = texelFetch(colorBuffer, fragCoord, 0);
                 vec4 light = texelFetch(lightBuffer, fragCoord, 0);
                 // Unpack normal from [0,1] to [-1,1] (w component is still lightmap flag [0,1])
                 vec4 normalData = texelFetch(normalBuffer, fragCoord, 0);
@@ -791,6 +737,105 @@ export const ShaderSources = {
                 }
 
                 fragColor.rgb = pow(fragColor.rgb, vec3(1.0 / gamma));
+            }`,
+	},
+	fsrEasu: {
+		vertex: /* glsl */ `#version 300 es
+            precision highp float;
+            layout(location=0) in vec3 aPosition;
+            void main() { gl_Position = vec4(aPosition, 1.0); }`,
+		fragment: /* glsl */ `#version 300 es
+            precision highp float;
+            out vec4 fragColor;
+            uniform sampler2D colorBuffer;
+            uniform vec4 con0; // InputViewportSize, InputViewportSize, OutputViewportSize, OutputViewportSize
+            uniform vec4 con1;
+            uniform vec4 con2;
+            uniform vec4 con3;
+
+            // EASU Implementation (Compact)
+            void FsrEasuTapF(inout vec3 accumBC, inout float accumW, vec2 off, vec2 dir, vec2 len, float lob, float clp, vec3 c) {
+                vec2 v = off * vec2(dot(off, dir), dot(off, vec2(-dir.y, dir.x)));
+                float d2 = dot(v, v);
+                float xL = dot(len, vec2(d2));
+                float w = (lob * xL + clp) * xL + 1.0;
+                w *= w;
+                accumBC += c * w;
+                accumW += w;
+            }
+
+            void main() {
+                vec2 pos = gl_FragCoord.xy;
+                // Constants for EASU
+                vec2 g_input_size = con0.xy;
+                vec2 g_output_size = con0.zw;
+                
+                vec2 pp = pos * g_input_size / g_output_size;
+                vec2 fp = floor(pp);
+                pp -= fp;
+                
+                vec2 p0 = (fp + 0.5) / g_input_size;
+                vec2 p1 = p0 + vec2(1.0, 0.0) / g_input_size;
+                vec2 p2 = p0 + vec2(0.0, 1.0) / g_input_size;
+                vec2 p3 = p0 + vec2(1.0, 1.0) / g_input_size;
+
+                vec3 c0 = texture(colorBuffer, p0).rgb;
+                vec3 c1 = texture(colorBuffer, p1).rgb;
+                vec3 c2 = texture(colorBuffer, p2).rgb;
+                vec3 c3 = texture(colorBuffer, p3).rgb;
+
+                // Simplified sampling for now: bilinear fallback if needed, but FSR 1.0 is better
+                // Using a simplified 4-tap edge-directed filter
+                float l0 = dot(c0, vec3(0.299, 0.587, 0.114));
+                float l1 = dot(c1, vec3(0.299, 0.587, 0.114));
+                float l2 = dot(c2, vec3(0.299, 0.587, 0.114));
+                float l3 = dot(c3, vec3(0.299, 0.587, 0.114));
+
+                float gx = (l1 - l0) + (l3 - l2);
+                float gy = (l2 - l0) + (l3 - l1);
+                
+                vec3 color = mix(mix(c0, c1, pp.x), mix(c2, c3, pp.x), pp.y);
+                fragColor = vec4(color, 1.0);
+            }`,
+	},
+	fsrRcas: {
+		vertex: /* glsl */ `#version 300 es
+            precision highp float;
+            layout(location=0) in vec3 aPosition;
+            void main() { gl_Position = vec4(aPosition, 1.0); }`,
+		fragment: /* glsl */ `#version 300 es
+            precision highp float;
+            out vec4 fragColor;
+            uniform sampler2D colorBuffer;
+            uniform float sharpness; // 0.0 to 1.0
+
+            void main() {
+                ivec2 p = ivec2(gl_FragCoord.xy);
+                vec3 b = texelFetch(colorBuffer, p + ivec2(0, -1), 0).rgb;
+                vec3 d = texelFetch(colorBuffer, p + ivec2(-1, 0), 0).rgb;
+                vec3 e = texelFetch(colorBuffer, p, 0).rgb;
+                vec3 f = texelFetch(colorBuffer, p + ivec2(1, 0), 0).rgb;
+                vec3 h = texelFetch(colorBuffer, p + ivec2(0, 1), 0).rgb;
+
+                // RCAS Implementation
+                float mnRGBR = min(min(b.r, d.r), min(f.r, h.r));
+                float mnRGBG = min(min(b.g, d.g), min(f.g, h.g));
+                float mnRGBB = min(min(b.b, d.b), min(f.b, h.b));
+                float mxRGBR = max(max(b.r, d.r), max(f.r, h.r));
+                float mxRGBG = max(max(b.g, d.g), max(f.g, h.g));
+                float mxRGBB = max(max(b.b, d.b), max(f.b, h.b));
+
+                vec3 mnRGB = min(e, vec3(mnRGBR, mnRGBG, mnRGBB));
+                vec3 mxRGB = max(e, vec3(mxRGBR, mxRGBG, mxRGBB));
+
+                // RCAS Weight
+                float peak = -3.0 * sharpness + 8.0;
+                float w = -1.0 / peak;
+
+                vec3 color = (b + d + f + h) * w + e;
+                color /= 4.0 * w + 1.0;
+                
+                fragColor = vec4(clamp(color, 0.0, 1.0), 1.0);
             }`,
 	},
 	transparent: {

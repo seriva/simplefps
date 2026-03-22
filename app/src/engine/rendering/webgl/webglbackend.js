@@ -1044,12 +1044,32 @@ class WebGLBackend extends RenderBackend {
 		return this.getWidth() / this.getHeight();
 	}
 
+	getNativeWidth() {
+		return Math.floor(
+			this._canvas.clientWidth * (window.devicePixelRatio || 1),
+		);
+	}
+
+	getNativeHeight() {
+		return Math.floor(
+			this._canvas.clientHeight * (window.devicePixelRatio || 1),
+		);
+	}
+
 	resize() {
-		const width = this.getWidth();
-		const height = this.getHeight();
-		this._canvas.width = width;
-		this._canvas.height = height;
-		this._gl.viewport(0, 0, width, height);
+		const nativeWidth = this.getNativeWidth();
+		const nativeHeight = this.getNativeHeight();
+		const scaledWidth = this.getWidth();
+		const scaledHeight = this.getHeight();
+
+		if (Settings.useFSR) {
+			this._canvas.width = nativeWidth;
+			this._canvas.height = nativeHeight;
+		} else {
+			this._canvas.width = scaledWidth;
+			this._canvas.height = scaledHeight;
+		}
+		this._gl.viewport(0, 0, scaledWidth, scaledHeight);
 	}
 }
 

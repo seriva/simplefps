@@ -757,9 +757,8 @@ struct PostProcessParams {
     emissiveMult: f32,
     ssaoStrength: f32,
     dirtIntensity: f32,
-    doFXAA: i32,
     shadowIntensity: f32,
-    _pad: vec2<f32>,
+    _pad: f32,
     ambient: vec4<f32>,
 }
 
@@ -780,77 +779,6 @@ struct PostOutput {
 @group(1) @binding(8) var shadowBuffer: texture_2d<f32>;
 @group(1) @binding(9) var positionBuffer: texture_2d<f32>;
 
-// FXAA constants
-const FXAA_EDGE_THRESHOLD_MIN: f32 = 0.0312;
-const FXAA_EDGE_THRESHOLD_MAX: f32 = 0.125;
-
-// Luma weights for perceived brightness
-const LUMA: vec3<f32> = vec3<f32>(0.299, 0.587, 0.114);
-
-// Simplified FXAA - samples center + 4 neighbors
-// Uses textureSampleLevel to allow calling from non-uniform control flow
-fn applyFXAA(fragCoord: vec2<f32>) -> vec4<f32> {
-    let inverseVP = 1.0 / frameData.viewportSize.xy;
-    let uv = fragCoord * inverseVP;
-    
-    // Sample center and 4 neighbors (use textureSampleLevel for non-uniform control flow)
-    let rgbM = textureSampleLevel(colorBuffer, bufferSampler, uv, 0.0).rgb;
-    let rgbN = textureSampleLevel(colorBuffer, bufferSampler, uv + vec2<f32>(0.0, -1.0) * inverseVP, 0.0).rgb;
-    let rgbS = textureSampleLevel(colorBuffer, bufferSampler, uv + vec2<f32>(0.0, 1.0) * inverseVP, 0.0).rgb;
-    let rgbE = textureSampleLevel(colorBuffer, bufferSampler, uv + vec2<f32>(1.0, 0.0) * inverseVP, 0.0).rgb;
-    let rgbW = textureSampleLevel(colorBuffer, bufferSampler, uv + vec2<f32>(-1.0, 0.0) * inverseVP, 0.0).rgb;
-    
-    // Compute luma for each sample
-    let lumaM = dot(rgbM, LUMA);
-    let lumaN = dot(rgbN, LUMA);
-    let lumaS = dot(rgbS, LUMA);
-    let lumaE = dot(rgbE, LUMA);
-    let lumaW = dot(rgbW, LUMA);
-    
-    // Compute local contrast
-    let lumaMin = min(lumaM, min(min(lumaN, lumaS), min(lumaE, lumaW)));
-    let lumaMax = max(lumaM, max(max(lumaN, lumaS), max(lumaE, lumaW)));
-    let lumaRange = lumaMax - lumaMin;
-    
-    // Early exit if contrast is too low
-    if (lumaRange < max(FXAA_EDGE_THRESHOLD_MIN, lumaMax * FXAA_EDGE_THRESHOLD_MAX)) {
-        return vec4<f32>(rgbM, 1.0);
-    }
-    
-    // Determine edge direction
-    let edgeH = abs(lumaN + lumaS - 2.0 * lumaM);
-    let edgeV = abs(lumaE + lumaW - 2.0 * lumaM);
-    let isHorizontal = edgeH > edgeV;
-    
-    // Choose blend direction
-    var luma1: f32;
-    var luma2: f32;
-    var stepDir: vec2<f32>;
-    
-    if (isHorizontal) {
-        luma1 = lumaN;
-        luma2 = lumaS;
-        stepDir = vec2<f32>(0.0, inverseVP.y);
-    } else {
-        luma1 = lumaW;
-        luma2 = lumaE;
-        stepDir = vec2<f32>(inverseVP.x, 0.0);
-    }
-    
-    let gradient1 = abs(luma1 - lumaM);
-    let gradient2 = abs(luma2 - lumaM);
-    
-    if (gradient1 < gradient2) {
-        stepDir = -stepDir;
-    }
-    
-    // Blend along edge
-    let rgbBlend = textureSampleLevel(colorBuffer, bufferSampler, uv + stepDir * 0.5, 0.0).rgb;
-    let blendFactor = smoothstep(0.0, 1.0, lumaRange / lumaMax);
-    
-    return vec4<f32>(mix(rgbM, rgbBlend, blendFactor * 0.5), 1.0);
-}
-
 @vertex
 fn vs_main(@builtin(vertex_index) vertexIndex: u32) -> PostOutput {
     var output: PostOutput;
@@ -863,16 +791,12 @@ fn vs_main(@builtin(vertex_index) vertexIndex: u32) -> PostOutput {
 
 @fragment
 fn fs_main(input: PostOutput) -> @location(0) vec4<f32> {
-    let uv = input.position.xy / frameData.viewportSize.xy;
+    // uv is in [0, 1] range
+    let uv = input.uv;
     let fragCoord = vec2<i32>(input.position.xy);
     
-    // Apply FXAA if enabled, otherwise use direct texture load
-    var color: vec4<f32>;
-    if (params.doFXAA != 0) {
-        color = applyFXAA(input.position.xy);
-    } else {
-        color = textureLoad(colorBuffer, fragCoord, 0);
-    }
+    // Direct texture load for color (no FXAA)
+    let color = textureLoad(colorBuffer, fragCoord, 0);
     
     let light = textureLoad(lightBuffer, fragCoord, 0);
     let normalData = textureLoad(normalBuffer, fragCoord, 0);
@@ -924,7 +848,119 @@ fn fs_main(input: PostOutput) -> @location(0) vec4<f32> {
     // Gamma correction
     fragColor = vec4<f32>(pow(fragColor.rgb, vec3<f32>(1.0 / params.gamma)), fragColor.a);
     
-    return fragColor;
+}
+`;
+
+// FSR 1.0 EASU shader
+const fsrEasuShader = /* wgsl */ `
+${FrameDataStruct}
+
+struct EasuParams {
+    con0: vec4<f32>, // InputViewportSize, InputViewportSize, OutputViewportSize, OutputViewportSize
+    con1: vec4<f32>,
+    con2: vec4<f32>,
+    con3: vec4<f32>,
+}
+
+struct PostOutput {
+    @builtin(position) position: vec4<f32>,
+    @location(0) uv: vec2<f32>,
+}
+
+@group(0) @binding(0) var<uniform> frameData: FrameData;
+@group(1) @binding(0) var<uniform> params: EasuParams;
+@group(1) @binding(1) var bufferSampler: sampler;
+@group(1) @binding(2) var colorBuffer: texture_2d<f32>;
+
+@vertex
+fn vs_main(@builtin(vertex_index) vertexIndex: u32) -> PostOutput {
+    var output: PostOutput;
+    let x = f32((vertexIndex << 1) & 2);
+    let y = f32(vertexIndex & 2);
+    output.position = vec4<f32>(x * 2.0 - 1.0, y * 2.0 - 1.0, 0.0, 1.0);
+    output.uv = vec2<f32>(x, 1.0 - y);
+    return output;
+}
+
+@fragment
+fn fs_main(input: PostOutput) -> @location(0) vec4<f32> {
+    let pos = input.position.xy;
+    let g_input_size = params.con0.xy;
+    let g_output_size = params.con0.zw;
+
+    let pp = pos * g_input_size / g_output_size;
+    let fp = floor(pp);
+    let fuv = pp - fp;
+
+    let p0 = (fp + 0.5) / g_input_size;
+    let p1 = p0 + vec2<f32>(1.0, 0.0) / g_input_size;
+    let p2 = p0 + vec2<f32>(0.0, 1.0) / g_input_size;
+    let p3 = p0 + vec2<f32>(1.0, 1.0) / g_input_size;
+
+    let c0 = textureSampleLevel(colorBuffer, bufferSampler, p0, 0.0).rgb;
+    let c1 = textureSampleLevel(colorBuffer, bufferSampler, p1, 0.0).rgb;
+    let c2 = textureSampleLevel(colorBuffer, bufferSampler, p2, 0.0).rgb;
+    let c3 = textureSampleLevel(colorBuffer, bufferSampler, p3, 0.0).rgb;
+
+    // Simplified bilinear upscaling for now (can be improved to match FSR 1.0 better)
+    let color = mix(mix(c0, c1, fuv.x), mix(c2, c3, fuv.x), fuv.y);
+    return vec4<f32>(color, 1.0);
+}
+`;
+
+// FSR 1.0 RCAS shader
+const fsrRcasShader = /* wgsl */ `
+${FrameDataStruct}
+
+struct RcasParams {
+    sharpness: f32,
+    _pad: vec3<f32>,
+}
+
+struct PostOutput {
+    @builtin(position) position: vec4<f32>,
+    @location(0) uv: vec2<f32>,
+}
+
+@group(0) @binding(0) var<uniform> frameData: FrameData;
+@group(1) @binding(0) var<uniform> params: RcasParams;
+@group(1) @binding(1) var bufferSampler: sampler;
+@group(1) @binding(2) var colorBuffer: texture_2d<f32>;
+
+@vertex
+fn vs_main(@builtin(vertex_index) vertexIndex: u32) -> PostOutput {
+    var output: PostOutput;
+    let x = f32((vertexIndex << 1) & 2);
+    let y = f32(vertexIndex & 2);
+    output.position = vec4<f32>(x * 2.0 - 1.0, y * 2.0 - 1.0, 0.0, 1.0);
+    output.uv = vec2<f32>(x, 1.0 - y);
+    return output;
+}
+
+@fragment
+fn fs_main(input: PostOutput) -> @location(0) vec4<f32> {
+    let p = vec2<i32>(input.position.xy);
+    
+    let b = textureLoad(colorBuffer, p + vec2<i32>(0, -1), 0).rgb;
+    let d = textureLoad(colorBuffer, p + vec2<i32>(-1, 0), 0).rgb;
+    let e = textureLoad(colorBuffer, p, 0).rgb;
+    let f = textureLoad(colorBuffer, p + vec2<i32>(1, 0), 0).rgb;
+    let h = textureLoad(colorBuffer, p + vec2<i32>(0, 1), 0).rgb;
+
+    // RCAS Implementation
+    let mnRGB = min(min(min(b, d), min(f, h)), e);
+    let mxRGB = max(max(max(b, d), max(f, h)), e);
+
+    var wRGB = clamp(min(mnRGB, 1.0 - mxRGB) / mxRGB, vec3<f32>(0.0), vec3<f32>(1.0));
+    wRGB = inversesqrt(max(wRGB, vec3<f32>(0.0001)));
+    
+    let peak = -3.0 * params.sharpness + 8.0;
+    let w = -1.0 / peak;
+
+    var color = (b + d + f + h) * w + e;
+    color = color / (4.0 * w + 1.0);
+    
+    return vec4<f32>(clamp(color, vec3<f32>(0.0), vec3<f32>(1.0)), 1.0);
 }
 `;
 
@@ -1372,6 +1408,28 @@ export const WgslShaderSources = {
 				{ binding: 7, type: "texture", unit: 5 },
 				{ binding: 8, type: "texture", unit: 6 },
 				{ binding: 9, type: "texture", unit: 7 },
+			],
+		},
+	},
+	fsrEasu: {
+		label: "fsrEasu",
+		code: fsrEasuShader,
+		bindings: {
+			group1: [
+				{ binding: 0, type: "uniform", name: "easuParams" },
+				{ binding: 1, type: "sampler", unit: 0 },
+				{ binding: 2, type: "texture", unit: 0 },
+			],
+		},
+	},
+	fsrRcas: {
+		label: "fsrRcas",
+		code: fsrRcasShader,
+		bindings: {
+			group1: [
+				{ binding: 0, type: "uniform", name: "rcasParams" },
+				{ binding: 1, type: "sampler", unit: 0 },
+				{ binding: 2, type: "texture", unit: 0 },
 			],
 		},
 	},
