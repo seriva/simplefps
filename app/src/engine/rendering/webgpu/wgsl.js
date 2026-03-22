@@ -852,7 +852,7 @@ fn fs_main(input: PostOutput) -> @location(0) vec4<f32> {
 // FSR 1.0 EASU shader
 const fsrEasuShader = /* wgsl */ `
 struct EasuParams {
-    con0: vec4<f32>, // InputViewportSize, InputViewportSize, OutputViewportSize, OutputViewportSize
+    con0: vec4<f32>, // xy = inputSize, zw = outputSize
     con1: vec4<f32>,
     con2: vec4<f32>,
     con3: vec4<f32>,
@@ -867,6 +867,15 @@ struct PostOutput {
 @group(1) @binding(1) var bufferSampler: sampler;
 @group(1) @binding(2) var colorBuffer: texture_2d<f32>;
 
+// Anisotropic Lanczos-like weight: positive only, stretched perpendicular to edge
+fn easuWeight(sampleOff: vec2<f32>, dir: vec2<f32>, stretch: f32) -> f32 {
+    let along = abs(sampleOff.x * dir.x + sampleOff.y * dir.y);
+    let perp  = abs(sampleOff.x * dir.y - sampleOff.y * dir.x);
+    let d2 = along * along + perp * perp * stretch * stretch;
+    let w = max(1.0 - d2 * 0.25, 0.0);
+    return w * w;
+}
+
 @vertex
 fn vs_main(@builtin(vertex_index) vertexIndex: u32) -> PostOutput {
     var output: PostOutput;
@@ -879,27 +888,75 @@ fn vs_main(@builtin(vertex_index) vertexIndex: u32) -> PostOutput {
 
 @fragment
 fn fs_main(input: PostOutput) -> @location(0) vec4<f32> {
-    let pos = input.position.xy;
-    let g_input_size = params.con0.xy;
-    let g_output_size = params.con0.zw;
+    let inputSize = params.con0.xy;
+    let outputSize = params.con0.zw;
+    let invInput = 1.0 / inputSize;
 
-    let pp = pos * g_input_size / g_output_size;
-    let fp = floor(pp);
-    let fuv = pp - fp;
+    let srcPos = input.position.xy * inputSize / outputSize - 0.5;
+    let base = floor(srcPos);
+    let f = srcPos - base;
+    let tc = (base + 0.5) * invInput;
+    let dx = vec2<f32>(invInput.x, 0.0);
+    let dy = vec2<f32>(0.0, invInput.y);
 
-    let p0 = (fp + 0.5) / g_input_size;
-    let p1 = p0 + vec2<f32>(1.0, 0.0) / g_input_size;
-    let p2 = p0 + vec2<f32>(0.0, 1.0) / g_input_size;
-    let p3 = p0 + vec2<f32>(1.0, 1.0) / g_input_size;
+    //   b c
+    // d e f g
+    // h i j k
+    //   l m
+    let b  = textureSampleLevel(colorBuffer, bufferSampler, tc - dy, 0.0).rgb;
+    let c  = textureSampleLevel(colorBuffer, bufferSampler, tc + dx - dy, 0.0).rgb;
+    let d  = textureSampleLevel(colorBuffer, bufferSampler, tc - dx, 0.0).rgb;
+    let e  = textureSampleLevel(colorBuffer, bufferSampler, tc, 0.0).rgb;
+    let fS = textureSampleLevel(colorBuffer, bufferSampler, tc + dx, 0.0).rgb;
+    let g  = textureSampleLevel(colorBuffer, bufferSampler, tc + 2.0 * dx, 0.0).rgb;
+    let h  = textureSampleLevel(colorBuffer, bufferSampler, tc - dx + dy, 0.0).rgb;
+    let iS = textureSampleLevel(colorBuffer, bufferSampler, tc + dy, 0.0).rgb;
+    let j  = textureSampleLevel(colorBuffer, bufferSampler, tc + dx + dy, 0.0).rgb;
+    let k  = textureSampleLevel(colorBuffer, bufferSampler, tc + 2.0 * dx + dy, 0.0).rgb;
+    let l  = textureSampleLevel(colorBuffer, bufferSampler, tc + 2.0 * dy, 0.0).rgb;
+    let m  = textureSampleLevel(colorBuffer, bufferSampler, tc + dx + 2.0 * dy, 0.0).rgb;
 
-    let c0 = textureSampleLevel(colorBuffer, bufferSampler, p0, 0.0).rgb;
-    let c1 = textureSampleLevel(colorBuffer, bufferSampler, p1, 0.0).rgb;
-    let c2 = textureSampleLevel(colorBuffer, bufferSampler, p2, 0.0).rgb;
-    let c3 = textureSampleLevel(colorBuffer, bufferSampler, p3, 0.0).rgb;
+    let luma = vec3<f32>(0.299, 0.587, 0.114);
+    let le = dot(e, luma);  let lf = dot(fS, luma);
+    let li = dot(iS, luma); let lj = dot(j, luma);
+    let lb = dot(b, luma);  let lc = dot(c, luma);
+    let ld = dot(d, luma);  let lg = dot(g, luma);
+    let lh = dot(h, luma);  let lk = dot(k, luma);
+    let ll = dot(l, luma);  let lm = dot(m, luma);
 
-    // Simplified bilinear upscaling for now (can be improved to match FSR 1.0 better)
-    let color = mix(mix(c0, c1, fuv.x), mix(c2, c3, fuv.x), fuv.y);
-    return vec4<f32>(color, 1.0);
+    // Edge direction from full 12-tap neighborhood
+    let dirX = (lc-lb) + (lf-le) + (lj-li) + (lm-ll) + (lg-ld) + (lk-lh);
+    let dirY = (lh-ld) + (li-le) + (lj-lf) + (lk-lg) + (ll-lb) + (lm-lc);
+    let dirLen = max(abs(dirX), abs(dirY));
+    let invDirLen = 1.0 / (dirLen + 1.0e-8);
+    let dir = vec2<f32>(dirX * invDirLen, dirY * invDirLen);
+
+    // Stretch: anisotropy from local edge contrast
+    let minEdge = min(min(le, lf), min(li, lj));
+    let maxEdge = max(max(le, lf), max(li, lj));
+    let edgeAmount = clamp((maxEdge - minEdge) / max(maxEdge, 1.0e-5), 0.0, 1.0);
+    let stretch = 1.0 + edgeAmount * 3.0;
+
+    // Positive-only anisotropic weights for all 12 taps
+    let we  = easuWeight(vec2<f32>( 0.0,  0.0) - f, dir, stretch);
+    let wfS = easuWeight(vec2<f32>( 1.0,  0.0) - f, dir, stretch);
+    let wiS = easuWeight(vec2<f32>( 0.0,  1.0) - f, dir, stretch);
+    let wj  = easuWeight(vec2<f32>( 1.0,  1.0) - f, dir, stretch);
+    let wb  = easuWeight(vec2<f32>( 0.0, -1.0) - f, dir, stretch);
+    let wc  = easuWeight(vec2<f32>( 1.0, -1.0) - f, dir, stretch);
+    let wd  = easuWeight(vec2<f32>(-1.0,  0.0) - f, dir, stretch);
+    let wg  = easuWeight(vec2<f32>( 2.0,  0.0) - f, dir, stretch);
+    let wh  = easuWeight(vec2<f32>(-1.0,  1.0) - f, dir, stretch);
+    let wk  = easuWeight(vec2<f32>( 2.0,  1.0) - f, dir, stretch);
+    let wl  = easuWeight(vec2<f32>( 0.0,  2.0) - f, dir, stretch);
+    let wm  = easuWeight(vec2<f32>( 1.0,  2.0) - f, dir, stretch);
+
+    let color = e*we + fS*wfS + iS*wiS + j*wj
+              + b*wb + c*wc + d*wd + g*wg
+              + h*wh + k*wk + l*wl + m*wm;
+    let totalW = we+wfS+wiS+wj+wb+wc+wd+wg+wh+wk+wl+wm;
+
+    return vec4<f32>(color / totalW, 1.0);
 }
 `;
 
@@ -939,13 +996,10 @@ fn fs_main(input: PostOutput) -> @location(0) vec4<f32> {
     let f = textureLoad(colorBuffer, p + vec2<i32>(1, 0), 0).rgb;
     let h = textureLoad(colorBuffer, p + vec2<i32>(0, 1), 0).rgb;
 
-    // RCAS Implementation
+    // RCAS: Adaptive sharpening from min/max of cross neighborhood
     let mnRGB = min(min(min(b, d), min(f, h)), e);
     let mxRGB = max(max(max(b, d), max(f, h)), e);
 
-    var wRGB = clamp(min(mnRGB, 1.0 - mxRGB) / mxRGB, vec3<f32>(0.0), vec3<f32>(1.0));
-    wRGB = inverseSqrt(max(wRGB, vec3<f32>(0.0001)));
-    
     let peak = -3.0 * params.sharpness + 8.0;
     let w = -1.0 / peak;
 

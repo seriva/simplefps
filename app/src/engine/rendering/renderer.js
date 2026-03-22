@@ -787,7 +787,6 @@ const _fsrPass = () => {
 	// EASU pass
 	Backend.bindFramebuffer(_fsr.framebuffer);
 	Backend.setViewport(0, 0, nativeWidth, nativeHeight);
-	Backend.clear({ color: [0, 0, 0, 1] });
 
 	Shaders.fsrEasu.bind();
 	Shaders.fsrEasu.setInt("colorBuffer", 0);

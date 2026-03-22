@@ -748,53 +748,82 @@ export const ShaderSources = {
             precision highp float;
             out vec4 fragColor;
             uniform sampler2D colorBuffer;
-            uniform vec4 con0; // InputViewportSize, InputViewportSize, OutputViewportSize, OutputViewportSize
-            uniform vec4 con1;
-            uniform vec4 con2;
-            uniform vec4 con3;
-
-            // EASU Implementation (Compact)
-            void FsrEasuTapF(inout vec3 accumBC, inout float accumW, vec2 off, vec2 dir, vec2 len, float lob, float clp, vec3 c) {
-                vec2 v = off * vec2(dot(off, dir), dot(off, vec2(-dir.y, dir.x)));
-                float d2 = dot(v, v);
-                float xL = dot(len, vec2(d2));
-                float w = (lob * xL + clp) * xL + 1.0;
-                w *= w;
-                accumBC += c * w;
-                accumW += w;
-            }
+            uniform vec4 con0; // xy = inputSize, zw = outputSize
 
             void main() {
-                vec2 pos = gl_FragCoord.xy;
-                // Constants for EASU
-                vec2 g_input_size = con0.xy;
-                vec2 g_output_size = con0.zw;
-                
-                vec2 pp = pos * g_input_size / g_output_size;
-                vec2 fp = floor(pp);
-                pp -= fp;
-                
-                vec2 p0 = (fp + 0.5) / g_input_size;
-                vec2 p1 = p0 + vec2(1.0, 0.0) / g_input_size;
-                vec2 p2 = p0 + vec2(0.0, 1.0) / g_input_size;
-                vec2 p3 = p0 + vec2(1.0, 1.0) / g_input_size;
+                vec2 inputSize = con0.xy;
+                vec2 outputSize = con0.zw;
+                vec2 invInput = 1.0 / inputSize;
 
-                vec3 c0 = texture(colorBuffer, p0).rgb;
-                vec3 c1 = texture(colorBuffer, p1).rgb;
-                vec3 c2 = texture(colorBuffer, p2).rgb;
-                vec3 c3 = texture(colorBuffer, p3).rgb;
+                // Map output pixel center to input texel space
+                vec2 srcPos = gl_FragCoord.xy * inputSize / outputSize - 0.5;
+                vec2 base = floor(srcPos);
+                vec2 f = srcPos - base;
+                vec2 tc = (base + 0.5) * invInput;
+                vec2 dx = vec2(invInput.x, 0.0);
+                vec2 dy = vec2(0.0, invInput.y);
 
-                // Simplified sampling for now: bilinear fallback if needed, but FSR 1.0 is better
-                // Using a simplified 4-tap edge-directed filter
-                float l0 = dot(c0, vec3(0.299, 0.587, 0.114));
-                float l1 = dot(c1, vec3(0.299, 0.587, 0.114));
-                float l2 = dot(c2, vec3(0.299, 0.587, 0.114));
-                float l3 = dot(c3, vec3(0.299, 0.587, 0.114));
+                // 12-tap sampling (4x4 minus corners)
+                //   b c
+                // d e f g
+                // h i j k
+                //   l m
+                vec3 b  = texture(colorBuffer, tc - dy).rgb;
+                vec3 c  = texture(colorBuffer, tc + dx - dy).rgb;
+                vec3 d  = texture(colorBuffer, tc - dx).rgb;
+                vec3 e  = texture(colorBuffer, tc).rgb;
+                vec3 fS = texture(colorBuffer, tc + dx).rgb;
+                vec3 g  = texture(colorBuffer, tc + 2.0 * dx).rgb;
+                vec3 h  = texture(colorBuffer, tc - dx + dy).rgb;
+                vec3 iS = texture(colorBuffer, tc + dy).rgb;
+                vec3 j  = texture(colorBuffer, tc + dx + dy).rgb;
+                vec3 k  = texture(colorBuffer, tc + 2.0 * dx + dy).rgb;
+                vec3 l  = texture(colorBuffer, tc + 2.0 * dy).rgb;
+                vec3 m  = texture(colorBuffer, tc + dx + 2.0 * dy).rgb;
 
-                float gx = (l1 - l0) + (l3 - l2);
-                float gy = (l2 - l0) + (l3 - l1);
-                
-                vec3 color = mix(mix(c0, c1, pp.x), mix(c2, c3, pp.x), pp.y);
+                // Luminance
+                vec3 lw = vec3(0.299, 0.587, 0.114);
+                float lb = dot(b,lw); float lc = dot(c,lw);
+                float ld = dot(d,lw); float le = dot(e,lw);
+                float lf = dot(fS,lw); float lg = dot(g,lw);
+                float lh = dot(h,lw); float li = dot(iS,lw);
+                float lj = dot(j,lw); float lk = dot(k,lw);
+                float ll = dot(l,lw); float lm = dot(m,lw);
+
+                // Edge direction from 12-tap neighborhood
+                float dirX = (lc-lb) + (lf-le) + (lj-li) + (lm-ll) + (lg-ld) + (lk-lh);
+                float dirY = (lh-ld) + (li-le) + (lj-lf) + (lk-lg) + (ll-lb) + (lm-lc);
+                float dirLen = max(abs(dirX), abs(dirY));
+                float invDirLen = 1.0 / (dirLen + 1.0e-8);
+                dirX *= invDirLen;
+                dirY *= invDirLen;
+
+                // Stretch: how elongated/anisotropic the kernel should be
+                float minEdge = min(min(le, lf), min(li, lj));
+                float maxEdge = max(max(le, lf), max(li, lj));
+                float edgeAmount = clamp((maxEdge - minEdge) / maxEdge, 0.0, 1.0);
+                float stretch = 1.0 + edgeAmount * 3.0;
+
+                // Positive-only anisotropic weights for all 12 taps
+                float we  = 0.0; { vec2 off = vec2(0.0,0.0)-f; float along=abs(off.x*dirX+off.y*dirY); float perp=abs(off.x*dirY-off.y*dirX); float d2=along*along+perp*perp*stretch*stretch; we=max(1.0-d2*0.25,0.0); we*=we; }
+                float wfS = 0.0; { vec2 off = vec2(1.0,0.0)-f; float along=abs(off.x*dirX+off.y*dirY); float perp=abs(off.x*dirY-off.y*dirX); float d2=along*along+perp*perp*stretch*stretch; wfS=max(1.0-d2*0.25,0.0); wfS*=wfS; }
+                float wiS = 0.0; { vec2 off = vec2(0.0,1.0)-f; float along=abs(off.x*dirX+off.y*dirY); float perp=abs(off.x*dirY-off.y*dirX); float d2=along*along+perp*perp*stretch*stretch; wiS=max(1.0-d2*0.25,0.0); wiS*=wiS; }
+                float wj  = 0.0; { vec2 off = vec2(1.0,1.0)-f; float along=abs(off.x*dirX+off.y*dirY); float perp=abs(off.x*dirY-off.y*dirX); float d2=along*along+perp*perp*stretch*stretch; wj=max(1.0-d2*0.25,0.0); wj*=wj; }
+                float wb  = 0.0; { vec2 off = vec2(0.0,-1.0)-f; float along=abs(off.x*dirX+off.y*dirY); float perp=abs(off.x*dirY-off.y*dirX); float d2=along*along+perp*perp*stretch*stretch; wb=max(1.0-d2*0.25,0.0); wb*=wb; }
+                float wc  = 0.0; { vec2 off = vec2(1.0,-1.0)-f; float along=abs(off.x*dirX+off.y*dirY); float perp=abs(off.x*dirY-off.y*dirX); float d2=along*along+perp*perp*stretch*stretch; wc=max(1.0-d2*0.25,0.0); wc*=wc; }
+                float wd  = 0.0; { vec2 off = vec2(-1.0,0.0)-f; float along=abs(off.x*dirX+off.y*dirY); float perp=abs(off.x*dirY-off.y*dirX); float d2=along*along+perp*perp*stretch*stretch; wd=max(1.0-d2*0.25,0.0); wd*=wd; }
+                float wg  = 0.0; { vec2 off = vec2(2.0,0.0)-f; float along=abs(off.x*dirX+off.y*dirY); float perp=abs(off.x*dirY-off.y*dirX); float d2=along*along+perp*perp*stretch*stretch; wg=max(1.0-d2*0.25,0.0); wg*=wg; }
+                float wh  = 0.0; { vec2 off = vec2(-1.0,1.0)-f; float along=abs(off.x*dirX+off.y*dirY); float perp=abs(off.x*dirY-off.y*dirX); float d2=along*along+perp*perp*stretch*stretch; wh=max(1.0-d2*0.25,0.0); wh*=wh; }
+                float wk  = 0.0; { vec2 off = vec2(2.0,1.0)-f; float along=abs(off.x*dirX+off.y*dirY); float perp=abs(off.x*dirY-off.y*dirX); float d2=along*along+perp*perp*stretch*stretch; wk=max(1.0-d2*0.25,0.0); wk*=wk; }
+                float wl  = 0.0; { vec2 off = vec2(0.0,2.0)-f; float along=abs(off.x*dirX+off.y*dirY); float perp=abs(off.x*dirY-off.y*dirX); float d2=along*along+perp*perp*stretch*stretch; wl=max(1.0-d2*0.25,0.0); wl*=wl; }
+                float wm  = 0.0; { vec2 off = vec2(1.0,2.0)-f; float along=abs(off.x*dirX+off.y*dirY); float perp=abs(off.x*dirY-off.y*dirX); float d2=along*along+perp*perp*stretch*stretch; wm=max(1.0-d2*0.25,0.0); wm*=wm; }
+
+                vec3 color = e*we + fS*wfS + iS*wiS + j*wj
+                           + b*wb + c*wc + d*wd + g*wg
+                           + h*wh + k*wk + l*wl + m*wm;
+                float totalW = we+wfS+wiS+wj+wb+wc+wd+wg+wh+wk+wl+wm;
+                color /= totalW;
+
                 fragColor = vec4(color, 1.0);
             }`,
 	},
