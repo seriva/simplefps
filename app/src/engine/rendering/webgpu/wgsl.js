@@ -143,6 +143,7 @@ struct FragmentOutput {
 @group(2) @binding(4) var proceduralNoise: texture_2d<f32>;
 @group(2) @binding(5) var reflectionTexture: texture_2d<f32>;
 @group(2) @binding(6) var reflectionMaskTexture: texture_2d<f32>;
+@group(2) @binding(7) var lightmapSampler: sampler;
 
 const MESH: i32 = 1;
 const SKYBOX: i32 = 2;
@@ -181,7 +182,7 @@ fn fs_main(input: GeomVertexOutput) -> FragmentOutput {
     
     // Apply lightmap if available and not skybox
     if (materialData.flags.w == 1 && materialData.flags.x != SKYBOX) {
-        color = color * textureSample(lightmapTexture, colorSampler, input.lightmapUV);
+        color = color * textureSample(lightmapTexture, lightmapSampler, input.lightmapUV);
     }
 
     // Apply Detail Texture (Normal + Parallax)
@@ -1255,6 +1256,7 @@ export const WgslShaderSources = {
 				{ binding: 4, type: "texture", unit: 5 }, // Detail Noise
 				{ binding: 5, type: "texture", unit: 2 }, // Reflection
 				{ binding: 6, type: "texture", unit: 3 }, // Reflection Mask
+				{ binding: 7, type: "sampler", unit: 4 }, // lightmapSampler
 			],
 		},
 	},
@@ -1272,7 +1274,7 @@ export const WgslShaderSources = {
 				{ binding: 0, type: "sampler", unit: 0 },
 				{ binding: 1, type: "texture", unit: 0 },
 				{ binding: 2, type: "texture", unit: 1 },
-				{ binding: 4, type: "texture", unit: 5 },
+				{ binding: 4, type: "texture", unit: 9 }, // detailTexture
 				{ binding: 5, type: "texture", unit: 2 },
 				{ binding: 6, type: "texture", unit: 3 },
 			],

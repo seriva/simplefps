@@ -50,9 +50,22 @@ class Material {
 			if (texturePath) {
 				const options =
 					slot === "lightmap"
-						? { filter: { min: "linear", mag: "linear", mip: "linear" } }
+						? {
+								filter: { min: "linear", mag: "linear", mip: "linear" },
+								wrap: "clamp-to-edge",
+							}
 						: {};
-				resources.load([{ path: texturePath, options }]);
+				resources.load([{ path: texturePath, options }]).then(() => {
+					// Explicitly apply options to handled textures if they are for lightmaps
+					// This handles cases where the texture was already loaded without options
+					if (slot === "lightmap") {
+						const texture = resources.get(texturePath);
+						if (texture instanceof Texture) {
+							texture.setFilter("linear", "linear", "linear");
+							texture.setTextureWrapMode("clamp-to-edge");
+						}
+					}
+				});
 			}
 		}
 	}
