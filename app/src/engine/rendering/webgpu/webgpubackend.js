@@ -1965,8 +1965,8 @@ class WebGPUBackend extends RenderBackend {
 			if (emissiveMult !== undefined) arr[1] = emissiveMult;
 			if (ssaoStrength !== undefined) arr[2] = ssaoStrength;
 			if (dirtIntensity !== undefined) arr[3] = dirtIntensity;
-			if (shadowIntensity !== undefined) arr[5] = shadowIntensity;
-			// arr[4, 6-7] = _pad
+			if (shadowIntensity !== undefined) arr[4] = shadowIntensity;
+			// arr[5-7] = _pad
 			// arr[8-10] = ambient (vec4, 16-byte aligned at offset 32)
 			if (ambient) arr.set(ambient, 8);
 

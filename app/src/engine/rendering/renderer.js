@@ -539,8 +539,17 @@ const _shadowPass = () => {
 	Backend.bindFramebuffer(_s.framebuffer);
 	Backend.setViewport(0, 0, _s.width, _s.height);
 	Backend.clear({ color: [1.0, 1.0, 1.0, 1.0] });
+	// Ensure shadows always write to color target even if prior passes changed state.
+	Backend.setColorMask(true, true, true, true);
+	Backend.setBlendState(false);
 	Backend.setDepthState(true, false, "lequal");
-	Backend.setPolygonOffset(true, -1.0, -1.0);
+	// WebGPU depth bias behaves differently and can fully suppress shadow projection.
+	// Keep GL offset, disable bias on WebGPU for deterministic behavior.
+	if (Backend.isWebGPU?.()) {
+		Backend.setPolygonOffset(false);
+	} else {
+		Backend.setPolygonOffset(true, -1.0, -1.0);
+	}
 	Backend.setCullState(false);
 
 	RenderPasses.renderShadows();
@@ -628,6 +637,10 @@ const _emissiveBlurPass = () => {
 };
 
 const _shadowBlurPass = () => {
+	// WebGPU shadow blur currently over-smooths/overwrites the shadow target in some drivers.
+	// Keep raw shadow map there until a backend-specific blur path lands.
+	if (Backend.isWebGPU?.()) return;
+
 	_blurImage(
 		_BlurSourceType.SHADOW,
 		Settings.shadowBlurIterations,

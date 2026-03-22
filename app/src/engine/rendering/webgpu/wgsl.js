@@ -1366,6 +1366,7 @@ export const WgslShaderSources = {
 		label: "entityShadows",
 		code: entityShadowsShader,
 		bindings: {
+			group0: [{ binding: 0, type: "ubo", id: 0 }],
 			group1: [
 				{ binding: 0, type: "uniform", name: "matWorld" },
 				{ binding: 1, type: "uniform", name: "ambient" },
@@ -1376,6 +1377,7 @@ export const WgslShaderSources = {
 		label: "skinnedEntityShadows",
 		code: skinnedEntityShadowsShader,
 		bindings: {
+			group0: [{ binding: 0, type: "ubo", id: 0 }],
 			group1: [
 				{ binding: 0, type: "uniform", name: "skinnedShadowParams" },
 				{ binding: 2, type: "uniform", name: "boneMatrices" },
