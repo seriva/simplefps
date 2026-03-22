@@ -750,6 +750,14 @@ export const ShaderSources = {
             uniform sampler2D colorBuffer;
             uniform vec4 con0; // xy = inputSize, zw = outputSize
 
+            float easuWeight(vec2 sampleOff, float dirX, float dirY, float stretch) {
+                float along = abs(sampleOff.x * dirX + sampleOff.y * dirY);
+                float perp  = abs(sampleOff.x * dirY - sampleOff.y * dirX);
+                float d2 = along * along + perp * perp * stretch * stretch;
+                float w = max(1.0 - d2 * 0.25, 0.0);
+                return w * w;
+            }
+
             void main() {
                 vec2 inputSize = con0.xy;
                 vec2 outputSize = con0.zw;
@@ -801,22 +809,22 @@ export const ShaderSources = {
                 // Stretch: how elongated/anisotropic the kernel should be
                 float minEdge = min(min(le, lf), min(li, lj));
                 float maxEdge = max(max(le, lf), max(li, lj));
-                float edgeAmount = clamp((maxEdge - minEdge) / maxEdge, 0.0, 1.0);
-                float stretch = 1.0 + edgeAmount * 3.0;
+                float edgeAmount = clamp((maxEdge - minEdge) / max(maxEdge, 1.0e-5), 0.0, 1.0);
+                float stretch = 1.0 + edgeAmount * 1.0;
 
                 // Positive-only anisotropic weights for all 12 taps
-                float we  = 0.0; { vec2 off = vec2(0.0,0.0)-f; float along=abs(off.x*dirX+off.y*dirY); float perp=abs(off.x*dirY-off.y*dirX); float d2=along*along+perp*perp*stretch*stretch; we=max(1.0-d2*0.25,0.0); we*=we; }
-                float wfS = 0.0; { vec2 off = vec2(1.0,0.0)-f; float along=abs(off.x*dirX+off.y*dirY); float perp=abs(off.x*dirY-off.y*dirX); float d2=along*along+perp*perp*stretch*stretch; wfS=max(1.0-d2*0.25,0.0); wfS*=wfS; }
-                float wiS = 0.0; { vec2 off = vec2(0.0,1.0)-f; float along=abs(off.x*dirX+off.y*dirY); float perp=abs(off.x*dirY-off.y*dirX); float d2=along*along+perp*perp*stretch*stretch; wiS=max(1.0-d2*0.25,0.0); wiS*=wiS; }
-                float wj  = 0.0; { vec2 off = vec2(1.0,1.0)-f; float along=abs(off.x*dirX+off.y*dirY); float perp=abs(off.x*dirY-off.y*dirX); float d2=along*along+perp*perp*stretch*stretch; wj=max(1.0-d2*0.25,0.0); wj*=wj; }
-                float wb  = 0.0; { vec2 off = vec2(0.0,-1.0)-f; float along=abs(off.x*dirX+off.y*dirY); float perp=abs(off.x*dirY-off.y*dirX); float d2=along*along+perp*perp*stretch*stretch; wb=max(1.0-d2*0.25,0.0); wb*=wb; }
-                float wc  = 0.0; { vec2 off = vec2(1.0,-1.0)-f; float along=abs(off.x*dirX+off.y*dirY); float perp=abs(off.x*dirY-off.y*dirX); float d2=along*along+perp*perp*stretch*stretch; wc=max(1.0-d2*0.25,0.0); wc*=wc; }
-                float wd  = 0.0; { vec2 off = vec2(-1.0,0.0)-f; float along=abs(off.x*dirX+off.y*dirY); float perp=abs(off.x*dirY-off.y*dirX); float d2=along*along+perp*perp*stretch*stretch; wd=max(1.0-d2*0.25,0.0); wd*=wd; }
-                float wg  = 0.0; { vec2 off = vec2(2.0,0.0)-f; float along=abs(off.x*dirX+off.y*dirY); float perp=abs(off.x*dirY-off.y*dirX); float d2=along*along+perp*perp*stretch*stretch; wg=max(1.0-d2*0.25,0.0); wg*=wg; }
-                float wh  = 0.0; { vec2 off = vec2(-1.0,1.0)-f; float along=abs(off.x*dirX+off.y*dirY); float perp=abs(off.x*dirY-off.y*dirX); float d2=along*along+perp*perp*stretch*stretch; wh=max(1.0-d2*0.25,0.0); wh*=wh; }
-                float wk  = 0.0; { vec2 off = vec2(2.0,1.0)-f; float along=abs(off.x*dirX+off.y*dirY); float perp=abs(off.x*dirY-off.y*dirX); float d2=along*along+perp*perp*stretch*stretch; wk=max(1.0-d2*0.25,0.0); wk*=wk; }
-                float wl  = 0.0; { vec2 off = vec2(0.0,2.0)-f; float along=abs(off.x*dirX+off.y*dirY); float perp=abs(off.x*dirY-off.y*dirX); float d2=along*along+perp*perp*stretch*stretch; wl=max(1.0-d2*0.25,0.0); wl*=wl; }
-                float wm  = 0.0; { vec2 off = vec2(1.0,2.0)-f; float along=abs(off.x*dirX+off.y*dirY); float perp=abs(off.x*dirY-off.y*dirX); float d2=along*along+perp*perp*stretch*stretch; wm=max(1.0-d2*0.25,0.0); wm*=wm; }
+                float we  = easuWeight(vec2( 0.0,  0.0) - f, dirX, dirY, stretch);
+                float wfS = easuWeight(vec2( 1.0,  0.0) - f, dirX, dirY, stretch);
+                float wiS = easuWeight(vec2( 0.0,  1.0) - f, dirX, dirY, stretch);
+                float wj  = easuWeight(vec2( 1.0,  1.0) - f, dirX, dirY, stretch);
+                float wb  = easuWeight(vec2( 0.0, -1.0) - f, dirX, dirY, stretch);
+                float wc  = easuWeight(vec2( 1.0, -1.0) - f, dirX, dirY, stretch);
+                float wd  = easuWeight(vec2(-1.0,  0.0) - f, dirX, dirY, stretch);
+                float wg  = easuWeight(vec2( 2.0,  0.0) - f, dirX, dirY, stretch);
+                float wh  = easuWeight(vec2(-1.0,  1.0) - f, dirX, dirY, stretch);
+                float wk  = easuWeight(vec2( 2.0,  1.0) - f, dirX, dirY, stretch);
+                float wl  = easuWeight(vec2( 0.0,  2.0) - f, dirX, dirY, stretch);
+                float wm  = easuWeight(vec2( 1.0,  2.0) - f, dirX, dirY, stretch);
 
                 vec3 color = e*we + fS*wfS + iS*wiS + j*wj
                            + b*wb + c*wc + d*wd + g*wg

@@ -935,7 +935,7 @@ fn fs_main(input: PostOutput) -> @location(0) vec4<f32> {
     let minEdge = min(min(le, lf), min(li, lj));
     let maxEdge = max(max(le, lf), max(li, lj));
     let edgeAmount = clamp((maxEdge - minEdge) / max(maxEdge, 1.0e-5), 0.0, 1.0);
-    let stretch = 1.0 + edgeAmount * 3.0;
+    let stretch = 1.0 + edgeAmount * 1.0;
 
     // Positive-only anisotropic weights for all 12 taps
     let we  = easuWeight(vec2<f32>( 0.0,  0.0) - f, dir, stretch);
