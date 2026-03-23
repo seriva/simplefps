@@ -1330,6 +1330,7 @@ export const WgslShaderSources = {
 		label: "geometry",
 		code: geometryShader,
 		bindings: {
+			group0: [{ binding: 0, type: "ubo", id: 0 }],
 			group1: [
 				{ binding: 0, type: "ubo", id: 1 }, // MaterialData
 				{ binding: 1, type: "uniform", name: "objectData" },
@@ -1350,6 +1351,7 @@ export const WgslShaderSources = {
 		label: "skinnedGeometry",
 		code: skinnedGeometryShader,
 		bindings: {
+			group0: [{ binding: 0, type: "ubo", id: 0 }],
 			group1: [
 				{ binding: 0, type: "ubo", id: 1 },
 				{ binding: 1, type: "uniform", name: "objectData" },
@@ -1369,6 +1371,7 @@ export const WgslShaderSources = {
 		label: "entityShadows",
 		code: entityShadowsShader,
 		bindings: {
+			group0: [{ binding: 0, type: "ubo", id: 0 }],
 			group1: [{ binding: 0, type: "uniform", name: "objectData" }],
 		},
 	},
@@ -1376,6 +1379,7 @@ export const WgslShaderSources = {
 		label: "skinnedEntityShadows",
 		code: skinnedEntityShadowsShader,
 		bindings: {
+			group0: [{ binding: 0, type: "ubo", id: 0 }],
 			group1: [
 				{ binding: 0, type: "uniform", name: "objectData" },
 				{ binding: 2, type: "uniform", name: "boneMatrices" },
@@ -1386,6 +1390,7 @@ export const WgslShaderSources = {
 		label: "directionalLight",
 		code: directionalLightShader,
 		bindings: {
+			group0: [{ binding: 0, type: "ubo", id: 0 }],
 			group1: [
 				{ binding: 2, type: "uniform", name: "directionalLight" },
 				{ binding: 3, type: "texture", unit: 1 },
@@ -1396,6 +1401,7 @@ export const WgslShaderSources = {
 		label: "pointLight",
 		code: pointLightShader,
 		bindings: {
+			group0: [{ binding: 0, type: "ubo", id: 0 }],
 			group1: [
 				{ binding: 1, type: "uniform", name: "objectData" },
 				{ binding: 2, type: "uniform", name: "pointLight" },
@@ -1408,6 +1414,7 @@ export const WgslShaderSources = {
 		label: "spotLight",
 		code: spotLightShader,
 		bindings: {
+			group0: [{ binding: 0, type: "ubo", id: 0 }],
 			group1: [
 				{ binding: 1, type: "uniform", name: "objectData" },
 				{ binding: 2, type: "uniform", name: "spotLight" },
@@ -1420,6 +1427,7 @@ export const WgslShaderSources = {
 		label: "kawaseBlur",
 		code: kawaseBlurShader,
 		bindings: {
+			group0: [{ binding: 0, type: "ubo", id: 0 }],
 			group1: [
 				{ binding: 0, type: "uniform", name: "blurParams" },
 				{ binding: 1, type: "sampler", unit: 0 },
@@ -1431,6 +1439,7 @@ export const WgslShaderSources = {
 		label: "bilateralBlur",
 		code: bilateralBlurShader,
 		bindings: {
+			group0: [{ binding: 0, type: "ubo", id: 0 }],
 			group1: [
 				{ binding: 0, type: "uniform", name: "bilateralParams" },
 				{ binding: 2, type: "texture", unit: 0 }, // aoBuffer
@@ -1443,6 +1452,7 @@ export const WgslShaderSources = {
 		label: "postProcessing",
 		code: postProcessingShader,
 		bindings: {
+			group0: [{ binding: 0, type: "ubo", id: 0 }],
 			group1: [
 				{ binding: 0, type: "uniform", name: "postProcessParams" },
 				{ binding: 1, type: "sampler", unit: 0 },
@@ -1461,6 +1471,7 @@ export const WgslShaderSources = {
 		label: "fsrEasu",
 		code: fsrEasuShader,
 		bindings: {
+			group0: [{ binding: 0, type: "ubo", id: 0 }],
 			group1: [
 				{ binding: 0, type: "uniform", name: "easuParams" },
 				{ binding: 1, type: "sampler", unit: 0 },
@@ -1472,6 +1483,7 @@ export const WgslShaderSources = {
 		label: "fsrRcas",
 		code: fsrRcasShader,
 		bindings: {
+			group0: [{ binding: 0, type: "ubo", id: 0 }],
 			group1: [
 				{ binding: 0, type: "uniform", name: "rcasParams" },
 				{ binding: 2, type: "texture", unit: 0 },
@@ -1482,6 +1494,7 @@ export const WgslShaderSources = {
 		label: "transparent",
 		code: transparentShader,
 		bindings: {
+			group0: [{ binding: 0, type: "ubo", id: 0 }],
 			group1: [
 				{ binding: 0, type: "ubo", id: 1 },
 				{ binding: 1, type: "uniform", name: "objectData" },
@@ -1500,6 +1513,7 @@ export const WgslShaderSources = {
 		label: "ssao",
 		code: ssaoShader,
 		bindings: {
+			group0: [{ binding: 0, type: "ubo", id: 0 }],
 			group1: [
 				{ binding: 0, type: "uniform", name: "ssaoParams" },
 				{ binding: 1, type: "sampler", unit: 0 },
@@ -1513,6 +1527,7 @@ export const WgslShaderSources = {
 		label: "debug",
 		code: debugShader,
 		bindings: {
+			group0: [{ binding: 0, type: "ubo", id: 0 }],
 			group1: [
 				{ binding: 1, type: "uniform", name: "objectData" },
 				{ binding: 2, type: "uniform", name: "debugColor" },
@@ -1523,6 +1538,7 @@ export const WgslShaderSources = {
 		label: "skinnedDebug",
 		code: skinnedDebugShader,
 		bindings: {
+			group0: [{ binding: 0, type: "ubo", id: 0 }],
 			group1: [
 				{ binding: 1, type: "uniform", name: "objectData" },
 				{ binding: 2, type: "uniform", name: "debugColor" },
@@ -1581,6 +1597,7 @@ fn fs_main(input: BillboardVertexOutput) -> @location(0) vec4<f32> {
 }
 `,
 		bindings: {
+			group0: [{ binding: 0, type: "ubo", id: 0 }],
 			group1: [{ binding: 0, type: "uniform", name: "billboardParams" }],
 			group2: [
 				{ binding: 0, type: "sampler", unit: 0 },
@@ -1645,6 +1662,7 @@ fn fs_main(input: InstancedBillboardVertexOutput) -> @location(0) vec4<f32> {
 }
 `,
 		bindings: {
+			group0: [{ binding: 0, type: "ubo", id: 0 }],
 			group1: [
 				{ binding: 0, type: "sampler", unit: 0 },
 				{ binding: 1, type: "texture", unit: 0 },

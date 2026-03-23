@@ -94,12 +94,20 @@ class WebGPUBackend extends RenderBackend {
 		// Optimization: Buffer pool for per-frame uniform buffers
 		// =========================================================================
 		// Pool of uniform buffers keyed by size (aligned to 16 bytes)
-		this._uniformBufferPool = new Map(); // size -> [buffer, buffer, ...]
-		this._uniformBufferInUse = new Set(); // buffers used this frame, reset each frame
+		this._uniformBufferPool = new Map(); // size -> { index: 0, buffers: [] }
 
 		// Optimization: BindGroup caches
 		this._persistentBindGroupCache = new Map();
 		this._frameBindGroupCache = new Map();
+
+		// Optimization: Dynamic Object Uniform Buffer
+		this._dynamicObjectOffset = 0;
+		this._dynamicObjectBuffer = null;
+		this._dynamicObjectBufferSize = 32768 * 256; // Supports 32k objects per frame (8MB)
+
+		// Optimization: Pipeline Layout Cache
+		this._pipelineLayoutCache = new Map();
+		this._bindGroupLayoutCache = new Map();
 
 		// Optimization: State filtering cache
 		this._passCache = {
@@ -237,6 +245,13 @@ class WebGPUBackend extends RenderBackend {
 			this._defaultTextureView = defaultTexture.createView();
 			this._defaultTextureView._id = this._resourceIdCounter++;
 
+			// Optimization: Create dynamic object buffer
+			this._dynamicObjectBuffer = this._device.createBuffer({
+				size: this._dynamicObjectBufferSize,
+				usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+			});
+			this._dynamicObjectBuffer._id = this._resourceIdCounter++;
+
 			// Create default sampler
 			this._defaultSampler = this._device.createSampler({
 				magFilter: "linear",
@@ -322,9 +337,14 @@ class WebGPUBackend extends RenderBackend {
 		// Create command encoder for this frame
 		this._commandEncoder = this._device.createCommandEncoder();
 
+		// Reset dynamic object data offset
+		this._dynamicObjectOffset = 0;
+
 		// Reset uniform buffer pool for this frame
 		// Return all buffers from previous frame back to the pool
-		this._uniformBufferInUse.clear();
+		for (const pool of this._uniformBufferPool.values()) {
+			pool.index = 0;
+		}
 
 		// Clear per-frame BindGroup cache ONLY
 		this._frameBindGroupCache.clear();
@@ -1428,6 +1448,66 @@ class WebGPUBackend extends RenderBackend {
 		}
 	}
 
+	// Optimization: Explicit Pipeline Layout Generation
+	// =========================================================================
+
+	_getBindGroupLayoutDescriptor(groupBindings) {
+		const entries = [];
+		for (const b of groupBindings) {
+			const entry = {
+				binding: b.binding,
+				visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
+			};
+			if (b.type === "ubo" || b.type === "uniform") {
+				entry.buffer = {
+					type: "uniform",
+					hasDynamicOffset: b.name === "objectData",
+				};
+			} else if (b.type === "sampler") {
+				entry.sampler = { type: "filtering" };
+			} else if (b.type === "texture") {
+				entry.texture = { sampleType: "float" };
+			}
+			entries.push(entry);
+		}
+		return { entries };
+	}
+
+	_getBindGroupLayout(shaderName, groupIndex) {
+		const key = `${shaderName}_${groupIndex}`;
+		if (this._bindGroupLayoutCache.has(key))
+			return this._bindGroupLayoutCache.get(key);
+
+		const bindingsInfo =
+			WgslShaderSources[shaderName]?.bindings[`group${groupIndex}`];
+		if (!bindingsInfo) return null;
+
+		const layout = this._device.createBindGroupLayout(
+			this._getBindGroupLayoutDescriptor(bindingsInfo),
+		);
+		this._bindGroupLayoutCache.set(key, layout);
+		return layout;
+	}
+
+	_getPipelineLayout(shaderName) {
+		if (this._pipelineLayoutCache.has(shaderName))
+			return this._pipelineLayoutCache.get(shaderName);
+
+		const bgls = [];
+		for (let i = 0; i <= 2; i++) {
+			const bgl = this._getBindGroupLayout(shaderName, i);
+			if (bgl) bgls.push(bgl);
+		}
+
+		if (bgls.length === 0) return "auto"; // Fallback just in case
+
+		const layout = this._device.createPipelineLayout({
+			bindGroupLayouts: bgls,
+		});
+		this._pipelineLayoutCache.set(shaderName, layout);
+		return layout;
+	}
+
 	// =========================================================================
 	// Optimization: Pooled uniform buffer allocation
 	// =========================================================================
@@ -1437,18 +1517,15 @@ class WebGPUBackend extends RenderBackend {
 		const alignedSize = Math.ceil(size / 16) * 16;
 
 		// Get or create pool for this size
-		if (!this._uniformBufferPool.has(alignedSize)) {
-			this._uniformBufferPool.set(alignedSize, []);
+		let pool = this._uniformBufferPool.get(alignedSize);
+		if (!pool) {
+			pool = { index: 0, buffers: [] };
+			this._uniformBufferPool.set(alignedSize, pool);
 		}
 
-		const pool = this._uniformBufferPool.get(alignedSize);
-
-		// Find an available buffer (one not in use this frame)
-		for (const buf of pool) {
-			if (!this._uniformBufferInUse.has(buf)) {
-				this._uniformBufferInUse.add(buf);
-				return buf;
-			}
+		// Find an available buffer (O(1) allocation)
+		if (pool.index < pool.buffers.length) {
+			return pool.buffers[pool.index++];
 		}
 
 		// No available buffer, create a new one
@@ -1459,8 +1536,8 @@ class WebGPUBackend extends RenderBackend {
 		// Add ID to raw GPU buffer for pooling identification
 		newBuffer._id = this._resourceIdCounter++;
 
-		pool.push(newBuffer);
-		this._uniformBufferInUse.add(newBuffer);
+		pool.buffers.push(newBuffer);
+		pool.index++;
 
 		return newBuffer;
 	}
@@ -1606,9 +1683,12 @@ class WebGPUBackend extends RenderBackend {
 					(this._colorMask.a ? GPUColorWrite.ALPHA : 0),
 			}));
 
+			const shaderLabel = this._currentShader._gpuShaderModule.label;
+			const pipelineLayout = this._getPipelineLayout(shaderLabel) || "auto";
+
 			const descriptor = {
 				label: `Pipeline_${key}`,
-				layout: "auto",
+				layout: pipelineLayout,
 				vertex: {
 					module: this._currentShader._gpuShaderModule,
 					entryPoint: "vs_main",
@@ -1721,6 +1801,7 @@ class WebGPUBackend extends RenderBackend {
 		// Key parts for caching
 		let bg1Key = "";
 		let bg2Key = "";
+		let dynamicOffset1 = -1;
 
 		if (bindings) {
 			// Group 1
@@ -1767,15 +1848,51 @@ class WebGPUBackend extends RenderBackend {
 								bufferVal = new Float32Array(val);
 							}
 
-							// OPTIMIZATION: Use pooled buffer instead of creating new one
-							const buf = this._getPooledUniformBuffer(bufferVal.byteLength);
+							if (b.name === "objectData") {
+								// OPTIMIZATION: Use dynamic offset buffer for ObjectData
+								const byteLength = bufferVal.byteLength;
 
-							// Write data via queue (buffer is already created)
-							this._device.queue.writeBuffer(buf, 0, bufferVal);
+								this._device.queue.writeBuffer(
+									this._dynamicObjectBuffer,
+									this._dynamicObjectOffset,
+									bufferVal,
+								);
 
-							entries.push({ binding: b.binding, resource: { buffer: buf } });
-							bg1Key += `${b.binding}:p:${buf._id}|`;
-							hasTransient = true;
+								entries.push({
+									binding: b.binding,
+									resource: {
+										buffer: this._dynamicObjectBuffer,
+										offset: 0,
+										size: byteLength,
+									},
+								});
+
+								bg1Key += `${b.binding}:dyn|`; // Identity doesn't change
+								dynamicOffset1 = this._dynamicObjectOffset;
+
+								// Advance offset (must be 256-byte aligned in WebGPU)
+								this._dynamicObjectOffset += Math.max(
+									256,
+									Math.ceil(byteLength / 256) * 256,
+								);
+
+								if (
+									this._dynamicObjectOffset >= this._dynamicObjectBufferSize
+								) {
+									Console.warn("WebGPU: Dynamic object buffer overflow");
+									this._dynamicObjectOffset = 0;
+								}
+							} else {
+								// OPTIMIZATION: Use pooled buffer instead of creating new one
+								const buf = this._getPooledUniformBuffer(bufferVal.byteLength);
+
+								// Write data via queue (buffer is already created)
+								this._device.queue.writeBuffer(buf, 0, bufferVal);
+
+								entries.push({ binding: b.binding, resource: { buffer: buf } });
+								bg1Key += `${b.binding}:p:${buf._id}|`;
+								hasTransient = true;
+							}
 						} else {
 							// Fallback to dummy UBO
 							entries.push({
@@ -1840,9 +1957,18 @@ class WebGPUBackend extends RenderBackend {
 						}
 					}
 
-					if (bindGroup1 && this._passCache.bindGroups.get(1) !== bindGroup1) {
-						pass.setBindGroup(1, bindGroup1);
-						this._passCache.bindGroups.set(1, bindGroup1);
+					if (bindGroup1) {
+						if (
+							this._passCache.bindGroups.get(1) !== bindGroup1 ||
+							dynamicOffset1 !== -1
+						) {
+							if (dynamicOffset1 !== -1) {
+								pass.setBindGroup(1, bindGroup1, [dynamicOffset1]);
+							} else {
+								pass.setBindGroup(1, bindGroup1);
+							}
+							this._passCache.bindGroups.set(1, bindGroup1);
+						}
 					}
 				}
 			}
