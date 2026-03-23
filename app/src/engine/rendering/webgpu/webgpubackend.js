@@ -97,11 +97,9 @@ class WebGPUBackend extends RenderBackend {
 		this._uniformBufferPool = new Map(); // size -> [buffer, buffer, ...]
 		this._uniformBufferInUse = new Set(); // buffers used this frame, reset each frame
 
-		// =========================================================================
-		// Optimization: BindGroup cache
-		// =========================================================================
-		// Cache BindGroups by a hash of their contents
-		this._bindGroupCache = new Map();
+		// Optimization: BindGroup caches
+		this._persistentBindGroupCache = new Map();
+		this._frameBindGroupCache = new Map();
 
 		// Optimization: State filtering cache
 		this._passCache = {
@@ -133,6 +131,7 @@ class WebGPUBackend extends RenderBackend {
 			easuParams: new Float32Array(16), // con0, con1, con2, con3 (4 x vec4)
 			rcasParams: new Float32Array(8), // sharpness (f32) + pad to 32 bytes for vec3 alignment
 			billboardParams: new Float32Array(24), // mat4 + vec2 + vec2 + f32 + 3x pad = 96 bytes
+			objectData: new Float32Array(20), // mat4 + vec4 (80 bytes)
 		};
 
 		// Optimization: Unique ID counter for resources (for cache keys)
@@ -327,8 +326,8 @@ class WebGPUBackend extends RenderBackend {
 		// Return all buffers from previous frame back to the pool
 		this._uniformBufferInUse.clear();
 
-		// Clear per-frame BindGroup cache (bindings change each frame)
-		this._bindGroupCache.clear();
+		// Clear per-frame BindGroup cache ONLY
+		this._frameBindGroupCache.clear();
 	}
 
 	async endFrame() {
@@ -1687,8 +1686,9 @@ class WebGPUBackend extends RenderBackend {
 
 		if (shaderUsesGroup0 && this._boundUBOs.has(0)) {
 			// OPTIMIZATION: Cache BindGroup 0 per pipeline
-			const bg0Key = `bg0_${key}`;
-			let bindGroup0 = this._bindGroupCache.get(bg0Key);
+			const bg0Key = `bg0_${key}_${this._boundUBOs.get(0)?._id || "none"}`;
+			let bindGroup0 = this._frameBindGroupCache.get(bg0Key);
+			if (!bindGroup0) bindGroup0 = this._persistentBindGroupCache.get(bg0Key);
 
 			if (!bindGroup0) {
 				try {
@@ -1702,7 +1702,7 @@ class WebGPUBackend extends RenderBackend {
 							},
 						],
 					});
-					this._bindGroupCache.set(bg0Key, bindGroup0);
+					this._persistentBindGroupCache.set(bg0Key, bindGroup0);
 				} catch (_e) {
 					/* Ignore if shader doesn't use group 0 */
 				}
@@ -1728,6 +1728,7 @@ class WebGPUBackend extends RenderBackend {
 				// Reuse temp array to avoid GC
 				this._tempEntries.length = 0;
 				const entries = this._tempEntries;
+				let hasTransient = false;
 
 				for (const b of bindings.group1) {
 					if (b.type === "ubo") {
@@ -1774,6 +1775,7 @@ class WebGPUBackend extends RenderBackend {
 
 							entries.push({ binding: b.binding, resource: { buffer: buf } });
 							bg1Key += `${b.binding}:p:${buf._id}|`;
+							hasTransient = true;
 						} else {
 							// Fallback to dummy UBO
 							entries.push({
@@ -1815,7 +1817,9 @@ class WebGPUBackend extends RenderBackend {
 				if (entries.length > 0) {
 					// Use the composite key to check cache
 					const cacheKey = `bg1_${key}_${bg1Key}`;
-					let bindGroup1 = this._bindGroupCache.get(cacheKey);
+					let bindGroup1 = hasTransient
+						? this._frameBindGroupCache.get(cacheKey)
+						: this._persistentBindGroupCache.get(cacheKey);
 
 					if (!bindGroup1) {
 						try {
@@ -1824,7 +1828,11 @@ class WebGPUBackend extends RenderBackend {
 								layout: pipeline.getBindGroupLayout(1),
 								entries: [...entries], // Clone entries
 							});
-							this._bindGroupCache.set(cacheKey, bindGroup1);
+							if (hasTransient) {
+								this._frameBindGroupCache.set(cacheKey, bindGroup1);
+							} else {
+								this._persistentBindGroupCache.set(cacheKey, bindGroup1);
+							}
 						} catch (e) {
 							Console.warn(
 								`BindGroup 1 error: ${e.message} (shader: ${this._currentShader?._gpuShaderModule?.label})`,
@@ -1879,7 +1887,7 @@ class WebGPUBackend extends RenderBackend {
 				if (entries.length > 0) {
 					// Use the composite key to check cache
 					const cacheKey = `bg2_${key}_${bg2Key}`;
-					let bindGroup2 = this._bindGroupCache.get(cacheKey);
+					let bindGroup2 = this._persistentBindGroupCache.get(cacheKey);
 
 					if (!bindGroup2) {
 						try {
@@ -1888,7 +1896,7 @@ class WebGPUBackend extends RenderBackend {
 								layout: pipeline.getBindGroupLayout(2),
 								entries: [...entries], // Clone entries
 							});
-							this._bindGroupCache.set(cacheKey, bindGroup2);
+							this._persistentBindGroupCache.set(cacheKey, bindGroup2);
 						} catch (e) {
 							Console.warn(`BindGroup 2 error: ${e.message}`);
 						}
@@ -2019,12 +2027,10 @@ class WebGPUBackend extends RenderBackend {
 			const arr = bufs.skinnedShadowParams;
 			arr.fill(0);
 			const matWorld = this._uniforms.get("matWorld");
-			const ambient = this._uniforms.get("ambient");
-			const shadowHeight = this._uniforms.get("shadowHeight");
+			const probeColor = this._uniforms.get("uProbeColor") ?? [1, 1, 1];
 
 			if (matWorld) arr.set(matWorld, 0);
-			if (ambient) arr.set(ambient, 16);
-			if (shadowHeight !== undefined) arr[19] = shadowHeight;
+			if (probeColor) arr.set(probeColor, 16);
 
 			return arr;
 		} else if (name === "blurParams") {
@@ -2068,6 +2074,18 @@ class WebGPUBackend extends RenderBackend {
 			if (frameOffset) arr.set(frameOffset, 16);
 			if (frameScale) arr.set(frameScale, 18);
 			if (opacity !== undefined) arr[20] = opacity;
+			return arr;
+		} else if (name === "objectData") {
+			const arr = bufs.objectData;
+			arr.fill(0);
+			const matWorld = this._uniforms.get("matWorld");
+			const probeColor = this._uniforms.get("uProbeColor") ??
+				this._uniforms.get("ambient") ??
+				this._uniforms.get("debugColor") ?? [1, 1, 1];
+
+			if (matWorld) arr.set(matWorld, 0);
+			if (probeColor) arr.set(probeColor, 16);
+
 			return arr;
 		} else if (name === "ambient") {
 			return null;

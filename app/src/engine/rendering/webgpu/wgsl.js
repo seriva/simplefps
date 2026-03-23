@@ -20,6 +20,13 @@ struct MaterialData {
 }
 `;
 
+const ObjectDataStruct = /* wgsl */ `
+struct ObjectData {
+    matWorld: mat4x4<f32>,
+    uProbeColor: vec4<f32>, // .rgb = color, .a = unused/pad
+}
+`;
+
 // Skinning vertex input attributes - shared between all skinned shaders
 const SkinnedVertexInputAttribs = /* wgsl */ `
     @location(4) jointIndices: vec4<u32>,
@@ -108,6 +115,7 @@ fn applyReflection(baseColor: vec4<f32>, uv: vec2<f32>, worldPos: vec3<f32>, N: 
 const geometryShader = /* wgsl */ `
 ${FrameDataStruct}
 ${MaterialDataStruct}
+${ObjectDataStruct}
 
 struct GeomVertexInput {
     @location(0) position: vec3<f32>,
@@ -133,8 +141,7 @@ struct FragmentOutput {
 
 @group(0) @binding(0) var<uniform> frameData: FrameData;
 @group(1) @binding(0) var<uniform> materialData: MaterialData;
-@group(1) @binding(1) var<uniform> matWorld: mat4x4<f32>;
-@group(1) @binding(2) var<uniform> uProbeColor: vec3<f32>;
+@group(1) @binding(1) var<uniform> objectData: ObjectData;
 
 @group(2) @binding(0) var colorSampler: sampler;
 @group(2) @binding(1) var colorTexture: texture_2d<f32>;
@@ -151,10 +158,10 @@ const SKYBOX: i32 = 2;
 @vertex
 fn vs_main(input: GeomVertexInput) -> GeomVertexOutput {
     var output: GeomVertexOutput;
-    output.worldPosition = matWorld * vec4<f32>(input.position, 1.0);
+    output.worldPosition = objectData.matWorld * vec4<f32>(input.position, 1.0);
     output.uv = input.uv;
     output.lightmapUV = input.lightmapUV;
-    output.normal = normalize((matWorld * vec4<f32>(input.normal, 0.0)).xyz);
+    output.normal = normalize((objectData.matWorld * vec4<f32>(input.normal, 0.0)).xyz);
     output.clipPosition = frameData.matViewProj * output.worldPosition;
     return output;
 }
@@ -177,7 +184,7 @@ fn fs_main(input: GeomVertexOutput) -> FragmentOutput {
     // Static objects (lightmapFlag == 1) ignore this as they use texture mixing below
     // Skybox (flag x == SKYBOX) should also ignore this
     if (materialData.flags.w == 0 && materialData.flags.x != SKYBOX) {
-        color = vec4<f32>(color.rgb * uProbeColor, color.a);
+        color = vec4<f32>(color.rgb * objectData.uProbeColor.rgb, color.a);
     }
     
     // Apply lightmap if available and not skybox
@@ -271,6 +278,7 @@ fn fs_main(input: GeomVertexOutput) -> FragmentOutput {
 const skinnedGeometryShader = /* wgsl */ `
 ${FrameDataStruct}
 ${MaterialDataStruct}
+${ObjectDataStruct}
 
 struct SkinnedVertexInput {
     @location(0) position: vec3<f32>,
@@ -295,8 +303,7 @@ struct FragmentOutput {
 
 @group(0) @binding(0) var<uniform> frameData: FrameData;
 @group(1) @binding(0) var<uniform> materialData: MaterialData;
-@group(1) @binding(1) var<uniform> matWorld: mat4x4<f32>;
-@group(1) @binding(3) var<uniform> uProbeColor: vec3<f32>;
+@group(1) @binding(1) var<uniform> objectData: ObjectData;
 ${SkinningUniformBinding}
 
 @group(2) @binding(0) var colorSampler: sampler;
@@ -322,9 +329,9 @@ fn vs_main(input: SkinnedVertexInput) -> GeomVertexOutput {
     let skinnedPosition = (skinMatrix * vec4<f32>(input.position, 1.0)).xyz;
     let skinnedNormal = (skinMatrix * vec4<f32>(input.normal, 0.0)).xyz;
     
-    output.worldPosition = matWorld * vec4<f32>(skinnedPosition, 1.0);
+    output.worldPosition = objectData.matWorld * vec4<f32>(skinnedPosition, 1.0);
     output.uv = input.uv;
-    output.normal = normalize((matWorld * vec4<f32>(skinnedNormal, 0.0)).xyz);
+    output.normal = normalize((objectData.matWorld * vec4<f32>(skinnedNormal, 0.0)).xyz);
     output.clipPosition = frameData.matViewProj * output.worldPosition;
     return output;
 }
@@ -340,7 +347,7 @@ fn fs_main(input: GeomVertexOutput) -> FragmentOutput {
     }
 
     // Apply Probe Color
-    color = vec4<f32>(color.rgb * uProbeColor, color.a);
+    color = vec4<f32>(color.rgb * objectData.uProbeColor.rgb, color.a);
 
     // Apply Detail Noise
     if (frameData.viewportSize.z > 0.5) {
@@ -374,6 +381,7 @@ fn fs_main(input: GeomVertexOutput) -> FragmentOutput {
 // Entity shadows shader
 const entityShadowsShader = /* wgsl */ `
 ${FrameDataStruct}
+${ObjectDataStruct}
 
 struct ShadowVertexInput {
     @location(0) position: vec3<f32>,
@@ -382,41 +390,35 @@ struct ShadowVertexInput {
 ${ShadowVertexOutputStruct}
 
 @group(0) @binding(0) var<uniform> frameData: FrameData;
-@group(1) @binding(0) var<uniform> matWorld: mat4x4<f32>;
-@group(1) @binding(1) var<uniform> ambient: vec3<f32>;
+@group(1) @binding(0) var<uniform> objectData: ObjectData;
 
 @vertex
 fn vs_main(input: ShadowVertexInput) -> ShadowVertexOutput {
     var output: ShadowVertexOutput;
-    output.clipPosition = frameData.matViewProj * matWorld * vec4<f32>(input.position, 1.0);
+    output.clipPosition = frameData.matViewProj * objectData.matWorld * vec4<f32>(input.position, 1.0);
     return output;
 }
 
 @fragment
 fn fs_main() -> @location(0) vec4<f32> {
-    return vec4<f32>(ambient, 1.0);
+    return vec4<f32>(objectData.uProbeColor.rgb, 1.0);
 }
 `;
 
 // Skinned entity shadows shader
 const skinnedEntityShadowsShader = /* wgsl */ `
 ${FrameDataStruct}
+${ObjectDataStruct}
 
 struct SkinnedShadowVertexInput {
     @location(0) position: vec3<f32>,
     ${SkinnedVertexInputAttribs}
 }
 
-struct SkinnedShadowParams {
-    matWorld: mat4x4<f32>,
-    ambient: vec3<f32>,
-    shadowHeight: f32,
-}
-
 ${ShadowVertexOutputStruct}
 
 @group(0) @binding(0) var<uniform> frameData: FrameData;
-@group(1) @binding(0) var<uniform> params: SkinnedShadowParams;
+@group(1) @binding(0) var<uniform> objectData: ObjectData;
 ${SkinningUniformBinding}
 
 ${SkinningCalcFn}
@@ -431,9 +433,7 @@ fn vs_main(input: SkinnedShadowVertexInput) -> ShadowVertexOutput {
     let skinnedPosition = (skinMatrix * vec4<f32>(input.position, 1.0)).xyz;
     
     // Transform to world space
-    var worldPos = params.matWorld * vec4<f32>(skinnedPosition, 1.0);
-    // Flatten to shadow height
-    worldPos.y = params.shadowHeight;
+    var worldPos = objectData.matWorld * vec4<f32>(skinnedPosition, 1.0);
     
     output.clipPosition = frameData.matViewProj * worldPos;
     return output;
@@ -441,7 +441,7 @@ fn vs_main(input: SkinnedShadowVertexInput) -> ShadowVertexOutput {
 
 @fragment
 fn fs_main() -> @location(0) vec4<f32> {
-    return vec4<f32>(params.ambient.xyz, 1.0);
+    return vec4<f32>(objectData.uProbeColor.rgb, 1.0);
 }
 `;
 
@@ -462,8 +462,8 @@ struct DirLightOutput {
 }
 
 @group(0) @binding(0) var<uniform> frameData: FrameData;
-@group(1) @binding(0) var<uniform> directionalLight: DirectionalLight;
-@group(1) @binding(2) var normalBuffer: texture_2d<f32>;
+@group(1) @binding(2) var<uniform> directionalLight: DirectionalLight;
+@group(1) @binding(3) var normalBuffer: texture_2d<f32>;
 
 @vertex
 fn vs_main(@builtin(vertex_index) vertexIndex: u32) -> DirLightOutput {
@@ -495,6 +495,7 @@ fn fs_main(input: DirLightOutput) -> @location(0) vec4<f32> {
 // Point light shader
 const pointLightShader = /* wgsl */ `
 ${FrameDataStruct}
+${ObjectDataStruct}
 
 struct PointLight {
     position: vec3<f32>,
@@ -512,8 +513,8 @@ struct PointLightVertexOutput {
 }
 
 @group(0) @binding(0) var<uniform> frameData: FrameData;
-@group(1) @binding(0) var<uniform> matWorld: mat4x4<f32>;
-@group(1) @binding(1) var<uniform> pointLight: PointLight;
+@group(1) @binding(1) var<uniform> objectData: ObjectData;
+@group(1) @binding(2) var<uniform> pointLight: PointLight;
 @group(1) @binding(3) var positionBuffer: texture_2d<f32>;
 @group(1) @binding(4) var normalBuffer: texture_2d<f32>;
 
@@ -522,7 +523,7 @@ ${PointLightCalcFn}
 @vertex
 fn vs_main(input: PointLightVertexInput) -> PointLightVertexOutput {
     var output: PointLightVertexOutput;
-    output.clipPosition = frameData.matViewProj * matWorld * vec4<f32>(input.position, 1.0);
+    output.clipPosition = frameData.matViewProj * objectData.matWorld * vec4<f32>(input.position, 1.0);
     return output;
 }
 
@@ -544,6 +545,7 @@ fn fs_main(input: PointLightVertexOutput) -> @location(0) vec4<f32> {
 // Spot light shader
 const spotLightShader = /* wgsl */ `
 ${FrameDataStruct}
+${ObjectDataStruct}
 
 struct SpotLight {
     position: vec3<f32>,
@@ -563,8 +565,8 @@ struct SpotLightVertexOutput {
 }
 
 @group(0) @binding(0) var<uniform> frameData: FrameData;
-@group(1) @binding(0) var<uniform> matWorld: mat4x4<f32>;
-@group(1) @binding(1) var<uniform> spotLight: SpotLight;
+@group(1) @binding(1) var<uniform> objectData: ObjectData;
+@group(1) @binding(2) var<uniform> spotLight: SpotLight;
 @group(1) @binding(3) var positionBuffer: texture_2d<f32>;
 @group(1) @binding(4) var normalBuffer: texture_2d<f32>;
 
@@ -573,7 +575,7 @@ ${SpotLightCalcFn}
 @vertex
 fn vs_main(input: SpotLightVertexInput) -> SpotLightVertexOutput {
     var output: SpotLightVertexOutput;
-    output.clipPosition = frameData.matViewProj * matWorld * vec4<f32>(input.position, 1.0);
+    output.clipPosition = frameData.matViewProj * objectData.matWorld * vec4<f32>(input.position, 1.0);
     return output;
 }
 
@@ -1014,6 +1016,7 @@ fn fs_main(input: PostOutput) -> @location(0) vec4<f32> {
 const transparentShader = /* wgsl */ `
 ${FrameDataStruct}
 ${MaterialDataStruct}
+${ObjectDataStruct}
 
 struct LightingData {
     pointLightPositions: array<vec4<f32>, 8>,
@@ -1041,7 +1044,7 @@ struct TransparentVertexOutput {
 
 @group(0) @binding(0) var<uniform> frameData: FrameData;
 @group(1) @binding(0) var<uniform> materialData: MaterialData;
-@group(1) @binding(1) var<uniform> matWorld: mat4x4<f32>;
+@group(1) @binding(1) var<uniform> objectData: ObjectData;
 @group(1) @binding(2) var<uniform> lightingData: LightingData;
 
 @group(2) @binding(0) var colorSampler: sampler;
@@ -1053,9 +1056,9 @@ struct TransparentVertexOutput {
 @vertex
 fn vs_main(input: TransparentVertexInput) -> TransparentVertexOutput {
     var output: TransparentVertexOutput;
-    output.worldPosition = matWorld * vec4<f32>(input.position, 1.0);
+    output.worldPosition = objectData.matWorld * vec4<f32>(input.position, 1.0);
     output.uv = input.uv;
-    output.normal = normalize((matWorld * vec4<f32>(input.normal, 0.0)).xyz);
+    output.normal = normalize((objectData.matWorld * vec4<f32>(input.normal, 0.0)).xyz);
     output.clipPosition = frameData.matViewProj * output.worldPosition;
     return output;
 }
@@ -1257,6 +1260,7 @@ fn fs_main(input: SSAOOutput) -> @location(0) vec4<f32> {
 // Debug shader - for wireframes, bounding boxes, light volumes
 const debugShader = /* wgsl */ `
 ${FrameDataStruct}
+${ObjectDataStruct}
 
 struct DebugVertexInput {
     @location(0) position: vec3<f32>,
@@ -1265,13 +1269,13 @@ struct DebugVertexInput {
 ${DebugVertexOutputStruct}
 
 @group(0) @binding(0) var<uniform> frameData: FrameData;
-@group(1) @binding(0) var<uniform> matWorld: mat4x4<f32>;
-@group(1) @binding(1) var<uniform> debugColor: vec4<f32>;
+@group(1) @binding(1) var<uniform> objectData: ObjectData;
+@group(1) @binding(2) var<uniform> debugColor: vec4<f32>;
 
 @vertex
 fn vs_main(input: DebugVertexInput) -> DebugVertexOutput {
     var output: DebugVertexOutput;
-    output.clipPosition = frameData.matViewProj * matWorld * vec4<f32>(input.position, 1.0);
+    output.clipPosition = frameData.matViewProj * objectData.matWorld * vec4<f32>(input.position, 1.0);
     return output;
 }
 
@@ -1284,6 +1288,7 @@ fn fs_main() -> @location(0) vec4<f32> {
 // Skinned debug shader - for animated wireframes
 const skinnedDebugShader = /* wgsl */ `
 ${FrameDataStruct}
+${ObjectDataStruct}
 
 struct SkinnedDebugVertexInput {
     @location(0) position: vec3<f32>,
@@ -1293,8 +1298,8 @@ struct SkinnedDebugVertexInput {
 ${DebugVertexOutputStruct}
 
 @group(0) @binding(0) var<uniform> frameData: FrameData;
-@group(1) @binding(0) var<uniform> matWorld: mat4x4<f32>;
-@group(1) @binding(1) var<uniform> debugColor: vec4<f32>;
+@group(1) @binding(1) var<uniform> objectData: ObjectData;
+@group(1) @binding(2) var<uniform> debugColor: vec4<f32>;
 ${SkinningUniformBinding}
 
 ${SkinningCalcFn}
@@ -1308,7 +1313,7 @@ fn vs_main(input: SkinnedDebugVertexInput) -> DebugVertexOutput {
     // Apply skinning to position
     let skinnedPosition = (skinMatrix * vec4<f32>(input.position, 1.0)).xyz;
     
-    output.clipPosition = frameData.matViewProj * matWorld * vec4<f32>(skinnedPosition, 1.0);
+    output.clipPosition = frameData.matViewProj * objectData.matWorld * vec4<f32>(skinnedPosition, 1.0);
     return output;
 }
 
@@ -1327,8 +1332,7 @@ export const WgslShaderSources = {
 		bindings: {
 			group1: [
 				{ binding: 0, type: "ubo", id: 1 }, // MaterialData
-				{ binding: 1, type: "uniform", name: "matWorld" },
-				{ binding: 2, type: "uniform", name: "uProbeColor" },
+				{ binding: 1, type: "uniform", name: "objectData" },
 			],
 			group2: [
 				{ binding: 0, type: "sampler", unit: 0 },
@@ -1348,15 +1352,14 @@ export const WgslShaderSources = {
 		bindings: {
 			group1: [
 				{ binding: 0, type: "ubo", id: 1 },
-				{ binding: 1, type: "uniform", name: "matWorld" },
+				{ binding: 1, type: "uniform", name: "objectData" },
 				{ binding: 2, type: "uniform", name: "boneMatrices" },
-				{ binding: 3, type: "uniform", name: "uProbeColor" },
 			],
 			group2: [
 				{ binding: 0, type: "sampler", unit: 0 },
 				{ binding: 1, type: "texture", unit: 0 },
 				{ binding: 2, type: "texture", unit: 1 },
-				{ binding: 4, type: "texture", unit: 9 }, // detailTexture
+				{ binding: 4, type: "texture", unit: 5 },
 				{ binding: 5, type: "texture", unit: 2 },
 				{ binding: 6, type: "texture", unit: 3 },
 			],
@@ -1366,20 +1369,15 @@ export const WgslShaderSources = {
 		label: "entityShadows",
 		code: entityShadowsShader,
 		bindings: {
-			group0: [{ binding: 0, type: "ubo", id: 0 }],
-			group1: [
-				{ binding: 0, type: "uniform", name: "matWorld" },
-				{ binding: 1, type: "uniform", name: "ambient" },
-			],
+			group1: [{ binding: 0, type: "uniform", name: "objectData" }],
 		},
 	},
 	skinnedEntityShadows: {
 		label: "skinnedEntityShadows",
 		code: skinnedEntityShadowsShader,
 		bindings: {
-			group0: [{ binding: 0, type: "ubo", id: 0 }],
 			group1: [
-				{ binding: 0, type: "uniform", name: "skinnedShadowParams" },
+				{ binding: 0, type: "uniform", name: "objectData" },
 				{ binding: 2, type: "uniform", name: "boneMatrices" },
 			],
 		},
@@ -1389,8 +1387,8 @@ export const WgslShaderSources = {
 		code: directionalLightShader,
 		bindings: {
 			group1: [
-				{ binding: 0, type: "uniform", name: "directionalLight" },
-				{ binding: 2, type: "texture", unit: 1 },
+				{ binding: 2, type: "uniform", name: "directionalLight" },
+				{ binding: 3, type: "texture", unit: 1 },
 			],
 		},
 	},
@@ -1399,8 +1397,8 @@ export const WgslShaderSources = {
 		code: pointLightShader,
 		bindings: {
 			group1: [
-				{ binding: 0, type: "uniform", name: "matWorld" },
-				{ binding: 1, type: "uniform", name: "pointLight" },
+				{ binding: 1, type: "uniform", name: "objectData" },
+				{ binding: 2, type: "uniform", name: "pointLight" },
 				{ binding: 3, type: "texture", unit: 0 },
 				{ binding: 4, type: "texture", unit: 1 },
 			],
@@ -1411,8 +1409,8 @@ export const WgslShaderSources = {
 		code: spotLightShader,
 		bindings: {
 			group1: [
-				{ binding: 0, type: "uniform", name: "matWorld" },
-				{ binding: 1, type: "uniform", name: "spotLight" },
+				{ binding: 1, type: "uniform", name: "objectData" },
+				{ binding: 2, type: "uniform", name: "spotLight" },
 				{ binding: 3, type: "texture", unit: 0 },
 				{ binding: 4, type: "texture", unit: 1 },
 			],
@@ -1486,8 +1484,8 @@ export const WgslShaderSources = {
 		bindings: {
 			group1: [
 				{ binding: 0, type: "ubo", id: 1 },
-				{ binding: 1, type: "uniform", name: "matWorld" },
-				{ binding: 2, type: "ubo", id: 2 },
+				{ binding: 1, type: "uniform", name: "objectData" },
+				{ binding: 2, type: "uniform", name: "lightingData" },
 			],
 			group2: [
 				{ binding: 0, type: "sampler", unit: 0 },
@@ -1516,8 +1514,8 @@ export const WgslShaderSources = {
 		code: debugShader,
 		bindings: {
 			group1: [
-				{ binding: 0, type: "uniform", name: "matWorld" },
-				{ binding: 1, type: "uniform", name: "debugColor" },
+				{ binding: 1, type: "uniform", name: "objectData" },
+				{ binding: 2, type: "uniform", name: "debugColor" },
 			],
 		},
 	},
@@ -1526,9 +1524,9 @@ export const WgslShaderSources = {
 		code: skinnedDebugShader,
 		bindings: {
 			group1: [
-				{ binding: 0, type: "uniform", name: "matWorld" },
-				{ binding: 1, type: "uniform", name: "debugColor" },
-				{ binding: 2, type: "uniform", name: "boneMatrices" },
+				{ binding: 1, type: "uniform", name: "objectData" },
+				{ binding: 2, type: "uniform", name: "debugColor" },
+				{ binding: 3, type: "uniform", name: "boneMatrices" },
 			],
 		},
 	},
