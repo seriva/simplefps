@@ -975,7 +975,6 @@ struct PostOutput {
 }
 
 @group(1) @binding(0) var<uniform> params: RcasParams;
-@group(1) @binding(1) var bufferSampler: sampler;
 @group(1) @binding(2) var colorBuffer: texture_2d<f32>;
 
 @vertex
@@ -991,23 +990,53 @@ fn vs_main(@builtin(vertex_index) vertexIndex: u32) -> PostOutput {
 @fragment
 fn fs_main(input: PostOutput) -> @location(0) vec4<f32> {
     let p = vec2<i32>(input.position.xy);
-    
+
     let b = textureLoad(colorBuffer, p + vec2<i32>(0, -1), 0).rgb;
     let d = textureLoad(colorBuffer, p + vec2<i32>(-1, 0), 0).rgb;
     let e = textureLoad(colorBuffer, p, 0).rgb;
     let f = textureLoad(colorBuffer, p + vec2<i32>(1, 0), 0).rgb;
     let h = textureLoad(colorBuffer, p + vec2<i32>(0, 1), 0).rgb;
 
-    // RCAS: Adaptive sharpening from min/max of cross neighborhood
-    let mnRGB = min(min(min(b, d), min(f, h)), e);
-    let mxRGB = max(max(max(b, d), max(f, h)), e);
+    // Luma (green-weighted, matching AMD FSR reference)
+    let bL = b.g * 0.5 + (b.r + b.b) * 0.25;
+    let dL = d.g * 0.5 + (d.r + d.b) * 0.25;
+    let eL = e.g * 0.5 + (e.r + e.b) * 0.25;
+    let fL = f.g * 0.5 + (f.r + f.b) * 0.25;
+    let hL = h.g * 0.5 + (h.r + h.b) * 0.25;
 
-    let peak = -3.0 * params.sharpness + 8.0;
-    let w = -1.0 / peak;
+    // Noise detection: suppress sharpening on noisy pixels
+    let nz = 0.25 * (bL + dL + fL + hL) - eL;
+    let rangeL = max(max(bL, dL), max(eL, max(fL, hL)))
+               - min(min(bL, dL), min(eL, min(fL, hL)));
+    let nzC = clamp(abs(nz) / max(rangeL, 1e-6), 0.0, 1.0);
+    let nzW = -0.5 * nzC + 1.0;
 
-    var color = (b + d + f + h) * w + e;
-    color = color / (4.0 * w + 1.0);
-    
+    // Per-channel min/max of the 4-tap cross
+    let mn4 = min(min(b, d), min(f, h));
+    let mx4 = max(max(b, d), max(f, h));
+
+    // peakC controls maximum sharpening from user setting
+    let peakC = 1.0 / (-4.0 * params.sharpness + 8.0);
+
+    // Adaptive per-pixel limiters (per-channel)
+    let hitMinR = min(mn4.r, e.r) / (4.0 * max(mx4.r, e.r) + 1e-6);
+    let hitMinG = min(mn4.g, e.g) / (4.0 * max(mx4.g, e.g) + 1e-6);
+    let hitMinB = min(mn4.b, e.b) / (4.0 * max(mx4.b, e.b) + 1e-6);
+    let hitMaxR = (peakC - max(mx4.r, e.r)) / (4.0 * min(mn4.r, e.r) + peakC);
+    let hitMaxG = (peakC - max(mx4.g, e.g)) / (4.0 * min(mn4.g, e.g) + peakC);
+    let hitMaxB = (peakC - max(mx4.b, e.b)) / (4.0 * min(mn4.b, e.b) + peakC);
+
+    let lobeR = max(-hitMinR, hitMaxR);
+    let lobeG = max(-hitMinG, hitMaxG);
+    let lobeB = max(-hitMinB, hitMaxB);
+
+    // Most conservative lobe across channels, clamped to non-positive
+    var lobe = max(-peakC, min(max(lobeR, max(lobeG, lobeB)), 0.0));
+    lobe *= nzW;
+
+    var color = (b + d + f + h) * lobe + e;
+    color = color / (4.0 * lobe + 1.0);
+
     return vec4<f32>(clamp(color, vec3<f32>(0.0), vec3<f32>(1.0)), 1.0);
 }
 `;

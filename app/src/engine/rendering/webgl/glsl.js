@@ -854,24 +854,50 @@ export const ShaderSources = {
                 vec3 f = texelFetch(colorBuffer, p + ivec2(1, 0), 0).rgb;
                 vec3 h = texelFetch(colorBuffer, p + ivec2(0, 1), 0).rgb;
 
-                // RCAS Implementation
-                float mnRGBR = min(min(b.r, d.r), min(f.r, h.r));
-                float mnRGBG = min(min(b.g, d.g), min(f.g, h.g));
-                float mnRGBB = min(min(b.b, d.b), min(f.b, h.b));
-                float mxRGBR = max(max(b.r, d.r), max(f.r, h.r));
-                float mxRGBG = max(max(b.g, d.g), max(f.g, h.g));
-                float mxRGBB = max(max(b.b, d.b), max(f.b, h.b));
+                // Luma (green-weighted, matching AMD FSR reference)
+                float bL = b.g * 0.5 + (b.r + b.b) * 0.25;
+                float dL = d.g * 0.5 + (d.r + d.b) * 0.25;
+                float eL = e.g * 0.5 + (e.r + e.b) * 0.25;
+                float fL = f.g * 0.5 + (f.r + f.b) * 0.25;
+                float hL = h.g * 0.5 + (h.r + h.b) * 0.25;
 
-                vec3 mnRGB = min(e, vec3(mnRGBR, mnRGBG, mnRGBB));
-                vec3 mxRGB = max(e, vec3(mxRGBR, mxRGBG, mxRGBB));
+                // Noise detection: suppress sharpening on noisy pixels
+                float nz = 0.25 * (bL + dL + fL + hL) - eL;
+                float rangeL = max(max(bL, dL), max(eL, max(fL, hL)))
+                             - min(min(bL, dL), min(eL, min(fL, hL)));
+                float nzC = clamp(abs(nz) / max(rangeL, 1e-6), 0.0, 1.0);
+                float nzW = -0.5 * nzC + 1.0;
 
-                // RCAS Weight
-                float peak = -3.0 * sharpness + 8.0;
-                float w = -1.0 / peak;
+                // Per-channel min/max of the 4-tap cross
+                float mn4R = min(min(b.r, d.r), min(f.r, h.r));
+                float mn4G = min(min(b.g, d.g), min(f.g, h.g));
+                float mn4B = min(min(b.b, d.b), min(f.b, h.b));
+                float mx4R = max(max(b.r, d.r), max(f.r, h.r));
+                float mx4G = max(max(b.g, d.g), max(f.g, h.g));
+                float mx4B = max(max(b.b, d.b), max(f.b, h.b));
 
-                vec3 color = (b + d + f + h) * w + e;
-                color /= 4.0 * w + 1.0;
-                
+                // peakC controls maximum sharpening from user setting
+                float peakC = 1.0 / (-4.0 * sharpness + 8.0);
+
+                // Adaptive per-pixel limiters (per-channel)
+                float hitMinR = min(mn4R, e.r) / (4.0 * max(mx4R, e.r) + 1e-6);
+                float hitMinG = min(mn4G, e.g) / (4.0 * max(mx4G, e.g) + 1e-6);
+                float hitMinB = min(mn4B, e.b) / (4.0 * max(mx4B, e.b) + 1e-6);
+                float hitMaxR = (peakC - max(mx4R, e.r)) / (4.0 * min(mn4R, e.r) + peakC);
+                float hitMaxG = (peakC - max(mx4G, e.g)) / (4.0 * min(mn4G, e.g) + peakC);
+                float hitMaxB = (peakC - max(mx4B, e.b)) / (4.0 * min(mn4B, e.b) + peakC);
+
+                float lobeR = max(-hitMinR, hitMaxR);
+                float lobeG = max(-hitMinG, hitMaxG);
+                float lobeB = max(-hitMinB, hitMaxB);
+
+                // Most conservative lobe across channels, clamped to non-positive
+                float lobe = max(-peakC, min(max(lobeR, max(lobeG, lobeB)), 0.0));
+                lobe *= nzW;
+
+                vec3 color = (b + d + f + h) * lobe + e;
+                color /= 4.0 * lobe + 1.0;
+
                 fragColor = vec4(clamp(color, 0.0, 1.0), 1.0);
             }`,
 	},
