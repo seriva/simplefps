@@ -233,4 +233,4 @@ class Pose {
 	}
 }
 
-export { Skeleton, Pose };
+export { Pose, Skeleton };

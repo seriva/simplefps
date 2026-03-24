@@ -218,4 +218,4 @@ class Octree extends OctreeNode {
 	}
 }
 
-export { Octree, _intersectRayAABB };
+export { _intersectRayAABB, Octree };
