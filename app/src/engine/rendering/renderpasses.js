@@ -50,6 +50,11 @@ const _renderStats = {
 // Pre-allocated arrays for occlusion splitting (avoid per-frame allocations)
 const _occluders = [];
 const _occludees = [];
+const _skinnedOccludees = [];
+
+// Keep occlusion query work bounded; round-robin entities across frames.
+const _OCCLUSION_QUERY_BUDGET = 96;
+let _occlusionQueryCursor = 0;
 
 // Pre-computed arrays for debug rendering (avoid per-frame allocations)
 const _debugMeshTypes = [
@@ -148,6 +153,17 @@ const _performOcclusionQueries = (entities) => {
 	const cube = Shapes.occlusionCube;
 	if (!cube) return;
 
+	// Count queryable entities first so we can process only a budgeted subset.
+	let queryableCount = 0;
+	for (const entity of entities) {
+		if (entity.boundingBox) queryableCount++;
+	}
+	if (queryableCount === 0) return;
+
+	const budget = Math.min(_OCCLUSION_QUERY_BUDGET, queryableCount);
+	const start = _occlusionQueryCursor % queryableCount;
+	const end = start + budget;
+
 	// Save state and set up for occlusion queries
 	Backend.setColorMask(false, false, false, false);
 	Backend.setDepthState(true, false, "lequal"); // Test enabled, Write disabled
@@ -156,6 +172,7 @@ const _performOcclusionQueries = (entities) => {
 	Shaders.debug.bind();
 	Shaders.debug.setVec4("debugColor", [0, 1, 0, 0]);
 
+	let queryableIndex = 0;
 	for (const entity of entities) {
 		// Skip if no bounding box
 		if (!entity.boundingBox) continue;
@@ -193,18 +210,27 @@ const _performOcclusionQueries = (entities) => {
 			entity.isVisible = true;
 		}
 
-		// STEP 2: Issue NEW query for THIS frame
-		Backend.beginQuery(writeQuery);
-		Shaders.debug.setMat4("matWorld", entity.boundingBox.transformMatrix);
-		cube.renderSingle(false, "triangles", "all", Shaders.debug);
-		Backend.endQuery(writeQuery);
+		// STEP 2: Issue NEW query only for budgeted subset this frame.
+		const inPrimaryWindow = queryableIndex >= start && queryableIndex < end;
+		const wraps = end > queryableCount;
+		const inWrappedWindow = wraps && queryableIndex < end - queryableCount;
+		if (inPrimaryWindow || inWrappedWindow) {
+			Backend.beginQuery(writeQuery);
+			Shaders.debug.setMat4("matWorld", entity.boundingBox.transformMatrix);
+			cube.renderSingle(false, "triangles", "all", Shaders.debug);
+			Backend.endQuery(writeQuery);
 
-		// STEP 3: Advance frame counter (cap to prevent overflow, reset to minimum ready state)
-		entity._occQueryFrame++;
-		if (entity._occQueryFrame > 1000) {
-			entity._occQueryFrame = 6; // Reset to minimum "ready" state
+			// STEP 3: Advance frame counter only when a query is written.
+			entity._occQueryFrame++;
+			if (entity._occQueryFrame > 1000) {
+				entity._occQueryFrame = 6; // Reset to minimum "ready" state
+			}
 		}
+
+		queryableIndex++;
 	}
+
+	_occlusionQueryCursor = (_occlusionQueryCursor + budget) % queryableCount;
 
 	Backend.unbindShader();
 
@@ -306,8 +332,13 @@ const renderWorldGeometry = () => {
 
 		// Perform occlusion queries for skinned meshes BEFORE rendering them
 		if (Settings.occlusionCulling) {
-			const skinnedOccludees = skinnedEntities.filter((e) => !e.isOccluder);
-			_performOcclusionQueries(skinnedOccludees);
+			_skinnedOccludees.length = 0;
+			for (const entity of skinnedEntities) {
+				if (!entity.isOccluder) {
+					_skinnedOccludees.push(entity);
+				}
+			}
+			_performOcclusionQueries(_skinnedOccludees);
 		}
 
 		Shaders.skinnedGeometry.bind();
@@ -561,6 +592,15 @@ const renderBillboards = () => {
 };
 
 const renderDebug = () => {
+	if (
+		!_debugState.showBoundingVolumes &&
+		!_debugState.showWireframes &&
+		!_debugState.showLightVolumes &&
+		!_debugState.showSkeleton
+	) {
+		return;
+	}
+
 	Shaders.debug.bind();
 
 	// Enable wireframe mode
