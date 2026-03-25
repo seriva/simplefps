@@ -144,6 +144,9 @@ class WebGPUBackend extends RenderBackend {
 
 		// Optimization: Unique ID counter for resources (for cache keys)
 		this._resourceIdCounter = 1;
+
+		// Optimization: Track highest query index issued in the current frame
+		this._frameMaxIssuedQueryIndex = -1;
 	}
 
 	// =========================================================================
@@ -176,6 +179,7 @@ class WebGPUBackend extends RenderBackend {
 		for (let i = 0; i < this._queryCount; i++) this._queryIndices.add(i);
 		this._activeQueries = new Map(); // Map query object -> index
 		this._queryResults = new BigUint64Array(this._queryCount); // Local cache of results
+		this._maxActiveQueryIndex = -1;
 
 		try {
 			// Request adapter
@@ -348,10 +352,14 @@ class WebGPUBackend extends RenderBackend {
 
 		// Clear per-frame BindGroup cache ONLY
 		this._frameBindGroupCache.clear();
+
+		// Reset per-frame occlusion usage tracking
+		this._frameMaxIssuedQueryIndex = -1;
 	}
 
 	async endFrame() {
 		let didCopy = false;
+		let resolveBytes = 0;
 
 		// End any active render pass
 		if (this._currentPass) {
@@ -361,27 +369,33 @@ class WebGPUBackend extends RenderBackend {
 
 		// Resolve Occlusion Queries
 		if (this._commandEncoder && this._querySet) {
-			// Resolve query set to buffer
-			this._commandEncoder.resolveQuerySet(
-				this._querySet,
-				0,
-				this._queryCount,
-				this._queryBuffer,
-				0,
-			);
+			const resolveCount = this._frameMaxIssuedQueryIndex + 1;
 
-			// Copy resolved buffer to read buffer (if available)
-			const readBuffer = this._queryReadBuffers[this._queryReadIndex];
-
-			if (readBuffer.mapState === "unmapped") {
-				this._commandEncoder.copyBufferToBuffer(
+			// Skip resolve/copy when no occlusion queries were written this frame.
+			if (resolveCount > 0) {
+				resolveBytes = resolveCount * 8;
+				// Resolve query set to buffer
+				this._commandEncoder.resolveQuerySet(
+					this._querySet,
+					0,
+					resolveCount,
 					this._queryBuffer,
 					0,
-					readBuffer,
-					0,
-					this._queryCount * 8,
 				);
-				didCopy = true;
+
+				// Copy resolved buffer to read buffer (if available)
+				const readBuffer = this._queryReadBuffers[this._queryReadIndex];
+
+				if (readBuffer.mapState === "unmapped") {
+					this._commandEncoder.copyBufferToBuffer(
+						this._queryBuffer,
+						0,
+						readBuffer,
+						0,
+						resolveBytes,
+					);
+					didCopy = true;
+				}
 			}
 		}
 
@@ -394,11 +408,12 @@ class WebGPUBackend extends RenderBackend {
 		// Read back results asynchronously (no await!)
 		if (didCopy) {
 			const readBuffer = this._queryReadBuffers[this._queryReadIndex];
+			const bytes = resolveBytes;
 			readBuffer
 				.mapAsync(GPUMapMode.READ)
 				.then(() => {
-					const arrayBuffer = readBuffer.getMappedRange();
-					this._queryResults.set(new BigUint64Array(arrayBuffer));
+					const arrayBuffer = readBuffer.getMappedRange(0, bytes);
+					this._queryResults.set(new BigUint64Array(arrayBuffer), 0);
 					readBuffer.unmap();
 				})
 				.catch(() => {
@@ -802,6 +817,9 @@ class WebGPUBackend extends RenderBackend {
 		}
 		const index = this._queryIndices.values().next().value;
 		this._queryIndices.delete(index);
+		if (index > this._maxActiveQueryIndex) {
+			this._maxActiveQueryIndex = index;
+		}
 		const query = { index }; // Opaque handle
 		this._activeQueries.set(query, index);
 		return query;
@@ -813,6 +831,14 @@ class WebGPUBackend extends RenderBackend {
 		if (index !== undefined) {
 			this._queryIndices.add(index);
 			this._activeQueries.delete(query);
+
+			if (index === this._maxActiveQueryIndex) {
+				let nextMax = -1;
+				for (const activeIndex of this._activeQueries.values()) {
+					if (activeIndex > nextMax) nextMax = activeIndex;
+				}
+				this._maxActiveQueryIndex = nextMax;
+			}
 		}
 	}
 
@@ -824,6 +850,11 @@ class WebGPUBackend extends RenderBackend {
 			// The renderer controls passes, so we should assume a pass is active.
 			return;
 		}
+
+		if (query?.index > this._frameMaxIssuedQueryIndex) {
+			this._frameMaxIssuedQueryIndex = query.index;
+		}
+
 		this._currentPass.beginOcclusionQuery(query.index);
 	}
 

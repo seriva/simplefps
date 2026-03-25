@@ -2,7 +2,7 @@
 
 Simple first person arena shooter game written in ES6 and WebGL with a PWA distribution target for Desktop, Android and iOS.
 
-**Project Evolution** (2017-2026): Started as a basic WebGL experiment, evolved through 500+ commits to include physics simulation (Cannon.js), weapon systems, mobile touch controls, PWA capabilities, and modern development tooling with devcontainer support.
+**Project Evolution** (2017-2026): Started as a basic WebGL experiment, evolved through 500+ commits to include physics simulation, weapon systems, mobile touch controls, PWA capabilities, and modern development tooling with devcontainer support.
 
 **Technology Journey**: Originally used Cordova + NW.js for desktop/mobile packaging, Webpack → Brunch → Rollup for bundling, and Yarn → pnpm → npm for package management. Migrated to modern PWA approach with Microtastic build system and devcontainer for streamlined development.
 
@@ -11,7 +11,7 @@ Simple first person arena shooter game written in ES6 and WebGL with a PWA distr
 - **Gameplay**: Arena-based FPS with physics-based projectiles, multiple weapons (Energy Scepter, Plasma Pistol, Pulse Cannon, Laser Gatling), and cross-platform controls
 - **Rendering**: Hybrid WebGL/WebGPU engine with PBR-like lighting, UBOs, SSAO, detail textures, emissive materials, and post-processing pipeline. See [Rendering Architecture](docs/rendering.md).
 - **UI**: Modern, reactive UI system with state management for menus and HUD
-- **Performance**: Optimized rendering with linear depth buffer, physics simulation (Cannon.js), and PWA support
+- **Performance**: Optimized rendering with linear depth buffer, physics simulation, and PWA support
 - **Architecture**: Modular ES6 design with entity system, scene management, and comprehensive input handling. See [Scene System](docs/scene.md).
 - **Cross-Platform**: Runs on Desktop, Android, and iOS with touch controls and responsive design
 - **Settings**: In-game settings menu with graphics (including renderer selection) and input configuration
@@ -19,7 +19,7 @@ Simple first person arena shooter game written in ES6 and WebGL with a PWA distr
 
 ## Tech Stack
 
-**Core**: ES6 Modules, simple-reactive (UI), cannon-es (physics), gl-matrix (3D math)
+**Core**: ES6 Modules, simple-reactive (UI), gl-matrix (3D math)
 **Rendering**: WebGPU (experimental) & WebGL 2.0 backends
 **Build**: Microtastic (dev server, production builds, hot-reload)
 **Tools**: Biome (linting/formatting), Husky (git hooks), Devcontainer (development environment)

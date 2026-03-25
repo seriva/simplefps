@@ -17,6 +17,10 @@ const _lightPos = [0, 0, 0];
 const _probePos = new Float32Array(3);
 const _probeColor = new Float32Array(3);
 const _MAX_SHADOW_RAYCAST_DISTANCE = 200;
+const _SKINNED_SHADOW_RAYCAST_INTERVAL = 3;
+const _SKINNED_SHADOW_MOVE_EPSILON_SQ = 0.04;
+const _SHADOW_FRAME_WRAP = 1_000_000;
+let _shadowFrame = 0;
 
 // Lighting UBO data (aligned to 16 bytes for WGSL)
 // 8 * 4 * 4 bytes = 128 bytes (positions)
@@ -147,6 +151,46 @@ const _calculateShadowHeight = (entity) => {
 		_probePos[2],
 	);
 	entity.shadowHeight = result.hasHit ? result.hitPointWorld[1] : undefined;
+};
+
+const _shouldUpdateSkinnedShadowHeight = (entity) => {
+	mat4.getTranslation(_probePos, entity.base_matrix);
+
+	const x = _probePos[0];
+	const y = _probePos[1];
+	const z = _probePos[2];
+
+	if (entity._shadowSampleX === undefined) {
+		entity._shadowSampleX = x;
+		entity._shadowSampleY = y;
+		entity._shadowSampleZ = z;
+		entity._shadowSampleFrame = _shadowFrame;
+		return true;
+	}
+
+	const dx = x - entity._shadowSampleX;
+	const dy = y - entity._shadowSampleY;
+	const dz = z - entity._shadowSampleZ;
+	const movedSq = dx * dx + dy * dy + dz * dz;
+
+	const lastFrame = entity._shadowSampleFrame ?? _shadowFrame;
+	const frameDelta =
+		_shadowFrame >= lastFrame
+			? _shadowFrame - lastFrame
+			: _shadowFrame + _SHADOW_FRAME_WRAP - lastFrame;
+
+	if (
+		movedSq >= _SKINNED_SHADOW_MOVE_EPSILON_SQ ||
+		frameDelta >= _SKINNED_SHADOW_RAYCAST_INTERVAL
+	) {
+		entity._shadowSampleX = x;
+		entity._shadowSampleY = y;
+		entity._shadowSampleZ = z;
+		entity._shadowSampleFrame = _shadowFrame;
+		return true;
+	}
+
+	return false;
 };
 
 const _performOcclusionQueries = (entities) => {
@@ -535,6 +579,8 @@ const renderLighting = () => {
 };
 
 const renderShadows = () => {
+	_shadowFrame = (_shadowFrame + 1) % _SHADOW_FRAME_WRAP;
+
 	Shaders.entityShadows.bind();
 	Shaders.entityShadows.setVec3("ambient", Scene.getAmbient());
 
@@ -555,8 +601,9 @@ const renderShadows = () => {
 
 		const skinnedEntities = Scene.visibilityCache[EntityTypes.SKINNED_MESH];
 		for (const entity of skinnedEntities) {
-			// Always recalculate for skinned meshes since they move
-			_calculateShadowHeight(entity);
+			if (_shouldUpdateSkinnedShadowHeight(entity)) {
+				_calculateShadowHeight(entity);
+			}
 			entity.renderShadow("all", Shaders.skinnedEntityShadows);
 		}
 		Backend.unbindShader();

@@ -63,6 +63,8 @@ class WebGLBackend extends RenderBackend {
 		this._currentShader = null;
 		this._textureUnit0 = 0; // Cached gl.TEXTURE0
 		this._wrapModes = null; // Cached wrap mode lookup
+		this._frameId = 0;
+		this._occlusionPollIntervalFrames = 2;
 	}
 
 	// =========================================================================
@@ -199,7 +201,8 @@ class WebGLBackend extends RenderBackend {
 	// =========================================================================
 
 	beginFrame() {
-		// WebGL doesn't require explicit frame begin
+		// WebGL doesn't require explicit frame begin, but keep a frame id for cheap throttling.
+		this._frameId++;
 	}
 
 	endFrame() {
@@ -865,12 +868,21 @@ class WebGLBackend extends RenderBackend {
 	// =========================================================================
 
 	createQuery() {
-		return this._gl.createQuery();
+		const glQuery = this._gl.createQuery();
+		return {
+			_glQuery: glQuery,
+			_lastPollFrame: -1,
+			_lastAvailable: false,
+			_lastHasPassed: true,
+		};
 	}
 
 	deleteQuery(query) {
-		if (query) {
-			this._gl.deleteQuery(query);
+		if (!query) return;
+
+		const glQuery = query._glQuery || query;
+		if (glQuery) {
+			this._gl.deleteQuery(glQuery);
 		}
 	}
 
@@ -880,7 +892,9 @@ class WebGLBackend extends RenderBackend {
 		const gl = this._gl;
 		const queryType =
 			gl.ANY_SAMPLES_PASSED_CONSERVATIVE || gl.ANY_SAMPLES_PASSED;
-		gl.beginQuery(queryType, query);
+		const glQuery = query?._glQuery || query;
+		if (!glQuery) return;
+		gl.beginQuery(queryType, glQuery);
 	}
 
 	endQuery(_query) {
@@ -891,13 +905,44 @@ class WebGLBackend extends RenderBackend {
 	}
 
 	getQueryResult(query) {
+		if (!query) {
+			return {
+				available: false,
+				hasPassed: true,
+			};
+		}
+
 		const gl = this._gl;
-		const available = gl.getQueryParameter(query, gl.QUERY_RESULT_AVAILABLE);
-		const result = available ? gl.getQueryParameter(query, gl.QUERY_RESULT) : 0;
+		const glQuery = query._glQuery || query;
+
+		// Avoid polling the same unresolved query every frame.
+		if (
+			query._lastPollFrame !== undefined &&
+			!query._lastAvailable &&
+			this._frameId - query._lastPollFrame < this._occlusionPollIntervalFrames
+		) {
+			return {
+				available: false,
+				hasPassed: query._lastHasPassed,
+			};
+		}
+
+		const available = gl.getQueryParameter(glQuery, gl.QUERY_RESULT_AVAILABLE);
+		const result = available
+			? gl.getQueryParameter(glQuery, gl.QUERY_RESULT)
+			: 0;
+
+		if (query._lastPollFrame !== undefined) {
+			query._lastPollFrame = this._frameId;
+			query._lastAvailable = !!available;
+			if (available) {
+				query._lastHasPassed = result !== 0;
+			}
+		}
 
 		return {
 			available: !!available,
-			hasPassed: result !== 0,
+			hasPassed: available ? result !== 0 : query._lastHasPassed,
 		};
 	}
 
