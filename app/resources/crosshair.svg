@@ -1,0 +1,16 @@
+<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Black background/outline for visibility -->
+  <g stroke="black" stroke-width="4" stroke-linecap="round">
+    <line x1="12" y1="12" x2="17" y2="17" />
+    <line x1="28" y1="12" x2="23" y2="17" />
+    <line x1="12" y1="28" x2="17" y2="23" />
+    <line x1="28" y1="28" x2="23" y2="23" />
+  </g>
+  <!-- Main white dashes -->
+  <g stroke="white" stroke-width="2" stroke-linecap="round">
+    <line x1="12" y1="12" x2="17" y2="17" />
+    <line x1="28" y1="12" x2="23" y2="17" />
+    <line x1="12" y1="28" x2="17" y2="23" />
+    <line x1="28" y1="28" x2="23" y2="23" />
+  </g>
+</svg>
