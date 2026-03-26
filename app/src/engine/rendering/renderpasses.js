@@ -55,10 +55,15 @@ const _renderStats = {
 const _occluders = [];
 const _occludees = [];
 const _skinnedOccludees = [];
+const _occlusionEntities = [];
 
 // Keep occlusion query work bounded; round-robin entities across frames.
 const _OCCLUSION_QUERY_BUDGET = 96;
 let _occlusionQueryCursor = 0;
+
+// Per-frame counter used to skip redundant ambient probe sampling for entities
+// rendered in multiple passes (geometry, transparent, fps) within the same frame.
+let _renderFrame = 0;
 
 // Pre-computed arrays for debug rendering (avoid per-frame allocations)
 const _debugMeshTypes = [
@@ -80,26 +85,19 @@ const _boundingBoxColors = {
 	[EntityTypes.SPOT_LIGHT]: [1, 1, 0, 1], // Yellow
 };
 
-// Pre-computed uniform name strings for WebGL fallback (avoids per-frame template string allocations)
+// Pre-allocated flat arrays for WebGL light uniform batch uploads
 const _MAX_POINT_LIGHTS = 8;
 const _MAX_SPOT_LIGHTS = 4;
-const _pointLightUniforms = Array.from(
-	{ length: _MAX_POINT_LIGHTS },
-	(_, i) => ({
-		position: `pointLightPositions[${i}]`,
-		color: `pointLightColors[${i}]`,
-		size: `pointLightSizes[${i}]`,
-		intensity: `pointLightIntensities[${i}]`,
-	}),
-);
-const _spotLightUniforms = Array.from({ length: _MAX_SPOT_LIGHTS }, (_, i) => ({
-	position: `spotLightPositions[${i}]`,
-	direction: `spotLightDirections[${i}]`,
-	color: `spotLightColors[${i}]`,
-	intensity: `spotLightIntensities[${i}]`,
-	cutoff: `spotLightCutoffs[${i}]`,
-	range: `spotLightRanges[${i}]`,
-}));
+const _pointLightPositionData = new Float32Array(_MAX_POINT_LIGHTS * 3);
+const _pointLightColorData = new Float32Array(_MAX_POINT_LIGHTS * 3);
+const _pointLightSizeData = new Float32Array(_MAX_POINT_LIGHTS);
+const _pointLightIntensityData = new Float32Array(_MAX_POINT_LIGHTS);
+const _spotLightPositionData = new Float32Array(_MAX_SPOT_LIGHTS * 3);
+const _spotLightDirectionData = new Float32Array(_MAX_SPOT_LIGHTS * 3);
+const _spotLightColorData = new Float32Array(_MAX_SPOT_LIGHTS * 3);
+const _spotLightIntensityData = new Float32Array(_MAX_SPOT_LIGHTS);
+const _spotLightCutoffData = new Float32Array(_MAX_SPOT_LIGHTS);
+const _spotLightRangeData = new Float32Array(_MAX_SPOT_LIGHTS);
 
 // Toggle functions for debug commands
 const toggleBoundingVolumes = () => {
@@ -129,14 +127,23 @@ Console.registerCmd("tlv", toggleLightVolumes);
 Console.registerCmd("tsk", toggleSkeleton);
 Console.registerCmd("toc", toggleOcclusionCulling);
 
-// Sample ambient probe color for an entity based on its world position
+// Sample ambient probe color for an entity based on its world position.
+// Result is cached per entity per frame to avoid redundant matrix ops when
+// the same entity appears in multiple render passes (geometry, transparent, fps).
 const _probeMatrix = mat4.create();
 const _sampleProbeColor = (entity) => {
+	if (entity._ambientProbeFrame === _renderFrame) {
+		return entity._ambientProbeColor;
+	}
 	mat4.multiply(_probeMatrix, entity.base_matrix, entity.ani_matrix);
 	mat4.getTranslation(_probePos, _probeMatrix);
 	_probePos[1] += 32.0;
-	Scene.getAmbient(_probePos, _probeColor);
-	return _probeColor;
+	if (!entity._ambientProbeColor) {
+		entity._ambientProbeColor = new Float32Array(3);
+	}
+	Scene.getAmbient(_probePos, entity._ambientProbeColor);
+	entity._ambientProbeFrame = _renderFrame;
+	return entity._ambientProbeColor;
 };
 
 // Calculate shadow height for an entity via downward raycast
@@ -297,6 +304,9 @@ const renderSkybox = () => {
 };
 
 const renderWorldGeometry = () => {
+	// Advance frame counter so per-entity caches (ambient probe, etc.) are invalidated
+	_renderFrame++;
+
 	// Reset render stats for this frame
 	_renderStats.meshCount = 0;
 	_renderStats.lightCount = 0;
@@ -337,18 +347,27 @@ const renderWorldGeometry = () => {
 
 	Backend.unbindShader();
 
-	// IMPORTANT: Perform Occlusion Queries HERE, right after occluders
-	// The depth buffer now contains ONLY occluder geometry
-	// This is when we test if occludees and lights would be visible
+	// IMPORTANT: Perform Occlusion Queries HERE, right after occluders.
+	// The depth buffer now contains ONLY occluder geometry.
+	// Run a single consolidated pass for all occludees (meshes, skinned meshes, lights)
+	// to share one shader bind/unbind cycle and one budget window.
 	if (Settings.occlusionCulling) {
-		// Query mesh occludees
-		_performOcclusionQueries(_occludees);
-
-		// Query lights for occlusion culling
 		const pointLights = Scene.visibilityCache[EntityTypes.POINT_LIGHT] || [];
 		const spotLights = Scene.visibilityCache[EntityTypes.SPOT_LIGHT] || [];
-		_performOcclusionQueries(pointLights);
-		_performOcclusionQueries(spotLights);
+
+		// Build skinned occludees now so they share the same query pass
+		_skinnedOccludees.length = 0;
+		for (const entity of Scene.visibilityCache[EntityTypes.SKINNED_MESH]) {
+			if (!entity.isOccluder) _skinnedOccludees.push(entity);
+		}
+
+		_occlusionEntities.length = 0;
+		for (const e of _occludees) _occlusionEntities.push(e);
+		for (const e of _skinnedOccludees) _occlusionEntities.push(e);
+		for (const e of pointLights) _occlusionEntities.push(e);
+		for (const e of spotLights) _occlusionEntities.push(e);
+
+		_performOcclusionQueries(_occlusionEntities);
 	}
 
 	Shaders.geometry.bind();
@@ -371,19 +390,9 @@ const renderWorldGeometry = () => {
 	Backend.unbindShader();
 
 	// Render skinned meshes with dedicated shader
+	// (Occlusion queries for skinned meshes already ran in the consolidated pass above)
 	if (Shaders.skinnedGeometry) {
 		const skinnedEntities = Scene.visibilityCache[EntityTypes.SKINNED_MESH];
-
-		// Perform occlusion queries for skinned meshes BEFORE rendering them
-		if (Settings.occlusionCulling) {
-			_skinnedOccludees.length = 0;
-			for (const entity of skinnedEntities) {
-				if (!entity.isOccluder) {
-					_skinnedOccludees.push(entity);
-				}
-			}
-			_performOcclusionQueries(_skinnedOccludees);
-		}
 
 		Shaders.skinnedGeometry.bind();
 		Shaders.skinnedGeometry.setInt("proceduralNoise", 5);
@@ -490,32 +499,80 @@ const renderTransparent = () => {
 		Backend.updateUBO(_lightingUBO, _lightingData);
 		Backend.bindUniformBuffer(_lightingUBO);
 	} else {
-		// WebGL Fallback — use pre-computed uniform name strings
+		// WebGL Fallback — batch-upload light data as typed arrays (4 calls for point lights, 6 for spot lights)
 		Shaders.transparent.setInt("numPointLights", numPointLights);
-
 		for (let i = 0; i < numPointLights; i++) {
 			const light = visiblePointLights[i];
-			const u = _pointLightUniforms[i];
 			mat4.multiply(_lightMatrix, light.base_matrix, light.ani_matrix);
 			mat4.getTranslation(_lightPos, _lightMatrix);
-			Shaders.transparent.setVec3(u.position, _lightPos);
-			Shaders.transparent.setVec3(u.color, light.color);
-			Shaders.transparent.setFloat(u.size, light.size);
-			Shaders.transparent.setFloat(u.intensity, light.intensity);
+			const i3 = i * 3;
+			_pointLightPositionData[i3] = _lightPos[0];
+			_pointLightPositionData[i3 + 1] = _lightPos[1];
+			_pointLightPositionData[i3 + 2] = _lightPos[2];
+			_pointLightColorData[i3] = light.color[0];
+			_pointLightColorData[i3 + 1] = light.color[1];
+			_pointLightColorData[i3 + 2] = light.color[2];
+			_pointLightSizeData[i] = light.size;
+			_pointLightIntensityData[i] = light.intensity;
 		}
+		Shaders.transparent.setVec3Array(
+			"pointLightPositions[0]",
+			_pointLightPositionData.subarray(0, numPointLights * 3),
+		);
+		Shaders.transparent.setVec3Array(
+			"pointLightColors[0]",
+			_pointLightColorData.subarray(0, numPointLights * 3),
+		);
+		Shaders.transparent.setFloatArray(
+			"pointLightSizes[0]",
+			_pointLightSizeData.subarray(0, numPointLights),
+		);
+		Shaders.transparent.setFloatArray(
+			"pointLightIntensities[0]",
+			_pointLightIntensityData.subarray(0, numPointLights),
+		);
 
 		Shaders.transparent.setInt("numSpotLights", numSpotLights);
-
 		for (let i = 0; i < numSpotLights; i++) {
 			const light = visibleSpotLights[i];
-			const u = _spotLightUniforms[i];
-			Shaders.transparent.setVec3(u.position, light.position);
-			Shaders.transparent.setVec3(u.direction, light.direction);
-			Shaders.transparent.setVec3(u.color, light.color);
-			Shaders.transparent.setFloat(u.intensity, light.intensity);
-			Shaders.transparent.setFloat(u.cutoff, light.cutoff);
-			Shaders.transparent.setFloat(u.range, light.range);
+			const i3 = i * 3;
+			_spotLightPositionData[i3] = light.position[0];
+			_spotLightPositionData[i3 + 1] = light.position[1];
+			_spotLightPositionData[i3 + 2] = light.position[2];
+			_spotLightDirectionData[i3] = light.direction[0];
+			_spotLightDirectionData[i3 + 1] = light.direction[1];
+			_spotLightDirectionData[i3 + 2] = light.direction[2];
+			_spotLightColorData[i3] = light.color[0];
+			_spotLightColorData[i3 + 1] = light.color[1];
+			_spotLightColorData[i3 + 2] = light.color[2];
+			_spotLightIntensityData[i] = light.intensity;
+			_spotLightCutoffData[i] = light.cutoff;
+			_spotLightRangeData[i] = light.range;
 		}
+		Shaders.transparent.setVec3Array(
+			"spotLightPositions[0]",
+			_spotLightPositionData.subarray(0, numSpotLights * 3),
+		);
+		Shaders.transparent.setVec3Array(
+			"spotLightDirections[0]",
+			_spotLightDirectionData.subarray(0, numSpotLights * 3),
+		);
+		Shaders.transparent.setVec3Array(
+			"spotLightColors[0]",
+			_spotLightColorData.subarray(0, numSpotLights * 3),
+		);
+		Shaders.transparent.setFloatArray(
+			"spotLightIntensities[0]",
+			_spotLightIntensityData.subarray(0, numSpotLights),
+		);
+		Shaders.transparent.setFloatArray(
+			"spotLightCutoffs[0]",
+			_spotLightCutoffData.subarray(0, numSpotLights),
+		);
+		Shaders.transparent.setFloatArray(
+			"spotLightRanges[0]",
+			_spotLightRangeData.subarray(0, numSpotLights),
+		);
 	}
 
 	for (const entity of Scene.visibilityCache[EntityTypes.MESH]) {

@@ -675,27 +675,19 @@ const _ssaoBlurPass = () => {
 	Shaders.bilateralBlur.setFloat("depthThreshold", 20.0); // Very permissive depth threshold
 	Shaders.bilateralBlur.setFloat("normalThreshold", 2.0); // Very gentle normal falloff
 
+	// Ping-pong between the two pre-built framebuffers:
+	//   even iterations: read _ao.ssao → write _ao.blur  (_ao.blurFramebuffer)
+	//   odd  iterations: read _ao.blur → write _ao.ssao  (_ao.framebuffer)
+	// Forced-even iteration count guarantees the final result lands in _ao.ssao.
+	// No attachment mutation or clear needed — the full-screen quad covers every pixel.
 	for (let i = 0; i < iterations; i++) {
 		if (i % 2 === 0) {
-			// Render to blurFB, read from SSAO
-			Backend.setFramebufferAttachment(
-				_ao.blurFramebuffer,
-				0,
-				_ao.blur.getHandle(),
-			);
 			Backend.bindFramebuffer(_ao.blurFramebuffer);
 			_ao.ssao.bind(0);
 		} else {
-			// Render to SSAO FB, read from blur
-			Backend.setFramebufferAttachment(
-				_ao.blurFramebuffer,
-				0,
-				_ao.ssao.getHandle(),
-			);
-			Backend.bindFramebuffer(_ao.blurFramebuffer);
+			Backend.bindFramebuffer(_ao.framebuffer);
 			_ao.blur.bind(0);
 		}
-		Backend.clear({ color: [0, 0, 0, 0] });
 		Shapes.screenQuad.renderSingle();
 	}
 	Backend.unbindShader();

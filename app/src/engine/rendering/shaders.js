@@ -63,6 +63,10 @@ class Shader {
 		this.backend.setUniform(id, "vec3[]", array);
 	}
 
+	setFloatArray(id, array) {
+		this.backend.setUniform(id, "float[]", array);
+	}
+
 	setMat4Array(id, array) {
 		this.backend.setUniform(id, "mat4[]", array);
 	}

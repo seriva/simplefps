@@ -1048,6 +1048,9 @@ class WebGLBackend extends RenderBackend {
 			case "vec3[]":
 				gl.uniform3fv(location, value);
 				break;
+			case "float[]":
+				gl.uniform1fv(location, value);
+				break;
 			default:
 				Console.warn(`Unknown uniform type: ${type}`);
 		}
