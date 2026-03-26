@@ -69,7 +69,7 @@ class Skeleton {
 		this._tempMatrix = mat4.create();
 	}
 
-	#computeWorldMatrices(pose) {
+	_computeWorldMatrices(pose) {
 		const worldMatrices = this._worldMatrices;
 		const localMatrix = this._tempMatrix;
 		const positions = pose.positions;
@@ -128,11 +128,11 @@ class Skeleton {
 	}
 
 	getWorldMatrices(pose) {
-		return this.#computeWorldMatrices(pose);
+		return this._computeWorldMatrices(pose);
 	}
 
 	computeSkinningMatrices(pose) {
-		this.#computeWorldMatrices(pose); // Populates this._worldMatrices
+		this._computeWorldMatrices(pose); // Populates this._worldMatrices
 		const skinMatrices = this._skinMatrices;
 
 		for (let i = 0; i < this.jointCount; i++) {

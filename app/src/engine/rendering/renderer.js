@@ -545,7 +545,7 @@ const _shadowPass = () => {
 	Backend.setDepthState(true, false, "lequal");
 	// WebGPU depth bias behaves differently and can fully suppress shadow projection.
 	// Keep GL offset, disable bias on WebGPU for deterministic behavior.
-	if (Backend.isWebGPU?.()) {
+	if (Backend.isWebGPU()) {
 		Backend.setPolygonOffset(false);
 	} else {
 		Backend.setPolygonOffset(true, -1.0, -1.0);
@@ -639,7 +639,7 @@ const _emissiveBlurPass = () => {
 const _shadowBlurPass = () => {
 	// WebGPU shadow blur currently over-smooths/overwrites the shadow target in some drivers.
 	// Keep raw shadow map there until a backend-specific blur path lands.
-	if (Backend.isWebGPU?.()) return;
+	if (Backend.isWebGPU()) return;
 
 	_blurImage(
 		_BlurSourceType.SHADOW,
@@ -817,7 +817,7 @@ const _fsrPass = () => {
 	// Restore depth test
 	Backend.setDepthState(true, true);
 	Backend.unbindShader();
-	Texture.unBind(0);
+	Texture.unBindRange(0, 1);
 };
 
 const _debugPass = () => {

@@ -99,8 +99,8 @@ const _callFunction = (path, params) => {
 
 // Internal console UI component
 class _ConsoleUI extends Reactive.Component {
-	#commandHistory = [];
-	#historyIndex = -1;
+	_commandHistory = [];
+	_historyIndex = -1;
 
 	state() {
 		return {
@@ -170,7 +170,7 @@ class _ConsoleUI extends Reactive.Component {
 
 	handleInput(event) {
 		this.command.set(event.target.value);
-		this.#historyIndex = -1;
+		this._historyIndex = -1;
 	}
 
 	handleKeyDown(event) {
@@ -182,32 +182,32 @@ class _ConsoleUI extends Reactive.Component {
 
 		if (event.key === "ArrowUp" || event.key === "ArrowDown") {
 			event.preventDefault();
-			if (this.#commandHistory.length === 0) return;
+			if (this._commandHistory.length === 0) return;
 
-			const len = this.#commandHistory.length;
+			const len = this._commandHistory.length;
 			if (event.key === "ArrowUp") {
-				this.#historyIndex =
-					this.#historyIndex === -1
+				this._historyIndex =
+					this._historyIndex === -1
 						? len - 1
-						: Math.max(0, this.#historyIndex - 1);
+						: Math.max(0, this._historyIndex - 1);
 			} else {
-				this.#historyIndex =
-					this.#historyIndex < len - 1 ? this.#historyIndex + 1 : -1;
+				this._historyIndex =
+					this._historyIndex < len - 1 ? this._historyIndex + 1 : -1;
 			}
 
 			this.command.set(
-				this.#historyIndex === -1
+				this._historyIndex === -1
 					? ""
-					: this.#commandHistory[this.#historyIndex],
+					: this._commandHistory[this._historyIndex],
 			);
 		}
 	}
 
 	pushHistory(cmd) {
-		if (this.#commandHistory[this.#commandHistory.length - 1] !== cmd) {
-			this.#commandHistory.push(cmd);
-			if (this.#commandHistory.length > _DEFAULTS.MAX_HISTORY) {
-				this.#commandHistory.shift();
+		if (this._commandHistory[this._commandHistory.length - 1] !== cmd) {
+			this._commandHistory.push(cmd);
+			if (this._commandHistory.length > _DEFAULTS.MAX_HISTORY) {
+				this._commandHistory.shift();
 			}
 		}
 	}

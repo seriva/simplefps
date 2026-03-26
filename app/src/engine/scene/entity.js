@@ -16,7 +16,8 @@ const EntityTypes = Object.freeze({
 });
 
 class Entity {
-	#occQueries = null;
+	_occQueries = null;
+	_occQueryFrame = 0;
 
 	constructor(type, updateCallback) {
 		this.type = type;
@@ -63,6 +64,37 @@ class Entity {
 		// Virtual function to be overridden by child classes
 	}
 
+	initOcclusionQueries() {
+		this._occQueries = [
+			Backend.createQuery(),
+			Backend.createQuery(),
+			Backend.createQuery(),
+			Backend.createQuery(),
+			Backend.createQuery(),
+			Backend.createQuery(),
+		];
+		this._occQueryFrame = 0;
+	}
+
+	getOcclusionQuery(slot) {
+		return this._occQueries?.[slot % 6] ?? null;
+	}
+
+	getOcclusionFrame() {
+		return this._occQueryFrame;
+	}
+
+	advanceOcclusionFrame() {
+		this._occQueryFrame++;
+		if (this._occQueryFrame > 1000) {
+			this._occQueryFrame = 6;
+		}
+	}
+
+	hasOcclusionQueries() {
+		return this._occQueries !== null;
+	}
+
 	renderBoundingBox(drawMode = null) {
 		if (!this.boundingBox || !this.visible) return;
 
@@ -71,12 +103,11 @@ class Entity {
 	}
 
 	dispose() {
-		// Clean up occlusion queries to prevent GPU resource leaks
-		if (this.#occQueries) {
-			for (const query of this.#occQueries) {
+		if (this._occQueries) {
+			for (const query of this._occQueries) {
 				Backend.deleteQuery(query);
 			}
-			this.#occQueries = null;
+			this._occQueries = null;
 		}
 
 		this.updateCallback = null;

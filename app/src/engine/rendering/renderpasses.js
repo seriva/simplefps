@@ -100,21 +100,13 @@ const _spotLightCutoffData = new Float32Array(_MAX_SPOT_LIGHTS);
 const _spotLightRangeData = new Float32Array(_MAX_SPOT_LIGHTS);
 
 // Toggle functions for debug commands
-const toggleBoundingVolumes = () => {
-	_debugState.showBoundingVolumes = !_debugState.showBoundingVolumes;
+const _makeDebugToggle = (key) => () => {
+	_debugState[key] = !_debugState[key];
 };
-
-const toggleWireframes = () => {
-	_debugState.showWireframes = !_debugState.showWireframes;
-};
-
-const toggleLightVolumes = () => {
-	_debugState.showLightVolumes = !_debugState.showLightVolumes;
-};
-
-const toggleSkeleton = () => {
-	_debugState.showSkeleton = !_debugState.showSkeleton;
-};
+const toggleBoundingVolumes = _makeDebugToggle("showBoundingVolumes");
+const toggleWireframes = _makeDebugToggle("showWireframes");
+const toggleLightVolumes = _makeDebugToggle("showLightVolumes");
+const toggleSkeleton = _makeDebugToggle("showSkeleton");
 
 const toggleOcclusionCulling = () => {
 	Settings.occlusionCulling = !Settings.occlusionCulling;
@@ -229,26 +221,19 @@ const _performOcclusionQueries = (entities) => {
 		if (!entity.boundingBox) continue;
 
 		// Initialize 6-slot buffer (to handle 5-frame GPU latency with SSAO etc)
-		if (!entity._occQueries) {
-			entity._occQueries = [
-				Backend.createQuery(),
-				Backend.createQuery(),
-				Backend.createQuery(),
-				Backend.createQuery(),
-				Backend.createQuery(),
-				Backend.createQuery(),
-			];
-			entity._occQueryFrame = 0;
+		if (!entity.hasOcclusionQueries()) {
+			entity.initOcclusionQueries();
 		}
 
 		// Write to slot N, read from slot (N+1) % 6 (5 frames behind)
-		const writeSlot = entity._occQueryFrame % 6;
-		const readSlot = (entity._occQueryFrame + 1) % 6;
-		const writeQuery = entity._occQueries[writeSlot];
-		const readQuery = entity._occQueries[readSlot];
+		const frame = entity.getOcclusionFrame();
+		const writeSlot = frame % 6;
+		const readSlot = (frame + 1) % 6;
+		const writeQuery = entity.getOcclusionQuery(writeSlot);
+		const readQuery = entity.getOcclusionQuery(readSlot);
 
 		// STEP 1: Check result from 5 frames ago (if we have enough history)
-		if (entity._occQueryFrame >= 5) {
+		if (frame >= 5) {
 			const res = Backend.getQueryResult(readQuery);
 			if (res.available) {
 				entity.isVisible = res.hasPassed;
@@ -272,10 +257,7 @@ const _performOcclusionQueries = (entities) => {
 			Backend.endQuery(writeQuery);
 
 			// STEP 3: Advance frame counter only when a query is written.
-			entity._occQueryFrame++;
-			if (entity._occQueryFrame > 1000) {
-				entity._occQueryFrame = 6; // Reset to minimum "ready" state
-			}
+			entity.advanceOcclusionFrame();
 		}
 
 		queryableIndex++;
@@ -303,6 +285,17 @@ const renderSkybox = () => {
 	Backend.setDepthState(true, true);
 };
 
+const _bindGeometryShader = () => {
+	Shaders.geometry.bind();
+	mat4.identity(_matModel);
+	Shaders.geometry.setInt("proceduralNoise", 5);
+	Shaders.geometry.setInt(
+		"doProceduralDetail",
+		Settings.proceduralDetail ? 1 : 0,
+	);
+	Shaders.geometry.setMat4("matWorld", _matModel);
+};
+
 const renderWorldGeometry = () => {
 	// Advance frame counter so per-entity caches (ambient probe, etc.) are invalidated
 	_renderFrame++;
@@ -312,15 +305,7 @@ const renderWorldGeometry = () => {
 	_renderStats.lightCount = 0;
 	_renderStats.triangleCount = 0;
 
-	Shaders.geometry.bind();
-	mat4.identity(_matModel);
-
-	Shaders.geometry.setInt("proceduralNoise", 5);
-	Shaders.geometry.setInt(
-		"doProceduralDetail",
-		Settings.proceduralDetail ? 1 : 0,
-	);
-	Shaders.geometry.setMat4("matWorld", _matModel);
+	_bindGeometryShader();
 
 	// Render skybox with special GL state
 	renderSkybox();
@@ -370,8 +355,7 @@ const renderWorldGeometry = () => {
 		_performOcclusionQueries(_occlusionEntities);
 	}
 
-	Shaders.geometry.bind();
-	Shaders.geometry.setMat4("matWorld", _matModel);
+	_bindGeometryShader();
 
 	// Render Occludees (only visible ones if occlusion enabled)
 	for (const entity of _occludees) {
@@ -668,16 +652,7 @@ const renderShadows = () => {
 };
 
 const renderFPSGeometry = () => {
-	Shaders.geometry.bind();
-
-	mat4.identity(_matModel);
-
-	Shaders.geometry.setInt("proceduralNoise", 5);
-	Shaders.geometry.setInt(
-		"doProceduralDetail",
-		Settings.proceduralDetail ? 1 : 0,
-	);
-	Shaders.geometry.setMat4("matWorld", _matModel);
+	_bindGeometryShader();
 
 	for (const entity of Scene.visibilityCache[EntityTypes.FPS_MESH]) {
 		entity.render(_sampleProbeColor(entity));

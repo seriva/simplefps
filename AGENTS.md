@@ -63,8 +63,7 @@ docs/
 - **Classes**: PascalCase (e.g., `PhysicsBody`, `SceneEntity`)
 - **Functions / variables**: camelCase (e.g., `loadSettings`, `deltaTime`)
 - **Constants / config objects**: UPPER_SNAKE_CASE (e.g., `MAX_LIGHTS`, `DEFAULT_FOV`)
-- **Private class fields**: `#` prefix (e.g., `#mesh`, `#pipeline`)
-- **Private / scratch module-level variables**: `_` prefix (e.g., `_tmpMat4`, `_activeScene`)
+- **Private / internal fields and methods**: `_` prefix (e.g., `_mesh`, `_pipeline`, `_tmpMat4`, `_activeScene`) — used for both class instance fields/methods and module-level scratch variables
 
 ## Common Commands
 ```bash

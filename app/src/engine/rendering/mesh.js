@@ -20,7 +20,7 @@ class Mesh {
 		this.ready = Promise.resolve().then(() => this.initialize(data));
 	}
 
-	#bindMaterial(indexObj, applyMaterial, shader) {
+	_bindMaterial(indexObj, applyMaterial, shader) {
 		if (indexObj.material !== "none" && applyMaterial && this.resources) {
 			this.resources.get(indexObj.material).bind(shader);
 		}
@@ -177,9 +177,7 @@ class Mesh {
 		}
 	}
 
-	// _buffers and _wireframeBuffers intentionally stay _ (not #) because
-	// SkinnedMesh subclass accesses them directly — JS # fields are inaccessible in subclasses.
-	#groupedIndices = null;
+	_groupedIndices = null;
 
 	renderSingle(
 		applyMaterial = true,
@@ -193,8 +191,8 @@ class Mesh {
 		this.unBind();
 	}
 
-	#drawIndexObject(indexObj, applyMaterial, shader, actualRenderMode) {
-		this.#bindMaterial(indexObj, applyMaterial, shader);
+	_drawIndexObject(indexObj, applyMaterial, shader, actualRenderMode) {
+		this._bindMaterial(indexObj, applyMaterial, shader);
 		Backend.drawIndexed(
 			indexObj.indexBuffer,
 			indexObj.indexBuffer.length,
@@ -207,8 +205,8 @@ class Mesh {
 		const actualRenderMode = renderMode ?? null;
 
 		// Lazy initialization of grouped indices
-		if (!this.#groupedIndices && this.resources) {
-			this.#groupedIndices = {
+		if (!this._groupedIndices && this.resources) {
+			this._groupedIndices = {
 				opaque: [],
 				translucent: [],
 				all: this.indices,
@@ -221,9 +219,9 @@ class Mesh {
 						: null;
 
 				if (material?.translucent) {
-					this.#groupedIndices.translucent.push(indexObj);
+					this._groupedIndices.translucent.push(indexObj);
 				} else {
-					this.#groupedIndices.opaque.push(indexObj);
+					this._groupedIndices.opaque.push(indexObj);
 				}
 			}
 		}
@@ -239,7 +237,7 @@ class Mesh {
 						: null;
 				if (!mode(material)) continue;
 
-				this.#drawIndexObject(
+				this._drawIndexObject(
 					indexObj,
 					applyMaterial,
 					shader,
@@ -249,12 +247,12 @@ class Mesh {
 			return;
 		}
 
-		if (this.#groupedIndices?.[mode]) {
-			targets = this.#groupedIndices[mode];
+		if (this._groupedIndices?.[mode]) {
+			targets = this._groupedIndices[mode];
 		}
 
 		for (const indexObj of targets) {
-			this.#drawIndexObject(indexObj, applyMaterial, shader, actualRenderMode);
+			this._drawIndexObject(indexObj, applyMaterial, shader, actualRenderMode);
 		}
 	}
 
