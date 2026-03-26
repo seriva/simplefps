@@ -31,10 +31,6 @@ class Shader {
 		this.backend.bindShader(this.program);
 	}
 
-	static unBind(backend) {
-		backend.unbindShader();
-	}
-
 	setInt(id, value) {
 		this.backend.setUniform(id, "int", value);
 	}

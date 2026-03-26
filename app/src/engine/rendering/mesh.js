@@ -187,7 +187,7 @@ class Mesh {
 		useSkinned = false,
 	) {
 		this.bind(useSkinned);
-		this.renderIndices(applyMaterial, renderMode ?? null, mode, shader);
+		this.renderIndices(applyMaterial, renderMode, mode, shader);
 		this.unBind();
 	}
 
@@ -202,8 +202,6 @@ class Mesh {
 	}
 
 	renderIndices(applyMaterial, renderMode = null, mode = "all", shader = null) {
-		const actualRenderMode = renderMode ?? null;
-
 		// Lazy initialization of grouped indices
 		if (!this._groupedIndices && this.resources) {
 			this._groupedIndices = {
@@ -226,33 +224,10 @@ class Mesh {
 			}
 		}
 
-		let targets = this.indices;
-
-		if (typeof mode === "function") {
-			// Legacy filter support
-			for (const indexObj of this.indices) {
-				const material =
-					this.resources && indexObj.material !== "none"
-						? this.resources.get(indexObj.material)
-						: null;
-				if (!mode(material)) continue;
-
-				this._drawIndexObject(
-					indexObj,
-					applyMaterial,
-					shader,
-					actualRenderMode,
-				);
-			}
-			return;
-		}
-
-		if (this._groupedIndices?.[mode]) {
-			targets = this._groupedIndices[mode];
-		}
+		const targets = this._groupedIndices?.[mode] ?? this.indices;
 
 		for (const indexObj of targets) {
-			this._drawIndexObject(indexObj, applyMaterial, shader, actualRenderMode);
+			this._drawIndexObject(indexObj, applyMaterial, shader, renderMode);
 		}
 	}
 

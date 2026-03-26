@@ -62,7 +62,7 @@ const _saveSettings = () => {
 };
 
 // Initialize settings
-const _stored = localStorage?.getItem("settings") ?? null;
+const _stored = localStorage?.getItem("settings");
 if (_stored) {
 	Console.log("[Settings] Using stored settings");
 	// Merge stored settings into defaults (so new defaults get added)

@@ -71,8 +71,7 @@ class Material {
 	}
 
 	bind(shader = Shaders.geometry) {
-		if (!shader) shader = Shaders.geometry;
-
+		shader ??= Shaders.geometry;
 		// Bind textures using pre-computed arrays (avoids Object.entries())
 		for (let i = 0; i < TEXTURE_SLOT_NAMES.length; i++) {
 			const texturePath = this.textures[TEXTURE_SLOT_NAMES[i]];
