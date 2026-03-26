@@ -1,4 +1,4 @@
-# SimpleFPS — Antigravity Agent File
+# SimpleFPS — Agent File
 
 ## Project Overview
 SimpleFPS is an arena-based first-person shooter written in ES6 modules targeting WebGL 2.0 and WebGPU. It is distributed as a PWA and supports Desktop, Android, and iOS. The project has evolved since 2017 and currently uses modern tooling including Microtastic (build/dev server), Biome (lint/format), and Husky (git hooks).
