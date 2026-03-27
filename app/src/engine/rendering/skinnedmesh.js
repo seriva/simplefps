@@ -58,35 +58,17 @@ class SkinnedMesh extends Mesh {
 	}
 
 	deleteMeshBuffers() {
-		if (this.vao) {
-			Backend.deleteVertexState(this.vao);
-			this.vao = null;
-		}
+		super.deleteMeshBuffers();
 
 		if (this.skinnedVao) {
 			Backend.deleteVertexState(this.skinnedVao);
 			this.skinnedVao = null;
 		}
-
-		if (this._buffers) {
-			for (const buffer of this._buffers) {
-				Backend.deleteBuffer(buffer);
-			}
-			this._buffers = [];
-		}
-
-		// Delete wireframe buffers if they exist
-		if (this._wireframeBuffers) {
-			for (const wf of this._wireframeBuffers) {
-				Backend.deleteBuffer(wf.buffer);
-			}
-			this._wireframeBuffers = null;
-		}
 	}
 
 	dispose() {
 		this.deleteMeshBuffers();
-		this.#boneMatrixBuffer = null;
+		this._boneMatrixBuffer = null;
 	}
 
 	bind(useSkinned = true) {
@@ -96,7 +78,7 @@ class SkinnedMesh extends Mesh {
 	}
 
 	// Pre-allocated buffer for bone matrices (reused each frame)
-	#boneMatrixBuffer = null;
+	_boneMatrixBuffer = null;
 
 	// Get bone matrices for GPU skinning (flat Float32Array of mat4s)
 	// Reuses internal buffer to avoid allocations
@@ -107,11 +89,11 @@ class SkinnedMesh extends Mesh {
 		const count = skinMatrices.length;
 
 		// Allocate buffer once (64 matrices for uniform buffer alignment)
-		if (!this.#boneMatrixBuffer) {
-			this.#boneMatrixBuffer = new Float32Array(64 * 16);
+		if (!this._boneMatrixBuffer) {
+			this._boneMatrixBuffer = new Float32Array(64 * 16);
 		}
 
-		const result = this.#boneMatrixBuffer;
+		const result = this._boneMatrixBuffer;
 		for (let i = 0; i < count; i++) {
 			result.set(skinMatrices[i], i * 16);
 		}

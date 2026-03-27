@@ -29,11 +29,10 @@ vec2 calcPointLight(vec3 lightPos, float lightSize, vec3 fragPos, vec3 normal) {
     
     float normalizedDist = sqrt(distSq) / lightSize;
     float falloff = 1.0 - smoothstep(0.0, 1.0, normalizedDist);
-    falloff = falloff * falloff;
-    
+
     vec3 L = normalize(lightDir);
     float nDotL = max(0.0, dot(normal, L));
-    
+
     return vec2(falloff * falloff, nDotL);
 }`;
 
@@ -658,85 +657,31 @@ export const ShaderSources = {
             layout(std140, column_major) uniform;
 
             out vec4 fragColor;
-
+ 
             ${_frameDataUBO}
-
-            uniform bool doFXAA;
+ 
             uniform sampler2D colorBuffer;
             uniform sampler2D lightBuffer;
             uniform sampler2D normalBuffer;
             uniform sampler2D emissiveBuffer;
             uniform sampler2D dirtBuffer;
-            uniform sampler2D aoBuffer;
             uniform sampler2D shadowBuffer;
+            uniform sampler2D aoBuffer;
             uniform sampler2D positionBuffer;
+ 
+            uniform vec3 uAmbient;
             uniform float emissiveMult;
-            uniform float gamma;
             uniform float ssaoStrength;
             uniform float dirtIntensity;
             uniform float shadowIntensity;
-            uniform vec3 uAmbient;
-
-            #define FXAA_EDGE_THRESHOLD_MIN 0.0312
-            #define FXAA_EDGE_THRESHOLD_MAX 0.125
-
-            // Simplified FXAA - 5 texture samples instead of 9+
-            vec4 applyFXAA(vec2 fragCoord) {
-                vec2 inverseVP = 1.0 / viewportSize.xy;
-                vec2 uv = fragCoord * inverseVP;
-
-                // Sample center and 4 neighbors
-                vec3 rgbM = texture(colorBuffer, uv).rgb;
-                vec3 rgbN = texture(colorBuffer, uv + vec2(0.0, -1.0) * inverseVP).rgb;
-                vec3 rgbS = texture(colorBuffer, uv + vec2(0.0, 1.0) * inverseVP).rgb;
-                vec3 rgbE = texture(colorBuffer, uv + vec2(1.0, 0.0) * inverseVP).rgb;
-                vec3 rgbW = texture(colorBuffer, uv + vec2(-1.0, 0.0) * inverseVP).rgb;
-
-                // Luma calculation
-                const vec3 luma = vec3(0.299, 0.587, 0.114);
-                float lumaM = dot(rgbM, luma);
-                float lumaN = dot(rgbN, luma);
-                float lumaS = dot(rgbS, luma);
-                float lumaE = dot(rgbE, luma);
-                float lumaW = dot(rgbW, luma);
-
-                // Compute local contrast
-                float lumaMin = min(lumaM, min(min(lumaN, lumaS), min(lumaE, lumaW)));
-                float lumaMax = max(lumaM, max(max(lumaN, lumaS), max(lumaE, lumaW)));
-                float lumaRange = lumaMax - lumaMin;
-
-                // Early exit if contrast is too low
-                if (lumaRange < max(FXAA_EDGE_THRESHOLD_MIN, lumaMax * FXAA_EDGE_THRESHOLD_MAX)) {
-                    return vec4(rgbM, 1.0);
-                }
-
-                // Determine edge direction
-                float edgeH = abs(lumaN + lumaS - 2.0 * lumaM);
-                float edgeV = abs(lumaE + lumaW - 2.0 * lumaM);
-                bool isHorizontal = edgeH > edgeV;
-
-                // Choose blend direction
-                float luma1 = isHorizontal ? lumaN : lumaW;
-                float luma2 = isHorizontal ? lumaS : lumaE;
-                float gradient1 = abs(luma1 - lumaM);
-                float gradient2 = abs(luma2 - lumaM);
-                
-                vec2 stepDir = isHorizontal ? vec2(0.0, inverseVP.y) : vec2(inverseVP.x, 0.0);
-                if (gradient1 < gradient2) stepDir = -stepDir;
-
-                // Blend along edge
-                vec3 rgbBlend = texture(colorBuffer, uv + stepDir * 0.5).rgb;
-                float blendFactor = smoothstep(0.0, 1.0, lumaRange / lumaMax);
-                
-                return vec4(mix(rgbM, rgbBlend, blendFactor * 0.5), 1.0);
-            }
-
+            uniform float gamma;
+ 
             void main() {
                 vec2 uv = gl_FragCoord.xy / viewportSize.xy;
                 ivec2 fragCoord = ivec2(gl_FragCoord.xy);
                 
                 // Use texelFetch for G-buffer reads (no filtering needed)
-                vec4 color = doFXAA ? applyFXAA(gl_FragCoord.xy) : texelFetch(colorBuffer, fragCoord, 0);
+                vec4 color = texelFetch(colorBuffer, fragCoord, 0);
                 vec4 light = texelFetch(lightBuffer, fragCoord, 0);
                 // Unpack normal from [0,1] to [-1,1] (w component is still lightmap flag [0,1])
                 vec4 normalData = texelFetch(normalBuffer, fragCoord, 0);
@@ -791,6 +736,174 @@ export const ShaderSources = {
                 }
 
                 fragColor.rgb = pow(fragColor.rgb, vec3(1.0 / gamma));
+            }`,
+	},
+	fsrEasu: {
+		vertex: /* glsl */ `#version 300 es
+            precision highp float;
+            layout(location=0) in vec3 aPosition;
+            void main() { gl_Position = vec4(aPosition, 1.0); }`,
+		fragment: /* glsl */ `#version 300 es
+            precision highp float;
+            out vec4 fragColor;
+            uniform sampler2D colorBuffer;
+            uniform vec4 con0; // xy = inputSize, zw = outputSize
+
+            float easuWeight(vec2 sampleOff, float dirX, float dirY, float stretch) {
+                float along = abs(sampleOff.x * dirX + sampleOff.y * dirY);
+                float perp  = abs(sampleOff.x * dirY - sampleOff.y * dirX);
+                float d = sqrt(along * along + perp * perp * stretch * stretch);
+                if (d < 1.0) return (1.5 * d - 2.5) * d * d + 1.0;
+                if (d < 2.0) return ((-0.5 * d + 2.5) * d - 4.0) * d + 2.0;
+                return 0.0;
+            }
+
+            void main() {
+                vec2 inputSize = con0.xy;
+                vec2 outputSize = con0.zw;
+                vec2 invInput = 1.0 / inputSize;
+
+                // Map output pixel center to input texel space
+                vec2 srcPos = gl_FragCoord.xy * inputSize / outputSize - 0.5;
+                vec2 base = floor(srcPos);
+                vec2 f = srcPos - base;
+                vec2 tc = (base + 0.5) * invInput;
+                vec2 dx = vec2(invInput.x, 0.0);
+                vec2 dy = vec2(0.0, invInput.y);
+
+                // 12-tap sampling (4x4 minus corners)
+                //   b c
+                // d e f g
+                // h i j k
+                //   l m
+                vec3 b  = texture(colorBuffer, tc - dy).rgb;
+                vec3 c  = texture(colorBuffer, tc + dx - dy).rgb;
+                vec3 d  = texture(colorBuffer, tc - dx).rgb;
+                vec3 e  = texture(colorBuffer, tc).rgb;
+                vec3 fS = texture(colorBuffer, tc + dx).rgb;
+                vec3 g  = texture(colorBuffer, tc + 2.0 * dx).rgb;
+                vec3 h  = texture(colorBuffer, tc - dx + dy).rgb;
+                vec3 iS = texture(colorBuffer, tc + dy).rgb;
+                vec3 j  = texture(colorBuffer, tc + dx + dy).rgb;
+                vec3 k  = texture(colorBuffer, tc + 2.0 * dx + dy).rgb;
+                vec3 l  = texture(colorBuffer, tc + 2.0 * dy).rgb;
+                vec3 m  = texture(colorBuffer, tc + dx + 2.0 * dy).rgb;
+
+                // Luminance
+                vec3 lw = vec3(0.299, 0.587, 0.114);
+                float lb = dot(b,lw); float lc = dot(c,lw);
+                float ld = dot(d,lw); float le = dot(e,lw);
+                float lf = dot(fS,lw); float lg = dot(g,lw);
+                float lh = dot(h,lw); float li = dot(iS,lw);
+                float lj = dot(j,lw); float lk = dot(k,lw);
+                float ll = dot(l,lw); float lm = dot(m,lw);
+
+                // Edge direction from 12-tap neighborhood
+                float dirX = (lc-lb) + (lf-le) + (lj-li) + (lm-ll) + (lg-ld) + (lk-lh);
+                float dirY = (lh-ld) + (li-le) + (lj-lf) + (lk-lg) + (ll-lb) + (lm-lc);
+                float dirLen = max(abs(dirX), abs(dirY));
+                float invDirLen = 1.0 / (dirLen + 1.0e-8);
+                dirX *= invDirLen;
+                dirY *= invDirLen;
+
+                // Stretch: how elongated/anisotropic the kernel should be
+                float minEdge = min(min(le, lf), min(li, lj));
+                float maxEdge = max(max(le, lf), max(li, lj));
+                float edgeAmount = clamp((maxEdge - minEdge) / max(maxEdge, 1.0e-5), 0.0, 1.0);
+                float stretch = 1.0 + edgeAmount * 0.5;
+
+                // Positive-only anisotropic weights for all 12 taps
+                float we  = easuWeight(vec2( 0.0,  0.0) - f, dirX, dirY, stretch);
+                float wfS = easuWeight(vec2( 1.0,  0.0) - f, dirX, dirY, stretch);
+                float wiS = easuWeight(vec2( 0.0,  1.0) - f, dirX, dirY, stretch);
+                float wj  = easuWeight(vec2( 1.0,  1.0) - f, dirX, dirY, stretch);
+                float wb  = easuWeight(vec2( 0.0, -1.0) - f, dirX, dirY, stretch);
+                float wc  = easuWeight(vec2( 1.0, -1.0) - f, dirX, dirY, stretch);
+                float wd  = easuWeight(vec2(-1.0,  0.0) - f, dirX, dirY, stretch);
+                float wg  = easuWeight(vec2( 2.0,  0.0) - f, dirX, dirY, stretch);
+                float wh  = easuWeight(vec2(-1.0,  1.0) - f, dirX, dirY, stretch);
+                float wk  = easuWeight(vec2( 2.0,  1.0) - f, dirX, dirY, stretch);
+                float wl  = easuWeight(vec2( 0.0,  2.0) - f, dirX, dirY, stretch);
+                float wm  = easuWeight(vec2( 1.0,  2.0) - f, dirX, dirY, stretch);
+
+                vec3 color = e*we + fS*wfS + iS*wiS + j*wj
+                           + b*wb + c*wc + d*wd + g*wg
+                           + h*wh + k*wk + l*wl + m*wm;
+                float totalW = we+wfS+wiS+wj+wb+wc+wd+wg+wh+wk+wl+wm;
+                color /= totalW;
+
+                // Clamp to neighborhood min/max to prevent negative-lobe ringing artifacts
+                vec3 nMin = min(min(min(b,c),min(d,e)),min(min(fS,g),min(min(h,iS),min(min(j,k),min(l,m)))));
+                vec3 nMax = max(max(max(b,c),max(d,e)),max(max(fS,g),max(max(h,iS),max(max(j,k),max(l,m)))));
+                color = clamp(color, nMin, nMax);
+
+                fragColor = vec4(color, 1.0);
+            }`,
+	},
+	fsrRcas: {
+		vertex: /* glsl */ `#version 300 es
+            precision highp float;
+            layout(location=0) in vec3 aPosition;
+            void main() { gl_Position = vec4(aPosition, 1.0); }`,
+		fragment: /* glsl */ `#version 300 es
+            precision highp float;
+            out vec4 fragColor;
+            uniform sampler2D colorBuffer;
+            uniform float sharpness; // 0.0 to 1.0
+
+            void main() {
+                ivec2 p = ivec2(gl_FragCoord.xy);
+                vec3 b = texelFetch(colorBuffer, p + ivec2(0, -1), 0).rgb;
+                vec3 d = texelFetch(colorBuffer, p + ivec2(-1, 0), 0).rgb;
+                vec3 e = texelFetch(colorBuffer, p, 0).rgb;
+                vec3 f = texelFetch(colorBuffer, p + ivec2(1, 0), 0).rgb;
+                vec3 h = texelFetch(colorBuffer, p + ivec2(0, 1), 0).rgb;
+
+                // Luma (green-weighted, matching AMD FSR reference)
+                float bL = b.g * 0.5 + (b.r + b.b) * 0.25;
+                float dL = d.g * 0.5 + (d.r + d.b) * 0.25;
+                float eL = e.g * 0.5 + (e.r + e.b) * 0.25;
+                float fL = f.g * 0.5 + (f.r + f.b) * 0.25;
+                float hL = h.g * 0.5 + (h.r + h.b) * 0.25;
+
+                // Noise detection: suppress sharpening on noisy pixels
+                float nz = 0.25 * (bL + dL + fL + hL) - eL;
+                float rangeL = max(max(bL, dL), max(eL, max(fL, hL)))
+                             - min(min(bL, dL), min(eL, min(fL, hL)));
+                float nzC = clamp(abs(nz) / max(rangeL, 1e-6), 0.0, 1.0);
+                float nzW = -0.5 * nzC + 1.0;
+
+                // Per-channel min/max of the 4-tap cross
+                float mn4R = min(min(b.r, d.r), min(f.r, h.r));
+                float mn4G = min(min(b.g, d.g), min(f.g, h.g));
+                float mn4B = min(min(b.b, d.b), min(f.b, h.b));
+                float mx4R = max(max(b.r, d.r), max(f.r, h.r));
+                float mx4G = max(max(b.g, d.g), max(f.g, h.g));
+                float mx4B = max(max(b.b, d.b), max(f.b, h.b));
+
+                // peakC controls maximum sharpening from user setting
+                float peakC = 1.0 / (-4.0 * sharpness + 8.0);
+
+                // Adaptive per-pixel limiters (per-channel)
+                float hitMinR = min(mn4R, e.r) / (4.0 * max(mx4R, e.r) + 1e-6);
+                float hitMinG = min(mn4G, e.g) / (4.0 * max(mx4G, e.g) + 1e-6);
+                float hitMinB = min(mn4B, e.b) / (4.0 * max(mx4B, e.b) + 1e-6);
+                float hitMaxR = (peakC - max(mx4R, e.r)) / (4.0 * min(mn4R, e.r) + peakC);
+                float hitMaxG = (peakC - max(mx4G, e.g)) / (4.0 * min(mn4G, e.g) + peakC);
+                float hitMaxB = (peakC - max(mx4B, e.b)) / (4.0 * min(mn4B, e.b) + peakC);
+
+                float lobeR = max(-hitMinR, hitMaxR);
+                float lobeG = max(-hitMinG, hitMaxG);
+                float lobeB = max(-hitMinB, hitMaxB);
+
+                // Most conservative lobe across channels, clamped to non-positive
+                float lobe = max(-peakC, min(max(lobeR, max(lobeG, lobeB)), 0.0));
+                lobe *= nzW;
+
+                vec3 color = (b + d + f + h) * lobe + e;
+                color /= 4.0 * lobe + 1.0;
+
+                fragColor = vec4(clamp(color, 0.0, 1.0), 1.0);
             }`,
 	},
 	transparent: {

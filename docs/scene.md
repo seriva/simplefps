@@ -2,18 +2,20 @@
 
 ## Overview
 
-The Scene system is SimpleFPS's **Entity-Component System** managing game objects, updates, and visibility culling.
+The Scene system is SimpleFPS's **Entity-Component System** managing game objects, updates, visibility culling, and spatial partitioning (Octree) exclusively for physics.
 
 ## File Structure
 
 ```
 app/src/engine/scene/
-├── scene.js                  # Entity registry, update loop, visibility
+├── scene.js                  # Entity registry, update loop, visibility, raycasting
 ├── entity.js                 # Base Entity class + EntityTypes
 ├── lightgrid.js              # Volumetric lighting grid
 ├── meshentity.js, skinnedmeshentity.js, fpsmeshentity.js
 ├── skyboxentity.js
-└── directionallightentity.js, pointlightentity.js, spotlightentity.js
+├── directionallightentity.js, pointlightentity.js, spotlightentity.js
+├── animatedbillboardentity.js # Single-draw instanced billboards
+└── particleemitterentity.js  # High-performance GPU-accelerated particles
 ```
 
 ## Entity Types
@@ -27,6 +29,8 @@ EntityTypes = {
     SPOT_LIGHT: 5,          // Flashlight
     SKYBOX: 6,              // Environment
     SKINNED_MESH: 7,        // Animated characters
+    ANIMATED_BILLBOARD: 8,  // Sprite animations (explosions, etc)
+    PARTICLE_EMITTER: 9,    // Particle systems (sparks, smoke)
 };
 ```
 
@@ -34,7 +38,9 @@ EntityTypes = {
 
 **Properties:**
 - `type`, `visible`, `base_matrix`, `ani_matrix`
-- `boundingBox` (for frustum culling)
+- `boundingBox` (for frustum and occlusion culling)
+- `isOccluder` (bool): If true, this entity is treated as a major occluder for others.
+- `isVisible` (bool): Current visibility state determined by occlusion queries.
 - `updateCallback`, `animationTime`
 
 **Lifecycle:**
@@ -43,28 +49,35 @@ const entity = new MeshEntity([x,y,z], "model.mesh", updateCallback);
 Scene.addEntities(entity);      // Add to scene
 entity.update(deltaTime);        // Per-frame (returns false = remove)
 entity.render();                 // Via RenderPasses
-Scene.removeEntity(entity);      // Cleanup
+Scene.removeEntity(entity);      // Cleanup (handles disposal of GPU queries)
 ```
 
 ## Scene API
 
 ```javascript
-Scene.init();                          // Clear entities, init physics
+Scene.init();                          // Clear entities, reset static geometry
 Scene.addEntities(entity);             // Add (single or array)
-Scene.removeEntity(entity);            // Remove and dispose
-Scene.getEntities(EntityTypes.MESH);   // Query by type
-Scene.update(deltaTime);               // Update all + cull visibility
+Scene.removeEntity(entity);            // Remove, dispose, and cleanup collidables
+Scene.getEntities(EntityTypes.MESH);   // Query by type (O(1) via cached lists)
+Scene.update(deltaTime);               // Update all + visibility + occlusion
 Scene.pause(true);                     // Stop updates
+
+// Static Geometry Merging
+Scene.addStaticGeometry(entity);       // Merges entity mesh into global static trimesh
+Scene.finalizeStaticGeometry();        // Finalizes merged trimesh for optimized raycasting
 
 // Lighting
 Scene.setAmbient([r,g,b]);
 Scene.getAmbient(position);            // Lightgrid or global ambient
 Scene.loadLightGrid(config);
+
+// Physics
+Scene.raycast(from, to, options);      // Fast intersection against all collidables
 ```
 
-## Visibility Culling
+## Visibility & Occlusion
 
-**Visibility Cache:** Type-segregated arrays of visible entities
+**Visibility Cache:** Type-segregated arrays of entities that passed both frustum and occlusion tests.
 ```javascript
 Scene.visibilityCache = {
     [EntityTypes.MESH]: [...],
@@ -72,107 +85,46 @@ Scene.visibilityCache = {
 };
 ```
 
-**How it works:**
-1. Frustum test per entity (via bounding box)
-2. Sort visible into cache by type
-3. RenderPasses read from cache (no full iteration)
+**Culling Pipeline:**
+1. **Frustum Culling:** Per-entity AABB test against camera frustum planes.
+2. **Occlusion Culling:** Budget-aware hardware queries (96/frame). 
+   - Entities are split into Occluders (render first) and Occludees (tested against depth).
+   - Result is temporal (6-frame ring buffer) to prevent pipeline stalls.
+3. **Cache Sorting:** Visible entities are sorted into `visibilityCache` by type for efficient rendering passes.
 
-Entities without bounding boxes are always visible (skybox, global lights).
+**Note:** Visibility is currently handled via per-entity tests rather than an Octree, as current scene complexity does not require hierarchical culling.
 
 ## Update Loop
 
 ```mermaid
-flowchart LR
+flowchart TD
     Update[For each entity] --> Callback[updateCallback]
     Callback --> Remove{false?}
     Remove -->|Yes| Mark[Mark removal]
-    Remove -->|No| Next
+    Remove -->|No| BBox[Update Bounding Volume]
     Mark --> Next[Next entity]
-    Next --> Cleanup[Remove marked]
-    Cleanup --> Cull[Update visibility]
+    BBox --> Next
+    Next --> Cleanup[Batch remove marked]
+    Cleanup --> Visibility[Update Visibility Cache]
+    Visibility --> Occlusion[Process Occlusion Queries]
 ```
 
-Return `false` from `update()` to auto-remove entity.
+## Performance & Optimization
 
-## Entity Types
+1. **Memory Efficiency:** All core systems (Scene, BoundingBox, Ray, Octree) use **module-scoped pre-allocated temporaries** to eliminate per-frame GC allocations.
+2. **Batch Removal:** Entity removal is performed in-place using a `Set` for O(1) lookups and O(n) truncation to minimize array churn.
+3. **Static Merging:** `Scene.addStaticGeometry` allows merging thousands of static triangles into a single optimized `Trimesh`, significantly speeding up raycasting.
+4. **Instanced Billboards:** `ANIMATED_BILLBOARD` and `PARTICLE_EMITTER` use GPU instancing (WGSL) to render hundreds of sprites in a single draw call.
+5. **Ray-AABB Slab Method:** High-performance intersection test in the **physics-only Octree** avoids prototype lookups and redundant math for raycasting and collision detection.
 
-### MeshEntity
-- Static/dynamic world geometry
-- Lightmap support, shadow casting, lightgrid sampling
-- Physics body integration
-
-### SkinnedMeshEntity
-- Skeletal animation (MD5 models)
-- Bone hierarchy, vertex weights
-- Frame interpolation
-
-### FPSMeshEntity
-- Renders in near depth range (0.0-0.1)
-- Always in front of world
-- Inherits from MeshEntity
-
-### Light Entities
-- **Directional:** Global direction, no position
-- **Point:** Sphere volume, omnidirectional
-- **Spot:** Cone volume, directional with cutoff
-
-## Best Practices
-
-**Transform:**
-```javascript
-// ✅ Use base_matrix for static, ani_matrix for animation
-entity.setRotation([0, 90, 0]);
-mat4.translate(entity.ani_matrix, entity.ani_matrix, [0, bobHeight, 0]);
-
-// Final = base_matrix * ani_matrix
-```
-
-**Performance:**
-```javascript
-// ✅ Reuse arrays
-const _temp = new Float32Array(3);
-mat4.getTranslation(_temp, entity.base_matrix);
-
-// ✅ Batch additions
-Scene.addEntities([...manyEntities]);  // Single cache clear
-```
-
-## Integration Examples
-
-### Physics
-```javascript
-entity.physicsBody = Physics.createBox(size, mass);
-// Update syncs physics → transform
-Scene.removeEntity(entity);  // Auto-removes physics body
-```
-
-### Rendering
-```javascript
-// RenderPasses access via cache
-for (const entity of Scene.visibilityCache[EntityTypes.MESH]) {
-    entity.render("opaque");
-}
-```
-
-### Temporary Effect
-```javascript
-const fx = new MeshEntity(pos, "fx.mesh", (entity, dt) => {
-    entity.animationTime += dt;
-    return entity.animationTime < 2.0;  // Auto-remove after 2s
-});
-```
-
-## Performance
-
-| Operation | Complexity |
-|-----------|-----------|
-| `addEntities(arr)` | O(n) |
-| `removeEntity()` | O(n) |
-| `getEntities(type)` | O(1) cached |
-| `update()` | O(n) |
-| `updateVisibility()` | O(n) |
-
-**Visibility cache benefit:** O(entities) + O(visible) vs O(entities × passes)
+| Operation | Complexity | Optimization |
+|-----------|-----------|--------------|
+| `addEntities(arr)` | O(n) | Appends to typed lists and collidable arrays |
+| `removeEntity()` | O(n) | In-place removal with typed list cleanup |
+| `getEntities(type)` | O(1) | Returns pre-segregated typed lists |
+| `update()` | O(n) | Skips `isStatic` entities; batch cleanup |
+| `updateVisibility()` | O(n) | Frustum + Occlusion + Ring buffering |
+| `raycast()` | O(log n) | Octree-accelerated + Static geometry merging |
 
 ## Console Commands
 
@@ -182,3 +134,4 @@ const fx = new MeshEntity(pos, "fx.mesh", (entity, dt) => {
 | `twf` | Toggle wireframes |
 | `tlv` | Toggle light volumes |
 | `tsk` | Toggle skeletons |
+| `toc` | Toggle occlusion culling |

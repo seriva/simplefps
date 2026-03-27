@@ -20,4 +20,4 @@ const copyVec3 = (target, source) => {
 	return target;
 };
 
-export { isVec3, copyVec3 };
+export { copyVec3, isVec3 };

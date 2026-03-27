@@ -20,7 +20,7 @@ class Mesh {
 		this.ready = Promise.resolve().then(() => this.initialize(data));
 	}
 
-	#bindMaterial(indexObj, applyMaterial, shader) {
+	_bindMaterial(indexObj, applyMaterial, shader) {
 		if (indexObj.material !== "none" && applyMaterial && this.resources) {
 			this.resources.get(indexObj.material).bind(shader);
 		}
@@ -177,9 +177,7 @@ class Mesh {
 		}
 	}
 
-	// _buffers and _wireframeBuffers intentionally stay _ (not #) because
-	// SkinnedMesh subclass accesses them directly — JS # fields are inaccessible in subclasses.
-	#groupedIndices = null;
+	_groupedIndices = null;
 
 	renderSingle(
 		applyMaterial = true,
@@ -189,12 +187,12 @@ class Mesh {
 		useSkinned = false,
 	) {
 		this.bind(useSkinned);
-		this.renderIndices(applyMaterial, renderMode ?? null, mode, shader);
+		this.renderIndices(applyMaterial, renderMode, mode, shader);
 		this.unBind();
 	}
 
-	#drawIndexObject(indexObj, applyMaterial, shader, actualRenderMode) {
-		this.#bindMaterial(indexObj, applyMaterial, shader);
+	_drawIndexObject(indexObj, applyMaterial, shader, actualRenderMode) {
+		this._bindMaterial(indexObj, applyMaterial, shader);
 		Backend.drawIndexed(
 			indexObj.indexBuffer,
 			indexObj.indexBuffer.length,
@@ -204,11 +202,9 @@ class Mesh {
 	}
 
 	renderIndices(applyMaterial, renderMode = null, mode = "all", shader = null) {
-		const actualRenderMode = renderMode ?? null;
-
 		// Lazy initialization of grouped indices
-		if (!this.#groupedIndices && this.resources) {
-			this.#groupedIndices = {
+		if (!this._groupedIndices && this.resources) {
+			this._groupedIndices = {
 				opaque: [],
 				translucent: [],
 				all: this.indices,
@@ -221,40 +217,17 @@ class Mesh {
 						: null;
 
 				if (material?.translucent) {
-					this.#groupedIndices.translucent.push(indexObj);
+					this._groupedIndices.translucent.push(indexObj);
 				} else {
-					this.#groupedIndices.opaque.push(indexObj);
+					this._groupedIndices.opaque.push(indexObj);
 				}
 			}
 		}
 
-		let targets = this.indices;
-
-		if (typeof mode === "function") {
-			// Legacy filter support
-			for (const indexObj of this.indices) {
-				const material =
-					this.resources && indexObj.material !== "none"
-						? this.resources.get(indexObj.material)
-						: null;
-				if (!mode(material)) continue;
-
-				this.#drawIndexObject(
-					indexObj,
-					applyMaterial,
-					shader,
-					actualRenderMode,
-				);
-			}
-			return;
-		}
-
-		if (this.#groupedIndices?.[mode]) {
-			targets = this.#groupedIndices[mode];
-		}
+		const targets = this._groupedIndices?.[mode] ?? this.indices;
 
 		for (const indexObj of targets) {
-			this.#drawIndexObject(indexObj, applyMaterial, shader, actualRenderMode);
+			this._drawIndexObject(indexObj, applyMaterial, shader, renderMode);
 		}
 	}
 

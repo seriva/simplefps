@@ -148,7 +148,7 @@ const _spawnExplosion = (position) => {
 
 	// 1. Point light flash
 	const flashColor = [1.0, 0.5, 0.1];
-	const flashRadius = EXPLOSION_CONFIG.scale * 6.0;
+	const flashRadius = EXPLOSION_CONFIG.scale * 4.5;
 	// Pull slightly off the wall so it illuminates the impact surface evenly
 	const flashPos = [position[0], position[1], position[2] + 10];
 	const flashEntity = new PointLightEntity(

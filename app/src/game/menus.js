@@ -171,12 +171,25 @@ const _settingsMenu = {
 				},
 				{
 					type: "checkbox",
-					text: Translations.get("FXAA"),
-					value: () => Settings.doFXAA,
+					text: Translations.get("FSR"),
+					value: () => Settings.doFSR,
 					set: (v) => {
-						Settings.doFXAA = v;
+						Settings.doFSR = v;
+						Settings.save();
+						resize();
+					},
+				},
+				{
+					type: "slider",
+					text: Translations.get("FSR_SHARPNESS"),
+					value: () => Settings.fsrSharpness,
+					set: (v) => {
+						Settings.fsrSharpness = parseFloat(v);
 						Settings.save();
 					},
+					min: 0.0,
+					max: 1.0,
+					step: 0.05,
 				},
 				{
 					type: "checkbox",

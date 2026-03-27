@@ -9,8 +9,8 @@ const _tempMatrix = mat4.create();
 
 class SpotLightEntity extends Entity {
 	// Private fields — single source of truth for position/direction
-	#position;
-	#direction;
+	_position;
+	_direction;
 
 	constructor(
 		position,
@@ -32,57 +32,57 @@ class SpotLightEntity extends Entity {
 		this.cutoff = Math.cos((angle * Math.PI) / 180);
 
 		// Store position/direction as private fields — base_matrix is derived, never the source
-		this.#position = vec3.clone(position);
-		this.#direction = vec3.normalize(vec3.create(), direction);
+		this._position = vec3.clone(position);
+		this._direction = vec3.normalize(vec3.create(), direction);
 
 		// Build transformation matrix from private fields
-		this.base_matrix = this.#buildTransformMatrix();
+		this.base_matrix = this._buildTransformMatrix();
 
 		// Create the bounding box with initial values
 		this.boundingBox = new BoundingBox(
-			vec3.clone(this.#position),
-			vec3.clone(this.#position),
+			vec3.clone(this._position),
+			vec3.clone(this._position),
 		);
 		this.updateBoundingVolume();
 	}
 
 	// Read-only accessors — callers must use setPosition/setDirection to mutate
 	get position() {
-		return this.#position;
+		return this._position;
 	}
 
 	get direction() {
-		return this.#direction;
+		return this._direction;
 	}
 
 	setPosition(position) {
-		vec3.copy(this.#position, position);
-		this.base_matrix = this.#buildTransformMatrix();
+		vec3.copy(this._position, position);
+		this.base_matrix = this._buildTransformMatrix();
 		this.updateBoundingVolume();
 	}
 
 	setDirection(direction) {
-		vec3.normalize(this.#direction, direction);
-		this.base_matrix = this.#buildTransformMatrix();
+		vec3.normalize(this._direction, direction);
+		this.base_matrix = this._buildTransformMatrix();
 		this.updateBoundingVolume();
 	}
 
 	// Private method to build the transformation matrix from current private state
-	#buildTransformMatrix() {
+	_buildTransformMatrix() {
 		const defaultDir = vec3.fromValues(0, 0, -1);
 
 		// Calculate rotation using quaternion
 		const rotationQuat = quat.rotationTo(
 			quat.create(),
 			defaultDir,
-			this.#direction,
+			this._direction,
 		);
 		const rotationMat = mat4.fromQuat(mat4.create(), rotationQuat);
 
 		const matrix = mat4.create();
 
 		// T * R * S
-		mat4.translate(matrix, matrix, this.#position);
+		mat4.translate(matrix, matrix, this._position);
 		mat4.multiply(matrix, matrix, rotationMat);
 
 		const radius = Math.tan((this.angle * Math.PI) / 180) * this.range;
@@ -92,7 +92,7 @@ class SpotLightEntity extends Entity {
 	}
 
 	// Private helper to get world transform matrix
-	#getWorldMatrix() {
+	_getWorldMatrix() {
 		mat4.multiply(_tempMatrix, this.base_matrix, this.ani_matrix);
 		return _tempMatrix;
 	}
@@ -100,12 +100,12 @@ class SpotLightEntity extends Entity {
 	render() {
 		if (!this.visible) return;
 
-		const m = this.#getWorldMatrix();
+		const m = this._getWorldMatrix();
 
 		// Set shader uniforms (shader already bound by RenderPasses)
 		Shaders.spotLight.setMat4("matWorld", m);
-		Shaders.spotLight.setVec3("spotLight.position", this.#position);
-		Shaders.spotLight.setVec3("spotLight.direction", this.#direction);
+		Shaders.spotLight.setVec3("spotLight.position", this._position);
+		Shaders.spotLight.setVec3("spotLight.direction", this._direction);
 		Shaders.spotLight.setVec3("spotLight.color", this.color);
 		Shaders.spotLight.setFloat("spotLight.intensity", this.intensity);
 		Shaders.spotLight.setFloat("spotLight.cutoff", this.cutoff);
@@ -116,14 +116,14 @@ class SpotLightEntity extends Entity {
 
 	renderWireFrame() {
 		if (!this.visible) return;
-		const m = this.#getWorldMatrix();
+		const m = this._getWorldMatrix();
 		Shaders.debug.setMat4("matWorld", m);
 		Shapes.spotlightVolume.renderWireFrame();
 	}
 
 	updateBoundingVolume() {
 		const unitBox = Shapes.spotlightVolume.boundingBox;
-		const m = this.#getWorldMatrix();
+		const m = this._getWorldMatrix();
 		if (!this.boundingBox) {
 			this.boundingBox = new BoundingBox([0, 0, 0], [1, 1, 1]);
 		}

@@ -13,7 +13,7 @@ import {
 import { Translations } from "./translations.js";
 
 class _MenuUI extends Reactive.Component {
-	#uis = {};
+	_uis = {};
 
 	state() {
 		return {
@@ -496,11 +496,11 @@ class _MenuUI extends Reactive.Component {
 			const menuName = this.currentMenu.get();
 			const isVisible = this.visible.get();
 
-			if (!isVisible || !menuName || !this.#uis[menuName]) {
+			if (!isVisible || !menuName || !this._uis[menuName]) {
 				return;
 			}
 
-			const menu = this.#uis[menuName];
+			const menu = this._uis[menuName];
 
 			// Update header
 			this.refs.header.textContent = menu.header;
@@ -544,7 +544,7 @@ class _MenuUI extends Reactive.Component {
 					const panel = this.refs.controls.querySelector(
 						`[data-tab-panel="${i}"]`,
 					);
-					this.#buildControls(tab.controls, panel);
+					this._buildControls(tab.controls, panel);
 				}
 
 				// Wire tab switching
@@ -569,12 +569,12 @@ class _MenuUI extends Reactive.Component {
 				}
 			} else {
 				// Original non-tabbed logic
-				this.#buildControls(menu.controls, this.refs.controls);
+				this._buildControls(menu.controls, this.refs.controls);
 			}
 		});
 	}
 
-	#renderControlRow(control, index) {
+	_renderControlRow(control, index) {
 		let input;
 
 		switch (control.type) {
@@ -610,7 +610,7 @@ class _MenuUI extends Reactive.Component {
 		</div>`;
 	}
 
-	#buildControls(controls, container) {
+	_buildControls(controls, container) {
 		const parts = [];
 		let panelRows = [];
 
@@ -627,16 +627,16 @@ class _MenuUI extends Reactive.Component {
 					html`<div class="menu-button" data-ctrl="${i}">${control.text}</div>`,
 				);
 			} else {
-				panelRows.push(this.#renderControlRow(control, i));
+				panelRows.push(this._renderControlRow(control, i));
 			}
 		});
 		flushPanel();
 
 		container.innerHTML = join(parts).content;
-		this.#wireControlEvents(container, controls);
+		this._wireControlEvents(container, controls);
 	}
 
-	#wireControlEvents(container, controls) {
+	_wireControlEvents(container, controls) {
 		for (const el of container.querySelectorAll("[data-ctrl]")) {
 			const control = controls[el.dataset.ctrl];
 
@@ -662,7 +662,7 @@ class _MenuUI extends Reactive.Component {
 	}
 
 	register(name, ui) {
-		this.#uis[name] = ui;
+		this._uis[name] = ui;
 	}
 
 	show(name) {

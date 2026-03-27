@@ -65,7 +65,7 @@ export const PROJECTILE_CONFIG = {
 	meshScale: 33,
 	velocity: 1200,
 	light: {
-		radius: 150,
+		radius: 110,
 		intensity: 4,
 		color: [0.988, 0.31, 0.051],
 	},

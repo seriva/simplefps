@@ -25,7 +25,7 @@ class SkyboxEntity extends Entity {
 
 	render() {
 		// Update matrix with camera position
-		this.#updateMatrix();
+		this._updateMatrix();
 
 		// Set shader uniforms (matViewProj now in FrameData UBO)
 		this.shader.setMat4("matWorld", this.base_matrix);
@@ -38,7 +38,7 @@ class SkyboxEntity extends Entity {
 
 	renderWireFrame() {
 		// Update matrix with camera position
-		this.#updateMatrix();
+		this._updateMatrix();
 
 		// Set shader uniforms (matViewProj now in FrameData UBO)
 		Shaders.debug.setMat4("matWorld", this.base_matrix);
@@ -48,7 +48,7 @@ class SkyboxEntity extends Entity {
 	}
 
 	// Private method to update matrix with camera position
-	#updateMatrix() {
+	_updateMatrix() {
 		mat4.translate(this.base_matrix, this.ani_matrix, Camera.position);
 	}
 }

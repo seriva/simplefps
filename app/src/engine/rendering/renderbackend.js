@@ -227,11 +227,16 @@ class RenderBackend {
 	}
 
 	getHeight() {
-		throw new Error("RenderBackend.getHeight() must be implemented");
+		return 0;
 	}
-
+	getNativeWidth() {
+		return 0;
+	}
+	getNativeHeight() {
+		return 0;
+	}
 	getAspectRatio() {
-		return this.getWidth() / this.getHeight();
+		return 0;
 	}
 
 	resize() {

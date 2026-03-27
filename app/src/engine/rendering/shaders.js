@@ -31,10 +31,6 @@ class Shader {
 		this.backend.bindShader(this.program);
 	}
 
-	static unBind(backend) {
-		backend.unbindShader();
-	}
-
 	setInt(id, value) {
 		this.backend.setUniform(id, "int", value);
 	}
@@ -61,6 +57,10 @@ class Shader {
 
 	setVec3Array(id, array) {
 		this.backend.setUniform(id, "vec3[]", array);
+	}
+
+	setFloatArray(id, array) {
+		this.backend.setUniform(id, "float[]", array);
 	}
 
 	setMat4Array(id, array) {

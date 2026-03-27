@@ -84,7 +84,7 @@ class FPSController {
 	update(frameTime) {
 		if (_noclip) return;
 
-		this.#integratePhysics(frameTime);
+		this._integratePhysics(frameTime);
 
 		if (this.grounded) {
 			if (!this.wasGrounded && this.airTime > LAND_TIME_THRESHOLD) {
@@ -106,7 +106,7 @@ class FPSController {
 
 	move(strafe, move, cameraForward, cameraRight, frameTime) {
 		if (_noclip) {
-			this.#noclipMove(strafe, move, cameraForward, cameraRight, frameTime);
+			this._noclipMove(strafe, move, cameraForward, cameraRight, frameTime);
 			return;
 		}
 
@@ -123,9 +123,9 @@ class FPSController {
 		const wishSpeed = this.config.maxSpeed * Math.min(wishDirLength, 1.0);
 
 		if (this.grounded) {
-			this.#applyGroundMovement(_wishDir, wishSpeed, frameTime);
+			this._applyGroundMovement(_wishDir, wishSpeed, frameTime);
 		} else {
-			this.#accelerate(
+			this._accelerate(
 				_wishDir,
 				wishSpeed,
 				this.config.airAcceleration,
@@ -145,7 +145,7 @@ class FPSController {
 
 	// --- Movement ---
 
-	#applyGroundMovement(wishDir, wishSpeed, dt) {
+	_applyGroundMovement(wishDir, wishSpeed, dt) {
 		if (wishSpeed < 0.1) {
 			const decelAlpha = 1 - Math.exp(-GROUND_DECEL * dt);
 			this.velocity[0] *= 1 - decelAlpha;
@@ -154,10 +154,10 @@ class FPSController {
 			if (Math.abs(this.velocity[2]) < 1) this.velocity[2] = 0;
 			return;
 		}
-		this.#accelerate(wishDir, wishSpeed, this.config.groundAcceleration, dt);
+		this._accelerate(wishDir, wishSpeed, this.config.groundAcceleration, dt);
 	}
 
-	#accelerate(wishDir, wishSpeed, acceleration, dt) {
+	_accelerate(wishDir, wishSpeed, acceleration, dt) {
 		const currentSpeed =
 			this.velocity[0] * wishDir[0] + this.velocity[2] * wishDir[2];
 		const addSpeed = wishSpeed - currentSpeed;
@@ -174,7 +174,7 @@ class FPSController {
 
 	// --- Physics Integration ---
 
-	#integratePhysics(dt) {
+	_integratePhysics(dt) {
 		this.velocity[1] = Math.max(this.velocity[1] - GRAVITY * dt, -2000);
 
 		const dx = this.velocity[0] * dt;
@@ -182,13 +182,13 @@ class FPSController {
 		const dz = this.velocity[2] * dt;
 		const startPos = this.position;
 
-		let { x: finalX, z: finalZ } = this.#resolveHorizontalCollision(
+		let { x: finalX, z: finalZ } = this._resolveHorizontalCollision(
 			startPos,
 			dx,
 			dz,
 			dt,
 		);
-		({ x: finalX, z: finalZ } = this.#resolveDepenetration(
+		({ x: finalX, z: finalZ } = this._resolveDepenetration(
 			finalX,
 			finalZ,
 			startPos.y,
@@ -196,16 +196,16 @@ class FPSController {
 
 		this.position.x = finalX;
 		this.position.z = finalZ;
-		this.position.y = this.#resolveGroundCollision(
+		this.position.y = this._resolveGroundCollision(
 			finalX,
 			finalZ,
 			startPos.y,
 			dy,
 		);
-		this.#resolveCeilingCollision(finalX, startPos.y, finalZ);
+		this._resolveCeilingCollision(finalX, startPos.y, finalZ);
 	}
 
-	#resolveHorizontalCollision(startPos, dx, dz, dt) {
+	_resolveHorizontalCollision(startPos, dx, dz, dt) {
 		let finalX = startPos.x + dx;
 		let finalZ = startPos.z + dz;
 
@@ -278,7 +278,7 @@ class FPSController {
 		return _tmpPos1;
 	}
 
-	#resolveDepenetration(x, z, y) {
+	_resolveDepenetration(x, z, y) {
 		const radius = this.config.radius;
 		const depenetrationRadius = radius + 1;
 		const radiusSq = radius * radius;
@@ -314,7 +314,7 @@ class FPSController {
 		return _tmpPos2;
 	}
 
-	#resolveGroundCollision(finalX, finalZ, startY, dy) {
+	_resolveGroundCollision(finalX, finalZ, startY, dy) {
 		let finalY = startY + dy;
 		this.grounded = false;
 
@@ -375,7 +375,7 @@ class FPSController {
 		return finalY;
 	}
 
-	#resolveCeilingCollision(finalX, startY, finalZ) {
+	_resolveCeilingCollision(finalX, startY, finalZ) {
 		if (this.velocity[1] <= 0) return;
 
 		const radius = this.config.radius;
@@ -398,12 +398,12 @@ class FPSController {
 	syncCamera(frameTime) {
 		if (_noclip) return;
 
-		this.#smoothPosition(frameTime);
+		this._smoothPosition(frameTime);
 
 		const vel = this.velocity;
 		const horizontalSpeed = Math.sqrt(vel[0] * vel[0] + vel[2] * vel[2]);
 
-		this.#updateHeadBob(horizontalSpeed, frameTime);
+		this._updateHeadBob(horizontalSpeed, frameTime);
 
 		const eyeOffset = this.config.eyeHeight - this.config.height / 2;
 		Camera.position[0] = this.smoothX + this.bobOffsetX;
@@ -411,10 +411,10 @@ class FPSController {
 			this.smoothY + eyeOffset + this.bobOffsetY - this.landingDip;
 		Camera.position[2] = this.smoothZ;
 
-		this.#updateCameraRoll(horizontalSpeed, frameTime);
+		this._updateCameraRoll(horizontalSpeed, frameTime);
 	}
 
-	#smoothPosition(frameTime) {
+	_smoothPosition(frameTime) {
 		const pos = this.position;
 
 		if (this.smoothX === undefined) {
@@ -438,7 +438,7 @@ class FPSController {
 		if (this.landingDip < 0.01) this.landingDip = 0;
 	}
 
-	#updateHeadBob(horizontalSpeed, frameTime) {
+	_updateHeadBob(horizontalSpeed, frameTime) {
 		if (horizontalSpeed > 10 && this.grounded) {
 			const speedFactor = Math.min(horizontalSpeed / this.config.maxSpeed, 1);
 			this.bobPhase += speedFactor * this.config.wobbleFrequency * frameTime;
@@ -453,7 +453,7 @@ class FPSController {
 		}
 	}
 
-	#updateCameraRoll(horizontalSpeed, frameTime) {
+	_updateCameraRoll(horizontalSpeed, frameTime) {
 		let targetRoll = 0;
 		if (horizontalSpeed > 10 && this.grounded) {
 			const speedFactor = Math.min(horizontalSpeed / this.config.maxSpeed, 1);
@@ -479,7 +479,7 @@ class FPSController {
 
 	destroy() {}
 
-	#noclipMove(inputX, inputZ, _cameraForward, cameraRight, frameTime) {
+	_noclipMove(inputX, inputZ, _cameraForward, cameraRight, frameTime) {
 		vec3.zero(_noclipDir);
 		vec3.scaleAndAdd(_noclipDir, _noclipDir, Camera.direction, inputZ);
 		vec3.scaleAndAdd(_noclipDir, _noclipDir, cameraRight, inputX);

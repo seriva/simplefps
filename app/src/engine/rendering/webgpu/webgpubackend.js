@@ -57,6 +57,7 @@ class WebGPUBackend extends RenderBackend {
 		this._commandEncoder = null;
 		this._currentPass = null;
 		this._currentTexture = null;
+		this._viewport = null;
 
 		// Render state (for pipeline creation)
 		this._depthState = {
@@ -93,14 +94,20 @@ class WebGPUBackend extends RenderBackend {
 		// Optimization: Buffer pool for per-frame uniform buffers
 		// =========================================================================
 		// Pool of uniform buffers keyed by size (aligned to 16 bytes)
-		this._uniformBufferPool = new Map(); // size -> [buffer, buffer, ...]
-		this._uniformBufferInUse = new Set(); // buffers used this frame, reset each frame
+		this._uniformBufferPool = new Map(); // size -> { index: 0, buffers: [] }
 
-		// =========================================================================
-		// Optimization: BindGroup cache
-		// =========================================================================
-		// Cache BindGroups by a hash of their contents
-		this._bindGroupCache = new Map();
+		// Optimization: BindGroup caches
+		this._persistentBindGroupCache = new Map();
+		this._frameBindGroupCache = new Map();
+
+		// Optimization: Dynamic Object Uniform Buffer
+		this._dynamicObjectOffset = 0;
+		this._dynamicObjectBuffer = null;
+		this._dynamicObjectBufferSize = 32768 * 256; // Supports 32k objects per frame (8MB)
+
+		// Optimization: Pipeline Layout Cache
+		this._pipelineLayoutCache = new Map();
+		this._bindGroupLayoutCache = new Map();
 
 		// Optimization: State filtering cache
 		this._passCache = {
@@ -129,6 +136,10 @@ class WebGPUBackend extends RenderBackend {
 			skinnedShadowParams: new Float32Array(20),
 			blurParams: new Float32Array(8),
 			bilateralParams: new Float32Array(4), // depthThreshold, normalThreshold, _pad x2
+			easuParams: new Float32Array(16), // con0, con1, con2, con3 (4 x vec4)
+			rcasParams: new Float32Array(8), // sharpness (f32) + pad to 32 bytes for vec3 alignment
+			billboardParams: new Float32Array(24), // mat4 + vec2 + vec2 + f32 + 3x pad = 96 bytes
+			objectData: new Float32Array(20), // mat4 + vec4 (80 bytes)
 		};
 
 		// Optimization: Unique ID counter for resources (for cache keys)
@@ -154,17 +165,6 @@ class WebGPUBackend extends RenderBackend {
 		} else {
 			this._canvas = canvas;
 		}
-
-		// Occlusion Query State
-		this._querySet = null;
-		this._queryBuffer = null;
-		this._queryReadBuffers = []; // Ring buffer for async reading
-		this._queryReadIndex = 0; // Current ring index
-		this._queryCount = 1024; // Max number of occlusion queries
-		this._queryIndices = new Set(); // Track used indices
-		for (let i = 0; i < this._queryCount; i++) this._queryIndices.add(i);
-		this._activeQueries = new Map(); // Map query object -> index
-		this._queryResults = new BigUint64Array(this._queryCount); // Local cache of results
 
 		try {
 			// Request adapter
@@ -234,6 +234,13 @@ class WebGPUBackend extends RenderBackend {
 			this._defaultTextureView = defaultTexture.createView();
 			this._defaultTextureView._id = this._resourceIdCounter++;
 
+			// Optimization: Create dynamic object buffer
+			this._dynamicObjectBuffer = this._device.createBuffer({
+				size: this._dynamicObjectBufferSize,
+				usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+			});
+			this._dynamicObjectBuffer._id = this._resourceIdCounter++;
+
 			// Create default sampler
 			this._defaultSampler = this._device.createSampler({
 				magFilter: "linear",
@@ -252,30 +259,6 @@ class WebGPUBackend extends RenderBackend {
 			Console.log(
 				`[WebGPU] Format: ${this._format}, Max texture: ${this._capabilities.maxTextureSize}, Max aniso: ${this._capabilities.maxAnisotropy}`,
 			);
-
-			// Create QuerySet
-			this._querySet = this._device.createQuerySet({
-				type: "occlusion",
-				count: this._queryCount,
-			});
-
-			// Create Query Resolve Buffer (destination for resolveQuerySet)
-			this._queryBuffer = this._device.createBuffer({
-				size: this._queryCount * 8, // 64-bit results
-				usage: GPUBufferUsage.QUERY_RESOLVE | GPUBufferUsage.COPY_SRC,
-			});
-
-			// Create Query Read Buffers (ring buffer for non-blocking readback)
-			this._queryReadBuffers = [];
-			for (let i = 0; i < 3; i++) {
-				this._queryReadBuffers.push(
-					this._device.createBuffer({
-						size: this._queryCount * 8,
-						usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
-						label: `OcclusionReadBuffer_${i}`,
-					}),
-				);
-			}
 
 			// Create dummy UBO for missing bindings (64KB to cover most cases)
 			this._dummyUBO = this._device.createBuffer({
@@ -319,71 +302,30 @@ class WebGPUBackend extends RenderBackend {
 		// Create command encoder for this frame
 		this._commandEncoder = this._device.createCommandEncoder();
 
+		// Reset dynamic object data offset
+		this._dynamicObjectOffset = 0;
+
 		// Reset uniform buffer pool for this frame
 		// Return all buffers from previous frame back to the pool
-		this._uniformBufferInUse.clear();
+		for (const pool of this._uniformBufferPool.values()) {
+			pool.index = 0;
+		}
 
-		// Clear per-frame BindGroup cache (bindings change each frame)
-		this._bindGroupCache.clear();
+		// Clear per-frame BindGroup cache ONLY
+		this._frameBindGroupCache.clear();
 	}
 
 	async endFrame() {
-		let didCopy = false;
-
 		// End any active render pass
 		if (this._currentPass) {
 			this._currentPass.end();
 			this._currentPass = null;
 		}
 
-		// Resolve Occlusion Queries
-		if (this._commandEncoder && this._querySet) {
-			// Resolve query set to buffer
-			this._commandEncoder.resolveQuerySet(
-				this._querySet,
-				0,
-				this._queryCount,
-				this._queryBuffer,
-				0,
-			);
-
-			// Copy resolved buffer to read buffer (if available)
-			const readBuffer = this._queryReadBuffers[this._queryReadIndex];
-
-			if (readBuffer.mapState === "unmapped") {
-				this._commandEncoder.copyBufferToBuffer(
-					this._queryBuffer,
-					0,
-					readBuffer,
-					0,
-					this._queryCount * 8,
-				);
-				didCopy = true;
-			}
-		}
-
 		// Submit all commands
 		if (this._commandEncoder) {
 			this._device.queue.submit([this._commandEncoder.finish()]);
 			this._commandEncoder = null;
-		}
-
-		// Read back results asynchronously (no await!)
-		if (didCopy) {
-			const readBuffer = this._queryReadBuffers[this._queryReadIndex];
-			readBuffer
-				.mapAsync(GPUMapMode.READ)
-				.then(() => {
-					const arrayBuffer = readBuffer.getMappedRange();
-					this._queryResults.set(new BigUint64Array(arrayBuffer));
-					readBuffer.unmap();
-				})
-				.catch(() => {
-					// Buffer mapping failed (device lost or unmapped early)
-				});
-
-			// Advance ring buffer index
-			this._queryReadIndex = (this._queryReadIndex + 1) % 3;
 		}
 
 		this._currentTexture = null;
@@ -684,11 +626,6 @@ class WebGPUBackend extends RenderBackend {
 			descriptor.depthStencilAttachment = depthAttachment;
 		}
 
-		// Add occlusion query set if available
-		if (this._querySet) {
-			descriptor.occlusionQuerySet = this._querySet;
-		}
-
 		this._currentPass = encoder.beginRenderPass(descriptor);
 
 		// OPTIMIZATION: Reset state cache for new pass
@@ -769,58 +706,6 @@ class WebGPUBackend extends RenderBackend {
 	}
 
 	// =========================================================================
-	// Occlusion Queries
-	// =========================================================================
-
-	createQuery() {
-		if (this._queryIndices.size === 0) {
-			Console.warn("WebGPU: No more occlusion query indices available");
-			return null;
-		}
-		const index = this._queryIndices.values().next().value;
-		this._queryIndices.delete(index);
-		const query = { index }; // Opaque handle
-		this._activeQueries.set(query, index);
-		return query;
-	}
-
-	deleteQuery(query) {
-		if (!query) return;
-		const index = this._activeQueries.get(query);
-		if (index !== undefined) {
-			this._queryIndices.add(index);
-			this._activeQueries.delete(query);
-		}
-	}
-
-	beginQuery(query) {
-		if (!this._currentPass) {
-			// Must be inside a pass to begin occlusion query in WebGPU
-			// However, our architecture expects beginQuery -> draw -> endQuery.
-			// If we are not in a pass, we should warn or maybe start one?
-			// The renderer controls passes, so we should assume a pass is active.
-			return;
-		}
-		this._currentPass.beginOcclusionQuery(query.index);
-	}
-
-	endQuery(_query) {
-		if (!this._currentPass) return;
-		this._currentPass.endOcclusionQuery();
-	}
-
-	getQueryResult(query) {
-		// Return cached result from previous frame(s)
-		const index = query.index;
-		const pixels = Number(this._queryResults[index]);
-		return {
-			available: true, // Always "available" from cache (might be old)
-			hasPassed: pixels > 0,
-			pixelCount: pixels,
-		};
-	}
-
-	// =========================================================================
 	// Queries
 	// =========================================================================
 
@@ -856,11 +741,31 @@ class WebGPUBackend extends RenderBackend {
 		return this.getWidth() / this.getHeight();
 	}
 
+	getNativeWidth() {
+		return Math.floor(
+			this._canvas.clientWidth * (window.devicePixelRatio || 1),
+		);
+	}
+
+	getNativeHeight() {
+		return Math.floor(
+			this._canvas.clientHeight * (window.devicePixelRatio || 1),
+		);
+	}
+
 	resize() {
-		const width = this.getWidth();
-		const height = this.getHeight();
-		this._canvas.width = width;
-		this._canvas.height = height;
+		const nativeWidth = this.getNativeWidth();
+		const nativeHeight = this.getNativeHeight();
+		const scaledWidth = this.getWidth();
+		const scaledHeight = this.getHeight();
+
+		if (Settings.doFSR) {
+			this._canvas.width = nativeWidth;
+			this._canvas.height = nativeHeight;
+		} else {
+			this._canvas.width = scaledWidth;
+			this._canvas.height = scaledHeight;
+		}
 
 		// Reconfigure context
 		if (this._context && this._device) {
@@ -1050,6 +955,7 @@ class WebGPUBackend extends RenderBackend {
 			this._currentPass = null;
 		}
 		this._activeFramebuffer = framebuffer;
+		this._viewport = null; // Reset viewport on FB change
 	}
 
 	setFramebufferAttachment(fb, attachment, texture, _level = 0, _layer = 0) {
@@ -1404,6 +1310,66 @@ class WebGPUBackend extends RenderBackend {
 		}
 	}
 
+	// Optimization: Explicit Pipeline Layout Generation
+	// =========================================================================
+
+	_getBindGroupLayoutDescriptor(groupBindings) {
+		const entries = [];
+		for (const b of groupBindings) {
+			const entry = {
+				binding: b.binding,
+				visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
+			};
+			if (b.type === "ubo" || b.type === "uniform") {
+				entry.buffer = {
+					type: "uniform",
+					hasDynamicOffset: b.name === "objectData",
+				};
+			} else if (b.type === "sampler") {
+				entry.sampler = { type: "filtering" };
+			} else if (b.type === "texture") {
+				entry.texture = { sampleType: "float" };
+			}
+			entries.push(entry);
+		}
+		return { entries };
+	}
+
+	_getBindGroupLayout(shaderName, groupIndex) {
+		const key = `${shaderName}_${groupIndex}`;
+		if (this._bindGroupLayoutCache.has(key))
+			return this._bindGroupLayoutCache.get(key);
+
+		const bindingsInfo =
+			WgslShaderSources[shaderName]?.bindings[`group${groupIndex}`];
+		if (!bindingsInfo) return null;
+
+		const layout = this._device.createBindGroupLayout(
+			this._getBindGroupLayoutDescriptor(bindingsInfo),
+		);
+		this._bindGroupLayoutCache.set(key, layout);
+		return layout;
+	}
+
+	_getPipelineLayout(shaderName) {
+		if (this._pipelineLayoutCache.has(shaderName))
+			return this._pipelineLayoutCache.get(shaderName);
+
+		const bgls = [];
+		for (let i = 0; i <= 2; i++) {
+			const bgl = this._getBindGroupLayout(shaderName, i);
+			if (bgl) bgls.push(bgl);
+		}
+
+		if (bgls.length === 0) return "auto"; // Fallback just in case
+
+		const layout = this._device.createPipelineLayout({
+			bindGroupLayouts: bgls,
+		});
+		this._pipelineLayoutCache.set(shaderName, layout);
+		return layout;
+	}
+
 	// =========================================================================
 	// Optimization: Pooled uniform buffer allocation
 	// =========================================================================
@@ -1413,18 +1379,15 @@ class WebGPUBackend extends RenderBackend {
 		const alignedSize = Math.ceil(size / 16) * 16;
 
 		// Get or create pool for this size
-		if (!this._uniformBufferPool.has(alignedSize)) {
-			this._uniformBufferPool.set(alignedSize, []);
+		let pool = this._uniformBufferPool.get(alignedSize);
+		if (!pool) {
+			pool = { index: 0, buffers: [] };
+			this._uniformBufferPool.set(alignedSize, pool);
 		}
 
-		const pool = this._uniformBufferPool.get(alignedSize);
-
-		// Find an available buffer (one not in use this frame)
-		for (const buf of pool) {
-			if (!this._uniformBufferInUse.has(buf)) {
-				this._uniformBufferInUse.add(buf);
-				return buf;
-			}
+		// Find an available buffer (O(1) allocation)
+		if (pool.index < pool.buffers.length) {
+			return pool.buffers[pool.index++];
 		}
 
 		// No available buffer, create a new one
@@ -1435,8 +1398,8 @@ class WebGPUBackend extends RenderBackend {
 		// Add ID to raw GPU buffer for pooling identification
 		newBuffer._id = this._resourceIdCounter++;
 
-		pool.push(newBuffer);
-		this._uniformBufferInUse.add(newBuffer);
+		pool.buffers.push(newBuffer);
+		pool.index++;
 
 		return newBuffer;
 	}
@@ -1582,9 +1545,12 @@ class WebGPUBackend extends RenderBackend {
 					(this._colorMask.a ? GPUColorWrite.ALPHA : 0),
 			}));
 
+			const shaderLabel = this._currentShader._gpuShaderModule.label;
+			const pipelineLayout = this._getPipelineLayout(shaderLabel) || "auto";
+
 			const descriptor = {
 				label: `Pipeline_${key}`,
-				layout: "auto",
+				layout: pipelineLayout,
 				vertex: {
 					module: this._currentShader._gpuShaderModule,
 					entryPoint: "vs_main",
@@ -1653,11 +1619,18 @@ class WebGPUBackend extends RenderBackend {
 		}
 
 		// 5. Bind Groups
-		// Group 0: FrameData (always expected if shader uses it)
-		if (this._boundUBOs.has(0)) {
+		// Group 0: FrameData (only if shader uses it)
+		const shaderName = this._currentShader._gpuShaderModule.label;
+		const bindings = WgslShaderSources[shaderName]?.bindings;
+		const shaderUsesGroup0 =
+			bindings?.group0 !== undefined ||
+			WgslShaderSources[shaderName]?.code?.includes("@group(0)");
+
+		if (shaderUsesGroup0 && this._boundUBOs.has(0)) {
 			// OPTIMIZATION: Cache BindGroup 0 per pipeline
-			const bg0Key = `bg0_${key}`;
-			let bindGroup0 = this._bindGroupCache.get(bg0Key);
+			const bg0Key = `bg0_${key}_${this._boundUBOs.get(0)?._id || "none"}`;
+			let bindGroup0 = this._frameBindGroupCache.get(bg0Key);
+			if (!bindGroup0) bindGroup0 = this._persistentBindGroupCache.get(bg0Key);
 
 			if (!bindGroup0) {
 				try {
@@ -1671,7 +1644,7 @@ class WebGPUBackend extends RenderBackend {
 							},
 						],
 					});
-					this._bindGroupCache.set(bg0Key, bindGroup0);
+					this._persistentBindGroupCache.set(bg0Key, bindGroup0);
 				} catch (_e) {
 					/* Ignore if shader doesn't use group 0 */
 				}
@@ -1687,12 +1660,10 @@ class WebGPUBackend extends RenderBackend {
 		}
 
 		// Shader-specific groups
-		const shaderName = this._currentShader._gpuShaderModule.label;
-		const bindings = WgslShaderSources[shaderName]?.bindings;
-
 		// Key parts for caching
 		let bg1Key = "";
 		let bg2Key = "";
+		let dynamicOffset1 = -1;
 
 		if (bindings) {
 			// Group 1
@@ -1700,6 +1671,7 @@ class WebGPUBackend extends RenderBackend {
 				// Reuse temp array to avoid GC
 				this._tempEntries.length = 0;
 				const entries = this._tempEntries;
+				let hasTransient = false;
 
 				for (const b of bindings.group1) {
 					if (b.type === "ubo") {
@@ -1738,14 +1710,51 @@ class WebGPUBackend extends RenderBackend {
 								bufferVal = new Float32Array(val);
 							}
 
-							// OPTIMIZATION: Use pooled buffer instead of creating new one
-							const buf = this._getPooledUniformBuffer(bufferVal.byteLength);
+							if (b.name === "objectData") {
+								// OPTIMIZATION: Use dynamic offset buffer for ObjectData
+								const byteLength = bufferVal.byteLength;
 
-							// Write data via queue (buffer is already created)
-							this._device.queue.writeBuffer(buf, 0, bufferVal);
+								this._device.queue.writeBuffer(
+									this._dynamicObjectBuffer,
+									this._dynamicObjectOffset,
+									bufferVal,
+								);
 
-							entries.push({ binding: b.binding, resource: { buffer: buf } });
-							bg1Key += `${b.binding}:p:${buf._id}|`;
+								entries.push({
+									binding: b.binding,
+									resource: {
+										buffer: this._dynamicObjectBuffer,
+										offset: 0,
+										size: byteLength,
+									},
+								});
+
+								bg1Key += `${b.binding}:dyn|`; // Identity doesn't change
+								dynamicOffset1 = this._dynamicObjectOffset;
+
+								// Advance offset (must be 256-byte aligned in WebGPU)
+								this._dynamicObjectOffset += Math.max(
+									256,
+									Math.ceil(byteLength / 256) * 256,
+								);
+
+								if (
+									this._dynamicObjectOffset >= this._dynamicObjectBufferSize
+								) {
+									Console.warn("WebGPU: Dynamic object buffer overflow");
+									this._dynamicObjectOffset = 0;
+								}
+							} else {
+								// OPTIMIZATION: Use pooled buffer instead of creating new one
+								const buf = this._getPooledUniformBuffer(bufferVal.byteLength);
+
+								// Write data via queue (buffer is already created)
+								this._device.queue.writeBuffer(buf, 0, bufferVal);
+
+								entries.push({ binding: b.binding, resource: { buffer: buf } });
+								bg1Key += `${b.binding}:p:${buf._id}|`;
+								hasTransient = true;
+							}
 						} else {
 							// Fallback to dummy UBO
 							entries.push({
@@ -1787,7 +1796,9 @@ class WebGPUBackend extends RenderBackend {
 				if (entries.length > 0) {
 					// Use the composite key to check cache
 					const cacheKey = `bg1_${key}_${bg1Key}`;
-					let bindGroup1 = this._bindGroupCache.get(cacheKey);
+					let bindGroup1 = hasTransient
+						? this._frameBindGroupCache.get(cacheKey)
+						: this._persistentBindGroupCache.get(cacheKey);
 
 					if (!bindGroup1) {
 						try {
@@ -1796,7 +1807,11 @@ class WebGPUBackend extends RenderBackend {
 								layout: pipeline.getBindGroupLayout(1),
 								entries: [...entries], // Clone entries
 							});
-							this._bindGroupCache.set(cacheKey, bindGroup1);
+							if (hasTransient) {
+								this._frameBindGroupCache.set(cacheKey, bindGroup1);
+							} else {
+								this._persistentBindGroupCache.set(cacheKey, bindGroup1);
+							}
 						} catch (e) {
 							Console.warn(
 								`BindGroup 1 error: ${e.message} (shader: ${this._currentShader?._gpuShaderModule?.label})`,
@@ -1804,9 +1819,18 @@ class WebGPUBackend extends RenderBackend {
 						}
 					}
 
-					if (bindGroup1 && this._passCache.bindGroups.get(1) !== bindGroup1) {
-						pass.setBindGroup(1, bindGroup1);
-						this._passCache.bindGroups.set(1, bindGroup1);
+					if (bindGroup1) {
+						if (
+							this._passCache.bindGroups.get(1) !== bindGroup1 ||
+							dynamicOffset1 !== -1
+						) {
+							if (dynamicOffset1 !== -1) {
+								pass.setBindGroup(1, bindGroup1, [dynamicOffset1]);
+							} else {
+								pass.setBindGroup(1, bindGroup1);
+							}
+							this._passCache.bindGroups.set(1, bindGroup1);
+						}
 					}
 				}
 			}
@@ -1851,7 +1875,7 @@ class WebGPUBackend extends RenderBackend {
 				if (entries.length > 0) {
 					// Use the composite key to check cache
 					const cacheKey = `bg2_${key}_${bg2Key}`;
-					let bindGroup2 = this._bindGroupCache.get(cacheKey);
+					let bindGroup2 = this._persistentBindGroupCache.get(cacheKey);
 
 					if (!bindGroup2) {
 						try {
@@ -1860,7 +1884,7 @@ class WebGPUBackend extends RenderBackend {
 								layout: pipeline.getBindGroupLayout(2),
 								entries: [...entries], // Clone entries
 							});
-							this._bindGroupCache.set(cacheKey, bindGroup2);
+							this._persistentBindGroupCache.set(cacheKey, bindGroup2);
 						} catch (e) {
 							Console.warn(`BindGroup 2 error: ${e.message}`);
 						}
@@ -1927,7 +1951,6 @@ class WebGPUBackend extends RenderBackend {
 			const emissiveMult = this._uniforms.get("emissiveMult");
 			const ssaoStrength = this._uniforms.get("ssaoStrength");
 			const dirtIntensity = this._uniforms.get("dirtIntensity");
-			const doFXAA = this._uniforms.get("doFXAA");
 			const shadowIntensity = this._uniforms.get("shadowIntensity");
 			const ambient =
 				this._uniforms.get("ambient") ??
@@ -1938,12 +1961,10 @@ class WebGPUBackend extends RenderBackend {
 			if (emissiveMult !== undefined) arr[1] = emissiveMult;
 			if (ssaoStrength !== undefined) arr[2] = ssaoStrength;
 			if (dirtIntensity !== undefined) arr[3] = dirtIntensity;
-			if (doFXAA !== undefined) arr[4] = doFXAA;
-			if (shadowIntensity !== undefined) arr[5] = shadowIntensity;
-			// arr[6-7] = _pad (vec2)
+			if (shadowIntensity !== undefined) arr[4] = shadowIntensity;
+			// arr[5-7] = _pad
 			// arr[8-10] = ambient (vec4, 16-byte aligned at offset 32)
 			if (ambient) arr.set(ambient, 8);
-			// arr[11] = _pad (w component of vec4)
 
 			return arr;
 		} else if (name === "ssaoParams") {
@@ -1994,12 +2015,10 @@ class WebGPUBackend extends RenderBackend {
 			const arr = bufs.skinnedShadowParams;
 			arr.fill(0);
 			const matWorld = this._uniforms.get("matWorld");
-			const ambient = this._uniforms.get("ambient");
-			const shadowHeight = this._uniforms.get("shadowHeight");
+			const probeColor = this._uniforms.get("uProbeColor") ?? [1, 1, 1];
 
 			if (matWorld) arr.set(matWorld, 0);
-			if (ambient) arr.set(ambient, 16);
-			if (shadowHeight !== undefined) arr[19] = shadowHeight;
+			if (probeColor) arr.set(probeColor, 16);
 
 			return arr;
 		} else if (name === "blurParams") {
@@ -2019,6 +2038,44 @@ class WebGPUBackend extends RenderBackend {
 			if (depthThreshold !== undefined) arr[0] = depthThreshold;
 			if (normalThreshold !== undefined) arr[1] = normalThreshold;
 			if (gBufferScale !== undefined) arr[2] = gBufferScale;
+			return arr;
+		} else if (name === "easuParams") {
+			const arr = bufs.easuParams;
+			arr.fill(0);
+			const con0 = this._uniforms.get("con0");
+			if (con0) arr.set(con0, 0);
+			return arr;
+		} else if (name === "rcasParams") {
+			const arr = bufs.rcasParams;
+			arr.fill(0);
+			const sharpness = this._uniforms.get("sharpness");
+			if (sharpness !== undefined) arr[0] = sharpness;
+			return arr;
+		} else if (name === "billboardParams") {
+			const arr = bufs.billboardParams;
+			arr.fill(0);
+			const matWorld = this._uniforms.get("matWorld");
+			const frameOffset = this._uniforms.get("uFrameOffset");
+			const frameScale = this._uniforms.get("uFrameScale");
+			const opacity = this._uniforms.get("uOpacity");
+			if (matWorld) arr.set(matWorld, 0);
+			if (frameOffset) arr.set(frameOffset, 16);
+			if (frameScale) arr.set(frameScale, 18);
+			if (opacity !== undefined) arr[20] = opacity;
+			return arr;
+		} else if (name === "objectData") {
+			const arr = bufs.objectData;
+			arr.fill(0);
+			const matWorld = this._uniforms.get("matWorld");
+			const probeColor = this._uniforms.get("uProbeColor") ??
+				this._uniforms.get("ambient") ??
+				this._uniforms.get("debugColor") ?? [1, 1, 1];
+			const shadowHeight = this._uniforms.get("shadowHeight");
+
+			if (matWorld) arr.set(matWorld, 0);
+			if (probeColor) arr.set(probeColor, 16);
+			if (shadowHeight !== undefined) arr[19] = shadowHeight;
+
 			return arr;
 		} else if (name === "ambient") {
 			return null;

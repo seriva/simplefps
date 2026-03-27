@@ -252,4 +252,4 @@ class Ray {
 	}
 }
 
-export { RAY_MODES, RaycastResult, Ray };
+export { RAY_MODES, Ray, RaycastResult };

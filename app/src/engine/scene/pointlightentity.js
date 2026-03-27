@@ -6,11 +6,11 @@ import { Entity, EntityTypes } from "./entity.js";
 
 class PointLightEntity extends Entity {
 	static SCALE_FACTOR = 1.0;
-	static #tempMatrix = mat4.create();
-	static #tempPos = new Float32Array(3);
+	static _tempMatrix = mat4.create();
+	static _tempPos = new Float32Array(3);
 
-	#getTransformMatrix() {
-		const m = PointLightEntity.#tempMatrix;
+	_getTransformMatrix() {
+		const m = PointLightEntity._tempMatrix;
 		mat4.multiply(m, this.base_matrix, this.ani_matrix);
 		const size = this.size * PointLightEntity.SCALE_FACTOR;
 		mat4.scale(m, m, [size, size, size]);
@@ -30,22 +30,22 @@ class PointLightEntity extends Entity {
 
 		// Get the actual light position (without volume scaling)
 		mat4.multiply(
-			PointLightEntity.#tempMatrix,
+			PointLightEntity._tempMatrix,
 			this.base_matrix,
 			this.ani_matrix,
 		);
 		mat4.getTranslation(
-			PointLightEntity.#tempPos,
-			PointLightEntity.#tempMatrix,
+			PointLightEntity._tempPos,
+			PointLightEntity._tempMatrix,
 		);
 
 		// Get the scaled volume transform for rendering the light volume geometry
-		const volumeTransform = this.#getTransformMatrix();
+		const volumeTransform = this._getTransformMatrix();
 
 		Shaders.pointLight.setMat4("matWorld", volumeTransform);
 		Shaders.pointLight.setVec3(
 			"pointLight.position",
-			PointLightEntity.#tempPos,
+			PointLightEntity._tempPos,
 		);
 		Shaders.pointLight.setVec3("pointLight.color", this.color);
 		Shaders.pointLight.setFloat("pointLight.size", this.size);
@@ -55,14 +55,14 @@ class PointLightEntity extends Entity {
 
 	renderWireFrame() {
 		if (!this.visible) return;
-		const m = this.#getTransformMatrix();
+		const m = this._getTransformMatrix();
 		Shaders.debug.setMat4("matWorld", m);
 		Shapes.pointLightVolume.renderWireFrame();
 	}
 
 	updateBoundingVolume() {
 		const unitBox = Shapes.pointLightVolume.boundingBox;
-		const m = this.#getTransformMatrix();
+		const m = this._getTransformMatrix();
 		if (!this.boundingBox) {
 			this.boundingBox = new BoundingBox([0, 0, 0], [1, 1, 1]);
 		}

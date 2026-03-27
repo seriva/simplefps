@@ -3,7 +3,7 @@ import { Settings } from "../systems/settings.js";
 import { Backend } from "./backend.js";
 
 class Texture {
-	#handle = null;
+	_handle = null;
 
 	constructor(data) {
 		this.filter = data.filter;
@@ -13,18 +13,18 @@ class Texture {
 
 	// Public accessor for the backend handle (opaque to the user)
 	getHandle() {
-		return this.#handle;
+		return this._handle;
 	}
 
 	init(data) {
-		if (this.#handle) {
+		if (this._handle) {
 			this.dispose();
 		}
 
 		if (data.data) {
 			// Image texture case
 			// Create a 1x1 mutable placeholder (defaults to black)
-			this.#handle = Backend.createTexture({
+			this._handle = Backend.createTexture({
 				width: 1,
 				height: 1,
 				// format defaults to RGBA, type to UNSIGNED_BYTE
@@ -35,15 +35,15 @@ class Texture {
 		} else {
 			// Render texture case
 			// data contains format, width, height, etc.
-			this.#handle = Backend.createTexture(data);
-			Backend.setTextureWrapMode(this.#handle, "clamp-to-edge");
+			this._handle = Backend.createTexture(data);
+			Backend.setTextureWrapMode(this._handle, "clamp-to-edge");
 		}
 	}
 
 	static createSolidColor(r, g, b, a = 255) {
 		const texture = new Texture({});
 		texture.dispose(); // Free the texture allocated by init({})
-		texture.#handle = Backend.createTexture({
+		texture._handle = Backend.createTexture({
 			width: 1,
 			height: 1,
 			mutable: true,
@@ -65,17 +65,17 @@ class Texture {
 	loadImageTexture(imageData) {
 		const image = new Image();
 		image.onload = async () => {
-			if (!this.#handle) return; // Disposed?
+			if (!this._handle) return; // Disposed?
 
 			// Upload image data (this updates the texture content and might resize usage in WebGL)
-			await Backend.uploadTextureFromImage(this.#handle, image);
+			await Backend.uploadTextureFromImage(this._handle, image);
 
 			// Generate mipmaps
-			Backend.generateMipmaps(this.#handle);
+			Backend.generateMipmaps(this._handle);
 
 			// Apply settings
 			const wrapMode = this.wrap || "repeat";
-			Backend.setTextureWrapMode(this.#handle, wrapMode);
+			Backend.setTextureWrapMode(this._handle, wrapMode);
 
 			if (this.filter) {
 				this.setFilter(
@@ -87,7 +87,7 @@ class Texture {
 
 			if (Settings.anisotropicFiltering > 1) {
 				Backend.setTextureAnisotropy(
-					this.#handle,
+					this._handle,
 					Settings.anisotropicFiltering,
 				);
 			}
@@ -102,27 +102,27 @@ class Texture {
 	}
 
 	bind(unit) {
-		if (this.#handle) {
-			Backend.bindTexture(this.#handle, unit);
+		if (this._handle) {
+			Backend.bindTexture(this._handle, unit);
 		}
 	}
 
 	setTextureWrapMode(mode) {
 		this.wrap = mode;
-		if (!this.#handle) return;
-		Backend.setTextureWrapMode(this.#handle, mode);
+		if (!this._handle) return;
+		Backend.setTextureWrapMode(this._handle, mode);
 	}
 
 	setFilter(min, mag, mip = "linear") {
 		this.filter = { min, mag, mip };
-		if (!this.#handle) return;
-		Backend.setTextureFilter(this.#handle, min, mag, mip);
+		if (!this._handle) return;
+		Backend.setTextureFilter(this._handle, min, mag, mip);
 	}
 
 	dispose() {
-		if (this.#handle) {
-			Backend.disposeTexture(this.#handle);
-			this.#handle = null;
+		if (this._handle) {
+			Backend.disposeTexture(this._handle);
+			this._handle = null;
 		}
 	}
 }

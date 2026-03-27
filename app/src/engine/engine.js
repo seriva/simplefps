@@ -27,22 +27,20 @@ import { Stats } from "./systems/stats.js";
 // ============================================================================
 
 let _gameUpdate;
-let _gameUpdateBacking;
+let _paused = false;
 
 let _alwaysUpdate; // Runs even when paused (for multiplayer)
 let _time;
 let _frameTime = 0;
 let _rafId;
 
-const _handleResize = () => {
+const resize = () => {
 	Backend.resize();
 	Camera.updateProjection();
 	Renderer.resize();
 };
 
-const resize = () => _handleResize();
-
-window.addEventListener("resize", _handleResize, false);
+window.addEventListener("resize", resize, false);
 
 // Console command for render scale
 Console.registerCmd("rscale", (scale) => {
@@ -60,7 +58,7 @@ const _frame = () => {
 	Stats.update();
 	Input.update();
 	if (_alwaysUpdate) _alwaysUpdate(_frameTime); // Runs even when paused
-	if (_gameUpdate) _gameUpdate(_frameTime);
+	if (!_paused && _gameUpdate) _gameUpdate(_frameTime);
 
 	Camera.update();
 	Scene.update(_frameTime);
@@ -70,13 +68,8 @@ const _frame = () => {
 };
 
 const pause = (paused) => {
+	_paused = paused;
 	Scene.pause(paused);
-	// Also pause game updates if provided via setGameLoop
-	if (paused) {
-		_gameUpdate = null;
-	} else if (_gameUpdateBacking) {
-		_gameUpdate = _gameUpdateBacking;
-	}
 };
 
 const start = () => {
@@ -101,37 +94,36 @@ const init = async (config = {}) => {
 
 const setCallbacks = (update, alwaysUpdate = null) => {
 	_gameUpdate = update;
-	_gameUpdateBacking = update;
 	_alwaysUpdate = alwaysUpdate;
 };
 
 const getCanvas = () => Backend.getCanvas();
 
 export {
-	init,
-	start,
-	pause,
-	resize,
-	setCallbacks,
-	getCanvas,
-	Console,
-	Settings,
-	Stats,
-	Input,
-	Resources,
-	Camera,
-	Renderer,
-	Scene,
-	EntityTypes,
-	Sound,
 	Animation,
 	AnimationPlayer,
-	MeshEntity,
-	FpsMeshEntity,
-	SkinnedMeshEntity,
+	Camera,
+	Console,
 	DirectionalLightEntity,
+	EntityTypes,
+	FpsMeshEntity,
+	getCanvas,
+	Input,
+	init,
+	MeshEntity,
 	PointLightEntity,
-	SpotLightEntity,
+	pause,
+	Renderer,
+	Resources,
+	resize,
+	Scene,
+	Settings,
+	SkinnedMeshEntity,
 	SkyboxEntity,
+	Sound,
+	SpotLightEntity,
+	Stats,
+	setCallbacks,
+	start,
 	Trimesh,
 };

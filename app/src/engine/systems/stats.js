@@ -6,9 +6,9 @@ import { Settings } from "./settings.js";
 
 // Private Stats UI component
 class _StatsUI extends Reactive.Component {
-	#prevTime = 0;
-	#frames = 0;
-	#lastUpdate = performance.now();
+	_prevTime = 0;
+	_frames = 0;
+	_lastUpdate = performance.now();
 
 	state() {
 		return {
@@ -128,20 +128,20 @@ class _StatsUI extends Reactive.Component {
 
 	update() {
 		const now = performance.now();
-		this.frameTime.set(now - (this.#prevTime || now));
-		this.#prevTime = now;
-		this.#frames++;
+		this.frameTime.set(now - (this._prevTime || now));
+		this._prevTime = now;
+		this._frames++;
 
-		if (now - this.#lastUpdate >= 1000) {
+		if (now - this._lastUpdate >= 1000) {
 			this.batch(() => {
-				this.fps.set(this.#frames);
-				this.#frames = 0;
+				this.fps.set(this._frames);
+				this._frames = 0;
 				this.memory.set(
 					performance.memory
 						? Math.round(performance.memory.usedJSHeapSize / 1048576)
 						: 0,
 				);
-				this.#lastUpdate = now;
+				this._lastUpdate = now;
 			});
 		}
 	}
