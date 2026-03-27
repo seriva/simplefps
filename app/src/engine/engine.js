@@ -97,7 +97,7 @@ const setCallbacks = (update, alwaysUpdate = null) => {
 	_alwaysUpdate = alwaysUpdate;
 };
 
-const getCanvas = () => Backend.getCanvas();
+const getCanvas = () => Backend.getCanvas?.();
 
 export {
 	Animation,

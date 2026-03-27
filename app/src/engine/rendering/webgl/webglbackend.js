@@ -16,42 +16,10 @@ const _OPTIONAL_EXTENSIONS = {
 	],
 };
 
-// Blend factor mapping
-const _BLEND_FACTORS = {
-	zero: 0, // Will be set to gl.ZERO after init
-	one: 1,
-	"src-alpha": 2,
-	"one-minus-src-alpha": 3,
-	"dst-color": 4,
-};
-
-// Depth function mapping
-const _DEPTH_FUNCS = {
-	never: 0,
-	less: 1,
-	equal: 2,
-	lequal: 3,
-	greater: 4,
-	notequal: 5,
-	gequal: 6,
-	always: 7,
-};
-
-// Texture format mapping
-const _TEXTURE_FORMATS = {
-	// Internal Formats
-	depth24: 0, // gl.DEPTH_COMPONENT24
-	rgba16f: 1, // gl.RGBA16F
-	rgba8: 2, // gl.RGBA8
-	rgba: 3, // gl.RGBA
-
-	// Formats
-	depth: 4, // gl.DEPTH_COMPONENT
-
-	// Types
-	ubyte: 5, // gl.UNSIGNED_BYTE
-	float: 6, // gl.FLOAT
-};
+// Populated during init() with actual GL constants
+const _BLEND_FACTORS = {};
+const _DEPTH_FUNCS = {};
+const _TEXTURE_FORMATS = {};
 
 class WebGLBackend extends RenderBackend {
 	constructor() {
@@ -70,16 +38,11 @@ class WebGLBackend extends RenderBackend {
 	// Lifecycle
 	// =========================================================================
 
-	async init(canvas = null) {
-		// Create canvas if not provided
-		if (!canvas) {
-			this._canvas = document.createElement("canvas");
-			this._canvas.id = "context";
-			this._canvas.className = CanvasStyle;
-			document.body.appendChild(this._canvas);
-		} else {
-			this._canvas = canvas;
-		}
+	async init() {
+		this._canvas = document.createElement("canvas");
+		this._canvas.id = "context";
+		this._canvas.className = CanvasStyle;
+		document.body.appendChild(this._canvas);
 
 		// Create WebGL2 context
 		this._gl = this._canvas.getContext("webgl2", {

@@ -1,5 +1,5 @@
 import { css, html, Reactive } from "../../dependencies/reactive.js";
-import { Backend } from "../rendering/backend.js";
+import { Backend, backendReady } from "../rendering/backend.js";
 import { Camera } from "./camera.js";
 import { Console } from "./console.js";
 import { Settings } from "./settings.js";
@@ -103,6 +103,11 @@ class _StatsUI extends Reactive.Component {
 			this.backendName,
 			(name) => `Renderer: ${name}`,
 		);
+
+		// Update the backend name once the backend has actually resolved
+		backendReady.then(() => {
+			this.backendName.set(Backend.name || "Unknown");
+		});
 
 		// Use bindMultiple for cleaner multi-signal bindings
 		this.bindMultiple(

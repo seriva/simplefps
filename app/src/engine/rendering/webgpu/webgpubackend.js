@@ -150,21 +150,11 @@ class WebGPUBackend extends RenderBackend {
 	// Lifecycle
 	// =========================================================================
 
-	async init(canvas = null) {
-		if (!navigator.gpu) {
-			Console.error("WebGPU is not supported in this browser");
-			return false;
-		}
-
-		// Create canvas if not provided
-		if (!canvas) {
-			this._canvas = document.createElement("canvas");
-			this._canvas.id = "context";
-			this._canvas.className = CanvasStyle;
-			document.body.appendChild(this._canvas);
-		} else {
-			this._canvas = canvas;
-		}
+	async init() {
+		this._canvas = document.createElement("canvas");
+		this._canvas.id = "context";
+		this._canvas.className = CanvasStyle;
+		document.body.appendChild(this._canvas);
 
 		try {
 			// Request adapter
@@ -178,15 +168,7 @@ class WebGPUBackend extends RenderBackend {
 			}
 
 			// Request device
-			this._device = await this._adapter.requestDevice({
-				requiredFeatures: [],
-				requiredLimits: {},
-			});
-
-			if (!this._device) {
-				Console.error("Failed to get WebGPU device");
-				return false;
-			}
+			this._device = await this._adapter.requestDevice();
 
 			// Handle device loss
 			this._device.lost.then((info) => {
