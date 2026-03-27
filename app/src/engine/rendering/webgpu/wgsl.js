@@ -1166,7 +1166,6 @@ fn fs_main(input: TransparentVertexOutput) -> @location(0) vec4<f32> {
     }
     
     // Apply lighting
-    // Hardcoded ambient approximation (similar to GLSL)
     let finalColor = vec3<f32>(baseColor.rgb * 0.5 + baseColor.rgb * dynamicLighting);
     
     return vec4<f32>(finalColor, baseColor.a);
@@ -1538,7 +1537,7 @@ export const WgslShaderSources = {
 			group1: [
 				{ binding: 0, type: "ubo", id: 1 },
 				{ binding: 1, type: "uniform", name: "objectData" },
-				{ binding: 2, type: "uniform", name: "lightingData" },
+				{ binding: 2, type: "ubo", id: 2 },
 			],
 			group2: [
 				{ binding: 0, type: "sampler", unit: 0 },
