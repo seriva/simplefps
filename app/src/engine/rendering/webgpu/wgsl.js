@@ -1329,7 +1329,7 @@ ${DebugVertexOutputStruct}
 @group(0) @binding(0) var<uniform> frameData: FrameData;
 @group(1) @binding(1) var<uniform> objectData: ObjectData;
 @group(1) @binding(2) var<uniform> debugColor: vec4<f32>;
-${SkinningUniformBinding}
+@group(1) @binding(3) var<uniform> boneMatrices: array<mat4x4<f32>, 64>;
 
 ${SkinningCalcFn}
 
