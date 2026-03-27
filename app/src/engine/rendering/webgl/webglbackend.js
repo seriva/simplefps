@@ -1026,7 +1026,7 @@ class WebGLBackend extends RenderBackend {
 		const scaledWidth = this.getWidth();
 		const scaledHeight = this.getHeight();
 
-		if (Settings.useFSR) {
+		if (Settings.doFSR) {
 			this._canvas.width = nativeWidth;
 			this._canvas.height = nativeHeight;
 		} else {

@@ -172,9 +172,9 @@ const _settingsMenu = {
 				{
 					type: "checkbox",
 					text: Translations.get("FSR"),
-					value: () => Settings.useFSR,
+					value: () => Settings.doFSR,
 					set: (v) => {
-						Settings.useFSR = v;
+						Settings.doFSR = v;
 						Settings.save();
 						resize();
 					},

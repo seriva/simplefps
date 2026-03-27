@@ -23,7 +23,7 @@ const _defaults = {
 	renderScale: _isMobile ? 0.5 : 1.0,
 	anisotropicFiltering: 16,
 	gamma: 1.0,
-	useFSR: !_isMobile,
+	doFSR: !_isMobile,
 	fsrSharpness: 0.2,
 	proceduralDetail: true,
 	emissiveOffset: 1.35,

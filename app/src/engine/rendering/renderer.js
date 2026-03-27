@@ -221,7 +221,7 @@ const _resize = (width, height) => {
 	// **********************************
 	// post-processing & FSR buffers
 	// **********************************
-	if (Settings.useFSR) {
+	if (Settings.doFSR) {
 		const ppRes = _createFB({ format: "rgba8", width, height }, {});
 		_pp.color = ppRes.texture;
 		_pp.framebuffer = ppRes.fb;
@@ -781,7 +781,7 @@ const _postProcessingPass = () => {
 };
 
 const _fsrPass = () => {
-	if (!Settings.useFSR || !_pp.color || !_fsr.easu) return;
+	if (!Settings.doFSR || !_pp.color || !_fsr.easu) return;
 
 	const nativeWidth = Backend.getNativeWidth();
 	const nativeHeight = Backend.getNativeHeight();
@@ -899,7 +899,7 @@ const Renderer = {
 		_transparentPass();
 		_emissiveBlurPass();
 		_postProcessingPass();
-		if (Settings.useFSR) {
+		if (Settings.doFSR) {
 			_fsrPass();
 		}
 		_debugPass();
