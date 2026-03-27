@@ -76,19 +76,8 @@ const _boundingBoxColors = {
 	[EntityTypes.PARTICLE_EMITTER]: [1, 0.5, 0, 1], // Orange
 };
 
-// Pre-allocated flat arrays for WebGL light uniform batch uploads
 const _MAX_POINT_LIGHTS = 8;
 const _MAX_SPOT_LIGHTS = 4;
-const _pointLightPositionData = new Float32Array(_MAX_POINT_LIGHTS * 3);
-const _pointLightColorData = new Float32Array(_MAX_POINT_LIGHTS * 3);
-const _pointLightSizeData = new Float32Array(_MAX_POINT_LIGHTS);
-const _pointLightIntensityData = new Float32Array(_MAX_POINT_LIGHTS);
-const _spotLightPositionData = new Float32Array(_MAX_SPOT_LIGHTS * 3);
-const _spotLightDirectionData = new Float32Array(_MAX_SPOT_LIGHTS * 3);
-const _spotLightColorData = new Float32Array(_MAX_SPOT_LIGHTS * 3);
-const _spotLightIntensityData = new Float32Array(_MAX_SPOT_LIGHTS);
-const _spotLightCutoffData = new Float32Array(_MAX_SPOT_LIGHTS);
-const _spotLightRangeData = new Float32Array(_MAX_SPOT_LIGHTS);
 
 // Toggle functions for debug commands
 const _makeDebugToggle = (key) => () => {
@@ -269,148 +258,57 @@ const renderTransparent = () => {
 	const visibleSpotLights = Scene.visibilityCache[EntityTypes.SPOT_LIGHT];
 	const numSpotLights = Math.min(visibleSpotLights.length, _MAX_SPOT_LIGHTS);
 
-	if (Settings.useWebGPU) {
-		if (!_lightingUBO) {
-			_lightingUBO = Backend.createUBO(_LIGHTING_DATA_SIZE * 4, 2);
-		}
-
-		// Clear data
-		_lightingData.fill(0);
-
-		// Fill Point Lights
-		// Layout: Pos(32), Color(32), Params(32)
-		for (let i = 0; i < numPointLights; i++) {
-			const light = visiblePointLights[i];
-			mat4.multiply(_lightMatrix, light.base_matrix, light.ani_matrix);
-			mat4.getTranslation(_lightPos, _lightMatrix);
-
-			// Position (Offset 0 + i*4)
-			_lightingData[i * 4] = _lightPos[0];
-			_lightingData[i * 4 + 1] = _lightPos[1];
-			_lightingData[i * 4 + 2] = _lightPos[2];
-
-			// Color (Offset 32 + i*4)
-			_lightingData[32 + i * 4] = light.color[0];
-			_lightingData[32 + i * 4 + 1] = light.color[1];
-			_lightingData[32 + i * 4 + 2] = light.color[2];
-
-			// Params (Offset 64 + i*4) -> intensity, size
-			_lightingData[64 + i * 4] = light.intensity;
-			_lightingData[64 + i * 4 + 1] = light.size;
-		}
-
-		// Fill Spot Lights
-		// Layout: Pos(96), Dir(112), Color(128), Params(144)
-		for (let i = 0; i < numSpotLights; i++) {
-			const light = visibleSpotLights[i];
-
-			// Position
-			_lightingData[96 + i * 4] = light.position[0];
-			_lightingData[96 + i * 4 + 1] = light.position[1];
-			_lightingData[96 + i * 4 + 2] = light.position[2];
-
-			// Direction
-			_lightingData[112 + i * 4] = light.direction[0];
-			_lightingData[112 + i * 4 + 1] = light.direction[1];
-			_lightingData[112 + i * 4 + 2] = light.direction[2];
-
-			// Color
-			_lightingData[128 + i * 4] = light.color[0];
-			_lightingData[128 + i * 4 + 1] = light.color[1];
-			_lightingData[128 + i * 4 + 2] = light.color[2];
-
-			// Params -> intensity, cutoff, range
-			_lightingData[144 + i * 4] = light.intensity;
-			_lightingData[144 + i * 4 + 1] = light.cutoff;
-			_lightingData[144 + i * 4 + 2] = light.range;
-		}
-
-		// Counts (Offset 160)
-		_lightingData[160] = numPointLights;
-		_lightingData[160 + 1] = numSpotLights;
-
-		Backend.updateUBO(_lightingUBO, _lightingData);
-		Backend.bindUniformBuffer(_lightingUBO);
-	} else {
-		// WebGL Fallback — batch-upload light data as typed arrays (4 calls for point lights, 6 for spot lights)
-		Shaders.transparent.setInt("numPointLights", numPointLights);
-		for (let i = 0; i < numPointLights; i++) {
-			const light = visiblePointLights[i];
-			mat4.multiply(_lightMatrix, light.base_matrix, light.ani_matrix);
-			mat4.getTranslation(_lightPos, _lightMatrix);
-			const i3 = i * 3;
-			_pointLightPositionData[i3] = _lightPos[0];
-			_pointLightPositionData[i3 + 1] = _lightPos[1];
-			_pointLightPositionData[i3 + 2] = _lightPos[2];
-			_pointLightColorData[i3] = light.color[0];
-			_pointLightColorData[i3 + 1] = light.color[1];
-			_pointLightColorData[i3 + 2] = light.color[2];
-			_pointLightSizeData[i] = light.size;
-			_pointLightIntensityData[i] = light.intensity;
-		}
-		if (numPointLights > 0) {
-			Shaders.transparent.setVec3Array(
-				"pointLightPositions[0]",
-				_pointLightPositionData.subarray(0, numPointLights * 3),
-			);
-			Shaders.transparent.setVec3Array(
-				"pointLightColors[0]",
-				_pointLightColorData.subarray(0, numPointLights * 3),
-			);
-			Shaders.transparent.setFloatArray(
-				"pointLightSizes[0]",
-				_pointLightSizeData.subarray(0, numPointLights),
-			);
-			Shaders.transparent.setFloatArray(
-				"pointLightIntensities[0]",
-				_pointLightIntensityData.subarray(0, numPointLights),
-			);
-		}
-
-		Shaders.transparent.setInt("numSpotLights", numSpotLights);
-		for (let i = 0; i < numSpotLights; i++) {
-			const light = visibleSpotLights[i];
-			const i3 = i * 3;
-			_spotLightPositionData[i3] = light.position[0];
-			_spotLightPositionData[i3 + 1] = light.position[1];
-			_spotLightPositionData[i3 + 2] = light.position[2];
-			_spotLightDirectionData[i3] = light.direction[0];
-			_spotLightDirectionData[i3 + 1] = light.direction[1];
-			_spotLightDirectionData[i3 + 2] = light.direction[2];
-			_spotLightColorData[i3] = light.color[0];
-			_spotLightColorData[i3 + 1] = light.color[1];
-			_spotLightColorData[i3 + 2] = light.color[2];
-			_spotLightIntensityData[i] = light.intensity;
-			_spotLightCutoffData[i] = light.cutoff;
-			_spotLightRangeData[i] = light.range;
-		}
-		if (numSpotLights > 0) {
-			Shaders.transparent.setVec3Array(
-				"spotLightPositions[0]",
-				_spotLightPositionData.subarray(0, numSpotLights * 3),
-			);
-			Shaders.transparent.setVec3Array(
-				"spotLightDirections[0]",
-				_spotLightDirectionData.subarray(0, numSpotLights * 3),
-			);
-			Shaders.transparent.setVec3Array(
-				"spotLightColors[0]",
-				_spotLightColorData.subarray(0, numSpotLights * 3),
-			);
-			Shaders.transparent.setFloatArray(
-				"spotLightIntensities[0]",
-				_spotLightIntensityData.subarray(0, numSpotLights),
-			);
-			Shaders.transparent.setFloatArray(
-				"spotLightCutoffs[0]",
-				_spotLightCutoffData.subarray(0, numSpotLights),
-			);
-			Shaders.transparent.setFloatArray(
-				"spotLightRanges[0]",
-				_spotLightRangeData.subarray(0, numSpotLights),
-			);
-		}
+	if (!_lightingUBO) {
+		_lightingUBO = Backend.createUBO(_LIGHTING_DATA_SIZE * 4, 2);
 	}
+
+	_lightingData.fill(0);
+
+	// Fill Point Lights — Layout: Pos(0), Color(32), Params(64)
+	for (let i = 0; i < numPointLights; i++) {
+		const light = visiblePointLights[i];
+		mat4.multiply(_lightMatrix, light.base_matrix, light.ani_matrix);
+		mat4.getTranslation(_lightPos, _lightMatrix);
+
+		_lightingData[i * 4] = _lightPos[0];
+		_lightingData[i * 4 + 1] = _lightPos[1];
+		_lightingData[i * 4 + 2] = _lightPos[2];
+
+		_lightingData[32 + i * 4] = light.color[0];
+		_lightingData[32 + i * 4 + 1] = light.color[1];
+		_lightingData[32 + i * 4 + 2] = light.color[2];
+
+		_lightingData[64 + i * 4] = light.intensity;
+		_lightingData[64 + i * 4 + 1] = light.size;
+	}
+
+	// Fill Spot Lights — Layout: Pos(96), Dir(112), Color(128), Params(144)
+	for (let i = 0; i < numSpotLights; i++) {
+		const light = visibleSpotLights[i];
+
+		_lightingData[96 + i * 4] = light.position[0];
+		_lightingData[96 + i * 4 + 1] = light.position[1];
+		_lightingData[96 + i * 4 + 2] = light.position[2];
+
+		_lightingData[112 + i * 4] = light.direction[0];
+		_lightingData[112 + i * 4 + 1] = light.direction[1];
+		_lightingData[112 + i * 4 + 2] = light.direction[2];
+
+		_lightingData[128 + i * 4] = light.color[0];
+		_lightingData[128 + i * 4 + 1] = light.color[1];
+		_lightingData[128 + i * 4 + 2] = light.color[2];
+
+		_lightingData[144 + i * 4] = light.intensity;
+		_lightingData[144 + i * 4 + 1] = light.cutoff;
+		_lightingData[144 + i * 4 + 2] = light.range;
+	}
+
+	// Counts (Offset 160)
+	_lightingData[160] = numPointLights;
+	_lightingData[161] = numSpotLights;
+
+	Backend.updateUBO(_lightingUBO, _lightingData);
+	Backend.bindUniformBuffer(_lightingUBO);
 
 	for (const entity of Scene.visibilityCache[EntityTypes.MESH]) {
 		entity.render(

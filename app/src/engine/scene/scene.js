@@ -128,26 +128,31 @@ const _addEntities = (e) => {
 	}
 };
 
+const _swapAndPop = (arr, index) => {
+	arr[index] = arr[arr.length - 1];
+	arr.length--;
+};
+
 const _removeEntity = (entity) => {
 	if (!entity) return;
 
 	const index = _entities.indexOf(entity);
 	if (index !== -1) {
-		_entities.splice(index, 1);
+		_swapAndPop(_entities, index);
 		_visibilityDirty = true;
 
 		const typeList = _entitiesByType[entity.type];
 		if (typeList) {
 			const typeIndex = typeList.indexOf(entity);
 			if (typeIndex !== -1) {
-				typeList.splice(typeIndex, 1);
+				_swapAndPop(typeList, typeIndex);
 			}
 		}
 
 		// Remove from collidables
 		const colIndex = _collidables.indexOf(entity);
 		if (colIndex !== -1) {
-			_collidables.splice(colIndex, 1);
+			_swapAndPop(_collidables, colIndex);
 		}
 
 		// Dispose entity resources

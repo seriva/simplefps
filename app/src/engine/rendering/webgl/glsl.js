@@ -950,35 +950,32 @@ export const ShaderSources = {
             uniform sampler2D reflectionSampler;
             uniform sampler2D reflectionMaskSampler;
             
-            // Point lights (max 8)
             #define MAX_POINT_LIGHTS 8
-            uniform int numPointLights;
-            uniform vec3 pointLightPositions[MAX_POINT_LIGHTS];
-            uniform vec3 pointLightColors[MAX_POINT_LIGHTS];
-            uniform float pointLightSizes[MAX_POINT_LIGHTS];
-            uniform float pointLightIntensities[MAX_POINT_LIGHTS];
-            
-            // Spot lights (max 4)
             #define MAX_SPOT_LIGHTS 4
-            uniform int numSpotLights;
-            uniform vec3 spotLightPositions[MAX_SPOT_LIGHTS];
-            uniform vec3 spotLightDirections[MAX_SPOT_LIGHTS];
-            uniform vec3 spotLightColors[MAX_SPOT_LIGHTS];
-            uniform float spotLightIntensities[MAX_SPOT_LIGHTS];
-            uniform float spotLightCutoffs[MAX_SPOT_LIGHTS];
-            uniform float spotLightRanges[MAX_SPOT_LIGHTS];
+
+            // Lighting data UBO (binding point 2, std140, matches _lightingData layout)
+            layout(std140) uniform LightingData {
+                vec4 pointLightPositions[MAX_POINT_LIGHTS]; // xyz=pos
+                vec4 pointLightColors[MAX_POINT_LIGHTS];    // xyz=color
+                vec4 pointLightParams[MAX_POINT_LIGHTS];    // x=intensity, y=size
+                vec4 spotLightPositions[MAX_SPOT_LIGHTS];   // xyz=pos
+                vec4 spotLightDirections[MAX_SPOT_LIGHTS];  // xyz=dir
+                vec4 spotLightColors[MAX_SPOT_LIGHTS];      // xyz=color
+                vec4 spotLightParams[MAX_SPOT_LIGHTS];      // x=intensity, y=cutoff, z=range
+                vec4 lightCounts;                           // x=numPoint, y=numSpot
+            };
 
             ${_pointLightCalc}
             ${_spotLightCalc}
 
             vec3 calculatePointLight(int i, vec3 normal, vec3 fragPos) {
-                vec2 pl = calcPointLight(pointLightPositions[i], pointLightSizes[i], fragPos, normal);
-                return pointLightColors[i] * (pl.x * pl.y * pointLightIntensities[i]);
+                vec2 pl = calcPointLight(pointLightPositions[i].xyz, pointLightParams[i].y, fragPos, normal);
+                return pointLightColors[i].xyz * (pl.x * pl.y * pointLightParams[i].x);
             }
 
             vec3 calculateSpotLight(int i, vec3 normal, vec3 fragPos) {
-                vec3 sl = calcSpotLight(spotLightPositions[i], spotLightDirections[i], spotLightCutoffs[i], spotLightRanges[i], fragPos, normal);
-                return spotLightColors[i] * (spotLightIntensities[i] * 2.0) * sl.x * sl.y * sl.z;
+                vec3 sl = calcSpotLight(spotLightPositions[i].xyz, spotLightDirections[i].xyz, spotLightParams[i].y, spotLightParams[i].z, fragPos, normal);
+                return spotLightColors[i].xyz * (spotLightParams[i].x * 2.0) * sl.x * sl.y * sl.z;
             }
 
             void main() {
@@ -1012,12 +1009,14 @@ export const ShaderSources = {
                 vec3 dynamicLighting = vec3(0.0);
                 
                 // Add point lights contribution
+                int numPointLights = int(lightCounts.x);
                 for (int i = 0; i < MAX_POINT_LIGHTS; i++) {
                     if (i >= numPointLights) break;
                     dynamicLighting += calculatePointLight(i, normal, fragPos);
                 }
-                
+
                 // Add spot lights contribution
+                int numSpotLights = int(lightCounts.y);
                 for (int i = 0; i < MAX_SPOT_LIGHTS; i++) {
                     if (i >= numSpotLights) break;
                     dynamicLighting += calculateSpotLight(i, normal, fragPos);

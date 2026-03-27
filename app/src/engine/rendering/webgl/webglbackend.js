@@ -484,6 +484,11 @@ class WebGLBackend extends RenderBackend {
 			gl.uniformBlockBinding(program, materialDataIndex, 1);
 		}
 
+		const lightingDataIndex = gl.getUniformBlockIndex(program, "LightingData");
+		if (lightingDataIndex !== gl.INVALID_INDEX) {
+			gl.uniformBlockBinding(program, lightingDataIndex, 2);
+		}
+
 		return {
 			_glProgram: program,
 			_uniformCache: new Map(),
