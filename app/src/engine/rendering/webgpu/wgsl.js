@@ -20,6 +20,13 @@ struct MaterialData {
 }
 `;
 
+const ObjectDataStruct = /* wgsl */ `
+struct ObjectData {
+    matWorld: mat4x4<f32>,
+    uProbeColor: vec4<f32>, // .rgb = color, .a = unused/pad
+}
+`;
+
 // Skinning vertex input attributes - shared between all skinned shaders
 const SkinnedVertexInputAttribs = /* wgsl */ `
     @location(4) jointIndices: vec4<u32>,
@@ -60,12 +67,11 @@ fn calcPointLight(lightPos: vec3<f32>, lightSize: f32, fragPos: vec3<f32>, norma
     if (distSq > sizeSq) { return vec2<f32>(0.0); }
     
     let normalizedDist = sqrt(distSq) / lightSize;
-    var falloff = 1.0 - smoothstep(0.0, 1.0, normalizedDist);
-    falloff = falloff * falloff;
-    
+    let falloff = 1.0 - smoothstep(0.0, 1.0, normalizedDist);
+
     let L = normalize(lightDir);
     let nDotL = max(0.0, dot(normal, L));
-    
+
     return vec2<f32>(falloff * falloff, nDotL);
 }`;
 
@@ -108,6 +114,7 @@ fn applyReflection(baseColor: vec4<f32>, uv: vec2<f32>, worldPos: vec3<f32>, N: 
 const geometryShader = /* wgsl */ `
 ${FrameDataStruct}
 ${MaterialDataStruct}
+${ObjectDataStruct}
 
 struct GeomVertexInput {
     @location(0) position: vec3<f32>,
@@ -133,8 +140,7 @@ struct FragmentOutput {
 
 @group(0) @binding(0) var<uniform> frameData: FrameData;
 @group(1) @binding(0) var<uniform> materialData: MaterialData;
-@group(1) @binding(1) var<uniform> matWorld: mat4x4<f32>;
-@group(1) @binding(2) var<uniform> uProbeColor: vec3<f32>;
+@group(1) @binding(1) var<uniform> objectData: ObjectData;
 
 @group(2) @binding(0) var colorSampler: sampler;
 @group(2) @binding(1) var colorTexture: texture_2d<f32>;
@@ -151,10 +157,10 @@ const SKYBOX: i32 = 2;
 @vertex
 fn vs_main(input: GeomVertexInput) -> GeomVertexOutput {
     var output: GeomVertexOutput;
-    output.worldPosition = matWorld * vec4<f32>(input.position, 1.0);
+    output.worldPosition = objectData.matWorld * vec4<f32>(input.position, 1.0);
     output.uv = input.uv;
     output.lightmapUV = input.lightmapUV;
-    output.normal = normalize((matWorld * vec4<f32>(input.normal, 0.0)).xyz);
+    output.normal = normalize((objectData.matWorld * vec4<f32>(input.normal, 0.0)).xyz);
     output.clipPosition = frameData.matViewProj * output.worldPosition;
     return output;
 }
@@ -177,7 +183,7 @@ fn fs_main(input: GeomVertexOutput) -> FragmentOutput {
     // Static objects (lightmapFlag == 1) ignore this as they use texture mixing below
     // Skybox (flag x == SKYBOX) should also ignore this
     if (materialData.flags.w == 0 && materialData.flags.x != SKYBOX) {
-        color = vec4<f32>(color.rgb * uProbeColor, color.a);
+        color = vec4<f32>(color.rgb * objectData.uProbeColor.rgb, color.a);
     }
     
     // Apply lightmap if available and not skybox
@@ -271,6 +277,7 @@ fn fs_main(input: GeomVertexOutput) -> FragmentOutput {
 const skinnedGeometryShader = /* wgsl */ `
 ${FrameDataStruct}
 ${MaterialDataStruct}
+${ObjectDataStruct}
 
 struct SkinnedVertexInput {
     @location(0) position: vec3<f32>,
@@ -295,8 +302,7 @@ struct FragmentOutput {
 
 @group(0) @binding(0) var<uniform> frameData: FrameData;
 @group(1) @binding(0) var<uniform> materialData: MaterialData;
-@group(1) @binding(1) var<uniform> matWorld: mat4x4<f32>;
-@group(1) @binding(3) var<uniform> uProbeColor: vec3<f32>;
+@group(1) @binding(1) var<uniform> objectData: ObjectData;
 ${SkinningUniformBinding}
 
 @group(2) @binding(0) var colorSampler: sampler;
@@ -322,9 +328,9 @@ fn vs_main(input: SkinnedVertexInput) -> GeomVertexOutput {
     let skinnedPosition = (skinMatrix * vec4<f32>(input.position, 1.0)).xyz;
     let skinnedNormal = (skinMatrix * vec4<f32>(input.normal, 0.0)).xyz;
     
-    output.worldPosition = matWorld * vec4<f32>(skinnedPosition, 1.0);
+    output.worldPosition = objectData.matWorld * vec4<f32>(skinnedPosition, 1.0);
     output.uv = input.uv;
-    output.normal = normalize((matWorld * vec4<f32>(skinnedNormal, 0.0)).xyz);
+    output.normal = normalize((objectData.matWorld * vec4<f32>(skinnedNormal, 0.0)).xyz);
     output.clipPosition = frameData.matViewProj * output.worldPosition;
     return output;
 }
@@ -340,7 +346,7 @@ fn fs_main(input: GeomVertexOutput) -> FragmentOutput {
     }
 
     // Apply Probe Color
-    color = vec4<f32>(color.rgb * uProbeColor, color.a);
+    color = vec4<f32>(color.rgb * objectData.uProbeColor.rgb, color.a);
 
     // Apply Detail Noise
     if (frameData.viewportSize.z > 0.5) {
@@ -374,6 +380,7 @@ fn fs_main(input: GeomVertexOutput) -> FragmentOutput {
 // Entity shadows shader
 const entityShadowsShader = /* wgsl */ `
 ${FrameDataStruct}
+${ObjectDataStruct}
 
 struct ShadowVertexInput {
     @location(0) position: vec3<f32>,
@@ -382,41 +389,35 @@ struct ShadowVertexInput {
 ${ShadowVertexOutputStruct}
 
 @group(0) @binding(0) var<uniform> frameData: FrameData;
-@group(1) @binding(0) var<uniform> matWorld: mat4x4<f32>;
-@group(1) @binding(1) var<uniform> ambient: vec3<f32>;
+@group(1) @binding(0) var<uniform> objectData: ObjectData;
 
 @vertex
 fn vs_main(input: ShadowVertexInput) -> ShadowVertexOutput {
     var output: ShadowVertexOutput;
-    output.clipPosition = frameData.matViewProj * matWorld * vec4<f32>(input.position, 1.0);
+    output.clipPosition = frameData.matViewProj * objectData.matWorld * vec4<f32>(input.position, 1.0);
     return output;
 }
 
 @fragment
 fn fs_main() -> @location(0) vec4<f32> {
-    return vec4<f32>(ambient, 1.0);
+    return vec4<f32>(objectData.uProbeColor.rgb, 1.0);
 }
 `;
 
 // Skinned entity shadows shader
 const skinnedEntityShadowsShader = /* wgsl */ `
 ${FrameDataStruct}
+${ObjectDataStruct}
 
 struct SkinnedShadowVertexInput {
     @location(0) position: vec3<f32>,
     ${SkinnedVertexInputAttribs}
 }
 
-struct SkinnedShadowParams {
-    matWorld: mat4x4<f32>,
-    ambient: vec3<f32>,
-    shadowHeight: f32,
-}
-
 ${ShadowVertexOutputStruct}
 
 @group(0) @binding(0) var<uniform> frameData: FrameData;
-@group(1) @binding(0) var<uniform> params: SkinnedShadowParams;
+@group(1) @binding(0) var<uniform> objectData: ObjectData;
 ${SkinningUniformBinding}
 
 ${SkinningCalcFn}
@@ -431,9 +432,10 @@ fn vs_main(input: SkinnedShadowVertexInput) -> ShadowVertexOutput {
     let skinnedPosition = (skinMatrix * vec4<f32>(input.position, 1.0)).xyz;
     
     // Transform to world space
-    var worldPos = params.matWorld * vec4<f32>(skinnedPosition, 1.0);
-    // Flatten to shadow height
-    worldPos.y = params.shadowHeight;
+    var worldPos = objectData.matWorld * vec4<f32>(skinnedPosition, 1.0);
+    
+    // Flatten to shadow height (stored in uProbeColor.a)
+    worldPos.y = objectData.uProbeColor.a;
     
     output.clipPosition = frameData.matViewProj * worldPos;
     return output;
@@ -441,7 +443,7 @@ fn vs_main(input: SkinnedShadowVertexInput) -> ShadowVertexOutput {
 
 @fragment
 fn fs_main() -> @location(0) vec4<f32> {
-    return vec4<f32>(params.ambient.xyz, 1.0);
+    return vec4<f32>(objectData.uProbeColor.rgb, 1.0);
 }
 `;
 
@@ -462,8 +464,8 @@ struct DirLightOutput {
 }
 
 @group(0) @binding(0) var<uniform> frameData: FrameData;
-@group(1) @binding(0) var<uniform> directionalLight: DirectionalLight;
-@group(1) @binding(2) var normalBuffer: texture_2d<f32>;
+@group(1) @binding(2) var<uniform> directionalLight: DirectionalLight;
+@group(1) @binding(3) var normalBuffer: texture_2d<f32>;
 
 @vertex
 fn vs_main(@builtin(vertex_index) vertexIndex: u32) -> DirLightOutput {
@@ -495,6 +497,7 @@ fn fs_main(input: DirLightOutput) -> @location(0) vec4<f32> {
 // Point light shader
 const pointLightShader = /* wgsl */ `
 ${FrameDataStruct}
+${ObjectDataStruct}
 
 struct PointLight {
     position: vec3<f32>,
@@ -512,8 +515,8 @@ struct PointLightVertexOutput {
 }
 
 @group(0) @binding(0) var<uniform> frameData: FrameData;
-@group(1) @binding(0) var<uniform> matWorld: mat4x4<f32>;
-@group(1) @binding(1) var<uniform> pointLight: PointLight;
+@group(1) @binding(1) var<uniform> objectData: ObjectData;
+@group(1) @binding(2) var<uniform> pointLight: PointLight;
 @group(1) @binding(3) var positionBuffer: texture_2d<f32>;
 @group(1) @binding(4) var normalBuffer: texture_2d<f32>;
 
@@ -522,7 +525,7 @@ ${PointLightCalcFn}
 @vertex
 fn vs_main(input: PointLightVertexInput) -> PointLightVertexOutput {
     var output: PointLightVertexOutput;
-    output.clipPosition = frameData.matViewProj * matWorld * vec4<f32>(input.position, 1.0);
+    output.clipPosition = frameData.matViewProj * objectData.matWorld * vec4<f32>(input.position, 1.0);
     return output;
 }
 
@@ -544,6 +547,7 @@ fn fs_main(input: PointLightVertexOutput) -> @location(0) vec4<f32> {
 // Spot light shader
 const spotLightShader = /* wgsl */ `
 ${FrameDataStruct}
+${ObjectDataStruct}
 
 struct SpotLight {
     position: vec3<f32>,
@@ -563,8 +567,8 @@ struct SpotLightVertexOutput {
 }
 
 @group(0) @binding(0) var<uniform> frameData: FrameData;
-@group(1) @binding(0) var<uniform> matWorld: mat4x4<f32>;
-@group(1) @binding(1) var<uniform> spotLight: SpotLight;
+@group(1) @binding(1) var<uniform> objectData: ObjectData;
+@group(1) @binding(2) var<uniform> spotLight: SpotLight;
 @group(1) @binding(3) var positionBuffer: texture_2d<f32>;
 @group(1) @binding(4) var normalBuffer: texture_2d<f32>;
 
@@ -573,7 +577,7 @@ ${SpotLightCalcFn}
 @vertex
 fn vs_main(input: SpotLightVertexInput) -> SpotLightVertexOutput {
     var output: SpotLightVertexOutput;
-    output.clipPosition = frameData.matViewProj * matWorld * vec4<f32>(input.position, 1.0);
+    output.clipPosition = frameData.matViewProj * objectData.matWorld * vec4<f32>(input.position, 1.0);
     return output;
 }
 
@@ -750,16 +754,13 @@ fn fs_main(input: BilateralOutput) -> @location(0) vec4<f32> {
 
 // Post-processing shader
 const postProcessingShader = /* wgsl */ `
-${FrameDataStruct}
-
 struct PostProcessParams {
     gamma: f32,
     emissiveMult: f32,
     ssaoStrength: f32,
     dirtIntensity: f32,
-    doFXAA: i32,
     shadowIntensity: f32,
-    _pad: vec2<f32>,
+    _pad: f32,
     ambient: vec4<f32>,
 }
 
@@ -768,7 +769,6 @@ struct PostOutput {
     @location(0) uv: vec2<f32>,
 }
 
-@group(0) @binding(0) var<uniform> frameData: FrameData;
 @group(1) @binding(0) var<uniform> params: PostProcessParams;
 @group(1) @binding(1) var bufferSampler: sampler;
 @group(1) @binding(2) var colorBuffer: texture_2d<f32>;
@@ -779,77 +779,6 @@ struct PostOutput {
 @group(1) @binding(7) var aoBuffer: texture_2d<f32>;
 @group(1) @binding(8) var shadowBuffer: texture_2d<f32>;
 @group(1) @binding(9) var positionBuffer: texture_2d<f32>;
-
-// FXAA constants
-const FXAA_EDGE_THRESHOLD_MIN: f32 = 0.0312;
-const FXAA_EDGE_THRESHOLD_MAX: f32 = 0.125;
-
-// Luma weights for perceived brightness
-const LUMA: vec3<f32> = vec3<f32>(0.299, 0.587, 0.114);
-
-// Simplified FXAA - samples center + 4 neighbors
-// Uses textureSampleLevel to allow calling from non-uniform control flow
-fn applyFXAA(fragCoord: vec2<f32>) -> vec4<f32> {
-    let inverseVP = 1.0 / frameData.viewportSize.xy;
-    let uv = fragCoord * inverseVP;
-    
-    // Sample center and 4 neighbors (use textureSampleLevel for non-uniform control flow)
-    let rgbM = textureSampleLevel(colorBuffer, bufferSampler, uv, 0.0).rgb;
-    let rgbN = textureSampleLevel(colorBuffer, bufferSampler, uv + vec2<f32>(0.0, -1.0) * inverseVP, 0.0).rgb;
-    let rgbS = textureSampleLevel(colorBuffer, bufferSampler, uv + vec2<f32>(0.0, 1.0) * inverseVP, 0.0).rgb;
-    let rgbE = textureSampleLevel(colorBuffer, bufferSampler, uv + vec2<f32>(1.0, 0.0) * inverseVP, 0.0).rgb;
-    let rgbW = textureSampleLevel(colorBuffer, bufferSampler, uv + vec2<f32>(-1.0, 0.0) * inverseVP, 0.0).rgb;
-    
-    // Compute luma for each sample
-    let lumaM = dot(rgbM, LUMA);
-    let lumaN = dot(rgbN, LUMA);
-    let lumaS = dot(rgbS, LUMA);
-    let lumaE = dot(rgbE, LUMA);
-    let lumaW = dot(rgbW, LUMA);
-    
-    // Compute local contrast
-    let lumaMin = min(lumaM, min(min(lumaN, lumaS), min(lumaE, lumaW)));
-    let lumaMax = max(lumaM, max(max(lumaN, lumaS), max(lumaE, lumaW)));
-    let lumaRange = lumaMax - lumaMin;
-    
-    // Early exit if contrast is too low
-    if (lumaRange < max(FXAA_EDGE_THRESHOLD_MIN, lumaMax * FXAA_EDGE_THRESHOLD_MAX)) {
-        return vec4<f32>(rgbM, 1.0);
-    }
-    
-    // Determine edge direction
-    let edgeH = abs(lumaN + lumaS - 2.0 * lumaM);
-    let edgeV = abs(lumaE + lumaW - 2.0 * lumaM);
-    let isHorizontal = edgeH > edgeV;
-    
-    // Choose blend direction
-    var luma1: f32;
-    var luma2: f32;
-    var stepDir: vec2<f32>;
-    
-    if (isHorizontal) {
-        luma1 = lumaN;
-        luma2 = lumaS;
-        stepDir = vec2<f32>(0.0, inverseVP.y);
-    } else {
-        luma1 = lumaW;
-        luma2 = lumaE;
-        stepDir = vec2<f32>(inverseVP.x, 0.0);
-    }
-    
-    let gradient1 = abs(luma1 - lumaM);
-    let gradient2 = abs(luma2 - lumaM);
-    
-    if (gradient1 < gradient2) {
-        stepDir = -stepDir;
-    }
-    
-    // Blend along edge
-    let rgbBlend = textureSampleLevel(colorBuffer, bufferSampler, uv + stepDir * 0.5, 0.0).rgb;
-    let blendFactor = smoothstep(0.0, 1.0, lumaRange / lumaMax);
-    
-    return vec4<f32>(mix(rgbM, rgbBlend, blendFactor * 0.5), 1.0);
-}
 
 @vertex
 fn vs_main(@builtin(vertex_index) vertexIndex: u32) -> PostOutput {
@@ -863,16 +792,12 @@ fn vs_main(@builtin(vertex_index) vertexIndex: u32) -> PostOutput {
 
 @fragment
 fn fs_main(input: PostOutput) -> @location(0) vec4<f32> {
-    let uv = input.position.xy / frameData.viewportSize.xy;
+    // uv is in [0, 1] range
+    let uv = input.uv;
     let fragCoord = vec2<i32>(input.position.xy);
     
-    // Apply FXAA if enabled, otherwise use direct texture load
-    var color: vec4<f32>;
-    if (params.doFXAA != 0) {
-        color = applyFXAA(input.position.xy);
-    } else {
-        color = textureLoad(colorBuffer, fragCoord, 0);
-    }
+    // Direct texture load for color (no FXAA)
+    let color = textureLoad(colorBuffer, fragCoord, 0);
     
     let light = textureLoad(lightBuffer, fragCoord, 0);
     let normalData = textureLoad(normalBuffer, fragCoord, 0);
@@ -928,10 +853,210 @@ fn fs_main(input: PostOutput) -> @location(0) vec4<f32> {
 }
 `;
 
+// FSR 1.0 EASU shader
+const fsrEasuShader = /* wgsl */ `
+struct EasuParams {
+    con0: vec4<f32>, // xy = inputSize, zw = outputSize
+    con1: vec4<f32>,
+    con2: vec4<f32>,
+    con3: vec4<f32>,
+}
+
+struct PostOutput {
+    @builtin(position) position: vec4<f32>,
+    @location(0) uv: vec2<f32>,
+}
+
+@group(1) @binding(0) var<uniform> params: EasuParams;
+@group(1) @binding(1) var bufferSampler: sampler;
+@group(1) @binding(2) var colorBuffer: texture_2d<f32>;
+
+// Catmull-Rom kernel applied to anisotropic distance — has negative lobes
+// between d=1 and d=2 that reconstruct fine detail (sharpening effect)
+fn easuWeight(sampleOff: vec2<f32>, dir: vec2<f32>, stretch: f32) -> f32 {
+    let along = abs(sampleOff.x * dir.x + sampleOff.y * dir.y);
+    let perp  = abs(sampleOff.x * dir.y - sampleOff.y * dir.x);
+    let d = sqrt(along * along + perp * perp * stretch * stretch);
+    if d < 1.0 {
+        return (1.5 * d - 2.5) * d * d + 1.0;
+    } else if d < 2.0 {
+        return ((-0.5 * d + 2.5) * d - 4.0) * d + 2.0;
+    }
+    return 0.0;
+}
+
+@vertex
+fn vs_main(@builtin(vertex_index) vertexIndex: u32) -> PostOutput {
+    var output: PostOutput;
+    let x = f32((vertexIndex << 1) & 2);
+    let y = f32(vertexIndex & 2);
+    output.position = vec4<f32>(x * 2.0 - 1.0, y * 2.0 - 1.0, 0.0, 1.0);
+    output.uv = vec2<f32>(x, 1.0 - y);
+    return output;
+}
+
+@fragment
+fn fs_main(input: PostOutput) -> @location(0) vec4<f32> {
+    let inputSize = params.con0.xy;
+    let outputSize = params.con0.zw;
+    let invInput = 1.0 / inputSize;
+
+    let srcPos = input.position.xy * inputSize / outputSize - 0.5;
+    let base = floor(srcPos);
+    let f = srcPos - base;
+    let tc = (base + 0.5) * invInput;
+    let dx = vec2<f32>(invInput.x, 0.0);
+    let dy = vec2<f32>(0.0, invInput.y);
+
+    //   b c
+    // d e f g
+    // h i j k
+    //   l m
+    let b  = textureSampleLevel(colorBuffer, bufferSampler, tc - dy, 0.0).rgb;
+    let c  = textureSampleLevel(colorBuffer, bufferSampler, tc + dx - dy, 0.0).rgb;
+    let d  = textureSampleLevel(colorBuffer, bufferSampler, tc - dx, 0.0).rgb;
+    let e  = textureSampleLevel(colorBuffer, bufferSampler, tc, 0.0).rgb;
+    let fS = textureSampleLevel(colorBuffer, bufferSampler, tc + dx, 0.0).rgb;
+    let g  = textureSampleLevel(colorBuffer, bufferSampler, tc + 2.0 * dx, 0.0).rgb;
+    let h  = textureSampleLevel(colorBuffer, bufferSampler, tc - dx + dy, 0.0).rgb;
+    let iS = textureSampleLevel(colorBuffer, bufferSampler, tc + dy, 0.0).rgb;
+    let j  = textureSampleLevel(colorBuffer, bufferSampler, tc + dx + dy, 0.0).rgb;
+    let k  = textureSampleLevel(colorBuffer, bufferSampler, tc + 2.0 * dx + dy, 0.0).rgb;
+    let l  = textureSampleLevel(colorBuffer, bufferSampler, tc + 2.0 * dy, 0.0).rgb;
+    let m  = textureSampleLevel(colorBuffer, bufferSampler, tc + dx + 2.0 * dy, 0.0).rgb;
+
+    let luma = vec3<f32>(0.299, 0.587, 0.114);
+    let le = dot(e, luma);  let lf = dot(fS, luma);
+    let li = dot(iS, luma); let lj = dot(j, luma);
+    let lb = dot(b, luma);  let lc = dot(c, luma);
+    let ld = dot(d, luma);  let lg = dot(g, luma);
+    let lh = dot(h, luma);  let lk = dot(k, luma);
+    let ll = dot(l, luma);  let lm = dot(m, luma);
+
+    // Edge direction from full 12-tap neighborhood
+    let dirX = (lc-lb) + (lf-le) + (lj-li) + (lm-ll) + (lg-ld) + (lk-lh);
+    let dirY = (lh-ld) + (li-le) + (lj-lf) + (lk-lg) + (ll-lb) + (lm-lc);
+    let dirLen = max(abs(dirX), abs(dirY));
+    let invDirLen = 1.0 / (dirLen + 1.0e-8);
+    let dir = vec2<f32>(dirX * invDirLen, dirY * invDirLen);
+
+    // Stretch: anisotropy from local edge contrast
+    let minEdge = min(min(le, lf), min(li, lj));
+    let maxEdge = max(max(le, lf), max(li, lj));
+    let edgeAmount = clamp((maxEdge - minEdge) / max(maxEdge, 1.0e-5), 0.0, 1.0);
+    let stretch = 1.0 + edgeAmount * 0.5;
+
+    // Positive-only anisotropic weights for all 12 taps
+    let we  = easuWeight(vec2<f32>( 0.0,  0.0) - f, dir, stretch);
+    let wfS = easuWeight(vec2<f32>( 1.0,  0.0) - f, dir, stretch);
+    let wiS = easuWeight(vec2<f32>( 0.0,  1.0) - f, dir, stretch);
+    let wj  = easuWeight(vec2<f32>( 1.0,  1.0) - f, dir, stretch);
+    let wb  = easuWeight(vec2<f32>( 0.0, -1.0) - f, dir, stretch);
+    let wc  = easuWeight(vec2<f32>( 1.0, -1.0) - f, dir, stretch);
+    let wd  = easuWeight(vec2<f32>(-1.0,  0.0) - f, dir, stretch);
+    let wg  = easuWeight(vec2<f32>( 2.0,  0.0) - f, dir, stretch);
+    let wh  = easuWeight(vec2<f32>(-1.0,  1.0) - f, dir, stretch);
+    let wk  = easuWeight(vec2<f32>( 2.0,  1.0) - f, dir, stretch);
+    let wl  = easuWeight(vec2<f32>( 0.0,  2.0) - f, dir, stretch);
+    let wm  = easuWeight(vec2<f32>( 1.0,  2.0) - f, dir, stretch);
+
+    let color = e*we + fS*wfS + iS*wiS + j*wj
+              + b*wb + c*wc + d*wd + g*wg
+              + h*wh + k*wk + l*wl + m*wm;
+    let totalW = we+wfS+wiS+wj+wb+wc+wd+wg+wh+wk+wl+wm;
+
+    // Clamp to full 12-tap neighborhood min/max to prevent ringing artifacts
+    let nMin = min(min(min(b,c),min(d,e)),min(min(fS,g),min(min(h,iS),min(min(j,k),min(l,m)))));
+    let nMax = max(max(max(b,c),max(d,e)),max(max(fS,g),max(max(h,iS),max(max(j,k),max(l,m)))));
+
+    return vec4<f32>(clamp(color / totalW, nMin, nMax), 1.0);
+}
+`;
+
+// FSR 1.0 RCAS shader
+const fsrRcasShader = /* wgsl */ `
+struct RcasParams {
+    sharpness: f32,
+    _pad: vec3<f32>,
+}
+
+struct PostOutput {
+    @builtin(position) position: vec4<f32>,
+    @location(0) uv: vec2<f32>,
+}
+
+@group(1) @binding(0) var<uniform> params: RcasParams;
+@group(1) @binding(2) var colorBuffer: texture_2d<f32>;
+
+@vertex
+fn vs_main(@builtin(vertex_index) vertexIndex: u32) -> PostOutput {
+    var output: PostOutput;
+    let x = f32((vertexIndex << 1) & 2);
+    let y = f32(vertexIndex & 2);
+    output.position = vec4<f32>(x * 2.0 - 1.0, y * 2.0 - 1.0, 0.0, 1.0);
+    output.uv = vec2<f32>(x, 1.0 - y);
+    return output;
+}
+
+@fragment
+fn fs_main(input: PostOutput) -> @location(0) vec4<f32> {
+    let p = vec2<i32>(input.position.xy);
+
+    let b = textureLoad(colorBuffer, p + vec2<i32>(0, -1), 0).rgb;
+    let d = textureLoad(colorBuffer, p + vec2<i32>(-1, 0), 0).rgb;
+    let e = textureLoad(colorBuffer, p, 0).rgb;
+    let f = textureLoad(colorBuffer, p + vec2<i32>(1, 0), 0).rgb;
+    let h = textureLoad(colorBuffer, p + vec2<i32>(0, 1), 0).rgb;
+
+    // Luma (green-weighted, matching AMD FSR reference)
+    let bL = b.g * 0.5 + (b.r + b.b) * 0.25;
+    let dL = d.g * 0.5 + (d.r + d.b) * 0.25;
+    let eL = e.g * 0.5 + (e.r + e.b) * 0.25;
+    let fL = f.g * 0.5 + (f.r + f.b) * 0.25;
+    let hL = h.g * 0.5 + (h.r + h.b) * 0.25;
+
+    // Noise detection: suppress sharpening on noisy pixels
+    let nz = 0.25 * (bL + dL + fL + hL) - eL;
+    let rangeL = max(max(bL, dL), max(eL, max(fL, hL)))
+               - min(min(bL, dL), min(eL, min(fL, hL)));
+    let nzC = clamp(abs(nz) / max(rangeL, 1e-6), 0.0, 1.0);
+    let nzW = -0.5 * nzC + 1.0;
+
+    // Per-channel min/max of the 4-tap cross
+    let mn4 = min(min(b, d), min(f, h));
+    let mx4 = max(max(b, d), max(f, h));
+
+    // peakC controls maximum sharpening from user setting
+    let peakC = 1.0 / (-4.0 * params.sharpness + 8.0);
+
+    // Adaptive per-pixel limiters (per-channel)
+    let hitMinR = min(mn4.r, e.r) / (4.0 * max(mx4.r, e.r) + 1e-6);
+    let hitMinG = min(mn4.g, e.g) / (4.0 * max(mx4.g, e.g) + 1e-6);
+    let hitMinB = min(mn4.b, e.b) / (4.0 * max(mx4.b, e.b) + 1e-6);
+    let hitMaxR = (peakC - max(mx4.r, e.r)) / (4.0 * min(mn4.r, e.r) + peakC);
+    let hitMaxG = (peakC - max(mx4.g, e.g)) / (4.0 * min(mn4.g, e.g) + peakC);
+    let hitMaxB = (peakC - max(mx4.b, e.b)) / (4.0 * min(mn4.b, e.b) + peakC);
+
+    let lobeR = max(-hitMinR, hitMaxR);
+    let lobeG = max(-hitMinG, hitMaxG);
+    let lobeB = max(-hitMinB, hitMaxB);
+
+    // Most conservative lobe across channels, clamped to non-positive
+    var lobe = max(-peakC, min(max(lobeR, max(lobeG, lobeB)), 0.0));
+    lobe *= nzW;
+
+    var color = (b + d + f + h) * lobe + e;
+    color = color / (4.0 * lobe + 1.0);
+
+    return vec4<f32>(clamp(color, vec3<f32>(0.0), vec3<f32>(1.0)), 1.0);
+}
+`;
+
 // Transparent shader (forward rendered)
 const transparentShader = /* wgsl */ `
 ${FrameDataStruct}
 ${MaterialDataStruct}
+${ObjectDataStruct}
 
 struct LightingData {
     pointLightPositions: array<vec4<f32>, 8>,
@@ -959,7 +1084,7 @@ struct TransparentVertexOutput {
 
 @group(0) @binding(0) var<uniform> frameData: FrameData;
 @group(1) @binding(0) var<uniform> materialData: MaterialData;
-@group(1) @binding(1) var<uniform> matWorld: mat4x4<f32>;
+@group(1) @binding(1) var<uniform> objectData: ObjectData;
 @group(1) @binding(2) var<uniform> lightingData: LightingData;
 
 @group(2) @binding(0) var colorSampler: sampler;
@@ -971,9 +1096,9 @@ struct TransparentVertexOutput {
 @vertex
 fn vs_main(input: TransparentVertexInput) -> TransparentVertexOutput {
     var output: TransparentVertexOutput;
-    output.worldPosition = matWorld * vec4<f32>(input.position, 1.0);
+    output.worldPosition = objectData.matWorld * vec4<f32>(input.position, 1.0);
     output.uv = input.uv;
-    output.normal = normalize((matWorld * vec4<f32>(input.normal, 0.0)).xyz);
+    output.normal = normalize((objectData.matWorld * vec4<f32>(input.normal, 0.0)).xyz);
     output.clipPosition = frameData.matViewProj * output.worldPosition;
     return output;
 }
@@ -1175,6 +1300,7 @@ fn fs_main(input: SSAOOutput) -> @location(0) vec4<f32> {
 // Debug shader - for wireframes, bounding boxes, light volumes
 const debugShader = /* wgsl */ `
 ${FrameDataStruct}
+${ObjectDataStruct}
 
 struct DebugVertexInput {
     @location(0) position: vec3<f32>,
@@ -1183,13 +1309,13 @@ struct DebugVertexInput {
 ${DebugVertexOutputStruct}
 
 @group(0) @binding(0) var<uniform> frameData: FrameData;
-@group(1) @binding(0) var<uniform> matWorld: mat4x4<f32>;
-@group(1) @binding(1) var<uniform> debugColor: vec4<f32>;
+@group(1) @binding(1) var<uniform> objectData: ObjectData;
+@group(1) @binding(2) var<uniform> debugColor: vec4<f32>;
 
 @vertex
 fn vs_main(input: DebugVertexInput) -> DebugVertexOutput {
     var output: DebugVertexOutput;
-    output.clipPosition = frameData.matViewProj * matWorld * vec4<f32>(input.position, 1.0);
+    output.clipPosition = frameData.matViewProj * objectData.matWorld * vec4<f32>(input.position, 1.0);
     return output;
 }
 
@@ -1202,6 +1328,7 @@ fn fs_main() -> @location(0) vec4<f32> {
 // Skinned debug shader - for animated wireframes
 const skinnedDebugShader = /* wgsl */ `
 ${FrameDataStruct}
+${ObjectDataStruct}
 
 struct SkinnedDebugVertexInput {
     @location(0) position: vec3<f32>,
@@ -1211,9 +1338,9 @@ struct SkinnedDebugVertexInput {
 ${DebugVertexOutputStruct}
 
 @group(0) @binding(0) var<uniform> frameData: FrameData;
-@group(1) @binding(0) var<uniform> matWorld: mat4x4<f32>;
-@group(1) @binding(1) var<uniform> debugColor: vec4<f32>;
-${SkinningUniformBinding}
+@group(1) @binding(1) var<uniform> objectData: ObjectData;
+@group(1) @binding(2) var<uniform> debugColor: vec4<f32>;
+@group(1) @binding(3) var<uniform> boneMatrices: array<mat4x4<f32>, 64>;
 
 ${SkinningCalcFn}
 
@@ -1226,7 +1353,7 @@ fn vs_main(input: SkinnedDebugVertexInput) -> DebugVertexOutput {
     // Apply skinning to position
     let skinnedPosition = (skinMatrix * vec4<f32>(input.position, 1.0)).xyz;
     
-    output.clipPosition = frameData.matViewProj * matWorld * vec4<f32>(skinnedPosition, 1.0);
+    output.clipPosition = frameData.matViewProj * objectData.matWorld * vec4<f32>(skinnedPosition, 1.0);
     return output;
 }
 
@@ -1243,10 +1370,10 @@ export const WgslShaderSources = {
 		label: "geometry",
 		code: geometryShader,
 		bindings: {
+			group0: [{ binding: 0, type: "ubo", id: 0 }],
 			group1: [
 				{ binding: 0, type: "ubo", id: 1 }, // MaterialData
-				{ binding: 1, type: "uniform", name: "matWorld" },
-				{ binding: 2, type: "uniform", name: "uProbeColor" },
+				{ binding: 1, type: "uniform", name: "objectData" },
 			],
 			group2: [
 				{ binding: 0, type: "sampler", unit: 0 },
@@ -1264,17 +1391,17 @@ export const WgslShaderSources = {
 		label: "skinnedGeometry",
 		code: skinnedGeometryShader,
 		bindings: {
+			group0: [{ binding: 0, type: "ubo", id: 0 }],
 			group1: [
 				{ binding: 0, type: "ubo", id: 1 },
-				{ binding: 1, type: "uniform", name: "matWorld" },
+				{ binding: 1, type: "uniform", name: "objectData" },
 				{ binding: 2, type: "uniform", name: "boneMatrices" },
-				{ binding: 3, type: "uniform", name: "uProbeColor" },
 			],
 			group2: [
 				{ binding: 0, type: "sampler", unit: 0 },
 				{ binding: 1, type: "texture", unit: 0 },
 				{ binding: 2, type: "texture", unit: 1 },
-				{ binding: 4, type: "texture", unit: 9 }, // detailTexture
+				{ binding: 4, type: "texture", unit: 5 },
 				{ binding: 5, type: "texture", unit: 2 },
 				{ binding: 6, type: "texture", unit: 3 },
 			],
@@ -1284,18 +1411,17 @@ export const WgslShaderSources = {
 		label: "entityShadows",
 		code: entityShadowsShader,
 		bindings: {
-			group1: [
-				{ binding: 0, type: "uniform", name: "matWorld" },
-				{ binding: 1, type: "uniform", name: "ambient" },
-			],
+			group0: [{ binding: 0, type: "ubo", id: 0 }],
+			group1: [{ binding: 0, type: "uniform", name: "objectData" }],
 		},
 	},
 	skinnedEntityShadows: {
 		label: "skinnedEntityShadows",
 		code: skinnedEntityShadowsShader,
 		bindings: {
+			group0: [{ binding: 0, type: "ubo", id: 0 }],
 			group1: [
-				{ binding: 0, type: "uniform", name: "skinnedShadowParams" },
+				{ binding: 0, type: "uniform", name: "objectData" },
 				{ binding: 2, type: "uniform", name: "boneMatrices" },
 			],
 		},
@@ -1304,9 +1430,10 @@ export const WgslShaderSources = {
 		label: "directionalLight",
 		code: directionalLightShader,
 		bindings: {
+			group0: [{ binding: 0, type: "ubo", id: 0 }],
 			group1: [
-				{ binding: 0, type: "uniform", name: "directionalLight" },
-				{ binding: 2, type: "texture", unit: 1 },
+				{ binding: 2, type: "uniform", name: "directionalLight" },
+				{ binding: 3, type: "texture", unit: 1 },
 			],
 		},
 	},
@@ -1314,9 +1441,10 @@ export const WgslShaderSources = {
 		label: "pointLight",
 		code: pointLightShader,
 		bindings: {
+			group0: [{ binding: 0, type: "ubo", id: 0 }],
 			group1: [
-				{ binding: 0, type: "uniform", name: "matWorld" },
-				{ binding: 1, type: "uniform", name: "pointLight" },
+				{ binding: 1, type: "uniform", name: "objectData" },
+				{ binding: 2, type: "uniform", name: "pointLight" },
 				{ binding: 3, type: "texture", unit: 0 },
 				{ binding: 4, type: "texture", unit: 1 },
 			],
@@ -1326,9 +1454,10 @@ export const WgslShaderSources = {
 		label: "spotLight",
 		code: spotLightShader,
 		bindings: {
+			group0: [{ binding: 0, type: "ubo", id: 0 }],
 			group1: [
-				{ binding: 0, type: "uniform", name: "matWorld" },
-				{ binding: 1, type: "uniform", name: "spotLight" },
+				{ binding: 1, type: "uniform", name: "objectData" },
+				{ binding: 2, type: "uniform", name: "spotLight" },
 				{ binding: 3, type: "texture", unit: 0 },
 				{ binding: 4, type: "texture", unit: 1 },
 			],
@@ -1338,6 +1467,7 @@ export const WgslShaderSources = {
 		label: "kawaseBlur",
 		code: kawaseBlurShader,
 		bindings: {
+			group0: [{ binding: 0, type: "ubo", id: 0 }],
 			group1: [
 				{ binding: 0, type: "uniform", name: "blurParams" },
 				{ binding: 1, type: "sampler", unit: 0 },
@@ -1349,6 +1479,7 @@ export const WgslShaderSources = {
 		label: "bilateralBlur",
 		code: bilateralBlurShader,
 		bindings: {
+			group0: [{ binding: 0, type: "ubo", id: 0 }],
 			group1: [
 				{ binding: 0, type: "uniform", name: "bilateralParams" },
 				{ binding: 2, type: "texture", unit: 0 }, // aoBuffer
@@ -1361,6 +1492,7 @@ export const WgslShaderSources = {
 		label: "postProcessing",
 		code: postProcessingShader,
 		bindings: {
+			group0: [{ binding: 0, type: "ubo", id: 0 }],
 			group1: [
 				{ binding: 0, type: "uniform", name: "postProcessParams" },
 				{ binding: 1, type: "sampler", unit: 0 },
@@ -1375,14 +1507,38 @@ export const WgslShaderSources = {
 			],
 		},
 	},
+	fsrEasu: {
+		label: "fsrEasu",
+		code: fsrEasuShader,
+		bindings: {
+			group0: [{ binding: 0, type: "ubo", id: 0 }],
+			group1: [
+				{ binding: 0, type: "uniform", name: "easuParams" },
+				{ binding: 1, type: "sampler", unit: 0 },
+				{ binding: 2, type: "texture", unit: 0 },
+			],
+		},
+	},
+	fsrRcas: {
+		label: "fsrRcas",
+		code: fsrRcasShader,
+		bindings: {
+			group0: [{ binding: 0, type: "ubo", id: 0 }],
+			group1: [
+				{ binding: 0, type: "uniform", name: "rcasParams" },
+				{ binding: 2, type: "texture", unit: 0 },
+			],
+		},
+	},
 	transparent: {
 		label: "transparent",
 		code: transparentShader,
 		bindings: {
+			group0: [{ binding: 0, type: "ubo", id: 0 }],
 			group1: [
 				{ binding: 0, type: "ubo", id: 1 },
-				{ binding: 1, type: "uniform", name: "matWorld" },
-				{ binding: 2, type: "ubo", id: 2 },
+				{ binding: 1, type: "uniform", name: "objectData" },
+				{ binding: 2, type: "uniform", name: "lightingData" },
 			],
 			group2: [
 				{ binding: 0, type: "sampler", unit: 0 },
@@ -1397,6 +1553,7 @@ export const WgslShaderSources = {
 		label: "ssao",
 		code: ssaoShader,
 		bindings: {
+			group0: [{ binding: 0, type: "ubo", id: 0 }],
 			group1: [
 				{ binding: 0, type: "uniform", name: "ssaoParams" },
 				{ binding: 1, type: "sampler", unit: 0 },
@@ -1410,9 +1567,10 @@ export const WgslShaderSources = {
 		label: "debug",
 		code: debugShader,
 		bindings: {
+			group0: [{ binding: 0, type: "ubo", id: 0 }],
 			group1: [
-				{ binding: 0, type: "uniform", name: "matWorld" },
-				{ binding: 1, type: "uniform", name: "debugColor" },
+				{ binding: 1, type: "uniform", name: "objectData" },
+				{ binding: 2, type: "uniform", name: "debugColor" },
 			],
 		},
 	},
@@ -1420,10 +1578,11 @@ export const WgslShaderSources = {
 		label: "skinnedDebug",
 		code: skinnedDebugShader,
 		bindings: {
+			group0: [{ binding: 0, type: "ubo", id: 0 }],
 			group1: [
-				{ binding: 0, type: "uniform", name: "matWorld" },
-				{ binding: 1, type: "uniform", name: "debugColor" },
-				{ binding: 2, type: "uniform", name: "boneMatrices" },
+				{ binding: 1, type: "uniform", name: "objectData" },
+				{ binding: 2, type: "uniform", name: "debugColor" },
+				{ binding: 3, type: "uniform", name: "boneMatrices" },
 			],
 		},
 	},
@@ -1478,6 +1637,7 @@ fn fs_main(input: BillboardVertexOutput) -> @location(0) vec4<f32> {
 }
 `,
 		bindings: {
+			group0: [{ binding: 0, type: "ubo", id: 0 }],
 			group1: [{ binding: 0, type: "uniform", name: "billboardParams" }],
 			group2: [
 				{ binding: 0, type: "sampler", unit: 0 },
@@ -1542,6 +1702,7 @@ fn fs_main(input: InstancedBillboardVertexOutput) -> @location(0) vec4<f32> {
 }
 `,
 		bindings: {
+			group0: [{ binding: 0, type: "ubo", id: 0 }],
 			group1: [
 				{ binding: 0, type: "sampler", unit: 0 },
 				{ binding: 1, type: "texture", unit: 0 },

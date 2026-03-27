@@ -27,12 +27,12 @@ const _load = async (file, speed = 1, volume = 1, loop = false) => {
 };
 
 class Sound {
-	#cache = {};
-	#sound;
-	#startTime = 0;
-	#pausedAt = 0;
-	#isPlaying = false;
-	#nextCacheIndex = 0;
+	_cache = {};
+	_sound;
+	_startTime = 0;
+	_pausedAt = 0;
+	_isPlaying = false;
+	_nextCacheIndex = 0;
 
 	constructor({
 		file,
@@ -49,12 +49,12 @@ class Sound {
 		if (cached) {
 			for (let i = 0; i < cacheSize; i++) {
 				_load(file, speed, volume, loop).then((sound) => {
-					this.#cache[`${file}_${i}`] = sound;
+					this._cache[`${file}_${i}`] = sound;
 				});
 			}
 		} else {
 			_load(file, speed, volume, loop).then((sound) => {
-				this.#sound = sound;
+				this._sound = sound;
 			});
 		}
 	}
@@ -62,27 +62,27 @@ class Sound {
 	play(resume = false) {
 		if (!this.cached) {
 			const newSource = _audioContext.createBufferSource();
-			newSource.buffer = this.#sound.source.buffer;
-			newSource.playbackRate.value = this.#sound.source.playbackRate.value;
-			newSource.loop = this.#sound.source.loop;
-			newSource.connect(this.#sound.gainNode);
+			newSource.buffer = this._sound.source.buffer;
+			newSource.playbackRate.value = this._sound.source.playbackRate.value;
+			newSource.loop = this._sound.source.loop;
+			newSource.connect(this._sound.gainNode);
 
-			if (resume && this.#pausedAt) {
-				this.#startTime = _audioContext.currentTime - this.#pausedAt;
-				newSource.start(0, this.#pausedAt);
+			if (resume && this._pausedAt) {
+				this._startTime = _audioContext.currentTime - this._pausedAt;
+				newSource.start(0, this._pausedAt);
 			} else {
-				this.#startTime = _audioContext.currentTime;
+				this._startTime = _audioContext.currentTime;
 				newSource.start(0);
 			}
 
-			this.#sound.source = newSource;
-			this.#isPlaying = true;
+			this._sound.source = newSource;
+			this._isPlaying = true;
 			return;
 		}
 
-		const key = `${this.file}_${this.#nextCacheIndex}`;
-		this.#nextCacheIndex = (this.#nextCacheIndex + 1) % this.cacheSize;
-		const cachedSound = this.#cache[key];
+		const key = `${this.file}_${this._nextCacheIndex}`;
+		this._nextCacheIndex = (this._nextCacheIndex + 1) % this.cacheSize;
+		const cachedSound = this._cache[key];
 
 		if (cachedSound) {
 			const newSource = _audioContext.createBufferSource();
@@ -91,25 +91,25 @@ class Sound {
 			newSource.loop = cachedSound.source.loop;
 			newSource.connect(cachedSound.gainNode);
 
-			if (resume && this.#pausedAt) {
-				this.#startTime = _audioContext.currentTime - this.#pausedAt;
-				newSource.start(0, this.#pausedAt);
+			if (resume && this._pausedAt) {
+				this._startTime = _audioContext.currentTime - this._pausedAt;
+				newSource.start(0, this._pausedAt);
 			} else {
-				this.#startTime = _audioContext.currentTime;
+				this._startTime = _audioContext.currentTime;
 				newSource.start(0);
 			}
 
-			this.#cache[key].source = newSource;
-			this.#isPlaying = true;
+			this._cache[key].source = newSource;
+			this._isPlaying = true;
 		}
 	}
 
 	pause() {
 		if (!this.cached) {
-			const elapsed = _audioContext.currentTime - this.#startTime;
-			this.#pausedAt = elapsed;
-			this.#sound.source.stop();
-			this.#isPlaying = false;
+			const elapsed = _audioContext.currentTime - this._startTime;
+			this._pausedAt = elapsed;
+			this._sound.source.stop();
+			this._isPlaying = false;
 			return;
 		}
 		Console.warn("Cached sound can only play.");
@@ -117,7 +117,7 @@ class Sound {
 
 	resume() {
 		if (!this.cached) {
-			if (this.#pausedAt) {
+			if (this._pausedAt) {
 				this.play(true);
 			} else {
 				this.play();
@@ -129,16 +129,16 @@ class Sound {
 
 	stop() {
 		if (!this.cached) {
-			this.#sound.source.stop();
-			this.#pausedAt = 0;
-			this.#isPlaying = false;
+			this._sound.source.stop();
+			this._pausedAt = 0;
+			this._isPlaying = false;
 			return;
 		}
 		Console.warn("Cached sound can only play.");
 	}
 
 	isPlaying() {
-		return this.#isPlaying;
+		return this._isPlaying;
 	}
 }
 

@@ -23,7 +23,8 @@ const _defaults = {
 	renderScale: _isMobile ? 0.5 : 1.0,
 	anisotropicFiltering: 16,
 	gamma: 1.0,
-	doFXAA: true,
+	doFSR: !_isMobile,
+	fsrSharpness: 0.2,
 	proceduralDetail: true,
 	emissiveOffset: 1.35,
 	emissiveMult: 1.75,
@@ -33,7 +34,6 @@ const _defaults = {
 	shadowBlurOffset: 0.3,
 	shadowIntensity: 0.5,
 	lightBlurIterations: 4,
-	occlusionCulling: true,
 
 	// SSAO settings
 	doSSAO: false,
@@ -61,7 +61,7 @@ const _saveSettings = () => {
 };
 
 // Initialize settings
-const _stored = localStorage?.getItem("settings") ?? null;
+const _stored = localStorage?.getItem("settings");
 if (_stored) {
 	Console.log("[Settings] Using stored settings");
 	// Merge stored settings into defaults (so new defaults get added)

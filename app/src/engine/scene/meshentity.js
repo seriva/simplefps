@@ -60,7 +60,7 @@ class MeshEntity extends Entity {
 	renderShadow() {
 		if (!this.visible) return;
 		if (!this.castShadow) return;
-		if (this.shadowHeight === null || this.shadowHeight === undefined) return;
+		if (this.shadowHeight == null) return;
 
 		// 1. Calculate the standard World Matrix (apply base and ani)
 		mat4.multiply(_tempMatrix, this.base_matrix, this.ani_matrix);

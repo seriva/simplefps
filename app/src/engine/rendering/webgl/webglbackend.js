@@ -63,6 +63,7 @@ class WebGLBackend extends RenderBackend {
 		this._currentShader = null;
 		this._textureUnit0 = 0; // Cached gl.TEXTURE0
 		this._wrapModes = null; // Cached wrap mode lookup
+		this._frameId = 0;
 	}
 
 	// =========================================================================
@@ -199,7 +200,8 @@ class WebGLBackend extends RenderBackend {
 	// =========================================================================
 
 	beginFrame() {
-		// WebGL doesn't require explicit frame begin
+		// WebGL doesn't require explicit frame begin, but keep a frame id for cheap throttling.
+		this._frameId++;
 	}
 
 	endFrame() {
@@ -861,47 +863,6 @@ class WebGLBackend extends RenderBackend {
 	}
 
 	// =========================================================================
-	// Occlusion Queries
-	// =========================================================================
-
-	createQuery() {
-		return this._gl.createQuery();
-	}
-
-	deleteQuery(query) {
-		if (query) {
-			this._gl.deleteQuery(query);
-		}
-	}
-
-	beginQuery(query) {
-		// Use ANY_SAMPLES_PASSED_CONSERVATIVE for better performance (may return false positives)
-		// Falls back to ANY_SAMPLES_PASSED if not available
-		const gl = this._gl;
-		const queryType =
-			gl.ANY_SAMPLES_PASSED_CONSERVATIVE || gl.ANY_SAMPLES_PASSED;
-		gl.beginQuery(queryType, query);
-	}
-
-	endQuery(_query) {
-		const gl = this._gl;
-		const queryType =
-			gl.ANY_SAMPLES_PASSED_CONSERVATIVE || gl.ANY_SAMPLES_PASSED;
-		gl.endQuery(queryType);
-	}
-
-	getQueryResult(query) {
-		const gl = this._gl;
-		const available = gl.getQueryParameter(query, gl.QUERY_RESULT_AVAILABLE);
-		const result = available ? gl.getQueryParameter(query, gl.QUERY_RESULT) : 0;
-
-		return {
-			available: !!available,
-			hasPassed: result !== 0,
-		};
-	}
-
-	// =========================================================================
 	// Drawing
 	// =========================================================================
 
@@ -1003,6 +964,9 @@ class WebGLBackend extends RenderBackend {
 			case "vec3[]":
 				gl.uniform3fv(location, value);
 				break;
+			case "float[]":
+				gl.uniform1fv(location, value);
+				break;
 			default:
 				Console.warn(`Unknown uniform type: ${type}`);
 		}
@@ -1044,12 +1008,32 @@ class WebGLBackend extends RenderBackend {
 		return this.getWidth() / this.getHeight();
 	}
 
+	getNativeWidth() {
+		return Math.floor(
+			this._canvas.clientWidth * (window.devicePixelRatio || 1),
+		);
+	}
+
+	getNativeHeight() {
+		return Math.floor(
+			this._canvas.clientHeight * (window.devicePixelRatio || 1),
+		);
+	}
+
 	resize() {
-		const width = this.getWidth();
-		const height = this.getHeight();
-		this._canvas.width = width;
-		this._canvas.height = height;
-		this._gl.viewport(0, 0, width, height);
+		const nativeWidth = this.getNativeWidth();
+		const nativeHeight = this.getNativeHeight();
+		const scaledWidth = this.getWidth();
+		const scaledHeight = this.getHeight();
+
+		if (Settings.doFSR) {
+			this._canvas.width = nativeWidth;
+			this._canvas.height = nativeHeight;
+		} else {
+			this._canvas.width = scaledWidth;
+			this._canvas.height = scaledHeight;
+		}
+		this._gl.viewport(0, 0, scaledWidth, scaledHeight);
 	}
 }
 

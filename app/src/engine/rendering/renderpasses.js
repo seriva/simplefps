@@ -6,7 +6,6 @@ import { Settings } from "../systems/settings.js";
 import { Stats } from "../systems/stats.js";
 import { Backend } from "./backend.js";
 import { Shaders } from "./shaders.js";
-import { Shapes } from "./shapes.js";
 
 // Private constants
 const _matModel = mat4.create();
@@ -17,6 +16,10 @@ const _lightPos = [0, 0, 0];
 const _probePos = new Float32Array(3);
 const _probeColor = new Float32Array(3);
 const _MAX_SHADOW_RAYCAST_DISTANCE = 200;
+const _SKINNED_SHADOW_RAYCAST_INTERVAL = 3;
+const _SKINNED_SHADOW_MOVE_EPSILON_SQ = 0.04;
+const _SHADOW_FRAME_WRAP = 1_000_000;
+let _shadowFrame = 0;
 
 // Lighting UBO data (aligned to 16 bytes for WGSL)
 // 8 * 4 * 4 bytes = 128 bytes (positions)
@@ -47,9 +50,9 @@ const _renderStats = {
 	triangleCount: 0,
 };
 
-// Pre-allocated arrays for occlusion splitting (avoid per-frame allocations)
-const _occluders = [];
-const _occludees = [];
+// Per-frame counter used to skip redundant ambient probe sampling for entities
+// rendered in multiple passes (geometry, transparent, fps) within the same frame.
+let _renderFrame = 0;
 
 // Pre-computed arrays for debug rendering (avoid per-frame allocations)
 const _debugMeshTypes = [
@@ -69,65 +72,56 @@ const _boundingBoxColors = {
 	[EntityTypes.DIRECTIONAL_LIGHT]: [1, 1, 0, 1], // Yellow
 	[EntityTypes.POINT_LIGHT]: [1, 1, 0, 1], // Yellow
 	[EntityTypes.SPOT_LIGHT]: [1, 1, 0, 1], // Yellow
+	[EntityTypes.ANIMATED_BILLBOARD]: [0, 1, 1, 1], // Cyan
+	[EntityTypes.PARTICLE_EMITTER]: [1, 0.5, 0, 1], // Orange
 };
 
-// Pre-computed uniform name strings for WebGL fallback (avoids per-frame template string allocations)
+// Pre-allocated flat arrays for WebGL light uniform batch uploads
 const _MAX_POINT_LIGHTS = 8;
 const _MAX_SPOT_LIGHTS = 4;
-const _pointLightUniforms = Array.from(
-	{ length: _MAX_POINT_LIGHTS },
-	(_, i) => ({
-		position: `pointLightPositions[${i}]`,
-		color: `pointLightColors[${i}]`,
-		size: `pointLightSizes[${i}]`,
-		intensity: `pointLightIntensities[${i}]`,
-	}),
-);
-const _spotLightUniforms = Array.from({ length: _MAX_SPOT_LIGHTS }, (_, i) => ({
-	position: `spotLightPositions[${i}]`,
-	direction: `spotLightDirections[${i}]`,
-	color: `spotLightColors[${i}]`,
-	intensity: `spotLightIntensities[${i}]`,
-	cutoff: `spotLightCutoffs[${i}]`,
-	range: `spotLightRanges[${i}]`,
-}));
+const _pointLightPositionData = new Float32Array(_MAX_POINT_LIGHTS * 3);
+const _pointLightColorData = new Float32Array(_MAX_POINT_LIGHTS * 3);
+const _pointLightSizeData = new Float32Array(_MAX_POINT_LIGHTS);
+const _pointLightIntensityData = new Float32Array(_MAX_POINT_LIGHTS);
+const _spotLightPositionData = new Float32Array(_MAX_SPOT_LIGHTS * 3);
+const _spotLightDirectionData = new Float32Array(_MAX_SPOT_LIGHTS * 3);
+const _spotLightColorData = new Float32Array(_MAX_SPOT_LIGHTS * 3);
+const _spotLightIntensityData = new Float32Array(_MAX_SPOT_LIGHTS);
+const _spotLightCutoffData = new Float32Array(_MAX_SPOT_LIGHTS);
+const _spotLightRangeData = new Float32Array(_MAX_SPOT_LIGHTS);
 
 // Toggle functions for debug commands
-const toggleBoundingVolumes = () => {
-	_debugState.showBoundingVolumes = !_debugState.showBoundingVolumes;
+const _makeDebugToggle = (key) => () => {
+	_debugState[key] = !_debugState[key];
 };
-
-const toggleWireframes = () => {
-	_debugState.showWireframes = !_debugState.showWireframes;
-};
-
-const toggleLightVolumes = () => {
-	_debugState.showLightVolumes = !_debugState.showLightVolumes;
-};
-
-const toggleSkeleton = () => {
-	_debugState.showSkeleton = !_debugState.showSkeleton;
-};
-
-const toggleOcclusionCulling = () => {
-	Settings.occlusionCulling = !Settings.occlusionCulling;
-};
+const toggleBoundingVolumes = _makeDebugToggle("showBoundingVolumes");
+const toggleWireframes = _makeDebugToggle("showWireframes");
+const toggleLightVolumes = _makeDebugToggle("showLightVolumes");
+const toggleSkeleton = _makeDebugToggle("showSkeleton");
 
 // Register console commands
 Console.registerCmd("tbv", toggleBoundingVolumes);
 Console.registerCmd("twf", toggleWireframes);
 Console.registerCmd("tlv", toggleLightVolumes);
 Console.registerCmd("tsk", toggleSkeleton);
-Console.registerCmd("toc", toggleOcclusionCulling);
 
-// Sample ambient probe color for an entity based on its world position
+// Sample ambient probe color for an entity based on its world position.
+// Result is cached per entity per frame to avoid redundant matrix ops when
+// the same entity appears in multiple render passes (geometry, transparent, fps).
 const _probeMatrix = mat4.create();
 const _sampleProbeColor = (entity) => {
+	if (entity._ambientProbeFrame === _renderFrame) {
+		return entity._ambientProbeColor;
+	}
 	mat4.multiply(_probeMatrix, entity.base_matrix, entity.ani_matrix);
 	mat4.getTranslation(_probePos, _probeMatrix);
 	_probePos[1] += 32.0;
-	Scene.getAmbient(_probePos, _probeColor);
-	return _probeColor;
+	if (!entity._ambientProbeColor) {
+		entity._ambientProbeColor = new Float32Array(3);
+	}
+	Scene.getAmbient(_probePos, entity._ambientProbeColor);
+	entity._ambientProbeFrame = _renderFrame;
+	return entity._ambientProbeColor;
 };
 
 // Calculate shadow height for an entity via downward raycast
@@ -144,74 +138,44 @@ const _calculateShadowHeight = (entity) => {
 	entity.shadowHeight = result.hasHit ? result.hitPointWorld[1] : undefined;
 };
 
-const _performOcclusionQueries = (entities) => {
-	const cube = Shapes.occlusionCube;
-	if (!cube) return;
+const _shouldUpdateSkinnedShadowHeight = (entity) => {
+	mat4.getTranslation(_probePos, entity.base_matrix);
 
-	// Save state and set up for occlusion queries
-	Backend.setColorMask(false, false, false, false);
-	Backend.setDepthState(true, false, "lequal"); // Test enabled, Write disabled
-	Backend.setCullState(false); // Disable culling - important when camera is near/inside bbox
+	const x = _probePos[0];
+	const y = _probePos[1];
+	const z = _probePos[2];
 
-	Shaders.debug.bind();
-	Shaders.debug.setVec4("debugColor", [0, 1, 0, 0]);
-
-	for (const entity of entities) {
-		// Skip if no bounding box
-		if (!entity.boundingBox) continue;
-
-		// Initialize 6-slot buffer (to handle 5-frame GPU latency with SSAO etc)
-		if (!entity._occQueries) {
-			entity._occQueries = [
-				Backend.createQuery(),
-				Backend.createQuery(),
-				Backend.createQuery(),
-				Backend.createQuery(),
-				Backend.createQuery(),
-				Backend.createQuery(),
-			];
-			entity._occQueryFrame = 0;
-		}
-
-		// Write to slot N, read from slot (N+1) % 6 (5 frames behind)
-		const writeSlot = entity._occQueryFrame % 6;
-		const readSlot = (entity._occQueryFrame + 1) % 6;
-		const writeQuery = entity._occQueries[writeSlot];
-		const readQuery = entity._occQueries[readSlot];
-
-		// STEP 1: Check result from 5 frames ago (if we have enough history)
-		if (entity._occQueryFrame >= 5) {
-			const res = Backend.getQueryResult(readQuery);
-			if (res.available) {
-				entity.isVisible = res.hasPassed;
-			} else {
-				// Result not available yet - assume visible
-				entity.isVisible = true;
-			}
-		} else {
-			// Not enough frames yet - assume visible
-			entity.isVisible = true;
-		}
-
-		// STEP 2: Issue NEW query for THIS frame
-		Backend.beginQuery(writeQuery);
-		Shaders.debug.setMat4("matWorld", entity.boundingBox.transformMatrix);
-		cube.renderSingle(false, "triangles", "all", Shaders.debug);
-		Backend.endQuery(writeQuery);
-
-		// STEP 3: Advance frame counter (cap to prevent overflow, reset to minimum ready state)
-		entity._occQueryFrame++;
-		if (entity._occQueryFrame > 1000) {
-			entity._occQueryFrame = 6; // Reset to minimum "ready" state
-		}
+	if (entity._shadowSampleX === undefined) {
+		entity._shadowSampleX = x;
+		entity._shadowSampleY = y;
+		entity._shadowSampleZ = z;
+		entity._shadowSampleFrame = _shadowFrame;
+		return true;
 	}
 
-	Backend.unbindShader();
+	const dx = x - entity._shadowSampleX;
+	const dy = y - entity._shadowSampleY;
+	const dz = z - entity._shadowSampleZ;
+	const movedSq = dx * dx + dy * dy + dz * dz;
 
-	// Restore state
-	Backend.setColorMask(true, true, true, true);
-	Backend.setDepthState(true, true);
-	Backend.setCullState(true);
+	const lastFrame = entity._shadowSampleFrame ?? _shadowFrame;
+	const frameDelta =
+		_shadowFrame >= lastFrame
+			? _shadowFrame - lastFrame
+			: _shadowFrame + _SHADOW_FRAME_WRAP - lastFrame;
+
+	if (
+		movedSq >= _SKINNED_SHADOW_MOVE_EPSILON_SQ ||
+		frameDelta >= _SKINNED_SHADOW_RAYCAST_INTERVAL
+	) {
+		entity._shadowSampleX = x;
+		entity._shadowSampleY = y;
+		entity._shadowSampleZ = z;
+		entity._shadowSampleFrame = _shadowFrame;
+		return true;
+	}
+
+	return false;
 };
 
 const renderSkybox = () => {
@@ -226,69 +190,35 @@ const renderSkybox = () => {
 	Backend.setDepthState(true, true);
 };
 
-const renderWorldGeometry = () => {
-	// Reset render stats for this frame
-	_renderStats.meshCount = 0;
-	_renderStats.lightCount = 0;
-	_renderStats.triangleCount = 0;
-
+const _bindGeometryShader = () => {
 	Shaders.geometry.bind();
 	mat4.identity(_matModel);
-
 	Shaders.geometry.setInt("proceduralNoise", 5);
 	Shaders.geometry.setInt(
 		"doProceduralDetail",
 		Settings.proceduralDetail ? 1 : 0,
 	);
 	Shaders.geometry.setMat4("matWorld", _matModel);
+};
+
+const renderWorldGeometry = () => {
+	// Advance frame counter so per-entity caches (ambient probe, etc.) are invalidated
+	_renderFrame++;
+
+	// Reset render stats for this frame
+	_renderStats.meshCount = 0;
+	_renderStats.lightCount = 0;
+	_renderStats.triangleCount = 0;
+
+	_bindGeometryShader();
 
 	// Render skybox with special GL state
 	renderSkybox();
+	_bindGeometryShader();
 
-	// Render opaque materials
-	// Split into occluders and occludees
+	// Render all mesh entities
 	const meshEntities = Scene.visibilityCache[EntityTypes.MESH];
-	_occluders.length = 0;
-	_occludees.length = 0;
 	for (const entity of meshEntities) {
-		if (entity.isOccluder) {
-			_occluders.push(entity);
-		} else {
-			_occludees.push(entity);
-		}
-	}
-
-	// Render Occluders (always) - these populate the depth buffer
-	for (const entity of _occluders) {
-		entity.render(_sampleProbeColor(entity), "opaque", Shaders.geometry);
-		_renderStats.meshCount++;
-		_renderStats.triangleCount += entity.mesh?.triangleCount || 0;
-	}
-
-	Backend.unbindShader();
-
-	// IMPORTANT: Perform Occlusion Queries HERE, right after occluders
-	// The depth buffer now contains ONLY occluder geometry
-	// This is when we test if occludees and lights would be visible
-	if (Settings.occlusionCulling) {
-		// Query mesh occludees
-		_performOcclusionQueries(_occludees);
-
-		// Query lights for occlusion culling
-		const pointLights = Scene.visibilityCache[EntityTypes.POINT_LIGHT] || [];
-		const spotLights = Scene.visibilityCache[EntityTypes.SPOT_LIGHT] || [];
-		_performOcclusionQueries(pointLights);
-		_performOcclusionQueries(spotLights);
-	}
-
-	Shaders.geometry.bind();
-	Shaders.geometry.setMat4("matWorld", _matModel);
-
-	// Render Occludees (only visible ones if occlusion enabled)
-	for (const entity of _occludees) {
-		if (Settings.occlusionCulling && !entity.isVisible) {
-			continue;
-		}
 		entity.render(_sampleProbeColor(entity), "opaque", Shaders.geometry);
 		_renderStats.meshCount++;
 		_renderStats.triangleCount += entity.mesh?.triangleCount || 0;
@@ -304,12 +234,6 @@ const renderWorldGeometry = () => {
 	if (Shaders.skinnedGeometry) {
 		const skinnedEntities = Scene.visibilityCache[EntityTypes.SKINNED_MESH];
 
-		// Perform occlusion queries for skinned meshes BEFORE rendering them
-		if (Settings.occlusionCulling) {
-			const skinnedOccludees = skinnedEntities.filter((e) => !e.isOccluder);
-			_performOcclusionQueries(skinnedOccludees);
-		}
-
 		Shaders.skinnedGeometry.bind();
 		Shaders.skinnedGeometry.setInt("proceduralNoise", 5);
 		Shaders.skinnedGeometry.setInt(
@@ -317,15 +241,8 @@ const renderWorldGeometry = () => {
 			Settings.proceduralDetail ? 1 : 0,
 		);
 
-		// Render skinned meshes with occlusion visibility check
+		// Render skinned meshes
 		for (const entity of skinnedEntities) {
-			if (
-				Settings.occlusionCulling &&
-				!entity.isOccluder &&
-				!entity.isVisible
-			) {
-				continue;
-			}
 			entity.render(
 				_sampleProbeColor(entity),
 				"opaque",
@@ -415,31 +332,83 @@ const renderTransparent = () => {
 		Backend.updateUBO(_lightingUBO, _lightingData);
 		Backend.bindUniformBuffer(_lightingUBO);
 	} else {
-		// WebGL Fallback — use pre-computed uniform name strings
+		// WebGL Fallback — batch-upload light data as typed arrays (4 calls for point lights, 6 for spot lights)
 		Shaders.transparent.setInt("numPointLights", numPointLights);
-
 		for (let i = 0; i < numPointLights; i++) {
 			const light = visiblePointLights[i];
-			const u = _pointLightUniforms[i];
 			mat4.multiply(_lightMatrix, light.base_matrix, light.ani_matrix);
 			mat4.getTranslation(_lightPos, _lightMatrix);
-			Shaders.transparent.setVec3(u.position, _lightPos);
-			Shaders.transparent.setVec3(u.color, light.color);
-			Shaders.transparent.setFloat(u.size, light.size);
-			Shaders.transparent.setFloat(u.intensity, light.intensity);
+			const i3 = i * 3;
+			_pointLightPositionData[i3] = _lightPos[0];
+			_pointLightPositionData[i3 + 1] = _lightPos[1];
+			_pointLightPositionData[i3 + 2] = _lightPos[2];
+			_pointLightColorData[i3] = light.color[0];
+			_pointLightColorData[i3 + 1] = light.color[1];
+			_pointLightColorData[i3 + 2] = light.color[2];
+			_pointLightSizeData[i] = light.size;
+			_pointLightIntensityData[i] = light.intensity;
+		}
+		if (numPointLights > 0) {
+			Shaders.transparent.setVec3Array(
+				"pointLightPositions[0]",
+				_pointLightPositionData.subarray(0, numPointLights * 3),
+			);
+			Shaders.transparent.setVec3Array(
+				"pointLightColors[0]",
+				_pointLightColorData.subarray(0, numPointLights * 3),
+			);
+			Shaders.transparent.setFloatArray(
+				"pointLightSizes[0]",
+				_pointLightSizeData.subarray(0, numPointLights),
+			);
+			Shaders.transparent.setFloatArray(
+				"pointLightIntensities[0]",
+				_pointLightIntensityData.subarray(0, numPointLights),
+			);
 		}
 
 		Shaders.transparent.setInt("numSpotLights", numSpotLights);
-
 		for (let i = 0; i < numSpotLights; i++) {
 			const light = visibleSpotLights[i];
-			const u = _spotLightUniforms[i];
-			Shaders.transparent.setVec3(u.position, light.position);
-			Shaders.transparent.setVec3(u.direction, light.direction);
-			Shaders.transparent.setVec3(u.color, light.color);
-			Shaders.transparent.setFloat(u.intensity, light.intensity);
-			Shaders.transparent.setFloat(u.cutoff, light.cutoff);
-			Shaders.transparent.setFloat(u.range, light.range);
+			const i3 = i * 3;
+			_spotLightPositionData[i3] = light.position[0];
+			_spotLightPositionData[i3 + 1] = light.position[1];
+			_spotLightPositionData[i3 + 2] = light.position[2];
+			_spotLightDirectionData[i3] = light.direction[0];
+			_spotLightDirectionData[i3 + 1] = light.direction[1];
+			_spotLightDirectionData[i3 + 2] = light.direction[2];
+			_spotLightColorData[i3] = light.color[0];
+			_spotLightColorData[i3 + 1] = light.color[1];
+			_spotLightColorData[i3 + 2] = light.color[2];
+			_spotLightIntensityData[i] = light.intensity;
+			_spotLightCutoffData[i] = light.cutoff;
+			_spotLightRangeData[i] = light.range;
+		}
+		if (numSpotLights > 0) {
+			Shaders.transparent.setVec3Array(
+				"spotLightPositions[0]",
+				_spotLightPositionData.subarray(0, numSpotLights * 3),
+			);
+			Shaders.transparent.setVec3Array(
+				"spotLightDirections[0]",
+				_spotLightDirectionData.subarray(0, numSpotLights * 3),
+			);
+			Shaders.transparent.setVec3Array(
+				"spotLightColors[0]",
+				_spotLightColorData.subarray(0, numSpotLights * 3),
+			);
+			Shaders.transparent.setFloatArray(
+				"spotLightIntensities[0]",
+				_spotLightIntensityData.subarray(0, numSpotLights),
+			);
+			Shaders.transparent.setFloatArray(
+				"spotLightCutoffs[0]",
+				_spotLightCutoffData.subarray(0, numSpotLights),
+			);
+			Shaders.transparent.setFloatArray(
+				"spotLightRanges[0]",
+				_spotLightRangeData.subarray(0, numSpotLights),
+			);
 		}
 	}
 
@@ -455,7 +424,7 @@ const renderTransparent = () => {
 };
 
 const renderLighting = () => {
-	// Directional lights (always render - no occlusion for directional)
+	// Directional lights (always render)
 	Shaders.directionalLight.bind();
 	Shaders.directionalLight.setInt("normalBuffer", 1);
 	for (const entity of Scene.visibilityCache[EntityTypes.DIRECTIONAL_LIGHT]) {
@@ -463,33 +432,25 @@ const renderLighting = () => {
 	}
 	Backend.unbindShader();
 
-	// Get light entities (occlusion queries already ran during geometry pass)
+	// Get light entities
 	const pointLights = Scene.visibilityCache[EntityTypes.POINT_LIGHT] || [];
 	const spotLights = Scene.visibilityCache[EntityTypes.SPOT_LIGHT] || [];
 
-	// Point lights (with occlusion filtering)
+	// Point lights
 	Shaders.pointLight.bind();
 	Shaders.pointLight.setInt("positionBuffer", 0);
 	Shaders.pointLight.setInt("normalBuffer", 1);
 	for (const light of pointLights) {
-		// Skip occluded lights if occlusion enabled
-		if (Settings.occlusionCulling && !light.isVisible) {
-			continue;
-		}
 		light.render();
 		_renderStats.lightCount++;
 	}
 	Backend.unbindShader();
 
-	// Spot lights (with occlusion filtering)
+	// Spot lights
 	Shaders.spotLight.bind();
 	Shaders.spotLight.setInt("positionBuffer", 0);
 	Shaders.spotLight.setInt("normalBuffer", 1);
 	for (const light of spotLights) {
-		// Skip occluded lights if occlusion enabled
-		if (Settings.occlusionCulling && !light.isVisible) {
-			continue;
-		}
 		light.render();
 		_renderStats.lightCount++;
 	}
@@ -504,8 +465,13 @@ const renderLighting = () => {
 };
 
 const renderShadows = () => {
+	_shadowFrame = (_shadowFrame + 1) % _SHADOW_FRAME_WRAP;
+
+	const ambient = Scene.getAmbient();
+
 	Shaders.entityShadows.bind();
-	Shaders.entityShadows.setVec3("ambient", Scene.getAmbient());
+	Shaders.entityShadows.setVec3("ambient", ambient);
+	Shaders.entityShadows.setVec3("uProbeColor", ambient);
 
 	// Calculate shadow heights and render mesh shadows
 	const meshEntities = Scene.visibilityCache[EntityTypes.MESH];
@@ -520,12 +486,14 @@ const renderShadows = () => {
 	// Render skinned mesh shadows with dedicated shader
 	if (Shaders.skinnedEntityShadows) {
 		Shaders.skinnedEntityShadows.bind();
-		Shaders.skinnedEntityShadows.setVec3("ambient", Scene.getAmbient());
+		Shaders.skinnedEntityShadows.setVec3("ambient", ambient);
+		Shaders.skinnedEntityShadows.setVec3("uProbeColor", ambient);
 
 		const skinnedEntities = Scene.visibilityCache[EntityTypes.SKINNED_MESH];
 		for (const entity of skinnedEntities) {
-			// Always recalculate for skinned meshes since they move
-			_calculateShadowHeight(entity);
+			if (_shouldUpdateSkinnedShadowHeight(entity)) {
+				_calculateShadowHeight(entity);
+			}
 			entity.renderShadow("all", Shaders.skinnedEntityShadows);
 		}
 		Backend.unbindShader();
@@ -533,16 +501,7 @@ const renderShadows = () => {
 };
 
 const renderFPSGeometry = () => {
-	Shaders.geometry.bind();
-
-	mat4.identity(_matModel);
-
-	Shaders.geometry.setInt("proceduralNoise", 5);
-	Shaders.geometry.setInt(
-		"doProceduralDetail",
-		Settings.proceduralDetail ? 1 : 0,
-	);
-	Shaders.geometry.setMat4("matWorld", _matModel);
+	_bindGeometryShader();
 
 	for (const entity of Scene.visibilityCache[EntityTypes.FPS_MESH]) {
 		entity.render(_sampleProbeColor(entity));
@@ -561,6 +520,15 @@ const renderBillboards = () => {
 };
 
 const renderDebug = () => {
+	if (
+		!_debugState.showBoundingVolumes &&
+		!_debugState.showWireframes &&
+		!_debugState.showLightVolumes &&
+		!_debugState.showSkeleton
+	) {
+		return;
+	}
+
 	Shaders.debug.bind();
 
 	// Enable wireframe mode
@@ -581,16 +549,6 @@ const renderDebug = () => {
 		Shaders.debug.setVec4("debugColor", [1, 1, 1, 1]);
 		for (const type of _debugMeshTypes) {
 			for (const entity of Scene.visibilityCache[type]) {
-				// Skip occluded entities (for MESH and SKINNED_MESH types) if occlusion enabled
-				if (
-					Settings.occlusionCulling &&
-					(type === EntityTypes.MESH || type === EntityTypes.SKINNED_MESH) &&
-					!entity.isOccluder
-				) {
-					if (!entity.isVisible) {
-						continue;
-					}
-				}
 				entity.renderWireFrame();
 			}
 		}

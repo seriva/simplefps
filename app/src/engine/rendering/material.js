@@ -29,7 +29,7 @@ const TEXTURE_SLOT_SAMPLERS = TEXTURE_SLOT_NAMES.map(
 // ============================================================================
 
 class Material {
-	#ubo = null;
+	_ubo = null;
 
 	constructor(data, resources) {
 		if (!data || !resources) {
@@ -71,8 +71,7 @@ class Material {
 	}
 
 	bind(shader = Shaders.geometry) {
-		if (!shader) shader = Shaders.geometry;
-
+		shader ??= Shaders.geometry;
 		// Bind textures using pre-computed arrays (avoids Object.entries())
 		for (let i = 0; i < TEXTURE_SLOT_NAMES.length; i++) {
 			const texturePath = this.textures[TEXTURE_SLOT_NAMES[i]];
@@ -86,11 +85,11 @@ class Material {
 		}
 
 		// Material UBO (Binding Point 1)
-		if (!this.#ubo) {
-			this.#createUBO();
+		if (!this._ubo) {
+			this._createUBO();
 		}
 
-		Backend.bindUniformBuffer(this.#ubo);
+		Backend.bindUniformBuffer(this._ubo);
 
 		// Handle double-sided materials
 		if (this.doubleSided) {
@@ -100,7 +99,7 @@ class Material {
 		}
 	}
 
-	#createUBO() {
+	_createUBO() {
 		// Layout std140:
 		// ivec4 flags;  // 16 bytes (geomType, doEmissive, doReflection, hasLightmap)
 		// vec4 params;  // 16 bytes (reflectionStrength, opacity, pad, pad)
@@ -120,10 +119,10 @@ class Material {
 
 		// Create UBO via backend (size 32 bytes, binding point 1)
 		// We create it first
-		this.#ubo = Backend.createUBO(32, 1);
+		this._ubo = Backend.createUBO(32, 1);
 
 		// Then update logic
-		Backend.updateUBO(this.#ubo, data);
+		Backend.updateUBO(this._ubo, data);
 	}
 
 	unBind() {
@@ -133,9 +132,9 @@ class Material {
 	}
 
 	dispose() {
-		if (this.#ubo) {
-			Backend.deleteUBO(this.#ubo);
-			this.#ubo = null;
+		if (this._ubo) {
+			Backend.deleteUBO(this._ubo);
+			this._ubo = null;
 		}
 	}
 

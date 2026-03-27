@@ -39,7 +39,6 @@ const _setupEnvironment = ({ skybox, chunks = [] }) => {
 
 	for (const chunk of chunks) {
 		const entity = new MeshEntity(_DEFAULT_POSITION, chunk);
-		entity.isOccluder = true; // The arena geometry occludes other objects
 		Scene.addStaticGeometry(entity);
 		Scene.addEntities(entity);
 	}

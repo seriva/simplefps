@@ -12,17 +12,17 @@ const _tempMatrix = mat4.create();
 const _worldPos = vec3.create();
 
 class AnimatedBillboardEntity extends Entity {
-	#time = 0;
-	#duration;
-	#gridSize;
-	#frameCount;
-	#scale;
+	_time = 0;
+	_duration;
+	_gridSize;
+	_frameCount;
+	_scale;
 	// Precomputed trig for the fixed rotation — saves two Math.cos/sin calls per frame
-	#cosR;
-	#sinR;
-	#texture;
-	#scaleFn;
-	#opacityFn;
+	_cosR;
+	_sinR;
+	_texture;
+	_scaleFn;
+	_opacityFn;
 
 	constructor(position, config = {}) {
 		super(EntityTypes.ANIMATED_BILLBOARD);
@@ -31,43 +31,43 @@ class AnimatedBillboardEntity extends Entity {
 			throw new Error("AnimatedBillboardEntity requires a texture");
 		}
 
-		this.#duration = config.duration ?? 1000;
-		this.#gridSize = config.gridSize ?? 1;
-		this.#frameCount = config.frameCount ?? 1;
-		this.#scale = config.scale ?? 1;
-		this.#time = config.timeOffset ?? 0;
-		this.#texture = Resources.get(config.texture);
-		this.#scaleFn = config.scaleFn ?? null;
-		this.#opacityFn = config.opacityFn ?? null;
+		this._duration = config.duration ?? 1000;
+		this._gridSize = config.gridSize ?? 1;
+		this._frameCount = config.frameCount ?? 1;
+		this._scale = config.scale ?? 1;
+		this._time = config.timeOffset ?? 0;
+		this._texture = Resources.get(config.texture);
+		this._scaleFn = config.scaleFn ?? null;
+		this._opacityFn = config.opacityFn ?? null;
 
 		// Cache rotation trig once; rotation is fixed for the lifetime of the entity
 		const rotation = config.rotation ?? 0;
-		this.#cosR = Math.cos(rotation);
-		this.#sinR = Math.sin(rotation);
+		this._cosR = Math.cos(rotation);
+		this._sinR = Math.sin(rotation);
 
 		// Store position in base_matrix, consistent with all other entities
 		mat4.translate(this.base_matrix, this.base_matrix, position);
 	}
 
 	update(frameTime) {
-		this.#time += frameTime;
-		return this.#time < this.#duration;
+		this._time += frameTime;
+		return this._time < this._duration;
 	}
 
 	render() {
 		// Skip if invisible, missing texture, or time hasn't started yet (negative timeOffset)
-		if (!this.visible || !this.#texture || this.#time <= 0) return;
+		if (!this.visible || !this._texture || this._time <= 0) return;
 
-		const progress = Math.min(this.#time / this.#duration, 1.0);
+		const progress = Math.min(this._time / this._duration, 1.0);
 		const frameIndex = Math.min(
-			Math.floor(progress * this.#frameCount),
-			this.#frameCount - 1,
+			Math.floor(progress * this._frameCount),
+			this._frameCount - 1,
 		);
-		const cellSize = 1.0 / this.#gridSize;
-		const col = frameIndex % this.#gridSize;
-		const row = Math.floor(frameIndex / this.#gridSize);
-		const opacity = this.#opacityFn ? this.#opacityFn(progress) : 1.0;
-		const scale = this.#scale * (this.#scaleFn ? this.#scaleFn(progress) : 1.0);
+		const cellSize = 1.0 / this._gridSize;
+		const col = frameIndex % this._gridSize;
+		const row = Math.floor(frameIndex / this._gridSize);
+		const opacity = this._opacityFn ? this._opacityFn(progress) : 1.0;
+		const scale = this._scale * (this._scaleFn ? this._scaleFn(progress) : 1.0);
 
 		// Extract world position from base_matrix (consistent with all other entities)
 		mat4.multiply(_tempMatrix, this.base_matrix, this.ani_matrix);
@@ -83,8 +83,8 @@ class AnimatedBillboardEntity extends Entity {
 			uy = v[5],
 			uz = v[9]; // camera up    (view row 1)
 
-		const c = this.#cosR;
-		const ss = this.#sinR;
+		const c = this._cosR;
+		const ss = this._sinR;
 
 		// Apply in-plane rotation around the billboard normal
 		const lrx = rx * c + ux * ss,
@@ -122,15 +122,15 @@ class AnimatedBillboardEntity extends Entity {
 		shader.setVec2("uFrameScale", [cellSize, cellSize]);
 		shader.setFloat("uOpacity", opacity);
 
-		this.#texture.bind(0);
+		this._texture.bind(0);
 		Shapes.billboardQuad.renderSingle(false);
 		Texture.unBind(0);
 	}
 
 	updateBoundingVolume() {
 		// Use the max possible rendered scale as the bounding radius
-		// (worst case: scaleFn returns 1.0 so scale = this.#scale)
-		const r = this.#scale;
+		// (worst case: scaleFn returns 1.0 so scale = this._scale)
+		const r = this._scale;
 
 		mat4.multiply(_tempMatrix, this.base_matrix, this.ani_matrix);
 		mat4.getTranslation(_worldPos, _tempMatrix);
@@ -147,7 +147,7 @@ class AnimatedBillboardEntity extends Entity {
 
 	dispose() {
 		super.dispose();
-		this.#texture = null;
+		this._texture = null;
 	}
 }
 
