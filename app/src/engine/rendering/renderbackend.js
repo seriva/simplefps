@@ -16,7 +16,7 @@ class RenderBackend {
 	// Lifecycle
 	// =========================================================================
 
-	async init(_canvas) {
+	async init() {
 		throw new Error("RenderBackend.init() must be implemented");
 	}
 

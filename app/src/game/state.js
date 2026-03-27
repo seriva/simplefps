@@ -18,13 +18,22 @@ const _blurStyle = css`
 	transition: filter 25ms linear;
 `;
 
-// Initialize blur immediately to avoid white flash on load
-const _canvas = getCanvas();
-_canvas.classList.add(_blurStyle);
-_canvas.style.filter = "blur(8px)";
+// Canvas is not available until backendReady resolves, so access it lazily.
+let _canvas = null;
+const _getCanvas = () => {
+	if (!_canvas) {
+		_canvas = getCanvas();
+		if (_canvas) {
+			_canvas.classList.add(_blurStyle);
+			_canvas.style.filter = "blur(8px)";
+		}
+	}
+	return _canvas;
+};
 
 _isBlurred.subscribe((blurred) => {
-	if (_canvas) _canvas.style.filter = blurred ? "blur(8px)" : "blur(0px)";
+	const canvas = _getCanvas();
+	if (canvas) canvas.style.filter = blurred ? "blur(8px)" : "blur(0px)";
 });
 
 // Subscribe to state changes to orchestrate system transitions
