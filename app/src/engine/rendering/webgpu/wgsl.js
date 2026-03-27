@@ -67,12 +67,11 @@ fn calcPointLight(lightPos: vec3<f32>, lightSize: f32, fragPos: vec3<f32>, norma
     if (distSq > sizeSq) { return vec2<f32>(0.0); }
     
     let normalizedDist = sqrt(distSq) / lightSize;
-    var falloff = 1.0 - smoothstep(0.0, 1.0, normalizedDist);
-    falloff = falloff * falloff;
-    
+    let falloff = 1.0 - smoothstep(0.0, 1.0, normalizedDist);
+
     let L = normalize(lightDir);
     let nDotL = max(0.0, dot(normal, L));
-    
+
     return vec2<f32>(falloff * falloff, nDotL);
 }`;
 
@@ -872,13 +871,18 @@ struct PostOutput {
 @group(1) @binding(1) var bufferSampler: sampler;
 @group(1) @binding(2) var colorBuffer: texture_2d<f32>;
 
-// Anisotropic Lanczos-like weight: positive only, stretched perpendicular to edge
+// Catmull-Rom kernel applied to anisotropic distance — has negative lobes
+// between d=1 and d=2 that reconstruct fine detail (sharpening effect)
 fn easuWeight(sampleOff: vec2<f32>, dir: vec2<f32>, stretch: f32) -> f32 {
     let along = abs(sampleOff.x * dir.x + sampleOff.y * dir.y);
     let perp  = abs(sampleOff.x * dir.y - sampleOff.y * dir.x);
-    let d2 = along * along + perp * perp * stretch * stretch;
-    let w = max(1.0 - d2 * 0.25, 0.0);
-    return w * w;
+    let d = sqrt(along * along + perp * perp * stretch * stretch);
+    if d < 1.0 {
+        return (1.5 * d - 2.5) * d * d + 1.0;
+    } else if d < 2.0 {
+        return ((-0.5 * d + 2.5) * d - 4.0) * d + 2.0;
+    }
+    return 0.0;
 }
 
 @vertex
@@ -940,7 +944,7 @@ fn fs_main(input: PostOutput) -> @location(0) vec4<f32> {
     let minEdge = min(min(le, lf), min(li, lj));
     let maxEdge = max(max(le, lf), max(li, lj));
     let edgeAmount = clamp((maxEdge - minEdge) / max(maxEdge, 1.0e-5), 0.0, 1.0);
-    let stretch = 1.0 + edgeAmount * 1.0;
+    let stretch = 1.0 + edgeAmount * 0.5;
 
     // Positive-only anisotropic weights for all 12 taps
     let we  = easuWeight(vec2<f32>( 0.0,  0.0) - f, dir, stretch);
@@ -961,7 +965,11 @@ fn fs_main(input: PostOutput) -> @location(0) vec4<f32> {
               + h*wh + k*wk + l*wl + m*wm;
     let totalW = we+wfS+wiS+wj+wb+wc+wd+wg+wh+wk+wl+wm;
 
-    return vec4<f32>(color / totalW, 1.0);
+    // Clamp to full 12-tap neighborhood min/max to prevent ringing artifacts
+    let nMin = min(min(min(b,c),min(d,e)),min(min(fS,g),min(min(h,iS),min(min(j,k),min(l,m)))));
+    let nMax = max(max(max(b,c),max(d,e)),max(max(fS,g),max(max(h,iS),max(max(j,k),max(l,m)))));
+
+    return vec4<f32>(clamp(color / totalW, nMin, nMax), 1.0);
 }
 `;
 

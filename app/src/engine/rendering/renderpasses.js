@@ -72,6 +72,8 @@ const _boundingBoxColors = {
 	[EntityTypes.DIRECTIONAL_LIGHT]: [1, 1, 0, 1], // Yellow
 	[EntityTypes.POINT_LIGHT]: [1, 1, 0, 1], // Yellow
 	[EntityTypes.SPOT_LIGHT]: [1, 1, 0, 1], // Yellow
+	[EntityTypes.ANIMATED_BILLBOARD]: [0, 1, 1, 1], // Cyan
+	[EntityTypes.PARTICLE_EMITTER]: [1, 0.5, 0, 1], // Orange
 };
 
 // Pre-allocated flat arrays for WebGL light uniform batch uploads

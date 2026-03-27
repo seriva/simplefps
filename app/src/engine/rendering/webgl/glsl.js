@@ -29,11 +29,10 @@ vec2 calcPointLight(vec3 lightPos, float lightSize, vec3 fragPos, vec3 normal) {
     
     float normalizedDist = sqrt(distSq) / lightSize;
     float falloff = 1.0 - smoothstep(0.0, 1.0, normalizedDist);
-    falloff = falloff * falloff;
-    
+
     vec3 L = normalize(lightDir);
     float nDotL = max(0.0, dot(normal, L));
-    
+
     return vec2(falloff * falloff, nDotL);
 }`;
 
@@ -753,9 +752,10 @@ export const ShaderSources = {
             float easuWeight(vec2 sampleOff, float dirX, float dirY, float stretch) {
                 float along = abs(sampleOff.x * dirX + sampleOff.y * dirY);
                 float perp  = abs(sampleOff.x * dirY - sampleOff.y * dirX);
-                float d2 = along * along + perp * perp * stretch * stretch;
-                float w = max(1.0 - d2 * 0.25, 0.0);
-                return w * w;
+                float d = sqrt(along * along + perp * perp * stretch * stretch);
+                if (d < 1.0) return (1.5 * d - 2.5) * d * d + 1.0;
+                if (d < 2.0) return ((-0.5 * d + 2.5) * d - 4.0) * d + 2.0;
+                return 0.0;
             }
 
             void main() {
@@ -810,7 +810,7 @@ export const ShaderSources = {
                 float minEdge = min(min(le, lf), min(li, lj));
                 float maxEdge = max(max(le, lf), max(li, lj));
                 float edgeAmount = clamp((maxEdge - minEdge) / max(maxEdge, 1.0e-5), 0.0, 1.0);
-                float stretch = 1.0 + edgeAmount * 1.0;
+                float stretch = 1.0 + edgeAmount * 0.5;
 
                 // Positive-only anisotropic weights for all 12 taps
                 float we  = easuWeight(vec2( 0.0,  0.0) - f, dirX, dirY, stretch);
@@ -831,6 +831,11 @@ export const ShaderSources = {
                            + h*wh + k*wk + l*wl + m*wm;
                 float totalW = we+wfS+wiS+wj+wb+wc+wd+wg+wh+wk+wl+wm;
                 color /= totalW;
+
+                // Clamp to neighborhood min/max to prevent negative-lobe ringing artifacts
+                vec3 nMin = min(min(min(b,c),min(d,e)),min(min(fS,g),min(min(h,iS),min(min(j,k),min(l,m)))));
+                vec3 nMax = max(max(max(b,c),max(d,e)),max(max(fS,g),max(max(h,iS),max(max(j,k),max(l,m)))));
+                color = clamp(color, nMin, nMax);
 
                 fragColor = vec4(color, 1.0);
             }`,
