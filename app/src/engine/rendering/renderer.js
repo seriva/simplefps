@@ -543,13 +543,7 @@ const _shadowPass = () => {
 	Backend.setColorMask(true, true, true, true);
 	Backend.setBlendState(false);
 	Backend.setDepthState(true, false, "lequal");
-	// WebGPU depth bias behaves differently and can fully suppress shadow projection.
-	// Keep GL offset, disable bias on WebGPU for deterministic behavior.
-	if (Backend.isWebGPU()) {
-		Backend.setPolygonOffset(false);
-	} else {
-		Backend.setPolygonOffset(true, -1.0, -1.0);
-	}
+	Backend.setPolygonOffset(true, -1.0, -1.0);
 	Backend.setCullState(false);
 
 	RenderPasses.renderShadows();

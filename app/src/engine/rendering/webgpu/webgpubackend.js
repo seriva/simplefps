@@ -2070,9 +2070,11 @@ class WebGPUBackend extends RenderBackend {
 			const probeColor = this._uniforms.get("uProbeColor") ??
 				this._uniforms.get("ambient") ??
 				this._uniforms.get("debugColor") ?? [1, 1, 1];
+			const shadowHeight = this._uniforms.get("shadowHeight");
 
 			if (matWorld) arr.set(matWorld, 0);
 			if (probeColor) arr.set(probeColor, 16);
+			if (shadowHeight !== undefined) arr[19] = shadowHeight;
 
 			return arr;
 		} else if (name === "ambient") {

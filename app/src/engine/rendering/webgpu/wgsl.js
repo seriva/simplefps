@@ -435,6 +435,9 @@ fn vs_main(input: SkinnedShadowVertexInput) -> ShadowVertexOutput {
     // Transform to world space
     var worldPos = objectData.matWorld * vec4<f32>(skinnedPosition, 1.0);
     
+    // Flatten to shadow height (stored in uProbeColor.a)
+    worldPos.y = objectData.uProbeColor.a;
+    
     output.clipPosition = frameData.matViewProj * worldPos;
     return output;
 }

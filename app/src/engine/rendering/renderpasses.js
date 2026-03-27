@@ -465,8 +465,11 @@ const renderLighting = () => {
 const renderShadows = () => {
 	_shadowFrame = (_shadowFrame + 1) % _SHADOW_FRAME_WRAP;
 
+	const ambient = Scene.getAmbient();
+
 	Shaders.entityShadows.bind();
-	Shaders.entityShadows.setVec3("ambient", Scene.getAmbient());
+	Shaders.entityShadows.setVec3("ambient", ambient);
+	Shaders.entityShadows.setVec3("uProbeColor", ambient);
 
 	// Calculate shadow heights and render mesh shadows
 	const meshEntities = Scene.visibilityCache[EntityTypes.MESH];
@@ -481,7 +484,8 @@ const renderShadows = () => {
 	// Render skinned mesh shadows with dedicated shader
 	if (Shaders.skinnedEntityShadows) {
 		Shaders.skinnedEntityShadows.bind();
-		Shaders.skinnedEntityShadows.setVec3("ambient", Scene.getAmbient());
+		Shaders.skinnedEntityShadows.setVec3("ambient", ambient);
+		Shaders.skinnedEntityShadows.setVec3("uProbeColor", ambient);
 
 		const skinnedEntities = Scene.visibilityCache[EntityTypes.SKINNED_MESH];
 		for (const entity of skinnedEntities) {
