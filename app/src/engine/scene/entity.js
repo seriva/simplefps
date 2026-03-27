@@ -1,5 +1,4 @@
 import { mat4 } from "../../dependencies/gl-matrix.js";
-import { Backend } from "../rendering/backend.js";
 import { Shaders } from "../rendering/shaders.js";
 import { Shapes } from "../rendering/shapes.js";
 
@@ -16,9 +15,6 @@ const EntityTypes = Object.freeze({
 });
 
 class Entity {
-	_occQueries = null;
-	_occQueryFrame = 0;
-
 	constructor(type, updateCallback) {
 		this.type = type;
 		this.data = {};
@@ -27,10 +23,6 @@ class Entity {
 		this.visible = true;
 		this.castShadow = true;
 		this.receiveShadow = true;
-
-		// Occlusion culling
-		this.isOccluder = false; // Is this a large occluder (e.g. wall)?
-		this.isVisible = true; // Visibility state from occlusion query (default true)
 
 		this.base_matrix = mat4.create();
 		this.ani_matrix = mat4.create();
@@ -64,37 +56,6 @@ class Entity {
 		// Virtual function to be overridden by child classes
 	}
 
-	initOcclusionQueries() {
-		this._occQueries = [
-			Backend.createQuery(),
-			Backend.createQuery(),
-			Backend.createQuery(),
-			Backend.createQuery(),
-			Backend.createQuery(),
-			Backend.createQuery(),
-		];
-		this._occQueryFrame = 0;
-	}
-
-	getOcclusionQuery(slot) {
-		return this._occQueries?.[slot % 6] ?? null;
-	}
-
-	getOcclusionFrame() {
-		return this._occQueryFrame;
-	}
-
-	advanceOcclusionFrame() {
-		this._occQueryFrame++;
-		if (this._occQueryFrame > 1000) {
-			this._occQueryFrame = 6;
-		}
-	}
-
-	hasOcclusionQueries() {
-		return this._occQueries !== null;
-	}
-
 	renderBoundingBox(drawMode = null) {
 		if (!this.boundingBox || !this.visible) return;
 
@@ -103,13 +64,6 @@ class Entity {
 	}
 
 	dispose() {
-		if (this._occQueries) {
-			for (const query of this._occQueries) {
-				Backend.deleteQuery(query);
-			}
-			this._occQueries = null;
-		}
-
 		this.updateCallback = null;
 		this.boundingBox = null;
 	}

@@ -64,7 +64,6 @@ class WebGLBackend extends RenderBackend {
 		this._textureUnit0 = 0; // Cached gl.TEXTURE0
 		this._wrapModes = null; // Cached wrap mode lookup
 		this._frameId = 0;
-		this._occlusionPollIntervalFrames = 2;
 	}
 
 	// =========================================================================
@@ -861,89 +860,6 @@ class WebGLBackend extends RenderBackend {
 
 	setDepthMask(flag) {
 		this._gl.depthMask(flag);
-	}
-
-	// =========================================================================
-	// Occlusion Queries
-	// =========================================================================
-
-	createQuery() {
-		const glQuery = this._gl.createQuery();
-		return {
-			_glQuery: glQuery,
-			_lastPollFrame: -1,
-			_lastAvailable: false,
-			_lastHasPassed: true,
-		};
-	}
-
-	deleteQuery(query) {
-		if (!query) return;
-
-		const glQuery = query._glQuery || query;
-		if (glQuery) {
-			this._gl.deleteQuery(glQuery);
-		}
-	}
-
-	beginQuery(query) {
-		// Use ANY_SAMPLES_PASSED_CONSERVATIVE for better performance (may return false positives)
-		// Falls back to ANY_SAMPLES_PASSED if not available
-		const gl = this._gl;
-		const queryType =
-			gl.ANY_SAMPLES_PASSED_CONSERVATIVE || gl.ANY_SAMPLES_PASSED;
-		const glQuery = query?._glQuery || query;
-		if (!glQuery) return;
-		gl.beginQuery(queryType, glQuery);
-	}
-
-	endQuery(_query) {
-		const gl = this._gl;
-		const queryType =
-			gl.ANY_SAMPLES_PASSED_CONSERVATIVE || gl.ANY_SAMPLES_PASSED;
-		gl.endQuery(queryType);
-	}
-
-	getQueryResult(query) {
-		if (!query) {
-			return {
-				available: false,
-				hasPassed: true,
-			};
-		}
-
-		const gl = this._gl;
-		const glQuery = query._glQuery || query;
-
-		// Avoid polling the same unresolved query every frame.
-		if (
-			query._lastPollFrame !== undefined &&
-			!query._lastAvailable &&
-			this._frameId - query._lastPollFrame < this._occlusionPollIntervalFrames
-		) {
-			return {
-				available: false,
-				hasPassed: query._lastHasPassed,
-			};
-		}
-
-		const available = gl.getQueryParameter(glQuery, gl.QUERY_RESULT_AVAILABLE);
-		const result = available
-			? gl.getQueryParameter(glQuery, gl.QUERY_RESULT)
-			: 0;
-
-		if (query._lastPollFrame !== undefined) {
-			query._lastPollFrame = this._frameId;
-			query._lastAvailable = !!available;
-			if (available) {
-				query._lastHasPassed = result !== 0;
-			}
-		}
-
-		return {
-			available: !!available,
-			hasPassed: available ? result !== 0 : query._lastHasPassed,
-		};
 	}
 
 	// =========================================================================

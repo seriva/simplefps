@@ -47,10 +47,7 @@ class SkinnedMeshEntity extends MeshEntity {
 
 		if (this.animationPlayer && this.mesh?.skeleton) {
 			const pose = this.animationPlayer.update(deltaTime / 1000);
-
-			if (this.isVisible) {
-				this._boneMatrices = this.mesh.getBoneMatricesForGPU(pose);
-			}
+			this._boneMatrices = this.mesh.getBoneMatricesForGPU(pose);
 		}
 
 		super.update?.(deltaTime);

@@ -34,7 +34,6 @@ const _defaults = {
 	shadowBlurOffset: 0.3,
 	shadowIntensity: 0.5,
 	lightBlurIterations: 4,
-	occlusionCulling: true,
 
 	// SSAO settings
 	doSSAO: false,

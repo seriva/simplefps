@@ -144,9 +144,6 @@ class WebGPUBackend extends RenderBackend {
 
 		// Optimization: Unique ID counter for resources (for cache keys)
 		this._resourceIdCounter = 1;
-
-		// Optimization: Track highest query index issued in the current frame
-		this._frameMaxIssuedQueryIndex = -1;
 	}
 
 	// =========================================================================
@@ -168,18 +165,6 @@ class WebGPUBackend extends RenderBackend {
 		} else {
 			this._canvas = canvas;
 		}
-
-		// Occlusion Query State
-		this._querySet = null;
-		this._queryBuffer = null;
-		this._queryReadBuffers = []; // Ring buffer for async reading
-		this._queryReadIndex = 0; // Current ring index
-		this._queryCount = 1024; // Max number of occlusion queries
-		this._queryIndices = new Set(); // Track used indices
-		for (let i = 0; i < this._queryCount; i++) this._queryIndices.add(i);
-		this._activeQueries = new Map(); // Map query object -> index
-		this._queryResults = new BigUint64Array(this._queryCount); // Local cache of results
-		this._maxActiveQueryIndex = -1;
 
 		try {
 			// Request adapter
@@ -275,30 +260,6 @@ class WebGPUBackend extends RenderBackend {
 				`[WebGPU] Format: ${this._format}, Max texture: ${this._capabilities.maxTextureSize}, Max aniso: ${this._capabilities.maxAnisotropy}`,
 			);
 
-			// Create QuerySet
-			this._querySet = this._device.createQuerySet({
-				type: "occlusion",
-				count: this._queryCount,
-			});
-
-			// Create Query Resolve Buffer (destination for resolveQuerySet)
-			this._queryBuffer = this._device.createBuffer({
-				size: this._queryCount * 8, // 64-bit results
-				usage: GPUBufferUsage.QUERY_RESOLVE | GPUBufferUsage.COPY_SRC,
-			});
-
-			// Create Query Read Buffers (ring buffer for non-blocking readback)
-			this._queryReadBuffers = [];
-			for (let i = 0; i < 3; i++) {
-				this._queryReadBuffers.push(
-					this._device.createBuffer({
-						size: this._queryCount * 8,
-						usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
-						label: `OcclusionReadBuffer_${i}`,
-					}),
-				);
-			}
-
 			// Create dummy UBO for missing bindings (64KB to cover most cases)
 			this._dummyUBO = this._device.createBuffer({
 				size: 65536,
@@ -352,76 +313,19 @@ class WebGPUBackend extends RenderBackend {
 
 		// Clear per-frame BindGroup cache ONLY
 		this._frameBindGroupCache.clear();
-
-		// Reset per-frame occlusion usage tracking
-		this._frameMaxIssuedQueryIndex = -1;
 	}
 
 	async endFrame() {
-		let didCopy = false;
-		let resolveBytes = 0;
-
 		// End any active render pass
 		if (this._currentPass) {
 			this._currentPass.end();
 			this._currentPass = null;
 		}
 
-		// Resolve Occlusion Queries
-		if (this._commandEncoder && this._querySet) {
-			const resolveCount = this._frameMaxIssuedQueryIndex + 1;
-
-			// Skip resolve/copy when no occlusion queries were written this frame.
-			if (resolveCount > 0) {
-				resolveBytes = resolveCount * 8;
-				// Resolve query set to buffer
-				this._commandEncoder.resolveQuerySet(
-					this._querySet,
-					0,
-					resolveCount,
-					this._queryBuffer,
-					0,
-				);
-
-				// Copy resolved buffer to read buffer (if available)
-				const readBuffer = this._queryReadBuffers[this._queryReadIndex];
-
-				if (readBuffer.mapState === "unmapped") {
-					this._commandEncoder.copyBufferToBuffer(
-						this._queryBuffer,
-						0,
-						readBuffer,
-						0,
-						resolveBytes,
-					);
-					didCopy = true;
-				}
-			}
-		}
-
 		// Submit all commands
 		if (this._commandEncoder) {
 			this._device.queue.submit([this._commandEncoder.finish()]);
 			this._commandEncoder = null;
-		}
-
-		// Read back results asynchronously (no await!)
-		if (didCopy) {
-			const readBuffer = this._queryReadBuffers[this._queryReadIndex];
-			const bytes = resolveBytes;
-			readBuffer
-				.mapAsync(GPUMapMode.READ)
-				.then(() => {
-					const arrayBuffer = readBuffer.getMappedRange(0, bytes);
-					this._queryResults.set(new BigUint64Array(arrayBuffer), 0);
-					readBuffer.unmap();
-				})
-				.catch(() => {
-					// Buffer mapping failed (device lost or unmapped early)
-				});
-
-			// Advance ring buffer index
-			this._queryReadIndex = (this._queryReadIndex + 1) % 3;
 		}
 
 		this._currentTexture = null;
@@ -722,11 +626,6 @@ class WebGPUBackend extends RenderBackend {
 			descriptor.depthStencilAttachment = depthAttachment;
 		}
 
-		// Add occlusion query set if available
-		if (this._querySet) {
-			descriptor.occlusionQuerySet = this._querySet;
-		}
-
 		this._currentPass = encoder.beginRenderPass(descriptor);
 
 		// OPTIMIZATION: Reset state cache for new pass
@@ -804,74 +703,6 @@ class WebGPUBackend extends RenderBackend {
 
 	setDepthMask(flag) {
 		this._depthState.write = flag;
-	}
-
-	// =========================================================================
-	// Occlusion Queries
-	// =========================================================================
-
-	createQuery() {
-		if (this._queryIndices.size === 0) {
-			Console.warn("WebGPU: No more occlusion query indices available");
-			return null;
-		}
-		const index = this._queryIndices.values().next().value;
-		this._queryIndices.delete(index);
-		if (index > this._maxActiveQueryIndex) {
-			this._maxActiveQueryIndex = index;
-		}
-		const query = { index }; // Opaque handle
-		this._activeQueries.set(query, index);
-		return query;
-	}
-
-	deleteQuery(query) {
-		if (!query) return;
-		const index = this._activeQueries.get(query);
-		if (index !== undefined) {
-			this._queryIndices.add(index);
-			this._activeQueries.delete(query);
-
-			if (index === this._maxActiveQueryIndex) {
-				let nextMax = -1;
-				for (const activeIndex of this._activeQueries.values()) {
-					if (activeIndex > nextMax) nextMax = activeIndex;
-				}
-				this._maxActiveQueryIndex = nextMax;
-			}
-		}
-	}
-
-	beginQuery(query) {
-		if (!this._currentPass) {
-			// Must be inside a pass to begin occlusion query in WebGPU
-			// However, our architecture expects beginQuery -> draw -> endQuery.
-			// If we are not in a pass, we should warn or maybe start one?
-			// The renderer controls passes, so we should assume a pass is active.
-			return;
-		}
-
-		if (query?.index > this._frameMaxIssuedQueryIndex) {
-			this._frameMaxIssuedQueryIndex = query.index;
-		}
-
-		this._currentPass.beginOcclusionQuery(query.index);
-	}
-
-	endQuery(_query) {
-		if (!this._currentPass) return;
-		this._currentPass.endOcclusionQuery();
-	}
-
-	getQueryResult(query) {
-		// Return cached result from previous frame(s)
-		const index = query.index;
-		const pixels = Number(this._queryResults[index]);
-		return {
-			available: true, // Always "available" from cache (might be old)
-			hasPassed: pixels > 0,
-			pixelCount: pixels,
-		};
 	}
 
 	// =========================================================================
