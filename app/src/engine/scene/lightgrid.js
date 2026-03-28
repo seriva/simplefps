@@ -8,6 +8,8 @@ let _origin = [0, 0, 0];
 let _counts = [0, 0, 0];
 let _step = [64, 64, 64];
 let _bounds = { min: [0, 0, 0], max: [0, 0, 0] };
+let _strideY = 0;
+let _strideZ = 0;
 
 // Pre-allocated temp arrays for trilinear interpolation (avoid GC pressure)
 const _c000 = [0, 0, 0];
@@ -30,6 +32,8 @@ const _reset = () => {
 	_counts = [0, 0, 0];
 	_step = [64, 64, 64];
 	_bounds = { min: [0, 0, 0], max: [0, 0, 0] };
+	_strideY = 0;
+	_strideZ = 0;
 };
 
 const _load = (config) => {
@@ -74,6 +78,8 @@ const _load = (config) => {
 				_origin = lgConfig.origin;
 				_counts = lgConfig.counts;
 				_step = lgConfig.step;
+				_strideY = _counts[0];
+				_strideZ = _counts[0] * _counts[1];
 
 				// Calculate bounds for safer clamping
 				_bounds.min = [..._origin];
@@ -133,32 +139,40 @@ const _getAmbient = (position, outColor = null) => {
 	wy = wy < 0 ? 0 : wy > 1 ? 1 : wy;
 	wz = wz < 0 ? 0 : wz > 1 ? 1 : wz;
 
-	// Pre-compute stride values
-	const strideY = _counts[0];
-	const strideZ = _counts[0] * _counts[1];
-	const dataLen = _data.length;
-
-	// Helper to sample raw index into a pre-allocated array
-	const getSample = (ix, iy, iz, out) => {
-		const byteOffset = (iz * strideZ + iy * strideY + ix) * 3;
-		if (byteOffset + 2 < dataLen) {
-			out[0] = _data[byteOffset] * 0.00392156862745098; // / 255.0
-			out[1] = _data[byteOffset + 1] * 0.00392156862745098;
-			out[2] = _data[byteOffset + 2] * 0.00392156862745098;
-		} else {
-			out[0] = out[1] = out[2] = 0;
-		}
-	};
-
-	// Sample 8 neighbors into pre-allocated arrays
-	getSample(x0, y0, z0, _c000);
-	getSample(x1, y0, z0, _c100);
-	getSample(x0, y1, z0, _c010);
-	getSample(x1, y1, z0, _c110);
-	getSample(x0, y0, z1, _c001);
-	getSample(x1, y0, z1, _c101);
-	getSample(x0, y1, z1, _c011);
-	getSample(x1, y1, z1, _c111);
+	// Sample 8 neighbors into pre-allocated arrays (strides pre-computed at load time)
+	let b;
+	b = (z0 * _strideZ + y0 * _strideY + x0) * 3;
+	_c000[0] = _data[b] * 0.00392156862745098;
+	_c000[1] = _data[b + 1] * 0.00392156862745098;
+	_c000[2] = _data[b + 2] * 0.00392156862745098;
+	b = (z0 * _strideZ + y0 * _strideY + x1) * 3;
+	_c100[0] = _data[b] * 0.00392156862745098;
+	_c100[1] = _data[b + 1] * 0.00392156862745098;
+	_c100[2] = _data[b + 2] * 0.00392156862745098;
+	b = (z0 * _strideZ + y1 * _strideY + x0) * 3;
+	_c010[0] = _data[b] * 0.00392156862745098;
+	_c010[1] = _data[b + 1] * 0.00392156862745098;
+	_c010[2] = _data[b + 2] * 0.00392156862745098;
+	b = (z0 * _strideZ + y1 * _strideY + x1) * 3;
+	_c110[0] = _data[b] * 0.00392156862745098;
+	_c110[1] = _data[b + 1] * 0.00392156862745098;
+	_c110[2] = _data[b + 2] * 0.00392156862745098;
+	b = (z1 * _strideZ + y0 * _strideY + x0) * 3;
+	_c001[0] = _data[b] * 0.00392156862745098;
+	_c001[1] = _data[b + 1] * 0.00392156862745098;
+	_c001[2] = _data[b + 2] * 0.00392156862745098;
+	b = (z1 * _strideZ + y0 * _strideY + x1) * 3;
+	_c101[0] = _data[b] * 0.00392156862745098;
+	_c101[1] = _data[b + 1] * 0.00392156862745098;
+	_c101[2] = _data[b + 2] * 0.00392156862745098;
+	b = (z1 * _strideZ + y1 * _strideY + x0) * 3;
+	_c011[0] = _data[b] * 0.00392156862745098;
+	_c011[1] = _data[b + 1] * 0.00392156862745098;
+	_c011[2] = _data[b + 2] * 0.00392156862745098;
+	b = (z1 * _strideZ + y1 * _strideY + x1) * 3;
+	_c111[0] = _data[b] * 0.00392156862745098;
+	_c111[1] = _data[b + 1] * 0.00392156862745098;
+	_c111[2] = _data[b + 2] * 0.00392156862745098;
 
 	// Trilinear interpolation (inlined for performance)
 	const wx1 = 1 - wx;
