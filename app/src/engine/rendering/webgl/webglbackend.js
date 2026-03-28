@@ -32,6 +32,16 @@ class WebGLBackend extends RenderBackend {
 		this._textureUnit0 = 0; // Cached gl.TEXTURE0
 		this._wrapModes = null; // Cached wrap mode lookup
 		this._frameId = 0;
+
+		// GL state cache — null = uninitialized, forces first call through
+		this._blendEnabled = null;
+		this._blendSrc = null;
+		this._blendDst = null;
+		this._depthTest = null;
+		this._depthWrite = null;
+		this._depthFunc = null;
+		this._cullEnabled = null;
+		this._cullFace = null;
 	}
 
 	// =========================================================================
@@ -745,34 +755,55 @@ class WebGLBackend extends RenderBackend {
 	// =========================================================================
 
 	setBlendState(enabled, srcFactor = "one", dstFactor = "zero") {
+		if (
+			this._blendEnabled === enabled &&
+			(!enabled ||
+				(this._blendSrc === srcFactor && this._blendDst === dstFactor))
+		)
+			return;
 		const gl = this._gl;
 		if (enabled) {
-			gl.enable(gl.BLEND);
+			if (!this._blendEnabled) gl.enable(gl.BLEND);
 			gl.blendFunc(_BLEND_FACTORS[srcFactor], _BLEND_FACTORS[dstFactor]);
 		} else {
 			gl.disable(gl.BLEND);
 		}
+		this._blendEnabled = enabled;
+		this._blendSrc = srcFactor;
+		this._blendDst = dstFactor;
 	}
 
 	setDepthState(testEnabled, writeEnabled, func = "lequal") {
+		if (
+			this._depthTest === testEnabled &&
+			this._depthWrite === writeEnabled &&
+			this._depthFunc === func
+		)
+			return;
 		const gl = this._gl;
-		if (testEnabled) {
-			gl.enable(gl.DEPTH_TEST);
-		} else {
-			gl.disable(gl.DEPTH_TEST);
+		if (testEnabled !== this._depthTest) {
+			if (testEnabled) gl.enable(gl.DEPTH_TEST);
+			else gl.disable(gl.DEPTH_TEST);
 		}
-		gl.depthMask(writeEnabled);
-		gl.depthFunc(_DEPTH_FUNCS[func]);
+		if (writeEnabled !== this._depthWrite) gl.depthMask(writeEnabled);
+		if (func !== this._depthFunc) gl.depthFunc(_DEPTH_FUNCS[func]);
+		this._depthTest = testEnabled;
+		this._depthWrite = writeEnabled;
+		this._depthFunc = func;
 	}
 
 	setCullState(enabled, face = "back") {
+		if (this._cullEnabled === enabled && (!enabled || this._cullFace === face))
+			return;
 		const gl = this._gl;
 		if (enabled) {
-			gl.enable(gl.CULL_FACE);
+			if (!this._cullEnabled) gl.enable(gl.CULL_FACE);
 			gl.cullFace(face === "front" ? gl.FRONT : gl.BACK);
 		} else {
 			gl.disable(gl.CULL_FACE);
 		}
+		this._cullEnabled = enabled;
+		this._cullFace = face;
 	}
 
 	setPolygonOffset(enabled, factor = 0, units = 0) {
@@ -910,8 +941,6 @@ class WebGLBackend extends RenderBackend {
 				gl.uniform4f(location, value[0], value[1], value[2], value[3]);
 				break;
 			case "mat4":
-				gl.uniformMatrix4fv(location, false, value);
-				break;
 			case "mat4[]":
 				gl.uniformMatrix4fv(location, false, value);
 				break;

@@ -67,6 +67,10 @@ let _proceduralNoise = null;
 // SSAO sample kernel and noise data
 let _ssaoKernel = null;
 
+// Pre-allocated scratch arrays to avoid per-frame allocations in render passes
+const _ssaoNoiseScale = [0, 0];
+const _fsrCon0 = [0, 0, 0, 0];
+
 // Dispose old resources to prevent memory leaks on resize
 const _disposeResources = () => {
 	if (_depth) _depth.dispose();
@@ -562,7 +566,9 @@ const _ssaoPass = () => {
 	// Set uniforms
 	// Noise scale should be based on SSAO resolution to ensure 1:1 mapping (avoiding aliasing)
 	// _ao.framebuffer.width is the half-res width
-	Shaders.ssao.setVec2("noiseScale", [ssaoWidth / 4.0, ssaoHeight / 4.0]);
+	_ssaoNoiseScale[0] = ssaoWidth / 4.0;
+	_ssaoNoiseScale[1] = ssaoHeight / 4.0;
+	Shaders.ssao.setVec2("noiseScale", _ssaoNoiseScale);
 	Shaders.ssao.setFloat("radius", Settings.ssaoRadius);
 	Shaders.ssao.setFloat("bias", Settings.ssaoBias);
 	Shaders.ssao.setFloat("gBufferScale", 2.0); // Read from full-res G-buffer while rendering at half-res
@@ -777,8 +783,11 @@ const _fsrPass = () => {
 	Shaders.fsrEasu.setInt("colorBuffer", 0);
 
 	// Set FSR constants
-	const con0 = [_g.width, _g.height, nativeWidth, nativeHeight];
-	Shaders.fsrEasu.setVec4("con0", con0);
+	_fsrCon0[0] = _g.width;
+	_fsrCon0[1] = _g.height;
+	_fsrCon0[2] = nativeWidth;
+	_fsrCon0[3] = nativeHeight;
+	Shaders.fsrEasu.setVec4("con0", _fsrCon0);
 
 	_pp.color.bind(0);
 	Shapes.screenQuad.renderSingle();

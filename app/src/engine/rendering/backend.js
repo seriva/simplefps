@@ -6,6 +6,28 @@ import { WebGPUBackend } from "./webgpu/webgpubackend.js";
 // The resolved backend instance — populated by _initPromise before backendReady resolves.
 let _resolved = null;
 
+// Pre-bind all prototype methods to the instance so that when the Proxy
+// returns a method and it's called (with `this = Proxy`), all `this.xxx`
+// accesses inside the method body hit _resolved directly rather than
+// re-entering the Proxy trap on every property read.
+const _bindMethods = (instance) => {
+	let proto = Object.getPrototypeOf(instance);
+	while (proto && proto !== Object.prototype) {
+		for (const key of Object.getOwnPropertyNames(proto)) {
+			// Only bind if not already bound from a more-derived class —
+			// otherwise base-class stubs would overwrite concrete implementations.
+			if (
+				key !== "constructor" &&
+				typeof proto[key] === "function" &&
+				!Object.prototype.hasOwnProperty.call(instance, key)
+			) {
+				instance[key] = proto[key].bind(instance);
+			}
+		}
+		proto = Object.getPrototypeOf(proto);
+	}
+};
+
 // Transparent proxy: all property accesses / method calls are forwarded to
 // whichever backend was ultimately selected. This lets the rest of the codebase
 // keep `import { Backend } from "…/backend.js"` unchanged.
@@ -41,6 +63,7 @@ export const backendReady = (async () => {
 		if (ok) {
 			Console.log("[Backend] Using WebGPU backend");
 			_resolved = webgpu;
+			_bindMethods(_resolved);
 			return;
 		}
 
@@ -58,4 +81,5 @@ export const backendReady = (async () => {
 	const webglOk = await webgl.init();
 	if (!webglOk) throw new Error("WebGL initialization failed");
 	_resolved = webgl;
+	_bindMethods(_resolved);
 })();

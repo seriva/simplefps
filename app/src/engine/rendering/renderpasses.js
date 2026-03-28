@@ -263,8 +263,6 @@ const renderTransparent = () => {
 		_lightingUBO = Backend.createUBO(_LIGHTING_DATA_SIZE * 4, 2);
 	}
 
-	_lightingData.fill(0);
-
 	// Fill Point Lights — Layout: Pos(0), Color(32), Params(64)
 	for (let i = 0; i < numPointLights; i++) {
 		const light = visiblePointLights[i];
@@ -332,8 +330,8 @@ const renderLighting = () => {
 	Backend.unbindShader();
 
 	// Get light entities
-	const pointLights = Scene.visibilityCache[EntityTypes.POINT_LIGHT] || [];
-	const spotLights = Scene.visibilityCache[EntityTypes.SPOT_LIGHT] || [];
+	const pointLights = Scene.visibilityCache[EntityTypes.POINT_LIGHT];
+	const spotLights = Scene.visibilityCache[EntityTypes.SPOT_LIGHT];
 
 	// Point lights
 	Shaders.pointLight.bind();
