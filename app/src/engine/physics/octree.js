@@ -73,11 +73,8 @@ class OctreeNode {
 		const maxDepth = this.maxDepth || this.root.maxDepth;
 
 		if (level < maxDepth) {
-			let subdivided = false;
-			if (!children.length) {
-				this.subdivide();
-				subdivided = true;
-			}
+			const freshSubdivision = !children.length;
+			if (freshSubdivision) this.subdivide();
 
 			for (let i = 0; i !== 8; i++) {
 				if (children[i].insert(aabb, elementData, level + 1)) {
@@ -85,9 +82,7 @@ class OctreeNode {
 				}
 			}
 
-			if (subdivided) {
-				children.length = 0;
-			}
+			if (freshSubdivision) children.length = 0;
 		}
 
 		nodeData.push(elementData);

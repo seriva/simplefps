@@ -19,6 +19,7 @@ const _MAX_SHADOW_RAYCAST_DISTANCE = 200;
 const _SKINNED_SHADOW_RAYCAST_INTERVAL = 3;
 const _SKINNED_SHADOW_MOVE_EPSILON_SQ = 0.04;
 const _SHADOW_FRAME_WRAP = 1_000_000;
+const _SHADOW_RAYCAST_BUDGET = 8; // max static-mesh raycasts per frame
 let _shadowFrame = 0;
 
 // Lighting UBO data (aligned to 16 bytes for WGSL)
@@ -371,11 +372,21 @@ const renderShadows = () => {
 	Shaders.entityShadows.setVec3("ambient", ambient);
 	Shaders.entityShadows.setVec3("uProbeColor", ambient);
 
-	// Calculate shadow heights and render mesh shadows
+	// Calculate shadow heights and render mesh shadows.
+	// Raycasts are capped to _SHADOW_RAYCAST_BUDGET per frame so a large scene
+	// loading all at once doesn't spike frame time. Entities whose height hasn't
+	// been computed yet are skipped silently; their shadow appears within the next
+	// ceil(visibleMeshCount / _SHADOW_RAYCAST_BUDGET) frames.
 	const meshEntities = Scene.visibilityCache[EntityTypes.MESH];
+	let raycastBudget = _SHADOW_RAYCAST_BUDGET;
 	for (const entity of meshEntities) {
 		if (entity.shadowHeight === null) {
-			_calculateShadowHeight(entity);
+			if (raycastBudget > 0) {
+				_calculateShadowHeight(entity);
+				raycastBudget--;
+			} else {
+				continue; // height not yet computed; skip shadow this frame
+			}
 		}
 		entity.renderShadow();
 	}

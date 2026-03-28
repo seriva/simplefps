@@ -834,21 +834,18 @@ class WebGLBackend extends RenderBackend {
 	// Drawing
 	// =========================================================================
 
+	_resolveDrawMode(mode) {
+		const gl = this._gl;
+		if (mode === "lines") return gl.LINES;
+		if (mode === "points") return gl.POINTS;
+		if (mode === "triangle-strip") return gl.TRIANGLE_STRIP;
+		if (typeof mode === "number") return mode; // raw GL constant fallback
+		return gl.TRIANGLES;
+	}
+
 	drawIndexed(indexBuffer, indexCount, indexOffset = 0, mode = null) {
 		const gl = this._gl;
-		let drawMode = gl.TRIANGLES;
-
-		if (mode === "lines") {
-			drawMode = gl.LINES;
-		} else if (mode === "points") {
-			drawMode = gl.POINTS;
-		} else if (mode === "triangle-strip") {
-			drawMode = gl.TRIANGLE_STRIP;
-		} else if (typeof mode === "number") {
-			// Fallback for raw GL constants until full migration
-			drawMode = mode;
-		}
-
+		const drawMode = this._resolveDrawMode(mode);
 		const bytesPerElement = indexBuffer.bytesPerElement || 2;
 		const type = bytesPerElement === 4 ? gl.UNSIGNED_INT : gl.UNSIGNED_SHORT;
 
@@ -864,18 +861,7 @@ class WebGLBackend extends RenderBackend {
 		mode = null,
 	) {
 		const gl = this._gl;
-		let drawMode = gl.TRIANGLES;
-
-		if (mode === "lines") {
-			drawMode = gl.LINES;
-		} else if (mode === "points") {
-			drawMode = gl.POINTS;
-		} else if (mode === "triangle-strip") {
-			drawMode = gl.TRIANGLE_STRIP;
-		} else if (typeof mode === "number") {
-			drawMode = mode;
-		}
-
+		const drawMode = this._resolveDrawMode(mode);
 		const bytesPerElement = indexBuffer.bytesPerElement || 2;
 		const type = bytesPerElement === 4 ? gl.UNSIGNED_INT : gl.UNSIGNED_SHORT;
 

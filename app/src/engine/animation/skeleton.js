@@ -60,12 +60,12 @@ class Skeleton {
 		});
 
 		// Pre-allocate caches for runtime matrices
-		this._worldMatrices = Array.from({ length: this.jointCount }, () =>
-			mat4.create(),
-		);
-		this._skinMatrices = Array.from({ length: this.jointCount }, () =>
-			mat4.create(),
-		);
+		this._worldMatrices = [];
+		this._skinMatrices = [];
+		for (let i = 0; i < this.jointCount; i++) {
+			this._worldMatrices.push(mat4.create());
+			this._skinMatrices.push(mat4.create());
+		}
 		this._tempMatrix = mat4.create();
 	}
 

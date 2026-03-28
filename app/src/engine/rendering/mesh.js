@@ -163,7 +163,7 @@ class Mesh {
 		this.deleteMeshBuffers();
 	}
 
-	bind(_useSkinned = false) {
+	bind() {
 		Backend.bindVertexState(this.vao);
 	}
 

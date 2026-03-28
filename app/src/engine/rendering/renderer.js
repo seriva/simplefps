@@ -66,7 +66,6 @@ let _proceduralNoise = null;
 
 // SSAO sample kernel and noise data
 let _ssaoKernel = null;
-let _ssaoNoiseData = [];
 
 // Dispose old resources to prevent memory leaks on resize
 const _disposeResources = () => {
@@ -322,37 +321,24 @@ const _generateSSAOKernel = () => {
 };
 
 const _generateSSAONoise = () => {
-	_ssaoNoiseData = [];
+	// Build the 4×4 noise texture in one pass — random XY vectors in tangent space,
+	// packed directly into Uint8Array without any intermediate array.
+	const noiseData = new Uint8Array(64); // 16 pixels × 4 channels
 	for (let i = 0; i < 16; i++) {
-		// Random vectors in tangent space
-		_ssaoNoiseData.push(
-			Math.random() * 2.0 - 1.0,
-			Math.random() * 2.0 - 1.0,
-			0.0,
-			1.0,
-		);
-	}
-
-	// Create noise texture (4x4)
-	const noiseData = [];
-	for (let i = 0; i < 16; i++) {
-		// Convert random values from [-1, 1] to [0, 255] for RGBA
-		const x = _ssaoNoiseData[i * 4];
-		const y = _ssaoNoiseData[i * 4 + 1];
-		const z = _ssaoNoiseData[i * 4 + 2];
-		noiseData.push(
-			((x * 0.5 + 0.5) * 255) | 0,
-			((y * 0.5 + 0.5) * 255) | 0,
-			((z * 0.5 + 0.5) * 255) | 0,
-			255,
-		);
+		const x = Math.random() * 2.0 - 1.0;
+		const y = Math.random() * 2.0 - 1.0;
+		const off = i * 4;
+		noiseData[off] = ((x * 0.5 + 0.5) * 255) | 0;
+		noiseData[off + 1] = ((y * 0.5 + 0.5) * 255) | 0;
+		noiseData[off + 2] = 128; // z = 0.0 encoded as 128
+		noiseData[off + 3] = 255;
 	}
 
 	_ao.noise = new Texture({
 		format: "rgba8",
 		width: 4,
 		height: 4,
-		pdata: new Uint8Array(noiseData),
+		pdata: noiseData,
 		pformat: "rgba",
 		ptype: "ubyte",
 	});
