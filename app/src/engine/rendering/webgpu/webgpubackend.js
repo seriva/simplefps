@@ -1604,9 +1604,13 @@ class WebGPUBackend extends RenderBackend {
 		// Group 0: FrameData (only if shader uses it)
 		const shaderName = this._currentShader._gpuShaderModule.label;
 		const bindings = WgslShaderSources[shaderName]?.bindings;
-		const shaderUsesGroup0 =
-			bindings?.group0 !== undefined ||
-			WgslShaderSources[shaderName]?.code?.includes("@group(0)");
+		// Cache per-shader to avoid scanning the full WGSL source string every draw call
+		if (this._currentShader._usesGroup0 === undefined) {
+			this._currentShader._usesGroup0 =
+				bindings?.group0 !== undefined ||
+				Boolean(WgslShaderSources[shaderName]?.code?.includes("@group(0)"));
+		}
+		const shaderUsesGroup0 = this._currentShader._usesGroup0;
 
 		if (shaderUsesGroup0 && this._boundUBOs.has(0)) {
 			// OPTIMIZATION: Cache BindGroup 0 per pipeline
@@ -1787,7 +1791,7 @@ class WebGPUBackend extends RenderBackend {
 							bindGroup1 = this._device.createBindGroup({
 								label: `BG1_${key}`,
 								layout: pipeline.getBindGroupLayout(1),
-								entries: [...entries], // Clone entries
+								entries,
 							});
 							if (hasTransient) {
 								this._frameBindGroupCache.set(cacheKey, bindGroup1);
@@ -1864,7 +1868,7 @@ class WebGPUBackend extends RenderBackend {
 							bindGroup2 = this._device.createBindGroup({
 								label: `BG2_${key}`,
 								layout: pipeline.getBindGroupLayout(2),
-								entries: [...entries], // Clone entries
+								entries,
 							});
 							this._persistentBindGroupCache.set(cacheKey, bindGroup2);
 						} catch (e) {
@@ -2047,7 +2051,7 @@ class WebGPUBackend extends RenderBackend {
 			return arr;
 		} else if (name === "objectData") {
 			const arr = bufs.objectData;
-			arr.fill(0);
+			// No fill(0): all slots explicitly handled below
 			const matWorld = this._uniforms.get("matWorld");
 			const probeColor = this._uniforms.get("uProbeColor") ??
 				this._uniforms.get("ambient") ??
@@ -2055,8 +2059,9 @@ class WebGPUBackend extends RenderBackend {
 			const shadowHeight = this._uniforms.get("shadowHeight");
 
 			if (matWorld) arr.set(matWorld, 0);
+			else arr.fill(0, 0, 16);
 			if (probeColor) arr.set(probeColor, 16);
-			if (shadowHeight !== undefined) arr[19] = shadowHeight;
+			arr[19] = shadowHeight !== undefined ? shadowHeight : 0;
 
 			return arr;
 		} else if (name === "ambient") {

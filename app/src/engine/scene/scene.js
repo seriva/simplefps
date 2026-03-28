@@ -44,6 +44,9 @@ let _pauseUpdate = false;
 // Pre-allocated set to avoid per-frame allocations during entity removal
 const _entitiesToRemove = new Set();
 
+// Scratch vec3 reused across _addStaticGeometry calls to avoid per-call allocation
+const _transformVec = vec3.create();
+
 // Static trimesh for merged static geometry
 let _staticTrimesh = null;
 const _staticCollidable = {
@@ -100,20 +103,12 @@ const _frustumChangedSinceLastFrame = () => {
 			p[1] !== _lastFrustumPlanes[off + 1] ||
 			p[2] !== _lastFrustumPlanes[off + 2] ||
 			p[3] !== _lastFrustumPlanes[off + 3]
-		) {
+		)
 			changed = true;
-			break;
-		}
-	}
-	if (changed) {
-		for (let i = 0; i < 6; i++) {
-			const p = planes[i];
-			const off = i * 4;
-			_lastFrustumPlanes[off] = p[0];
-			_lastFrustumPlanes[off + 1] = p[1];
-			_lastFrustumPlanes[off + 2] = p[2];
-			_lastFrustumPlanes[off + 3] = p[3];
-		}
+		_lastFrustumPlanes[off] = p[0];
+		_lastFrustumPlanes[off + 1] = p[1];
+		_lastFrustumPlanes[off + 2] = p[2];
+		_lastFrustumPlanes[off + 3] = p[3];
 	}
 	return changed;
 };
@@ -300,12 +295,12 @@ const _addEntities = (e) => {
 
 	_visibilityDirty = true;
 	if (Array.isArray(e)) {
-		const newEntities = e.filter((entity) => entity != null);
-		_entities = _entities.concat(newEntities);
-		for (const entity of newEntities) {
-			if (_entitiesByType[entity.type]) {
+		for (let i = 0; i < e.length; i++) {
+			const entity = e[i];
+			if (entity == null) continue;
+			_entities.push(entity);
+			if (_entitiesByType[entity.type])
 				_entitiesByType[entity.type].push(entity);
-			}
 			if (entity.collider) _collidables.push(entity);
 		}
 	} else {
@@ -437,14 +432,13 @@ const _addStaticGeometry = (entity) => {
 	// Transform vertices into world space using the entity's base_matrix
 	const src = mesh.vertices;
 	const worldVerts = new Float32Array(src.length);
-	const _v = vec3.create();
 
 	for (let i = 0; i < src.length; i += 3) {
-		vec3.set(_v, src[i], src[i + 1], src[i + 2]);
-		vec3.transformMat4(_v, _v, entity.base_matrix);
-		worldVerts[i] = _v[0];
-		worldVerts[i + 1] = _v[1];
-		worldVerts[i + 2] = _v[2];
+		vec3.set(_transformVec, src[i], src[i + 1], src[i + 2]);
+		vec3.transformMat4(_transformVec, _transformVec, entity.base_matrix);
+		worldVerts[i] = _transformVec[0];
+		worldVerts[i + 1] = _transformVec[1];
+		worldVerts[i + 2] = _transformVec[2];
 	}
 
 	_staticTrimesh.addMesh(worldVerts, flatIndices);
