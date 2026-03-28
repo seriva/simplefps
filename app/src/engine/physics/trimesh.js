@@ -102,18 +102,33 @@ class Trimesh {
 		tree.aabb.max[2] += epsilon;
 
 		const triangleAABB = new BoundingBox();
-		const points = [_va, _vb, _vc];
+		const tmin = triangleAABB.min;
+		const tmax = triangleAABB.max;
 
 		for (let i = 0, len = indices.length; i < len; i += 3) {
 			const i0 = indices[i] * 3;
 			const i1 = indices[i + 1] * 3;
 			const i2 = indices[i + 2] * 3;
 
-			vec3.set(_va, vertices[i0], vertices[i0 + 1], vertices[i0 + 2]);
-			vec3.set(_vb, vertices[i1], vertices[i1 + 1], vertices[i1 + 2]);
-			vec3.set(_vc, vertices[i2], vertices[i2 + 1], vertices[i2 + 2]);
+			const ax = vertices[i0],
+				ay = vertices[i0 + 1],
+				az = vertices[i0 + 2];
+			const bx = vertices[i1],
+				by = vertices[i1 + 1],
+				bz = vertices[i1 + 2];
+			const cx = vertices[i2],
+				cy = vertices[i2 + 1],
+				cz = vertices[i2 + 2];
 
-			triangleAABB.setFromPoints(points);
+			// Compute triangle AABB directly — avoids setFromPoints() array iteration
+			// and the intermediate [_va, _vb, _vc] array allocation.
+			tmin[0] = ax < bx ? (ax < cx ? ax : cx) : bx < cx ? bx : cx;
+			tmin[1] = ay < by ? (ay < cy ? ay : cy) : by < cy ? by : cy;
+			tmin[2] = az < bz ? (az < cz ? az : cz) : bz < cz ? bz : cz;
+			tmax[0] = ax > bx ? (ax > cx ? ax : cx) : bx > cx ? bx : cx;
+			tmax[1] = ay > by ? (ay > cy ? ay : cy) : by > cy ? by : cy;
+			tmax[2] = az > bz ? (az > cz ? az : cz) : bz > cz ? bz : cz;
+
 			tree.insert(triangleAABB, i / 3);
 		}
 		tree.removeEmptyNodes();

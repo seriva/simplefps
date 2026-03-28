@@ -33,6 +33,9 @@ const COYOTE_TIME = 0.2;
 const GRAVITY = 9.82 * 80;
 const STEP_HEIGHT = 50;
 const GROUND_DECEL = 25;
+const _DAMP_XZ_K = Math.log(0.02);
+const _DAMP_Y_K = Math.log(0.99);
+const _DAMP_ROLL_K = Math.log(0.001);
 
 let _noclip = false;
 const _NOCLIP_SPEED = 500;
@@ -93,7 +96,7 @@ class FPSController {
 			}
 			this.airTime = 0;
 
-			const dampingFactorXZ = 0.02 ** frameTime;
+			const dampingFactorXZ = Math.exp(_DAMP_XZ_K * frameTime);
 			this.velocity[0] *= dampingFactorXZ;
 			this.velocity[2] *= dampingFactorXZ;
 		} else {
@@ -101,7 +104,7 @@ class FPSController {
 		}
 
 		this.wasGrounded = this.grounded;
-		this.velocity[1] *= 0.99 ** frameTime;
+		this.velocity[1] *= Math.exp(_DAMP_Y_K * frameTime);
 	}
 
 	move(strafe, move, cameraForward, cameraRight, frameTime) {
@@ -463,7 +466,7 @@ class FPSController {
 				speedFactor;
 		}
 
-		const smoothing = 1 - 0.001 ** frameTime;
+		const smoothing = 1 - Math.exp(_DAMP_ROLL_K * frameTime);
 		this.currentRoll += (targetRoll - this.currentRoll) * smoothing;
 
 		vec3.cross(_rightVector, Camera.direction, _worldUp);

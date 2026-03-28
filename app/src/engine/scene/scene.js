@@ -35,7 +35,7 @@ const _DEFAULT_RAY_OPTIONS = {
 // Private state
 // ============================================================================
 
-let _entities = [];
+const _entities = [];
 const _collidables = [];
 let _ambient = _DEFAULT_AMBIENT;
 let _visibilityDirty = true;

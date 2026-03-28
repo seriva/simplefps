@@ -3,23 +3,16 @@ import { Settings } from "../systems/settings.js";
 import { WebGLBackend } from "./webgl/webglbackend.js";
 import { WebGPUBackend } from "./webgpu/webgpubackend.js";
 
-// The resolved backend instance — populated by _initPromise before backendReady resolves.
 let _resolved = null;
 
-// Pre-bind all prototype methods to the instance so that when the Proxy
-// returns a method and it's called (with `this = Proxy`), all `this.xxx`
-// accesses inside the method body hit _resolved directly rather than
-// re-entering the Proxy trap on every property read.
 const _bindMethods = (instance) => {
 	let proto = Object.getPrototypeOf(instance);
 	while (proto && proto !== Object.prototype) {
 		for (const key of Object.getOwnPropertyNames(proto)) {
-			// Only bind if not already bound from a more-derived class —
-			// otherwise base-class stubs would overwrite concrete implementations.
 			if (
 				key !== "constructor" &&
 				typeof proto[key] === "function" &&
-				!Object.prototype.hasOwnProperty.call(instance, key)
+				!Object.hasOwn(instance, key)
 			) {
 				instance[key] = proto[key].bind(instance);
 			}
@@ -28,9 +21,6 @@ const _bindMethods = (instance) => {
 	}
 };
 
-// Transparent proxy: all property accesses / method calls are forwarded to
-// whichever backend was ultimately selected. This lets the rest of the codebase
-// keep `import { Backend } from "…/backend.js"` unchanged.
 export const Backend = new Proxy(
 	{},
 	{
@@ -44,9 +34,6 @@ export const Backend = new Proxy(
 	},
 );
 
-// Attempt to initialise a backend, falling back from WebGPU → WebGL when
-// WebGPU is requested but fails to initialise (adapter/device unavailable,
-// context creation error, etc.)
 export const backendReady = (async () => {
 	if (Settings.useWebGPU && navigator.gpu) {
 		const webgpu = new WebGPUBackend();
@@ -67,8 +54,6 @@ export const backendReady = (async () => {
 			return;
 		}
 
-		// WebGPU unavailable — clean up any DOM canvas it inserted, and reset
-		// the stored setting so the UI reflects what's actually running.
 		Console.warn("[Backend] WebGPU unavailable, falling back to WebGL");
 		webgpu.dispose();
 		Settings.useWebGPU = false;
