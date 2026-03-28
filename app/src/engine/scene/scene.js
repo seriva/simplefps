@@ -1,6 +1,7 @@
 import { mat4, vec3 } from "../../dependencies/gl-matrix.js";
 import { Ray, RaycastResult } from "../physics/ray.js";
 import { Trimesh } from "../physics/trimesh.js";
+import { Camera } from "../systems/camera.js";
 import { Console } from "../systems/console.js";
 import { EntityTypes } from "./entity.js";
 import { LightGrid } from "./lightgrid.js";
@@ -76,6 +77,194 @@ const _entitiesByType = {
 	[EntityTypes.SPOT_LIGHT]: [],
 	[EntityTypes.ANIMATED_BILLBOARD]: [],
 	[EntityTypes.PARTICLE_EMITTER]: [],
+};
+
+// ============================================================================
+// Incremental visibility: skip rebuild when frustum and entity set are unchanged
+// ============================================================================
+
+// Flat copy of the last-seen frustum planes (6 × vec4 = 24 floats).
+// Initialised to zero — real planes will always differ on the first frame.
+const _lastFrustumPlanes = new Float32Array(24);
+
+// Returns true if any frustum plane changed since the previous call,
+// and updates the stored copy when it does.
+const _frustumChangedSinceLastFrame = () => {
+	const planes = Camera.frustumPlanesArray;
+	let changed = false;
+	for (let i = 0; i < 6; i++) {
+		const p = planes[i];
+		const off = i * 4;
+		if (
+			p[0] !== _lastFrustumPlanes[off] ||
+			p[1] !== _lastFrustumPlanes[off + 1] ||
+			p[2] !== _lastFrustumPlanes[off + 2] ||
+			p[3] !== _lastFrustumPlanes[off + 3]
+		) {
+			changed = true;
+			break;
+		}
+	}
+	if (changed) {
+		for (let i = 0; i < 6; i++) {
+			const p = planes[i];
+			const off = i * 4;
+			_lastFrustumPlanes[off] = p[0];
+			_lastFrustumPlanes[off + 1] = p[1];
+			_lastFrustumPlanes[off + 2] = p[2];
+			_lastFrustumPlanes[off + 3] = p[3];
+		}
+	}
+	return changed;
+};
+
+// ============================================================================
+// Per-frame entity BVH for hierarchical frustum culling
+// ============================================================================
+
+const _BVH_LEAF_MAX = 8;
+
+// Reusable node pool — objects are reused across frames, never freed
+const _bvhNodePool = [];
+let _bvhNodeCount = 0;
+
+// Scratch entity array — populated each frame with entities that have a boundingBox
+const _bvhEntityBuffer = [];
+
+const _bvhAllocNode = () => {
+	if (_bvhNodeCount >= _bvhNodePool.length) {
+		_bvhNodePool.push({
+			minX: 0,
+			minY: 0,
+			minZ: 0,
+			maxX: 0,
+			maxY: 0,
+			maxZ: 0,
+			start: 0,
+			end: 0,
+			left: -1,
+			right: -1,
+		});
+	}
+	const node = _bvhNodePool[_bvhNodeCount];
+	node.left = -1;
+	node.right = -1;
+	return _bvhNodeCount++;
+};
+
+const _bvhBuild = (start, end) => {
+	const nodeIdx = _bvhAllocNode();
+	const node = _bvhNodePool[nodeIdx];
+	node.start = start;
+	node.end = end;
+
+	// Compute AABB over [start, end)
+	let minX = Infinity,
+		minY = Infinity,
+		minZ = Infinity;
+	let maxX = -Infinity,
+		maxY = -Infinity,
+		maxZ = -Infinity;
+	for (let i = start; i < end; i++) {
+		const bb = _bvhEntityBuffer[i].boundingBox;
+		if (bb.min[0] < minX) minX = bb.min[0];
+		if (bb.min[1] < minY) minY = bb.min[1];
+		if (bb.min[2] < minZ) minZ = bb.min[2];
+		if (bb.max[0] > maxX) maxX = bb.max[0];
+		if (bb.max[1] > maxY) maxY = bb.max[1];
+		if (bb.max[2] > maxZ) maxZ = bb.max[2];
+	}
+	node.minX = minX;
+	node.minY = minY;
+	node.minZ = minZ;
+	node.maxX = maxX;
+	node.maxY = maxY;
+	node.maxZ = maxZ;
+
+	if (end - start <= _BVH_LEAF_MAX) {
+		return nodeIdx; // leaf
+	}
+
+	// Split along longest axis at spatial midpoint
+	const dx = maxX - minX,
+		dy = maxY - minY,
+		dz = maxZ - minZ;
+	const axis = dx >= dy && dx >= dz ? 0 : dy >= dz ? 1 : 2;
+	const splitVal =
+		axis === 0
+			? (minX + maxX) * 0.5
+			: axis === 1
+				? (minY + maxY) * 0.5
+				: (minZ + maxZ) * 0.5;
+
+	// In-place partition around splitVal
+	let l = start,
+		r = end - 1;
+	while (l <= r) {
+		const bb = _bvhEntityBuffer[l].boundingBox;
+		const c = (bb.min[axis] + bb.max[axis]) * 0.5;
+		if (c <= splitVal) {
+			l++;
+		} else {
+			const tmp = _bvhEntityBuffer[l];
+			_bvhEntityBuffer[l] = _bvhEntityBuffer[r];
+			_bvhEntityBuffer[r] = tmp;
+			r--;
+		}
+	}
+	// Guard against degenerate splits (all centroids identical)
+	let mid = l;
+	if (mid === start || mid === end) mid = (start + end) >> 1;
+
+	node.left = _bvhBuild(start, mid);
+	node.right = _bvhBuild(mid, end);
+	return nodeIdx;
+};
+
+// Returns 0 = outside frustum, 1 = intersects frustum, 2 = fully inside frustum.
+const _bvhClassify = (node) => {
+	const planes = Camera.frustumPlanesArray;
+	let fullyInside = true;
+	for (let i = 0; i < 6; i++) {
+		const p = planes[i];
+		const nx = p[0],
+			ny = p[1],
+			nz = p[2],
+			d = p[3];
+		// P-vertex: furthest point in the direction of the plane normal
+		const px = nx > 0 ? node.maxX : node.minX;
+		const py = ny > 0 ? node.maxY : node.minY;
+		const pz = nz > 0 ? node.maxZ : node.minZ;
+		if (nx * px + ny * py + nz * pz + d < 0) return 0; // entire subtree outside
+		// N-vertex: closest point — if behind this plane the box straddles it
+		const ex = nx > 0 ? node.minX : node.maxX;
+		const ey = ny > 0 ? node.minY : node.maxY;
+		const ez = nz > 0 ? node.minZ : node.maxZ;
+		if (nx * ex + ny * ey + nz * ez + d < 0) fullyInside = false;
+	}
+	return fullyInside ? 2 : 1;
+};
+
+const _bvhTraverse = (nodeIdx, fullyInside) => {
+	const node = _bvhNodePool[nodeIdx];
+	if (!fullyInside) {
+		const c = _bvhClassify(node);
+		if (c === 0) return;
+		fullyInside = c === 2;
+	}
+
+	if (node.left === -1) {
+		// Leaf: add entities; skip per-entity test if parent confirmed fully inside
+		for (let i = node.start; i < node.end; i++) {
+			const entity = _bvhEntityBuffer[i];
+			if (fullyInside || entity.boundingBox.isVisible()) {
+				_visibilityCache[entity.type].push(entity);
+			}
+		}
+	} else {
+		_bvhTraverse(node.left, fullyInside);
+		_bvhTraverse(node.right, fullyInside);
+	}
 };
 
 // ============================================================================
@@ -315,7 +504,10 @@ const _update = (frameTime) => {
 };
 
 const _updateVisibility = () => {
-	// Always rebuild visibility — frustum changes every frame even if entities don't
+	// Skip the rebuild if neither the camera frustum nor the entity set has changed.
+	// Note: entity *transforms* are not tracked here — dynamic objects moving within
+	// an already-visible cell may be one frame stale, which is imperceptible at 60 fps.
+	if (!_visibilityDirty && !_frustumChangedSinceLastFrame()) return;
 	_visibilityDirty = false;
 
 	// Reset visibility lists
@@ -323,12 +515,23 @@ const _updateVisibility = () => {
 		_visibilityCache[_VISIBILITY_CACHE_TYPES[i]].length = 0;
 	}
 
-	// Sort entities into visible lists
+	// Partition entities: those with bounding boxes go into the BVH for hierarchical
+	// culling; those without (e.g. directional lights) are always visible.
+	_bvhNodeCount = 0;
+	let bvhLen = 0;
 	for (let i = 0; i < _entities.length; i++) {
 		const entity = _entities[i];
-		if (!entity.boundingBox || entity.boundingBox.isVisible()) {
+		if (entity.boundingBox) {
+			_bvhEntityBuffer[bvhLen++] = entity;
+		} else {
 			_visibilityCache[entity.type].push(entity);
 		}
+	}
+	_bvhEntityBuffer.length = bvhLen;
+
+	if (bvhLen > 0) {
+		const root = _bvhBuild(0, bvhLen);
+		_bvhTraverse(root, false);
 	}
 };
 
