@@ -75,7 +75,7 @@ export const EXPLOSION_CONFIG = {
 	texture: "meshes/explosion.webp",
 	gridSize: 4,
 	frameCount: 16,
-	duration: 650,
+	duration: 450,
 	scale: 80,
 };
 

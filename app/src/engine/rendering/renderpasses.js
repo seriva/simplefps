@@ -1,6 +1,7 @@
 import { mat4 } from "../../dependencies/gl-matrix.js";
 import { EntityTypes } from "../scene/entity.js";
 import { Scene } from "../scene/scene.js";
+import { Camera } from "../systems/camera.js";
 import { Console } from "../systems/console.js";
 import { Settings } from "../systems/settings.js";
 import { Stats } from "../systems/stats.js";
@@ -19,7 +20,7 @@ const _MAX_SHADOW_RAYCAST_DISTANCE = 200;
 const _SKINNED_SHADOW_RAYCAST_INTERVAL = 3;
 const _SKINNED_SHADOW_MOVE_EPSILON_SQ = 0.04;
 const _SHADOW_FRAME_WRAP = 1_000_000;
-const _SHADOW_RAYCAST_BUDGET = 8; // max static-mesh raycasts per frame
+const _SHADOW_RAYCAST_BUDGET = 16; // max static-mesh raycasts per frame
 let _shadowFrame = 0;
 
 // Lighting UBO data (aligned to 16 bytes for WGSL)
@@ -154,10 +155,18 @@ const _shouldUpdateSkinnedShadowHeight = (entity) => {
 			? _shadowFrame - lastFrame
 			: _shadowFrame + _SHADOW_FRAME_WRAP - lastFrame;
 
-	if (
-		movedSq >= _SKINNED_SHADOW_MOVE_EPSILON_SQ ||
-		frameDelta >= _SKINNED_SHADOW_RAYCAST_INTERVAL
-	) {
+	// Scale update interval by distance to camera: near entities update every
+	// _SKINNED_SHADOW_RAYCAST_INTERVAL frames, far ones up to 15 frames apart.
+	// Uses squared distance to avoid a sqrt on every frame per entity.
+	const cdx = x - Camera.position[0];
+	const cdy = y - Camera.position[1];
+	const cdz = z - Camera.position[2];
+	const distSq = cdx * cdx + cdy * cdy + cdz * cdz;
+	const lodInterval =
+		_SKINNED_SHADOW_RAYCAST_INTERVAL +
+		Math.min(Math.floor(distSq / 500000), 12);
+
+	if (movedSq >= _SKINNED_SHADOW_MOVE_EPSILON_SQ || frameDelta >= lodInterval) {
 		entity._shadowSampleX = x;
 		entity._shadowSampleY = y;
 		entity._shadowSampleZ = z;
@@ -370,11 +379,6 @@ const renderShadows = () => {
 	Shaders.entityShadows.setVec3("ambient", ambient);
 	Shaders.entityShadows.setVec3("uProbeColor", ambient);
 
-	// Calculate shadow heights and render mesh shadows.
-	// Raycasts are capped to _SHADOW_RAYCAST_BUDGET per frame so a large scene
-	// loading all at once doesn't spike frame time. Entities whose height hasn't
-	// been computed yet are skipped silently; their shadow appears within the next
-	// ceil(visibleMeshCount / _SHADOW_RAYCAST_BUDGET) frames.
 	const meshEntities = Scene.visibilityCache[EntityTypes.MESH];
 	let raycastBudget = _SHADOW_RAYCAST_BUDGET;
 	for (const entity of meshEntities) {
