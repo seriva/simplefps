@@ -49,7 +49,7 @@ class FPSController {
 			jumpVelocity: config.jumpVelocity || 320,
 			groundAcceleration: config.groundAcceleration || 4000,
 			airAcceleration: config.airAcceleration || 200,
-			maxSpeed: config.maxSpeed || 400,
+			maxSpeed: config.maxSpeed || 360,
 			onLand: config.onLand || (() => {}),
 			onJump: config.onJump || (() => {}),
 			wobbleFrequency: config.wobbleFrequency || 8,

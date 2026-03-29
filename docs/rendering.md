@@ -28,10 +28,7 @@ app/src/engine/rendering/
 | **State** | `setBlendState()`, `setDepthState()`, `setCullState()` |
 | **Drawing** | `bindShader()`, `bindTexture()`, `drawIndexed()` |
 
-Backend selection at startup:
-```javascript
-Backend = (Settings.useWebGPU && navigator.gpu) ? new WebGPUBackend() : new WebGLBackend();
-```
+Backend selection is **asynchronous** and uses a transparent `Proxy` so the rest of the codebase can `import { Backend }` unchanged. WebGPU is tried first; if `init()` throws or returns false, it falls back to WebGL automatically and saves the updated setting. After the backend resolves, all prototype methods are pre-bound to the instance (`_bindMethods`) so `this` references inside methods are correct without re-entering the proxy trap on every call.
 
 ## Baked Lighting System
 
@@ -39,8 +36,8 @@ Backend = (Settings.useWebGPU && navigator.gpu) ? new WebGPUBackend() : new WebG
 **Purpose:** Precomputed lighting on static BSP surfaces.
 
 - Stored as RGB texture atlas.
-- Multiplied by albedo in geometry pass: `color *= texture(lightmapSampler, vLightmapUV)`.
-- `normal.w` stores lightmap flag (1.0 = lightmapped).
+- Multiplied by albedo in the geometry pass.
+- The lightmap flag is stored in `normal.w` (1.0 = lightmapped).
 - Dynamic lights skip lightmapped surfaces to avoid double-lighting.
 - Provides indirect lighting, bounce light, and baked AO at no runtime cost.
 
@@ -48,17 +45,14 @@ Backend = (Settings.useWebGPU && navigator.gpu) ? new WebGPUBackend() : new WebG
 **Purpose:** Volumetric probe lighting for dynamic objects.
 
 - 3D grid of RGB probes (3 bytes each).
-- Trilinear interpolation between 8 neighbors.
+- Trilinear interpolation between 8 neighbors using 8 pre-allocated scratch arrays (no GC).
+- **Pre-computed strides:** Y and Z strides are computed once at load time and reused for every probe address calculation, avoiding per-sample multiplications.
 - CPU-side sampling, result passed to shaders via uniform.
 - Dynamic objects sample grid, static objects use lightmaps.
 
 ## Deferred Rendering Pipeline
 
-```mermaid
-flowchart LR
-    Geom[Geometry] --> SSAO --> Shadow --> FPS
-    FPS --> Light[Lighting] --> Trans[Transparent] --> Post[Post-Process] --> FSR[FSR Upscaling]
-```
+Pass order: Geometry → SSAO → Shadow → FPS Geometry → Lighting → Transparent → Post-Process → FSR Upscaling
 
 ### 1. Geometry Pass (G-Buffer)
 
@@ -76,7 +70,7 @@ Depth range: 0.1-1.0 (world geometry)
 **Advanced Features:**
 - **Detail Textures:** Static geometry uses dual-layer parallax mapping with procedural noise for fine-grained surface detail (normals + height).
 - **Modulation:** Uses sum-of-sines modulation for macro-variation across large surfaces.
-- **Probe Lighting:** Dynamic objects sample the LightGrid, with the result passed via `uProbeColor` in the Object Data UBO.
+- **Probe Lighting:** Dynamic objects sample the LightGrid; the result is passed via the Object Data UBO.
 
 ### 2. SSAO Pass
 - 16-sample hemisphere kernel + 4×4 noise.
@@ -84,7 +78,8 @@ Depth range: 0.1-1.0 (world geometry)
 
 ### 3. Shadow Pass
 - Depth-only with polygon offset.
-- **Optimization:** Skinned entity shadow updates are throttled based on movement and time intervals.
+- **Skinned throttle:** Shadow raycasts for skinned entities are throttled based on movement and time intervals (closer = more frequent).
+- **Raycast budget:** Static-mesh shadow raycasts are capped at 16 per frame to prevent performance spikes in large scenes.
 - Kawase blur for soft edges.
 
 ### 4. FPS Geometry
@@ -133,8 +128,8 @@ Console commands:
    - **Explicit Pipeline Layout Caching:** Persistent and per-frame BindGroup and Pipeline caches.
    - **State Filtering:** Avoids redundant GPU state changes.
 
-3. **Visibility Culling:** Scene maintains type-segregated visible entity cache.
-4. **Pre-allocated Arrays:** `Float32Array` reused per-frame (no GC).
+3. **Incremental Visibility Culling:** Scene maintains a type-segregated visible entity cache that is only rebuilt when the camera frustum or the set of bounded entities has actually changed. A flat copy of the last frustum planes is compared each frame; if unchanged, the rebuild is skipped entirely.
+4. **Pre-allocated Arrays:** Scratch buffers reused per-frame for SSAO kernel/noise, FSR passes, and frustum comparisons (no GC).
 5. **Depth Range Partitioning:** World (0.1-1.0) / FPS (0.0-0.1) avoids z-fighting.
 
 ## Uniform Buffer Objects (UBOs)
@@ -161,20 +156,3 @@ Console commands:
 | **State** | Global state machine | Pipeline objects |
 | **Occlusion** | `getQueryObject` | `resolveQuerySet` + `mapAsync` |
 
-## Extension Example
-
-Add a new render pass in `renderpasses.js`:
-```javascript
-const renderMyPass = () => {
-    Shaders.myShader.bind();
-    _renderEntities(EntityTypes.MY_TYPE);
-    Backend.unbindShader();
-};
-```
-
-Integrate in `renderer.js`:
-```javascript
-_lightingPass();
-_myPass();  // Insert here
-_postProcessingPass();
-```
