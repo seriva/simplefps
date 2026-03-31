@@ -2,6 +2,11 @@
 // Game Definitions & Configuration
 // ============================================================================
 
+// Oscillates between -amplitude and +amplitude over the given period.
+// fn defaults to Math.cos for a cosine wave.
+export const oscillate = (time, period, amplitude, fn = Math.cos) =>
+	fn(Math.PI * (time / period)) * amplitude;
+
 // ----------------------------------------------------------------------------
 // Player
 // ----------------------------------------------------------------------------
