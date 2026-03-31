@@ -29,7 +29,7 @@ class _HUDUI extends Reactive.Component {
                 height: 100%;
                 margin: 0;
                 padding: 0;
-                z-index: 1000;
+                z-index: 3000;
                 background-color: transparent;
                 display: none;
                 pointer-events: none;
@@ -46,7 +46,7 @@ class _HUDUI extends Reactive.Component {
                 width: 70px;
                 height: 70px;
                 position: absolute;
-                z-index: 1001;
+                z-index: 3000;
                 cursor: pointer;
 
                 background: rgba(40, 40, 40, 0.6);

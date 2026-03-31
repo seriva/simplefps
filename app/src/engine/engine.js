@@ -34,6 +34,7 @@ import { Stats } from "./systems/stats.js";
 
 let _gameUpdate;
 let _paused = false;
+let _initialized = false;
 
 let _alwaysUpdate; // Runs even when paused (for multiplayer)
 let _time;
@@ -41,6 +42,7 @@ let _frameTime = 0;
 let _rafId;
 
 const resize = () => {
+	if (!_initialized) return;
 	Backend.resize();
 	Camera.updateProjection();
 	Renderer.resize();
@@ -88,6 +90,7 @@ const start = () => {
 
 const init = async (config = {}) => {
 	await backendReady;
+	_initialized = true;
 	Resources.init();
 	Shaders.init();
 	Shapes.init();
