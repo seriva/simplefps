@@ -25,14 +25,19 @@ const _clampedAdd = (signal, amount, max) => {
 	signal.set(Math.min(signal.get() + amount, max));
 };
 
+const _readOnly = (signal) => ({
+	get: () => signal.get(),
+	subscribe: (fn) => signal.subscribe(fn),
+});
+
 // ============================================================================
 // Public API
 // ============================================================================
 
 const Player = {
-	health: _health,
-	armor: _armor,
-	ammo: _ammo,
+	health: _readOnly(_health),
+	armor: _readOnly(_armor),
+	ammo: _readOnly(_ammo),
 
 	addHealth(amount) {
 		_clampedAdd(_health, amount, PLAYER_DEFS.MAX.health);

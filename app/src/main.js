@@ -4,6 +4,7 @@ import { Game } from "./game/game.js";
 import { Loading } from "./game/loading.js";
 import { Multiplayer } from "./game/multiplayer.js";
 import { State } from "./game/state.js";
+import { Update } from "./game/update.js";
 // Side-effect imports (menus, hud register themselves)
 import "./game/menus.js";
 import "./game/hud.js";
@@ -22,7 +23,9 @@ import "./game/hud.js";
 
 		Controls.init();
 		State.init();
+		Game.init();
 		Multiplayer.init();
+		Update.init();
 
 		// Enter game state to render first frame, then show menu with backdrop
 		State.enterGame();

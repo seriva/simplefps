@@ -21,7 +21,9 @@ const _update = () => {
 	}
 };
 
-if (navigator.serviceWorker) {
+const _init = () => {
+	if (!navigator.serviceWorker) return;
+
 	navigator.serviceWorker
 		.register("./sw.js")
 		.then((reg) => {
@@ -54,13 +56,14 @@ if (navigator.serviceWorker) {
 		window.location.reload();
 		refreshing = true;
 	});
-}
+};
 
 // ============================================================================
 // Public API
 // ============================================================================
 
 const Update = {
+	init: _init,
 	update: _update,
 	force: () => {
 		if (_newServiceWorker !== null) {

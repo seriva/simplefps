@@ -2,9 +2,8 @@ import { mat4, vec3 } from "../dependencies/gl-matrix.js";
 import { MeshEntity, Scene } from "../engine/engine.js";
 import { copyVec3, isVec3 } from "./netvalidation.js";
 
-// Smooth interpolation factor
-
 const PLAYER_SCALE = 33; // Same size as grenade launcher projectile
+const _LERP_DECAY = 15; // ~0.1s lag at 60fps
 const _PLAYER_SCALE_VEC = [PLAYER_SCALE, PLAYER_SCALE, PLAYER_SCALE];
 
 class RemotePlayer {
@@ -34,9 +33,7 @@ class RemotePlayer {
 	}
 
 	update(dt) {
-		// Time-independent smoothing (approx 0.1s lag)
-		const decay = 15;
-		const alpha = 1 - Math.exp(-decay * dt);
+		const alpha = 1 - Math.exp(-_LERP_DECAY * dt);
 
 		vec3.lerp(this.currentPos, this.currentPos, this.targetPos, alpha);
 

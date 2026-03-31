@@ -1,5 +1,4 @@
 import { Console, Input, Settings } from "../engine/engine.js";
-import { Game } from "./game.js";
 import { State } from "./state.js";
 import { Weapons } from "./weapons.js";
 
@@ -50,12 +49,6 @@ const _onShoot = () => {
 	Weapons.shootGrenade();
 };
 
-const _onJump = () => {
-	if (!_canUseGameplayInput()) return;
-	const controller = Game.getController();
-	if (controller) controller.jump();
-};
-
 const _onWheel = (e) => {
 	if (!_canUseGameplayInput()) return;
 	if (e.deltaY < 0) {
@@ -76,8 +69,7 @@ const _onKeyDown = (e) => {
 	if (e.keyCode !== Settings.jump || !_canUseGameplayInput()) return;
 	if (e.repeat) return;
 	e.preventDefault();
-	const controller = Game.getController();
-	if (controller) controller.jump();
+	window.dispatchEvent(new Event("game:jump"));
 };
 
 // ============================================================================
@@ -90,7 +82,6 @@ const _init = () => {
 	window.addEventListener("focus", _onWindowFocus, false);
 	window.addEventListener("click", _onClick);
 	window.addEventListener("game:shoot", _onShoot);
-	window.addEventListener("game:jump", _onJump);
 	window.addEventListener("wheel", _onWheel);
 	window.addEventListener("keyup", _onKeyUp);
 	window.addEventListener("keydown", _onKeyDown);
@@ -109,7 +100,6 @@ const _dispose = () => {
 	window.removeEventListener("focus", _onWindowFocus, false);
 	window.removeEventListener("click", _onClick);
 	window.removeEventListener("game:shoot", _onShoot);
-	window.removeEventListener("game:jump", _onJump);
 	window.removeEventListener("wheel", _onWheel);
 	window.removeEventListener("keyup", _onKeyUp);
 	window.removeEventListener("keydown", _onKeyDown);
