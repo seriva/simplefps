@@ -7,6 +7,7 @@ import {
 	Settings,
 } from "../engine/engine.js";
 import { Arena } from "./arena.js";
+import { WEAPON_INDEX } from "./gamedefs.js";
 import { Pickup } from "./pickups.js";
 import { Player } from "./player.js";
 import { State } from "./state.js";
@@ -20,7 +21,24 @@ const _STRAFE_ANGLE = glMatrix.toRadian(-90);
 
 let _controller = null;
 
+const _onJump = () => {
+	if (State.current !== "GAME" || Console.isVisible()) return;
+	if (_controller) _controller.jump();
+};
+
 const Game = {
+	init() {
+		window.addEventListener("game:jump", _onJump);
+		Pickup.setWeaponCallback((type) => {
+			const idx = WEAPON_INDEX[type];
+			if (idx !== undefined) Weapons.unlock(idx);
+		});
+	},
+
+	dispose() {
+		window.removeEventListener("game:jump", _onJump);
+	},
+
 	async load(mapName) {
 		await Arena.load(mapName);
 

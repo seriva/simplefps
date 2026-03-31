@@ -7,15 +7,16 @@ import {
 } from "../engine/engine.js";
 
 import {
+	oscillate,
 	PICKUP_AMOUNTS,
 	PICKUP_CONSTANTS,
 	PICKUP_MAP_BASE,
+	PLAYER_DEFS,
 	WEAPON_CONFIG,
 	WEAPON_INDEX,
 	WEAPON_PICKUP_DEFAULTS,
 } from "./gamedefs.js";
 import { Player } from "./player.js";
-import { Weapons } from "./weapons.js";
 
 // ============================================================================
 // Private
@@ -24,9 +25,7 @@ import { Weapons } from "./weapons.js";
 const _PICKUP_MAP = { ...PICKUP_MAP_BASE };
 
 // Merge weapon configs into pickup map
-for (const key in WEAPON_CONFIG) {
-	const weapon = WEAPON_CONFIG[key];
-	// Use weapon_defs config but apply pickup-specific defaults
+for (const weapon of Object.values(WEAPON_CONFIG)) {
 	_PICKUP_MAP[weapon.pickupType] = {
 		...WEAPON_PICKUP_DEFAULTS,
 		meshName: weapon.mesh,
@@ -46,9 +45,7 @@ const _SPOTLIGHT_RANGE = 3.5 * _SCALE;
 const _PICKUP_OFFSET_Y = 0.15 * _SCALE;
 const _UP_AXIS = [0, 1, 0];
 const _bobTranslation = [0, 0, 0];
-
-const _getBobOffset = (animationTime, amplitude) =>
-	Math.cos(Math.PI * (animationTime / _ROTATION_SPEED)) * amplitude;
+const _spawnScaleVec = [0, 0, 0];
 
 const _updatePickupEntity = (
 	entity,
@@ -68,16 +65,20 @@ const _updatePickupEntity = (
 		);
 	}
 
-	_bobTranslation[1] = _getBobOffset(entity.animationTime, amplitude);
+	_bobTranslation[1] = oscillate(
+		entity.animationTime,
+		_ROTATION_SPEED,
+		amplitude,
+	);
 	mat4.translate(entity.ani_matrix, entity.ani_matrix, _bobTranslation);
 
 	const spawnScale = entity.spawnScale ?? 1.0;
-	mat4.scale(entity.ani_matrix, entity.ani_matrix, [
-		spawnScale,
-		spawnScale,
-		spawnScale,
-	]);
+	_spawnScaleVec[0] = _spawnScaleVec[1] = _spawnScaleVec[2] = spawnScale;
+	mat4.scale(entity.ani_matrix, entity.ani_matrix, _spawnScaleVec);
 };
+
+// Callback wired by game.js to handle weapon unlock
+let _onWeaponCollected = null;
 
 // Active pickup tracking
 const _activePickups = [];
@@ -99,10 +100,7 @@ const _applyPickup = (type) => {
 			break;
 		default:
 			if (_isWeaponType(type)) {
-				const idx = Weapons.WEAPON_INDEX[type];
-				if (idx !== undefined) {
-					Weapons.unlock(idx);
-				}
+				_onWeaponCollected?.(type);
 				Console.log(`[Pickup] Weapon collected: ${type}`);
 			}
 			break;
@@ -112,11 +110,11 @@ const _applyPickup = (type) => {
 const _canPickup = (type) => {
 	switch (type) {
 		case "health":
-			return Player.health.get() < 100;
+			return Player.health.get() < PLAYER_DEFS.MAX.health;
 		case "armor":
-			return Player.armor.get() < 100;
+			return Player.armor.get() < PLAYER_DEFS.MAX.armor;
 		case "ammo":
-			return Player.ammo.get() < 100;
+			return Player.ammo.get() < PLAYER_DEFS.MAX.ammo;
 		default:
 			if (_isWeaponType(type)) {
 				const idx = Weapons.WEAPON_INDEX[type];
@@ -168,7 +166,11 @@ const _createPickup = (type, pos) => {
 			_SPOTLIGHT_RANGE,
 			(entity, frameTime) => {
 				entity.animationTime = (entity.animationTime || 0) + frameTime;
-				const offset = _getBobOffset(entity.animationTime, _BOBBING_AMPLITUDE);
+				const offset = oscillate(
+					entity.animationTime,
+					_ROTATION_SPEED,
+					_BOBBING_AMPLITUDE,
+				);
 				entity.setPosition([pos[0], spotBaseY + offset, pos[2]]);
 			},
 		);
@@ -287,6 +289,9 @@ const Pickup = {
 	createPickup: _createPickup,
 	update: _update,
 	reset: _reset,
+	setWeaponCallback: (fn) => {
+		_onWeaponCollected = fn;
+	},
 };
 
 export { Pickup };
