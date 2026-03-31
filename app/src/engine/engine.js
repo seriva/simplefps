@@ -1,14 +1,20 @@
+// biome-ignore assist/source/organizeImports: exports grouped by category for readability
 import { Animation } from "./animation/animation.js";
 import { AnimationPlayer } from "./animation/animationplayer.js";
+import { FPSController } from "./physics/fpscontroller.js";
+import { RAY_MODES, Ray, RaycastResult } from "./physics/ray.js";
+import { NETWORK_MESSAGES, Network } from "./systems/network.js";
 import { Trimesh } from "./physics/trimesh.js";
 import { Backend, backendReady } from "./rendering/backend.js";
 import { Renderer } from "./rendering/renderer.js";
 import { Shaders } from "./rendering/shaders.js";
 import { Shapes } from "./rendering/shapes.js";
+import { AnimatedBillboardEntity } from "./scene/animatedbillboardentity.js";
 import { DirectionalLightEntity } from "./scene/directionallightentity.js";
 import { EntityTypes } from "./scene/entity.js";
 import { FpsMeshEntity } from "./scene/fpsmeshentity.js";
 import { MeshEntity } from "./scene/meshentity.js";
+import { ParticleEmitterEntity } from "./scene/particleemitterentity.js";
 import { PointLightEntity } from "./scene/pointlightentity.js";
 import { Scene } from "./scene/scene.js";
 import { SkinnedMeshEntity } from "./scene/skinnedmeshentity.js";
@@ -98,32 +104,54 @@ const setCallbacks = (update, alwaysUpdate = null) => {
 };
 
 const getCanvas = () => Backend.getCanvas?.();
+const getAspectRatio = () => Backend.getAspectRatio?.();
 
+// biome-ignore format: grouped by category for readability
 export {
-	Animation,
-	AnimationPlayer,
+	// Engine lifecycle
+	init,
+	start,
+	pause,
+	resize,
+	getCanvas,
+	getAspectRatio,
+	setCallbacks,
+
+	// Systems
 	Camera,
 	Console,
-	DirectionalLightEntity,
-	EntityTypes,
-	FpsMeshEntity,
-	getCanvas,
 	Input,
-	init,
-	MeshEntity,
-	PointLightEntity,
-	pause,
 	Renderer,
 	Resources,
-	resize,
 	Scene,
 	Settings,
+	Sound,
+	Stats,
+
+	// Entities
+	EntityTypes,
+	AnimatedBillboardEntity,
+	DirectionalLightEntity,
+	FpsMeshEntity,
+	MeshEntity,
+	ParticleEmitterEntity,
+	PointLightEntity,
 	SkinnedMeshEntity,
 	SkyboxEntity,
-	Sound,
 	SpotLightEntity,
-	Stats,
-	setCallbacks,
-	start,
+
+	// Animation
+	Animation,
+	AnimationPlayer,
+
+	// Physics
+	FPSController,
+	RAY_MODES,
+	Ray,
+	RaycastResult,
 	Trimesh,
+
+	// Networking
+	Network,
+	NETWORK_MESSAGES,
 };

@@ -1,5 +1,7 @@
 import { vec3 } from "../../dependencies/gl-matrix.js";
-import { Camera, Console, Scene } from "../engine.js";
+import { Scene } from "../scene/scene.js";
+import { Camera } from "../systems/camera.js";
+import { Console } from "../systems/console.js";
 
 const _worldUp = vec3.fromValues(0, 1, 0);
 const _rightVector = vec3.create();

@@ -33,13 +33,10 @@ for (const key in WEAPON_CONFIG) {
 	};
 }
 
-const _PICKUP_AMOUNTS = PICKUP_AMOUNTS;
-
 const _SCALE = PICKUP_CONSTANTS.SCALE;
 const _ROTATION_SPEED = PICKUP_CONSTANTS.ROTATION_SPEED;
 const _BOBBING_AMPLITUDE = PICKUP_CONSTANTS.BOBBING_AMPLITUDE;
 const _RESPAWN_ANIMATION_DURATION = 500;
-const _LIGHT_OFFSET_Y = 0.2 * _SCALE;
 const _LIGHT_INTENSITY = PICKUP_CONSTANTS.LIGHT_INTENSITY;
 const _LIGHT_RADIUS = 1.8 * _SCALE;
 const _SPOTLIGHT_INTENSITY = PICKUP_CONSTANTS.SPOTLIGHT_INTENSITY;
@@ -88,7 +85,7 @@ const _activePickups = [];
 const _isWeaponType = (type) => type in WEAPON_INDEX;
 
 const _applyPickup = (type) => {
-	const amount = _PICKUP_AMOUNTS[type] || 25;
+	const amount = PICKUP_AMOUNTS[type] || 25;
 
 	switch (type) {
 		case "health":
@@ -218,9 +215,9 @@ const _createPickup = (type, pos) => {
 };
 
 const _update = (playerPosition) => {
-	const px = playerPosition.x;
-	const py = playerPosition.y;
-	const pz = playerPosition.z;
+	const px = playerPosition[0];
+	const py = playerPosition[1];
+	const pz = playerPosition[2];
 	const now = performance.now();
 
 	for (const pickup of _activePickups) {

@@ -1,11 +1,10 @@
 import { init, setCallbacks, start } from "./engine/engine.js";
+import { Controls } from "./game/controls.js";
 import { Game } from "./game/game.js";
 import { Loading } from "./game/loading.js";
 import { Multiplayer } from "./game/multiplayer.js";
 import { State } from "./game/state.js";
-
-// Side-effect imports (controls, menus, hud register themselves)
-import "./game/controls.js";
+// Side-effect imports (menus, hud register themselves)
 import "./game/menus.js";
 import "./game/hud.js";
 
@@ -20,6 +19,10 @@ import "./game/hud.js";
 		await Game.load("demo");
 		// Pass Multiplayer.update as alwaysUpdate so it runs even when paused
 		setCallbacks(Game.update, (dt) => Multiplayer.update(dt / 1000));
+
+		Controls.init();
+		State.init();
+		Multiplayer.init();
 
 		// Enter game state to render first frame, then show menu with backdrop
 		State.enterGame();
