@@ -1,4 +1,4 @@
-import { mat4 } from "../dependencies/gl-matrix.js";
+import { glMatrix, mat4 } from "../dependencies/gl-matrix.js";
 import {
 	Camera,
 	Console,
@@ -9,6 +9,7 @@ import {
 	SkinnedMeshEntity,
 	SkyboxEntity,
 } from "../engine/engine.js";
+import { ARENA_NPC } from "./gamedefs.js";
 import { Loading } from "./loading.js";
 import { Pickup } from "./pickups.js";
 
@@ -20,7 +21,7 @@ const _BASE_URL = `${window.location}resources/arenas/`;
 const _DEFAULT_POSITION = [0, 0, 0];
 
 const _MAX_RAYCAST_DISTANCE = 500;
-const _MODEL_ROT_X = (-90 * Math.PI) / 180;
+const _MODEL_ROT_X = glMatrix.toRadian(-90);
 
 const _state = {
 	arena: {},
@@ -92,12 +93,12 @@ const _setupSpawnpointModels = (spawnpoints = [], currentSpawn = null) => {
 
 		const character = new SkinnedMeshEntity(
 			modelPos,
-			"models/robot/robot.sbmesh",
+			ARENA_NPC.MESH,
 			null,
-			0.035, // Scaled down for robot
+			ARENA_NPC.SCALE,
 		);
 		character.castShadow = true;
-		character.playAnimation("models/robot/robot.banim");
+		character.playAnimation(ARENA_NPC.ANIM);
 
 		// Build rotation: first yaw (Y), then stand upright (X -90)
 		// This makes the model face the right direction THEN stand up
@@ -109,7 +110,8 @@ const _setupSpawnpointModels = (spawnpoints = [], currentSpawn = null) => {
 		mat4.rotateX(character.base_matrix, character.base_matrix, _MODEL_ROT_X);
 
 		// Now apply scale
-		mat4.scale(character.base_matrix, character.base_matrix, [10, 10, 10]);
+		const s = ARENA_NPC.MATRIX_SCALE;
+		mat4.scale(character.base_matrix, character.base_matrix, [s, s, s]);
 
 		Scene.addEntities(character);
 	}
@@ -143,10 +145,6 @@ const _load = async (name) => {
 		_state.currentSpawnPoint = startSpawn;
 
 		_setupCamera(startSpawn);
-		// Pass the whole arena config to setupLighting because lightGrid is at root level or under lighting?
-		// In bsp2map.js we wrote: { ..., lightGrid: { ... } } at root level.
-		// So we need to pass arenaData.lightGrid.
-
 		await _setupLighting(
 			_state.arena.lightGrid,
 			_state.arena.directional,

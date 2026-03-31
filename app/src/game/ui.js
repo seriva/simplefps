@@ -5,12 +5,11 @@ import {
 	Reactive,
 	trusted,
 } from "../dependencies/reactive.js";
+import { Translations } from "./translations.js";
 
 // ============================================================================
 // Private
 // ============================================================================
-
-import { Translations } from "./translations.js";
 
 class _MenuUI extends Reactive.Component {
 	_uis = {};
@@ -685,11 +684,9 @@ class _MenuUI extends Reactive.Component {
 
 			// Wait for fade-out transition, then switch content and fade in
 			setTimeout(() => {
-				this.batch(() => {
-					this.currentMenu.set(name);
-					void this.refs.menuBase.offsetWidth;
-					this.refs.menuBase.classList.add("visible");
-				});
+				this.currentMenu.set(name);
+				void this.refs.menuBase.offsetWidth;
+				this.refs.menuBase.classList.add("visible");
 			}, 200);
 		} else {
 			// Just show the menu normally

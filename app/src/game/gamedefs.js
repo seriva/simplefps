@@ -64,6 +64,7 @@ export const PROJECTILE_CONFIG = {
 	mesh: "meshes/ball.mesh",
 	meshScale: 33,
 	velocity: 1200,
+	barrelOffset: 8, // Units to the right of center to match weapon barrel position
 	light: {
 		radius: 110,
 		intensity: 4,
@@ -161,4 +162,15 @@ export const PICKUP_CONSTANTS = {
 	LIGHT_INTENSITY: 3.0,
 	SPOTLIGHT_INTENSITY: 0.6,
 	SPOTLIGHT_ANGLE: 30,
+};
+
+// ----------------------------------------------------------------------------
+// Arena
+// ----------------------------------------------------------------------------
+
+export const ARENA_NPC = {
+	MESH: "models/robot/robot.sbmesh",
+	ANIM: "models/robot/robot.banim",
+	SCALE: 0.035,
+	MATRIX_SCALE: 10,
 };

@@ -56,14 +56,14 @@ _currentState.subscribe((state) => {
 });
 
 // Listen for changestate events from engine layer (avoids circular dependencies)
-window.addEventListener("changestate", (e) => {
+const _onChangeState = (e) => {
 	const stateUpper = e.detail.state.toUpperCase();
 	if (stateUpper === _GameStates.MENU) {
 		State.enterMenu(e.detail.menu);
 	} else if (stateUpper === _GameStates.GAME) {
 		State.enterGame();
 	}
-});
+};
 
 // ============================================================================
 // Public API
@@ -72,6 +72,14 @@ window.addEventListener("changestate", (e) => {
 const State = {
 	get current() {
 		return _currentState.get();
+	},
+
+	init() {
+		window.addEventListener("changestate", _onChangeState);
+	},
+
+	dispose() {
+		window.removeEventListener("changestate", _onChangeState);
 	},
 
 	enterMenu(menu) {

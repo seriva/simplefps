@@ -73,9 +73,12 @@ class ParticleEmitterEntity extends Entity {
 				if (i < this._particles.length) this._particles[i] = last;
 			}
 		}
-		// Returns false when empty — the scene can remove the emitter at that point.
+
+		super.update(frameTime);
+
+		// Return false when empty so the scene removes this entity.
 		// For looping emitters a different lifecycle contract would be needed.
-		return this._particles.length > 0;
+		if (this._particles.length === 0) return false;
 	}
 
 	render() {

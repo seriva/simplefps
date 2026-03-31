@@ -1,6 +1,11 @@
 import { glMatrix, vec3 } from "../dependencies/gl-matrix.js";
-import { Camera, Console, Input, Settings } from "../engine/engine.js";
-import { FPSController } from "../engine/physics/fpscontroller.js";
+import {
+	Camera,
+	Console,
+	FPSController,
+	Input,
+	Settings,
+} from "../engine/engine.js";
 import { Arena } from "./arena.js";
 import { Pickup } from "./pickups.js";
 import { Player } from "./player.js";
@@ -28,9 +33,7 @@ const Game = {
 		});
 
 		if (spawnPoint.rotation) {
-			const yawRadians = spawnPoint.rotation[1];
-			const yawDegrees = yawRadians * (180 / Math.PI);
-			Camera.setRotation([0, yawDegrees, 0]);
+			Camera.setRotation([0, glMatrix.toDegree(spawnPoint.rotation[1]), 0]);
 		}
 
 		Weapons.load();

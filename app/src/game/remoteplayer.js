@@ -7,7 +7,7 @@ import { copyVec3, isVec3 } from "./netvalidation.js";
 const PLAYER_SCALE = 33; // Same size as grenade launcher projectile
 const _PLAYER_SCALE_VEC = [PLAYER_SCALE, PLAYER_SCALE, PLAYER_SCALE];
 
-export class RemotePlayer {
+class RemotePlayer {
 	constructor(id, position) {
 		this.id = id;
 
@@ -54,3 +54,5 @@ export class RemotePlayer {
 		Scene.removeEntity(this.mesh);
 	}
 }
+
+export { RemotePlayer };

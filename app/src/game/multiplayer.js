@@ -1,5 +1,4 @@
-import { Camera, Console } from "../engine/engine.js";
-import { Network } from "../engine/systems/network.js";
+import { Camera, Console, Network } from "../engine/engine.js";
 import { copyVec3, isVec3 } from "./netvalidation.js";
 import { RemotePlayer } from "./remoteplayer.js";
 
@@ -8,7 +7,7 @@ import { RemotePlayer } from "./remoteplayer.js";
 // ============================================================================
 
 // Network throttling configuration
-const UPDATE_INTERVAL = 1000 / 30; // 30 updates per second
+const _UPDATE_INTERVAL = 1000 / 30; // 30 updates per second
 let _lastUpdateTime = 0;
 
 let _network = null; // Unified Network instance
@@ -167,7 +166,7 @@ const Multiplayer = {
 	update: (dt) => {
 		// Throttle network updates to reduce bandwidth
 		const now = performance.now();
-		if (now - _lastUpdateTime >= UPDATE_INTERVAL) {
+		if (now - _lastUpdateTime >= _UPDATE_INTERVAL) {
 			_lastUpdateTime = now;
 
 			// Get our current position from the camera
@@ -232,16 +231,17 @@ const Multiplayer = {
 			Console.log("[Multiplayer] Disconnected");
 		}
 	},
-};
 
-// Console commands
-Console.registerCmd("host", () => Multiplayer.host());
-Console.registerCmd("join", (id) => {
-	if (!id) {
-		Console.log("Usage: join <hostId>");
-		return;
-	}
-	Multiplayer.join(id);
-});
+	init() {
+		Console.registerCmd("host", () => Multiplayer.host());
+		Console.registerCmd("join", (id) => {
+			if (!id) {
+				Console.log("Usage: join <hostId>");
+				return;
+			}
+			Multiplayer.join(id);
+		});
+	},
+};
 
 export { Multiplayer };
