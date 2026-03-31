@@ -54,8 +54,9 @@ docs/
 - **reactive.js**: used for UI state management and component lifecycle. Component flow: `state()` → `init()` → `render()` → `mount()` (→ `onCleanup()` on teardown). Define signals in `state()`, create computed/async signals in `init()`, return DOM templates in `render()`, and bind events/side-effects in `mount()`.
 - **Asset pipeline**: textures, meshes, and maps are pre-processed by scripts in `scripts/` (e.g., `node scripts/obj2mesh.js input.obj output.mesh`). Do not commit generated binary assets; add them to `.gitignore` if necessary.
 - **Imports**: always use relative paths with explicit `.js` extensions (ES module browser semantics).
+- **Engine facade**: game code (`app/src/game/`) must always import from `../engine/engine.js`. Never import directly from engine subdirectories (e.g. `../engine/systems/camera.js`). Engine-internal modules may import each other directly and must never import from `engine.js` to avoid circular dependencies.
 - **Performance — no per-frame allocations**: never create matrices, vectors, quaternions, or other temporary objects inside functions that run per-frame or per-entity. Pre-allocate all such scratch objects at module level (e.g. `const _tmpMat4 = mat4.create()`) and reuse them via in-place gl-matrix operations (`mat4.multiply(out, a, b)` etc.). Apply this rule to any object that would otherwise be GC'd at high frequency.
-- **Logging & Error Handling**: Use the custom in-game console (`import Console from "engine/systems/console.js"`) for logging. It provides an in-game UI overlay for commands and supports `Console.log`, `Console.warn`, and `Console.error`.
+- **Logging & Error Handling**: Use the custom in-game console for logging. It provides an in-game UI overlay for commands and supports `Console.log`, `Console.warn`, and `Console.error`. Game code imports it via the facade (`import { Console } from "../engine/engine.js"`); engine-internal modules import it directly (`import { Console } from "../systems/console.js"`).
 - **Testing Strategy**: There is currently no formal unit testing framework. Code verification relies on Biome's static analysis (`npm run check`) and manual verification via the dev server (`npm run dev`) or production build (`npm run prod`).
 
 
@@ -74,6 +75,18 @@ npm run check        # Lint with Biome (CI check)
 npm run dependencies # Re-bundle 3rd-party dependencies via Microtastic
 npm run prepare      # Husky + microtastic prep (run after npm install)
 ```
+
+## Documentation
+The `docs/` directory contains architecture documentation for the three major subsystems:
+- `docs/rendering.md` — rendering pipeline, passes, backend abstraction
+- `docs/scene.md` — entity system, scene graph, BVH, visibility culling
+- `docs/networking.md` — P2P networking, multiplayer protocol
+
+When making changes that affect any of these subsystems, update the relevant doc to reflect the new behaviour. Specifically:
+- Adding, removing, or renaming a public API on `engine.js` → update the affected doc and `AGENTS.md` Project Structure if the file tree changed.
+- Changing how a subsystem works (e.g. render pass order, entity lifecycle, network protocol) → update the corresponding doc.
+- Adding a feature visible to players (new weapon, setting, rendering feature) → update `README.md` Features section.
+- Do not document implementation details that are already self-evident from the code; focus on architecture, contracts, and non-obvious design decisions.
 
 ## Workflows
 The `.agent/workflows/` directory contains standard operating procedures.

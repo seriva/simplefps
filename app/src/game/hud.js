@@ -291,11 +291,11 @@ class _HUDUI extends Reactive.Component {
 		void iconRef.offsetWidth;
 
 		iconRef.classList.add("icon-animate");
-
-		// Cleanup after animation
-		setTimeout(() => {
-			iconRef.classList.remove("icon-animate");
-		}, 300);
+		iconRef.addEventListener(
+			"animationend",
+			() => iconRef.classList.remove("icon-animate"),
+			{ once: true },
+		);
 	}
 
 	toggle(show) {

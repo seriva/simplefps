@@ -1,16 +1,16 @@
 import { glMatrix, mat4, vec3 } from "../dependencies/gl-matrix.js";
 import {
+	AnimatedBillboardEntity,
 	Camera,
 	EntityTypes,
 	FpsMeshEntity,
+	getAspectRatio,
 	MeshEntity,
+	ParticleEmitterEntity,
 	PointLightEntity,
 	Resources,
 	Scene,
 } from "../engine/engine.js";
-import { Backend } from "../engine/rendering/backend.js";
-import { AnimatedBillboardEntity } from "../engine/scene/animatedbillboardentity.js";
-import { ParticleEmitterEntity } from "../engine/scene/particleemitterentity.js";
 import {
 	ANIMATION_CONFIG,
 	EXPLOSION_CONFIG,
@@ -415,6 +415,9 @@ const _createWeaponAnimation = (entity, frameTime) => {
 	_applyWeaponTransforms(entity, _aniValues);
 };
 
+const _oscillate = (time, period, amplitude, fn = Math.cos) =>
+	fn(Math.PI * (time / period)) * amplitude;
+
 const _calculateFireAnimation = (frameTime) => {
 	if (!_state.firing) return 0;
 
@@ -425,34 +428,38 @@ const _calculateFireAnimation = (frameTime) => {
 		_state.firing = false;
 	}
 
-	return (
-		Math.cos(Math.PI * (_state.firingTimer / 1000)) *
-		ANIMATION_CONFIG.AMPLITUDES.FIRE
-	);
+	return _oscillate(_state.firingTimer, 1000, ANIMATION_CONFIG.AMPLITUDES.FIRE);
 };
 
 const _calculateMovementAnimation = (animationTime) => {
 	_movementAni.horizontal =
-		Math.cos(Math.PI * (animationTime / ANIMATION_CONFIG.HORIZONTAL_PERIOD)) *
-		ANIMATION_CONFIG.AMPLITUDES.HORIZONTAL_MOVE *
-		_state.movementBlend;
+		_oscillate(
+			animationTime,
+			ANIMATION_CONFIG.HORIZONTAL_PERIOD,
+			ANIMATION_CONFIG.AMPLITUDES.HORIZONTAL_MOVE,
+		) * _state.movementBlend;
 	_movementAni.vertical =
-		-Math.cos(Math.PI * (animationTime / ANIMATION_CONFIG.VERTICAL_PERIOD)) *
-		ANIMATION_CONFIG.AMPLITUDES.VERTICAL_MOVE *
-		_state.movementBlend;
+		-_oscillate(
+			animationTime,
+			ANIMATION_CONFIG.VERTICAL_PERIOD,
+			ANIMATION_CONFIG.AMPLITUDES.VERTICAL_MOVE,
+		) * _state.movementBlend;
 
 	return _movementAni;
 };
 
 const _calculateIdleAnimation = (animationTime) => {
-	_idleAni.horizontal =
-		Math.cos(
-			Math.PI * (animationTime / ANIMATION_CONFIG.IDLE_PERIOD.HORIZONTAL),
-		) * ANIMATION_CONFIG.AMPLITUDES.IDLE.HORIZONTAL;
-	_idleAni.vertical =
-		Math.sin(
-			Math.PI * (animationTime / ANIMATION_CONFIG.IDLE_PERIOD.VERTICAL),
-		) * ANIMATION_CONFIG.AMPLITUDES.IDLE.VERTICAL;
+	_idleAni.horizontal = _oscillate(
+		animationTime,
+		ANIMATION_CONFIG.IDLE_PERIOD.HORIZONTAL,
+		ANIMATION_CONFIG.AMPLITUDES.IDLE.HORIZONTAL,
+	);
+	_idleAni.vertical = _oscillate(
+		animationTime,
+		ANIMATION_CONFIG.IDLE_PERIOD.VERTICAL,
+		ANIMATION_CONFIG.AMPLITUDES.IDLE.VERTICAL,
+		Math.sin,
+	);
 
 	return _idleAni;
 };
@@ -487,7 +494,7 @@ const _applyWeaponTransforms = (entity, animations) => {
 	// Update reusable translation vector
 	// Correct for aspect ratio (pull closer to center on wide screens to avoid distortion)
 	// We mix the correction 50% so it's not too aggressive
-	const aspect = Backend.getAspectRatio();
+	const aspect = getAspectRatio();
 	const targetFactor = 1.8 / Math.max(1.8, aspect);
 	const aspectFactor = 0.5 + targetFactor * 0.5;
 
@@ -525,13 +532,13 @@ const _shootGrenade = () => {
 	Resources.get("sounds/shoot.sfx").play();
 
 	const projectileConfig = PROJECTILE_CONFIG;
-	const spawnPosition = _calculateProjectileSpawnPosition();
+	const spawnPosition = _calculateProjectileSpawnPosition(projectileConfig);
 	const projectile = _createProjectile(spawnPosition, projectileConfig);
 
 	Scene.addEntities([projectile.entity, projectile.light]);
 };
 
-const _calculateProjectileSpawnPosition = () => {
+const _calculateProjectileSpawnPosition = (projectileConfig) => {
 	const p = Camera.position;
 	const d = Camera.direction;
 
@@ -540,14 +547,11 @@ const _calculateProjectileSpawnPosition = () => {
 	vec3.cross(_projectileRight, d, _worldUp);
 	vec3.normalize(_projectileRight, _projectileRight);
 
-	// Offset to the right to match weapon barrel position
-	const barrelOffset = 8; // Units to the right
-
 	// Spawn further in front of camera to avoid collision with player/nearby geometry
 	return [
-		p[0] + d[0] * 30 + _projectileRight[0] * barrelOffset,
+		p[0] + d[0] * 30 + _projectileRight[0] * projectileConfig.barrelOffset,
 		p[1] + d[1] * 30 - 5,
-		p[2] + d[2] * 30 + _projectileRight[2] * barrelOffset,
+		p[2] + d[2] * 30 + _projectileRight[2] * projectileConfig.barrelOffset,
 	];
 };
 
