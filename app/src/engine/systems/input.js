@@ -129,8 +129,8 @@ class _VirtualInputUI extends Reactive.Component {
 			}
 
 			#joystick-base {
-				width: 25vmin;
-				height: 25vmin;
+				width: 28vmin;
+				height: 28vmin;
 				left: 8vmin;
 				bottom: 8vmin;
 				position: absolute;
@@ -151,10 +151,10 @@ class _VirtualInputUI extends Reactive.Component {
 				border-radius: 100%;
 				cursor: pointer;
 				user-select: none;
-				width: 12.5vmin;
-				height: 12.5vmin;
-				left: 14.25vmin;
-				bottom: 14.25vmin;
+				width: 14vmin;
+				height: 14vmin;
+				left: 15vmin;
+				bottom: 15vmin;
 				position: absolute;
 				z-index: 2002;
 				transition: transform 0.2s;
@@ -165,8 +165,8 @@ class _VirtualInputUI extends Reactive.Component {
 			}
 
 			.action-btn {
-				width: 20vmin;
-				height: 20vmin;
+				width: 18vmin;
+				height: 18vmin;
 				border-radius: 50%;
 				position: absolute;
 				z-index: 2003;
@@ -192,19 +192,19 @@ class _VirtualInputUI extends Reactive.Component {
 			}
 
 			.action-btn svg {
-				width: 7vmin;
-				height: 7vmin;
+				width: 6vmin;
+				height: 6vmin;
 				fill: currentColor;
 				pointer-events: none;
 			}
 
 			#btn-shoot {
 				bottom: 8vmin;
-				right: 28vmin;
+				right: 26vmin;
 			}
 
 			#btn-jump {
-				bottom: 28vmin;
+				bottom: 26vmin;
 				right: 8vmin;
 			}
 		`;

@@ -29,13 +29,11 @@ class _MenuUI extends Reactive.Component {
                 font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
             }
 
-            /* Dialog Styles */
+            /* ── Dialog ── */
             #dialog-overlay {
                 position: fixed;
-                top: 0;
-                left: 0;
-                width: 100vw;
-                height: 100vh;
+                top: 0; left: 0;
+                width: 100vw; height: 100vh;
                 background: rgba(0, 0, 0, 0.5);
                 z-index: 2000;
                 display: flex;
@@ -43,89 +41,47 @@ class _MenuUI extends Reactive.Component {
                 justify-content: center;
                 opacity: 0;
                 visibility: hidden;
-                transition:
-                    opacity 0.2s ease,
-                    visibility 0s 0.2s;
+                transition: opacity 0.2s ease, visibility 0s 0.2s;
             }
-
             #dialog-overlay.visible {
                 opacity: 1;
                 visibility: visible;
-                transition:
-                    opacity 0.2s ease,
-                    visibility 0s;
+                transition: opacity 0.2s ease, visibility 0s;
             }
-
             .dialog-box {
                 background: rgba(30, 30, 30, 0.8);
                 backdrop-filter: blur(12px);
                 border: 1px solid rgba(255, 255, 255, 0.15);
-                border-radius: 16px;
+                border-radius: 12px;
                 box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
                 width: 400px;
                 max-width: 90vw;
-                padding: 24px;
+                padding: 20px;
                 transform: scale(0.95);
                 transition: transform 0.2s ease;
             }
-
-            #dialog-overlay.visible .dialog-box {
-                transform: scale(1);
-            }
-
-            .dialog-header {
-                font-size: 20px;
-                color: #fff;
-                margin-bottom: 12px;
-                font-weight: 500;
-            }
-
-            .dialog-body {
-                font-size: 15px;
-                color: #ccc;
-                margin-bottom: 24px;
-                line-height: 1.5;
-            }
-
-            .dialog-footer {
-                display: flex;
-                justify-content: flex-end;
-                gap: 12px;
-            }
-
+            #dialog-overlay.visible .dialog-box { transform: scale(1); }
+            .dialog-header { font-size: 16px; color: #fff; margin-bottom: 10px; font-weight: 500; }
+            .dialog-body { font-size: 14px; color: #ccc; margin-bottom: 20px; line-height: 1.5; }
+            .dialog-footer { display: flex; justify-content: flex-end; gap: 10px; }
             .dialog-btn {
-                padding: 8px 16px;
+                padding: 7px 14px;
                 border-radius: 4px;
                 cursor: pointer;
-                font-size: 14px;
+                font-size: 13px;
                 border: 1px solid transparent;
                 transition: background 0.15s;
             }
+            .dialog-btn.confirm { background: #4a90e2; color: white; }
+            .dialog-btn.confirm:hover { background: #357abd; }
+            .dialog-btn.cancel { background: transparent; border: 1px solid #444; color: #aaa; }
+            .dialog-btn.cancel:hover { border-color: #666; color: #fff; }
 
-            .dialog-btn.confirm {
-                background: #4a90e2;
-                color: white;
-            }
-            .dialog-btn.confirm:hover {
-                background: #357abd;
-            }
-
-            .dialog-btn.cancel {
-                background: transparent;
-                border: 1px solid #444;
-                color: #aaa;
-            }
-            .dialog-btn.cancel:hover {
-                border-color: #666;
-                color: #fff;
-            }
-
+            /* ── Backdrop ── */
             #menu-backdrop {
                 position: fixed;
-                top: 0;
-                left: 0;
-                width: 100vw;
-                height: 100vh;
+                top: 0; left: 0;
+                width: 100vw; height: 100vh;
                 background-size: cover;
                 background-position: center;
                 filter: blur(8px) brightness(0.7);
@@ -133,133 +89,95 @@ class _MenuUI extends Reactive.Component {
                 z-index: 1;
                 opacity: 0;
                 visibility: hidden;
-                transition:
-                    opacity 200ms ease-out,
-                    visibility 0s 200ms;
+                transition: opacity 200ms ease-out, visibility 0s 200ms;
                 pointer-events: none;
             }
-
             #menu-backdrop.visible {
                 opacity: 1;
                 visibility: visible;
-                transition:
-                    opacity 200ms ease-out,
-                    visibility 0s 0s;
+                transition: opacity 200ms ease-out, visibility 0s 0s;
             }
 
+            /* ── Menu container ── */
             #menu-base {
-                transform: translate(-50%, -50%);
                 position: absolute;
-                top: 50%;
-                left: 50%;
+                top: 50%; left: 50%;
+                transform: translate(-50%, -50%);
                 background: rgba(30, 30, 30, 0.8);
                 border: 1px solid rgba(255, 255, 255, 0.15);
                 border-radius: 12px;
                 backdrop-filter: blur(12px);
                 box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
                 color: #fff;
-                padding: 14px;
-                font-size: 16px;
+                padding: 16px;
+                font-size: 14px;
                 width: 400px;
                 max-width: 90vw;
                 user-select: none;
                 z-index: 1000;
                 opacity: 0;
-                transition:
-                    opacity 200ms ease-out,
-                    transform 200ms ease-out;
+                transition: opacity 200ms ease-out, transform 200ms ease-out;
                 display: none;
             }
-
             #menu-base.visible {
                 display: block;
                 opacity: 1;
                 transform: translate(-50%, -50%) scale(1);
             }
 
-            .menu-button:last-child,
-            .menu-panel:last-child {
-                margin-bottom: 0;
-            }
-
+            /* ── Header ── */
             #menu-header {
                 font-size: 18px;
                 font-weight: 400;
                 text-align: center;
-                margin-bottom: 10px;
+                margin-bottom: 12px;
                 letter-spacing: 2px;
                 text-transform: uppercase;
                 color: rgba(255, 255, 255, 0.4);
             }
 
-            .menu-tabs {
-                display: flex;
-                gap: 2px;
-                margin-bottom: 0;
-                padding: 0;
-                border-bottom: none;
-            }
-
+            /* ── Tabs ── */
+            .menu-tabs { display: flex; gap: 2px; padding: 0; }
             .menu-tab {
                 flex: 1;
                 text-align: center;
-                padding: 10px 15px;
+                padding: 8px 12px;
                 background: rgba(50, 50, 50, 0.6);
                 border: 1px solid rgba(255, 255, 255, 0.1);
                 border-bottom: none;
                 border-radius: 6px 6px 0 0;
                 cursor: pointer;
                 color: rgba(255, 255, 255, 0.5);
-                font-size: 12px;
+                font-size: 11px;
                 text-transform: uppercase;
                 letter-spacing: 1px;
-                transition: all 0.15s ease;
+                transition: background 0.15s ease, color 0.15s ease;
                 position: relative;
                 top: 1px;
             }
-
-            .menu-tab:hover {
-                background: rgba(40, 40, 40, 0.7);
-                color: rgba(255, 255, 255, 0.7);
-            }
-
+            .menu-tab:hover { background: rgba(40, 40, 40, 0.7); color: rgba(255, 255, 255, 0.7); }
             .menu-tab.active {
                 background: rgba(0, 0, 0, 0.2);
                 border-color: rgba(255, 255, 255, 0.1);
                 border-bottom-color: transparent;
                 color: rgba(255, 255, 255, 0.9);
                 z-index: 2;
-                top: 1px;
             }
+            .menu-tab-content { display: none; }
+            .menu-tab-content.active { display: block; margin-bottom: 8px; }
+            .menu-tab-content:last-child { margin-bottom: 0; }
 
-            .menu-tab-content {
-                display: none;
-            }
-
-            .menu-tab-content.active {
-                display: block;
-                margin-bottom: 3.5vmin;
-            }
-
-            .menu-tab-content:last-child {
-                margin-bottom: 0;
-            }
-
-            /* Panel inside tab content - connects to tab */
+            /* Tab panel — fixed height so switching tabs doesn't resize the menu */
             .menu-tab-content .menu-panel {
                 border-radius: 0 0 6px 6px;
                 margin-top: 0;
                 border-top: 1px solid rgba(255, 255, 255, 0.1);
-                height: min(320px, 60vh);
+                height: min(300px, 55vh);
                 overflow-y: auto;
             }
+            .menu-tab-content.active > .menu-panel:first-child { border-top: none; }
 
-            /* First panel after tabs connects seamlessly */
-            .menu-tab-content.active > .menu-panel:first-child {
-                border-top: none;
-                border-radius: 0 0 6px 6px;
-            }
-
+            /* ── Buttons ── */
             .menu-button {
                 text-align: center;
                 background: rgba(50, 50, 50, 0.6);
@@ -268,77 +186,66 @@ class _MenuUI extends Reactive.Component {
                 margin-bottom: 6px;
                 padding: 10px;
                 cursor: pointer;
-                transition: all 0.2s ease;
+                transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
                 text-transform: uppercase;
-                font-size: 14px;
+                font-size: 13px;
                 letter-spacing: 1px;
                 color: rgba(255, 255, 255, 0.9);
-                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
             }
-
             .menu-button:hover {
                 background: rgba(60, 60, 60, 0.8);
                 border-color: rgba(255, 255, 255, 0.4);
                 transform: translateY(-1px);
-                box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
             }
+            .menu-button:active { transform: translateY(1px); background: rgba(255, 255, 255, 0.1); }
+            .menu-button:last-child { margin-bottom: 0; }
 
-            .menu-button:active {
-                transform: translateY(1px);
-                background: rgba(255, 255, 255, 0.1);
-            }
-
+            /* ── Rows ── */
             .menu-row {
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
-                background: transparent;
-                margin-bottom: 8px;
-                padding: 8px 4px;
+                margin-bottom: 6px;
+                padding: 6px 4px;
                 color: rgba(255, 255, 255, 0.8);
-                font-size: 14px;
+                font-size: 13px;
             }
+            .menu-row:last-child { margin-bottom: 0; }
 
+            /* ── Panel ── */
             .menu-panel {
                 background: rgba(0, 0, 0, 0.1);
                 border-radius: 6px;
-                padding: 3vmin;
-                margin-bottom: 3.5vmin;
+                padding: 10px;
+                margin-bottom: 8px;
                 border: 1px solid rgba(255, 255, 255, 0.1);
             }
+            .menu-panel:last-child { margin-bottom: 0; }
+            .menu-panel::-webkit-scrollbar { width: 4px; }
+            .menu-panel::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); border-radius: 2px; }
+            .menu-panel::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.3); border-radius: 2px; }
+            .menu-panel::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.5); }
 
-            /* Custom scrollbar for panels */
-            .menu-panel::-webkit-scrollbar {
-                width: 6px;
-            }
-
-            .menu-panel::-webkit-scrollbar-track {
-                background: rgba(0, 0, 0, 0.2);
-                border-radius: 3px;
-            }
-
-            .menu-panel::-webkit-scrollbar-thumb {
-                background: rgba(255, 255, 255, 0.3);
-                border-radius: 3px;
-            }
-
-            .menu-panel::-webkit-scrollbar-thumb:hover {
-                background: rgba(255, 255, 255, 0.5);
-            }
-
-            .menu-slider {
+            /* ── Controls ── */
+            .menu-slider { width: 50%; accent-color: #fff; cursor: pointer; }
+            .menu-select {
                 width: 50%;
-                accent-color: #fff;
+                background: rgba(0, 0, 0, 0.3);
+                border: 1px solid rgba(255, 255, 255, 0.2);
+                border-radius: 4px;
+                color: #fff;
+                padding: 4px 8px;
+                font-family: inherit;
+                font-size: 13px;
                 cursor: pointer;
+                outline: none;
             }
-
+            .menu-select:hover { background: rgba(40, 40, 40, 0.5); border-color: rgba(255, 255, 255, 0.4); }
+            .menu-select option { background: #222; color: #fff; }
             .menu-checkbox {
-                width: 22px;
-                height: 22px;
-                min-width: 22px;
-                max-width: 22px;
-                min-height: 22px;
-                max-height: 22px;
+                width: 18px; height: 18px;
+                min-width: 18px; max-width: 18px;
+                min-height: 18px; max-height: 18px;
                 box-sizing: border-box;
                 cursor: pointer;
                 -webkit-appearance: none;
@@ -351,128 +258,54 @@ class _MenuUI extends Reactive.Component {
                 flex-shrink: 0;
                 transition: all 0.15s ease;
             }
-
-            .menu-select {
-                width: 50%;
-                background: rgba(0, 0, 0, 0.3);
-                border: 1px solid rgba(255, 255, 255, 0.2);
-                border-radius: 4px;
-                color: #fff;
-                padding: 4px 8px;
-                font-family: inherit;
-                font-size: 14px;
-                cursor: pointer;
-                outline: none;
-            }
-
-            .menu-select:hover {
-                background: rgba(40, 40, 40, 0.5);
-                border-color: rgba(255, 255, 255, 0.4);
-            }
-
-            .menu-select option {
-                background: #222;
-                color: #fff;
-            }
-
-            .menu-checkbox:checked {
-                background: rgba(255, 255, 255, 0.85);
-                border-color: rgba(255, 255, 255, 0.85);
-            }
-
+            .menu-checkbox:checked { background: rgba(255,255,255,0.85); border-color: rgba(255,255,255,0.85); }
             .menu-checkbox:checked::after {
                 content: "";
                 position: absolute;
-                left: 6px;
-                top: 2px;
-                width: 5px;
-                height: 10px;
+                left: 4px; top: 1px;
+                width: 4px; height: 8px;
                 border: solid #333;
                 border-width: 0 2px 2px 0;
                 transform: rotate(45deg);
             }
 
+            /* ── Mobile portrait (≤768px) ── */
             @media (max-width: 768px) {
-                #menu-base {
-                    width: 90vw;
-                    padding: 4vmin;
-                }
-
-                .menu-button {
-                    padding: 3.5vmin;
-                    font-size: 4vmin;
-                }
-
-                .menu-row {
-                    padding: 1.5vmin 1vmin;
-                    font-size: 3.5vmin;
-                }
-
+                #menu-base { width: 90vw; padding: 4vmin; }
+                #menu-header { font-size: 5vmin; margin-bottom: 2vmin; }
+                .menu-button { padding: 3.5vmin; font-size: 4vmin; margin-bottom: 2vmin; }
+                .menu-button:last-child { margin-bottom: 0; }
+                .menu-row { padding: 1.5vmin 1vmin; font-size: 3.5vmin; margin-bottom: 1vmin; }
+                .menu-row:last-child { margin-bottom: 0; }
+                .menu-panel { padding: 3vmin; margin-bottom: 3vmin; }
+                .menu-panel:last-child { margin-bottom: 0; }
+                .menu-tab-content.active { margin-bottom: 3vmin; }
+                .menu-tab-content:last-child { margin-bottom: 0; }
+                .menu-tab-content .menu-panel { height: 45vh; }
                 .menu-checkbox {
-                    width: 5.5vmin;
-                    height: 5.5vmin;
-                    min-width: 5.5vmin;
-                    max-width: 5.5vmin;
-                    min-height: 5.5vmin;
-                    max-height: 5.5vmin;
-                }
-
-                .menu-panel {
-                    padding: 3vmin;
-                    margin-bottom: 3.5vmin;
-                }
-
-                #menu-header {
-                    font-size: 5vmin;
-                    margin-bottom: 2vmin;
+                    width: 5.5vmin; height: 5.5vmin;
+                    min-width: 5.5vmin; max-width: 5.5vmin;
+                    min-height: 5.5vmin; max-height: 5.5vmin;
                 }
             }
 
-            /* Landscape mobile - limit menu height */
+            /* ── Mobile landscape (height ≤500px) ── */
             @media (max-height: 500px) {
-                #menu-base {
-                    padding: 3vmin;
-                    max-height: 90vh;
-                    overflow-y: auto;
-                }
-
-                #menu-header {
-                    font-size: 4.5vmin;
-                    margin-bottom: 1.5vmin;
-                }
-
-                .menu-button {
-                    padding: 2.5vmin;
-                    font-size: 3.5vmin;
-                    margin-bottom: 1.5vmin;
-                }
-
-                .menu-row {
-                    padding: 1.5vmin;
-                    font-size: 3.5vmin;
-                    margin-bottom: 1vmin;
-                }
-
-                .menu-panel,
-                .menu-tab-content .menu-panel {
-                    padding: 2.5vmin;
-                    margin-bottom: 3vmin;
-                    max-height: 40vh;
-                    min-height: 0;
-                    overflow-y: auto;
-                }
-
-                .menu-tab-content.active {
-                    margin-bottom: 3vmin;
-                }
-
+                #menu-base { padding: 3vmin; max-height: 90vh; }
+                #menu-header { font-size: 3.5vmin; margin-bottom: 1.5vmin; }
+                .menu-button { padding: 2vmin; font-size: 3.5vmin; margin-bottom: 1.5vmin; }
+                .menu-button:last-child { margin-bottom: 0; }
+                .menu-row { padding: 1vmin; font-size: 3vmin; margin-bottom: 0.5vmin; }
+                .menu-row:last-child { margin-bottom: 0; }
+                .menu-panel { padding: 2vmin; margin-bottom: 2vmin; }
+                .menu-panel:last-child { margin-bottom: 0; }
+                .menu-tab-content.active { margin-bottom: 2vmin; }
+                .menu-tab-content:last-child { margin-bottom: 0; }
+                .menu-tab-content .menu-panel { height: 38vh; }
                 .menu-checkbox {
-                    width: 5vmin;
-                    height: 5vmin;
-                    min-width: 5vmin;
-                    max-width: 5vmin;
-                    min-height: 5vmin;
-                    max-height: 5vmin;
+                    width: 5vmin; height: 5vmin;
+                    min-width: 5vmin; max-width: 5vmin;
+                    min-height: 5vmin; max-height: 5vmin;
                 }
             }
         `;
