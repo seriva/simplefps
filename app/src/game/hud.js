@@ -79,7 +79,10 @@ class _HUDUI extends Reactive.Component {
                 width: 40px;
                 height: 40px;
                 z-index: 1;
-                content: url(resources/crosshair.svg);
+                background-image: url(resources/crosshair.svg);
+                background-size: contain;
+                background-repeat: no-repeat;
+                background-position: center;
             }
 
             #player-stats {
@@ -239,31 +242,20 @@ class _HUDUI extends Reactive.Component {
 		);
 
 		// Subscribe to player stats for HUD bars
-		let prevHealth = Player.health.get();
-		let prevArmor = Player.armor.get();
-		let prevAmmo = Player.ammo.get();
+		const trackStat = (signal, type) => {
+			let prev = signal.get();
+			this.track(
+				signal.subscribe((v) => {
+					this.refs[`${type}Val`].textContent = v;
+					if (v > prev) this.triggerAnimation(type);
+					prev = v;
+				}),
+			);
+		};
 
-		this.track(
-			Player.health.subscribe((v) => {
-				this.refs.healthVal.textContent = v;
-				if (v > prevHealth) this.triggerAnimation("health");
-				prevHealth = v;
-			}),
-		);
-		this.track(
-			Player.armor.subscribe((v) => {
-				this.refs.armorVal.textContent = v;
-				if (v > prevArmor) this.triggerAnimation("armor");
-				prevArmor = v;
-			}),
-		);
-		this.track(
-			Player.ammo.subscribe((v) => {
-				this.refs.ammoVal.textContent = v;
-				if (v > prevAmmo) this.triggerAnimation("ammo");
-				prevAmmo = v;
-			}),
-		);
+		trackStat(Player.health, "health");
+		trackStat(Player.armor, "armor");
+		trackStat(Player.ammo, "ammo");
 	}
 
 	triggerAnimation(type) {
