@@ -376,33 +376,37 @@ class _MenuUI extends Reactive.Component {
 			@media (max-width: 768px) {
 				#menu-base {
 					width: 90vw;
-					padding: 15px;
+					padding: 4vmin;
 				}
 
 				.menu-button {
-					padding: 12px;
-					font-size: 14px;
+					padding: 3.5vmin;
+					font-size: 4vmin;
 				}
 
 				.menu-row {
-					padding: 6px 4px;
-					font-size: 14px;
+					padding: 1.5vmin 1vmin;
+					font-size: 3.5vmin;
 				}
 
 				.menu-checkbox {
-					width: 20px;
-					height: 20px;
+					width: 5.5vmin;
+					height: 5.5vmin;
+					min-width: 5.5vmin;
+					max-width: 5.5vmin;
+					min-height: 5.5vmin;
+					max-height: 5.5vmin;
 				}
 
 				.menu-panel {
-					padding: 10px;
-					margin-bottom: 12px;
+					padding: 3vmin;
+					margin-bottom: 3.5vmin;
 				}
 
 				#menu-header {
-					font-size: 18px;
-					margin-bottom: 15px;
-					padding-bottom: 10px;
+					font-size: 5vmin;
+					margin-bottom: 4vmin;
+					padding-bottom: 3vmin;
 				}
 
 			}
@@ -410,38 +414,42 @@ class _MenuUI extends Reactive.Component {
 			/* Landscape mobile - limit menu height */
 			@media (max-height: 500px) {
 				#menu-base {
-					padding: 12px;
+					padding: 3vmin;
 				}
 
 				#menu-header {
-					font-size: 16px;
-					margin-bottom: 10px;
-					padding-bottom: 8px;
+					font-size: 4.5vmin;
+					margin-bottom: 3vmin;
+					padding-bottom: 2vmin;
 				}
 
 				.menu-button {
-					padding: 8px;
-					font-size: 12px;
-					margin-bottom: 6px;
+					padding: 2.5vmin;
+					font-size: 3.5vmin;
+					margin-bottom: 1.5vmin;
 				}
 
 				.menu-row {
-					padding: 4px 4px;
-					font-size: 12px;
-					margin-bottom: 4px;
+					padding: 1.5vmin;
+					font-size: 3.5vmin;
+					margin-bottom: 1vmin;
 				}
 
 				.menu-panel, .menu-tab-content .menu-panel {
-					padding: 8px;
-					margin-bottom: 10px;
+					padding: 2.5vmin;
+					margin-bottom: 3vmin;
 					max-height: 55vh;
 					min-height: 0;
 					overflow-y: auto;
 				}
 
 				.menu-checkbox {
-					width: 18px;
-					height: 18px;
+					width: 5vmin;
+					height: 5vmin;
+					min-width: 5vmin;
+					max-width: 5vmin;
+					min-height: 5vmin;
+					max-height: 5vmin;
 				}
 			}
 		`;
