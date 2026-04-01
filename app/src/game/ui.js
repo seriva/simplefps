@@ -112,7 +112,7 @@ class _MenuUI extends Reactive.Component {
                 padding: 16px;
                 font-size: 14px;
                 width: 400px;
-                max-width: 90vw;
+                max-width: 75vw;
                 user-select: none;
                 z-index: 1000;
                 opacity: 0;
@@ -271,7 +271,7 @@ class _MenuUI extends Reactive.Component {
 
             /* ── Mobile portrait (≤768px) ── */
             @media (max-width: 768px) {
-                #menu-base { width: 90vw; padding: 4vmin; }
+                #menu-base { max-width: 80vw; padding: 4vmin; }
                 #menu-header { font-size: 5vmin; margin-bottom: 2vmin; }
                 .menu-button { padding: 3.5vmin; font-size: 4vmin; margin-bottom: 2vmin; }
                 .menu-button:last-child { margin-bottom: 0; }
