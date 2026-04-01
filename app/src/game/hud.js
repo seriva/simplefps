@@ -27,8 +27,6 @@ class _HUDUI extends Reactive.Component {
                 left: 0;
                 width: 100%;
                 height: 100%;
-                margin: 0;
-                padding: 0;
                 z-index: 3000;
                 background-color: transparent;
                 display: none;
@@ -40,28 +38,23 @@ class _HUDUI extends Reactive.Component {
             }
 
             #button-menu {
-                border-radius: 50%;
-                right: 6vmin;
-                top: 6vmin;
-                width: 20vmin;
-                height: 20vmin;
                 position: absolute;
-                z-index: 3000;
+                right: 5vmin;
+                top: 5vmin;
+                width: 18vmin;
+                height: 18vmin;
+                border-radius: 50%;
                 cursor: pointer;
-
+                display: flex;
+                align-items: center;
+                justify-content: center;
                 background: rgba(40, 40, 40, 0.6);
                 border: 1px solid rgba(255, 255, 255, 0.2);
                 box-sizing: border-box;
                 box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
                 backdrop-filter: blur(4px);
                 color: rgba(255, 255, 255, 0.9);
-
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                transition:
-                    transform 0.1s ease,
-                    background 0.2s;
+                transition: transform 0.1s ease, background 0.2s;
                 pointer-events: auto;
             }
 
@@ -73,8 +66,8 @@ class _HUDUI extends Reactive.Component {
             }
 
             #button-menu svg {
-                width: 7vmin;
-                height: 7vmin;
+                width: 6vmin;
+                height: 6vmin;
                 fill: currentColor;
             }
 
@@ -82,11 +75,10 @@ class _HUDUI extends Reactive.Component {
                 position: absolute;
                 top: 50%;
                 left: 50%;
-                margin-top: -20px;
-                margin-left: -20px;
+                transform: translate(-50%, -50%);
                 width: 40px;
                 height: 40px;
-                z-index: 1001;
+                z-index: 1;
                 content: url(resources/crosshair.svg);
             }
 
@@ -95,13 +87,13 @@ class _HUDUI extends Reactive.Component {
                 bottom: max(2vmin, env(safe-area-inset-bottom));
                 left: 50%;
                 transform: translateX(-50%);
-                z-index: 1001;
+                z-index: 2;
                 display: flex;
                 flex-direction: row;
-                gap: 9vmin;
+                gap: 7vmin;
                 pointer-events: none;
                 font-family: "Inter", "Segoe UI", system-ui, sans-serif;
-                padding: 3vmin 7vmin;
+                padding: 2.5vmin 6vmin;
                 background: rgba(0, 0, 0, 0.4);
                 border-radius: 16px;
                 backdrop-filter: blur(8px);
@@ -111,12 +103,12 @@ class _HUDUI extends Reactive.Component {
             .stat-item {
                 display: flex;
                 align-items: center;
-                gap: 10px;
+                gap: 3vmin;
             }
 
             .stat-icon {
-                width: 7vmin;
-                height: 7vmin;
+                width: 6vmin;
+                height: 6vmin;
                 fill: currentColor;
             }
 
@@ -131,7 +123,7 @@ class _HUDUI extends Reactive.Component {
             }
 
             .stat-value {
-                font-size: 6vmin;
+                font-size: 5.5vmin;
                 font-weight: 700;
                 color: #ffffff;
                 font-variant-numeric: tabular-nums;
@@ -155,15 +147,9 @@ class _HUDUI extends Reactive.Component {
             }
 
             @media (min-width: 1024px) {
-                .stat-icon {
-                    width: 48px;
-                    height: 48px;
-                }
-
-                .stat-value {
-                    font-size: 32px;
-                }
-
+                .stat-icon { width: 48px; height: 48px; }
+                .stat-item { gap: 12px; }
+                .stat-value { font-size: 32px; }
                 #player-stats {
                     bottom: 32px;
                     gap: 64px;
