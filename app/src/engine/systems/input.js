@@ -15,18 +15,12 @@ const _cursorDelta = {
 	y: 0,
 };
 let _pressed = {};
-let _upevents = [];
 let _downevents = [];
 
 window.addEventListener(
 	"keyup",
 	(ev) => {
 		delete _pressed[ev.keyCode];
-		for (let l = 0; l < _upevents.length; l++) {
-			if (_upevents[l].key === ev.keyCode) {
-				_upevents[l].event();
-			}
-		}
 		for (let l = 0; l < _downevents.length; l++) {
 			if (_downevents[l].key === ev.keyCode && _downevents[l].pressed) {
 				_downevents[l].pressed = false;
@@ -510,7 +504,6 @@ const Input = {
 
 	clearInputEvents() {
 		_pressed = {};
-		_upevents = [];
 		_downevents = [];
 	},
 
@@ -519,13 +512,6 @@ const Input = {
 			key,
 			event,
 			pressed: false,
-		});
-	},
-
-	addKeyUpEvent(key, event) {
-		_upevents.push({
-			key,
-			event,
 		});
 	},
 
