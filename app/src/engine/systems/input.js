@@ -112,10 +112,10 @@ class _VirtualInputUI extends Reactive.Component {
 			#cursor {
 				position: absolute;
 				display: block;
-				width: 50px;
-				height: 50px;
-				margin-left: -25px;
-				margin-top: -25px;
+				width: 14vmin;
+				height: 14vmin;
+				margin-left: -7vmin;
+				margin-top: -7vmin;
 				border-radius: 50%;
 				z-index: 2001;
 				user-select: none;
@@ -129,10 +129,10 @@ class _VirtualInputUI extends Reactive.Component {
 			}
 
 			#joystick-base {
-				width: 90px;
-				height: 90px;
-				left: 30px;
-				bottom: 30px;
+				width: 25vmin;
+				height: 25vmin;
+				left: 8vmin;
+				bottom: 8vmin;
 				position: absolute;
 				border-radius: 50%;
 				z-index: 2001;
@@ -151,10 +151,10 @@ class _VirtualInputUI extends Reactive.Component {
 				border-radius: 100%;
 				cursor: pointer;
 				user-select: none;
-				width: 45px;
-				height: 45px;
-				left: 52px;
-				bottom: 52px;
+				width: 12.5vmin;
+				height: 12.5vmin;
+				left: 14.25vmin;
+				bottom: 14.25vmin;
 				position: absolute;
 				z-index: 2002;
 				transition: transform 0.2s;
@@ -165,25 +165,25 @@ class _VirtualInputUI extends Reactive.Component {
 			}
 
 			.action-btn {
-				width: 70px;
-				height: 70px;
+				width: 20vmin;
+				height: 20vmin;
 				border-radius: 50%;
 				position: absolute;
 				z-index: 2003;
 				pointer-events: auto;
-				
+
 				background: rgba(40, 40, 40, 0.6);
 				border: 1px solid rgba(255, 255, 255, 0.2);
 				box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 				backdrop-filter: blur(4px);
 				color: rgba(255, 255, 255, 0.9);
-				
+
 				display: flex;
 				align-items: center;
 				justify-content: center;
 				transition: transform 0.1s ease, background 0.2s;
 			}
-			
+
 			.action-btn:active,
 			.action-btn.pressed {
 				transform: scale(0.9);
@@ -192,20 +192,20 @@ class _VirtualInputUI extends Reactive.Component {
 			}
 
 			.action-btn svg {
-				width: 24px;
-				height: 24px;
+				width: 7vmin;
+				height: 7vmin;
 				fill: currentColor;
 				pointer-events: none;
 			}
 
 			#btn-shoot {
-				bottom: 30px;
-				right: 100px;
+				bottom: 8vmin;
+				right: 28vmin;
 			}
 
 			#btn-jump {
-				bottom: 100px;
-				right: 30px;
+				bottom: 28vmin;
+				right: 8vmin;
 			}
 		`;
 	}

@@ -41,10 +41,10 @@ class _HUDUI extends Reactive.Component {
 
             #button-menu {
                 border-radius: 50%;
-                right: 20px;
-                top: 20px;
-                width: 70px;
-                height: 70px;
+                right: 6vmin;
+                top: 6vmin;
+                width: 20vmin;
+                height: 20vmin;
                 position: absolute;
                 z-index: 3000;
                 cursor: pointer;
@@ -73,8 +73,8 @@ class _HUDUI extends Reactive.Component {
             }
 
             #button-menu svg {
-                width: 24px;
-                height: 24px;
+                width: 7vmin;
+                height: 7vmin;
                 fill: currentColor;
             }
 
@@ -92,16 +92,16 @@ class _HUDUI extends Reactive.Component {
 
             #player-stats {
                 position: fixed;
-                bottom: max(10px, env(safe-area-inset-bottom));
+                bottom: max(2vmin, env(safe-area-inset-bottom));
                 left: 50%;
                 transform: translateX(-50%);
                 z-index: 1001;
                 display: flex;
                 flex-direction: row;
-                gap: 32px;
+                gap: 9vmin;
                 pointer-events: none;
                 font-family: "Inter", "Segoe UI", system-ui, sans-serif;
-                padding: 12px 24px;
+                padding: 3vmin 7vmin;
                 background: rgba(0, 0, 0, 0.4);
                 border-radius: 16px;
                 backdrop-filter: blur(8px);
@@ -115,8 +115,8 @@ class _HUDUI extends Reactive.Component {
             }
 
             .stat-icon {
-                width: 24px;
-                height: 24px;
+                width: 7vmin;
+                height: 7vmin;
                 fill: currentColor;
             }
 
@@ -131,7 +131,7 @@ class _HUDUI extends Reactive.Component {
             }
 
             .stat-value {
-                font-size: 20px;
+                font-size: 6vmin;
                 font-weight: 700;
                 color: #ffffff;
                 font-variant-numeric: tabular-nums;
