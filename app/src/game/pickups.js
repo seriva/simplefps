@@ -79,6 +79,7 @@ const _updatePickupEntity = (
 
 // Callback wired by game.js to handle weapon unlock
 let _onWeaponCollected = null;
+let _isWeaponUnlocked = null;
 
 // Active pickup tracking
 const _activePickups = [];
@@ -117,11 +118,9 @@ const _canPickup = (type) => {
 			return Player.ammo.get() < PLAYER_DEFS.MAX.ammo;
 		default:
 			if (_isWeaponType(type)) {
-				const idx = Weapons.WEAPON_INDEX[type];
-				if (idx !== undefined) {
-					// Don't pick up if already unlocked
-					// (User requirement: "When any of the wepaons is already picked up ... dont pick it up")
-					return !Weapons.isUnlocked(idx);
+				const idx = WEAPON_INDEX[type];
+				if (idx !== undefined && _isWeaponUnlocked) {
+					return !_isWeaponUnlocked(idx);
 				}
 			}
 			return true;
@@ -217,9 +216,9 @@ const _createPickup = (type, pos) => {
 };
 
 const _update = (playerPosition) => {
-	const px = playerPosition[0];
-	const py = playerPosition[1];
-	const pz = playerPosition[2];
+	const px = playerPosition.x;
+	const py = playerPosition.y;
+	const pz = playerPosition.z;
 	const now = performance.now();
 
 	for (const pickup of _activePickups) {
@@ -291,6 +290,9 @@ const Pickup = {
 	reset: _reset,
 	setWeaponCallback: (fn) => {
 		_onWeaponCollected = fn;
+	},
+	setWeaponUnlockedCallback: (fn) => {
+		_isWeaponUnlocked = fn;
 	},
 };
 

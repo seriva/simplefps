@@ -33,6 +33,7 @@ const Game = {
 			const idx = WEAPON_INDEX[type];
 			if (idx !== undefined) Weapons.unlock(idx);
 		});
+		Pickup.setWeaponUnlockedCallback((idx) => Weapons.isUnlocked(idx));
 	},
 
 	dispose() {

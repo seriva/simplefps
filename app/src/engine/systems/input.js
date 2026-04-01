@@ -89,145 +89,154 @@ class _VirtualInputUI extends Reactive.Component {
 
 	styles() {
 		return css`
-			#input {
-				z-index: 2000;
-				display: none;
-			}
+            #input {
+                z-index: 2000;
+                display: none;
+            }
 
-			#input.visible {
-				display: block;
-			}
+            #input.visible {
+                display: block;
+            }
 
-			#look {
-				width: 80%;
-				height: 100%;
-				right: 0;
-				bottom: 0;
-				margin: 0;
-				padding: 0;
-				position: absolute;
-				z-index: 2002;
-			}
+            #look {
+                width: 80%;
+                height: 100%;
+                right: 0;
+                bottom: 0;
+                margin: 0;
+                padding: 0;
+                position: absolute;
+                z-index: 2002;
+            }
 
-			#cursor {
-				position: absolute;
-				display: block;
-				width: 14vmin;
-				height: 14vmin;
-				margin-left: -7vmin;
-				margin-top: -7vmin;
-				border-radius: 50%;
-				z-index: 2001;
-				user-select: none;
-				transition: opacity 100ms ease-in;
-				pointer-events: none;
+            #cursor {
+                position: absolute;
+                display: block;
+                width: 14vmin;
+                height: 14vmin;
+                margin-left: -7vmin;
+                margin-top: -7vmin;
+                border-radius: 50%;
+                z-index: 2001;
+                user-select: none;
+                transition: opacity 100ms ease-in;
+                pointer-events: none;
 
-				background: rgba(40, 40, 40, 0.6);
-				border: 1px solid rgba(255, 255, 255, 0.2);
-				box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-				backdrop-filter: blur(4px);
-			}
+                background: rgba(40, 40, 40, 0.6);
+                border: 1px solid rgba(255, 255, 255, 0.2);
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+                backdrop-filter: blur(4px);
+            }
 
-			#joystick-base {
-				width: 28vmin;
-				height: 28vmin;
-				left: 8vmin;
-				bottom: 8vmin;
-				position: absolute;
-				border-radius: 50%;
-				z-index: 2001;
+            #joystick-base {
+                width: 28vmin;
+                height: 28vmin;
+                left: 8vmin;
+                bottom: 8vmin;
+                position: absolute;
+                border-radius: 50%;
+                z-index: 2001;
 
-				background: rgba(40, 40, 40, 0.6);
-				border: 1px solid rgba(255, 255, 255, 0.2);
-				box-sizing: border-box; /* Ensure border doesn't add to size */
-				box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-				backdrop-filter: blur(4px);
-			}
+                background: rgba(40, 40, 40, 0.6);
+                border: 1px solid rgba(255, 255, 255, 0.2);
+                box-sizing: border-box; /* Ensure border doesn't add to size */
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+                backdrop-filter: blur(4px);
+            }
 
-			#joystick-stick {
-				background: rgba(255, 255, 255, 0.2);
-				border: 1px solid rgba(255, 255, 255, 0.3);
-				box-shadow: 0 2px 2px rgba(0,0,0,0.2);
-				border-radius: 100%;
-				cursor: pointer;
-				user-select: none;
-				width: 14vmin;
-				height: 14vmin;
-				left: 15vmin;
-				bottom: 15vmin;
-				position: absolute;
-				z-index: 2002;
-				transition: transform 0.2s;
-			}
+            #joystick-stick {
+                background: rgba(255, 255, 255, 0.2);
+                border: 1px solid rgba(255, 255, 255, 0.3);
+                box-shadow: 0 2px 2px rgba(0, 0, 0, 0.2);
+                border-radius: 50%;
+                cursor: pointer;
+                user-select: none;
+                width: 14vmin;
+                height: 14vmin;
+                left: 15vmin;
+                bottom: 15vmin;
+                position: absolute;
+                z-index: 2002;
+                transition: transform 0.2s;
+            }
 
-			#joystick-stick.dragging {
-				transition: none;
-			}
+            #joystick-stick.dragging {
+                transition: none;
+            }
 
-			.action-btn {
-				width: 18vmin;
-				height: 18vmin;
-				border-radius: 50%;
-				position: absolute;
-				z-index: 2003;
-				pointer-events: auto;
+            .action-btn {
+                width: 18vmin;
+                height: 18vmin;
+                border-radius: 50%;
+                position: absolute;
+                z-index: 2003;
+                pointer-events: auto;
 
-				background: rgba(40, 40, 40, 0.6);
-				border: 1px solid rgba(255, 255, 255, 0.2);
-				box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-				backdrop-filter: blur(4px);
-				color: rgba(255, 255, 255, 0.9);
+                background: rgba(40, 40, 40, 0.6);
+                border: 1px solid rgba(255, 255, 255, 0.2);
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+                backdrop-filter: blur(4px);
+                color: rgba(255, 255, 255, 0.9);
 
-				display: flex;
-				align-items: center;
-				justify-content: center;
-				transition: transform 0.1s ease, background 0.2s;
-			}
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                transition:
+                    transform 0.1s ease,
+                    background 0.2s;
+            }
 
-			.action-btn:active,
-			.action-btn.pressed {
-				transform: scale(0.9);
-				background: rgba(80, 80, 80, 0.9);
-				border-color: rgba(255, 255, 255, 0.5);
-			}
+            .action-btn:active,
+            .action-btn.pressed {
+                transform: scale(0.9);
+                background: rgba(80, 80, 80, 0.9);
+                border-color: rgba(255, 255, 255, 0.5);
+            }
 
-			.action-btn svg {
-				width: 6vmin;
-				height: 6vmin;
-				fill: currentColor;
-				pointer-events: none;
-			}
+            .action-btn svg {
+                width: 6vmin;
+                height: 6vmin;
+                fill: currentColor;
+                pointer-events: none;
+            }
 
-			#btn-shoot {
-				bottom: 8vmin;
-				right: 26vmin;
-			}
+            #btn-shoot {
+                bottom: 8vmin;
+                right: 26vmin;
+            }
 
-			#btn-jump {
-				bottom: 26vmin;
-				right: 8vmin;
-			}
-		`;
+            #btn-jump {
+                bottom: 26vmin;
+                right: 8vmin;
+            }
+        `;
 	}
 
 	template() {
 		return html`
-			<div id="input" data-class-visible="visible">
-				<div id="joystick-base"></div>
-				<div id="joystick-stick" data-ref="stick"></div>
-				
-				<div id="btn-shoot" class="action-btn" data-ref="btnShoot">
-					<svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/><circle cx="12" cy="12" r="5"/></svg>
-				</div>
-				
-				<div id="btn-jump" class="action-btn" data-ref="btnJump">
-					<svg viewBox="0 0 24 24"><path d="M12 4l-8 8h6v8h4v-8h6z"/></svg>
-				</div>
+            <div id="input" data-class-visible="visible">
+                <div id="joystick-base"></div>
+                <div id="joystick-stick" data-ref="stick"></div>
 
-				<div id="look" data-ref="look"></div>
-				<div id="cursor" data-ref="cursor"></div>
-			</div>
-		`;
+                <div id="btn-shoot" class="action-btn" data-ref="btnShoot">
+                    <svg viewBox="0 0 24 24">
+                        <path
+                            d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"
+                        />
+                        <circle cx="12" cy="12" r="5" />
+                    </svg>
+                </div>
+
+                <div id="btn-jump" class="action-btn" data-ref="btnJump">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M12 4l-8 8h6v8h4v-8h6z" />
+                    </svg>
+                </div>
+
+                <div id="look" data-ref="look"></div>
+                <div id="cursor" data-ref="cursor"></div>
+            </div>
+        `;
 	}
 
 	mount() {
@@ -257,7 +266,10 @@ class _VirtualInputUI extends Reactive.Component {
 						x: ev.targetTouches[0].clientX,
 						y: ev.targetTouches[0].clientY,
 					};
-					this._lastPos = { x: this._cursorPos.x, y: this._cursorPos.y };
+					this._lastPos = {
+						x: this._cursorPos.x,
+						y: this._cursorPos.y,
+					};
 				}
 				this.cursorOpacity.set(0.35);
 			},
@@ -438,9 +450,9 @@ class _VirtualInputUI extends Reactive.Component {
 					this.cursorY.set(-window.innerHeight + this._cursorPos.y);
 				});
 			}
-			window.requestAnimationFrame(updateVirtualInput);
+			this._rafId = window.requestAnimationFrame(updateVirtualInput);
 		};
-		window.requestAnimationFrame(updateVirtualInput);
+		this._rafId = window.requestAnimationFrame(updateVirtualInput);
 	}
 
 	toggle(show) {
@@ -449,6 +461,10 @@ class _VirtualInputUI extends Reactive.Component {
 		} else {
 			this.visible.set(show);
 		}
+	}
+
+	onCleanup() {
+		window.cancelAnimationFrame(this._rafId);
 	}
 }
 

@@ -4,6 +4,7 @@ import { css, html, Reactive } from "../../dependencies/reactive.js";
 const _DEFAULTS = {
 	TEXT_COLOR: "#fff",
 	WARNING_COLOR: "#FF0",
+	ERROR_COLOR: "#F44",
 	ANIMATION_DURATION: 150,
 	MAX_LOGS: 1000,
 	MAX_HISTORY: 100,
@@ -140,6 +141,8 @@ class _ConsoleUI extends Reactive.Component {
 				height: calc(100% - 30px);
 				overflow-y: auto;
 				overflow-x: hidden;
+				padding: 4px 8px;
+				box-sizing: border-box;
 			}
 
 			.console-content p {
@@ -159,11 +162,13 @@ class _ConsoleUI extends Reactive.Component {
 				width: 100%;
 				height: 30px;
 				border: 1px solid rgba(255, 255, 255, 0.15);
-				border-top: 1px solid rgba(255, 255, 255, 0.4);
+				border-top-color: rgba(255, 255, 255, 0.4);
+				border-bottom-width: 2px;
 				background-color: rgba(40, 40, 40, 0.8);
 				backdrop-filter: blur(12px);
 				outline: none;
 				box-sizing: border-box;
+				padding: 0 8px;
 			}
 		`;
 	}
@@ -299,7 +304,7 @@ const Console = {
 	},
 
 	error(message) {
-		this._addLog(message, "#F44", console.error);
+		this._addLog(message, _DEFAULTS.ERROR_COLOR, console.error);
 		throw new Error(message);
 	},
 

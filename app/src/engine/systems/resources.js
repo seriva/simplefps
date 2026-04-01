@@ -12,6 +12,7 @@ import { Sound } from "./sound.js";
 
 const _resources = new Map();
 const _loadingPromises = new Map();
+const _loadingLists = new Set();
 const _basepath = "resources/";
 const _fileExtRegex = /(?:\.([^.]+))?$/;
 
@@ -44,7 +45,16 @@ const _RESOURCE_TYPES = {
 	},
 	mat: (data, context) => Material.loadLibrary(JSON.parse(data), context),
 	sfx: (data) => new Sound(JSON.parse(data)),
-	list: (data, _context) => Resources.load(JSON.parse(data).resources),
+	list: (data, _context, _options, path) => {
+		if (_loadingLists.has(path)) {
+			Console.warn(`[Resources] Circular list reference detected: ${path}`);
+			return Promise.resolve();
+		}
+		_loadingLists.add(path);
+		return Resources.load(JSON.parse(data).resources).finally(() =>
+			_loadingLists.delete(path),
+		);
+	},
 	bin: (data) => data,
 };
 
@@ -85,14 +95,14 @@ const Resources = {
 
 				const loadPromise = (async () => {
 					const fullpath = _basepath + path;
-					const ext = _fileExtRegex.exec(path)[1];
-					const resourceHandler = _RESOURCE_TYPES[ext];
+					const ext = _fileExtRegex.exec(path)?.[1];
+					const resourceHandler = ext && _RESOURCE_TYPES[ext];
 
 					if (resourceHandler) {
 						try {
 							const response = await Resources.fetch(fullpath);
 							const result = await Promise.resolve(
-								resourceHandler(response, this, options),
+								resourceHandler(response, this, options, path),
 							);
 							if (result) _resources.set(path, result);
 							Console.log(`[Resources] Loaded: ${path}`);

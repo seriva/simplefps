@@ -26,7 +26,7 @@ class _MenuUI extends Reactive.Component {
 		return css`
             #ui {
                 background-color: transparent;
-                font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+                font-family: "Inter", "Segoe UI", system-ui, sans-serif;
             }
 
             /* ── Dialog ── */
@@ -35,7 +35,7 @@ class _MenuUI extends Reactive.Component {
                 top: 0; left: 0;
                 width: 100vw; height: 100vh;
                 background: rgba(0, 0, 0, 0.5);
-                z-index: 2000;
+                z-index: 2100;
                 display: flex;
                 align-items: center;
                 justify-content: center;
