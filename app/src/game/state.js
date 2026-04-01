@@ -38,21 +38,11 @@ _isBlurred.subscribe((blurred) => {
 
 // Subscribe to state changes to orchestrate system transitions
 _currentState.subscribe((state) => {
-	switch (state) {
-		case _GameStates.GAME:
-			Input.toggleVirtualInput(true);
-			Input.toggleCursor(false);
-			_isBlurred.set(false);
-			pause(false);
-			break;
-
-		case _GameStates.MENU:
-			Input.toggleVirtualInput(false);
-			Input.toggleCursor(true);
-			_isBlurred.set(true);
-			pause(true);
-			break;
-	}
+	const isGame = state === _GameStates.GAME;
+	Input.toggleVirtualInput(isGame);
+	Input.toggleCursor(!isGame);
+	_isBlurred.set(!isGame);
+	pause(!isGame);
 });
 
 // Listen for changestate events from engine layer (avoids circular dependencies)

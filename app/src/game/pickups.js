@@ -89,6 +89,10 @@ const _isWeaponType = (type) => type in WEAPON_INDEX;
 const _applyPickup = (type) => {
 	const amount = PICKUP_AMOUNTS[type] || 25;
 
+	Console.log(
+		`[Pickup] Collected: ${type}${_isWeaponType(type) ? "" : ` +${amount}`}`,
+	);
+
 	switch (type) {
 		case "health":
 			Player.addHealth(amount);
@@ -102,7 +106,6 @@ const _applyPickup = (type) => {
 		default:
 			if (_isWeaponType(type)) {
 				_onWeaponCollected?.(type);
-				Console.log(`[Pickup] Weapon collected: ${type}`);
 			}
 			break;
 	}
