@@ -313,7 +313,7 @@ const Console = {
 	},
 
 	executeCmd() {
-		if (!_ui || !_ui.visible.get()) return;
+		if (!_ui?.visible.get()) return;
 		const currentCommand = _ui.command.get();
 		if (!currentCommand) return;
 

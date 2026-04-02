@@ -39,7 +39,7 @@ const _reset = () => {
 const _load = (config) => {
 	_reset();
 
-	if (!config || !config.lightGrid) {
+	if (!config?.lightGrid) {
 		Console.warn("No light grid configuration found in arena config.");
 		return Promise.resolve();
 	}

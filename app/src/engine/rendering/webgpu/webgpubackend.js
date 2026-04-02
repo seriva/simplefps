@@ -1007,8 +1007,7 @@ class WebGPUBackend extends RenderBackend {
 
 	generateMipmaps(texture) {
 		if (
-			!texture ||
-			!texture._gpuTexture ||
+			!texture?._gpuTexture ||
 			!texture.mipLevelCount ||
 			texture.mipLevelCount <= 1
 		) {
