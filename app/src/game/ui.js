@@ -19,6 +19,10 @@ class _MenuUI extends Reactive.Component {
 			visible: this.signal(false, "ui:visible"),
 			currentMenu: this.signal("", "ui:currentMenu"),
 			dialogVisible: this.signal(false, "ui:dialogVisible"),
+			backdropVisible: this.signal(false, "ui:backdropVisible"),
+			menuVisible: this.signal(false, "ui:menuVisible"),
+			dialogTitle: this.signal("", "ui:dialogTitle"),
+			dialogMessage: this.signal("", "ui:dialogMessage"),
 		};
 	}
 
@@ -314,10 +318,10 @@ class _MenuUI extends Reactive.Component {
 	template() {
 		return html`
             <div id="ui">
-                <div id="menu-backdrop" data-ref="backdrop"></div>
+                <div id="menu-backdrop" data-class-visible="backdropVisible" data-ref="backdrop"></div>
                 <div
                     id="menu-base"
-                    data-class-visible="visible"
+                    data-class-visible="menuVisible"
                     data-ref="menuBase"
                 >
                     <div id="menu-header" data-ref="header"></div>
@@ -332,9 +336,9 @@ class _MenuUI extends Reactive.Component {
                     <div class="dialog-box">
                         <div
                             class="dialog-header"
-                            data-ref="dialogHeader"
+                            data-text="dialogTitle"
                         ></div>
-                        <div class="dialog-body" data-ref="dialogBody"></div>
+                        <div class="dialog-body" data-text="dialogMessage"></div>
                         <div
                             class="dialog-footer"
                             data-ref="dialogFooter"
@@ -346,8 +350,8 @@ class _MenuUI extends Reactive.Component {
 	}
 
 	showDialogInternal(title, message, onYes, onNo) {
-		this.refs.dialogHeader.textContent = title;
-		this.refs.dialogBody.textContent = message;
+		this.dialogTitle.set(title);
+		this.dialogMessage.set(message);
 
 		const dismiss = (callback) => () => {
 			this.dialogVisible.set(false);
@@ -598,32 +602,35 @@ class _MenuUI extends Reactive.Component {
 			if (canvas) {
 				this.refs.backdrop.style.backgroundImage = `url(${canvas.toDataURL("image/jpeg", 0.8)})`;
 			}
-			this.refs.backdrop.classList.add("visible");
+			this.backdropVisible.set(true);
 		}
 
 		// If already showing a different menu, fade out first, then switch
 		if (isVisible && currentMenu && currentMenu !== name) {
 			// Fade out menu only (keep backdrop)
-			this.refs.menuBase.classList.remove("visible");
+			this.menuVisible.set(false);
 
 			// Wait for fade-out transition, then switch content and fade in
 			setTimeout(() => {
 				this.currentMenu.set(name);
-				void this.refs.menuBase.offsetWidth;
-				this.refs.menuBase.classList.add("visible");
+				this.menuVisible.set(true);
 			}, 200);
 		} else {
 			// Just show the menu normally
 			this.batch(() => {
 				this.currentMenu.set(name);
 				this.visible.set(true);
+				this.menuVisible.set(true);
 			});
 		}
 	}
 
 	hide() {
-		this.visible.set(false);
-		this.refs.backdrop.classList.remove("visible");
+		this.batch(() => {
+			this.visible.set(false);
+			this.menuVisible.set(false);
+			this.backdropVisible.set(false);
+		});
 	}
 }
 
