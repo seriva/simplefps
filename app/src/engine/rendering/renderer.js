@@ -38,16 +38,12 @@ const _l = {
 	light: null,
 };
 
-const _b = {
-	framebuffer: null,
-	blur: null,
-	source: null,
-};
-
-const _pp = {
+const _scratch = {
 	framebuffer: null,
 	color: null,
 };
+
+let _blurSource = null;
 
 const _fsr = {
 	framebuffer: null,
@@ -77,13 +73,9 @@ const _disposeResources = () => {
 		Backend.deleteFramebuffer(_l.framebuffer);
 		if (_l.light) _l.light.dispose();
 	}
-	if (_b.framebuffer) {
-		Backend.deleteFramebuffer(_b.framebuffer);
-		if (_b.blur) _b.blur.dispose();
-	}
-	if (_pp.framebuffer) {
-		Backend.deleteFramebuffer(_pp.framebuffer);
-		if (_pp.color) _pp.color.dispose();
+	if (_scratch.framebuffer) {
+		Backend.deleteFramebuffer(_scratch.framebuffer);
+		if (_scratch.color) _scratch.color.dispose();
 	}
 	if (_fsr.framebuffer) {
 		Backend.deleteFramebuffer(_fsr.framebuffer);
@@ -164,12 +156,11 @@ const _resize = (width, height) => {
 	_l.framebuffer = lightRes.fb;
 
 	// **********************************
-	// blur buffer
+	// scratch buffer
 	// **********************************
-	const blurRes = _createFB({ format: "rgba8", width, height }, {});
-	_b.blur = blurRes.texture;
-	_b.framebuffer = blurRes.fb;
-
+	const scratchRes = _createFB({ format: "rgba8", width, height }, {});
+	_scratch.color = scratchRes.texture;
+	_scratch.framebuffer = scratchRes.fb;
 	if (!_proceduralNoise) {
 		_generateProceduralNoise();
 	}
@@ -178,10 +169,6 @@ const _resize = (width, height) => {
 	// post-processing & FSR buffers
 	// **********************************
 	if (Settings.doFSR) {
-		const ppRes = _createFB({ format: "rgba8", width, height }, {});
-		_pp.color = ppRes.texture;
-		_pp.framebuffer = ppRes.fb;
-
 		const nativeWidth = Backend.getNativeWidth();
 		const nativeHeight = Backend.getNativeHeight();
 
@@ -192,8 +179,6 @@ const _resize = (width, height) => {
 		_fsr.easu = fsrRes.texture;
 		_fsr.framebuffer = fsrRes.fb;
 	} else {
-		_pp.color = null;
-		_pp.framebuffer = null;
 		_fsr.easu = null;
 		_fsr.framebuffer = null;
 	}
@@ -202,44 +187,53 @@ const _resize = (width, height) => {
 const _startBlurPass = (blurSource) => {
 	switch (blurSource) {
 		case _BlurSourceType.SHADOW:
-			_b.source = _s.shadow;
+			_blurSource = _s.shadow;
 			break;
 		case _BlurSourceType.LIGHTING:
-			_b.source = _l.light;
+			_blurSource = _l.light;
 			break;
 		case _BlurSourceType.EMISSIVE:
-			_b.source = _g.emissive;
+			_blurSource = _g.emissive;
 			break;
 		default:
 	}
-	Backend.bindFramebuffer(_b.framebuffer);
+	Backend.bindFramebuffer(_scratch.framebuffer);
 	Backend.setViewport(0, 0, _g.width, _g.height);
 };
 
 const _endBlurPass = () => {
 	Texture.unBind(0);
-	// Detach whatever texture was bound to the blur framebuffer's color attachment.
-	// This prevents WebGL feedback loop errors if subsequent passes (like _explosionPass)
-	// try to use that texture as a render target on a different framebuffer.
-	Backend.setFramebufferAttachment(_b.framebuffer, 0, null);
+	// Restore default attachment
+	Backend.setFramebufferAttachment(
+		_scratch.framebuffer,
+		0,
+		_scratch.color.getHandle(),
+	);
 	Backend.bindFramebuffer(null);
 };
 
 const _swapBlur = (i) => {
 	if (i % 2 === 0) {
-		Backend.setFramebufferAttachment(_b.framebuffer, 0, _b.blur.getHandle());
+		Backend.setFramebufferAttachment(
+			_scratch.framebuffer,
+			0,
+			_scratch.color.getHandle(),
+		);
 		// Re-bind (as setFramebufferAttachment unbinds)
-		Backend.bindFramebuffer(_b.framebuffer);
-		_b.source.bind(0);
+		Backend.bindFramebuffer(_scratch.framebuffer);
+		_blurSource.bind(0);
 	} else {
-		Backend.setFramebufferAttachment(_b.framebuffer, 0, _b.source.getHandle());
+		Backend.setFramebufferAttachment(
+			_scratch.framebuffer,
+			0,
+			_blurSource.getHandle(),
+		);
 		// Re-bind
-		Backend.bindFramebuffer(_b.framebuffer);
-		_b.blur.bind(0);
+		Backend.bindFramebuffer(_scratch.framebuffer);
+		_scratch.color.bind(0);
 	}
 	Backend.clear({ color: [0, 0, 0, 0] });
 };
-
 const _blurImage = (source, iterations, radius) => {
 	if (iterations <= 0) return;
 	Shaders.kawaseBlur.bind();
@@ -534,8 +528,8 @@ const _transparentPass = () => {
 };
 
 const _postProcessingPass = () => {
-	if (_pp.framebuffer) {
-		Backend.bindFramebuffer(_pp.framebuffer);
+	if (Settings.doFSR) {
+		Backend.bindFramebuffer(_scratch.framebuffer);
 		Backend.setViewport(0, 0, _g.width, _g.height);
 		Backend.clear({ color: [0, 0, 0, 1] });
 	} else {
@@ -573,13 +567,12 @@ const _postProcessingPass = () => {
 	Backend.unbindShader();
 	Texture.unBindRange(0, 6);
 
-	if (_pp.framebuffer) {
+	if (Settings.doFSR) {
 		Backend.bindFramebuffer(null);
 	}
 };
-
 const _fsrPass = () => {
-	if (!Settings.doFSR || !_pp.color || !_fsr.easu) return;
+	if (!Settings.doFSR || !_scratch.color || !_fsr.easu) return;
 
 	const nativeWidth = Backend.getNativeWidth();
 	const nativeHeight = Backend.getNativeHeight();
@@ -601,7 +594,7 @@ const _fsrPass = () => {
 	_fsrCon0[3] = nativeHeight;
 	Shaders.fsrEasu.setVec4("con0", _fsrCon0);
 
-	_pp.color.bind(0);
+	_scratch.color.bind(0);
 	Shapes.screenQuad.renderSingle();
 
 	// RCAS pass
@@ -620,7 +613,6 @@ const _fsrPass = () => {
 	Backend.unbindShader();
 	Texture.unBindRange(0, 1);
 };
-
 const _debugPass = () => {
 	RenderPasses.renderDebug();
 };
