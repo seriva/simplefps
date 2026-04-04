@@ -11,6 +11,7 @@ const _TEXTURE_FORMATS = {
 	rgba8: "rgba8unorm",
 	rgba: "rgba8unorm",
 	rg8: "rg8unorm",
+	r8: "r8unorm",
 
 	// For depth textures
 	depth: "depth24plus",

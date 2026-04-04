@@ -41,7 +41,7 @@ vec2 calcPointLight(vec3 lightPos, float lightSize, vec3 fragPos, vec3 normal) {
     float distSq = dot(lightDir, lightDir);
     float sizeSq = lightSize * lightSize;
     if (distSq > sizeSq) return vec2(0.0);
-    
+
     float normalizedDist = sqrt(distSq) / lightSize;
     float falloff = 1.0 - smoothstep(0.0, 1.0, normalizedDist);
 
@@ -58,19 +58,19 @@ vec3 calcSpotLight(vec3 lightPos, vec3 lightDir, float cutoff, float range, vec3
     vec3 toLight = lightPos - fragPos;
     float dist = length(toLight);
     if (dist > range) return vec3(0.0);
-    
+
     toLight = normalize(toLight);
-    
+
     float spotEffect = dot(toLight, -normalize(lightDir));
     if (spotEffect < cutoff) return vec3(0.0);
-    
+
     float spotFalloff = (spotEffect - cutoff) / (1.0 - cutoff);
     spotFalloff = smoothstep(0.0, 1.0, spotFalloff);
-    
+
     float attenuation = 1.0 - pow(dist / range, 1.5);
-    
+
     float nDotL = max(0.0, dot(normal, toLight));
-    
+
     return vec3(attenuation, spotFalloff, nDotL);
 }`;
 
@@ -88,9 +88,9 @@ uniform mat4 boneMatrices[64];`;
 const _skinningCalc = /* glsl */ `
     // Convert uint indices to int for array indexing
     ivec4 joints = ivec4(aJointIndices);
-    
+
     // Compute skinning matrix from bone weights
-    mat4 skinMatrix = 
+    mat4 skinMatrix =
         boneMatrices[joints.x] * aJointWeights.x +
         boneMatrices[joints.y] * aJointWeights.y +
         boneMatrices[joints.z] * aJointWeights.z +
@@ -160,15 +160,15 @@ const _geometryFragment = /* glsl */ `#version 300 es
                 // Early alpha test using textureLod for better performance
                 vec4 color = textureLod(colorSampler, vUV, 0.0);
                 if(color.a < 0.5) discard;
-                
+
                 // Initialize normal from varying
                 vec3 N = normalize(vNormal);
-                
+
                 // Apply Probe Color (only for non-lightmapped objects)
                 if (flags.w == 0) {
                      color.rgb *= uProbeColor;
                 }
-                
+
                 // Use lightmap if available, but NOT for skybox
                 if (flags.w == 1 && flags.x != SKYBOX) {
                     color *= textureLod(lightmapSampler, vLightmapUV, 0.0);
@@ -197,36 +197,36 @@ const _geometryFragment = /* glsl */ `#version 300 es
                             vec3 B = dp2perp * duv1.y + dp1perp * duv2.y;
                             float invmax = inversesqrt(max(dot(T,T), dot(B,B)));
                             mat3 TBN = mat3(T * invmax, B * invmax, N);
-                            
+
                             // Parallax Mapping
                             vec3 viewDir = normalize(cameraPosition.xyz - vPosition.xyz);
                             vec3 tangentViewDir = normalize(transpose(TBN) * viewDir);
-                            
+
                             vec2 uv1 = vUV * 4.0;
                             mat2 rot = mat2(0.829, -0.559, 0.559, 0.829); // ~34 deg
                             vec2 uv2 = rot * (vUV * 7.37) + vec2(0.43, 0.81);
-                            
+
                             float h1 = texture(proceduralNoise, uv1).a;
                             vec2 parallaxOffset = tangentViewDir.xy * (h1 * 0.02 * detailFade);
-                            
+
                             // Dual Layer Sampling
                             vec4 s1 = texture(proceduralNoise, uv1 - parallaxOffset);
                             vec4 s2 = texture(proceduralNoise, uv2 - parallaxOffset);
-                            
+
                             // Blend Normals & Height
                             vec3 detailNormal = normalize((s1.rgb * 2.0 - 1.0) + (s2.rgb * 2.0 - 1.0));
                             float height = (s1.a + s2.a) * 0.5;
                             vec3 surfaceNormal = normalize(TBN * detailNormal);
-                            
+
                             // Modulation
                             vec3 p = vPosition.xyz;
                             float macroVar = sin(p.x * 0.13 + p.z * 0.07) + sin(p.z * 0.11 - p.x * 0.05) + sin(p.y * 0.1);
                             float macroFactor = (macroVar / 3.0) * 0.5 + 0.5;
-                            
+
                             // Occlusion
                             float occlusion = clamp(dot(surfaceNormal, N), 0.5, 1.0) * mix(0.5, 1.0, height);
                             float modFactor = detailFade * (0.3 + 0.7 * macroFactor);
-                            
+
                             color.rgb *= mix(1.0, occlusion, modFactor);
                             N = normalize(mix(N, surfaceNormal, 0.5 * detailFade));
                         }
@@ -545,17 +545,17 @@ export const ShaderSources = {
             {
                 vec2 texelSize = 1.0 / viewportSize.xy;
                 vec2 uv = gl_FragCoord.xy * texelSize;
-                
+
                 // Kawase blur: sample center + 4 diagonal corners
                 // This gives a pleasing blur with only 5 texture samples
                 float o = offset + 0.5; // Add 0.5 to leverage bilinear filtering
-                
+
                 vec4 color = texture(colorBuffer, uv);
                 color += texture(colorBuffer, uv + vec2(-o, -o) * texelSize);
                 color += texture(colorBuffer, uv + vec2( o, -o) * texelSize);
                 color += texture(colorBuffer, uv + vec2(-o,  o) * texelSize);
                 color += texture(colorBuffer, uv + vec2( o,  o) * texelSize);
-                
+
                 fragColor = color * 0.2; // Average of 5 samples
             }`,
 	},
@@ -575,9 +575,9 @@ export const ShaderSources = {
             layout(std140, column_major) uniform;
 
             out vec4 fragColor;
- 
+
             ${_frameDataUBO}
- 
+
             uniform sampler2D colorBuffer;
             uniform sampler2D lightBuffer;
             uniform sampler2D emissiveBuffer;
@@ -590,11 +590,11 @@ export const ShaderSources = {
             uniform float dirtIntensity;
             uniform float shadowIntensity;
             uniform float gamma;
- 
+
             void main() {
                 vec2 uv = gl_FragCoord.xy / viewportSize.xy;
                 ivec2 fragCoord = ivec2(gl_FragCoord.xy);
-                
+
                 // Use texelFetch for G-buffer reads (no filtering needed)
                 vec4 color = texelFetch(colorBuffer, fragCoord, 0);
                 vec4 light = texelFetch(lightBuffer, fragCoord, 0);
@@ -609,13 +609,13 @@ export const ShaderSources = {
                 // Apply shadows - multiply by shadow buffer
                 // Skip shadows for sky (position.w == 0 or very far distance)
                 vec4 position = texelFetch(positionBuffer, fragCoord, 0);
-                vec3 shadow = texelFetch(shadowBuffer, fragCoord, 0).rgb;
+                vec3 shadow = texelFetch(shadowBuffer, fragCoord, 0).rrr;
                 if (position.w > 0.0) {
                     // Soften shadows - mix between full brightness and shadow value
                     vec3 softShadow = mix(vec3(1.0), shadow, shadowIntensity);
                     fragColor.rgb *= softShadow;
                 }
-                
+
                 // Add emissive
                 fragColor += emissive * emissiveMult;
 
@@ -624,14 +624,14 @@ export const ShaderSources = {
                     // Protect emissive materials from dirt overlay
                     float emissiveStrength = length(emissive.rgb);
                     float emissiveMask = 1.0 - clamp(emissiveStrength * 10.0, 0.0, 1.0);
-                    
+
                     // Invert dirt texture (darker = more dirt) and scale by intensity
                     vec3 dirtAmount = (1.0 - dirt.rgb) * dirtIntensity;
                     dirtAmount = clamp(dirtAmount, 0.0, 1.0);
-                    
+
                     // Apply dirt by darkening
                     vec3 dirtened = fragColor.rgb * (1.0 - dirtAmount);
-                    
+
                     // Mix based on emissive mask (0 = emissive/no dirt, 1 = apply dirt)
                     fragColor.rgb = mix(fragColor.rgb, dirtened, emissiveMask);
                 }
@@ -845,12 +845,12 @@ export const ShaderSources = {
             ${_materialDataUBO}
 
             uniform sampler2D colorSampler;
-            uniform sampler2D emissiveSampler; 
-            
+            uniform sampler2D emissiveSampler;
+
             // Reflection uniforms
             uniform sampler2D reflectionSampler;
             uniform sampler2D reflectionMaskSampler;
-            
+
             #define MAX_POINT_LIGHTS 8
             #define MAX_SPOT_LIGHTS 4
 
@@ -890,7 +890,7 @@ export const ShaderSources = {
                 vec3 normal = normalize(vNormal);
                 if (!gl_FrontFacing) normal = -normal;
                 vec3 fragPos = vPosition.xyz;
-                
+
                 // Apply reflection if enabled
                 if (flags.z == 1) { // doReflection
                     vec4 reflMask = textureLod(reflectionMaskSampler, vUV, 0.0);
@@ -908,7 +908,7 @@ export const ShaderSources = {
 
                 // Calculate dynamic lighting contribution (additive on top of base)
                 vec3 dynamicLighting = vec3(0.0);
-                
+
                 // Add point lights contribution
                 int numPointLights = int(lightCounts.x);
                 for (int i = 0; i < MAX_POINT_LIGHTS; i++) {
@@ -1012,7 +1012,7 @@ export const ShaderSources = {
 
             layout(location=0) in vec3 aPosition;
             layout(location=1) in vec2 aUV;
-            
+
             // Instanced attributes
             layout(location=2) in vec3 aInstancePos;
             layout(location=3) in float aInstanceScale;
@@ -1028,23 +1028,23 @@ export const ShaderSources = {
                 // Extract camera right and up vectors from view matrix
                 vec3 right = vec3(matView[0][0], matView[1][0], matView[2][0]);
                 vec3 up    = vec3(matView[0][1], matView[1][1], matView[2][1]);
-                
+
                 // Apply rotation
                 float c = cos(aInstanceRotation);
                 float s = sin(aInstanceRotation);
-                
+
                 vec3 localRight = right * c + up * s;
                 vec3 localUp    = -right * s + up * c;
 
                 // Build world position
-                vec3 worldPos = aInstancePos 
-                              + localRight * aPosition.x * aInstanceScale 
+                vec3 worldPos = aInstancePos
+                              + localRight * aPosition.x * aInstanceScale
                               + localUp * aPosition.y * aInstanceScale;
 
                 vec2 insetUV = aUV * 0.98 + 0.01;
                 vUV = insetUV;
                 vOpacity = aInstanceOpacity;
-                
+
                 gl_Position = matViewProj * vec4(worldPos, 1.0);
             }`,
 		fragment: /* glsl */ `#version 300 es

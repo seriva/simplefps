@@ -140,7 +140,7 @@ const _resize = (width, height) => {
 	// shadow buffer
 	// **********************************
 	const shadowRes = _createFB(
-		{ format: "rgba8", width, height },
+		{ format: "r8", width, height },
 		{ depthAttachment: _depth.getHandle() },
 	);
 	_s.shadow = shadowRes.texture;

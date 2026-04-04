@@ -90,7 +90,7 @@ fn calcPointLight(lightPos: vec3<f32>, lightSize: f32, fragPos: vec3<f32>, norma
     let distSq = dot(lightDir, lightDir);
     let sizeSq = lightSize * lightSize;
     if (distSq > sizeSq) { return vec2<f32>(0.0); }
-    
+
     let normalizedDist = sqrt(distSq) / lightSize;
     let falloff = 1.0 - smoothstep(0.0, 1.0, normalizedDist);
 
@@ -106,17 +106,17 @@ fn calcSpotLight(lightPos: vec3<f32>, lightDir: vec3<f32>, cutoff: f32, range: f
     let toLight = lightPos - fragPos;
     let dist = length(toLight);
     if (dist > range) { return vec3<f32>(0.0); }
-    
+
     let toLightNorm = normalize(toLight);
     let spotEffect = dot(toLightNorm, -normalize(lightDir));
     if (spotEffect < cutoff) { return vec3<f32>(0.0); }
-    
+
     var spotFalloff = (spotEffect - cutoff) / (1.0 - cutoff);
     spotFalloff = smoothstep(0.0, 1.0, spotFalloff);
-    
+
     let attenuation = 1.0 - pow(dist / range, 1.5);
     let nDotL = max(0.0, dot(normal, toLightNorm));
-    
+
     return vec3<f32>(attenuation, spotFalloff, nDotL);
 }`;
 
@@ -126,7 +126,7 @@ fn applyReflection(baseColor: vec4<f32>, uv: vec2<f32>, worldPos: vec3<f32>, N: 
     let reflMask = textureSampleLevel(reflectionMaskTexture, colorSampler, uv, 0.0);
     let maskSum = dot(reflMask.rgb, vec3<f32>(0.333333));
     if (maskSum <= 0.2) { return baseColor; }
-    
+
     let viewDir = normalize(frameData.cameraPosition.xyz - worldPos);
     let r = reflect(-viewDir, N);
     let m = 2.0 * sqrt(dot(r.xy, r.xy) + (r.z + 1.0) * (r.z + 1.0)) + 0.00001;
@@ -197,22 +197,22 @@ ${ReflectionCalcFn}
 @fragment
 fn fs_main(input: GeomVertexOutput) -> FragmentOutput {
     var output: FragmentOutput;
-    
+
     // Sample albedo
     var color = textureSample(colorTexture, colorSampler, input.uv);
     if (color.a < 0.5) {
         discard;
     }
-    
+
     var N = normalize(input.normal);
-    
+
     // Apply Probe Color for dynamic objects (no lightmap)
     // Static objects (lightmapFlag == 1) ignore this as they use texture mixing below
     // Skybox (flag x == SKYBOX) should also ignore this
     if (materialData.flags.w == 0 && materialData.flags.x != SKYBOX) {
         color = vec4<f32>(color.rgb * objectData.uProbeColor.rgb, color.a);
     }
-    
+
     // Apply lightmap if available and not skybox
     if (materialData.flags.w == 1 && materialData.flags.x != SKYBOX) {
         color = color * textureSample(lightmapTexture, lightmapSampler, input.lightmapUV);
@@ -222,7 +222,7 @@ fn fs_main(input: GeomVertexOutput) -> FragmentOutput {
     if (materialData.flags.x != SKYBOX && frameData.viewportSize.z > 0.5 && materialData.flags.w == 1) {
          let dist = distance(frameData.cameraPosition.xyz, input.worldPosition.xyz);
          let detailFade = 1.0 - smoothstep(100.0, 500.0, dist);
-         
+
          // Calculate TBN (Must be done in uniform control flow)
          let dp1 = dpdx(input.worldPosition.xyz);
          let dp2 = dpdy(input.worldPosition.xyz);
@@ -236,45 +236,45 @@ fn fs_main(input: GeomVertexOutput) -> FragmentOutput {
              let B = dp2perp * duv1.y + dp1perp * duv2.y;
              let invmax = inverseSqrt(max(dot(T,T), dot(B,B)));
              let TBN = mat3x3<f32>(T * invmax, B * invmax, N);
-             
+
              // Parallax Mapping - Dual Layer
              let viewDir = normalize(frameData.cameraPosition.xyz - input.worldPosition.xyz);
              let tangentViewDir = normalize(transpose(TBN) * viewDir);
-             
+
              let uv1 = input.uv * 4.0;
              // Rotated second layer (~34 deg)
-             let rot = mat2x2<f32>(0.829, 0.559, -0.559, 0.829); 
+             let rot = mat2x2<f32>(0.829, 0.559, -0.559, 0.829);
              let uv2 = (rot * (input.uv * 7.37)) + vec2<f32>(0.43, 0.81);
-             
+
              let h1 = textureSampleLevel(proceduralNoise, colorSampler, uv1, 0.0).a;
              let parallaxOffset = tangentViewDir.xy * (h1 * 0.02 * detailFade);
-             
+
              // Sample both layers with offset
              let s1 = textureSampleLevel(proceduralNoise, colorSampler, uv1 - parallaxOffset, 0.0);
              let s2 = textureSampleLevel(proceduralNoise, colorSampler, uv2 - parallaxOffset, 0.0);
-             
+
              // Blend Normals & Height
              let detailNormal = normalize((s1.rgb * 2.0 - 1.0) + (s2.rgb * 2.0 - 1.0));
              let height = (s1.a + s2.a) * 0.5;
              let surfaceNormal = normalize(TBN * detailNormal);
-             
+
              // Modulation: Sum of Sines
              let p = input.worldPosition;
              let macroVar = (sin(p.x * 0.13 + p.z * 0.07) + sin(p.z * 0.11 - p.x * 0.05) + sin(p.y * 0.1));
              let macroFactor = (macroVar / 3.0) * 0.5 + 0.5;
-             
+
              // Combine Occlusion (Slope + Height)
              let occlusion = clamp(dot(surfaceNormal, N), 0.5, 1.0) * mix(0.5, 1.0, height);
              let modFactor = detailFade * (0.3 + 0.7 * macroFactor);
-             
+
              color = vec4<f32>(color.rgb * mix(1.0, occlusion, modFactor), color.a);
              N = normalize(mix(N, surfaceNormal, 0.5 * detailFade));
          }
     }
-    
+
     // Initialize emissive
     output.emissive = vec4<f32>(0.0);
-    
+
     let lightmapFlag = select(1.0, f32(materialData.flags.w), materialData.flags.x != SKYBOX);
     if (materialData.flags.x != SKYBOX) {
         output.normal = octEncode(N);
@@ -295,7 +295,7 @@ fn fs_main(input: GeomVertexOutput) -> FragmentOutput {
     }
 
     output.color = vec4<f32>((color + output.emissive).rgb, lightmapFlag);
-    
+
     return output;
 }
 `;
@@ -349,13 +349,13 @@ ${ReflectionCalcFn}
 @vertex
 fn vs_main(input: SkinnedVertexInput) -> GeomVertexOutput {
     var output: GeomVertexOutput;
-    
+
     let skinMatrix = calcSkinMatrix(input.jointIndices, input.jointWeights);
-    
+
     // Apply skinning to position and normal
     let skinnedPosition = (skinMatrix * vec4<f32>(input.position, 1.0)).xyz;
     let skinnedNormal = (skinMatrix * vec4<f32>(input.normal, 0.0)).xyz;
-    
+
     output.worldPosition = objectData.matWorld * vec4<f32>(skinnedPosition, 1.0);
     output.uv = input.uv;
     output.normal = normalize((objectData.matWorld * vec4<f32>(skinnedNormal, 0.0)).xyz);
@@ -366,7 +366,7 @@ fn vs_main(input: SkinnedVertexInput) -> GeomVertexOutput {
 @fragment
 fn fs_main(input: GeomVertexOutput) -> FragmentOutput {
     var output: FragmentOutput;
-    
+
     // Sample albedo
     var color = textureSample(colorTexture, colorSampler, input.uv);
     if (color.a < 0.5) {
@@ -381,14 +381,14 @@ fn fs_main(input: GeomVertexOutput) -> FragmentOutput {
          let noise = textureSample(detailTexture, colorSampler, input.uv * 4.0).r;
          color = vec4<f32>(color.rgb * (0.9 + 0.2 * noise), color.a);
     }
-    
+
     // Initialize emissive
     output.emissive = vec4<f32>(0.0);
-    
+
     // Skinned meshes don't have lightmaps, always use deferred lighting
     output.normal = octEncode(input.normal);
     output.position = vec4<f32>(input.worldPosition.xyz, 1.0);
-    
+
     // Apply reflection if enabled (flags.z == 1)
     if (materialData.flags.z == 1) {
          color = applyReflection(color, input.uv, input.worldPosition.xyz, input.normal);
@@ -453,18 +453,18 @@ ${SkinningCalcFn}
 @vertex
 fn vs_main(input: SkinnedShadowVertexInput) -> ShadowVertexOutput {
     var output: ShadowVertexOutput;
-    
+
     let skinMatrix = calcSkinMatrix(input.jointIndices, input.jointWeights);
-    
+
     // Apply skinning to position
     let skinnedPosition = (skinMatrix * vec4<f32>(input.position, 1.0)).xyz;
-    
+
     // Transform to world space
     var worldPos = objectData.matWorld * vec4<f32>(skinnedPosition, 1.0);
-    
+
     // Flatten to shadow height (stored in uProbeColor.a)
     worldPos.y = objectData.uProbeColor.a;
-    
+
     output.clipPosition = frameData.matViewProj * worldPos;
     return output;
 }
@@ -659,15 +659,15 @@ fn vs_main(@builtin(vertex_index) vertexIndex: u32) -> BlurOutput {
 fn fs_main(input: BlurOutput) -> @location(0) vec4<f32> {
     let texelSize = 1.0 / frameData.viewportSize.xy;
     let uv = input.position.xy * texelSize;
-    
+
     let o = blurParams.offset + 0.5;
-    
+
     var color = textureSample(colorBuffer, colorSampler, uv);
     color += textureSample(colorBuffer, colorSampler, uv + vec2<f32>(-o, -o) * texelSize);
     color += textureSample(colorBuffer, colorSampler, uv + vec2<f32>( o, -o) * texelSize);
     color += textureSample(colorBuffer, colorSampler, uv + vec2<f32>(-o,  o) * texelSize);
     color += textureSample(colorBuffer, colorSampler, uv + vec2<f32>( o,  o) * texelSize);
-    
+
     return color * 0.2;
 }
 `;
@@ -711,7 +711,7 @@ fn fs_main(input: PostOutput) -> @location(0) vec4<f32> {
     // uv is in [0, 1] range
     let uv = input.uv;
     let fragCoord = vec2<i32>(input.position.xy);
-    
+
     // Direct texture load for color (no FXAA)
     let color = textureLoad(colorBuffer, fragCoord, 0);
 
@@ -726,36 +726,36 @@ fn fs_main(input: PostOutput) -> @location(0) vec4<f32> {
     // Apply shadows - multiply by shadow buffer
     // Skip shadows for sky (position.w == 0)
     let position = textureLoad(positionBuffer, fragCoord, 0);
-    let shadow = textureLoad(shadowBuffer, fragCoord, 0).rgb;
+    let shadow = textureLoad(shadowBuffer, fragCoord, 0).rrr;
     if (position.w > 0.0) {
         // Soften shadows - mix between full brightness and shadow value
         let softShadow = mix(vec3<f32>(1.0), shadow, params.shadowIntensity);
         fragColor = vec4<f32>(fragColor.rgb * softShadow, fragColor.a);
     }
-    
+
     // Add emissive
     fragColor = fragColor + emissive * params.emissiveMult;
-    
+
     // Apply dirt effect with emissive protection
     if (params.dirtIntensity > 0.0) {
         // Protect emissive materials from dirt overlay
         let emissiveStrength = length(emissive.rgb);
         let emissiveMask = 1.0 - clamp(emissiveStrength * 10.0, 0.0, 1.0);
-        
+
         // Invert dirt texture (darker = more dirt) and scale by intensity
         var dirtAmount = (1.0 - dirt.rgb) * params.dirtIntensity;
         dirtAmount = clamp(dirtAmount, vec3<f32>(0.0), vec3<f32>(1.0));
-        
+
         // Apply dirt by darkening
         let dirtened = fragColor.rgb * (1.0 - dirtAmount);
-        
+
         // Mix based on emissive mask (0 = emissive/no dirt, 1 = apply dirt)
         fragColor = vec4<f32>(mix(fragColor.rgb, dirtened, emissiveMask), fragColor.a);
     }
-    
+
     // Gamma correction
     fragColor = vec4<f32>(pow(fragColor.rgb, vec3<f32>(1.0 / params.gamma)), fragColor.a);
-    
+
     return fragColor;
 }
 `;
@@ -1017,18 +1017,18 @@ ${SpotLightCalcFn}
 fn fs_main(input: TransparentVertexOutput) -> @location(0) vec4<f32> {
     var baseColor = textureSample(colorTexture, colorSampler, input.uv);
     let emissive = textureSample(emissiveTexture, colorSampler, input.uv);
-    
+
     // Base ambient/emissive
     baseColor = vec4<f32>(baseColor.rgb + emissive.rgb, baseColor.a * materialData.params.y);
-    
+
     let normal = normalize(input.normal);
     let fragPos = input.worldPosition.xyz;
-    
+
     // Reflections (Environment Mapping)
     if (materialData.flags.z == 1) {
         let reflMask = textureSample(reflectionMaskTexture, colorSampler, input.uv);
         let maskSum = dot(reflMask.rgb, vec3<f32>(0.333333));
-        
+
         if (maskSum > 0.1) {
             let viewDir = normalize(frameData.cameraPosition.xyz - fragPos);
             let r = reflect(-viewDir, normal);
@@ -1038,43 +1038,43 @@ fn fs_main(input: TransparentVertexOutput) -> @location(0) vec4<f32> {
             baseColor = mix(baseColor, reflColor * reflMask, materialData.params.x * maskSum);
         }
     }
-    
+
     // Dynamic Lighting (Additive)
     var dynamicLighting = vec3<f32>(0.0);
-    
+
     // Point Lights
     let numPoint = i32(lightingData.counts.x);
     for (var i = 0; i < 8; i++) {
         if (i >= numPoint) { break; }
-        
+
         let pos = lightingData.pointLightPositions[i].xyz;
         let color = lightingData.pointLightColors[i].rgb;
         let intensity = lightingData.pointLightParams[i].x;
         let size = lightingData.pointLightParams[i].y;
-        
+
         let pl = calcPointLight(pos, size, fragPos, normal);
         dynamicLighting += color * (pl.x * pl.y * intensity);
     }
-    
+
     // Spot Lights
     let numSpot = i32(lightingData.counts.y);
     for (var i = 0; i < 4; i++) {
         if (i >= numSpot) { break; }
-        
+
         let pos = lightingData.spotLightPositions[i].xyz;
         let dir = lightingData.spotLightDirections[i].xyz;
         let color = lightingData.spotLightColors[i].rgb;
         let intensity = lightingData.spotLightParams[i].x;
         let cutoff = lightingData.spotLightParams[i].y;
         let range = lightingData.spotLightParams[i].z;
-        
+
         let sl = calcSpotLight(pos, dir, cutoff, range, fragPos, normal);
         dynamicLighting += color * (intensity * 2.0) * sl.x * sl.y * sl.z;
     }
-    
+
     // Apply lighting
     let finalColor = vec3<f32>(baseColor.rgb * 0.5 + baseColor.rgb * dynamicLighting);
-    
+
     return vec4<f32>(finalColor, baseColor.a);
 }
 `;
@@ -1129,12 +1129,12 @@ ${SkinningCalcFn}
 @vertex
 fn vs_main(input: SkinnedDebugVertexInput) -> DebugVertexOutput {
     var output: DebugVertexOutput;
-    
+
     let skinMatrix = calcSkinMatrix(input.jointIndices, input.jointWeights);
-    
+
     // Apply skinning to position
     let skinnedPosition = (skinMatrix * vec4<f32>(input.position, 1.0)).xyz;
-    
+
     output.clipPosition = frameData.matViewProj * objectData.matWorld * vec4<f32>(skinnedPosition, 1.0);
     return output;
 }
@@ -1430,15 +1430,15 @@ fn vs_main(input: InstancedBillboardVertexInput) -> InstancedBillboardVertexOutp
     // View right and up vectors
     let right = vec3<f32>(frameData.matView[0].x, frameData.matView[1].x, frameData.matView[2].x);
     let up    = vec3<f32>(frameData.matView[0].y, frameData.matView[1].y, frameData.matView[2].y);
-    
+
     let c = cos(input.instanceRotation);
     let s = sin(input.instanceRotation);
-    
+
     let localRight = right * c + up * s;
     let localUp    = -right * s + up * c;
 
-    let worldPos = input.instancePos 
-                 + localRight * input.position.x * input.instanceScale 
+    let worldPos = input.instancePos
+                 + localRight * input.position.x * input.instanceScale
                  + localUp * input.position.y * input.instanceScale;
 
     let insetUV = input.uv * 0.98 + 0.01;
