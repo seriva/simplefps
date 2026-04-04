@@ -642,125 +642,13 @@ fn fs_main(input: BlurOutput) -> @location(0) vec4<f32> {
 }
 `;
 
-// Bilateral blur shader for edge-aware SSAO blurring
-const bilateralBlurShader = /* wgsl */ `
-${FrameDataStruct}
-
-struct BilateralParams {
-    depthThreshold: f32,
-    normalThreshold: f32,
-    gBufferScale: f32,
-    _pad: f32,
-}
-
-struct BilateralOutput {
-    @builtin(position) position: vec4<f32>,
-    @location(0) uv: vec2<f32>,
-}
-
-@group(0) @binding(0) var<uniform> frameData: FrameData;
-@group(1) @binding(0) var<uniform> params: BilateralParams;
-@group(1) @binding(2) var aoBuffer: texture_2d<f32>;
-@group(1) @binding(3) var positionBuffer: texture_2d<f32>;
-@group(1) @binding(4) var normalBuffer: texture_2d<f32>;
-
-@vertex
-fn vs_main(@builtin(vertex_index) vertexIndex: u32) -> BilateralOutput {
-    var output: BilateralOutput;
-    let x = f32((vertexIndex << 1) & 2);
-    let y = f32(vertexIndex & 2);
-    output.position = vec4<f32>(x * 2.0 - 1.0, y * 2.0 - 1.0, 0.0, 1.0);
-    output.uv = vec2<f32>(x, 1.0 - y);
-    return output;
-}
-
-@fragment
-fn fs_main(input: BilateralOutput) -> @location(0) vec4<f32> {
-    let fragCoord = vec2<i32>(input.position.xy);
-    let texelSize = 1.0 / frameData.viewportSize.xy;
-    
-    // Get center pixel data
-    let centerAO = textureLoad(aoBuffer, fragCoord, 0).r;
-    
-    // Calculate G-buffer coordinates (full res)
-    let gBufferCoord = vec2<i32>(input.position.xy * params.gBufferScale);
-    
-    let centerPos = textureLoad(positionBuffer, gBufferCoord, 0).xyz;
-    let centerNormal = textureLoad(normalBuffer, gBufferCoord, 0).xyz * 2.0 - 1.0;
-    let centerDepth = length(centerPos - frameData.cameraPosition.xyz);
-    
-    // If center is sky or invalid, just return the center value
-    if (length(centerNormal) < 0.1) {
-        return vec4<f32>(centerAO, centerAO, centerAO, 1.0);
-    }
-    
-    var totalWeight = 1.0;
-    var totalAO = centerAO;
-    
-    // Sample in a 5x5 pattern with bilateral weights
-    for (var y = -2; y <= 2; y++) {
-        for (var x = -2; x <= 2; x++) {
-            if (x == 0 && y == 0) { continue; }
-            
-            let sampleCoord = fragCoord + vec2<i32>(x, y);
-            
-            // Bounds check (against half-res effective size)
-            // viewportSize is full-res (e.g. 1920).
-            // We are rendering to a half-res target (e.g. 960).
-            // So valid range is 0..960.
-            // gBufferScale is 2.0. So 1920 / 2.0 = 960.
-            if (sampleCoord.x < 0 || sampleCoord.y < 0 || 
-                f32(sampleCoord.x) >= frameData.viewportSize.x / params.gBufferScale || 
-                f32(sampleCoord.y) >= frameData.viewportSize.y / params.gBufferScale) {
-                continue;
-            }
-            
-            let sampleAO = textureLoad(aoBuffer, sampleCoord, 0).r;
-            
-            // Sample G-Buffer at full res
-            let gSampleCoord = vec2<i32>(vec2<f32>(sampleCoord) * params.gBufferScale);
-            
-            let samplePos = textureLoad(positionBuffer, gSampleCoord, 0).xyz;
-            let sampleNormal = textureLoad(normalBuffer, gSampleCoord, 0).xyz * 2.0 - 1.0;
-            let sampleDepth = length(samplePos - frameData.cameraPosition.xyz);
-            
-            // Skip invalid samples (sky)
-            if (length(sampleNormal) < 0.1) { continue; }
-            
-            // Spatial weight (Gaussian falloff)
-            let dist = length(vec2<f32>(f32(x), f32(y)));
-            let spatialWeight = exp(-dist * dist / 4.0);
-            
-            // Depth weight - reject samples across depth discontinuities
-            let depthDiff = abs(centerDepth - sampleDepth);
-            let depthWeight = exp(-depthDiff * depthDiff / (params.depthThreshold * params.depthThreshold));
-            
-            // Normal weight - reject samples with different normals
-            let normalDot = max(0.0, dot(centerNormal, sampleNormal));
-            let normalWeight = pow(normalDot, params.normalThreshold);
-            
-            // Combined weight
-            let weight = spatialWeight * depthWeight * normalWeight;
-            
-            totalAO += sampleAO * weight;
-            totalWeight += weight;
-        }
-    }
-    
-    let result = totalAO / totalWeight;
-    return vec4<f32>(result, result, result, 1.0);
-}
-`;
-
 // Post-processing shader
 const postProcessingShader = /* wgsl */ `
 struct PostProcessParams {
     gamma: f32,
     emissiveMult: f32,
-    ssaoStrength: f32,
     dirtIntensity: f32,
     shadowIntensity: f32,
-    _pad: f32,
     ambient: vec4<f32>,
 }
 
@@ -776,9 +664,8 @@ struct PostOutput {
 @group(1) @binding(4) var normalBuffer: texture_2d<f32>;
 @group(1) @binding(5) var emissiveBuffer: texture_2d<f32>;
 @group(1) @binding(6) var dirtBuffer: texture_2d<f32>;
-@group(1) @binding(7) var aoBuffer: texture_2d<f32>;
-@group(1) @binding(8) var shadowBuffer: texture_2d<f32>;
-@group(1) @binding(9) var positionBuffer: texture_2d<f32>;
+@group(1) @binding(7) var shadowBuffer: texture_2d<f32>;
+@group(1) @binding(8) var positionBuffer: texture_2d<f32>;
 
 @vertex
 fn vs_main(@builtin(vertex_index) vertexIndex: u32) -> PostOutput {
@@ -803,9 +690,7 @@ fn fs_main(input: PostOutput) -> @location(0) vec4<f32> {
     let normalData = textureLoad(normalBuffer, fragCoord, 0);
     let emissive = textureLoad(emissiveBuffer, fragCoord, 0);
     let dirt = textureSample(dirtBuffer, bufferSampler, uv);
-    // Sample AO with linear filtering (textureSample instead of textureLoad) to smoothly upscale from half-res
-    let ao = textureSample(aoBuffer, bufferSampler, uv);
-    
+
     let hasLightmap = normalData.w;
     
     // Add dynamic lighting
@@ -821,10 +706,6 @@ fn fs_main(input: PostOutput) -> @location(0) vec4<f32> {
         let softShadow = mix(vec3<f32>(1.0), shadow, params.shadowIntensity);
         fragColor = vec4<f32>(fragColor.rgb * softShadow, fragColor.a);
     }
-    
-    // Apply SSAO
-    let aoFactor = mix(1.0, ao.r, params.ssaoStrength);
-    fragColor = vec4<f32>(fragColor.rgb * aoFactor, fragColor.a);
     
     // Add emissive
     fragColor = fragColor + emissive * params.emissiveMult;
@@ -1172,130 +1053,6 @@ fn fs_main(input: TransparentVertexOutput) -> @location(0) vec4<f32> {
 }
 `;
 
-// SSAO shader
-const ssaoShader = /* wgsl */ `
-${FrameDataStruct}
-
-struct SSAOParams {
-    radius: f32,
-    bias: f32,
-    noiseScale: vec2<f32>,
-    gBufferScale: f32,
-    _pad: vec3<f32>,
-    kernel: array<vec4<f32>, 16>,  // vec3 + padding
-}
-
-struct SSAOOutput {
-    @builtin(position) position: vec4<f32>,
-    @location(0) uv: vec2<f32>,
-}
-
-@group(0) @binding(0) var<uniform> frameData: FrameData;
-@group(1) @binding(0) var<uniform> params: SSAOParams;
-@group(1) @binding(1) var bufferSampler: sampler;
-@group(1) @binding(2) var positionBuffer: texture_2d<f32>;
-@group(1) @binding(3) var normalBuffer: texture_2d<f32>;
-@group(1) @binding(4) var noiseTexture: texture_2d<f32>;
-
-@vertex
-fn vs_main(@builtin(vertex_index) vertexIndex: u32) -> SSAOOutput {
-    var output: SSAOOutput;
-    let x = f32((vertexIndex << 1) & 2);
-    let y = f32(vertexIndex & 2);
-    output.position = vec4<f32>(x * 2.0 - 1.0, y * 2.0 - 1.0, 0.0, 1.0);
-    output.uv = vec2<f32>(x, 1.0 - y);
-    return output;
-}
-
-@fragment
-fn fs_main(input: SSAOOutput) -> @location(0) vec4<f32> {
-    // Calculate UVs based on effective viewport size (which is scaled down by gBufferScale = 2.0)
-    // input.position.xy is in pixels (half-res).
-    // viewportSize is full-res.
-    // UV = (fragCoord * scale) / viewportSize
-    let uv = (input.position.xy * params.gBufferScale) / frameData.viewportSize.xy;
-    let fragCoord = vec2<i32>(input.position.xy);
-    
-    // Scale for G-buffer reads (full res)
-    let gCoord = vec2<i32>(input.position.xy * params.gBufferScale);
-    
-    let fragPos = textureLoad(positionBuffer, gCoord, 0).rgb;
-    let normalData = textureLoad(normalBuffer, gCoord, 0);
-    let normal = normalData.xyz * 2.0 - 1.0;
-    let hasLightmap = normalData.w;
-    
-    // Sample noise BEFORE any non-uniform branches (WGSL requirement)
-    var randomVec = textureSample(noiseTexture, bufferSampler, uv * params.noiseScale).xyz;
-    randomVec = randomVec * 2.0 - 1.0;
-    
-    // Skip skybox and dynamic objects (no lightmap) — early out
-    let isSkybox = length(normal) < 0.1;
-    if (isSkybox || hasLightmap < 0.5) {
-        return vec4<f32>(1.0, 1.0, 1.0, 1.0);
-    }
-    
-    let currentLinearDepth = length(fragPos - frameData.cameraPosition.xyz);
-    
-    let tangent = normalize(randomVec - normal * dot(randomVec, normal));
-    let bitangent = cross(normal, tangent);
-    let TBN = mat3x3<f32>(tangent, bitangent, normal);
-    
-    var occlusion = 0.0;
-    var validSamples = 0.0;
-    
-    for (var i = 0; i < 16; i++) {
-        var samplePos = TBN * params.kernel[i].xyz;
-        samplePos = fragPos + samplePos * params.radius;
-        
-        var offset = vec4<f32>(samplePos, 1.0);
-        offset = frameData.matViewProj * offset;
-        let offsetXY = offset.xy / offset.w;
-        let sampleUV = offsetXY * 0.5 + 0.5;
-        
-        // WebGPU: Flip Y when converting from NDC to pixel coords
-        // NDC Y=0 maps to bottom of screen, but pixel Y=0 is at top in WebGPU
-        let flippedY = 1.0 - sampleUV.y;
-        
-        // Scale to full-res viewport size for sample lookup
-        // frameData.viewportSize is already full resolution (canvas size).
-        // So we don't need to scale it.
-        let fullWidth = frameData.viewportSize.x;
-        let fullHeight = frameData.viewportSize.y;
-        
-        let rawCoord = vec2<i32>(i32(sampleUV.x * fullWidth), i32(flippedY * fullHeight));
-        let sampleCoord = clamp(rawCoord, vec2<i32>(0, 0), vec2<i32>(i32(fullWidth) - 1, i32(fullHeight) - 1));
-        
-        // Check if sample crosses static/dynamic boundary - reject if so
-        let sampleNormalData = textureLoad(normalBuffer, sampleCoord, 0);
-        let sampleHasLightmap = sampleNormalData.w;
-        
-        // Skip samples that cross the lightmap boundary (static <-> dynamic)
-        // This prevents floor from getting false occlusion from pickups
-        if ((hasLightmap > 0.5 && sampleHasLightmap < 0.5) || (hasLightmap < 0.5 && sampleHasLightmap > 0.5)) {
-            continue;
-        }
-        
-        validSamples += 1.0;
-        
-        let sampleWorldPos = textureLoad(positionBuffer, sampleCoord, 0).rgb;
-        let sampleLinearDepth = length(sampleWorldPos - frameData.cameraPosition.xyz);
-        
-        let sampleDist = length(samplePos - frameData.cameraPosition.xyz);
-        let rangeCheck = smoothstep(0.0, 1.0, params.radius / abs(currentLinearDepth - sampleLinearDepth));
-        
-        if (sampleLinearDepth <= sampleDist - params.bias) {
-            occlusion += rangeCheck;
-        }
-    }
-    
-    // Divide by actual valid samples to avoid flickering when many samples are rejected
-    // Use max to avoid division by zero
-    occlusion = 1.0 - (occlusion / max(validSamples, 1.0));
-    
-    return vec4<f32>(occlusion, occlusion, occlusion, 1.0);
-}
-`;
-
 // Debug shader - for wireframes, bounding boxes, light volumes
 const debugShader = /* wgsl */ `
 ${FrameDataStruct}
@@ -1474,19 +1231,6 @@ export const WgslShaderSources = {
 			],
 		},
 	},
-	bilateralBlur: {
-		label: "bilateralBlur",
-		code: bilateralBlurShader,
-		bindings: {
-			group0: [{ binding: 0, type: "ubo", id: 0 }],
-			group1: [
-				{ binding: 0, type: "uniform", name: "bilateralParams" },
-				{ binding: 2, type: "texture", unit: 0 }, // aoBuffer
-				{ binding: 3, type: "texture", unit: 1 }, // positionBuffer
-				{ binding: 4, type: "texture", unit: 2 }, // normalBuffer
-			],
-		},
-	},
 	postProcessing: {
 		label: "postProcessing",
 		code: postProcessingShader,
@@ -1502,7 +1246,6 @@ export const WgslShaderSources = {
 				{ binding: 6, type: "texture", unit: 4 },
 				{ binding: 7, type: "texture", unit: 5 },
 				{ binding: 8, type: "texture", unit: 6 },
-				{ binding: 9, type: "texture", unit: 7 },
 			],
 		},
 	},
@@ -1545,20 +1288,6 @@ export const WgslShaderSources = {
 				{ binding: 2, type: "texture", unit: 1 },
 				{ binding: 3, type: "texture", unit: 2 },
 				{ binding: 4, type: "texture", unit: 3 },
-			],
-		},
-	},
-	ssao: {
-		label: "ssao",
-		code: ssaoShader,
-		bindings: {
-			group0: [{ binding: 0, type: "ubo", id: 0 }],
-			group1: [
-				{ binding: 0, type: "uniform", name: "ssaoParams" },
-				{ binding: 1, type: "sampler", unit: 0 },
-				{ binding: 2, type: "texture", unit: 1 },
-				{ binding: 3, type: "texture", unit: 0 },
-				{ binding: 4, type: "texture", unit: 2 },
 			],
 		},
 	},

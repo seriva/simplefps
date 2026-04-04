@@ -202,15 +202,6 @@ const _settingsMenu = {
 				},
 				{
 					type: "checkbox",
-					text: Translations.get("SSAO"),
-					value: () => Settings.doSSAO,
-					set: (v) => {
-						Settings.doSSAO = v;
-						Settings.save();
-					},
-				},
-				{
-					type: "checkbox",
 					text: Translations.get("DIRT"),
 					value: () => Settings.doDirt,
 					set: (v) => {

@@ -543,104 +543,6 @@ export const ShaderSources = {
                 fragColor = color * 0.2; // Average of 5 samples
             }`,
 	},
-	bilateralBlur: {
-		vertex: /* glsl */ `#version 300 es
-            precision highp float;
-
-            layout(location=0) in vec3 aPosition;
-
-            void main()
-            {
-                gl_Position = vec4(aPosition, 1.0);
-            }`,
-		fragment: /* glsl */ `#version 300 es
-            precision highp float;
-
-            out vec4 fragColor;
-
-            ${_frameDataUBO}
-
-            uniform sampler2D aoBuffer;
-            uniform sampler2D positionBuffer;
-            uniform sampler2D normalBuffer;
-            uniform float depthThreshold;
-            uniform float normalThreshold;
-            uniform float gBufferScale;
-
-            void main()
-            {
-                ivec2 fragCoord = ivec2(gl_FragCoord.xy);
-                
-                // Get center pixel data
-                // Read AO from current buffer (half-res)
-                float centerAO = texelFetch(aoBuffer, fragCoord, 0).r;
-                
-                // Read G-buffer data from scaled coords (full-res)
-                ivec2 gBufferCoord = ivec2(fragCoord * int(gBufferScale));
-                
-                vec3 centerPos = texelFetch(positionBuffer, gBufferCoord, 0).xyz;
-                vec3 centerNormal = texelFetch(normalBuffer, gBufferCoord, 0).xyz * 2.0 - 1.0;
-                float centerDepth = length(centerPos - cameraPosition.xyz);
-                
-                // If center is sky or invalid, just return the center value
-                if (length(centerNormal) < 0.1) {
-                    fragColor = vec4(centerAO, centerAO, centerAO, 1.0);
-                    return;
-                }
-                
-                float totalWeight = 1.0;
-                float totalAO = centerAO;
-                
-                // Sample in a 5x5 pattern with bilateral weights
-                for (int y = -2; y <= 2; y++) {
-                    for (int x = -2; x <= 2; x++) {
-                        if (x == 0 && y == 0) { continue; }
-                        
-                        ivec2 sampleCoord = fragCoord + ivec2(x, y);
-                        
-                        // Bounds check (against half-res effective size)
-                        if (sampleCoord.x < 0 || sampleCoord.y < 0 || 
-                            sampleCoord.x >= int(viewportSize.x / gBufferScale) || 
-                            sampleCoord.y >= int(viewportSize.y / gBufferScale)) {
-                            continue;
-                        }
-                        
-                        float sampleAO = texelFetch(aoBuffer, sampleCoord, 0).r;
-                        
-                        // Read G-buffer at full res
-                        ivec2 sampleGBufferCoord = ivec2(sampleCoord * int(gBufferScale));
-                        
-                        vec3 samplePos = texelFetch(positionBuffer, sampleGBufferCoord, 0).xyz;
-                        vec3 sampleNormal = texelFetch(normalBuffer, sampleGBufferCoord, 0).xyz * 2.0 - 1.0;
-                        float sampleDepth = length(samplePos - cameraPosition.xyz);
-                        
-                        // Skip invalid samples (sky)
-                        if (length(sampleNormal) < 0.1) { continue; }
-                        
-                        // Spatial weight (Gaussian falloff)
-                        float dist = length(vec2(float(x), float(y)));
-                        float spatialWeight = exp(-dist * dist / 4.0);
-                        
-                        // Depth weight - reject samples across depth discontinuities
-                        float depthDiff = abs(centerDepth - sampleDepth);
-                        float depthWeight = exp(-depthDiff * depthDiff / (depthThreshold * depthThreshold));
-                        
-                        // Normal weight - reject samples with different normals
-                        float normalDot = max(0.0, dot(centerNormal, sampleNormal));
-                        float normalWeight = pow(normalDot, normalThreshold);
-                        
-                        // Combined weight
-                        float weight = spatialWeight * depthWeight * normalWeight;
-                        
-                        totalAO += sampleAO * weight;
-                        totalWeight += weight;
-                    }
-                }
-                
-                float result = totalAO / totalWeight;
-                fragColor = vec4(result, result, result, 1.0);
-            }`,
-	},
 	postProcessing: {
 		vertex: /* glsl */ `#version 300 es
             precision highp float;
@@ -666,12 +568,10 @@ export const ShaderSources = {
             uniform sampler2D emissiveBuffer;
             uniform sampler2D dirtBuffer;
             uniform sampler2D shadowBuffer;
-            uniform sampler2D aoBuffer;
             uniform sampler2D positionBuffer;
- 
+
             uniform vec3 uAmbient;
             uniform float emissiveMult;
-            uniform float ssaoStrength;
             uniform float dirtIntensity;
             uniform float shadowIntensity;
             uniform float gamma;
@@ -689,8 +589,6 @@ export const ShaderSources = {
                 vec4 normal = vec4(normalVec, normalData.w); // Keep w component as is
                 vec4 emissive = texelFetch(emissiveBuffer, fragCoord, 0);
                 vec4 dirt = texture(dirtBuffer, uv); // Dirt uses tiled texture, needs filtering
-                // Sample AO with linear filtering (texture instead of texelFetch) to smoothly upscale from half-res
-                vec4 ao = texture(aoBuffer, uv);
 
                 // Read lightmap flag from normal.w
                 // 1.0 = has lightmap (additive lighting), 0.0 = dynamic object (multiplicative lighting)
@@ -710,10 +608,6 @@ export const ShaderSources = {
                     vec3 softShadow = mix(vec3(1.0), shadow, shadowIntensity);
                     fragColor.rgb *= softShadow;
                 }
-                
-                // Apply SSAO with configurable strength (blend between full brightness and AO)
-                float aoFactor = mix(1.0, ao.r, ssaoStrength);
-                fragColor.rgb *= aoFactor;
                 
                 // Add emissive
                 fragColor += emissive * emissiveMult;
@@ -1025,113 +919,6 @@ export const ShaderSources = {
                 // Apply base color with dynamic lighting added on top
                 // Hardcoded ambient approximation (0.5) to avoid uniform issues and fix brightness
                 fragColor = vec4(color.rgb * 0.5 + color.rgb * dynamicLighting, color.a);
-            }`,
-	},
-	ssao: {
-		vertex: /* glsl */ `#version 300 es
-            precision highp float;
-
-            layout(location=0) in vec3 aPosition;
-
-            void main()
-            {
-                gl_Position = vec4(aPosition, 1.0);
-            }`,
-		fragment: /* glsl */ `#version 300 es
-            precision highp float;
-
-            layout(location=0) out vec4 fragColor;
-            
-            ${_frameDataUBO}
-
-            uniform sampler2D normalBuffer;
-            uniform sampler2D positionBuffer;
-            uniform sampler2D noiseTexture;
-            uniform vec2 noiseScale;
-            uniform float radius;
-            uniform float bias;
-            uniform vec3 uKernel[16];
-            uniform float gBufferScale;
-
-            void main()
-            {
-                // Calculate UVs based on effective viewport size (which is scaled down)
-                vec2 uv = (gl_FragCoord.xy * gBufferScale) / viewportSize.xy;
-                
-                // Scale fragCoord to read from full-res G-buffer
-                ivec2 fragCoord = ivec2(gl_FragCoord.xy * gBufferScale);
-                
-                // Read position and normal from G-buffer
-                vec3 fragPos = texelFetch(positionBuffer, fragCoord, 0).rgb;
-                vec4 normalData = texelFetch(normalBuffer, fragCoord, 0);
-                vec3 normal = normalData.xyz * 2.0 - 1.0;
-                float hasLightmap = normalData.w;
-                
-                // Skip skybox and dynamic objects (no lightmap) — early out before the sample loop
-                bool isSkybox = length(normal) < 0.1;
-                if (isSkybox || hasLightmap < 0.5) {
-                    fragColor = vec4(1.0);
-                    return;
-                }
-                
-                // Calculate linear depth for range checks
-                float currentLinearDepth = length(fragPos - cameraPosition.xyz);
-
-                // Random vector for rotation
-                vec3 randomVec = texture(noiseTexture, uv * noiseScale).xyz;
-                randomVec = randomVec * 2.0 - 1.0;
-                
-                // Create TBN matrix
-                vec3 tangent = normalize(randomVec - normal * dot(randomVec, normal));
-                vec3 bitangent = cross(normal, tangent);
-                mat3 TBN = mat3(tangent, bitangent, normal);
-                
-                float occlusion = 0.0;
-                float validSamples = 0.0;
-                
-                for(int i = 0; i < 16; ++i)
-                {
-                    // get sample position
-                    vec3 samplePos = TBN * uKernel[i];
-                    samplePos = fragPos + samplePos * radius; 
-                    
-                    // project sample position
-                    vec4 offset = vec4(samplePos, 1.0);
-                    offset = matViewProj * offset;
-                    offset.xyz /= offset.w;
-                    offset.xy = offset.xy * 0.5 + 0.5;
-                    
-                    // Read position at sample location (scale from UV [0,1] to full res coords)
-                    ivec2 sampleCoord = ivec2(offset.xy * viewportSize.xy);
-                    
-                    // Check if sample crosses static/dynamic boundary - reject if so
-                    vec4 sampleNormalData = texelFetch(normalBuffer, sampleCoord, 0);
-                    float sampleHasLightmap = sampleNormalData.w;
-                    
-                    // Skip samples that cross the lightmap boundary (static <-> dynamic)
-                    // This prevents floor from getting false occlusion from pickups
-                    if ((hasLightmap > 0.5 && sampleHasLightmap < 0.5) || (hasLightmap < 0.5 && sampleHasLightmap > 0.5)) {
-                        continue;
-                    }
-                    
-                    validSamples += 1.0;
-                    
-                    vec3 sampleWorldPos = texelFetch(positionBuffer, sampleCoord, 0).rgb;
-                    float sampleLinearDepth = length(sampleWorldPos - cameraPosition.xyz);
-                    
-                    float sampleDist = length(samplePos - cameraPosition.xyz);
-
-                    // Range check
-                    float rangeCheck = smoothstep(0.0, 1.0, radius / abs(currentLinearDepth - sampleLinearDepth));
-                    
-                    // Check if sample is occluded
-                    occlusion += (sampleLinearDepth <= sampleDist - bias ? 1.0 : 0.0) * rangeCheck;
-                }
-                
-                // Divide by actual valid samples to avoid flickering when many samples are rejected
-                occlusion = 1.0 - (occlusion / max(validSamples, 1.0));
-                
-                fragColor = vec4(occlusion, occlusion, occlusion, 1.0);
             }`,
 	},
 	debug: {
