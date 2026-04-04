@@ -333,6 +333,7 @@ const renderLighting = () => {
 	// Directional lights (always render)
 	Shaders.directionalLight.bind();
 	Shaders.directionalLight.setInt("normalBuffer", 1);
+	Shaders.directionalLight.setInt("colorBuffer", 3);
 	for (const entity of Scene.visibilityCache[EntityTypes.DIRECTIONAL_LIGHT]) {
 		entity.render();
 	}

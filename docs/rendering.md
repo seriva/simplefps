@@ -37,7 +37,7 @@ Backend selection is **asynchronous** and uses a transparent `Proxy` so the rest
 
 - Stored as RGB texture atlas.
 - Multiplied by albedo in the geometry pass.
-- The lightmap flag is stored in `normal.w` (1.0 = lightmapped).
+- The lightmap flag is stored in `color.a` (1.0 = lightmapped/skybox).
 - Dynamic lights skip lightmapped surfaces to avoid double-lighting.
 - Provides indirect lighting, bounce light, and baked AO at no runtime cost.
 
@@ -60,8 +60,8 @@ Pass order: Geometry → Shadow → FPS Geometry → Lighting → Transparent �
 | Attachment | Format | Content |
 |------------|--------|---------|
 | 0 | RGBA16F | World-space position |
-| 1 | RGBA8 | View-space normals + lightmap flag (w) |
-| 2 | RGBA8 | Albedo |
+| 1 | RG8 | Oct-encoded normals (xy = octahedral encoding of world-space normal) |
+| 2 | RGBA8 | Albedo (a = lightmap flag: 1.0 = lightmapped/skybox, 0.0 = dynamic) |
 | 3 | RGBA8 | Emissive |
 
 **Render Order:** Skybox → Occluders → Occlusion Queries → Occludees  

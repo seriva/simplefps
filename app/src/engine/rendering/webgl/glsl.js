@@ -2,6 +2,21 @@
 // Shared GLSL code snippets (for template interpolation)
 // =========================================================================
 
+const _octEncode = /* glsl */ `
+vec2 octEncode(vec3 n) {
+    n /= abs(n.x) + abs(n.y) + abs(n.z);
+    if (n.z < 0.0) n.xy = (1.0 - abs(n.yx)) * sign(n.xy);
+    return n.xy * 0.5 + 0.5;
+}`;
+
+const _octDecode = /* glsl */ `
+vec3 octDecode(vec2 f) {
+    f = f * 2.0 - 1.0;
+    vec3 n = vec3(f, 1.0 - abs(f.x) - abs(f.y));
+    if (n.z < 0.0) n.xy = (1.0 - abs(n.yx)) * sign(n.xy);
+    return normalize(n);
+}`;
+
 const _frameDataUBO = /* glsl */ `
 layout(std140) uniform FrameData {
     mat4 matViewProj;
@@ -136,6 +151,8 @@ const _geometryFragment = /* glsl */ `#version 300 es
             uniform bool doProceduralDetail;
             uniform vec3 uProbeColor;
 
+            ${_octEncode}
+
             const int MESH = 1;
             const int SKYBOX = 2;
 
@@ -215,17 +232,15 @@ const _geometryFragment = /* glsl */ `#version 300 es
                         }
                     }
 
-                // Store lightmap flag in normal.w for post-processing
-                    // 0.0 = use deferred lighting, 1.0 = has lightmap
-                    float lightmapFlag = float(flags.w);
-                    // Pack normal from [-1,1] to [0,1] for RGBA8 storage
-                    fragNormal = vec4(N * 0.5 + 0.5, lightmapFlag);
-                    // Output world position directly (w=1.0 for RGBA format)
+                    fragNormal = vec4(octEncode(N), 0.0, 0.0);
                     fragPosition = vec4(vPosition.xyz, 1.0);
                 } else {
-                    fragNormal = vec4(0.5, 0.5, 0.5, 1.0); // Packed zero normal
+                    fragNormal = vec4(0.5, 0.5, 0.0, 0.0); // oct-encode of (0,0,1)
                     fragPosition = vec4(0.0, 0.0, 0.0, 0.0); // Skybox has no real position
                 }
+
+                // Lightmap flag: skybox counts as 1.0 (skip deferred lights), else use material flag
+                float lightmapFlag = (flags.x == SKYBOX) ? 1.0 : float(flags.w);
 
                 // Apply reflection if enabled
                 if (flags.z == 1) {
@@ -250,7 +265,7 @@ const _geometryFragment = /* glsl */ `#version 300 es
                     fragEmissive = textureLod(emissiveSampler, vUV, 0.0);
                 }
 
-                fragColor = color + fragEmissive;
+                fragColor = vec4((color + fragEmissive).rgb, lightmapFlag);
             }`;
 
 export const ShaderSources = {
@@ -390,13 +405,13 @@ export const ShaderSources = {
 
             uniform DirectionalLight directionalLight;
             uniform sampler2D normalBuffer;
+            uniform sampler2D colorBuffer;
+
+            ${_octDecode}
 
             void main() {
                 ivec2 fragCoord = ivec2(gl_FragCoord.xy);
-                vec4 normalData = texelFetch(normalBuffer, fragCoord, 0);
-                // Unpack normal from [0,1] to [-1,1]
-                vec3 normal = normalData.xyz * 2.0 - 1.0;
-                float hasLightmap = normalData.w;
+                float hasLightmap = texelFetch(colorBuffer, fragCoord, 0).a;
 
                 // Skip lightmapped surfaces — directional lights only affect dynamic objects
                 if (hasLightmap > 0.5) {
@@ -404,7 +419,8 @@ export const ShaderSources = {
                     return;
                 }
 
-                vec3 lightIntensity = directionalLight.color * max(dot(normalize(normal), normalize(directionalLight.direction)), 0.0);
+                vec3 normal = octDecode(texelFetch(normalBuffer, fragCoord, 0).rg);
+                vec3 lightIntensity = directionalLight.color * max(dot(normal, normalize(directionalLight.direction)), 0.0);
                 fragColor = vec4(lightIntensity, 1.0);
             }`,
 	},
@@ -442,14 +458,14 @@ export const ShaderSources = {
             uniform sampler2D positionBuffer;
             uniform sampler2D normalBuffer;
 
+            ${_octDecode}
             ${_pointLightCalc}
 
             void main() {
                 ivec2 fragCoord = ivec2(gl_FragCoord.xy);
-                
+
                 vec3 position = texelFetch(positionBuffer, fragCoord, 0).rgb;
-                // Unpack normal from [0,1] to [-1,1]
-                vec3 normal = normalize(texelFetch(normalBuffer, fragCoord, 0).xyz * 2.0 - 1.0);
+                vec3 normal = octDecode(texelFetch(normalBuffer, fragCoord, 0).rg);
 
                 vec2 pl = calcPointLight(pointLight.position, pointLight.size, position, normal);
                 if (pl.x <= 0.0) discard;
@@ -491,14 +507,14 @@ export const ShaderSources = {
             uniform sampler2D positionBuffer;
             uniform sampler2D normalBuffer;
 
+            ${_octDecode}
             ${_spotLightCalc}
 
             void main() {
                 ivec2 fragCoord = ivec2(gl_FragCoord.xy);
-                
+
                 vec3 position = texelFetch(positionBuffer, fragCoord, 0).rgb;
-                // Unpack normal from [0,1] to [-1,1]
-                vec3 normal = normalize(texelFetch(normalBuffer, fragCoord, 0).xyz * 2.0 - 1.0);
+                vec3 normal = octDecode(texelFetch(normalBuffer, fragCoord, 0).rg);
 
                 vec3 sl = calcSpotLight(spotLight.position, spotLight.direction, spotLight.cutoff, spotLight.range, position, normal);
                 if (sl.x <= 0.0) discard;
@@ -564,7 +580,6 @@ export const ShaderSources = {
  
             uniform sampler2D colorBuffer;
             uniform sampler2D lightBuffer;
-            uniform sampler2D normalBuffer;
             uniform sampler2D emissiveBuffer;
             uniform sampler2D dirtBuffer;
             uniform sampler2D shadowBuffer;
@@ -583,21 +598,13 @@ export const ShaderSources = {
                 // Use texelFetch for G-buffer reads (no filtering needed)
                 vec4 color = texelFetch(colorBuffer, fragCoord, 0);
                 vec4 light = texelFetch(lightBuffer, fragCoord, 0);
-                // Unpack normal from [0,1] to [-1,1] (w component is still lightmap flag [0,1])
-                vec4 normalData = texelFetch(normalBuffer, fragCoord, 0);
-                vec3 normalVec = normalData.xyz * 2.0 - 1.0;
-                vec4 normal = vec4(normalVec, normalData.w); // Keep w component as is
                 vec4 emissive = texelFetch(emissiveBuffer, fragCoord, 0);
                 vec4 dirt = texture(dirtBuffer, uv); // Dirt uses tiled texture, needs filtering
-
-                // Read lightmap flag from normal.w
-                // 1.0 = has lightmap (additive lighting), 0.0 = dynamic object (multiplicative lighting)
-                float hasLightmap = normal.w;
 
                 // Additive dynamic lighting on top of base color
                 // Both lightmapped and dynamic objects use the same model
                 vec3 dynamicLight = max(light.rgb - uAmbient, vec3(0.0));
-                fragColor = vec4(color.rgb + dynamicLight, color.a);
+                fragColor = vec4(color.rgb + dynamicLight, 1.0);
 
                 // Apply shadows - multiply by shadow buffer
                 // Skip shadows for sky (position.w == 0 or very far distance)

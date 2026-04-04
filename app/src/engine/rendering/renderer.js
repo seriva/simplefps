@@ -130,7 +130,7 @@ const _resize = (width, height) => {
 
 	// World position buffer (RGBA16F for accurate position at all distances)
 	_g.worldPosition = new Texture({ format: "rgba16f", width, height });
-	_g.normal = new Texture({ format: "rgba8", width, height });
+	_g.normal = new Texture({ format: "rg8", width, height });
 	_g.color = new Texture({ format: "rgba8", width, height });
 	_g.emissive = new Texture({ format: "rgba8", width, height });
 
@@ -464,6 +464,7 @@ const _lightingPass = () => {
 	_g.worldPosition.bind(0);
 	_g.normal.bind(1);
 	_s.shadow.bind(2);
+	_g.color.bind(3);
 
 	Backend.setCullState(true);
 	Backend.setDepthState(false, false);
@@ -475,7 +476,7 @@ const _lightingPass = () => {
 	Backend.setDepthState(true, true);
 	Backend.setCullState(true);
 
-	Texture.unBindRange(0, 3);
+	Texture.unBindRange(0, 4);
 	Backend.bindFramebuffer(null);
 
 	_blurImage(_BlurSourceType.LIGHTING, Settings.lightBlurIterations, 0.2);
@@ -545,21 +546,19 @@ const _postProcessingPass = () => {
 
 	_g.color.bind(0);
 	_l.light.bind(1);
-	_g.normal.bind(2);
-	_g.emissive.bind(3);
+	_g.emissive.bind(2);
 	const dirt = Resources.get("system/dirt.webp");
-	dirt.bind(4);
-	_s.shadow.bind(5);
-	_g.worldPosition.bind(6);
+	dirt.bind(3);
+	_s.shadow.bind(4);
+	_g.worldPosition.bind(5);
 	Shaders.postProcessing.bind();
 
 	Shaders.postProcessing.setInt("colorBuffer", 0);
 	Shaders.postProcessing.setInt("lightBuffer", 1);
-	Shaders.postProcessing.setInt("normalBuffer", 2);
-	Shaders.postProcessing.setInt("emissiveBuffer", 3);
-	Shaders.postProcessing.setInt("dirtBuffer", 4);
-	Shaders.postProcessing.setInt("shadowBuffer", 5);
-	Shaders.postProcessing.setInt("positionBuffer", 6);
+	Shaders.postProcessing.setInt("emissiveBuffer", 2);
+	Shaders.postProcessing.setInt("dirtBuffer", 3);
+	Shaders.postProcessing.setInt("shadowBuffer", 4);
+	Shaders.postProcessing.setInt("positionBuffer", 5);
 
 	Shaders.postProcessing.setFloat("emissiveMult", Settings.emissiveMult);
 	Shaders.postProcessing.setFloat("gamma", Settings.gamma);
@@ -572,7 +571,7 @@ const _postProcessingPass = () => {
 	Shapes.screenQuad.renderSingle();
 
 	Backend.unbindShader();
-	Texture.unBindRange(0, 7);
+	Texture.unBindRange(0, 6);
 
 	if (_pp.framebuffer) {
 		Backend.bindFramebuffer(null);

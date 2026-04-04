@@ -1,6 +1,31 @@
 // WGSL Shader Sources for WebGPU Backend
 // Stage 2: Basic geometry rendering with textures
 
+const _octEncode = /* wgsl */ `
+fn octEncode(n: vec3<f32>) -> vec2<f32> {
+    var v = n / (abs(n.x) + abs(n.y) + abs(n.z));
+    if (v.z < 0.0) {
+        let ox = v.x;
+        let oy = v.y;
+        v.x = (1.0 - abs(oy)) * select(-1.0, 1.0, ox >= 0.0);
+        v.y = (1.0 - abs(ox)) * select(-1.0, 1.0, oy >= 0.0);
+    }
+    return v.xy * 0.5 + 0.5;
+}`;
+
+const _octDecode = /* wgsl */ `
+fn octDecode(f_in: vec2<f32>) -> vec3<f32> {
+    var f = f_in * 2.0 - 1.0;
+    var n = vec3<f32>(f, 1.0 - abs(f.x) - abs(f.y));
+    if (n.z < 0.0) {
+        let ox = n.x;
+        let oy = n.y;
+        n.x = (1.0 - abs(oy)) * select(-1.0, 1.0, ox >= 0.0);
+        n.y = (1.0 - abs(ox)) * select(-1.0, 1.0, oy >= 0.0);
+    }
+    return normalize(n);
+}`;
+
 // Shared structures and bindings
 const FrameDataStruct = /* wgsl */ `
 struct FrameData {
@@ -133,7 +158,7 @@ struct GeomVertexOutput {
 
 struct FragmentOutput {
     @location(0) position: vec4<f32>,
-    @location(1) normal: vec4<f32>,
+    @location(1) normal: vec2<f32>,
     @location(2) color: vec4<f32>,
     @location(3) emissive: vec4<f32>,
 }
@@ -153,6 +178,8 @@ struct FragmentOutput {
 
 const MESH: i32 = 1;
 const SKYBOX: i32 = 2;
+
+${_octEncode}
 
 @vertex
 fn vs_main(input: GeomVertexInput) -> GeomVertexOutput {
@@ -248,15 +275,15 @@ fn fs_main(input: GeomVertexOutput) -> FragmentOutput {
     // Initialize emissive
     output.emissive = vec4<f32>(0.0);
     
+    let lightmapFlag = select(1.0, f32(materialData.flags.w), materialData.flags.x != SKYBOX);
     if (materialData.flags.x != SKYBOX) {
-        let lightmapFlag = f32(materialData.flags.w);
-        output.normal = vec4<f32>(N * 0.5 + 0.5, lightmapFlag);
+        output.normal = octEncode(N);
         output.position = vec4<f32>(input.worldPosition.xyz, 1.0);
     } else {
-        output.normal = vec4<f32>(0.5, 0.5, 0.5, 1.0);
+        output.normal = vec2<f32>(0.5, 0.5);
         output.position = vec4<f32>(0.0, 0.0, 0.0, 0.0);
     }
-    
+
     // Apply reflection if enabled (flags.z == 1)
     if (materialData.flags.z == 1) {
          color = applyReflection(color, input.uv, input.worldPosition.xyz, N);
@@ -266,8 +293,8 @@ fn fs_main(input: GeomVertexOutput) -> FragmentOutput {
     if (materialData.flags.y == 1) {
         output.emissive = textureSample(emissiveTexture, colorSampler, input.uv);
     }
-    
-    output.color = color + output.emissive;
+
+    output.color = vec4<f32>((color + output.emissive).rgb, lightmapFlag);
     
     return output;
 }
@@ -295,7 +322,7 @@ struct GeomVertexOutput {
 
 struct FragmentOutput {
     @location(0) position: vec4<f32>,
-    @location(1) normal: vec4<f32>,
+    @location(1) normal: vec2<f32>,
     @location(2) color: vec4<f32>,
     @location(3) emissive: vec4<f32>,
 }
@@ -315,6 +342,7 @@ ${SkinningUniformBinding}
 const MESH: i32 = 1;
 const SKYBOX: i32 = 2;
 
+${_octEncode}
 ${SkinningCalcFn}
 ${ReflectionCalcFn}
 
@@ -358,7 +386,7 @@ fn fs_main(input: GeomVertexOutput) -> FragmentOutput {
     output.emissive = vec4<f32>(0.0);
     
     // Skinned meshes don't have lightmaps, always use deferred lighting
-    output.normal = vec4<f32>(input.normal * 0.5 + 0.5, 0.0);
+    output.normal = octEncode(input.normal);
     output.position = vec4<f32>(input.worldPosition.xyz, 1.0);
     
     // Apply reflection if enabled (flags.z == 1)
@@ -370,9 +398,9 @@ fn fs_main(input: GeomVertexOutput) -> FragmentOutput {
     if (materialData.flags.y == 1) {
         output.emissive = textureSample(emissiveTexture, colorSampler, input.uv);
     }
-    
-    output.color = color + output.emissive;
-    
+
+    output.color = vec4<f32>((color + output.emissive).rgb, 0.0);
+
     return output;
 }
 `;
@@ -466,6 +494,9 @@ struct DirLightOutput {
 @group(0) @binding(0) var<uniform> frameData: FrameData;
 @group(1) @binding(2) var<uniform> directionalLight: DirectionalLight;
 @group(1) @binding(3) var normalBuffer: texture_2d<f32>;
+@group(1) @binding(4) var colorBuffer: texture_2d<f32>;
+
+${_octDecode}
 
 @vertex
 fn vs_main(@builtin(vertex_index) vertexIndex: u32) -> DirLightOutput {
@@ -480,16 +511,15 @@ fn vs_main(@builtin(vertex_index) vertexIndex: u32) -> DirLightOutput {
 @fragment
 fn fs_main(input: DirLightOutput) -> @location(0) vec4<f32> {
     let fragCoord = vec2<i32>(input.position.xy);
-    let normalData = textureLoad(normalBuffer, fragCoord, 0);
-    let normal = normalData.xyz * 2.0 - 1.0;
-    let lightmapFlag = normalData.w;
-    
+    let hasLightmap = textureLoad(colorBuffer, fragCoord, 0).a;
+
     // Skip lightmapped surfaces
-    if (lightmapFlag > 0.5) {
+    if (hasLightmap > 0.5) {
         return vec4<f32>(0.0, 0.0, 0.0, 1.0);
     }
-    
-    let lightIntensity = directionalLight.color * max(dot(normalize(normal), normalize(directionalLight.direction)), 0.0);
+
+    let normal = octDecode(textureLoad(normalBuffer, fragCoord, 0).rg);
+    let lightIntensity = directionalLight.color * max(dot(normal, normalize(directionalLight.direction)), 0.0);
     return vec4<f32>(lightIntensity, 1.0);
 }
 `;
@@ -520,6 +550,7 @@ struct PointLightVertexOutput {
 @group(1) @binding(3) var positionBuffer: texture_2d<f32>;
 @group(1) @binding(4) var normalBuffer: texture_2d<f32>;
 
+${_octDecode}
 ${PointLightCalcFn}
 
 @vertex
@@ -532,14 +563,13 @@ fn vs_main(input: PointLightVertexInput) -> PointLightVertexOutput {
 @fragment
 fn fs_main(input: PointLightVertexOutput) -> @location(0) vec4<f32> {
     let fragCoord = vec2<i32>(input.clipPosition.xy);
-    
+
     let position = textureLoad(positionBuffer, fragCoord, 0).rgb;
-    let normalData = textureLoad(normalBuffer, fragCoord, 0);
-    let normal = normalize(normalData.xyz * 2.0 - 1.0);
-    
+    let normal = octDecode(textureLoad(normalBuffer, fragCoord, 0).rg);
+
     let pl = calcPointLight(pointLight.position, pointLight.size, position, normal);
     if (pl.x <= 0.0) { discard; }
-    
+
     return vec4<f32>(pointLight.color * pl.x * pl.y * pointLight.intensity, 1.0);
 }
 `;
@@ -572,6 +602,7 @@ struct SpotLightVertexOutput {
 @group(1) @binding(3) var positionBuffer: texture_2d<f32>;
 @group(1) @binding(4) var normalBuffer: texture_2d<f32>;
 
+${_octDecode}
 ${SpotLightCalcFn}
 
 @vertex
@@ -584,14 +615,13 @@ fn vs_main(input: SpotLightVertexInput) -> SpotLightVertexOutput {
 @fragment
 fn fs_main(input: SpotLightVertexOutput) -> @location(0) vec4<f32> {
     let fragCoord = vec2<i32>(input.clipPosition.xy);
-    
+
     let position = textureLoad(positionBuffer, fragCoord, 0).rgb;
-    let normalData = textureLoad(normalBuffer, fragCoord, 0);
-    let normal = normalize(normalData.xyz * 2.0 - 1.0);
-    
+    let normal = octDecode(textureLoad(normalBuffer, fragCoord, 0).rg);
+
     let sl = calcSpotLight(spotLight.position, spotLight.direction, spotLight.cutoff, spotLight.range, position, normal);
     if (sl.x <= 0.0) { discard; }
-    
+
     return vec4<f32>(spotLight.color * spotLight.intensity * sl.x * sl.y * sl.z, 1.0);
 }
 `;
@@ -661,11 +691,10 @@ struct PostOutput {
 @group(1) @binding(1) var bufferSampler: sampler;
 @group(1) @binding(2) var colorBuffer: texture_2d<f32>;
 @group(1) @binding(3) var lightBuffer: texture_2d<f32>;
-@group(1) @binding(4) var normalBuffer: texture_2d<f32>;
-@group(1) @binding(5) var emissiveBuffer: texture_2d<f32>;
-@group(1) @binding(6) var dirtBuffer: texture_2d<f32>;
-@group(1) @binding(7) var shadowBuffer: texture_2d<f32>;
-@group(1) @binding(8) var positionBuffer: texture_2d<f32>;
+@group(1) @binding(4) var emissiveBuffer: texture_2d<f32>;
+@group(1) @binding(5) var dirtBuffer: texture_2d<f32>;
+@group(1) @binding(6) var shadowBuffer: texture_2d<f32>;
+@group(1) @binding(7) var positionBuffer: texture_2d<f32>;
 
 @vertex
 fn vs_main(@builtin(vertex_index) vertexIndex: u32) -> PostOutput {
@@ -685,17 +714,14 @@ fn fs_main(input: PostOutput) -> @location(0) vec4<f32> {
     
     // Direct texture load for color (no FXAA)
     let color = textureLoad(colorBuffer, fragCoord, 0);
-    
+
     let light = textureLoad(lightBuffer, fragCoord, 0);
-    let normalData = textureLoad(normalBuffer, fragCoord, 0);
     let emissive = textureLoad(emissiveBuffer, fragCoord, 0);
     let dirt = textureSample(dirtBuffer, bufferSampler, uv);
 
-    let hasLightmap = normalData.w;
-    
     // Add dynamic lighting
     let dynamicLight = max(light.rgb - params.ambient.xyz, vec3<f32>(0.0));
-    var fragColor = vec4<f32>(color.rgb + dynamicLight, color.a);
+    var fragColor = vec4<f32>(color.rgb + dynamicLight, 1.0);
 
     // Apply shadows - multiply by shadow buffer
     // Skip shadows for sky (position.w == 0)
@@ -1190,6 +1216,7 @@ export const WgslShaderSources = {
 			group1: [
 				{ binding: 2, type: "uniform", name: "directionalLight" },
 				{ binding: 3, type: "texture", unit: 1 },
+				{ binding: 4, type: "texture", unit: 3 },
 			],
 		},
 	},
@@ -1245,7 +1272,6 @@ export const WgslShaderSources = {
 				{ binding: 5, type: "texture", unit: 3 },
 				{ binding: 6, type: "texture", unit: 4 },
 				{ binding: 7, type: "texture", unit: 5 },
-				{ binding: 8, type: "texture", unit: 6 },
 			],
 		},
 	},
