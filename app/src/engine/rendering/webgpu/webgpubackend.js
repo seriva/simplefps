@@ -358,6 +358,13 @@ class WebGPUBackend extends RenderBackend {
 		const view = texture.createView();
 		view._id = this._resourceIdCounter++;
 
+		// For depth textures, also create a depth-only aspect view for shader sampling
+		let depthView = null;
+		if (isDepth) {
+			depthView = texture.createView({ aspect: "depth-only" });
+			depthView._id = this._resourceIdCounter++;
+		}
+
 		// Upload initial data if provided
 		if (descriptor.pdata && !isDepth) {
 			device.queue.writeTexture(
@@ -386,6 +393,7 @@ class WebGPUBackend extends RenderBackend {
 		return {
 			_gpuTexture: texture,
 			_gpuTextureView: view,
+			_gpuDepthTextureView: depthView,
 			_gpuSampler: sampler,
 			_id: this._resourceIdCounter++,
 			_samplerId: this._resourceIdCounter++, // Separate ID for the sampler part
@@ -1310,6 +1318,8 @@ class WebGPUBackend extends RenderBackend {
 				entry.sampler = { type: "filtering" };
 			} else if (b.type === "texture") {
 				entry.texture = { sampleType: "float" };
+			} else if (b.type === "depth-texture") {
+				entry.texture = { sampleType: "depth" };
 			}
 			entries.push(entry);
 		}
@@ -1774,6 +1784,15 @@ class WebGPUBackend extends RenderBackend {
 								resource: this._defaultTextureView,
 							});
 							bg1Key += `${b.binding}:t:${this._defaultTextureView._id}|`;
+						}
+					} else if (b.type === "depth-texture") {
+						const tex = this._boundTextures.get(b.unit);
+						if (tex?._gpuDepthTextureView) {
+							entries.push({
+								binding: b.binding,
+								resource: tex._gpuDepthTextureView,
+							});
+							bg1Key += `${b.binding}:d:${tex._gpuDepthTextureView._id}|`;
 						}
 					}
 				}
