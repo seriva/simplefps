@@ -345,7 +345,7 @@ const renderLighting = () => {
 
 	// Point lights
 	Shaders.pointLight.bind();
-	Shaders.pointLight.setInt("positionBuffer", 0);
+	Shaders.pointLight.setInt("depthBuffer", 0);
 	Shaders.pointLight.setInt("normalBuffer", 1);
 	for (const light of pointLights) {
 		light.render();
@@ -355,7 +355,7 @@ const renderLighting = () => {
 
 	// Spot lights
 	Shaders.spotLight.bind();
-	Shaders.spotLight.setInt("positionBuffer", 0);
+	Shaders.spotLight.setInt("depthBuffer", 0);
 	Shaders.spotLight.setInt("normalBuffer", 1);
 	for (const light of spotLights) {
 		light.render();

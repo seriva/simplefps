@@ -23,7 +23,6 @@ const _g = {
 	normal: null,
 	color: null,
 	emissive: null,
-	worldPosition: null, // World-space position buffer for accurate lighting
 };
 
 const _s = {
@@ -60,7 +59,6 @@ const _disposeResources = () => {
 	if (_depth) _depth.dispose();
 	if (_g.framebuffer) {
 		Backend.deleteFramebuffer(_g.framebuffer);
-		if (_g.worldPosition) _g.worldPosition.dispose();
 		if (_g.normal) _g.normal.dispose();
 		if (_g.color) _g.color.dispose();
 		if (_g.emissive) _g.emissive.dispose();
@@ -120,15 +118,13 @@ const _resize = (width, height) => {
 	_g.width = width;
 	_g.height = height;
 
-	// World position buffer (RGBA16F for accurate position at all distances)
-	_g.worldPosition = new Texture({ format: "rgba16f", width, height });
-	_g.normal = new Texture({ format: "rg8", width, height });
+	// Normal buffer: RG = oct-encoded normal, B = world geometry flag (1=world, 0=skybox)
+	_g.normal = new Texture({ format: "rgba8", width, height });
 	_g.color = new Texture({ format: "rgba8", width, height });
 	_g.emissive = new Texture({ format: "rgba8", width, height });
 
 	_g.framebuffer = Backend.createFramebuffer({
 		colorAttachments: [
-			_g.worldPosition.getHandle(),
 			_g.normal.getHandle(),
 			_g.color.getHandle(),
 			_g.emissive.getHandle(),
@@ -455,7 +451,7 @@ const _lightingPass = () => {
 	Backend.clear({
 		color: [ambient[0], ambient[1], ambient[2], 1.0],
 	});
-	_g.worldPosition.bind(0);
+	_depth.bind(0);
 	_g.normal.bind(1);
 	_s.shadow.bind(2);
 	_g.color.bind(3);
@@ -544,7 +540,7 @@ const _postProcessingPass = () => {
 	const dirt = Resources.get("system/dirt.webp");
 	dirt.bind(3);
 	_s.shadow.bind(4);
-	_g.worldPosition.bind(5);
+	_g.normal.bind(5);
 	Shaders.postProcessing.bind();
 
 	Shaders.postProcessing.setInt("colorBuffer", 0);
@@ -552,7 +548,7 @@ const _postProcessingPass = () => {
 	Shaders.postProcessing.setInt("emissiveBuffer", 2);
 	Shaders.postProcessing.setInt("dirtBuffer", 3);
 	Shaders.postProcessing.setInt("shadowBuffer", 4);
-	Shaders.postProcessing.setInt("positionBuffer", 5);
+	Shaders.postProcessing.setInt("normalBuffer", 5);
 
 	Shaders.postProcessing.setFloat("emissiveMult", Settings.emissiveMult);
 	Shaders.postProcessing.setFloat("gamma", Settings.gamma);

@@ -51,6 +51,23 @@ vec2 calcPointLight(vec3 lightPos, float lightSize, vec3 fragPos, vec3 normal) {
     return vec2(falloff * falloff, nDotL);
 }`;
 
+// Reconstruct world-space position from the depth buffer.
+// Accounts for both depth ranges used in this renderer:
+//   World geometry : depthRange(0.1, 1.0)  → depth buffer ∈ [0.1, 1.0]
+//   FPS geometry   : depthRange(0.0, 0.1)  → depth buffer ∈ [0.0, 0.1)
+// Requires: depthBuffer sampler, matInvViewProj and viewportSize from FrameData UBO.
+const _reconstructWorldPos = /* glsl */ `
+vec3 reconstructWorldPos(ivec2 fragCoord) {
+    float d = texelFetch(depthBuffer, fragCoord, 0).r;
+    float z_ndc = d < 0.1
+        ? (2.0 * d - 0.1) / 0.1   // FPS range  [0.0, 0.1]
+        : (2.0 * d - 1.1) / 0.9;  // World range [0.1, 1.0]
+    vec2 uv = (vec2(fragCoord) + 0.5) / viewportSize.xy;
+    vec4 ndc = vec4(uv * 2.0 - 1.0, z_ndc, 1.0);
+    vec4 worldPos = matInvViewProj * ndc;
+    return worldPos.xyz / worldPos.w;
+}`;
+
 // Spot light attenuation calculation - shared between deferred and forward paths
 // Returns vec3(attenuation, spotFalloff, nDotL) to allow caller to combine
 const _spotLightCalc = /* glsl */ `
@@ -127,15 +144,14 @@ const _geometryFragment = /* glsl */ `#version 300 es
             precision highp float;
             precision highp int;
 
-            in vec4 vPosition;
+            in vec3 vPosition;
             in vec3 vNormal;
             in vec2 vUV;
             in vec2 vLightmapUV;
 
-            layout(location=0) out vec4 fragPosition;
-            layout(location=1) out vec4 fragNormal;
-            layout(location=2) out vec4 fragColor;
-            layout(location=3) out vec4 fragEmissive;
+            layout(location=0) out vec4 fragNormal;
+            layout(location=1) out vec4 fragColor;
+            layout(location=2) out vec4 fragEmissive;
 
 
             ${_frameDataUBO}
@@ -232,11 +248,9 @@ const _geometryFragment = /* glsl */ `#version 300 es
                         }
                     }
 
-                    fragNormal = vec4(octEncode(N), 0.0, 0.0);
-                    fragPosition = vec4(vPosition.xyz, 1.0);
+                    fragNormal = vec4(octEncode(N), 1.0, 0.0); // B=1: world geometry flag
                 } else {
-                    fragNormal = vec4(0.5, 0.5, 0.0, 0.0); // oct-encode of (0,0,1)
-                    fragPosition = vec4(0.0, 0.0, 0.0, 0.0); // Skybox has no real position
+                    fragNormal = vec4(0.5, 0.5, 0.0, 0.0); // oct-encode of (0,0,1); B=0: skybox flag
                 }
 
                 // Lightmap flag: skybox counts as 1.0 (skip deferred lights), else use material flag
@@ -283,7 +297,7 @@ export const ShaderSources = {
 
             uniform mat4 matWorld;
 
-            out vec4 vPosition;
+            out vec3 vPosition;
             out vec3 vNormal;
             out vec2 vUV;
             out vec2 vLightmapUV;
@@ -292,13 +306,13 @@ export const ShaderSources = {
             const int SKYBOX = 2;
 
             void main() {
-                vPosition = matWorld * vec4(aPosition, 1.0);
+                vPosition = (matWorld * vec4(aPosition, 1.0)).xyz;
 
                 vUV = aUV;
                 vLightmapUV = aLightmapUV;
                 vNormal = normalize(mat3(matWorld) * aNormal);
 
-                gl_Position = matViewProj * vPosition;
+                gl_Position = matViewProj * vec4(vPosition, 1.0);
             }`,
 		fragment: _geometryFragment,
 	},
@@ -318,7 +332,7 @@ export const ShaderSources = {
             uniform mat4 matWorld;
             ${_skinningUniform}
 
-            out vec4 vPosition;
+            out vec3 vPosition;
             out vec3 vNormal;
             out vec2 vUV;
             out vec2 vLightmapUV;
@@ -330,12 +344,12 @@ export const ShaderSources = {
                 vec3 skinnedPosition = (skinMatrix * vec4(aPosition, 1.0)).xyz;
                 vec3 skinnedNormal = mat3(skinMatrix) * aNormal;
 
-                vPosition = matWorld * vec4(skinnedPosition, 1.0);
+                vPosition = (matWorld * vec4(skinnedPosition, 1.0)).xyz;
                 vNormal = normalize(mat3(matWorld) * skinnedNormal);
                 vUV = aUV;
                 vLightmapUV = aLightmapUV;
 
-                gl_Position = matViewProj * vPosition;
+                gl_Position = matViewProj * vec4(vPosition, 1.0);
             }`,
 		fragment: _geometryFragment,
 	},
@@ -455,16 +469,17 @@ export const ShaderSources = {
             ${_frameDataUBO}
 
             uniform PointLight pointLight;
-            uniform sampler2D positionBuffer;
+            uniform highp sampler2D depthBuffer;
             uniform sampler2D normalBuffer;
 
             ${_octDecode}
             ${_pointLightCalc}
+            ${_reconstructWorldPos}
 
             void main() {
                 ivec2 fragCoord = ivec2(gl_FragCoord.xy);
 
-                vec3 position = texelFetch(positionBuffer, fragCoord, 0).rgb;
+                vec3 position = reconstructWorldPos(fragCoord);
                 vec3 normal = octDecode(texelFetch(normalBuffer, fragCoord, 0).rg);
 
                 vec2 pl = calcPointLight(pointLight.position, pointLight.size, position, normal);
@@ -504,16 +519,17 @@ export const ShaderSources = {
             ${_frameDataUBO}
 
             uniform SpotLight spotLight;
-            uniform sampler2D positionBuffer;
+            uniform highp sampler2D depthBuffer;
             uniform sampler2D normalBuffer;
 
             ${_octDecode}
             ${_spotLightCalc}
+            ${_reconstructWorldPos}
 
             void main() {
                 ivec2 fragCoord = ivec2(gl_FragCoord.xy);
 
-                vec3 position = texelFetch(positionBuffer, fragCoord, 0).rgb;
+                vec3 position = reconstructWorldPos(fragCoord);
                 vec3 normal = octDecode(texelFetch(normalBuffer, fragCoord, 0).rg);
 
                 vec3 sl = calcSpotLight(spotLight.position, spotLight.direction, spotLight.cutoff, spotLight.range, position, normal);
@@ -583,7 +599,7 @@ export const ShaderSources = {
             uniform sampler2D emissiveBuffer;
             uniform sampler2D dirtBuffer;
             uniform sampler2D shadowBuffer;
-            uniform sampler2D positionBuffer;
+            uniform sampler2D normalBuffer;
 
             uniform vec3 uAmbient;
             uniform float emissiveMult;
@@ -606,11 +622,9 @@ export const ShaderSources = {
                 vec3 dynamicLight = max(light.rgb - uAmbient, vec3(0.0));
                 fragColor = vec4(color.rgb + dynamicLight, 1.0);
 
-                // Apply shadows - multiply by shadow buffer
-                // Skip shadows for sky (position.w == 0 or very far distance)
-                vec4 position = texelFetch(positionBuffer, fragCoord, 0);
+                // Apply shadows - skip for skybox (normalBuffer.b == 0)
                 vec3 shadow = texelFetch(shadowBuffer, fragCoord, 0).rrr;
-                if (position.w > 0.0) {
+                if (texelFetch(normalBuffer, fragCoord, 0).b > 0.5) {
                     // Soften shadows - mix between full brightness and shadow value
                     vec3 softShadow = mix(vec3(1.0), shadow, shadowIntensity);
                     fragColor.rgb *= softShadow;
