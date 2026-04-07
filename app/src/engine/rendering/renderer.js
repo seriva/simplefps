@@ -38,24 +38,12 @@ const _l = {
 	light: null,
 };
 
-const _b = {
-	framebuffer: null,
-	blur: null,
-	source: null,
-};
-
-const _ao = {
-	framebuffer: null,
-	ssao: null,
-	noise: null,
-	blur: null,
-	blurFramebuffer: null,
-};
-
-const _pp = {
+const _scratch = {
 	framebuffer: null,
 	color: null,
 };
+
+let _blurSource = null;
 
 const _fsr = {
 	framebuffer: null,
@@ -64,11 +52,7 @@ const _fsr = {
 
 let _proceduralNoise = null;
 
-// SSAO sample kernel and noise data
-let _ssaoKernel = null;
-
 // Pre-allocated scratch arrays to avoid per-frame allocations in render passes
-const _ssaoNoiseScale = [0, 0];
 const _fsrCon0 = [0, 0, 0, 0];
 
 // Dispose old resources to prevent memory leaks on resize
@@ -89,21 +73,9 @@ const _disposeResources = () => {
 		Backend.deleteFramebuffer(_l.framebuffer);
 		if (_l.light) _l.light.dispose();
 	}
-	if (_b.framebuffer) {
-		Backend.deleteFramebuffer(_b.framebuffer);
-		if (_b.blur) _b.blur.dispose();
-	}
-	if (_ao.framebuffer) {
-		Backend.deleteFramebuffer(_ao.framebuffer);
-		if (_ao.ssao) _ao.ssao.dispose();
-	}
-	if (_ao.blurFramebuffer) {
-		Backend.deleteFramebuffer(_ao.blurFramebuffer);
-		if (_ao.blur) _ao.blur.dispose();
-	}
-	if (_pp.framebuffer) {
-		Backend.deleteFramebuffer(_pp.framebuffer);
-		if (_pp.color) _pp.color.dispose();
+	if (_scratch.framebuffer) {
+		Backend.deleteFramebuffer(_scratch.framebuffer);
+		if (_scratch.color) _scratch.color.dispose();
 	}
 	if (_fsr.framebuffer) {
 		Backend.deleteFramebuffer(_fsr.framebuffer);
@@ -150,7 +122,7 @@ const _resize = (width, height) => {
 
 	// World position buffer (RGBA16F for accurate position at all distances)
 	_g.worldPosition = new Texture({ format: "rgba16f", width, height });
-	_g.normal = new Texture({ format: "rgba8", width, height });
+	_g.normal = new Texture({ format: "rg8", width, height });
 	_g.color = new Texture({ format: "rgba8", width, height });
 	_g.emissive = new Texture({ format: "rgba8", width, height });
 
@@ -168,7 +140,7 @@ const _resize = (width, height) => {
 	// shadow buffer
 	// **********************************
 	const shadowRes = _createFB(
-		{ format: "rgba8", width, height },
+		{ format: "r8", width, height },
 		{ depthAttachment: _depth.getHandle() },
 	);
 	_s.shadow = shadowRes.texture;
@@ -184,39 +156,11 @@ const _resize = (width, height) => {
 	_l.framebuffer = lightRes.fb;
 
 	// **********************************
-	// blur buffer
+	// scratch buffer
 	// **********************************
-	const blurRes = _createFB({ format: "rgba8", width, height }, {});
-	_b.blur = blurRes.texture;
-	_b.framebuffer = blurRes.fb;
-
-	// **********************************
-	// SSAO buffer (Half Resolution)
-	// **********************************
-	const ssaoWidth = Math.floor(width / 2) || 1;
-	const ssaoHeight = Math.floor(height / 2) || 1;
-
-	const ssaoRes = _createFB(
-		{ format: "rgba8", width: ssaoWidth, height: ssaoHeight },
-		{},
-	);
-	_ao.ssao = ssaoRes.texture;
-	_ao.framebuffer = ssaoRes.fb;
-
-	// Dedicated blur buffer for SSAO (also Half Resolution)
-	const aoBlurRes = _createFB(
-		{ format: "rgba8", width: ssaoWidth, height: ssaoHeight },
-		{},
-	);
-	_ao.blur = aoBlurRes.texture;
-	_ao.blurFramebuffer = aoBlurRes.fb;
-
-	// Initialize SSAO noise texture (only once, doesn't need resize)
-	if (!_ao.noise) {
-		_generateSSAOKernel();
-		_generateSSAONoise();
-	}
-
+	const scratchRes = _createFB({ format: "rgba8", width, height }, {});
+	_scratch.color = scratchRes.texture;
+	_scratch.framebuffer = scratchRes.fb;
 	if (!_proceduralNoise) {
 		_generateProceduralNoise();
 	}
@@ -225,10 +169,6 @@ const _resize = (width, height) => {
 	// post-processing & FSR buffers
 	// **********************************
 	if (Settings.doFSR) {
-		const ppRes = _createFB({ format: "rgba8", width, height }, {});
-		_pp.color = ppRes.texture;
-		_pp.framebuffer = ppRes.fb;
-
 		const nativeWidth = Backend.getNativeWidth();
 		const nativeHeight = Backend.getNativeHeight();
 
@@ -239,8 +179,6 @@ const _resize = (width, height) => {
 		_fsr.easu = fsrRes.texture;
 		_fsr.framebuffer = fsrRes.fb;
 	} else {
-		_pp.color = null;
-		_pp.framebuffer = null;
 		_fsr.easu = null;
 		_fsr.framebuffer = null;
 	}
@@ -249,44 +187,53 @@ const _resize = (width, height) => {
 const _startBlurPass = (blurSource) => {
 	switch (blurSource) {
 		case _BlurSourceType.SHADOW:
-			_b.source = _s.shadow;
+			_blurSource = _s.shadow;
 			break;
 		case _BlurSourceType.LIGHTING:
-			_b.source = _l.light;
+			_blurSource = _l.light;
 			break;
 		case _BlurSourceType.EMISSIVE:
-			_b.source = _g.emissive;
+			_blurSource = _g.emissive;
 			break;
 		default:
 	}
-	Backend.bindFramebuffer(_b.framebuffer);
+	Backend.bindFramebuffer(_scratch.framebuffer);
 	Backend.setViewport(0, 0, _g.width, _g.height);
 };
 
 const _endBlurPass = () => {
 	Texture.unBind(0);
-	// Detach whatever texture was bound to the blur framebuffer's color attachment.
-	// This prevents WebGL feedback loop errors if subsequent passes (like _explosionPass)
-	// try to use that texture as a render target on a different framebuffer.
-	Backend.setFramebufferAttachment(_b.framebuffer, 0, null);
+	// Restore default attachment
+	Backend.setFramebufferAttachment(
+		_scratch.framebuffer,
+		0,
+		_scratch.color.getHandle(),
+	);
 	Backend.bindFramebuffer(null);
 };
 
 const _swapBlur = (i) => {
 	if (i % 2 === 0) {
-		Backend.setFramebufferAttachment(_b.framebuffer, 0, _b.blur.getHandle());
+		Backend.setFramebufferAttachment(
+			_scratch.framebuffer,
+			0,
+			_scratch.color.getHandle(),
+		);
 		// Re-bind (as setFramebufferAttachment unbinds)
-		Backend.bindFramebuffer(_b.framebuffer);
-		_b.source.bind(0);
+		Backend.bindFramebuffer(_scratch.framebuffer);
+		_blurSource.bind(0);
 	} else {
-		Backend.setFramebufferAttachment(_b.framebuffer, 0, _b.source.getHandle());
+		Backend.setFramebufferAttachment(
+			_scratch.framebuffer,
+			0,
+			_blurSource.getHandle(),
+		);
 		// Re-bind
-		Backend.bindFramebuffer(_b.framebuffer);
-		_b.blur.bind(0);
+		Backend.bindFramebuffer(_scratch.framebuffer);
+		_scratch.color.bind(0);
 	}
 	Backend.clear({ color: [0, 0, 0, 0] });
 };
-
 const _blurImage = (source, iterations, radius) => {
 	if (iterations <= 0) return;
 	Shaders.kawaseBlur.bind();
@@ -300,55 +247,6 @@ const _blurImage = (source, iterations, radius) => {
 	}
 	_endBlurPass();
 	Backend.unbindShader();
-};
-
-const _generateSSAOKernel = () => {
-	_ssaoKernel = new Float32Array(48); // 16 samples * 3 components
-	for (let i = 0; i < 16; ++i) {
-		// Generate random samples in a hemisphere
-		let x = Math.random() * 2.0 - 1.0;
-		let y = Math.random() * 2.0 - 1.0;
-		let z = Math.random();
-		// Normalize
-		const invLen = 1.0 / Math.sqrt(x * x + y * y + z * z);
-		x *= invLen;
-		y *= invLen;
-		z *= invLen;
-		// Scale samples so they're more aligned to center of kernel
-		const t = i / 16.0;
-		const scale = 0.1 + t * t * 0.9; // Lerp between 0.1 and 1.0
-		const idx = i * 3;
-		_ssaoKernel[idx] = x * scale;
-		_ssaoKernel[idx + 1] = y * scale;
-		_ssaoKernel[idx + 2] = z * scale;
-	}
-};
-
-const _generateSSAONoise = () => {
-	// Build the 4×4 noise texture in one pass — random XY vectors in tangent space,
-	// packed directly into Uint8Array without any intermediate array.
-	const noiseData = new Uint8Array(64); // 16 pixels × 4 channels
-	for (let i = 0; i < 16; i++) {
-		const x = Math.random() * 2.0 - 1.0;
-		const y = Math.random() * 2.0 - 1.0;
-		const off = i * 4;
-		noiseData[off] = ((x * 0.5 + 0.5) * 255) | 0;
-		noiseData[off + 1] = ((y * 0.5 + 0.5) * 255) | 0;
-		noiseData[off + 2] = 128; // z = 0.0 encoded as 128
-		noiseData[off + 3] = 255;
-	}
-
-	_ao.noise = new Texture({
-		format: "rgba8",
-		width: 4,
-		height: 4,
-		pdata: noiseData,
-		pformat: "rgba",
-		ptype: "ubyte",
-	});
-
-	// Set wrap mode to REPEAT
-	_ao.noise.setTextureWrapMode("repeat");
 };
 
 const _generateProceduralNoise = () => {
@@ -546,43 +444,6 @@ const _shadowPass = () => {
 	Backend.setDepthRange(0.0, 1.0);
 };
 
-const _ssaoPass = () => {
-	Backend.bindFramebuffer(_ao.framebuffer);
-	const ssaoWidth = Math.floor(_g.width / 2) || 1;
-	const ssaoHeight = Math.floor(_g.height / 2) || 1;
-	Backend.setViewport(0, 0, ssaoWidth, ssaoHeight);
-	Backend.clear({ color: [1.0, 1.0, 1.0, 1.0] });
-
-	// Bind G-buffer textures
-	_g.normal.bind(0);
-	_g.worldPosition.bind(1); // Use position buffer instead of depth
-	_ao.noise.bind(2);
-
-	// Setup SSAO shader
-	Shaders.ssao.bind();
-	Shaders.ssao.setInt("normalBuffer", 0);
-	Shaders.ssao.setInt("positionBuffer", 1);
-	Shaders.ssao.setInt("noiseTexture", 2);
-	// Set uniforms
-	// Noise scale should be based on SSAO resolution to ensure 1:1 mapping (avoiding aliasing)
-	// _ao.framebuffer.width is the half-res width
-	_ssaoNoiseScale[0] = ssaoWidth / 4.0;
-	_ssaoNoiseScale[1] = ssaoHeight / 4.0;
-	Shaders.ssao.setVec2("noiseScale", _ssaoNoiseScale);
-	Shaders.ssao.setFloat("radius", Settings.ssaoRadius);
-	Shaders.ssao.setFloat("bias", Settings.ssaoBias);
-	Shaders.ssao.setFloat("gBufferScale", 2.0); // Read from full-res G-buffer while rendering at half-res
-	Shaders.ssao.setVec3Array("uKernel", _ssaoKernel);
-
-	Backend.setDepthState(false, false);
-	Shapes.screenQuad.renderSingle();
-	Backend.setDepthState(true, true);
-
-	Backend.unbindShader();
-	Texture.unBindRange(0, 3);
-	Backend.bindFramebuffer(null);
-};
-
 const _lightingPass = () => {
 	// Explicitly detach depth buffer to allow reading it as a texture
 	Backend.setFramebufferAttachment(_l.framebuffer, "depth", null);
@@ -597,6 +458,7 @@ const _lightingPass = () => {
 	_g.worldPosition.bind(0);
 	_g.normal.bind(1);
 	_s.shadow.bind(2);
+	_g.color.bind(3);
 
 	Backend.setCullState(true);
 	Backend.setDepthState(false, false);
@@ -608,7 +470,7 @@ const _lightingPass = () => {
 	Backend.setDepthState(true, true);
 	Backend.setCullState(true);
 
-	Texture.unBindRange(0, 3);
+	Texture.unBindRange(0, 4);
 	Backend.bindFramebuffer(null);
 
 	_blurImage(_BlurSourceType.LIGHTING, Settings.lightBlurIterations, 0.2);
@@ -632,54 +494,6 @@ const _shadowBlurPass = () => {
 		Settings.shadowBlurIterations,
 		Settings.shadowBlurOffset,
 	);
-};
-
-const _ssaoBlurPass = () => {
-	// Blur SSAO with bilateral filter for edge-aware blurring (at half res)
-	const ssaoWidth = Math.floor(_g.width / 2) || 1;
-	const ssaoHeight = Math.floor(_g.height / 2) || 1;
-	Backend.bindFramebuffer(_ao.blurFramebuffer);
-	Backend.setViewport(0, 0, ssaoWidth, ssaoHeight);
-
-	// Bind position and normal buffers for edge detection
-	_g.worldPosition.bind(1);
-	_g.normal.bind(2);
-
-	// Ping-pong blur for SSAO using bilateral filter
-	// Force even number of iterations to ensure result ends up back in _ao.ssao
-	const iterations =
-		Settings.ssaoBlurIterations % 2 === 0
-			? Settings.ssaoBlurIterations
-			: Settings.ssaoBlurIterations + 1;
-
-	// Bind shader and set static uniforms once before the loop
-	Shaders.bilateralBlur.bind();
-	Shaders.bilateralBlur.setInt("aoBuffer", 0);
-	Shaders.bilateralBlur.setInt("positionBuffer", 1);
-	Shaders.bilateralBlur.setInt("normalBuffer", 2);
-	Shaders.bilateralBlur.setFloat("gBufferScale", 2.0); // Read G-buffer at 2x coord scale
-	Shaders.bilateralBlur.setFloat("depthThreshold", 20.0); // Very permissive depth threshold
-	Shaders.bilateralBlur.setFloat("normalThreshold", 2.0); // Very gentle normal falloff
-
-	// Ping-pong between the two pre-built framebuffers:
-	//   even iterations: read _ao.ssao → write _ao.blur  (_ao.blurFramebuffer)
-	//   odd  iterations: read _ao.blur → write _ao.ssao  (_ao.framebuffer)
-	// Forced-even iteration count guarantees the final result lands in _ao.ssao.
-	// No attachment mutation or clear needed — the full-screen quad covers every pixel.
-	for (let i = 0; i < iterations; i++) {
-		if (i % 2 === 0) {
-			Backend.bindFramebuffer(_ao.blurFramebuffer);
-			_ao.ssao.bind(0);
-		} else {
-			Backend.bindFramebuffer(_ao.framebuffer);
-			_ao.blur.bind(0);
-		}
-		Shapes.screenQuad.renderSingle();
-	}
-	Backend.unbindShader();
-
-	Texture.unBindRange(0, 3);
-	Backend.bindFramebuffer(null);
 };
 
 const _transparentPass = () => {
@@ -714,8 +528,8 @@ const _transparentPass = () => {
 };
 
 const _postProcessingPass = () => {
-	if (_pp.framebuffer) {
-		Backend.bindFramebuffer(_pp.framebuffer);
+	if (Settings.doFSR) {
+		Backend.bindFramebuffer(_scratch.framebuffer);
 		Backend.setViewport(0, 0, _g.width, _g.height);
 		Backend.clear({ color: [0, 0, 0, 1] });
 	} else {
@@ -726,30 +540,22 @@ const _postProcessingPass = () => {
 
 	_g.color.bind(0);
 	_l.light.bind(1);
-	_g.normal.bind(2);
-	_g.emissive.bind(3);
+	_g.emissive.bind(2);
 	const dirt = Resources.get("system/dirt.webp");
-	dirt.bind(4);
-	_ao.ssao.bind(5);
-	_s.shadow.bind(6);
-	_g.worldPosition.bind(7);
+	dirt.bind(3);
+	_s.shadow.bind(4);
+	_g.worldPosition.bind(5);
 	Shaders.postProcessing.bind();
 
 	Shaders.postProcessing.setInt("colorBuffer", 0);
 	Shaders.postProcessing.setInt("lightBuffer", 1);
-	Shaders.postProcessing.setInt("normalBuffer", 2);
-	Shaders.postProcessing.setInt("emissiveBuffer", 3);
-	Shaders.postProcessing.setInt("dirtBuffer", 4);
-	Shaders.postProcessing.setInt("aoBuffer", 5);
-	Shaders.postProcessing.setInt("shadowBuffer", 6);
-	Shaders.postProcessing.setInt("positionBuffer", 7);
+	Shaders.postProcessing.setInt("emissiveBuffer", 2);
+	Shaders.postProcessing.setInt("dirtBuffer", 3);
+	Shaders.postProcessing.setInt("shadowBuffer", 4);
+	Shaders.postProcessing.setInt("positionBuffer", 5);
 
 	Shaders.postProcessing.setFloat("emissiveMult", Settings.emissiveMult);
 	Shaders.postProcessing.setFloat("gamma", Settings.gamma);
-	Shaders.postProcessing.setFloat(
-		"ssaoStrength",
-		Settings.doSSAO ? Settings.ssaoStrength : 0.0,
-	);
 	Shaders.postProcessing.setFloat(
 		"dirtIntensity",
 		Settings.doDirt ? Settings.dirtIntensity : 0.0,
@@ -759,15 +565,14 @@ const _postProcessingPass = () => {
 	Shapes.screenQuad.renderSingle();
 
 	Backend.unbindShader();
-	Texture.unBindRange(0, 8);
+	Texture.unBindRange(0, 6);
 
-	if (_pp.framebuffer) {
+	if (Settings.doFSR) {
 		Backend.bindFramebuffer(null);
 	}
 };
-
 const _fsrPass = () => {
-	if (!Settings.doFSR || !_pp.color || !_fsr.easu) return;
+	if (!Settings.doFSR || !_scratch.color || !_fsr.easu) return;
 
 	const nativeWidth = Backend.getNativeWidth();
 	const nativeHeight = Backend.getNativeHeight();
@@ -789,7 +594,7 @@ const _fsrPass = () => {
 	_fsrCon0[3] = nativeHeight;
 	Shaders.fsrEasu.setVec4("con0", _fsrCon0);
 
-	_pp.color.bind(0);
+	_scratch.color.bind(0);
 	Shapes.screenQuad.renderSingle();
 
 	// RCAS pass
@@ -808,7 +613,6 @@ const _fsrPass = () => {
 	Backend.unbindShader();
 	Texture.unBindRange(0, 1);
 };
-
 const _debugPass = () => {
 	RenderPasses.renderDebug();
 };
@@ -875,10 +679,6 @@ const Renderer = {
 
 		_updateFrameData(time);
 		_worldGeomPass();
-		if (Settings.doSSAO) {
-			_ssaoPass();
-			_ssaoBlurPass();
-		}
 		_shadowPass();
 		if (Settings.shadowBlurIterations > 0) {
 			_shadowBlurPass();

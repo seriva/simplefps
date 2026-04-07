@@ -35,13 +35,6 @@ const _defaults = {
 	shadowIntensity: 0.5,
 	lightBlurIterations: 4,
 
-	// SSAO settings
-	doSSAO: false,
-	ssaoRadius: 12,
-	ssaoBias: 2.0,
-	ssaoStrength: 0.8,
-	ssaoBlurIterations: 5,
-
 	// Dirt/vignette effect
 	doDirt: true,
 	dirtIntensity: 0.25,

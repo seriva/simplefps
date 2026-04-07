@@ -1,6 +1,31 @@
 // WGSL Shader Sources for WebGPU Backend
 // Stage 2: Basic geometry rendering with textures
 
+const _octEncode = /* wgsl */ `
+fn octEncode(n: vec3<f32>) -> vec2<f32> {
+    var v = n / (abs(n.x) + abs(n.y) + abs(n.z));
+    if (v.z < 0.0) {
+        let ox = v.x;
+        let oy = v.y;
+        v.x = (1.0 - abs(oy)) * select(-1.0, 1.0, ox >= 0.0);
+        v.y = (1.0 - abs(ox)) * select(-1.0, 1.0, oy >= 0.0);
+    }
+    return v.xy * 0.5 + 0.5;
+}`;
+
+const _octDecode = /* wgsl */ `
+fn octDecode(f_in: vec2<f32>) -> vec3<f32> {
+    var f = f_in * 2.0 - 1.0;
+    var n = vec3<f32>(f, 1.0 - abs(f.x) - abs(f.y));
+    if (n.z < 0.0) {
+        let ox = n.x;
+        let oy = n.y;
+        n.x = (1.0 - abs(oy)) * select(-1.0, 1.0, ox >= 0.0);
+        n.y = (1.0 - abs(ox)) * select(-1.0, 1.0, oy >= 0.0);
+    }
+    return normalize(n);
+}`;
+
 // Shared structures and bindings
 const FrameDataStruct = /* wgsl */ `
 struct FrameData {
@@ -65,7 +90,7 @@ fn calcPointLight(lightPos: vec3<f32>, lightSize: f32, fragPos: vec3<f32>, norma
     let distSq = dot(lightDir, lightDir);
     let sizeSq = lightSize * lightSize;
     if (distSq > sizeSq) { return vec2<f32>(0.0); }
-    
+
     let normalizedDist = sqrt(distSq) / lightSize;
     let falloff = 1.0 - smoothstep(0.0, 1.0, normalizedDist);
 
@@ -81,17 +106,17 @@ fn calcSpotLight(lightPos: vec3<f32>, lightDir: vec3<f32>, cutoff: f32, range: f
     let toLight = lightPos - fragPos;
     let dist = length(toLight);
     if (dist > range) { return vec3<f32>(0.0); }
-    
+
     let toLightNorm = normalize(toLight);
     let spotEffect = dot(toLightNorm, -normalize(lightDir));
     if (spotEffect < cutoff) { return vec3<f32>(0.0); }
-    
+
     var spotFalloff = (spotEffect - cutoff) / (1.0 - cutoff);
     spotFalloff = smoothstep(0.0, 1.0, spotFalloff);
-    
+
     let attenuation = 1.0 - pow(dist / range, 1.5);
     let nDotL = max(0.0, dot(normal, toLightNorm));
-    
+
     return vec3<f32>(attenuation, spotFalloff, nDotL);
 }`;
 
@@ -101,7 +126,7 @@ fn applyReflection(baseColor: vec4<f32>, uv: vec2<f32>, worldPos: vec3<f32>, N: 
     let reflMask = textureSampleLevel(reflectionMaskTexture, colorSampler, uv, 0.0);
     let maskSum = dot(reflMask.rgb, vec3<f32>(0.333333));
     if (maskSum <= 0.2) { return baseColor; }
-    
+
     let viewDir = normalize(frameData.cameraPosition.xyz - worldPos);
     let r = reflect(-viewDir, N);
     let m = 2.0 * sqrt(dot(r.xy, r.xy) + (r.z + 1.0) * (r.z + 1.0)) + 0.00001;
@@ -133,7 +158,7 @@ struct GeomVertexOutput {
 
 struct FragmentOutput {
     @location(0) position: vec4<f32>,
-    @location(1) normal: vec4<f32>,
+    @location(1) normal: vec2<f32>,
     @location(2) color: vec4<f32>,
     @location(3) emissive: vec4<f32>,
 }
@@ -154,6 +179,8 @@ struct FragmentOutput {
 const MESH: i32 = 1;
 const SKYBOX: i32 = 2;
 
+${_octEncode}
+
 @vertex
 fn vs_main(input: GeomVertexInput) -> GeomVertexOutput {
     var output: GeomVertexOutput;
@@ -170,22 +197,22 @@ ${ReflectionCalcFn}
 @fragment
 fn fs_main(input: GeomVertexOutput) -> FragmentOutput {
     var output: FragmentOutput;
-    
+
     // Sample albedo
     var color = textureSample(colorTexture, colorSampler, input.uv);
     if (color.a < 0.5) {
         discard;
     }
-    
+
     var N = normalize(input.normal);
-    
+
     // Apply Probe Color for dynamic objects (no lightmap)
     // Static objects (lightmapFlag == 1) ignore this as they use texture mixing below
     // Skybox (flag x == SKYBOX) should also ignore this
     if (materialData.flags.w == 0 && materialData.flags.x != SKYBOX) {
         color = vec4<f32>(color.rgb * objectData.uProbeColor.rgb, color.a);
     }
-    
+
     // Apply lightmap if available and not skybox
     if (materialData.flags.w == 1 && materialData.flags.x != SKYBOX) {
         color = color * textureSample(lightmapTexture, lightmapSampler, input.lightmapUV);
@@ -195,7 +222,7 @@ fn fs_main(input: GeomVertexOutput) -> FragmentOutput {
     if (materialData.flags.x != SKYBOX && frameData.viewportSize.z > 0.5 && materialData.flags.w == 1) {
          let dist = distance(frameData.cameraPosition.xyz, input.worldPosition.xyz);
          let detailFade = 1.0 - smoothstep(100.0, 500.0, dist);
-         
+
          // Calculate TBN (Must be done in uniform control flow)
          let dp1 = dpdx(input.worldPosition.xyz);
          let dp2 = dpdy(input.worldPosition.xyz);
@@ -209,54 +236,54 @@ fn fs_main(input: GeomVertexOutput) -> FragmentOutput {
              let B = dp2perp * duv1.y + dp1perp * duv2.y;
              let invmax = inverseSqrt(max(dot(T,T), dot(B,B)));
              let TBN = mat3x3<f32>(T * invmax, B * invmax, N);
-             
+
              // Parallax Mapping - Dual Layer
              let viewDir = normalize(frameData.cameraPosition.xyz - input.worldPosition.xyz);
              let tangentViewDir = normalize(transpose(TBN) * viewDir);
-             
+
              let uv1 = input.uv * 4.0;
              // Rotated second layer (~34 deg)
-             let rot = mat2x2<f32>(0.829, 0.559, -0.559, 0.829); 
+             let rot = mat2x2<f32>(0.829, 0.559, -0.559, 0.829);
              let uv2 = (rot * (input.uv * 7.37)) + vec2<f32>(0.43, 0.81);
-             
+
              let h1 = textureSampleLevel(proceduralNoise, colorSampler, uv1, 0.0).a;
              let parallaxOffset = tangentViewDir.xy * (h1 * 0.02 * detailFade);
-             
+
              // Sample both layers with offset
              let s1 = textureSampleLevel(proceduralNoise, colorSampler, uv1 - parallaxOffset, 0.0);
              let s2 = textureSampleLevel(proceduralNoise, colorSampler, uv2 - parallaxOffset, 0.0);
-             
+
              // Blend Normals & Height
              let detailNormal = normalize((s1.rgb * 2.0 - 1.0) + (s2.rgb * 2.0 - 1.0));
              let height = (s1.a + s2.a) * 0.5;
              let surfaceNormal = normalize(TBN * detailNormal);
-             
+
              // Modulation: Sum of Sines
              let p = input.worldPosition;
              let macroVar = (sin(p.x * 0.13 + p.z * 0.07) + sin(p.z * 0.11 - p.x * 0.05) + sin(p.y * 0.1));
              let macroFactor = (macroVar / 3.0) * 0.5 + 0.5;
-             
+
              // Combine Occlusion (Slope + Height)
              let occlusion = clamp(dot(surfaceNormal, N), 0.5, 1.0) * mix(0.5, 1.0, height);
              let modFactor = detailFade * (0.3 + 0.7 * macroFactor);
-             
+
              color = vec4<f32>(color.rgb * mix(1.0, occlusion, modFactor), color.a);
              N = normalize(mix(N, surfaceNormal, 0.5 * detailFade));
          }
     }
-    
+
     // Initialize emissive
     output.emissive = vec4<f32>(0.0);
-    
+
+    let lightmapFlag = select(1.0, f32(materialData.flags.w), materialData.flags.x != SKYBOX);
     if (materialData.flags.x != SKYBOX) {
-        let lightmapFlag = f32(materialData.flags.w);
-        output.normal = vec4<f32>(N * 0.5 + 0.5, lightmapFlag);
+        output.normal = octEncode(N);
         output.position = vec4<f32>(input.worldPosition.xyz, 1.0);
     } else {
-        output.normal = vec4<f32>(0.5, 0.5, 0.5, 1.0);
+        output.normal = vec2<f32>(0.5, 0.5);
         output.position = vec4<f32>(0.0, 0.0, 0.0, 0.0);
     }
-    
+
     // Apply reflection if enabled (flags.z == 1)
     if (materialData.flags.z == 1) {
          color = applyReflection(color, input.uv, input.worldPosition.xyz, N);
@@ -266,9 +293,9 @@ fn fs_main(input: GeomVertexOutput) -> FragmentOutput {
     if (materialData.flags.y == 1) {
         output.emissive = textureSample(emissiveTexture, colorSampler, input.uv);
     }
-    
-    output.color = color + output.emissive;
-    
+
+    output.color = vec4<f32>((color + output.emissive).rgb, lightmapFlag);
+
     return output;
 }
 `;
@@ -295,7 +322,7 @@ struct GeomVertexOutput {
 
 struct FragmentOutput {
     @location(0) position: vec4<f32>,
-    @location(1) normal: vec4<f32>,
+    @location(1) normal: vec2<f32>,
     @location(2) color: vec4<f32>,
     @location(3) emissive: vec4<f32>,
 }
@@ -315,19 +342,20 @@ ${SkinningUniformBinding}
 const MESH: i32 = 1;
 const SKYBOX: i32 = 2;
 
+${_octEncode}
 ${SkinningCalcFn}
 ${ReflectionCalcFn}
 
 @vertex
 fn vs_main(input: SkinnedVertexInput) -> GeomVertexOutput {
     var output: GeomVertexOutput;
-    
+
     let skinMatrix = calcSkinMatrix(input.jointIndices, input.jointWeights);
-    
+
     // Apply skinning to position and normal
     let skinnedPosition = (skinMatrix * vec4<f32>(input.position, 1.0)).xyz;
     let skinnedNormal = (skinMatrix * vec4<f32>(input.normal, 0.0)).xyz;
-    
+
     output.worldPosition = objectData.matWorld * vec4<f32>(skinnedPosition, 1.0);
     output.uv = input.uv;
     output.normal = normalize((objectData.matWorld * vec4<f32>(skinnedNormal, 0.0)).xyz);
@@ -338,7 +366,7 @@ fn vs_main(input: SkinnedVertexInput) -> GeomVertexOutput {
 @fragment
 fn fs_main(input: GeomVertexOutput) -> FragmentOutput {
     var output: FragmentOutput;
-    
+
     // Sample albedo
     var color = textureSample(colorTexture, colorSampler, input.uv);
     if (color.a < 0.5) {
@@ -353,14 +381,14 @@ fn fs_main(input: GeomVertexOutput) -> FragmentOutput {
          let noise = textureSample(detailTexture, colorSampler, input.uv * 4.0).r;
          color = vec4<f32>(color.rgb * (0.9 + 0.2 * noise), color.a);
     }
-    
+
     // Initialize emissive
     output.emissive = vec4<f32>(0.0);
-    
+
     // Skinned meshes don't have lightmaps, always use deferred lighting
-    output.normal = vec4<f32>(input.normal * 0.5 + 0.5, 0.0);
+    output.normal = octEncode(input.normal);
     output.position = vec4<f32>(input.worldPosition.xyz, 1.0);
-    
+
     // Apply reflection if enabled (flags.z == 1)
     if (materialData.flags.z == 1) {
          color = applyReflection(color, input.uv, input.worldPosition.xyz, input.normal);
@@ -370,9 +398,9 @@ fn fs_main(input: GeomVertexOutput) -> FragmentOutput {
     if (materialData.flags.y == 1) {
         output.emissive = textureSample(emissiveTexture, colorSampler, input.uv);
     }
-    
-    output.color = color + output.emissive;
-    
+
+    output.color = vec4<f32>((color + output.emissive).rgb, 0.0);
+
     return output;
 }
 `;
@@ -425,18 +453,18 @@ ${SkinningCalcFn}
 @vertex
 fn vs_main(input: SkinnedShadowVertexInput) -> ShadowVertexOutput {
     var output: ShadowVertexOutput;
-    
+
     let skinMatrix = calcSkinMatrix(input.jointIndices, input.jointWeights);
-    
+
     // Apply skinning to position
     let skinnedPosition = (skinMatrix * vec4<f32>(input.position, 1.0)).xyz;
-    
+
     // Transform to world space
     var worldPos = objectData.matWorld * vec4<f32>(skinnedPosition, 1.0);
-    
+
     // Flatten to shadow height (stored in uProbeColor.a)
     worldPos.y = objectData.uProbeColor.a;
-    
+
     output.clipPosition = frameData.matViewProj * worldPos;
     return output;
 }
@@ -466,6 +494,9 @@ struct DirLightOutput {
 @group(0) @binding(0) var<uniform> frameData: FrameData;
 @group(1) @binding(2) var<uniform> directionalLight: DirectionalLight;
 @group(1) @binding(3) var normalBuffer: texture_2d<f32>;
+@group(1) @binding(4) var colorBuffer: texture_2d<f32>;
+
+${_octDecode}
 
 @vertex
 fn vs_main(@builtin(vertex_index) vertexIndex: u32) -> DirLightOutput {
@@ -480,16 +511,15 @@ fn vs_main(@builtin(vertex_index) vertexIndex: u32) -> DirLightOutput {
 @fragment
 fn fs_main(input: DirLightOutput) -> @location(0) vec4<f32> {
     let fragCoord = vec2<i32>(input.position.xy);
-    let normalData = textureLoad(normalBuffer, fragCoord, 0);
-    let normal = normalData.xyz * 2.0 - 1.0;
-    let lightmapFlag = normalData.w;
-    
+    let hasLightmap = textureLoad(colorBuffer, fragCoord, 0).a;
+
     // Skip lightmapped surfaces
-    if (lightmapFlag > 0.5) {
+    if (hasLightmap > 0.5) {
         return vec4<f32>(0.0, 0.0, 0.0, 1.0);
     }
-    
-    let lightIntensity = directionalLight.color * max(dot(normalize(normal), normalize(directionalLight.direction)), 0.0);
+
+    let normal = octDecode(textureLoad(normalBuffer, fragCoord, 0).rg);
+    let lightIntensity = directionalLight.color * max(dot(normal, normalize(directionalLight.direction)), 0.0);
     return vec4<f32>(lightIntensity, 1.0);
 }
 `;
@@ -520,6 +550,7 @@ struct PointLightVertexOutput {
 @group(1) @binding(3) var positionBuffer: texture_2d<f32>;
 @group(1) @binding(4) var normalBuffer: texture_2d<f32>;
 
+${_octDecode}
 ${PointLightCalcFn}
 
 @vertex
@@ -532,14 +563,13 @@ fn vs_main(input: PointLightVertexInput) -> PointLightVertexOutput {
 @fragment
 fn fs_main(input: PointLightVertexOutput) -> @location(0) vec4<f32> {
     let fragCoord = vec2<i32>(input.clipPosition.xy);
-    
+
     let position = textureLoad(positionBuffer, fragCoord, 0).rgb;
-    let normalData = textureLoad(normalBuffer, fragCoord, 0);
-    let normal = normalize(normalData.xyz * 2.0 - 1.0);
-    
+    let normal = octDecode(textureLoad(normalBuffer, fragCoord, 0).rg);
+
     let pl = calcPointLight(pointLight.position, pointLight.size, position, normal);
     if (pl.x <= 0.0) { discard; }
-    
+
     return vec4<f32>(pointLight.color * pl.x * pl.y * pointLight.intensity, 1.0);
 }
 `;
@@ -572,6 +602,7 @@ struct SpotLightVertexOutput {
 @group(1) @binding(3) var positionBuffer: texture_2d<f32>;
 @group(1) @binding(4) var normalBuffer: texture_2d<f32>;
 
+${_octDecode}
 ${SpotLightCalcFn}
 
 @vertex
@@ -584,14 +615,13 @@ fn vs_main(input: SpotLightVertexInput) -> SpotLightVertexOutput {
 @fragment
 fn fs_main(input: SpotLightVertexOutput) -> @location(0) vec4<f32> {
     let fragCoord = vec2<i32>(input.clipPosition.xy);
-    
+
     let position = textureLoad(positionBuffer, fragCoord, 0).rgb;
-    let normalData = textureLoad(normalBuffer, fragCoord, 0);
-    let normal = normalize(normalData.xyz * 2.0 - 1.0);
-    
+    let normal = octDecode(textureLoad(normalBuffer, fragCoord, 0).rg);
+
     let sl = calcSpotLight(spotLight.position, spotLight.direction, spotLight.cutoff, spotLight.range, position, normal);
     if (sl.x <= 0.0) { discard; }
-    
+
     return vec4<f32>(spotLight.color * spotLight.intensity * sl.x * sl.y * sl.z, 1.0);
 }
 `;
@@ -629,126 +659,16 @@ fn vs_main(@builtin(vertex_index) vertexIndex: u32) -> BlurOutput {
 fn fs_main(input: BlurOutput) -> @location(0) vec4<f32> {
     let texelSize = 1.0 / frameData.viewportSize.xy;
     let uv = input.position.xy * texelSize;
-    
+
     let o = blurParams.offset + 0.5;
-    
+
     var color = textureSample(colorBuffer, colorSampler, uv);
     color += textureSample(colorBuffer, colorSampler, uv + vec2<f32>(-o, -o) * texelSize);
     color += textureSample(colorBuffer, colorSampler, uv + vec2<f32>( o, -o) * texelSize);
     color += textureSample(colorBuffer, colorSampler, uv + vec2<f32>(-o,  o) * texelSize);
     color += textureSample(colorBuffer, colorSampler, uv + vec2<f32>( o,  o) * texelSize);
-    
+
     return color * 0.2;
-}
-`;
-
-// Bilateral blur shader for edge-aware SSAO blurring
-const bilateralBlurShader = /* wgsl */ `
-${FrameDataStruct}
-
-struct BilateralParams {
-    depthThreshold: f32,
-    normalThreshold: f32,
-    gBufferScale: f32,
-    _pad: f32,
-}
-
-struct BilateralOutput {
-    @builtin(position) position: vec4<f32>,
-    @location(0) uv: vec2<f32>,
-}
-
-@group(0) @binding(0) var<uniform> frameData: FrameData;
-@group(1) @binding(0) var<uniform> params: BilateralParams;
-@group(1) @binding(2) var aoBuffer: texture_2d<f32>;
-@group(1) @binding(3) var positionBuffer: texture_2d<f32>;
-@group(1) @binding(4) var normalBuffer: texture_2d<f32>;
-
-@vertex
-fn vs_main(@builtin(vertex_index) vertexIndex: u32) -> BilateralOutput {
-    var output: BilateralOutput;
-    let x = f32((vertexIndex << 1) & 2);
-    let y = f32(vertexIndex & 2);
-    output.position = vec4<f32>(x * 2.0 - 1.0, y * 2.0 - 1.0, 0.0, 1.0);
-    output.uv = vec2<f32>(x, 1.0 - y);
-    return output;
-}
-
-@fragment
-fn fs_main(input: BilateralOutput) -> @location(0) vec4<f32> {
-    let fragCoord = vec2<i32>(input.position.xy);
-    let texelSize = 1.0 / frameData.viewportSize.xy;
-    
-    // Get center pixel data
-    let centerAO = textureLoad(aoBuffer, fragCoord, 0).r;
-    
-    // Calculate G-buffer coordinates (full res)
-    let gBufferCoord = vec2<i32>(input.position.xy * params.gBufferScale);
-    
-    let centerPos = textureLoad(positionBuffer, gBufferCoord, 0).xyz;
-    let centerNormal = textureLoad(normalBuffer, gBufferCoord, 0).xyz * 2.0 - 1.0;
-    let centerDepth = length(centerPos - frameData.cameraPosition.xyz);
-    
-    // If center is sky or invalid, just return the center value
-    if (length(centerNormal) < 0.1) {
-        return vec4<f32>(centerAO, centerAO, centerAO, 1.0);
-    }
-    
-    var totalWeight = 1.0;
-    var totalAO = centerAO;
-    
-    // Sample in a 5x5 pattern with bilateral weights
-    for (var y = -2; y <= 2; y++) {
-        for (var x = -2; x <= 2; x++) {
-            if (x == 0 && y == 0) { continue; }
-            
-            let sampleCoord = fragCoord + vec2<i32>(x, y);
-            
-            // Bounds check (against half-res effective size)
-            // viewportSize is full-res (e.g. 1920).
-            // We are rendering to a half-res target (e.g. 960).
-            // So valid range is 0..960.
-            // gBufferScale is 2.0. So 1920 / 2.0 = 960.
-            if (sampleCoord.x < 0 || sampleCoord.y < 0 || 
-                f32(sampleCoord.x) >= frameData.viewportSize.x / params.gBufferScale || 
-                f32(sampleCoord.y) >= frameData.viewportSize.y / params.gBufferScale) {
-                continue;
-            }
-            
-            let sampleAO = textureLoad(aoBuffer, sampleCoord, 0).r;
-            
-            // Sample G-Buffer at full res
-            let gSampleCoord = vec2<i32>(vec2<f32>(sampleCoord) * params.gBufferScale);
-            
-            let samplePos = textureLoad(positionBuffer, gSampleCoord, 0).xyz;
-            let sampleNormal = textureLoad(normalBuffer, gSampleCoord, 0).xyz * 2.0 - 1.0;
-            let sampleDepth = length(samplePos - frameData.cameraPosition.xyz);
-            
-            // Skip invalid samples (sky)
-            if (length(sampleNormal) < 0.1) { continue; }
-            
-            // Spatial weight (Gaussian falloff)
-            let dist = length(vec2<f32>(f32(x), f32(y)));
-            let spatialWeight = exp(-dist * dist / 4.0);
-            
-            // Depth weight - reject samples across depth discontinuities
-            let depthDiff = abs(centerDepth - sampleDepth);
-            let depthWeight = exp(-depthDiff * depthDiff / (params.depthThreshold * params.depthThreshold));
-            
-            // Normal weight - reject samples with different normals
-            let normalDot = max(0.0, dot(centerNormal, sampleNormal));
-            let normalWeight = pow(normalDot, params.normalThreshold);
-            
-            // Combined weight
-            let weight = spatialWeight * depthWeight * normalWeight;
-            
-            totalAO += sampleAO * weight;
-            totalWeight += weight;
-        }
-    }
-    
-    let result = totalAO / totalWeight;
-    return vec4<f32>(result, result, result, 1.0);
 }
 `;
 
@@ -757,10 +677,8 @@ const postProcessingShader = /* wgsl */ `
 struct PostProcessParams {
     gamma: f32,
     emissiveMult: f32,
-    ssaoStrength: f32,
     dirtIntensity: f32,
     shadowIntensity: f32,
-    _pad: f32,
     ambient: vec4<f32>,
 }
 
@@ -773,12 +691,10 @@ struct PostOutput {
 @group(1) @binding(1) var bufferSampler: sampler;
 @group(1) @binding(2) var colorBuffer: texture_2d<f32>;
 @group(1) @binding(3) var lightBuffer: texture_2d<f32>;
-@group(1) @binding(4) var normalBuffer: texture_2d<f32>;
-@group(1) @binding(5) var emissiveBuffer: texture_2d<f32>;
-@group(1) @binding(6) var dirtBuffer: texture_2d<f32>;
-@group(1) @binding(7) var aoBuffer: texture_2d<f32>;
-@group(1) @binding(8) var shadowBuffer: texture_2d<f32>;
-@group(1) @binding(9) var positionBuffer: texture_2d<f32>;
+@group(1) @binding(4) var emissiveBuffer: texture_2d<f32>;
+@group(1) @binding(5) var dirtBuffer: texture_2d<f32>;
+@group(1) @binding(6) var shadowBuffer: texture_2d<f32>;
+@group(1) @binding(7) var positionBuffer: texture_2d<f32>;
 
 @vertex
 fn vs_main(@builtin(vertex_index) vertexIndex: u32) -> PostOutput {
@@ -795,60 +711,51 @@ fn fs_main(input: PostOutput) -> @location(0) vec4<f32> {
     // uv is in [0, 1] range
     let uv = input.uv;
     let fragCoord = vec2<i32>(input.position.xy);
-    
+
     // Direct texture load for color (no FXAA)
     let color = textureLoad(colorBuffer, fragCoord, 0);
-    
+
     let light = textureLoad(lightBuffer, fragCoord, 0);
-    let normalData = textureLoad(normalBuffer, fragCoord, 0);
     let emissive = textureLoad(emissiveBuffer, fragCoord, 0);
     let dirt = textureSample(dirtBuffer, bufferSampler, uv);
-    // Sample AO with linear filtering (textureSample instead of textureLoad) to smoothly upscale from half-res
-    let ao = textureSample(aoBuffer, bufferSampler, uv);
-    
-    let hasLightmap = normalData.w;
-    
+
     // Add dynamic lighting
     let dynamicLight = max(light.rgb - params.ambient.xyz, vec3<f32>(0.0));
-    var fragColor = vec4<f32>(color.rgb + dynamicLight, color.a);
+    var fragColor = vec4<f32>(color.rgb + dynamicLight, 1.0);
 
     // Apply shadows - multiply by shadow buffer
     // Skip shadows for sky (position.w == 0)
     let position = textureLoad(positionBuffer, fragCoord, 0);
-    let shadow = textureLoad(shadowBuffer, fragCoord, 0).rgb;
+    let shadow = textureLoad(shadowBuffer, fragCoord, 0).rrr;
     if (position.w > 0.0) {
         // Soften shadows - mix between full brightness and shadow value
         let softShadow = mix(vec3<f32>(1.0), shadow, params.shadowIntensity);
         fragColor = vec4<f32>(fragColor.rgb * softShadow, fragColor.a);
     }
-    
-    // Apply SSAO
-    let aoFactor = mix(1.0, ao.r, params.ssaoStrength);
-    fragColor = vec4<f32>(fragColor.rgb * aoFactor, fragColor.a);
-    
+
     // Add emissive
     fragColor = fragColor + emissive * params.emissiveMult;
-    
+
     // Apply dirt effect with emissive protection
     if (params.dirtIntensity > 0.0) {
         // Protect emissive materials from dirt overlay
         let emissiveStrength = length(emissive.rgb);
         let emissiveMask = 1.0 - clamp(emissiveStrength * 10.0, 0.0, 1.0);
-        
+
         // Invert dirt texture (darker = more dirt) and scale by intensity
         var dirtAmount = (1.0 - dirt.rgb) * params.dirtIntensity;
         dirtAmount = clamp(dirtAmount, vec3<f32>(0.0), vec3<f32>(1.0));
-        
+
         // Apply dirt by darkening
         let dirtened = fragColor.rgb * (1.0 - dirtAmount);
-        
+
         // Mix based on emissive mask (0 = emissive/no dirt, 1 = apply dirt)
         fragColor = vec4<f32>(mix(fragColor.rgb, dirtened, emissiveMask), fragColor.a);
     }
-    
+
     // Gamma correction
     fragColor = vec4<f32>(pow(fragColor.rgb, vec3<f32>(1.0 / params.gamma)), fragColor.a);
-    
+
     return fragColor;
 }
 `;
@@ -1110,18 +1017,18 @@ ${SpotLightCalcFn}
 fn fs_main(input: TransparentVertexOutput) -> @location(0) vec4<f32> {
     var baseColor = textureSample(colorTexture, colorSampler, input.uv);
     let emissive = textureSample(emissiveTexture, colorSampler, input.uv);
-    
+
     // Base ambient/emissive
     baseColor = vec4<f32>(baseColor.rgb + emissive.rgb, baseColor.a * materialData.params.y);
-    
+
     let normal = normalize(input.normal);
     let fragPos = input.worldPosition.xyz;
-    
+
     // Reflections (Environment Mapping)
     if (materialData.flags.z == 1) {
         let reflMask = textureSample(reflectionMaskTexture, colorSampler, input.uv);
         let maskSum = dot(reflMask.rgb, vec3<f32>(0.333333));
-        
+
         if (maskSum > 0.1) {
             let viewDir = normalize(frameData.cameraPosition.xyz - fragPos);
             let r = reflect(-viewDir, normal);
@@ -1131,168 +1038,44 @@ fn fs_main(input: TransparentVertexOutput) -> @location(0) vec4<f32> {
             baseColor = mix(baseColor, reflColor * reflMask, materialData.params.x * maskSum);
         }
     }
-    
+
     // Dynamic Lighting (Additive)
     var dynamicLighting = vec3<f32>(0.0);
-    
+
     // Point Lights
     let numPoint = i32(lightingData.counts.x);
     for (var i = 0; i < 8; i++) {
         if (i >= numPoint) { break; }
-        
+
         let pos = lightingData.pointLightPositions[i].xyz;
         let color = lightingData.pointLightColors[i].rgb;
         let intensity = lightingData.pointLightParams[i].x;
         let size = lightingData.pointLightParams[i].y;
-        
+
         let pl = calcPointLight(pos, size, fragPos, normal);
         dynamicLighting += color * (pl.x * pl.y * intensity);
     }
-    
+
     // Spot Lights
     let numSpot = i32(lightingData.counts.y);
     for (var i = 0; i < 4; i++) {
         if (i >= numSpot) { break; }
-        
+
         let pos = lightingData.spotLightPositions[i].xyz;
         let dir = lightingData.spotLightDirections[i].xyz;
         let color = lightingData.spotLightColors[i].rgb;
         let intensity = lightingData.spotLightParams[i].x;
         let cutoff = lightingData.spotLightParams[i].y;
         let range = lightingData.spotLightParams[i].z;
-        
+
         let sl = calcSpotLight(pos, dir, cutoff, range, fragPos, normal);
         dynamicLighting += color * (intensity * 2.0) * sl.x * sl.y * sl.z;
     }
-    
+
     // Apply lighting
     let finalColor = vec3<f32>(baseColor.rgb * 0.5 + baseColor.rgb * dynamicLighting);
-    
+
     return vec4<f32>(finalColor, baseColor.a);
-}
-`;
-
-// SSAO shader
-const ssaoShader = /* wgsl */ `
-${FrameDataStruct}
-
-struct SSAOParams {
-    radius: f32,
-    bias: f32,
-    noiseScale: vec2<f32>,
-    gBufferScale: f32,
-    _pad: vec3<f32>,
-    kernel: array<vec4<f32>, 16>,  // vec3 + padding
-}
-
-struct SSAOOutput {
-    @builtin(position) position: vec4<f32>,
-    @location(0) uv: vec2<f32>,
-}
-
-@group(0) @binding(0) var<uniform> frameData: FrameData;
-@group(1) @binding(0) var<uniform> params: SSAOParams;
-@group(1) @binding(1) var bufferSampler: sampler;
-@group(1) @binding(2) var positionBuffer: texture_2d<f32>;
-@group(1) @binding(3) var normalBuffer: texture_2d<f32>;
-@group(1) @binding(4) var noiseTexture: texture_2d<f32>;
-
-@vertex
-fn vs_main(@builtin(vertex_index) vertexIndex: u32) -> SSAOOutput {
-    var output: SSAOOutput;
-    let x = f32((vertexIndex << 1) & 2);
-    let y = f32(vertexIndex & 2);
-    output.position = vec4<f32>(x * 2.0 - 1.0, y * 2.0 - 1.0, 0.0, 1.0);
-    output.uv = vec2<f32>(x, 1.0 - y);
-    return output;
-}
-
-@fragment
-fn fs_main(input: SSAOOutput) -> @location(0) vec4<f32> {
-    // Calculate UVs based on effective viewport size (which is scaled down by gBufferScale = 2.0)
-    // input.position.xy is in pixels (half-res).
-    // viewportSize is full-res.
-    // UV = (fragCoord * scale) / viewportSize
-    let uv = (input.position.xy * params.gBufferScale) / frameData.viewportSize.xy;
-    let fragCoord = vec2<i32>(input.position.xy);
-    
-    // Scale for G-buffer reads (full res)
-    let gCoord = vec2<i32>(input.position.xy * params.gBufferScale);
-    
-    let fragPos = textureLoad(positionBuffer, gCoord, 0).rgb;
-    let normalData = textureLoad(normalBuffer, gCoord, 0);
-    let normal = normalData.xyz * 2.0 - 1.0;
-    let hasLightmap = normalData.w;
-    
-    // Sample noise BEFORE any non-uniform branches (WGSL requirement)
-    var randomVec = textureSample(noiseTexture, bufferSampler, uv * params.noiseScale).xyz;
-    randomVec = randomVec * 2.0 - 1.0;
-    
-    // Skip skybox and dynamic objects (no lightmap) — early out
-    let isSkybox = length(normal) < 0.1;
-    if (isSkybox || hasLightmap < 0.5) {
-        return vec4<f32>(1.0, 1.0, 1.0, 1.0);
-    }
-    
-    let currentLinearDepth = length(fragPos - frameData.cameraPosition.xyz);
-    
-    let tangent = normalize(randomVec - normal * dot(randomVec, normal));
-    let bitangent = cross(normal, tangent);
-    let TBN = mat3x3<f32>(tangent, bitangent, normal);
-    
-    var occlusion = 0.0;
-    var validSamples = 0.0;
-    
-    for (var i = 0; i < 16; i++) {
-        var samplePos = TBN * params.kernel[i].xyz;
-        samplePos = fragPos + samplePos * params.radius;
-        
-        var offset = vec4<f32>(samplePos, 1.0);
-        offset = frameData.matViewProj * offset;
-        let offsetXY = offset.xy / offset.w;
-        let sampleUV = offsetXY * 0.5 + 0.5;
-        
-        // WebGPU: Flip Y when converting from NDC to pixel coords
-        // NDC Y=0 maps to bottom of screen, but pixel Y=0 is at top in WebGPU
-        let flippedY = 1.0 - sampleUV.y;
-        
-        // Scale to full-res viewport size for sample lookup
-        // frameData.viewportSize is already full resolution (canvas size).
-        // So we don't need to scale it.
-        let fullWidth = frameData.viewportSize.x;
-        let fullHeight = frameData.viewportSize.y;
-        
-        let rawCoord = vec2<i32>(i32(sampleUV.x * fullWidth), i32(flippedY * fullHeight));
-        let sampleCoord = clamp(rawCoord, vec2<i32>(0, 0), vec2<i32>(i32(fullWidth) - 1, i32(fullHeight) - 1));
-        
-        // Check if sample crosses static/dynamic boundary - reject if so
-        let sampleNormalData = textureLoad(normalBuffer, sampleCoord, 0);
-        let sampleHasLightmap = sampleNormalData.w;
-        
-        // Skip samples that cross the lightmap boundary (static <-> dynamic)
-        // This prevents floor from getting false occlusion from pickups
-        if ((hasLightmap > 0.5 && sampleHasLightmap < 0.5) || (hasLightmap < 0.5 && sampleHasLightmap > 0.5)) {
-            continue;
-        }
-        
-        validSamples += 1.0;
-        
-        let sampleWorldPos = textureLoad(positionBuffer, sampleCoord, 0).rgb;
-        let sampleLinearDepth = length(sampleWorldPos - frameData.cameraPosition.xyz);
-        
-        let sampleDist = length(samplePos - frameData.cameraPosition.xyz);
-        let rangeCheck = smoothstep(0.0, 1.0, params.radius / abs(currentLinearDepth - sampleLinearDepth));
-        
-        if (sampleLinearDepth <= sampleDist - params.bias) {
-            occlusion += rangeCheck;
-        }
-    }
-    
-    // Divide by actual valid samples to avoid flickering when many samples are rejected
-    // Use max to avoid division by zero
-    occlusion = 1.0 - (occlusion / max(validSamples, 1.0));
-    
-    return vec4<f32>(occlusion, occlusion, occlusion, 1.0);
 }
 `;
 
@@ -1346,12 +1129,12 @@ ${SkinningCalcFn}
 @vertex
 fn vs_main(input: SkinnedDebugVertexInput) -> DebugVertexOutput {
     var output: DebugVertexOutput;
-    
+
     let skinMatrix = calcSkinMatrix(input.jointIndices, input.jointWeights);
-    
+
     // Apply skinning to position
     let skinnedPosition = (skinMatrix * vec4<f32>(input.position, 1.0)).xyz;
-    
+
     output.clipPosition = frameData.matViewProj * objectData.matWorld * vec4<f32>(skinnedPosition, 1.0);
     return output;
 }
@@ -1433,6 +1216,7 @@ export const WgslShaderSources = {
 			group1: [
 				{ binding: 2, type: "uniform", name: "directionalLight" },
 				{ binding: 3, type: "texture", unit: 1 },
+				{ binding: 4, type: "texture", unit: 3 },
 			],
 		},
 	},
@@ -1474,19 +1258,6 @@ export const WgslShaderSources = {
 			],
 		},
 	},
-	bilateralBlur: {
-		label: "bilateralBlur",
-		code: bilateralBlurShader,
-		bindings: {
-			group0: [{ binding: 0, type: "ubo", id: 0 }],
-			group1: [
-				{ binding: 0, type: "uniform", name: "bilateralParams" },
-				{ binding: 2, type: "texture", unit: 0 }, // aoBuffer
-				{ binding: 3, type: "texture", unit: 1 }, // positionBuffer
-				{ binding: 4, type: "texture", unit: 2 }, // normalBuffer
-			],
-		},
-	},
 	postProcessing: {
 		label: "postProcessing",
 		code: postProcessingShader,
@@ -1501,8 +1272,6 @@ export const WgslShaderSources = {
 				{ binding: 5, type: "texture", unit: 3 },
 				{ binding: 6, type: "texture", unit: 4 },
 				{ binding: 7, type: "texture", unit: 5 },
-				{ binding: 8, type: "texture", unit: 6 },
-				{ binding: 9, type: "texture", unit: 7 },
 			],
 		},
 	},
@@ -1545,20 +1314,6 @@ export const WgslShaderSources = {
 				{ binding: 2, type: "texture", unit: 1 },
 				{ binding: 3, type: "texture", unit: 2 },
 				{ binding: 4, type: "texture", unit: 3 },
-			],
-		},
-	},
-	ssao: {
-		label: "ssao",
-		code: ssaoShader,
-		bindings: {
-			group0: [{ binding: 0, type: "ubo", id: 0 }],
-			group1: [
-				{ binding: 0, type: "uniform", name: "ssaoParams" },
-				{ binding: 1, type: "sampler", unit: 0 },
-				{ binding: 2, type: "texture", unit: 1 },
-				{ binding: 3, type: "texture", unit: 0 },
-				{ binding: 4, type: "texture", unit: 2 },
 			],
 		},
 	},
@@ -1675,15 +1430,15 @@ fn vs_main(input: InstancedBillboardVertexInput) -> InstancedBillboardVertexOutp
     // View right and up vectors
     let right = vec3<f32>(frameData.matView[0].x, frameData.matView[1].x, frameData.matView[2].x);
     let up    = vec3<f32>(frameData.matView[0].y, frameData.matView[1].y, frameData.matView[2].y);
-    
+
     let c = cos(input.instanceRotation);
     let s = sin(input.instanceRotation);
-    
+
     let localRight = right * c + up * s;
     let localUp    = -right * s + up * c;
 
-    let worldPos = input.instancePos 
-                 + localRight * input.position.x * input.instanceScale 
+    let worldPos = input.instancePos
+                 + localRight * input.position.x * input.instanceScale
                  + localUp * input.position.y * input.instanceScale;
 
     let insetUV = input.uv * 0.98 + 0.01;

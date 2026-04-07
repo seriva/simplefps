@@ -126,6 +126,8 @@ class WebGLBackend extends RenderBackend {
 			_TEXTURE_FORMATS.depth24 = gl.DEPTH_COMPONENT24;
 			_TEXTURE_FORMATS.rgba16f = gl.RGBA16F;
 			_TEXTURE_FORMATS.rgba8 = gl.RGBA8;
+			_TEXTURE_FORMATS.rg8 = gl.RG8;
+			_TEXTURE_FORMATS.r8 = gl.R8;
 			_TEXTURE_FORMATS.rgba = gl.RGBA;
 			_TEXTURE_FORMATS.depth = gl.DEPTH_COMPONENT;
 			_TEXTURE_FORMATS.ubyte = gl.UNSIGNED_BYTE;

@@ -10,6 +10,8 @@ const _TEXTURE_FORMATS = {
 	rgba16f: "rgba16float",
 	rgba8: "rgba8unorm",
 	rgba: "rgba8unorm",
+	rg8: "rg8unorm",
+	r8: "r8unorm",
 
 	// For depth textures
 	depth: "depth24plus",
@@ -130,12 +132,10 @@ class WebGPUBackend extends RenderBackend {
 			pointLight: new Float32Array(8),
 			directionalLight: new Float32Array(8),
 			spotLight: new Float32Array(12),
-			postProcessParams: new Float32Array(20),
-			ssaoParams: new Float32Array(76),
+			postProcessParams: new Float32Array(8),
 			shadowParams: new Float32Array(24),
 			skinnedShadowParams: new Float32Array(20),
 			blurParams: new Float32Array(8),
-			bilateralParams: new Float32Array(4), // depthThreshold, normalThreshold, _pad x2
 			easuParams: new Float32Array(16), // con0, con1, con2, con3 (4 x vec4)
 			rcasParams: new Float32Array(8), // sharpness (f32) + pad to 32 bytes for vec3 alignment
 			billboardParams: new Float32Array(24), // mat4 + vec2 + vec2 + f32 + 3x pad = 96 bytes
@@ -1934,7 +1934,6 @@ class WebGPUBackend extends RenderBackend {
 			arr.fill(0);
 			const gamma = this._uniforms.get("gamma");
 			const emissiveMult = this._uniforms.get("emissiveMult");
-			const ssaoStrength = this._uniforms.get("ssaoStrength");
 			const dirtIntensity = this._uniforms.get("dirtIntensity");
 			const shadowIntensity = this._uniforms.get("shadowIntensity");
 			const ambient =
@@ -1944,41 +1943,11 @@ class WebGPUBackend extends RenderBackend {
 
 			if (gamma !== undefined) arr[0] = gamma;
 			if (emissiveMult !== undefined) arr[1] = emissiveMult;
-			if (ssaoStrength !== undefined) arr[2] = ssaoStrength;
-			if (dirtIntensity !== undefined) arr[3] = dirtIntensity;
-			if (shadowIntensity !== undefined) arr[4] = shadowIntensity;
-			// arr[5-7] = _pad
-			// arr[8-10] = ambient (vec4, 16-byte aligned at offset 32)
-			if (ambient) arr.set(ambient, 8);
+			if (dirtIntensity !== undefined) arr[2] = dirtIntensity;
+			if (shadowIntensity !== undefined) arr[3] = shadowIntensity;
+			// ambient at index 4 (offset 16, 16-byte aligned)
+			if (ambient) arr.set(ambient, 4);
 
-			return arr;
-		} else if (name === "ssaoParams") {
-			const arr = bufs.ssaoParams;
-			arr.fill(0);
-			const radius = this._uniforms.get("radius");
-			const bias = this._uniforms.get("bias");
-			const noiseScale = this._uniforms.get("noiseScale");
-			const gBufferScale = this._uniforms.get("gBufferScale");
-			const kernel = this._uniforms.get("uKernel");
-
-			if (radius !== undefined) arr[0] = radius;
-			if (bias !== undefined) arr[1] = bias;
-			if (noiseScale) arr.set(noiseScale, 2);
-			if (gBufferScale !== undefined) arr[4] = gBufferScale;
-			// arr[5-7] = padding
-
-			if (kernel) {
-				for (let i = 0; i < 16; i++) {
-					if (i * 3 + 2 < kernel.length) {
-						// Kernel starts at offset 8 (32 bytes)
-						const offset = 8 + i * 4;
-						arr[offset] = kernel[i * 3];
-						arr[offset + 1] = kernel[i * 3 + 1];
-						arr[offset + 2] = kernel[i * 3 + 2];
-						arr[offset + 3] = 0.0;
-					}
-				}
-			}
 			return arr;
 		} else if (name === "shadowParams") {
 			const arr = bufs.shadowParams;
@@ -2012,17 +1981,6 @@ class WebGPUBackend extends RenderBackend {
 			const offset = this._uniforms.get("offset");
 
 			if (offset !== undefined) arr[0] = offset;
-			return arr;
-		} else if (name === "bilateralParams") {
-			const arr = bufs.bilateralParams;
-			arr.fill(0);
-			const depthThreshold = this._uniforms.get("depthThreshold");
-			const normalThreshold = this._uniforms.get("normalThreshold");
-			const gBufferScale = this._uniforms.get("gBufferScale");
-
-			if (depthThreshold !== undefined) arr[0] = depthThreshold;
-			if (normalThreshold !== undefined) arr[1] = normalThreshold;
-			if (gBufferScale !== undefined) arr[2] = gBufferScale;
 			return arr;
 		} else if (name === "easuParams") {
 			const arr = bufs.easuParams;
