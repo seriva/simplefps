@@ -481,10 +481,7 @@ const _emissiveBlurPass = () => {
 };
 
 const _shadowBlurPass = () => {
-	// WebGPU shadow blur currently over-smooths/overwrites the shadow target in some drivers.
-	// Keep raw shadow map there until a backend-specific blur path lands.
-	if (Backend.isWebGPU()) return;
-
+	if (Settings.shadowBlurIterations === 0) return;
 	_blurImage(
 		_BlurSourceType.SHADOW,
 		Settings.shadowBlurIterations,
@@ -676,17 +673,13 @@ const Renderer = {
 		_updateFrameData(time);
 		_worldGeomPass();
 		_shadowPass();
-		if (Settings.shadowBlurIterations > 0) {
-			_shadowBlurPass();
-		}
+		_shadowBlurPass();
 		_fpsGeomPass();
 		_lightingPass();
 		_transparentPass();
 		_emissiveBlurPass();
 		_postProcessingPass();
-		if (Settings.doFSR) {
-			_fsrPass();
-		}
+		_fsrPass();
 		_debugPass();
 
 		Backend.endFrame();
