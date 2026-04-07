@@ -2,7 +2,7 @@
 
 ## Overview
 
-SimpleFPS uses **Deferred Rendering** with WebGL 2 and WebGPU backends, featuring G-Buffer lighting, SSAO, shadow mapping, and post-processing. It includes high-performance optimizations like budget-aware occlusion culling and FidelityFX Super Resolution (FSR).
+SimpleFPS uses **Deferred Rendering** with WebGL 2 and WebGPU backends, featuring G-Buffer lighting, shadow mapping, and post-processing. It includes high-performance optimizations like budget-aware occlusion culling and FidelityFX Super Resolution (FSR).
 
 ## File Structure
 
@@ -37,7 +37,7 @@ Backend selection is **asynchronous** and uses a transparent `Proxy` so the rest
 
 - Stored as RGB texture atlas.
 - Multiplied by albedo in the geometry pass.
-- The lightmap flag is stored in `normal.w` (1.0 = lightmapped).
+- The lightmap flag is stored in `color.a` (1.0 = lightmapped/skybox).
 - Dynamic lights skip lightmapped surfaces to avoid double-lighting.
 - Provides indirect lighting, bounce light, and baked AO at no runtime cost.
 
@@ -52,7 +52,7 @@ Backend selection is **asynchronous** and uses a transparent `Proxy` so the rest
 
 ## Deferred Rendering Pipeline
 
-Pass order: Geometry → SSAO → Shadow → FPS Geometry → Lighting → Transparent → Post-Process → FSR Upscaling
+Pass order: Geometry → Shadow → FPS Geometry → Lighting → Transparent → Post-Process → FSR Upscaling
 
 ### 1. Geometry Pass (G-Buffer)
 
@@ -60,8 +60,8 @@ Pass order: Geometry → SSAO → Shadow → FPS Geometry → Lighting → Trans
 | Attachment | Format | Content |
 |------------|--------|---------|
 | 0 | RGBA16F | World-space position |
-| 1 | RGBA8 | View-space normals + lightmap flag (w) |
-| 2 | RGBA8 | Albedo |
+| 1 | RG8 | Oct-encoded normals (xy = octahedral encoding of world-space normal) |
+| 2 | RGBA8 | Albedo (a = lightmap flag: 1.0 = lightmapped/skybox, 0.0 = dynamic) |
 | 3 | RGBA8 | Emissive |
 
 **Render Order:** Skybox → Occluders → Occlusion Queries → Occludees  
@@ -72,40 +72,36 @@ Depth range: 0.1-1.0 (world geometry)
 - **Modulation:** Uses sum-of-sines modulation for macro-variation across large surfaces.
 - **Probe Lighting:** Dynamic objects sample the LightGrid; the result is passed via the Object Data UBO.
 
-### 2. SSAO Pass
-- 16-sample hemisphere kernel + 4×4 noise.
-- Bilateral blur for edge-aware smoothing (half-resolution).
-
-### 3. Shadow Pass
+### 2. Shadow Pass
 - Depth-only with polygon offset.
 - **Skinned throttle:** Shadow raycasts for skinned entities are throttled based on movement and time intervals (closer = more frequent).
 - **Raycast budget:** Static-mesh shadow raycasts are capped at 16 per frame to prevent performance spikes in large scenes.
 - Kawase blur for soft edges.
 
-### 4. FPS Geometry
+### 3. FPS Geometry
 - Depth range: 0.0-0.1 (always in front).
 - Appends to G-buffer.
 
-### 5. Lighting Pass
+### 4. Lighting Pass
 - Deferred shading via light volumes.
 - Directional (fullscreen quad), Point (sphere), Spot (cone).
 - Additive blending (`one`, `one`).
 - Skips lightmapped surfaces.
 
-### 6. Transparent Pass
+### 5. Transparent Pass
 - Forward rendering with blending.
 - Depth test enabled, write disabled.
 - Includes glass, explosions, and particles.
 
-### 7. Post-Processing
-Combines: albedo × (lighting + emissive) + SSAO + shadows + bloom + FXAA.
+### 6. Post-Processing
+Combines: albedo × (lighting + emissive) + shadows + bloom + FXAA.
 
-### 8. FidelityFX Super Resolution (FSR)
+### 7. FidelityFX Super Resolution (FSR)
 If enabled, replaces native resolution output:
 1. **EASU (Edge Adaptive Spatial Upsampling):** Upscales from render scale to native resolution.
 2. **RCAS (Robust Contrast Adaptive Sharpening):** Applies edge-aware sharpening.
 
-### 9. Debug Pass
+### 8. Debug Pass
 Console commands:
 - `tbv`: Toggle Bounding Volumes
 - `twf`: Toggle Wireframes
@@ -129,7 +125,7 @@ Console commands:
    - **State Filtering:** Avoids redundant GPU state changes.
 
 3. **Incremental Visibility Culling:** Scene maintains a type-segregated visible entity cache that is only rebuilt when the camera frustum or the set of bounded entities has actually changed. A flat copy of the last frustum planes is compared each frame; if unchanged, the rebuild is skipped entirely.
-4. **Pre-allocated Arrays:** Scratch buffers reused per-frame for SSAO kernel/noise, FSR passes, and frustum comparisons (no GC).
+4. **Pre-allocated Arrays:** Scratch buffers reused per-frame for FSR passes and frustum comparisons (no GC).
 5. **Depth Range Partitioning:** World (0.1-1.0) / FPS (0.0-0.1) avoids z-fighting.
 
 ## Uniform Buffer Objects (UBOs)

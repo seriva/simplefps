@@ -9,7 +9,7 @@ Simple first person arena shooter game written in ES6 and WebGL with a PWA distr
 ## Features
 
 - **Gameplay**: Arena-based FPS with physics-based projectiles, multiple weapons (Energy Scepter, Plasma Pistol, Pulse Cannon, Laser Gatling), and cross-platform controls
-- **Rendering**: Hybrid WebGL/WebGPU engine with PBR-like lighting, UBOs, SSAO, detail textures, emissive materials, and post-processing pipeline. See [Rendering Architecture](docs/rendering.md).
+- **Rendering**: Hybrid WebGL/WebGPU engine with PBR-like lighting, UBOs, detail textures, emissive materials, and post-processing pipeline. See [Rendering Architecture](docs/rendering.md).
 - **UI**: Modern, reactive UI system with state management for menus and HUD
 - **Performance**: Optimized rendering with linear depth buffer, physics simulation, and PWA support
 - **Architecture**: Modular ES6 design with entity system, scene management, and comprehensive input handling. See [Scene System](docs/scene.md).

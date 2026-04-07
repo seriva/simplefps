@@ -22,7 +22,6 @@ const _translations = {
 		FSR: "FSR",
 		FSR_SHARPNESS: "FSR Sharpness",
 		PROCEDURAL_DETAIL: "Procedural Detail",
-		SSAO: "SSAO",
 		DIRT: "Dirt",
 		SHOW_STATS: "Show Render Stats",
 		GRAPHICS: "Graphics",
