@@ -481,7 +481,6 @@ const _emissiveBlurPass = () => {
 };
 
 const _shadowBlurPass = () => {
-	if (Settings.shadowBlurIterations === 0) return;
 	_blurImage(
 		_BlurSourceType.SHADOW,
 		Settings.shadowBlurIterations,
