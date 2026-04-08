@@ -19,7 +19,6 @@ const _BlurSourceType = Object.freeze({
 
 const _g = {
 	framebuffer: null,
-	position: null,
 	normal: null,
 	color: null,
 	emissive: null,
@@ -50,6 +49,7 @@ const _fsr = {
 };
 
 let _proceduralNoise = null;
+let _dirtTexture = null;
 
 // Pre-allocated scratch arrays to avoid per-frame allocations in render passes
 const _fsrCon0 = [0, 0, 0, 0];
@@ -375,40 +375,24 @@ const _generateProceduralNoise = () => {
 	}
 };
 
-const _startGeomPass = (clearDepthOnly = false) => {
+const _worldGeomPass = (ambient) => {
+	Backend.setDepthRange(0.1, 1.0);
 	Backend.bindFramebuffer(_g.framebuffer);
 	Backend.setViewport(0, 0, _g.width, _g.height);
-	const ambient = Scene.getAmbient();
-	const color = [ambient[0], ambient[1], ambient[2], 1.0];
-	if (clearDepthOnly) {
-		Backend.clear({ depth: 1.0 });
-	} else {
-		Backend.clear({ color, depth: 1.0 });
-	}
-};
-
-const _endGeomPass = () => {
-	Backend.bindFramebuffer(null);
-};
-
-const _worldGeomPass = () => {
-	Backend.setDepthRange(0.1, 1.0);
-	_startGeomPass();
+	Backend.clear({
+		color: [ambient[0], ambient[1], ambient[2], 1.0],
+		depth: 1.0,
+	});
 
 	if (_proceduralNoise) _proceduralNoise.bind(5); // Bind noise to unit 5
 	RenderPasses.renderWorldGeometry();
-
-	_endGeomPass();
-	Backend.setDepthRange(0.0, 1.0);
+	// Leave _g.framebuffer bound — _fpsGeomPass renders to the same target next
 };
 
 const _fpsGeomPass = () => {
 	// Don't clear depth, just use a closer depth range so it draws on top
+	// _g.framebuffer is still bound from _worldGeomPass
 	Backend.setDepthRange(0.0, 0.1);
-	Backend.bindFramebuffer(_g.framebuffer);
-	Backend.setViewport(0, 0, _g.width, _g.height);
-
-	if (_proceduralNoise) _proceduralNoise.bind(5); // Bind noise to unit 5
 	RenderPasses.renderFPSGeometry();
 
 	Backend.bindFramebuffer(null);
@@ -440,13 +424,11 @@ const _shadowPass = () => {
 	Backend.setDepthRange(0.0, 1.0);
 };
 
-const _lightingPass = () => {
+const _lightingPass = (ambient) => {
 	// Explicitly detach depth buffer to allow reading it as a texture
 	Backend.setFramebufferAttachment(_l.framebuffer, "depth", null);
 	Backend.bindFramebuffer(_l.framebuffer);
 	Backend.setViewport(0, 0, _g.width, _g.height);
-
-	const ambient = Scene.getAmbient();
 
 	Backend.clear({
 		color: [ambient[0], ambient[1], ambient[2], 1.0],
@@ -472,15 +454,11 @@ const _lightingPass = () => {
 	_blurImage(_BlurSourceType.LIGHTING, Settings.lightBlurIterations, 0.2);
 };
 
-const _emissiveBlurPass = () => {
-	_blurImage(
-		_BlurSourceType.EMISSIVE,
-		Settings.emissiveIteration,
-		Settings.emissiveOffset,
-	);
-};
-
 const _shadowBlurPass = () => {
+	if (Settings.shadowBlurIterations === 0) return;
+	// WebGPU shadow blur currently over-smooths/overwrites the shadow target in some drivers.
+	// Keep raw shadow map there until a backend-specific blur path lands.
+	if (Backend.isWebGPU()) return;
 	_blurImage(
 		_BlurSourceType.SHADOW,
 		Settings.shadowBlurIterations,
@@ -519,7 +497,7 @@ const _transparentPass = () => {
 	Backend.bindFramebuffer(null);
 };
 
-const _postProcessingPass = () => {
+const _postProcessingPass = (ambient) => {
 	if (Settings.doFSR) {
 		Backend.bindFramebuffer(_scratch.framebuffer);
 		Backend.setViewport(0, 0, _g.width, _g.height);
@@ -530,11 +508,11 @@ const _postProcessingPass = () => {
 		Backend.clear({ color: [0, 0, 0, 1], depth: 1.0 });
 	}
 
+	if (!_dirtTexture) _dirtTexture = Resources.get("system/dirt.webp");
 	_g.color.bind(0);
 	_l.light.bind(1);
 	_g.emissive.bind(2);
-	const dirt = Resources.get("system/dirt.webp");
-	dirt.bind(3);
+	_dirtTexture.bind(3);
 	_s.shadow.bind(4);
 	_g.normal.bind(5);
 	Shaders.postProcessing.bind();
@@ -553,15 +531,13 @@ const _postProcessingPass = () => {
 		Settings.doDirt ? Settings.dirtIntensity : 0.0,
 	);
 	Shaders.postProcessing.setFloat("shadowIntensity", Settings.shadowIntensity);
-	Shaders.postProcessing.setVec3("uAmbient", Scene.getAmbient());
+	Shaders.postProcessing.setVec3("uAmbient", ambient);
 	Shapes.screenQuad.renderSingle();
 
 	Backend.unbindShader();
 	Texture.unBindRange(0, 6);
-
-	if (Settings.doFSR) {
-		Backend.bindFramebuffer(null);
-	}
+	// When FSR is active _fsrPass binds its own framebuffer immediately after,
+	// so unbinding here is unnecessary. When FSR is off we already bound null above.
 };
 const _fsrPass = () => {
 	if (!Settings.doFSR || !_scratch.color || !_fsr.easu) return;
@@ -604,9 +580,6 @@ const _fsrPass = () => {
 	Backend.setDepthState(true, true);
 	Backend.unbindShader();
 	Texture.unBindRange(0, 1);
-};
-const _debugPass = () => {
-	RenderPasses.renderDebug();
 };
 
 // UBO for FrameData
@@ -670,16 +643,21 @@ const Renderer = {
 		Backend.beginFrame();
 
 		_updateFrameData(time);
-		_worldGeomPass();
+		const ambient = Scene.getAmbient();
+		_worldGeomPass(ambient);
 		_shadowPass();
 		_shadowBlurPass();
 		_fpsGeomPass();
-		_lightingPass();
+		_lightingPass(ambient);
 		_transparentPass();
-		_emissiveBlurPass();
-		_postProcessingPass();
+		_blurImage(
+			_BlurSourceType.EMISSIVE,
+			Settings.emissiveIteration,
+			Settings.emissiveOffset,
+		);
+		_postProcessingPass(ambient);
 		_fsrPass();
-		_debugPass();
+		RenderPasses.renderDebug();
 
 		Backend.endFrame();
 	},
