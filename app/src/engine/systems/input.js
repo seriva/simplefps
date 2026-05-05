@@ -21,32 +21,27 @@ const _cursorDelta = {
 let _pressed = {};
 let _downevents = [];
 
-window.addEventListener(
-	"keyup",
-	(ev) => {
-		delete _pressed[ev.keyCode];
-		for (let l = 0; l < _downevents.length; l++) {
-			if (_downevents[l].key === ev.keyCode && _downevents[l].pressed) {
-				_downevents[l].pressed = false;
-			}
+const _onKeyUp = (ev) => {
+	delete _pressed[ev.keyCode];
+	for (let l = 0; l < _downevents.length; l++) {
+		if (_downevents[l].key === ev.keyCode && _downevents[l].pressed) {
+			_downevents[l].pressed = false;
 		}
-	},
-	false,
-);
+	}
+};
 
-window.addEventListener(
-	"keydown",
-	(ev) => {
-		_pressed[ev.keyCode] = true;
-		for (let l = 0; l < _downevents.length; l++) {
-			if (_downevents[l].key === ev.keyCode && !_downevents[l].pressed) {
-				_downevents[l].event();
-				_downevents[l].pressed = true;
-			}
+const _onKeyDown = (ev) => {
+	_pressed[ev.keyCode] = true;
+	for (let l = 0; l < _downevents.length; l++) {
+		if (_downevents[l].key === ev.keyCode && !_downevents[l].pressed) {
+			_downevents[l].event();
+			_downevents[l].pressed = true;
 		}
-	},
-	false,
-);
+	}
+};
+
+window.addEventListener("keyup", _onKeyUp, false);
+window.addEventListener("keydown", _onKeyDown, false);
 
 const _setCursorMovement = (x, y) => {
 	// Accumulate mouse delta between frames (consumed in update)
@@ -61,13 +56,11 @@ const _setCursorMovement = (x, y) => {
 	);
 };
 
-window.addEventListener(
-	"mousemove",
-	(ev) => {
-		_setCursorMovement(ev.movementX, ev.movementY);
-	},
-	false,
-);
+const _onMouseMove = (ev) => {
+	_setCursorMovement(ev.movementX, ev.movementY);
+};
+
+window.addEventListener("mousemove", _onMouseMove, false);
 
 // Mobile Virtual Input Component
 class _VirtualInputUI extends Reactive.Component {
@@ -537,6 +530,12 @@ const Input = {
 		_cursorMovement.y = _cursorDelta.y;
 		_cursorDelta.x = 0;
 		_cursorDelta.y = 0;
+	},
+
+	dispose() {
+		window.removeEventListener("keyup", _onKeyUp, false);
+		window.removeEventListener("keydown", _onKeyDown, false);
+		window.removeEventListener("mousemove", _onMouseMove, false);
 	},
 };
 
