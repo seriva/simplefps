@@ -110,3 +110,6 @@ app/src/dependencies
 
 # content specific
 content
+
+# git worktrees
+.worktrees/
