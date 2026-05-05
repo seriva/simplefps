@@ -54,6 +54,22 @@ class WebGLBackend extends RenderBackend {
 		this._canvas.className = CanvasStyle;
 		document.body.appendChild(this._canvas);
 
+		this._canvas.addEventListener(
+			"webglcontextlost",
+			(e) => {
+				e.preventDefault();
+				Console.error("[Backend] WebGL context lost — reload to recover");
+			},
+			false,
+		);
+		this._canvas.addEventListener(
+			"webglcontextrestored",
+			() => {
+				Console.log("[Backend] WebGL context restored — reload recommended");
+			},
+			false,
+		);
+
 		// Create WebGL2 context
 		this._gl = this._canvas.getContext("webgl2", {
 			premultipliedAlpha: false,
