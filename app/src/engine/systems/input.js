@@ -1,6 +1,10 @@
 import { css, html, Reactive } from "../../dependencies/reactive.js";
 import { Settings } from "./settings.js";
 
+const _MAX_CURSOR_DELTA = 300;
+const _JOYSTICK_MAX_RADIUS = 50;
+const _JOYSTICK_DEAD_ZONE = 15;
+
 // ============================================================================
 // Private
 // ============================================================================
@@ -17,48 +21,46 @@ const _cursorDelta = {
 let _pressed = {};
 let _downevents = [];
 
-window.addEventListener(
-	"keyup",
-	(ev) => {
-		delete _pressed[ev.keyCode];
-		for (let l = 0; l < _downevents.length; l++) {
-			if (_downevents[l].key === ev.keyCode && _downevents[l].pressed) {
-				_downevents[l].pressed = false;
-			}
+const _onKeyUp = (ev) => {
+	delete _pressed[ev.keyCode];
+	for (let l = 0; l < _downevents.length; l++) {
+		if (_downevents[l].key === ev.keyCode && _downevents[l].pressed) {
+			_downevents[l].pressed = false;
 		}
-	},
-	false,
-);
+	}
+};
 
-window.addEventListener(
-	"keydown",
-	(ev) => {
-		_pressed[ev.keyCode] = true;
-		for (let l = 0; l < _downevents.length; l++) {
-			if (_downevents[l].key === ev.keyCode && !_downevents[l].pressed) {
-				_downevents[l].event();
-				_downevents[l].pressed = true;
-			}
+const _onKeyDown = (ev) => {
+	_pressed[ev.keyCode] = true;
+	for (let l = 0; l < _downevents.length; l++) {
+		if (_downevents[l].key === ev.keyCode && !_downevents[l].pressed) {
+			_downevents[l].event();
+			_downevents[l].pressed = true;
 		}
-	},
-	false,
-);
+	}
+};
+
+window.addEventListener("keyup", _onKeyUp, false);
+window.addEventListener("keydown", _onKeyDown, false);
 
 const _setCursorMovement = (x, y) => {
 	// Accumulate mouse delta between frames (consumed in update)
 	// Clamp delta to prevent massive jumps from browser artifacts
-	const clamp = 300;
-	_cursorDelta.x += Math.max(-clamp, Math.min(clamp, x));
-	_cursorDelta.y += Math.max(-clamp, Math.min(clamp, y));
+	_cursorDelta.x += Math.max(
+		-_MAX_CURSOR_DELTA,
+		Math.min(_MAX_CURSOR_DELTA, x),
+	);
+	_cursorDelta.y += Math.max(
+		-_MAX_CURSOR_DELTA,
+		Math.min(_MAX_CURSOR_DELTA, y),
+	);
 };
 
-window.addEventListener(
-	"mousemove",
-	(ev) => {
-		_setCursorMovement(ev.movementX, ev.movementY);
-	},
-	false,
-);
+const _onMouseMove = (ev) => {
+	_setCursorMovement(ev.movementX, ev.movementY);
+};
+
+window.addEventListener("mousemove", _onMouseMove, false);
 
 // Mobile Virtual Input Component
 class _VirtualInputUI extends Reactive.Component {
@@ -352,7 +354,10 @@ class _VirtualInputUI extends Reactive.Component {
 				const xDiff = ev.clientX - this._dragStart.x;
 				const yDiff = ev.clientY - this._dragStart.y;
 				const angle = Math.atan2(yDiff, xDiff);
-				const distance = Math.min(50, Math.hypot(xDiff, yDiff));
+				const distance = Math.min(
+					_JOYSTICK_MAX_RADIUS,
+					Math.hypot(xDiff, yDiff),
+				);
 
 				this._stickPos = {
 					x: distance * Math.cos(angle),
@@ -374,7 +379,7 @@ class _VirtualInputUI extends Reactive.Component {
 				delete _pressed[Settings.left];
 				delete _pressed[Settings.right];
 
-				if (dAngle && distance > 15) {
+				if (dAngle && distance > _JOYSTICK_DEAD_ZONE) {
 					const a = dAngle;
 					if ((a >= 337.5 && a < 360) || (a >= 0 && a < 22.5)) {
 						_pressed[Settings.right] = true;
@@ -525,6 +530,12 @@ const Input = {
 		_cursorMovement.y = _cursorDelta.y;
 		_cursorDelta.x = 0;
 		_cursorDelta.y = 0;
+	},
+
+	dispose() {
+		window.removeEventListener("keyup", _onKeyUp, false);
+		window.removeEventListener("keydown", _onKeyDown, false);
+		window.removeEventListener("mousemove", _onMouseMove, false);
 	},
 };
 
