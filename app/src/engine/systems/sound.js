@@ -61,6 +61,10 @@ class Sound {
 
 	play(resume = false) {
 		if (!this.cached) {
+			if (!this._sound) {
+				Console.warn("[Sound] Not ready yet, skipping play");
+				return;
+			}
 			const newSource = _audioContext.createBufferSource();
 			newSource.buffer = this._sound.source.buffer;
 			newSource.playbackRate.value = this._sound.source.playbackRate.value;
