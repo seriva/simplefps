@@ -88,6 +88,16 @@ const start = () => {
 	}
 };
 
+const dispose = () => {
+	if (_rafId) {
+		window.cancelAnimationFrame(_rafId);
+		_rafId = null;
+	}
+	window.removeEventListener("resize", resize, false);
+	Input.dispose();
+	_initialized = false;
+};
+
 const init = async (config = {}) => {
 	await backendReady;
 	_initialized = true;
@@ -116,6 +126,7 @@ export {
 	start,
 	pause,
 	resize,
+	dispose,
 	getCanvas,
 	getAspectRatio,
 	setCallbacks,
