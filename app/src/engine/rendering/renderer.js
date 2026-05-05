@@ -17,6 +17,8 @@ const _BlurSourceType = Object.freeze({
 	EMISSIVE: 2,
 });
 
+const _NOISE_TEXTURE_SIZE = 128;
+
 const _g = {
 	framebuffer: null,
 	position: null,
@@ -250,7 +252,7 @@ const _blurImage = (source, iterations, radius) => {
 };
 
 const _generateProceduralNoise = () => {
-	const size = 128;
+	const size = _NOISE_TEXTURE_SIZE;
 	const data = new Uint8Array(size * size * 4);
 	const heightMap = new Float32Array(size * size);
 
