@@ -1,41 +1,42 @@
 import { Skeleton } from "../animation/skeleton.js";
+import { Console } from "../systems/console.js";
 import { Backend } from "./backend.js";
 import { Mesh } from "./mesh.js";
+
+const MAX_JOINTS = 64;
 
 class SkinnedMesh extends Mesh {
 	constructor(data, context) {
 		super(data, context);
 
-		// Skeletal data
-
 		this.skeleton = null;
 		this.gpuJointIndices = null;
 		this.gpuJointWeights = null;
 		this.skinnedVao = null;
+		this.jointIndexBuffer = null;
+		this.jointWeightBuffer = null;
+		this._boneMatrixBuffer = null;
 	}
 
 	initMeshBuffers() {
 		const baseAttributes = this._createBaseBuffers();
-		this.hasLightmapUVs = false; // Skinned meshes never have lightmap UVs
+		this.hasLightmapUVs = false;
 
-		// Joint indices buffer
 		this.jointIndexBuffer = Backend.createBuffer(
 			this.gpuJointIndices,
 			"vertex",
 		);
 		this._buffers.push(this.jointIndexBuffer);
 
-		// Joint weights buffer
 		this.jointWeightBuffer = Backend.createBuffer(
 			this.gpuJointWeights,
 			"vertex",
 		);
 		this._buffers.push(this.jointWeightBuffer);
 
-		// Create base VAO (for debug rendering without skinning)
+		// base VAO used for debug rendering without skinning
 		this.vao = Backend.createVertexState({ attributes: baseAttributes });
 
-		// Create skinned VAO with joint attributes
 		const skinnedAttributes = [
 			...baseAttributes,
 			{
@@ -68,29 +69,31 @@ class SkinnedMesh extends Mesh {
 
 	dispose() {
 		this.deleteMeshBuffers();
+		this.gpuJointIndices = null;
+		this.gpuJointWeights = null;
 		this._boneMatrixBuffer = null;
 	}
 
 	bind(useSkinned = true) {
-		// Default to skinned VAO for SkinnedMesh
-		const vao = useSkinned ? this.skinnedVao : this.vao;
-		Backend.bindVertexState(vao);
+		Backend.bindVertexState(useSkinned ? this.skinnedVao : this.vao);
 	}
 
-	// Pre-allocated buffer for bone matrices (reused each frame)
-	_boneMatrixBuffer = null;
-
-	// Get bone matrices for GPU skinning (flat Float32Array of mat4s)
-	// Reuses internal buffer to avoid allocations
 	getBoneMatricesForGPU(pose) {
 		if (!this.skeleton) return null;
 
 		const skinMatrices = this.skeleton.computeSkinningMatrices(pose);
 		const count = skinMatrices.length;
 
-		// Allocate buffer once (64 matrices for uniform buffer alignment)
+		if (count > MAX_JOINTS) {
+			Console.error(
+				`Skeleton has ${count} joints, exceeds MAX_JOINTS (${MAX_JOINTS})`,
+			);
+			return null;
+		}
+
+		// sized for uniform buffer alignment (MAX_JOINTS mat4s)
 		if (!this._boneMatrixBuffer) {
-			this._boneMatrixBuffer = new Float32Array(64 * 16);
+			this._boneMatrixBuffer = new Float32Array(MAX_JOINTS * 16);
 		}
 
 		const result = this._boneMatrixBuffer;
@@ -106,7 +109,6 @@ class SkinnedMesh extends Mesh {
 			this.skeleton = new Skeleton(data.skeleton.joints);
 		}
 
-		// Load GPU skinning data if present
 		if (data.gpuJointIndices && data.gpuJointWeights) {
 			this.gpuJointIndices = new Uint8Array(data.gpuJointIndices);
 			this.gpuJointWeights = new Float32Array(data.gpuJointWeights);
@@ -141,39 +143,34 @@ class SkinnedMesh extends Mesh {
 				joints.push({ name: "", parent, pos, rot });
 			}
 
-			// Read joint names
 			for (let i = 0; i < jointCount; i++) {
-				const name = reader.readStringNullTerminated();
-				joints[i].name = name;
+				joints[i].name = reader.readStringNullTerminated();
 			}
 
 			this.skeleton = new Skeleton(joints);
 
-			// Skip over legacy weight data (kept for file format compatibility)
+			// skip legacy weight data (file format compatibility)
 			for (let i = 0; i < weightCount; i++) {
-				reader.readUint32(); // vertex
+				reader.readUint32();
 				const count = reader.readUint32();
 				for (let j = 0; j < count; j++) {
-					reader.readUint32(); // joint index
-					reader.readFloat32(); // weight
+					reader.readUint32();
 					reader.readFloat32();
 					reader.readFloat32();
-					reader.readFloat32(); // position
+					reader.readFloat32();
+					reader.readFloat32();
 					if (hasWeightNormals) {
 						reader.readFloat32();
 						reader.readFloat32();
-						reader.readFloat32(); // normal
+						reader.readFloat32();
 					}
 				}
 			}
 
-			// Read GPU skinning data (version 5+)
+			// GPU skinning data (version 5+)
 			if (hasGPUSkinning) {
 				const numVertices = this.vertices.length / 3;
-				// Joint indices: 4 uint8 per vertex
 				this.gpuJointIndices = reader.readUint8Array(numVertices * 4);
-
-				// Joint weights: 4 float32 per vertex
 				this.gpuJointWeights = reader.readFloat32Array(numVertices * 4);
 			}
 		}
