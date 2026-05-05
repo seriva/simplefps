@@ -9,6 +9,8 @@ const ICE_CONFIG = {
 	],
 };
 
+const CONNECT_TIMEOUT_MS = 10_000;
+
 // Message types
 export const NETWORK_MESSAGES = {
 	POSITION: "POS", // Client sends their position
@@ -115,11 +117,23 @@ export class Network {
 	}
 
 	_connectToHost(hostId, resolve, reject) {
+		let settled = false;
+
+		const timeout = setTimeout(() => {
+			if (settled) return;
+			settled = true;
+			Console.error("[Network] Connection timed out");
+			reject(new Error("Connection timeout"));
+		}, CONNECT_TIMEOUT_MS);
+
 		Console.log(`[Network] Connecting to: ${hostId}`);
 		this.hostConnection = this.peer.connect(hostId, { reliable: true });
 
 		this.hostConnection.on("open", () => {
-			Console.log(`[Network] Connected!`);
+			if (settled) return;
+			settled = true;
+			clearTimeout(timeout);
+			Console.log("[Network] Connected!");
 			resolve();
 		});
 
@@ -130,10 +144,13 @@ export class Network {
 		});
 
 		this.hostConnection.on("close", () => {
-			Console.log(`[Network] Disconnected`);
+			Console.log("[Network] Disconnected");
 		});
 
 		this.hostConnection.on("error", (err) => {
+			if (settled) return;
+			settled = true;
+			clearTimeout(timeout);
 			Console.error(`[Network] Error: ${err}`);
 			reject(err);
 		});
