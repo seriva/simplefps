@@ -9,7 +9,7 @@ const ICE_CONFIG = {
 	],
 };
 
-const CONNECT_TIMEOUT_MS = 10_000;
+const _CONNECT_TIMEOUT_MS = 10_000;
 
 // Message types
 export const NETWORK_MESSAGES = {
@@ -124,7 +124,7 @@ export class Network {
 			settled = true;
 			Console.error("[Network] Connection timed out");
 			reject(new Error("Connection timeout"));
-		}, CONNECT_TIMEOUT_MS);
+		}, _CONNECT_TIMEOUT_MS);
 
 		Console.log(`[Network] Connecting to: ${hostId}`);
 		this.hostConnection = this.peer.connect(hostId, { reliable: true });
