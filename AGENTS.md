@@ -1,93 +1,32 @@
 # SimpleFPS — Agent File
 
-## Project Overview
-SimpleFPS is an arena-based first-person shooter written in ES6 modules targeting WebGL 2.0 and WebGPU. It is distributed as a PWA and supports Desktop, Android, and iOS. The project has evolved since 2017 and currently uses modern tooling including Microtastic (build/dev server), Biome (lint/format), and Husky (git hooks).
+## Project Identity
+SimpleFPS is an arena-based first-person shooter written in plain ES6 modules with hybrid WebGL 2 / WebGPU rendering, distributed as a PWA for Desktop, Android, and iOS.
 
 ## Tech Stack
-- **Language**: ES6 Modules
-- **Rendering**: Hybrid WebGL 2 / WebGPU backends (feature-detected at runtime)
+- **Language**: ES6 Modules (no TypeScript, no JSDoc)
+- **Rendering**: WebGL 2 + WebGPU (feature-detected at runtime)
 - **Physics**: cannon-es
 - **Math**: gl-matrix
-- **UI / Reactivity**: simple-reactive (bundled at `app/src/dependencies/reactive.js`, sourced from `node_modules/microtastic/reactive.js`)
+- **UI / Reactivity**: reactive.js (`state()` → `init()` → `render()` → `mount()` → `onCleanup()`)
 - **Networking**: PeerJS (WebRTC P2P)
 - **Build**: Microtastic (`npm run dev` / `npm run prod`)
-- **Linting / Formatting**: Biome (`npm run check` / `npm run format`)
+- **Lint / Format**: Biome (`npm run check` / `npm run format`)
 - **Node**: >= 20.0.0, npm >= 9.0.0
 
-## Project Structure
-```
-app/
-├── src/
-│   ├── dependencies/     # Bundled 3rd-party libs (reactive.js, etc.)
-│   ├── engine/           # Core engine
-│   │   ├── engine.js     # Barrel export + game loop entry point
-│   │   ├── animation/    # Skeletal animation
-│   │   ├── physics/      # FPS controller, collision, octree
-│   │   ├── rendering/    # WebGPU & WebGL backends + shaders
-│   │   ├── scene/        # Entity system & scene graph
-│   │   └── systems/      # Camera, settings, input, audio, resources, console
-│   ├── game/             # Game-specific logic
-│   │   ├── weapons.js    # Weapon system
-│   │   ├── controls.js   # Player input / controls
-│   │   ├── arena.js      # Arena / map management
-│   │   └── gamedefs.js   # Shared game constants & definitions
-│   └── main.js           # Application entry point
-├── resources/            # Game assets (textures, models, sounds, maps)
-└── index.html
-scripts/
-├── bsp2map.js            # Quake 3 BSP → game format converter
-├── md5tomesh.js          # Doom 3 MD5 → mesh converter
-└── obj2mesh.js           # OBJ → mesh converter
-docs/
-├── rendering.md          # Rendering architecture docs
-├── scene.md              # Scene system docs
-└── networking.md         # Networking architecture docs
-```
+## Core Standards
+1. **Engine facade**: game code (`app/src/game/`) imports only from `../engine/engine.js` — never from engine subdirectories. Engine-internal modules import each other directly and never from `engine.js`.
+2. **Zero per-frame allocations**: pre-allocate all scratch matrices/vectors/quaternions at module level (e.g. `const _tmpMat4 = mat4.create()`) and reuse via in-place gl-matrix ops. No object creation in hot paths.
+3. **Biome is law**: run `npm run format` + `npm run check` before every commit. The `/verify` workflow (`npm run format` → `npm run check` → `npm run prod`) must pass before concluding any task.
+4. **Keep docs current**: changes to rendering, scene, or networking subsystems → update the corresponding `docs/*.md`. New player-visible features → update `README.md`. File-tree changes → update Architecture below.
+5. **Use the in-game console**: log via `Console.log` / `.warn` / `.error` (imported through the engine facade), not `console.*`.
 
-## Key Conventions & Patterns
-- **No TypeScript** — plain ES6. No JSDoc comments anywhere.
-- **No default exports** — prefer named exports.
-- **`const` over `let`**, never `var`.
-- **Biome**: formatter and linter (`npm run format` / `npm run check`).
-- **Entity system**: all scene objects extend a base entity class; entities should be decoupled from the Scene module — pass ambient light, shadow height, etc. as arguments to `render` / `renderShadow` rather than having entities import Scene.
-- **Renderer abstraction**: code that touches GPU must branch on WebGPU vs WebGL backends via the renderer interface in `engine/rendering/`.
-- **reactive.js**: used for UI state management and component lifecycle. Component flow: `state()` → `init()` → `render()` → `mount()` (→ `onCleanup()` on teardown). Define signals in `state()`, create computed/async signals in `init()`, return DOM templates in `render()`, and bind events/side-effects in `mount()`.
-- **Asset pipeline**: textures, meshes, and maps are pre-processed by scripts in `scripts/` (e.g., `node scripts/obj2mesh.js input.obj output.mesh`). Do not commit generated binary assets; add them to `.gitignore` if necessary.
-- **Imports**: always use relative paths with explicit `.js` extensions (ES module browser semantics).
-- **Engine facade**: game code (`app/src/game/`) must always import from `../engine/engine.js`. Never import directly from engine subdirectories (e.g. `../engine/systems/camera.js`). Engine-internal modules may import each other directly and must never import from `engine.js` to avoid circular dependencies.
-- **Performance — no per-frame allocations**: never create matrices, vectors, quaternions, or other temporary objects inside functions that run per-frame or per-entity. Pre-allocate all such scratch objects at module level (e.g. `const _tmpMat4 = mat4.create()`) and reuse them via in-place gl-matrix operations (`mat4.multiply(out, a, b)` etc.). Apply this rule to any object that would otherwise be GC'd at high frequency.
-- **Logging & Error Handling**: Use the custom in-game console for logging. It provides an in-game UI overlay for commands and supports `Console.log`, `Console.warn`, and `Console.error`. Game code imports it via the facade (`import { Console } from "../engine/engine.js"`); engine-internal modules import it directly (`import { Console } from "../systems/console.js"`).
-- **Testing Strategy**: There is currently no formal unit testing framework. Code verification relies on Biome's static analysis (`npm run check`) and manual verification via the dev server (`npm run dev`) or production build (`npm run prod`).
+## Architecture
+Game code lives in `app/src/game/`, the engine in `app/src/engine/` (with subdirectories `animation/`, `physics/`, `rendering/`, `scene/`, `systems/`), and bundled third-party libs in `app/src/dependencies/`. `engine.js` is the barrel export and game-loop entry point — all game→engine access goes through it. Asset-conversion scripts live in `scripts/` (BSP, MD5, OBJ converters). Architecture docs live in `docs/` (`rendering.md`, `scene.md`, `networking.md`). Workflows live in `.agent/workflows/`.
 
-
-## Naming Conventions
-- **Classes**: PascalCase (e.g., `PhysicsBody`, `SceneEntity`)
-- **Functions / variables**: camelCase (e.g., `loadSettings`, `deltaTime`)
-- **Constants / config objects**: UPPER_SNAKE_CASE (e.g., `MAX_LIGHTS`, `DEFAULT_FOV`)
-- **Private / internal fields and methods**: `_` prefix (e.g., `_mesh`, `_pipeline`, `_tmpMat4`, `_activeScene`) — used for both class instance fields/methods and module-level scratch variables
-
-## Common Commands
-```bash
-npm run dev          # Start Microtastic dev server with hot-reload
-npm run prod         # Lint → production build
-npm run format       # Auto-format with Biome
-npm run check        # Lint with Biome (CI check)
-npm run dependencies # Re-bundle 3rd-party dependencies via Microtastic
-npm run prepare      # Husky + microtastic prep (run after npm install)
-```
-
-## Documentation
-The `docs/` directory contains architecture documentation for the three major subsystems:
-- `docs/rendering.md` — rendering pipeline, passes, backend abstraction
-- `docs/scene.md` — entity system, scene graph, BVH, visibility culling
-- `docs/networking.md` — P2P networking, multiplayer protocol
-
-When making changes that affect any of these subsystems, update the relevant doc to reflect the new behaviour. Specifically:
-- Adding, removing, or renaming a public API on `engine.js` → update the affected doc and `AGENTS.md` Project Structure if the file tree changed.
-- Changing how a subsystem works (e.g. render pass order, entity lifecycle, network protocol) → update the corresponding doc.
-- Adding a feature visible to players (new weapon, setting, rendering feature) → update `README.md` Features section.
-- Do not document implementation details that are already self-evident from the code; focus on architecture, contracts, and non-obvious design decisions.
-
-## Workflows
-The `.agent/workflows/` directory contains standard operating procedures.
-- **verify**: Run `npm run format`, `npm run check`, and `npm run prod` to ensure the codebase is clean and builds successfully. Always run this workflow before concluding a task.
+## Anti-Patterns
+- **No default exports** — always use named exports.
+- **No `var`** — use `const` (preferred) or `let`.
+- **No direct GPU code outside the renderer** — all GPU work branches through the WebGPU / WebGL backend abstraction in `engine/rendering/`.
+- **No entity↔Scene coupling** — pass ambient light, shadow height, etc. as arguments to `render()` / `renderShadow()` rather than importing Scene from within entities.
+- **No committed binary assets** — textures, meshes, and maps are generated by `scripts/` and must be `.gitignore`d.
