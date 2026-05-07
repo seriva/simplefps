@@ -1,0 +1,10 @@
+pre-commit:
+  commands:
+    format:
+      run: npm run format
+
+    stage-formatted:
+      run: git add -u
+
+    lint:
+      run: npm run check

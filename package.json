@@ -14,7 +14,7 @@
     "url": "https://github.com/seriva/SimpleFPS.git"
   },
   "scripts": {
-    "prepare": "husky && microtastic prep",
+    "prepare": "lefthook install && microtastic prep",
     "dependencies": "microtastic prep",
     "dev": "microtastic dev",
     "prod": "npm run check && microtastic prod",
@@ -27,7 +27,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.10",
-    "husky": "^9.1.7",
+    "lefthook": "^1.11.13",
     "microtastic": "^0.0.71",
     "pretty-json-stringify": "^0.0.2"
   },
