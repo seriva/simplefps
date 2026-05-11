@@ -26,8 +26,8 @@
     "peerjs": "^1.5.5"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.4.10",
-    "lefthook": "^1.11.13",
+    "@biomejs/biome": "^2.4.15",
+    "lefthook": "^2.1.6",
     "microtastic": "^0.0.71",
     "pretty-json-stringify": "^0.0.2"
   },
