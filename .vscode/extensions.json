@@ -1,6 +1,9 @@
 {
     "recommendations": [
-        // For running the vscode devcontainer.
-        "ms-vscode-remote.remote-containers"
+        "biomejs.biome",
+        "tobermory.es6-string-html",
+        "boyswan.glsl-literal",
+        "ggsimm.wgsl-literal",
+        "polymeilex.wgsl"
     ]
 }
