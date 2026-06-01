@@ -12,6 +12,9 @@ const _noclipDir = vec3.create();
 const _tmpPos1 = { x: 0, z: 0 };
 const _tmpPos2 = { x: 0, z: 0 };
 
+// Pre-allocated scratch object for step-climbing horizontal queries
+const _stepTempPos = { x: 0, y: 0, z: 0 };
+
 // 8 cardinal + diagonal directions (normalized, reused for ground checks and depenetration)
 const _radialDirs = [
 	{ x: 1, z: 0 },
@@ -186,101 +189,225 @@ class FPSController {
 		const dy = this.velocity[1] * dt;
 		const dz = this.velocity[2] * dt;
 		const startPos = this.position;
+		const startX = startPos.x;
+		const startY = startPos.y;
+		const startZ = startPos.z;
 
-		let { x: finalX, z: finalZ } = this._resolveHorizontalCollision(
+		// 1. Resolve horizontal collision using iterative wall sliding
+		let { x: slideX, z: slideZ } = this._resolveHorizontalCollision(
 			startPos,
 			dx,
 			dz,
-			dt,
 		);
-		({ x: finalX, z: finalZ } = this._resolveDepenetration(
-			finalX,
-			finalZ,
-			startPos.y,
+		({ x: slideX, z: slideZ } = this._resolveDepenetration(
+			slideX,
+			slideZ,
+			startY,
 		));
 
-		this.position.x = finalX;
-		this.position.z = finalZ;
-		this.position.y = this._resolveGroundCollision(
-			finalX,
-			finalZ,
-			startPos.y,
-			dy,
-		);
-		this._resolveCeilingCollision(finalX, startPos.y, finalZ);
+		// Check progress to see if we collided horizontally
+		const uncollidedDistSq = dx * dx + dz * dz;
+		const slidDistSq =
+			(slideX - startX) * (slideX - startX) +
+			(slideZ - startZ) * (slideZ - startZ);
+
+		let stepped = false;
+		if (this.grounded && slidDistSq < uncollidedDistSq - 0.1) {
+			stepped = this._tryStepClimb(startPos, dx, dz, slideX, slideZ);
+		}
+
+		// If we didn't step, keep slide positions and resolve vertical movement normally
+		if (!stepped) {
+			this.position.x = slideX;
+			this.position.z = slideZ;
+			this.position.y = this._resolveGroundCollision(
+				slideX,
+				slideZ,
+				startY,
+				dy,
+			);
+		}
+
+		this._resolveCeilingCollision(this.position.x, startY, this.position.z);
 	}
 
-	_resolveHorizontalCollision(startPos, dx, dz, dt) {
-		let finalX = startPos.x + dx;
-		let finalZ = startPos.z + dz;
+	_resolveHorizontalCollision(startPos, dx, dz) {
+		let x = startPos.x;
+		let z = startPos.z;
+		const startY = startPos.y;
+		let curDx = dx;
+		let curDz = dz;
 
 		const radius = this.config.radius;
-		const horizontalSpeed = Math.sqrt(
-			this.velocity[0] * this.velocity[0] + this.velocity[2] * this.velocity[2],
-		);
-		const horizontalDist = horizontalSpeed * dt;
+		const maxIterations = 3;
 
-		if (horizontalDist <= 0.001 || horizontalSpeed <= 1) {
-			_tmpPos1.x = finalX;
-			_tmpPos1.z = finalZ;
-			return _tmpPos1;
-		}
+		for (let iter = 0; iter < maxIterations; iter++) {
+			const horizontalDist = Math.sqrt(curDx * curDx + curDz * curDz);
+			if (horizontalDist <= 0.001) {
+				break;
+			}
 
-		const dirX = dx / horizontalDist;
-		const dirZ = dz / horizontalDist;
-		const rayLength = horizontalDist + radius + 2;
+			const dirX = curDx / horizontalDist;
+			const dirZ = curDz / horizontalDist;
+			const rayLength = horizontalDist + radius + 2;
 
-		let hitWall = false;
-		let wallNormalX = 0;
-		let wallNormalZ = 0;
-		let closestHitDist = Infinity;
+			let hitWall = false;
+			let wallNormalX = 0;
+			let wallNormalZ = 0;
+			let closestHitDist = Infinity;
 
-		for (const heightOffset of _horizontalCheckHeights) {
-			const checkY = startPos.y + heightOffset * this.config.height * 0.5;
-			const result = Scene.raycast(
-				startPos.x,
-				checkY,
-				startPos.z,
-				startPos.x + dirX * rayLength,
-				checkY,
-				startPos.z + dirZ * rayLength,
-			);
-
-			if (result.hasHit) {
-				const hp = result.hitPointWorld;
-				const hitDist = Math.sqrt(
-					(hp[0] - startPos.x) ** 2 + (hp[2] - startPos.z) ** 2,
+			for (const heightOffset of _horizontalCheckHeights) {
+				const checkY = startY + heightOffset * this.config.height * 0.5;
+				const result = Scene.raycast(
+					x,
+					checkY,
+					z,
+					x + dirX * rayLength,
+					checkY,
+					z + dirZ * rayLength,
 				);
-				if (hitDist < closestHitDist) {
-					closestHitDist = hitDist;
-					hitWall = true;
-					// Snapshot normal values — result.hitNormalWorld is a shared vec3
-					// that gets overwritten by subsequent raycasts
-					wallNormalX = result.hitNormalWorld[0];
-					wallNormalZ = result.hitNormalWorld[2];
+
+				if (result.hasHit) {
+					const hp = result.hitPointWorld;
+					const hitDist = Math.sqrt((hp[0] - x) ** 2 + (hp[2] - z) ** 2);
+					if (hitDist < closestHitDist) {
+						closestHitDist = hitDist;
+						hitWall = true;
+						wallNormalX = result.hitNormalWorld[0];
+						wallNormalZ = result.hitNormalWorld[2];
+					}
 				}
+			}
+
+			if (hitWall) {
+				const safeMoveDist = Math.max(0, closestHitDist - radius - 1);
+				x += dirX * safeMoveDist;
+				z += dirZ * safeMoveDist;
+
+				const normalLen = Math.sqrt(
+					wallNormalX * wallNormalX + wallNormalZ * wallNormalZ,
+				);
+				if (normalLen > 0.001) {
+					const nx = wallNormalX / normalLen;
+					const nz = wallNormalZ / normalLen;
+
+					// Slide velocity
+					const velDot = this.velocity[0] * nx + this.velocity[2] * nz;
+					if (velDot < 0) {
+						this.velocity[0] -= velDot * nx;
+						this.velocity[2] -= velDot * nz;
+					}
+
+					// Slide remaining displacement
+					const dispDot = curDx * nx + curDz * nz;
+					if (dispDot < 0) {
+						curDx -= dispDot * nx;
+						curDz -= dispDot * nz;
+					}
+				} else {
+					break;
+				}
+			} else {
+				x += curDx;
+				z += curDz;
+				break;
 			}
 		}
 
-		if (hitWall) {
-			const safeMoveDist = Math.max(0, closestHitDist - radius - 1);
-			if (safeMoveDist < horizontalDist) {
-				finalX = startPos.x + dirX * safeMoveDist;
-				finalZ = startPos.z + dirZ * safeMoveDist;
-
-				// Wall slide: remove velocity component into wall
-				const dot =
-					this.velocity[0] * wallNormalX + this.velocity[2] * wallNormalZ;
-				if (dot < 0) {
-					this.velocity[0] -= dot * wallNormalX;
-					this.velocity[2] -= dot * wallNormalZ;
-				}
-			}
-		}
-
-		_tmpPos1.x = finalX;
-		_tmpPos1.z = finalZ;
+		_tmpPos1.x = x;
+		_tmpPos1.z = z;
 		return _tmpPos1;
+	}
+
+	_tryStepClimb(startPos, dx, dz, slideX, slideZ) {
+		const startX = startPos.x;
+		const startY = startPos.y;
+		const startZ = startPos.z;
+
+		// Save original velocity
+		const savedVelX = this.velocity[0];
+		const savedVelZ = this.velocity[2];
+
+		// 1. Move up by STEP_HEIGHT
+		const stepUpY = startY + STEP_HEIGHT;
+
+		// 2. Perform horizontal collision resolution from the elevated height
+		_stepTempPos.x = startX;
+		_stepTempPos.y = stepUpY;
+		_stepTempPos.z = startZ;
+
+		const horizResult = this._resolveHorizontalCollision(_stepTempPos, dx, dz);
+		const movedX = horizResult.x;
+		const movedZ = horizResult.z;
+
+		// 3. Move down to find the ground
+		const landedY = this._resolveGroundCollision(
+			movedX,
+			movedZ,
+			stepUpY,
+			-STEP_HEIGHT,
+		);
+
+		// 4. Validate step climb
+		// A: Check ceiling clearance at the stepped-up position
+		const ceilingCheck = Scene.raycast(
+			movedX,
+			stepUpY,
+			movedZ,
+			movedX,
+			stepUpY + this.config.height * 0.5,
+			movedZ,
+		);
+		if (ceilingCheck.hasHit) {
+			this.velocity[0] = savedVelX;
+			this.velocity[2] = savedVelZ;
+			return false;
+		}
+
+		// B: Check ceiling clearance at the final landed position
+		const landedCeilingCheck = Scene.raycast(
+			movedX,
+			landedY,
+			movedZ,
+			movedX,
+			landedY + this.config.height * 0.5,
+			movedZ,
+		);
+		if (landedCeilingCheck.hasHit) {
+			this.velocity[0] = savedVelX;
+			this.velocity[2] = savedVelZ;
+			return false;
+		}
+
+		// C: Run depenetration at the landed position to ensure we aren't inside any walls
+		const depenResult = this._resolveDepenetration(movedX, movedZ, landedY);
+		const finalStepX = depenResult.x;
+		const finalStepZ = depenResult.z;
+
+		// Compare horizontal distance made compared to plain sliding on ground
+		const slideDistSq =
+			(slideX - startX) * (slideX - startX) +
+			(slideZ - startZ) * (slideZ - startZ);
+		const stepDistSq =
+			(finalStepX - startX) * (finalStepX - startX) +
+			(finalStepZ - startZ) * (finalStepZ - startZ);
+
+		// If we are grounded, landed higher than start height, and made more horizontal progress, accept!
+		if (
+			this.grounded &&
+			landedY > startY + 1 &&
+			stepDistSq > slideDistSq + 0.1
+		) {
+			this.position.x = finalStepX;
+			this.position.z = finalStepZ;
+			this.position.y = landedY;
+			return true;
+		}
+
+		// Otherwise, step climb failed: restore original horizontal velocity
+		this.velocity[0] = savedVelX;
+		this.velocity[2] = savedVelZ;
+		return false;
 	}
 
 	_resolveDepenetration(x, z, y) {
@@ -288,8 +415,8 @@ class FPSController {
 		const depenetrationRadius = radius + 1;
 		const radiusSq = radius * radius;
 
-		// Only check 4 cardinal directions (indices 0-3) for performance
-		for (let i = 0; i < 4; i++) {
+		// Check all 8 directions in _radialDirs for robust depenetration
+		for (let i = 0; i < 8; i++) {
 			const dir = _radialDirs[i];
 			const result = Scene.raycast(
 				x,

@@ -10,10 +10,12 @@ features (e.g. `docs/v0.0.3/`).
 
 ## [v0.0.3]
 
-**Theme: TBD.**
+**Theme: Physics & Performance**
 
-| Feature    | Difficulty | Status | Notes |
-|------------|------------|--------|-------|
+| Feature | Difficulty | Status | Notes |
+|---------|------------|--------|-------|
+| [Physics Improvements](v0.0.3/physics-improvements-plan.md) | Medium | Planned | Iterative wall sliding, Quake-style step-climbing, and 8-directional depenetration |
+| [Raycasting Engine Optimizations](v0.0.3/physics-improvements-plan.md#4-raycasting-engine-optimizations) | Medium | Planned | Identity fast path, closest hit truncation, and redundant vec3.sqrDist elimination |
 
 ---
 

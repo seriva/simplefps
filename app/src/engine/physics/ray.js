@@ -90,13 +90,41 @@ class Ray {
 	intersectTrimesh(mesh, worldMatrix, _options) {
 		const indices = mesh.indices;
 
-		// Transform ray to local space
-		mat4.invert(_invMatrix, worldMatrix);
-		vec3.transformMat4(_itLocalFrom, this.from, _invMatrix);
-		vec3.transformMat4(_itLocalTo, this.to, _invMatrix);
+		// Fast check for identity matrix
+		let isIdentity = true;
+		if (worldMatrix) {
+			isIdentity =
+				worldMatrix[0] === 1 &&
+				worldMatrix[5] === 1 &&
+				worldMatrix[10] === 1 &&
+				worldMatrix[15] === 1 &&
+				worldMatrix[1] === 0 &&
+				worldMatrix[2] === 0 &&
+				worldMatrix[3] === 0 &&
+				worldMatrix[4] === 0 &&
+				worldMatrix[6] === 0 &&
+				worldMatrix[7] === 0 &&
+				worldMatrix[8] === 0 &&
+				worldMatrix[9] === 0 &&
+				worldMatrix[11] === 0 &&
+				worldMatrix[12] === 0 &&
+				worldMatrix[13] === 0 &&
+				worldMatrix[14] === 0;
+		}
 
-		vec3.sub(_itLocalDir, _itLocalTo, _itLocalFrom);
-		vec3.normalize(_itLocalDir, _itLocalDir);
+		if (isIdentity) {
+			vec3.copy(_itLocalFrom, this.from);
+			vec3.copy(_itLocalTo, this.to);
+			vec3.copy(_itLocalDir, this.direction);
+		} else {
+			// Transform ray to local space
+			mat4.invert(_invMatrix, worldMatrix);
+			vec3.transformMat4(_itLocalFrom, this.from, _invMatrix);
+			vec3.transformMat4(_itLocalTo, this.to, _invMatrix);
+
+			vec3.sub(_itLocalDir, _itLocalTo, _itLocalFrom);
+			vec3.normalize(_itLocalDir, _itLocalDir);
+		}
 
 		const maxDist = vec3.distance(_itLocalFrom, _itLocalTo);
 
@@ -112,8 +140,6 @@ class Ray {
 
 		// Query octree directly in local space (no identity transform overhead)
 		mesh.tree.rayQueryLocal(_itLocalFrom, _itLocalDir, maxDist, _itTriangles);
-
-		const fromToDistanceSquaredVal = vec3.sqrDist(_itLocalFrom, _itLocalTo);
 
 		for (
 			let i = 0, N = _itTriangles.length;
@@ -132,7 +158,16 @@ class Ray {
 
 			vec3.sub(_itVector, _a, _itLocalFrom);
 			const scalar = vec3.dot(_itNormal, _itVector) / dot;
-			if (scalar < 0) {
+			if (scalar < 0 || scalar > maxDist) {
+				continue;
+			}
+
+			// Closest hit early out: skip if this triangle is further than the closest hit we already found
+			if (
+				this.mode === RAY_MODES.CLOSEST &&
+				this.result.hasHit &&
+				scalar > this.result.distance
+			) {
 				continue;
 			}
 
@@ -141,33 +176,33 @@ class Ray {
 			mesh.getVertex(indices[trianglesIndex * 3 + 1], _b);
 			mesh.getVertex(indices[trianglesIndex * 3 + 2], _c);
 
-			const squaredDistance = vec3.sqrDist(_intersectPoint, _itLocalFrom);
-
 			// Use dot sign to pick correct winding order (single test instead of two)
 			const inTriangle =
 				dot < 0
 					? Ray.pointInTriangle(_intersectPoint, _b, _a, _c)
 					: Ray.pointInTriangle(_intersectPoint, _a, _b, _c);
 
-			if (!inTriangle || squaredDistance > fromToDistanceSquaredVal) {
+			if (!inTriangle) {
 				continue;
 			}
 
-			// Transform Hit Point local -> world
-			vec3.transformMat4(_itWorldPoint, _intersectPoint, worldMatrix);
+			if (isIdentity) {
+				vec3.copy(_itWorldPoint, _intersectPoint);
+				vec3.copy(_itWorldNormal, _itNormal);
+			} else {
+				// Transform Hit Point local -> world
+				vec3.transformMat4(_itWorldPoint, _intersectPoint, worldMatrix);
 
-			// Transform Normal local -> world (rotate only)
-			const m = worldMatrix;
-			_itWorldNormal[0] =
-				_itNormal[0] * m[0] + _itNormal[1] * m[4] + _itNormal[2] * m[8];
-			_itWorldNormal[1] =
-				_itNormal[0] * m[1] + _itNormal[1] * m[5] + _itNormal[2] * m[9];
-			_itWorldNormal[2] =
-				_itNormal[0] * m[2] + _itNormal[1] * m[6] + _itNormal[2] * m[10];
-			vec3.normalize(_itWorldNormal, _itWorldNormal);
-
-			// Compute world distance here to avoid recomputing in reportIntersection
-			const worldDist = vec3.dist(this.from, _itWorldPoint);
+				// Transform Normal local -> world (rotate only)
+				const m = worldMatrix;
+				_itWorldNormal[0] =
+					_itNormal[0] * m[0] + _itNormal[1] * m[4] + _itNormal[2] * m[8];
+				_itWorldNormal[1] =
+					_itNormal[0] * m[1] + _itNormal[1] * m[5] + _itNormal[2] * m[9];
+				_itWorldNormal[2] =
+					_itNormal[0] * m[2] + _itNormal[1] * m[6] + _itNormal[2] * m[10];
+				vec3.normalize(_itWorldNormal, _itWorldNormal);
+			}
 
 			this.reportIntersection(
 				_itWorldNormal,
@@ -175,7 +210,7 @@ class Ray {
 				mesh,
 				null, // body, deprecated
 				trianglesIndex,
-				worldDist,
+				scalar, // distance is exactly scalar
 			);
 		}
 		_itTriangles.length = 0;
