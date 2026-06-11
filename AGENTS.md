@@ -5,18 +5,23 @@
 > **IMMUTABLE SECTION:** Do not modify Part 1 unless explicitly instructed. This is a universal standard. Only adjust Part 2 (Project Context) for project-specific needs.
 
 ## 1. Context & Rules
-- **Map:** Maintain the `## Project Map` section in Part 2 natively using "caveman" style (extreme density, no grammar, `->` for correlations). Update on changes.
-- **Caveman Speak:** Communicate, plan, and write docs in "caveman" style (extreme semantic density, zero fluff, drop grammar/articles). Maximize token efficiency.
-- **Docs-first:** Create `docs/vX.Y.Z/<feature>-plan.md` before coding non-trivial features.
-- **TDD:** Write failing tests first for non-trivial logic.
-- **Quality:** Run format/lint before commits. Update `CHANGELOG.md` & `README.md`.
-- **Verify:** Run tests/compiler or ask user to visually verify before concluding. Never assume.
+- **Caveman Speak & Map:** Communicate and maintain `## Project Map` natively using "caveman" style (extreme density, zero fluff, drop grammar, `->` for correlations). Update Map on changes. Exception: human-facing docs (`README`, `CHANGELOG`, plans) must remain readable.
+- **Plan-first:** Create `docs/vX.Y.Z/<feature>-plan.md` & update roadmap for non-trivial (multi-component, arch-altering, risky) features.
+- **TDD:** Write failing tests first for non-trivial logic (if applicable).
+- **Quality:** Run format/lint before every commit. Update `CHANGELOG.md` & `README.md` before PR.
+- **Verify:** Run tests/compiler or ask user to visually verify before concluding/PR. Never assume.
 - **Blockers:** Stop and ask user on ambiguity; do not guess.
+- **Scope:** Stick strictly to requested task/plan. No unrequested features/refactoring.
+- **Dependencies:** Use existing packages/standard lib. Ask before adding new dependencies.
+- **Stuck:** If same approach fails twice, stop and ask user. Do not retry blindly.
+- **Code Preservation:** Do not delete existing comments, docstrings, or unrelated code unless explicitly instructed.
 
 ## 2. Git Standards
-- **Branches:** `main` is releasable (no direct commits). Use `feat/` or `fix/` -> PR.
-- **Commits:** Conventional Commits (`type(scope): subject`). Subject ≤72 chars, imperative mood. Body explains *why*.
-- **Artifacts:** Never commit agent-generated session artifacts (e.g., plan checklists).
+- **Branches:** `main` is releasable. Use `feat/` or `fix/` -> PR. Trivial fixes (typos, comments) may commit directly to `main`.
+- **Commits:** Conventional Commits (`type(scope): subject`). Subject ≤72 chars, imperative mood. Body explains *why*. One logical change per commit.
+- **Artifacts:** Never commit temporary agent session files (e.g., scratchpads, task checklists). Official feature plans should be committed.
+- **Security:** Never commit secrets/API keys. Ensure `.env` is gitignored.
+- **Self-Review:** Review `git diff` before commit. Strip debug logs/stray changes.
 
 ---
 
