@@ -10,8 +10,10 @@ updates:
       interval: "weekly"
       day: "monday"
     open-pull-requests-limit: 5
-    # Group all patch updates together
+    # Group all devDependencies together, and any other patch updates
     groups:
+      dev-dependencies:
+        dependency-type: "development"
       patch-updates:
         patterns:
           - "*"
@@ -22,6 +24,26 @@ updates:
       - "dependencies"
       - "automated"
     # Semantic versioning prefix
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+
+  # Monitor GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    groups:
+      patch-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "patch"
+    labels:
+      - "dependencies"
+      - "automated"
     commit-message:
       prefix: "chore"
       include: "scope"
