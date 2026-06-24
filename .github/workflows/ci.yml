@@ -12,10 +12,14 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
     - name: Checkout
       uses: actions/checkout@v5
+      with:
+        ref: ${{ github.head_ref || github.ref }}
 
     - name: Setup Node.js
       uses: actions/setup-node@v5
@@ -25,6 +29,23 @@ jobs:
 
     - name: Install dependencies
       run: npm install
+
+    - name: Auto-format and Migrate (Dependabot only)
+      if: github.actor == 'dependabot[bot]'
+      run: |
+        npx @biomejs/biome migrate --write
+        npm run format
+
+    - name: Commit formatting (Dependabot only)
+      if: github.actor == 'dependabot[bot]'
+      run: |
+        git config --global user.name 'dependabot[bot]'
+        git config --global user.email '49699333+dependabot[bot]@users.noreply.github.com'
+        git add -A
+        if ! git diff --staged --quiet; then
+          git commit -m "chore: apply biome formatting"
+          git push
+        fi
 
     - name: Lint
       run: npm run check
