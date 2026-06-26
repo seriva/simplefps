@@ -258,7 +258,7 @@ class FPSController {
 
 			for (const heightOffset of _horizontalCheckHeights) {
 				const checkY = startY + heightOffset * this.config.height * 0.5;
-				const result = Scene.raycast(
+				const result = Scene.raycastStatic(
 					x,
 					checkY,
 					z,
@@ -350,7 +350,7 @@ class FPSController {
 
 		// 4. Validate step climb
 		// A: Check ceiling clearance at the stepped-up position
-		const ceilingCheck = Scene.raycast(
+		const ceilingCheck = Scene.raycastStatic(
 			movedX,
 			stepUpY,
 			movedZ,
@@ -365,7 +365,7 @@ class FPSController {
 		}
 
 		// B: Check ceiling clearance at the final landed position
-		const landedCeilingCheck = Scene.raycast(
+		const landedCeilingCheck = Scene.raycastStatic(
 			movedX,
 			landedY,
 			movedZ,
@@ -418,7 +418,7 @@ class FPSController {
 		// Check all 8 directions in _radialDirs for robust depenetration
 		for (let i = 0; i < 8; i++) {
 			const dir = _radialDirs[i];
-			const result = Scene.raycast(
+			const result = Scene.raycastStatic(
 				x,
 				y,
 				z,
@@ -467,7 +467,7 @@ class FPSController {
 			const ox = i < 0 ? 0 : _radialDirs[i].x * checkRadius;
 			const oz = i < 0 ? 0 : _radialDirs[i].z * checkRadius;
 
-			const result = Scene.raycast(
+			const result = Scene.raycastStatic(
 				finalX + ox,
 				rayStartY,
 				finalZ + oz,
@@ -512,7 +512,7 @@ class FPSController {
 
 		const radius = this.config.radius;
 		if (
-			Scene.raycast(
+			Scene.raycastStatic(
 				finalX,
 				startY,
 				finalZ,

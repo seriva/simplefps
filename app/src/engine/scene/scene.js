@@ -529,16 +529,7 @@ const _updateVisibility = () => {
 	}
 };
 
-const _raycast = (
-	fromX,
-	fromY,
-	fromZ,
-	toX,
-	toY,
-	toZ,
-	options = _DEFAULT_RAY_OPTIONS,
-) => {
-	// Set ray endpoints directly (no intermediate temps)
+const _setupRay = (fromX, fromY, fromZ, toX, toY, toZ, options) => {
 	const from = _ray.from;
 	const to = _ray.to;
 	from[0] = fromX;
@@ -550,16 +541,26 @@ const _raycast = (
 
 	_ray.updateDirection();
 
-	// Minimal reset — only flags that matter for CLOSEST mode
 	_ray.hasHit = false;
 	_ray.skipBackfaces = options.skipBackfaces ?? true;
 	_ray.mode = 1; // CLOSEST
 	_ray.result = _rayResult;
 
-	const result = _rayResult;
-	result.hasHit = false;
-	result.distance = Infinity;
-	result.shouldStop = false;
+	_rayResult.hasHit = false;
+	_rayResult.distance = Infinity;
+	_rayResult.shouldStop = false;
+};
+
+const _raycast = (
+	fromX,
+	fromY,
+	fromZ,
+	toX,
+	toY,
+	toZ,
+	options = _DEFAULT_RAY_OPTIONS,
+) => {
+	_setupRay(fromX, fromY, fromZ, toX, toY, toZ, options);
 
 	for (let i = 0; i < _collidables.length; i++) {
 		_ray.intersectTrimesh(
@@ -569,7 +570,49 @@ const _raycast = (
 		);
 	}
 
-	return result;
+	return _rayResult;
+};
+
+const _raycastStatic = (
+	fromX,
+	fromY,
+	fromZ,
+	toX,
+	toY,
+	toZ,
+	options = _DEFAULT_RAY_OPTIONS,
+) => {
+	_setupRay(fromX, fromY, fromZ, toX, toY, toZ, options);
+
+	if (_staticCollidable.collider) {
+		_ray.intersectTrimesh(
+			_staticCollidable.collider,
+			_staticCollidable.base_matrix,
+			options,
+		);
+	}
+
+	return _rayResult;
+};
+
+const _raycastDynamic = (
+	fromX,
+	fromY,
+	fromZ,
+	toX,
+	toY,
+	toZ,
+	options = _DEFAULT_RAY_OPTIONS,
+) => {
+	_setupRay(fromX, fromY, fromZ, toX, toY, toZ, options);
+
+	for (let i = 0; i < _collidables.length; i++) {
+		const collidable = _collidables[i];
+		if (collidable === _staticCollidable) continue;
+		_ray.intersectTrimesh(collidable.collider, collidable.base_matrix, options);
+	}
+
+	return _rayResult;
 };
 
 // ============================================================================
@@ -591,6 +634,8 @@ const Scene = {
 	visibilityCache: _visibilityCache,
 	loadLightGrid: _loadLightGrid,
 	raycast: _raycast,
+	raycastStatic: _raycastStatic,
+	raycastDynamic: _raycastDynamic,
 };
 
 export { Scene };

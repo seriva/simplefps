@@ -75,7 +75,14 @@ const _setupPickups = (pickups = []) => {
 
 // Raycast to find ground position
 const _getGroundHeight = (x, y, z) => {
-	const result = Scene.raycast(x, y + 100, z, x, y - _MAX_RAYCAST_DISTANCE, z);
+	const result = Scene.raycastStatic(
+		x,
+		y + 100,
+		z,
+		x,
+		y - _MAX_RAYCAST_DISTANCE,
+		z,
+	);
 	return result.hasHit ? result.hitPointWorld[1] : y;
 };
 

@@ -118,7 +118,7 @@ const _sampleProbeColor = (entity) => {
 // Calculate shadow height for an entity via downward raycast
 const _calculateShadowHeight = (entity) => {
 	mat4.getTranslation(_probePos, entity.base_matrix);
-	const result = Scene.raycast(
+	const result = Scene.raycastStatic(
 		_probePos[0],
 		_probePos[1] + 1.0,
 		_probePos[2],
