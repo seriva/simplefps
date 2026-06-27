@@ -18,7 +18,6 @@ features (e.g. `docs/v0.0.3/`).
 | [Rendering Performance](v0.0.3/rendering-performance-plan.md) | Medium | Done | Two-level BVH, light contribution culling, skip shadow blur when idle, priority-queue shadow budget, compact light UBO layout |
 | [Ambient Probe Acceleration](v0.0.3/ambient-probe-plan.md) | Low | Planned | O(1) probe lookup via grid cell index or spatial acceleration grid; eliminates linear scan per entity per frame |
 | [Transparent Sorting](v0.0.3/transparent-sorting-plan.md) | Low | Planned | Back-to-front sort of glass/transparent draw calls; fixes incorrect blending for ≥3 overlapping surfaces |
-| [Worker Asset Parsing](v0.0.3/worker-asset-parsing-plan.md) | High | Planned | Parse binary meshes/animations in a Web Worker via Transferable ArrayBuffers; unblocks main thread during load |
 
 ---
 
