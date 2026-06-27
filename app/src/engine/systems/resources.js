@@ -15,47 +15,37 @@ const _loadingPromises = new Map();
 const _loadingLists = new Set();
 const _basepath = "resources/";
 const _fileExtRegex = /(?:\.([^.]+))?$/;
-
-// Private constants
-const _RESOURCE_TYPES = {
-	webp: (data, _context, options) => new Texture({ data, ...options }),
-	mesh: (data, context) => {
-		const mesh = new Mesh(JSON.parse(data), context);
-		return mesh.ready.then(() => mesh);
+const _resourceTypes = {
+	webp: (data, _ctx, opts) => new Texture({ data, ...opts }),
+	mesh: (data, ctx) => {
+		const m = new Mesh(JSON.parse(data), ctx);
+		return m.ready.then(() => m);
 	},
-	smesh: (data, context) => {
-		const mesh = new SkinnedMesh(JSON.parse(data), context);
-		return mesh.ready.then(() => mesh);
+	smesh: (data, ctx) => {
+		const m = new SkinnedMesh(JSON.parse(data), ctx);
+		return m.ready.then(() => m);
 	},
-	bmesh: (data, context) => {
-		const mesh = new Mesh(data, context);
-		return mesh.ready.then(() => mesh);
+	bmesh: (data, ctx) => {
+		const m = new Mesh(data, ctx);
+		return m.ready.then(() => m);
 	},
-	sbmesh: (data, context) => {
-		const mesh = new SkinnedMesh(data, context);
-		return mesh.ready.then(() => mesh);
+	sbmesh: (data, ctx) => {
+		const m = new SkinnedMesh(data, ctx);
+		return m.ready.then(() => m);
 	},
 	anim: (data) => {
-		const anim = new Animation(JSON.parse(data));
-		return anim.ready.then(() => anim);
+		const a = new Animation(JSON.parse(data));
+		return a.ready.then(() => a);
 	},
 	banim: (data) => {
-		const anim = new Animation(data);
-		return anim.ready.then(() => anim);
+		const a = new Animation(data);
+		return a.ready.then(() => a);
 	},
-	mat: (data, context) => Material.loadLibrary(JSON.parse(data), context),
+	mat: (data, ctx) => Material.loadLibrary(JSON.parse(data), ctx),
 	sfx: (data) => new Sound(JSON.parse(data)),
-	list: (data, _context, _options, path) => {
-		if (_loadingLists.has(path)) {
-			Console.warn(`[Resources] Circular list reference detected: ${path}`);
-			return Promise.resolve();
-		}
-		_loadingLists.add(path);
-		return Resources.load(JSON.parse(data).resources).finally(() =>
-			_loadingLists.delete(path),
-		);
-	},
 	bin: (data) => data,
+	// list defined after Resources so it can reference Resources.load
+	list: null, // assigned below — needs Resources.load which isn't defined yet
 };
 
 // ============================================================================
@@ -68,7 +58,6 @@ const Resources = {
 	onLoadEnd: null,
 
 	init() {
-		// Register built-in solid color textures
 		_resources.set("black", Texture.createSolidColor(0, 0, 0, 255));
 		_resources.set("white", Texture.createSolidColor(255, 255, 255, 255));
 	},
@@ -96,7 +85,7 @@ const Resources = {
 				const loadPromise = (async () => {
 					const fullpath = _basepath + path;
 					const ext = _fileExtRegex.exec(path)?.[1];
-					const resourceHandler = ext && _RESOURCE_TYPES[ext];
+					const resourceHandler = ext && _resourceTypes[ext];
 
 					if (resourceHandler) {
 						try {
@@ -138,6 +127,10 @@ const Resources = {
 		return resource;
 	},
 
+	registerType(ext, handler) {
+		_resourceTypes[ext] = handler;
+	},
+
 	has(key) {
 		return _resources.has(key);
 	},
@@ -164,6 +157,17 @@ const Resources = {
 			return await response.text();
 		}
 	},
+};
+
+_resourceTypes.list = (data, _ctx, _opts, path) => {
+	if (_loadingLists.has(path)) {
+		Console.warn(`[Resources] Circular list reference detected: ${path}`);
+		return Promise.resolve();
+	}
+	_loadingLists.add(path);
+	return Resources.load(JSON.parse(data).resources).finally(() =>
+		_loadingLists.delete(path),
+	);
 };
 
 export { Resources };

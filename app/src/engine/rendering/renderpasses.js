@@ -15,7 +15,6 @@ const _lightPos = [0, 0, 0];
 
 // Reusable temporaries for per-entity ambient sampling
 const _probePos = new Float32Array(3);
-const _probeColor = new Float32Array(3);
 const _MAX_SHADOW_RAYCAST_DISTANCE = 200;
 const _SKINNED_SHADOW_RAYCAST_INTERVAL = 3;
 const _SKINNED_SHADOW_MOVE_EPSILON_SQ = 0.04;
@@ -70,6 +69,7 @@ const _debugState = {
 	showWireframes: false,
 	showLightVolumes: false,
 	showSkeleton: false,
+	showStats: false,
 };
 
 // Render stats (reset each frame, updated during rendering)
@@ -116,12 +116,14 @@ const toggleBoundingVolumes = _makeDebugToggle("showBoundingVolumes");
 const toggleWireframes = _makeDebugToggle("showWireframes");
 const toggleLightVolumes = _makeDebugToggle("showLightVolumes");
 const toggleSkeleton = _makeDebugToggle("showSkeleton");
+const toggleStats = _makeDebugToggle("showStats");
 
 // Register console commands
 Console.registerCmd("tbv", toggleBoundingVolumes);
 Console.registerCmd("twf", toggleWireframes);
 Console.registerCmd("tlv", toggleLightVolumes);
 Console.registerCmd("tsk", toggleSkeleton);
+Console.registerCmd("tst", toggleStats);
 
 // Sample ambient probe color for an entity based on its world position.
 // Result is cached per entity per frame to avoid redundant matrix ops when
@@ -231,10 +233,11 @@ const renderWorldGeometry = () => {
 	// Advance frame counter so per-entity caches (ambient probe, etc.) are invalidated
 	_renderFrame++;
 
-	// Reset render stats for this frame
-	_renderStats.meshCount = 0;
-	_renderStats.lightCount = 0;
-	_renderStats.triangleCount = 0;
+	if (_debugState.showStats) {
+		_renderStats.meshCount = 0;
+		_renderStats.lightCount = 0;
+		_renderStats.triangleCount = 0;
+	}
 
 	_bindGeometryShader();
 
@@ -246,8 +249,10 @@ const renderWorldGeometry = () => {
 	const meshEntities = Scene.visibilityCache[EntityTypes.MESH];
 	for (const entity of meshEntities) {
 		entity.render(_sampleProbeColor(entity), "opaque", Shaders.geometry);
-		_renderStats.meshCount++;
-		_renderStats.triangleCount += entity.mesh?.triangleCount || 0;
+		if (_debugState.showStats) {
+			_renderStats.meshCount++;
+			_renderStats.triangleCount += entity.mesh?.triangleCount || 0;
+		}
 	}
 
 	for (const entity of Scene.visibilityCache[EntityTypes.FPS_MESH]) {
@@ -274,8 +279,10 @@ const renderWorldGeometry = () => {
 				"opaque",
 				Shaders.skinnedGeometry,
 			);
-			_renderStats.meshCount++;
-			_renderStats.triangleCount += entity.mesh?.triangleCount || 0;
+			if (_debugState.showStats) {
+				_renderStats.meshCount++;
+				_renderStats.triangleCount += entity.mesh?.triangleCount || 0;
+			}
 		}
 
 		Backend.unbindShader();
@@ -418,7 +425,7 @@ const renderLighting = () => {
 	Shaders.pointLight.setInt("normalBuffer", 1);
 	for (let i = 0; i < sortedPointLights.length; i++) {
 		sortedPointLights[i].light.render();
-		_renderStats.lightCount++;
+		if (_debugState.showStats) _renderStats.lightCount++;
 	}
 	Backend.unbindShader();
 
@@ -428,16 +435,17 @@ const renderLighting = () => {
 	Shaders.spotLight.setInt("normalBuffer", 1);
 	for (let i = 0; i < sortedSpotLights.length; i++) {
 		sortedSpotLights[i].light.render();
-		_renderStats.lightCount++;
+		if (_debugState.showStats) _renderStats.lightCount++;
 	}
 	Backend.unbindShader();
 
-	// Update stats with actual rendered counts
-	Stats.setRenderStats(
-		_renderStats.meshCount,
-		_renderStats.lightCount,
-		_renderStats.triangleCount,
-	);
+	if (_debugState.showStats) {
+		Stats.setRenderStats(
+			_renderStats.meshCount,
+			_renderStats.lightCount,
+			_renderStats.triangleCount,
+		);
+	}
 };
 
 const renderShadows = () => {
