@@ -36,6 +36,9 @@ let _lightingUBO = null;
 const _pointLightSortBuffer = [];
 const _spotLightSortBuffer = [];
 
+// Reusable sort buffer for transparent entity back-to-front ordering
+const _transparentSortBuffer = [];
+
 // Shadow priority sort buffer
 const _shadowSortBuffer = [];
 
@@ -347,7 +350,18 @@ const renderTransparent = () => {
 	Backend.updateUBO(_lightingUBO, _lightingData);
 	Backend.bindUniformBuffer(_lightingUBO);
 
-	for (const entity of Scene.visibilityCache[EntityTypes.MESH]) {
+	const meshes = Scene.visibilityCache[EntityTypes.MESH];
+	_transparentSortBuffer.length = 0;
+	for (let i = 0; i < meshes.length; i++) {
+		const entity = meshes[i];
+		const m = entity.base_matrix;
+		const vp = Camera.viewProjection;
+		const w = vp[3] * m[12] + vp[7] * m[13] + vp[11] * m[14] + vp[15];
+		_transparentSortBuffer.push({ entity, depth: w });
+	}
+	_transparentSortBuffer.sort((a, b) => b.depth - a.depth);
+	for (let i = 0; i < _transparentSortBuffer.length; i++) {
+		const entity = _transparentSortBuffer[i].entity;
 		entity.render(
 			_sampleProbeColor(entity),
 			"translucent",
