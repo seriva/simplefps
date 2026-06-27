@@ -162,7 +162,7 @@ const _updateProjectile = (entity, frameTime) => {
 	const dirY = dist > 0.01 ? dy / dist : -1;
 	const dirZ = dist > 0.01 ? dz / dist : 0;
 
-	const result = Scene.raycast(
+	const result = Scene.raycastStatic(
 		traj.position[0],
 		traj.position[1],
 		traj.position[2],

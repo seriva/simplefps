@@ -1,6 +1,6 @@
 # Rendering Performance Implementation Plan
 
-**Goal:** Eliminate six rendering bottlenecks identified in the v0.0.3 architectural review: worldPosition G-buffer waste, per-frame full BVH rebuild, missing light contribution culling, unconditional shadow blur, shadow raycast FIFO budget, and light UBO struct padding waste.
+**Goal:** Eliminate five rendering bottlenecks identified in the v0.0.3 architectural review: per-frame full BVH rebuild, missing light contribution culling, unconditional shadow blur, shadow raycast FIFO budget, and light UBO struct padding waste.
 
 **Architecture:** Each task is independently deliverable and does not depend on the others — they can be sequenced in any order. All changes are confined to `engine/rendering/` and `engine/scene/` with no game-layer or shader-API changes.
 
@@ -20,156 +20,7 @@
 
 ---
 
-## Task 1: Eliminate worldPosition G-Buffer — Reconstruct from Depth
-
-### What & Why
-
-The G-buffer currently stores a full `worldPosition` texture (`RGBA16F`, 8 bytes/pixel). At 1080p that is ~16 MB of VRAM consumed and read every lighting pass fragment. World position can be reconstructed from the depth buffer plus the inverse view-projection matrix, saving ~8 MB of VRAM and cutting lighting-pass texture bandwidth by ~25%.
-
-### Files
-
-- Modify: `app/src/engine/rendering/renderer.js` — remove worldPosition framebuffer attachment, pass `inverseViewProjection` to lighting pass
-- Modify: `app/src/engine/rendering/renderpasses.js` — remove worldPosition sampler binding, add depth sampler + reconstruction math
-- Modify: `app/src/engine/rendering/webgl/glsl.js` — remove `gWorldPosition` sampler, add `gDepth` sampler + `reconstructWorldPos()` helper in lighting shader
-- Modify: `app/src/engine/rendering/webgpu/wgsl.js` — same changes for WGSL lighting shader
-
-### Interfaces
-
-- Consumes: `Camera.inverseViewProjection` (mat4, already exported from `engine.js`)
-- Produces: no API change — world position is an internal detail of the lighting pass
-
----
-
-- [ ] **Step 1: Read the current G-buffer setup**
-
-  Open and read these sections before touching anything:
-  - `renderer.js` — search for `worldPosition` to find the framebuffer attachment creation and the `_frameData` UBO layout
-  - `renderpasses.js` — search for `worldPosition` or `gWorldPosition` to find sampler bindings and usage
-  - `glsl.js` — find the lighting fragment shader, note how `gWorldPosition` is sampled
-  - `wgsl.js` — same for WGSL
-
-- [ ] **Step 2: Add `uInverseViewProjection` to the lighting pass UBO / uniforms**
-
-  In `renderpasses.js`, locate the lighting pass uniform upload (where view/projection matrices are sent). Add upload of `Camera.inverseViewProjection`:
-
-  ```javascript
-  // In the lighting render pass setup, alongside existing matrix uploads:
-  backend.setUniformMatrix4fv("uInverseViewProjection", Camera.inverseViewProjection)
-  ```
-
-  For WebGPU, this goes into the binding group / uniform buffer layout — mirror whatever pattern the existing `uView` / `uProjection` matrices follow.
-
-- [ ] **Step 3: Add `gDepth` sampler binding, remove `gWorldPosition` binding**
-
-  In `renderpasses.js`, in the lighting pass texture binding section:
-
-  ```javascript
-  // Remove this (or equivalent):
-  backend.bindTexture(gWorldPositionTexture, WORLD_POSITION_SLOT)
-
-  // Add this (bind the G-buffer depth texture to a new slot):
-  backend.bindTexture(gDepthTexture, DEPTH_SLOT)
-  ```
-
-  Keep the slot index consistent with changes in Step 5.
-
-- [ ] **Step 4: Update GLSL lighting shader — reconstruct world position from depth**
-
-  In `glsl.js`, in the lighting fragment shader source string:
-
-  ```glsl
-  // Remove:
-  uniform sampler2D gWorldPosition;
-  // ...
-  vec3 worldPos = texture(gWorldPosition, vTexCoord).rgb;
-
-  // Add:
-  uniform sampler2D gDepth;
-  uniform mat4 uInverseViewProjection;
-
-  vec3 reconstructWorldPos(vec2 uv, float depth) {
-      // depth is non-linear (gl_FragDepth range). Convert to NDC then unproject.
-      vec4 ndc = vec4(uv * 2.0 - 1.0, depth * 2.0 - 1.0, 1.0);
-      vec4 world = uInverseViewProjection * ndc;
-      return world.xyz / world.w;
-  }
-
-  // In main():
-  float depth = texture(gDepth, vTexCoord).r;
-  vec3 worldPos = reconstructWorldPos(vTexCoord, depth);
-  ```
-
-- [ ] **Step 5: Update WGSL lighting shader — same reconstruction**
-
-  In `wgsl.js`, in the lighting shader source string:
-
-  ```wgsl
-  // Remove:
-  @group(0) @binding(N) var gWorldPosition: texture_2d<f32>;
-  // ...
-  let worldPos = textureSample(gWorldPosition, sampler0, uv).xyz;
-
-  // Add:
-  @group(0) @binding(N) var gDepth: texture_depth_2d;
-  // In uniforms struct, add:
-  inverseViewProjection: mat4x4<f32>,
-
-  fn reconstructWorldPos(uv: vec2<f32>, depth: f32) -> vec3<f32> {
-      let ndc = vec4<f32>(uv * 2.0 - 1.0, depth, 1.0);  // WebGPU depth is [0,1]
-      let world = uniforms.inverseViewProjection * ndc;
-      return world.xyz / world.w;
-  }
-
-  // In fragment main():
-  let depth = textureSample(gDepth, depthSampler, uv);
-  let worldPos = reconstructWorldPos(uv, depth);
-  ```
-
-  Note: WebGPU depth range is [0, 1] (NDC z = depth directly, no `* 2.0 - 1.0`). WebGL depth range is [0, 1] stored but NDC is [-1, 1] — the GLSL version above handles this.
-
-- [ ] **Step 6: Remove worldPosition framebuffer attachment in renderer.js**
-
-  In `renderer.js`, locate `_initResources()` (or equivalent G-buffer setup). Remove the `worldPosition` texture creation and framebuffer attachment:
-
-  ```javascript
-  // Remove: creation of gWorldPositionTexture (RGBA16F, width×height)
-  // Remove: framebufferTexture2D attachment for worldPosition
-  // Remove: gWorldPositionTexture from _disposeResources()
-  ```
-
-  Confirm the depth texture already exists and is accessible for binding in the lighting pass (it should be — it is already the G-buffer's depth attachment).
-
-- [ ] **Step 7: Verify no other pass reads gWorldPosition**
-
-  Search across all files:
-  ```bash
-  grep -r "worldPosition\|gWorldPosition\|WorldPosition" app/src/engine/rendering/
-  ```
-  Expected: zero results after your changes.
-
-- [ ] **Step 8: Smoke test**
-
-  Run the game (`npm run dev`, open browser). Confirm:
-  - Scene renders correctly (lighting looks the same)
-  - No WebGL/WebGPU console errors about missing samplers or framebuffer completeness
-  - `Console.log` (in-game console) shows no errors on startup
-
-- [ ] **Step 9: Format and commit**
-
-  ```bash
-  npm run format
-  npm run check
-  git add app/src/engine/rendering/renderer.js app/src/engine/rendering/renderpasses.js app/src/engine/rendering/webgl/glsl.js app/src/engine/rendering/webgpu/wgsl.js
-  git commit -m "perf(rendering): reconstruct world position from depth, remove RGBA16F G-buffer attachment
-
-  Saves ~8 MB VRAM at 1080p and reduces lighting pass texture bandwidth ~25%.
-  World position is now reconstructed in lighting shaders using uInverseViewProjection
-  and the existing depth texture. The gWorldPosition RGBA16F attachment is eliminated."
-  ```
-
----
-
-## Task 2: Two-Level BVH — Static Once, Dynamic Per-Frame
+## Task 1: Two-Level BVH — Static Once, Dynamic Per-Frame
 
 ### What & Why
 
@@ -302,7 +153,7 @@ The G-buffer currently stores a full `worldPosition` texture (`RGBA16F`, 8 bytes
 
 ---
 
-## Task 3: Light Contribution Culling — Sort Before UBO Upload
+## Task 2: Light Contribution Culling — Sort Before UBO Upload
 
 ### What & Why
 
@@ -385,7 +236,7 @@ All visible lights (up to 8 point, 4 spot) are uploaded to the UBO regardless of
 
 ---
 
-## Task 4: Skip Shadow Blur When No Shadow Casters Are Visible
+## Task 3: Skip Shadow Blur When No Shadow Casters Are Visible
 
 ### What & Why
 
@@ -452,7 +303,7 @@ The Kawase shadow blur pass runs every frame unconditionally — even on frames 
 
 ---
 
-## Task 5: Priority-Queue Shadow Raycast Budget
+## Task 4: Priority-Queue Shadow Raycast Budget
 
 ### What & Why
 
@@ -571,7 +422,7 @@ The shadow pass issues up to 16 CPU raycasts per frame to compute shadow-blob he
 
 ---
 
-## Task 6: Compact Light UBO Layout — vec4 Packing
+## Task 5: Compact Light UBO Layout — vec4 Packing
 
 ### What & Why
 

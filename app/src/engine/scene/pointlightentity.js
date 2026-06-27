@@ -8,6 +8,8 @@ class PointLightEntity extends Entity {
 	static SCALE_FACTOR = 1.0;
 	static _tempMatrix = mat4.create();
 	static _tempPos = new Float32Array(3);
+	static _posRange = new Float32Array(4);
+	static _colorIntensity = new Float32Array(4);
 
 	_getTransformMatrix() {
 		const m = PointLightEntity._tempMatrix;
@@ -43,13 +45,19 @@ class PointLightEntity extends Entity {
 		const volumeTransform = this._getTransformMatrix();
 
 		Shaders.pointLight.setMat4("matWorld", volumeTransform);
-		Shaders.pointLight.setVec3(
-			"pointLight.position",
-			PointLightEntity._tempPos,
-		);
-		Shaders.pointLight.setVec3("pointLight.color", this.color);
-		Shaders.pointLight.setFloat("pointLight.size", this.size);
-		Shaders.pointLight.setFloat("pointLight.intensity", this.intensity);
+		const p = PointLightEntity._tempPos;
+		const pr = PointLightEntity._posRange;
+		pr[0] = p[0];
+		pr[1] = p[1];
+		pr[2] = p[2];
+		pr[3] = this.size;
+		Shaders.pointLight.setVec4("pointLight.posRange", pr);
+		const ci = PointLightEntity._colorIntensity;
+		ci[0] = this.color[0];
+		ci[1] = this.color[1];
+		ci[2] = this.color[2];
+		ci[3] = this.intensity;
+		Shaders.pointLight.setVec4("pointLight.colorIntensity", ci);
 		Shapes.pointLightVolume.renderSingle();
 	}
 
