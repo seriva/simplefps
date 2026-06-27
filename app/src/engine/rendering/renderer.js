@@ -21,11 +21,10 @@ const _NOISE_TEXTURE_SIZE = 128;
 
 const _g = {
 	framebuffer: null,
-	position: null,
+	worldPosition: null,
 	normal: null,
 	color: null,
 	emissive: null,
-	worldPosition: null, // World-space position buffer for accurate lighting
 };
 
 const _s = {
@@ -122,9 +121,8 @@ const _resize = (width, height) => {
 	_g.width = width;
 	_g.height = height;
 
-	// World position buffer (RGBA16F for accurate position at all distances)
 	_g.worldPosition = new Texture({ format: "rgba16f", width, height });
-	_g.normal = new Texture({ format: "rg8", width, height });
+	_g.normal = new Texture({ format: "rgba8", width, height });
 	_g.color = new Texture({ format: "rgba8", width, height });
 	_g.emissive = new Texture({ format: "rgba8", width, height });
 
@@ -153,7 +151,10 @@ const _resize = (width, height) => {
 	// **********************************
 	// lighting buffer
 	// **********************************
-	const lightRes = _createFB({ format: "rgba8", width, height }, {});
+	const lightRes = _createFB(
+		{ format: "rgba8", width, height },
+		{ depthAttachment: _depth.getHandle() },
+	);
 	_l.light = lightRes.texture;
 	_l.framebuffer = lightRes.fb;
 
@@ -447,8 +448,6 @@ const _shadowPass = () => {
 };
 
 const _lightingPass = () => {
-	// Explicitly detach depth buffer to allow reading it as a texture
-	Backend.setFramebufferAttachment(_l.framebuffer, "depth", null);
 	Backend.bindFramebuffer(_l.framebuffer);
 	Backend.setViewport(0, 0, _g.width, _g.height);
 
@@ -491,6 +490,10 @@ const _shadowBlurPass = () => {
 	// Keep raw shadow map there until a backend-specific blur path lands.
 	if (Backend.isWebGPU()) return;
 
+	// Skip blur when no shadow-casting entities were visible this frame
+	const vc = Scene.visibilityCache;
+	if (vc[1].length === 0 && vc[7].length === 0) return; // 1=MESH, 7=SKINNED_MESH
+
 	_blurImage(
 		_BlurSourceType.SHADOW,
 		Settings.shadowBlurIterations,
@@ -499,8 +502,6 @@ const _shadowBlurPass = () => {
 };
 
 const _transparentPass = () => {
-	// Re-attach depth buffer for correct depth testing
-	Backend.setFramebufferAttachment(_l.framebuffer, "depth", _depth.getHandle());
 	Backend.bindFramebuffer(_l.framebuffer);
 	Backend.setViewport(0, 0, _g.width, _g.height);
 
@@ -546,7 +547,7 @@ const _postProcessingPass = () => {
 	const dirt = Resources.get("system/dirt.webp");
 	dirt.bind(3);
 	_s.shadow.bind(4);
-	_g.worldPosition.bind(5);
+	_g.normal.bind(5);
 	Shaders.postProcessing.bind();
 
 	Shaders.postProcessing.setInt("colorBuffer", 0);
@@ -554,7 +555,7 @@ const _postProcessingPass = () => {
 	Shaders.postProcessing.setInt("emissiveBuffer", 2);
 	Shaders.postProcessing.setInt("dirtBuffer", 3);
 	Shaders.postProcessing.setInt("shadowBuffer", 4);
-	Shaders.postProcessing.setInt("positionBuffer", 5);
+	Shaders.postProcessing.setInt("normalBuffer", 5);
 
 	Shaders.postProcessing.setFloat("emissiveMult", Settings.emissiveMult);
 	Shaders.postProcessing.setFloat("gamma", Settings.gamma);

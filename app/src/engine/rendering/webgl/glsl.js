@@ -232,11 +232,11 @@ const _geometryFragment = /* glsl */ `#version 300 es
                         }
                     }
 
-                    fragNormal = vec4(octEncode(N), 0.0, 0.0);
                     fragPosition = vec4(vPosition.xyz, 1.0);
+                    fragNormal = vec4(octEncode(N), 1.0, 0.0); // .b=1: real geometry (used for sky detection)
                 } else {
-                    fragNormal = vec4(0.5, 0.5, 0.0, 0.0); // oct-encode of (0,0,1)
-                    fragPosition = vec4(0.0, 0.0, 0.0, 0.0); // Skybox has no real position
+                    fragPosition = vec4(0.0, 0.0, 0.0, 0.0);
+                    fragNormal = vec4(0.5, 0.5, 0.0, 0.0); // .b=0: skybox pixel
                 }
 
                 // Lightmap flag: skybox counts as 1.0 (skip deferred lights), else use material flag
@@ -444,10 +444,8 @@ export const ShaderSources = {
             precision highp int;
 
 			struct PointLight {
-                vec3 position;
-                vec3 color;
-                float size;
-                float intensity;
+                vec4 posRange;       // xyz = world position, w = size (range)
+                vec4 colorIntensity; // xyz = color, w = intensity
             };
 
             layout(location=0) out vec4 fragColor;
@@ -467,9 +465,9 @@ export const ShaderSources = {
                 vec3 position = texelFetch(positionBuffer, fragCoord, 0).rgb;
                 vec3 normal = octDecode(texelFetch(normalBuffer, fragCoord, 0).rg);
 
-                vec2 pl = calcPointLight(pointLight.position, pointLight.size, position, normal);
+                vec2 pl = calcPointLight(pointLight.posRange.xyz, pointLight.posRange.w, position, normal);
                 if (pl.x <= 0.0) discard;
-                fragColor = vec4(pointLight.color * (pl.x * pl.y * pointLight.intensity), 1.0);
+                fragColor = vec4(pointLight.colorIntensity.xyz * (pl.x * pl.y * pointLight.colorIntensity.w), 1.0);
             }`,
 	},
 	spotLight: {
@@ -491,12 +489,9 @@ export const ShaderSources = {
             precision highp int;
 
 			struct SpotLight {
-                vec3 position;
-                vec3 direction;
-                vec3 color;
-                float intensity;
-                float cutoff;
-                float range;
+                vec4 posRange;       // xyz = world position, w = range
+                vec4 colorIntensity; // xyz = color, w = intensity
+                vec4 dirCutoff;      // xyz = direction, w = cutoff (cos of angle)
             };
 
             layout(location=0) out vec4 fragColor;
@@ -516,9 +511,9 @@ export const ShaderSources = {
                 vec3 position = texelFetch(positionBuffer, fragCoord, 0).rgb;
                 vec3 normal = octDecode(texelFetch(normalBuffer, fragCoord, 0).rg);
 
-                vec3 sl = calcSpotLight(spotLight.position, spotLight.direction, spotLight.cutoff, spotLight.range, position, normal);
+                vec3 sl = calcSpotLight(spotLight.posRange.xyz, spotLight.dirCutoff.xyz, spotLight.dirCutoff.w, spotLight.posRange.w, position, normal);
                 if (sl.x <= 0.0) discard;
-                fragColor = vec4(spotLight.color * spotLight.intensity * sl.x * sl.y * sl.z, 1.0);
+                fragColor = vec4(spotLight.colorIntensity.xyz * spotLight.colorIntensity.w * sl.x * sl.y * sl.z, 1.0);
             }`,
 	},
 	kawaseBlur: {
@@ -583,7 +578,7 @@ export const ShaderSources = {
             uniform sampler2D emissiveBuffer;
             uniform sampler2D dirtBuffer;
             uniform sampler2D shadowBuffer;
-            uniform sampler2D positionBuffer;
+            uniform sampler2D normalBuffer;
 
             uniform vec3 uAmbient;
             uniform float emissiveMult;
@@ -607,10 +602,10 @@ export const ShaderSources = {
                 fragColor = vec4(color.rgb + dynamicLight, 1.0);
 
                 // Apply shadows - multiply by shadow buffer
-                // Skip shadows for sky (position.w == 0 or very far distance)
-                vec4 position = texelFetch(positionBuffer, fragCoord, 0);
+                // Skip shadows for sky (normalBuffer.b == 0 means skybox pixel)
+                float skyFlag = texelFetch(normalBuffer, fragCoord, 0).b;
                 vec3 shadow = texelFetch(shadowBuffer, fragCoord, 0).rrr;
-                if (position.w > 0.0) {
+                if (skyFlag > 0.5) {
                     // Soften shadows - mix between full brightness and shadow value
                     vec3 softShadow = mix(vec3(1.0), shadow, shadowIntensity);
                     fragColor.rgb *= softShadow;
@@ -854,29 +849,24 @@ export const ShaderSources = {
             #define MAX_POINT_LIGHTS 8
             #define MAX_SPOT_LIGHTS 4
 
-            // Lighting data UBO (binding point 2, std140, matches _lightingData layout)
+            // Lighting data UBO — 2 vec4s per point light, 3 per spot light (no std140 padding waste)
             layout(std140) uniform LightingData {
-                vec4 pointLightPositions[MAX_POINT_LIGHTS]; // xyz=pos
-                vec4 pointLightColors[MAX_POINT_LIGHTS];    // xyz=color
-                vec4 pointLightParams[MAX_POINT_LIGHTS];    // x=intensity, y=size
-                vec4 spotLightPositions[MAX_SPOT_LIGHTS];   // xyz=pos
-                vec4 spotLightDirections[MAX_SPOT_LIGHTS];  // xyz=dir
-                vec4 spotLightColors[MAX_SPOT_LIGHTS];      // xyz=color
-                vec4 spotLightParams[MAX_SPOT_LIGHTS];      // x=intensity, y=cutoff, z=range
-                vec4 lightCounts;                           // x=numPoint, y=numSpot
+                vec4 pointLights[MAX_POINT_LIGHTS * 2]; // [i*2]=posSize(xyz=pos,w=size), [i*2+1]=colorIntensity
+                vec4 spotLights[MAX_SPOT_LIGHTS * 3];   // [i*3]=posRange, [i*3+1]=colorIntensity, [i*3+2]=dirCutoff
+                vec4 lightCounts;                        // x=numPoint, y=numSpot
             };
 
             ${_pointLightCalc}
             ${_spotLightCalc}
 
             vec3 calculatePointLight(int i, vec3 normal, vec3 fragPos) {
-                vec2 pl = calcPointLight(pointLightPositions[i].xyz, pointLightParams[i].y, fragPos, normal);
-                return pointLightColors[i].xyz * (pl.x * pl.y * pointLightParams[i].x);
+                vec2 pl = calcPointLight(pointLights[i*2].xyz, pointLights[i*2].w, fragPos, normal);
+                return pointLights[i*2+1].xyz * (pl.x * pl.y * pointLights[i*2+1].w);
             }
 
             vec3 calculateSpotLight(int i, vec3 normal, vec3 fragPos) {
-                vec3 sl = calcSpotLight(spotLightPositions[i].xyz, spotLightDirections[i].xyz, spotLightParams[i].y, spotLightParams[i].z, fragPos, normal);
-                return spotLightColors[i].xyz * (spotLightParams[i].x * 2.0) * sl.x * sl.y * sl.z;
+                vec3 sl = calcSpotLight(spotLights[i*3].xyz, spotLights[i*3+2].xyz, spotLights[i*3+2].w, spotLights[i*3].w, fragPos, normal);
+                return spotLights[i*3+1].xyz * (spotLights[i*3+1].w * 2.0) * sl.x * sl.y * sl.z;
             }
 
             void main() {

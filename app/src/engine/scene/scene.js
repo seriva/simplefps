@@ -123,8 +123,13 @@ const _BVH_LEAF_MAX = 8;
 const _bvhNodePool = [];
 let _bvhNodeCount = 0;
 
-// Scratch entity array — populated each frame with entities that have a boundingBox
+// Scratch entity array — populated each frame with dynamic entities that have a boundingBox
 const _bvhEntityBuffer = [];
+
+// Static BVH — built once at finalizeStaticGeometry(), never rebuilt
+let _staticBVHRoot = -1;
+let _staticBVHNodeCount = 0;
+const _staticBVHEntityBuffer = [];
 
 const _bvhAllocNode = () => {
 	if (_bvhNodeCount >= _bvhNodePool.length) {
@@ -147,7 +152,7 @@ const _bvhAllocNode = () => {
 	return _bvhNodeCount++;
 };
 
-const _bvhBuild = (start, end) => {
+const _bvhBuild = (start, end, buf) => {
 	const nodeIdx = _bvhAllocNode();
 	const node = _bvhNodePool[nodeIdx];
 	node.start = start;
@@ -161,7 +166,7 @@ const _bvhBuild = (start, end) => {
 		maxY = -Infinity,
 		maxZ = -Infinity;
 	for (let i = start; i < end; i++) {
-		const bb = _bvhEntityBuffer[i].boundingBox;
+		const bb = buf[i].boundingBox;
 		if (bb.min[0] < minX) minX = bb.min[0];
 		if (bb.min[1] < minY) minY = bb.min[1];
 		if (bb.min[2] < minZ) minZ = bb.min[2];
@@ -196,14 +201,14 @@ const _bvhBuild = (start, end) => {
 	let l = start,
 		r = end - 1;
 	while (l <= r) {
-		const bb = _bvhEntityBuffer[l].boundingBox;
+		const bb = buf[l].boundingBox;
 		const c = (bb.min[axis] + bb.max[axis]) * 0.5;
 		if (c <= splitVal) {
 			l++;
 		} else {
-			const tmp = _bvhEntityBuffer[l];
-			_bvhEntityBuffer[l] = _bvhEntityBuffer[r];
-			_bvhEntityBuffer[r] = tmp;
+			const tmp = buf[l];
+			buf[l] = buf[r];
+			buf[r] = tmp;
 			r--;
 		}
 	}
@@ -211,8 +216,8 @@ const _bvhBuild = (start, end) => {
 	let mid = l;
 	if (mid === start || mid === end) mid = (start + end) >> 1;
 
-	node.left = _bvhBuild(start, mid);
-	node.right = _bvhBuild(mid, end);
+	node.left = _bvhBuild(start, mid, buf);
+	node.right = _bvhBuild(mid, end, buf);
 	return nodeIdx;
 };
 
@@ -240,7 +245,7 @@ const _bvhClassify = (node) => {
 	return fullyInside ? 2 : 1;
 };
 
-const _bvhTraverse = (nodeIdx, fullyInside) => {
+const _bvhTraverse = (nodeIdx, fullyInside, buf) => {
 	const node = _bvhNodePool[nodeIdx];
 	if (!fullyInside) {
 		const c = _bvhClassify(node);
@@ -251,14 +256,14 @@ const _bvhTraverse = (nodeIdx, fullyInside) => {
 	if (node.left === -1) {
 		// Leaf: add entities; skip per-entity test if parent confirmed fully inside
 		for (let i = node.start; i < node.end; i++) {
-			const entity = _bvhEntityBuffer[i];
+			const entity = buf[i];
 			if (fullyInside || entity.boundingBox.isVisible()) {
 				_visibilityCache[entity.type].push(entity);
 			}
 		}
 	} else {
-		_bvhTraverse(node.left, fullyInside);
-		_bvhTraverse(node.right, fullyInside);
+		_bvhTraverse(node.left, fullyInside, buf);
+		_bvhTraverse(node.right, fullyInside, buf);
 	}
 };
 
@@ -450,6 +455,36 @@ const _finalizeStaticGeometry = () => {
 	_staticTrimesh.finalize();
 	const triCount = _staticTrimesh.indices.length / 3;
 	Console.log(`[Scene] Static trimesh finalized: ${triCount} triangles`);
+
+	// Build static BVH once from all entities marked isStatic that have bounding boxes.
+	// node pool starts fresh; static nodes occupy indices [0, _staticBVHNodeCount).
+	_staticBVHEntityBuffer.length = 0;
+	for (let i = 0; i < _entities.length; i++) {
+		const entity = _entities[i];
+		if (entity.isStatic && entity.boundingBox) {
+			_staticBVHEntityBuffer.push(entity);
+		}
+	}
+
+	_bvhNodeCount = 0;
+	if (_staticBVHEntityBuffer.length > 0) {
+		// Copy into _bvhEntityBuffer so _bvhBuild can use the same scratch buffer
+		for (let i = 0; i < _staticBVHEntityBuffer.length; i++) {
+			_bvhEntityBuffer[i] = _staticBVHEntityBuffer[i];
+		}
+		_bvhEntityBuffer.length = _staticBVHEntityBuffer.length;
+		_staticBVHRoot = _bvhBuild(
+			0,
+			_staticBVHEntityBuffer.length,
+			_staticBVHEntityBuffer,
+		);
+	} else {
+		_staticBVHRoot = -1;
+	}
+	_staticBVHNodeCount = _bvhNodeCount;
+	Console.log(
+		`[Scene] Static BVH built: ${_staticBVHEntityBuffer.length} entities, ${_staticBVHNodeCount} nodes`,
+	);
 };
 
 const _pause = (doPause) => {
@@ -509,12 +544,22 @@ const _updateVisibility = () => {
 		_visibilityCache[_VISIBILITY_CACHE_TYPES[i]].length = 0;
 	}
 
-	// Partition entities: those with bounding boxes go into the BVH for hierarchical
-	// culling; those without (e.g. directional lights) are always visible.
-	_bvhNodeCount = 0;
+	// Traverse static BVH (built once in _finalizeStaticGeometry).
+	if (_staticBVHRoot >= 0) {
+		_bvhTraverse(_staticBVHRoot, false, _staticBVHEntityBuffer);
+	}
+
+	// Partition dynamic entities: those with bounding boxes go into the per-frame BVH;
+	// those without (e.g. directional lights) are always visible.
+	// node pool indices [0, _staticBVHNodeCount) are reserved for the static tree.
+	_bvhNodeCount = _staticBVHNodeCount;
 	let bvhLen = 0;
 	for (let i = 0; i < _entities.length; i++) {
 		const entity = _entities[i];
+		// Static entities in the static BVH are already handled above; skip them.
+		// Static entities without a boundingBox were never added to the static BVH
+		// and must still fall through to the visibility cache so they render.
+		if (entity.isStatic && entity.boundingBox) continue;
 		if (entity.boundingBox) {
 			_bvhEntityBuffer[bvhLen++] = entity;
 		} else {
@@ -524,8 +569,8 @@ const _updateVisibility = () => {
 	_bvhEntityBuffer.length = bvhLen;
 
 	if (bvhLen > 0) {
-		const root = _bvhBuild(0, bvhLen);
-		_bvhTraverse(root, false);
+		const root = _bvhBuild(0, bvhLen, _bvhEntityBuffer);
+		_bvhTraverse(root, false, _bvhEntityBuffer);
 	}
 };
 
