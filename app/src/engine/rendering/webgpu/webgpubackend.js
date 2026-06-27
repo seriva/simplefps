@@ -1310,6 +1310,8 @@ class WebGPUBackend extends RenderBackend {
 				entry.sampler = { type: "filtering" };
 			} else if (b.type === "texture") {
 				entry.texture = { sampleType: "float" };
+			} else if (b.type === "depth-texture") {
+				entry.texture = { sampleType: "depth" };
 			}
 			entries.push(entry);
 		}
@@ -1760,14 +1762,24 @@ class WebGPUBackend extends RenderBackend {
 							});
 							bg1Key += `${b.binding}:s:${this._defaultSampler._id}|`;
 						}
-					} else if (b.type === "texture") {
+					} else if (b.type === "texture" || b.type === "depth-texture") {
 						const tex = this._boundTextures.get(b.unit);
 						if (tex) {
+							let view = tex._gpuTextureView;
+							if (b.type === "depth-texture") {
+								if (!tex._gpuDepthOnlyView) {
+									tex._gpuDepthOnlyView = tex._gpuTexture.createView({
+										aspect: "depth-only",
+									});
+									tex._gpuDepthOnlyView._id = this._resourceIdCounter++;
+								}
+								view = tex._gpuDepthOnlyView;
+							}
 							entries.push({
 								binding: b.binding,
-								resource: tex._gpuTextureView,
+								resource: view,
 							});
-							bg1Key += `${b.binding}:t:${tex._gpuTextureView._id}|`;
+							bg1Key += `${b.binding}:t:${view._id}|`;
 						} else {
 							entries.push({
 								binding: b.binding,
@@ -1893,15 +1905,11 @@ class WebGPUBackend extends RenderBackend {
 		if (name === "pointLight") {
 			const arr = bufs.pointLight;
 			arr.fill(0);
-			const pos = this._uniforms.get("pointLight.position");
-			const size = this._uniforms.get("pointLight.size");
-			const col = this._uniforms.get("pointLight.color");
-			const intensity = this._uniforms.get("pointLight.intensity");
+			const posRange = this._uniforms.get("pointLight.posRange");
+			const colorIntensity = this._uniforms.get("pointLight.colorIntensity");
 
-			if (pos) arr.set(pos, 0);
-			if (size !== undefined) arr[3] = size;
-			if (col) arr.set(col, 4);
-			if (intensity !== undefined) arr[7] = intensity;
+			if (posRange) arr.set(posRange, 0);
+			if (colorIntensity) arr.set(colorIntensity, 4);
 			return arr;
 		} else if (name === "directionalLight") {
 			const arr = bufs.directionalLight;
@@ -1915,19 +1923,13 @@ class WebGPUBackend extends RenderBackend {
 		} else if (name === "spotLight") {
 			const arr = bufs.spotLight;
 			arr.fill(0);
-			const pos = this._uniforms.get("spotLight.position");
-			const cutoff = this._uniforms.get("spotLight.cutoff");
-			const dir = this._uniforms.get("spotLight.direction");
-			const range = this._uniforms.get("spotLight.range");
-			const col = this._uniforms.get("spotLight.color");
-			const intensity = this._uniforms.get("spotLight.intensity");
+			const posRange = this._uniforms.get("spotLight.posRange");
+			const colorIntensity = this._uniforms.get("spotLight.colorIntensity");
+			const dirCutoff = this._uniforms.get("spotLight.dirCutoff");
 
-			if (pos) arr.set(pos, 0);
-			if (cutoff !== undefined) arr[3] = cutoff;
-			if (dir) arr.set(dir, 4);
-			if (range !== undefined) arr[7] = range;
-			if (col) arr.set(col, 8);
-			if (intensity !== undefined) arr[11] = intensity;
+			if (posRange) arr.set(posRange, 0);
+			if (colorIntensity) arr.set(colorIntensity, 4);
+			if (dirCutoff) arr.set(dirCutoff, 8);
 			return arr;
 		} else if (name === "postProcessParams") {
 			const arr = bufs.postProcessParams;

@@ -4,8 +4,11 @@ import { Shaders } from "../rendering/shaders.js";
 import { Shapes } from "../rendering/shapes.js";
 import { Entity, EntityTypes } from "./entity.js";
 
-// Reusable temp matrix to avoid allocations
+// Reusable temp matrix and scratch vec4s to avoid allocations
 const _tempMatrix = mat4.create();
+const _posRange = new Float32Array(4);
+const _colorIntensity = new Float32Array(4);
+const _dirCutoff = new Float32Array(4);
 
 class SpotLightEntity extends Entity {
 	// Private fields — single source of truth for position/direction
@@ -104,12 +107,21 @@ class SpotLightEntity extends Entity {
 
 		// Set shader uniforms (shader already bound by RenderPasses)
 		Shaders.spotLight.setMat4("matWorld", m);
-		Shaders.spotLight.setVec3("spotLight.position", this._position);
-		Shaders.spotLight.setVec3("spotLight.direction", this._direction);
-		Shaders.spotLight.setVec3("spotLight.color", this.color);
-		Shaders.spotLight.setFloat("spotLight.intensity", this.intensity);
-		Shaders.spotLight.setFloat("spotLight.cutoff", this.cutoff);
-		Shaders.spotLight.setFloat("spotLight.range", this.range);
+		_posRange[0] = this._position[0];
+		_posRange[1] = this._position[1];
+		_posRange[2] = this._position[2];
+		_posRange[3] = this.range;
+		Shaders.spotLight.setVec4("spotLight.posRange", _posRange);
+		_colorIntensity[0] = this.color[0];
+		_colorIntensity[1] = this.color[1];
+		_colorIntensity[2] = this.color[2];
+		_colorIntensity[3] = this.intensity;
+		Shaders.spotLight.setVec4("spotLight.colorIntensity", _colorIntensity);
+		_dirCutoff[0] = this._direction[0];
+		_dirCutoff[1] = this._direction[1];
+		_dirCutoff[2] = this._direction[2];
+		_dirCutoff[3] = this.cutoff;
+		Shaders.spotLight.setVec4("spotLight.dirCutoff", _dirCutoff);
 
 		Shapes.spotlightVolume.renderSingle();
 	}

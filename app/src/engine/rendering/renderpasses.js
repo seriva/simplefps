@@ -15,7 +15,6 @@ const _lightPos = [0, 0, 0];
 
 // Reusable temporaries for per-entity ambient sampling
 const _probePos = new Float32Array(3);
-const _probeColor = new Float32Array(3);
 const _MAX_SHADOW_RAYCAST_DISTANCE = 200;
 const _SKINNED_SHADOW_RAYCAST_INTERVAL = 3;
 const _SKINNED_SHADOW_MOVE_EPSILON_SQ = 0.04;
@@ -23,19 +22,46 @@ const _SHADOW_FRAME_WRAP = 1_000_000;
 const _SHADOW_RAYCAST_BUDGET = 16; // max static-mesh raycasts per frame
 let _shadowFrame = 0;
 
-// Lighting UBO data (aligned to 16 bytes for WGSL)
-// 8 * 4 * 4 bytes = 128 bytes (positions)
-// 8 * 4 * 4 bytes = 128 bytes (colors)
-// 8 * 4 * 4 bytes = 128 bytes (params)
-// 4 * 4 * 4 bytes = 64 bytes (spot pos)
-// 4 * 4 * 4 bytes = 64 bytes (spot dir)
-// 4 * 4 * 4 bytes = 64 bytes (spot color)
-// 4 * 4 * 4 bytes = 64 bytes (spot params)
-// 4 * 4 bytes = 16 bytes (counts)
-// Total = 656 bytes / 4 = 164 floats
-const _LIGHTING_DATA_SIZE = 164;
+// Lighting UBO data — 2 vec4s per point light, 3 per spot light, 1 count vec4
+// 8 point * 2 vec4 * 4 floats = 64 floats
+// 4 spot  * 3 vec4 * 4 floats = 48 floats
+// 1 count * 1 vec4 * 4 floats =  4 floats
+// Total = 116 floats = 464 bytes
+const _LIGHTING_DATA_SIZE = 116;
 const _lightingData = new Float32Array(_LIGHTING_DATA_SIZE);
 let _lightingUBO = null;
+
+// Reusable sort buffers for light contribution ordering (separate point/spot to avoid aliasing)
+const _pointLightSortBuffer = [];
+const _spotLightSortBuffer = [];
+
+// Reusable sort buffer for transparent entity back-to-front ordering
+const _transparentSortBuffer = [];
+
+// Shadow priority sort buffer
+const _shadowSortBuffer = [];
+
+// Score an entity's shadow priority by its projected screen-space footprint.
+// worldSize / clipW is a perspective-correct size proxy: larger closer entities score higher.
+const _shadowScreenSize = (entity, viewProjection) => {
+	const bb = entity.boundingBox;
+	if (!bb) return 0;
+	const m = entity.base_matrix;
+	const px = m[12];
+	const py = m[13];
+	const pz = m[14];
+	const dx = bb.max[0] - bb.min[0];
+	const dy = bb.max[1] - bb.min[1];
+	const dz = bb.max[2] - bb.min[2];
+	const worldSize = Math.sqrt(dx * dx + dy * dy + dz * dz);
+	const w =
+		viewProjection[3] * px +
+		viewProjection[7] * py +
+		viewProjection[11] * pz +
+		viewProjection[15];
+	if (w <= 0) return 0;
+	return worldSize / w;
+};
 
 // Debug state
 const _debugState = {
@@ -43,6 +69,7 @@ const _debugState = {
 	showWireframes: false,
 	showLightVolumes: false,
 	showSkeleton: false,
+	showStats: false,
 };
 
 // Render stats (reset each frame, updated during rendering)
@@ -89,12 +116,14 @@ const toggleBoundingVolumes = _makeDebugToggle("showBoundingVolumes");
 const toggleWireframes = _makeDebugToggle("showWireframes");
 const toggleLightVolumes = _makeDebugToggle("showLightVolumes");
 const toggleSkeleton = _makeDebugToggle("showSkeleton");
+const toggleStats = _makeDebugToggle("showStats");
 
 // Register console commands
 Console.registerCmd("tbv", toggleBoundingVolumes);
 Console.registerCmd("twf", toggleWireframes);
 Console.registerCmd("tlv", toggleLightVolumes);
 Console.registerCmd("tsk", toggleSkeleton);
+Console.registerCmd("tst", toggleStats);
 
 // Sample ambient probe color for an entity based on its world position.
 // Result is cached per entity per frame to avoid redundant matrix ops when
@@ -118,7 +147,7 @@ const _sampleProbeColor = (entity) => {
 // Calculate shadow height for an entity via downward raycast
 const _calculateShadowHeight = (entity) => {
 	mat4.getTranslation(_probePos, entity.base_matrix);
-	const result = Scene.raycast(
+	const result = Scene.raycastStatic(
 		_probePos[0],
 		_probePos[1] + 1.0,
 		_probePos[2],
@@ -204,10 +233,11 @@ const renderWorldGeometry = () => {
 	// Advance frame counter so per-entity caches (ambient probe, etc.) are invalidated
 	_renderFrame++;
 
-	// Reset render stats for this frame
-	_renderStats.meshCount = 0;
-	_renderStats.lightCount = 0;
-	_renderStats.triangleCount = 0;
+	if (_debugState.showStats) {
+		_renderStats.meshCount = 0;
+		_renderStats.lightCount = 0;
+		_renderStats.triangleCount = 0;
+	}
 
 	_bindGeometryShader();
 
@@ -219,8 +249,10 @@ const renderWorldGeometry = () => {
 	const meshEntities = Scene.visibilityCache[EntityTypes.MESH];
 	for (const entity of meshEntities) {
 		entity.render(_sampleProbeColor(entity), "opaque", Shaders.geometry);
-		_renderStats.meshCount++;
-		_renderStats.triangleCount += entity.mesh?.triangleCount || 0;
+		if (_debugState.showStats) {
+			_renderStats.meshCount++;
+			_renderStats.triangleCount += entity.mesh?.triangleCount || 0;
+		}
 	}
 
 	for (const entity of Scene.visibilityCache[EntityTypes.FPS_MESH]) {
@@ -247,8 +279,10 @@ const renderWorldGeometry = () => {
 				"opaque",
 				Shaders.skinnedGeometry,
 			);
-			_renderStats.meshCount++;
-			_renderStats.triangleCount += entity.mesh?.triangleCount || 0;
+			if (_debugState.showStats) {
+				_renderStats.meshCount++;
+				_renderStats.triangleCount += entity.mesh?.triangleCount || 0;
+			}
 		}
 
 		Backend.unbindShader();
@@ -262,63 +296,79 @@ const renderTransparent = () => {
 	Shaders.transparent.setMat4("matWorld", _matModel);
 	Shaders.transparent.setInt("colorSampler", 0);
 
-	const visiblePointLights = Scene.visibilityCache[EntityTypes.POINT_LIGHT];
-	const numPointLights = Math.min(visiblePointLights.length, _MAX_POINT_LIGHTS);
+	// Sort by contribution so the highest-impact lights fill the limited UBO slots
+	const sortedPointLights = _sortLightsByContribution(
+		Scene.visibilityCache[EntityTypes.POINT_LIGHT],
+		_pointLightSortBuffer,
+	);
+	const numPointLights = Math.min(sortedPointLights.length, _MAX_POINT_LIGHTS);
 
-	const visibleSpotLights = Scene.visibilityCache[EntityTypes.SPOT_LIGHT];
-	const numSpotLights = Math.min(visibleSpotLights.length, _MAX_SPOT_LIGHTS);
+	const sortedSpotLights = _sortLightsByContribution(
+		Scene.visibilityCache[EntityTypes.SPOT_LIGHT],
+		_spotLightSortBuffer,
+	);
+	const numSpotLights = Math.min(sortedSpotLights.length, _MAX_SPOT_LIGHTS);
 
 	if (!_lightingUBO) {
 		_lightingUBO = Backend.createUBO(_LIGHTING_DATA_SIZE * 4, 2);
 	}
 
 	// Fill Point Lights — Layout: Pos(0), Color(32), Params(64)
+	// Fill Point Lights — 2 vec4s each: [i*8]=posSize, [i*8+4]=colorIntensity
 	for (let i = 0; i < numPointLights; i++) {
-		const light = visiblePointLights[i];
+		const light = sortedPointLights[i].light;
 		mat4.multiply(_lightMatrix, light.base_matrix, light.ani_matrix);
 		mat4.getTranslation(_lightPos, _lightMatrix);
 
-		_lightingData[i * 4] = _lightPos[0];
-		_lightingData[i * 4 + 1] = _lightPos[1];
-		_lightingData[i * 4 + 2] = _lightPos[2];
-
-		_lightingData[32 + i * 4] = light.color[0];
-		_lightingData[32 + i * 4 + 1] = light.color[1];
-		_lightingData[32 + i * 4 + 2] = light.color[2];
-
-		_lightingData[64 + i * 4] = light.intensity;
-		_lightingData[64 + i * 4 + 1] = light.size;
+		const base = i * 8;
+		_lightingData[base] = _lightPos[0];
+		_lightingData[base + 1] = _lightPos[1];
+		_lightingData[base + 2] = _lightPos[2];
+		_lightingData[base + 3] = light.size;
+		_lightingData[base + 4] = light.color[0];
+		_lightingData[base + 5] = light.color[1];
+		_lightingData[base + 6] = light.color[2];
+		_lightingData[base + 7] = light.intensity;
 	}
 
-	// Fill Spot Lights — Layout: Pos(96), Dir(112), Color(128), Params(144)
+	// Fill Spot Lights — 3 vec4s each: posRange, colorIntensity, dirCutoff (offset 64)
 	for (let i = 0; i < numSpotLights; i++) {
-		const light = visibleSpotLights[i];
+		const light = sortedSpotLights[i].light;
 
-		_lightingData[96 + i * 4] = light.position[0];
-		_lightingData[96 + i * 4 + 1] = light.position[1];
-		_lightingData[96 + i * 4 + 2] = light.position[2];
-
-		_lightingData[112 + i * 4] = light.direction[0];
-		_lightingData[112 + i * 4 + 1] = light.direction[1];
-		_lightingData[112 + i * 4 + 2] = light.direction[2];
-
-		_lightingData[128 + i * 4] = light.color[0];
-		_lightingData[128 + i * 4 + 1] = light.color[1];
-		_lightingData[128 + i * 4 + 2] = light.color[2];
-
-		_lightingData[144 + i * 4] = light.intensity;
-		_lightingData[144 + i * 4 + 1] = light.cutoff;
-		_lightingData[144 + i * 4 + 2] = light.range;
+		const base = 64 + i * 12;
+		_lightingData[base] = light.position[0];
+		_lightingData[base + 1] = light.position[1];
+		_lightingData[base + 2] = light.position[2];
+		_lightingData[base + 3] = light.range;
+		_lightingData[base + 4] = light.color[0];
+		_lightingData[base + 5] = light.color[1];
+		_lightingData[base + 6] = light.color[2];
+		_lightingData[base + 7] = light.intensity;
+		_lightingData[base + 8] = light.direction[0];
+		_lightingData[base + 9] = light.direction[1];
+		_lightingData[base + 10] = light.direction[2];
+		_lightingData[base + 11] = light.cutoff;
 	}
 
-	// Counts (Offset 160)
-	_lightingData[160] = numPointLights;
-	_lightingData[161] = numSpotLights;
+	// Counts (Offset 112 = 64 + 48)
+	_lightingData[112] = numPointLights;
+	_lightingData[113] = numSpotLights;
 
 	Backend.updateUBO(_lightingUBO, _lightingData);
 	Backend.bindUniformBuffer(_lightingUBO);
 
-	for (const entity of Scene.visibilityCache[EntityTypes.MESH]) {
+	const meshes = Scene.visibilityCache[EntityTypes.MESH];
+	_transparentSortBuffer.length = 0;
+	for (let i = 0; i < meshes.length; i++) {
+		const entity = meshes[i];
+		const m = entity.base_matrix;
+		const vp = Camera.viewProjection;
+		const w = vp[3] * m[12] + vp[7] * m[13] + vp[11] * m[14] + vp[15];
+		_transparentSortBuffer.push({ entity, depth: w });
+	}
+	_transparentSortBuffer.sort((a, b) => b.depth - a.depth);
+	for (let i = 0; i < _transparentSortBuffer.length; i++) {
+		const entity = _transparentSortBuffer[i].entity;
 		entity.render(
 			_sampleProbeColor(entity),
 			"translucent",
@@ -327,6 +377,26 @@ const renderTransparent = () => {
 	}
 
 	Backend.unbindShader();
+};
+
+const _sortLightsByContribution = (lights, buf) => {
+	buf.length = 0;
+	const cx = Camera.position[0];
+	const cy = Camera.position[1];
+	const cz = Camera.position[2];
+	for (let i = 0; i < lights.length; i++) {
+		const light = lights[i];
+		// Use base_matrix translation as world position approximation (ani_matrix is
+		// identity for static lights; close enough for contribution ordering)
+		const m = light.base_matrix;
+		const dx = m[12] - cx;
+		const dy = m[13] - cy;
+		const dz = m[14] - cz;
+		const dist2 = dx * dx + dy * dy + dz * dz || 1;
+		buf.push({ light, score: light.intensity / dist2 });
+	}
+	buf.sort((a, b) => b.score - a.score);
+	return buf;
 };
 
 const renderLighting = () => {
@@ -339,17 +409,23 @@ const renderLighting = () => {
 	}
 	Backend.unbindShader();
 
-	// Get light entities
-	const pointLights = Scene.visibilityCache[EntityTypes.POINT_LIGHT];
-	const spotLights = Scene.visibilityCache[EntityTypes.SPOT_LIGHT];
+	// Sort by contribution so highest-impact lights render first
+	const sortedPointLights = _sortLightsByContribution(
+		Scene.visibilityCache[EntityTypes.POINT_LIGHT],
+		_pointLightSortBuffer,
+	);
+	const sortedSpotLights = _sortLightsByContribution(
+		Scene.visibilityCache[EntityTypes.SPOT_LIGHT],
+		_spotLightSortBuffer,
+	);
 
 	// Point lights
 	Shaders.pointLight.bind();
 	Shaders.pointLight.setInt("positionBuffer", 0);
 	Shaders.pointLight.setInt("normalBuffer", 1);
-	for (const light of pointLights) {
-		light.render();
-		_renderStats.lightCount++;
+	for (let i = 0; i < sortedPointLights.length; i++) {
+		sortedPointLights[i].light.render();
+		if (_debugState.showStats) _renderStats.lightCount++;
 	}
 	Backend.unbindShader();
 
@@ -357,18 +433,19 @@ const renderLighting = () => {
 	Shaders.spotLight.bind();
 	Shaders.spotLight.setInt("positionBuffer", 0);
 	Shaders.spotLight.setInt("normalBuffer", 1);
-	for (const light of spotLights) {
-		light.render();
-		_renderStats.lightCount++;
+	for (let i = 0; i < sortedSpotLights.length; i++) {
+		sortedSpotLights[i].light.render();
+		if (_debugState.showStats) _renderStats.lightCount++;
 	}
 	Backend.unbindShader();
 
-	// Update stats with actual rendered counts
-	Stats.setRenderStats(
-		_renderStats.meshCount,
-		_renderStats.lightCount,
-		_renderStats.triangleCount,
-	);
+	if (_debugState.showStats) {
+		Stats.setRenderStats(
+			_renderStats.meshCount,
+			_renderStats.lightCount,
+			_renderStats.triangleCount,
+		);
+	}
 };
 
 const renderShadows = () => {
@@ -381,8 +458,20 @@ const renderShadows = () => {
 	Shaders.entityShadows.setVec3("uProbeColor", ambient);
 
 	const meshEntities = Scene.visibilityCache[EntityTypes.MESH];
+
+	// Sort by projected screen-space size so large nearby entities consume budget first
+	_shadowSortBuffer.length = 0;
+	for (let i = 0; i < meshEntities.length; i++) {
+		_shadowSortBuffer.push({
+			entity: meshEntities[i],
+			score: _shadowScreenSize(meshEntities[i], Camera.viewProjection),
+		});
+	}
+	_shadowSortBuffer.sort((a, b) => b.score - a.score);
+
 	let raycastBudget = _SHADOW_RAYCAST_BUDGET;
-	for (const entity of meshEntities) {
+	for (let i = 0; i < _shadowSortBuffer.length; i++) {
+		const entity = _shadowSortBuffer[i].entity;
 		if (entity.shadowHeight === null) {
 			if (raycastBudget > 0) {
 				_calculateShadowHeight(entity);

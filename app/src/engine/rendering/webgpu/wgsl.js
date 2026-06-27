@@ -158,7 +158,7 @@ struct GeomVertexOutput {
 
 struct FragmentOutput {
     @location(0) position: vec4<f32>,
-    @location(1) normal: vec2<f32>,
+    @location(1) normal: vec4<f32>,
     @location(2) color: vec4<f32>,
     @location(3) emissive: vec4<f32>,
 }
@@ -277,11 +277,11 @@ fn fs_main(input: GeomVertexOutput) -> FragmentOutput {
 
     let lightmapFlag = select(1.0, f32(materialData.flags.w), materialData.flags.x != SKYBOX);
     if (materialData.flags.x != SKYBOX) {
-        output.normal = octEncode(N);
         output.position = vec4<f32>(input.worldPosition.xyz, 1.0);
+        output.normal = vec4<f32>(octEncode(N), 1.0, 0.0); // .b=1: real geometry
     } else {
-        output.normal = vec2<f32>(0.5, 0.5);
         output.position = vec4<f32>(0.0, 0.0, 0.0, 0.0);
+        output.normal = vec4<f32>(0.5, 0.5, 0.0, 0.0); // .b=0: skybox pixel
     }
 
     // Apply reflection if enabled (flags.z == 1)
@@ -322,7 +322,7 @@ struct GeomVertexOutput {
 
 struct FragmentOutput {
     @location(0) position: vec4<f32>,
-    @location(1) normal: vec2<f32>,
+    @location(1) normal: vec4<f32>,
     @location(2) color: vec4<f32>,
     @location(3) emissive: vec4<f32>,
 }
@@ -386,8 +386,8 @@ fn fs_main(input: GeomVertexOutput) -> FragmentOutput {
     output.emissive = vec4<f32>(0.0);
 
     // Skinned meshes don't have lightmaps, always use deferred lighting
-    output.normal = octEncode(input.normal);
     output.position = vec4<f32>(input.worldPosition.xyz, 1.0);
+    output.normal = vec4<f32>(octEncode(input.normal), 1.0, 0.0); // .b=1: real geometry
 
     // Apply reflection if enabled (flags.z == 1)
     if (materialData.flags.z == 1) {
@@ -530,10 +530,8 @@ ${FrameDataStruct}
 ${ObjectDataStruct}
 
 struct PointLight {
-    position: vec3<f32>,
-    size: f32,
-    color: vec3<f32>,
-    intensity: f32,
+    posRange: vec4<f32>,       // xyz = world position, w = size (range)
+    colorIntensity: vec4<f32>, // xyz = color, w = intensity
 }
 
 struct PointLightVertexInput {
@@ -564,13 +562,13 @@ fn vs_main(input: PointLightVertexInput) -> PointLightVertexOutput {
 fn fs_main(input: PointLightVertexOutput) -> @location(0) vec4<f32> {
     let fragCoord = vec2<i32>(input.clipPosition.xy);
 
-    let position = textureLoad(positionBuffer, fragCoord, 0).rgb;
+    let position = textureLoad(positionBuffer, fragCoord, 0).xyz;
     let normal = octDecode(textureLoad(normalBuffer, fragCoord, 0).rg);
 
-    let pl = calcPointLight(pointLight.position, pointLight.size, position, normal);
+    let pl = calcPointLight(pointLight.posRange.xyz, pointLight.posRange.w, position, normal);
     if (pl.x <= 0.0) { discard; }
 
-    return vec4<f32>(pointLight.color * pl.x * pl.y * pointLight.intensity, 1.0);
+    return vec4<f32>(pointLight.colorIntensity.xyz * pl.x * pl.y * pointLight.colorIntensity.w, 1.0);
 }
 `;
 
@@ -580,12 +578,9 @@ ${FrameDataStruct}
 ${ObjectDataStruct}
 
 struct SpotLight {
-    position: vec3<f32>,
-    cutoff: f32,
-    direction: vec3<f32>,
-    range: f32,
-    color: vec3<f32>,
-    intensity: f32,
+    posRange: vec4<f32>,       // xyz = world position, w = range
+    colorIntensity: vec4<f32>, // xyz = color, w = intensity
+    dirCutoff: vec4<f32>,      // xyz = direction, w = cutoff (cos of angle)
 }
 
 struct SpotLightVertexInput {
@@ -616,13 +611,13 @@ fn vs_main(input: SpotLightVertexInput) -> SpotLightVertexOutput {
 fn fs_main(input: SpotLightVertexOutput) -> @location(0) vec4<f32> {
     let fragCoord = vec2<i32>(input.clipPosition.xy);
 
-    let position = textureLoad(positionBuffer, fragCoord, 0).rgb;
+    let position = textureLoad(positionBuffer, fragCoord, 0).xyz;
     let normal = octDecode(textureLoad(normalBuffer, fragCoord, 0).rg);
 
-    let sl = calcSpotLight(spotLight.position, spotLight.direction, spotLight.cutoff, spotLight.range, position, normal);
+    let sl = calcSpotLight(spotLight.posRange.xyz, spotLight.dirCutoff.xyz, spotLight.dirCutoff.w, spotLight.posRange.w, position, normal);
     if (sl.x <= 0.0) { discard; }
 
-    return vec4<f32>(spotLight.color * spotLight.intensity * sl.x * sl.y * sl.z, 1.0);
+    return vec4<f32>(spotLight.colorIntensity.xyz * spotLight.colorIntensity.w * sl.x * sl.y * sl.z, 1.0);
 }
 `;
 
@@ -694,7 +689,7 @@ struct PostOutput {
 @group(1) @binding(4) var emissiveBuffer: texture_2d<f32>;
 @group(1) @binding(5) var dirtBuffer: texture_2d<f32>;
 @group(1) @binding(6) var shadowBuffer: texture_2d<f32>;
-@group(1) @binding(7) var positionBuffer: texture_2d<f32>;
+@group(1) @binding(7) var normalBuffer: texture_2d<f32>;
 
 @vertex
 fn vs_main(@builtin(vertex_index) vertexIndex: u32) -> PostOutput {
@@ -724,10 +719,10 @@ fn fs_main(input: PostOutput) -> @location(0) vec4<f32> {
     var fragColor = vec4<f32>(color.rgb + dynamicLight, 1.0);
 
     // Apply shadows - multiply by shadow buffer
-    // Skip shadows for sky (position.w == 0)
-    let position = textureLoad(positionBuffer, fragCoord, 0);
+    // Skip shadows for sky (normalBuffer.b == 0 means skybox pixel)
+    let skyFlag = textureLoad(normalBuffer, fragCoord, 0).b;
     let shadow = textureLoad(shadowBuffer, fragCoord, 0).rrr;
-    if (position.w > 0.0) {
+    if (skyFlag > 0.5) {
         // Soften shadows - mix between full brightness and shadow value
         let softShadow = mix(vec3<f32>(1.0), shadow, params.shadowIntensity);
         fragColor = vec4<f32>(fragColor.rgb * softShadow, fragColor.a);
@@ -966,13 +961,10 @@ ${MaterialDataStruct}
 ${ObjectDataStruct}
 
 struct LightingData {
-    pointLightPositions: array<vec4<f32>, 8>,
-    pointLightColors: array<vec4<f32>, 8>,
-    pointLightParams: array<vec4<f32>, 8>, // x=intensity, y=size
-    spotLightPositions: array<vec4<f32>, 4>,
-    spotLightDirections: array<vec4<f32>, 4>,
-    spotLightColors: array<vec4<f32>, 4>,
-    spotLightParams: array<vec4<f32>, 4>, // x=intensity, y=cutoff, z=range
+    // 2 vec4s per point light: [i*2]=posSize(xyz=pos,w=size), [i*2+1]=colorIntensity
+    pointLights: array<vec4<f32>, 16>,
+    // 3 vec4s per spot light: [i*3]=posRange, [i*3+1]=colorIntensity, [i*3+2]=dirCutoff(xyz=dir,w=cutoff)
+    spotLights: array<vec4<f32>, 12>,
     counts: vec4<f32>, // x=numPoint, y=numSpot
 }
 
@@ -1047,13 +1039,10 @@ fn fs_main(input: TransparentVertexOutput) -> @location(0) vec4<f32> {
     for (var i = 0; i < 8; i++) {
         if (i >= numPoint) { break; }
 
-        let pos = lightingData.pointLightPositions[i].xyz;
-        let color = lightingData.pointLightColors[i].rgb;
-        let intensity = lightingData.pointLightParams[i].x;
-        let size = lightingData.pointLightParams[i].y;
-
-        let pl = calcPointLight(pos, size, fragPos, normal);
-        dynamicLighting += color * (pl.x * pl.y * intensity);
+        let posSize = lightingData.pointLights[i * 2];
+        let colorIntensity = lightingData.pointLights[i * 2 + 1];
+        let pl = calcPointLight(posSize.xyz, posSize.w, fragPos, normal);
+        dynamicLighting += colorIntensity.rgb * (pl.x * pl.y * colorIntensity.w);
     }
 
     // Spot Lights
@@ -1061,15 +1050,11 @@ fn fs_main(input: TransparentVertexOutput) -> @location(0) vec4<f32> {
     for (var i = 0; i < 4; i++) {
         if (i >= numSpot) { break; }
 
-        let pos = lightingData.spotLightPositions[i].xyz;
-        let dir = lightingData.spotLightDirections[i].xyz;
-        let color = lightingData.spotLightColors[i].rgb;
-        let intensity = lightingData.spotLightParams[i].x;
-        let cutoff = lightingData.spotLightParams[i].y;
-        let range = lightingData.spotLightParams[i].z;
-
-        let sl = calcSpotLight(pos, dir, cutoff, range, fragPos, normal);
-        dynamicLighting += color * (intensity * 2.0) * sl.x * sl.y * sl.z;
+        let posRange = lightingData.spotLights[i * 3];
+        let colorIntensity = lightingData.spotLights[i * 3 + 1];
+        let dirCutoff = lightingData.spotLights[i * 3 + 2];
+        let sl = calcSpotLight(posRange.xyz, dirCutoff.xyz, dirCutoff.w, posRange.w, fragPos, normal);
+        dynamicLighting += colorIntensity.rgb * (colorIntensity.w * 2.0) * sl.x * sl.y * sl.z;
     }
 
     // Apply lighting
