@@ -60,7 +60,7 @@ const _frame = () => {
 	const now = performance.now();
 
 	// timing
-	_frameTime = now - (_time || now);
+	_frameTime = Math.min(now - (_time || now), 100); // Cap at 100ms to prevent physics tunneling
 	_time = now;
 
 	Stats.update();

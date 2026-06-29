@@ -19,6 +19,7 @@ class Trimesh {
 			this.vertices = new Float32Array(vertices);
 			this.indices = new Int32Array(indices);
 			this.normals = new Float32Array(indices.length);
+			this.triangleFlags = triangleFlags ? new Uint8Array(triangleFlags) : null;
 			this.updateNormals();
 			this.computeLocalAABB(this.aabb);
 			this.updateTree();
@@ -27,16 +28,19 @@ class Trimesh {
 			this.vertices = new Float32Array(0);
 			this.indices = new Int32Array(0);
 			this.normals = new Float32Array(0);
+			this.triangleFlags = null;
 			this._pendingVertices = [];
 			this._pendingIndices = [];
+			this._pendingFlags = [];
 			this._totalVertexCount = 0;
 		}
 	}
 
-	addMesh(vertices, indices) {
+	addMesh(vertices, indices, triangleFlags = null) {
 		const vertexOffset = this._totalVertexCount;
 		this._pendingVertices.push(vertices);
 		this._pendingIndices.push({ data: indices, offset: vertexOffset });
+		this._pendingFlags.push(triangleFlags);
 		this._totalVertexCount += vertices.length / 3;
 		this._dirty = true;
 	}
@@ -54,6 +58,10 @@ class Trimesh {
 		this.vertices = new Float32Array(totalVertLen);
 		this.indices = new Int32Array(totalIdxLen);
 
+		let hasFlags = false;
+		for (const f of this._pendingFlags) if (f) hasFlags = true;
+		this.triangleFlags = hasFlags ? new Uint8Array(totalIdxLen / 3) : null;
+
 		// Copy vertices
 		let vOffset = 0;
 		for (const v of this._pendingVertices) {
@@ -63,16 +71,28 @@ class Trimesh {
 
 		// Copy indices with offset
 		let iOffset = 0;
-		for (const { data, offset } of this._pendingIndices) {
+		let fOffset = 0;
+		for (let idxIdx = 0; idxIdx < this._pendingIndices.length; idxIdx++) {
+			const { data, offset } = this._pendingIndices[idxIdx];
+			const flags = this._pendingFlags[idxIdx];
 			for (let i = 0; i < data.length; i++) {
 				this.indices[iOffset + i] = data[i] + offset;
 			}
+
+			if (this.triangleFlags) {
+				if (flags) {
+					this.triangleFlags.set(flags, fOffset);
+				}
+				fOffset += data.length / 3;
+			}
+
 			iOffset += data.length;
 		}
 
 		// Free pending buffers
 		this._pendingVertices = null;
 		this._pendingIndices = null;
+		this._pendingFlags = null;
 		this.normals = new Float32Array(this.indices.length);
 		this.updateNormals();
 		this.computeLocalAABB(this.aabb);

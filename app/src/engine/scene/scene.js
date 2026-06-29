@@ -1,8 +1,8 @@
 import { mat4, vec3 } from "../../dependencies/gl-matrix.js";
 import { Ray, RaycastResult } from "../physics/ray.js";
 import { Trimesh } from "../physics/trimesh.js";
-import { Camera } from "../systems/camera.js";
 import { Console } from "../systems/console.js";
+import { Resources } from "../systems/resources.js";
 import { EntityTypes } from "./entity.js";
 import { LightGrid } from "./lightgrid.js";
 
@@ -38,7 +38,6 @@ const _DEFAULT_RAY_OPTIONS = {
 const _entities = [];
 const _collidables = [];
 let _ambient = _DEFAULT_AMBIENT;
-let _visibilityDirty = true;
 let _pauseUpdate = false;
 
 // Pre-allocated set to avoid per-frame allocations during entity removal
@@ -83,191 +82,6 @@ const _entitiesByType = {
 };
 
 // ============================================================================
-// Incremental visibility: skip rebuild when frustum and entity set are unchanged
-// ============================================================================
-
-// Flat copy of the last-seen frustum planes (6 × vec4 = 24 floats).
-// Initialised to zero — real planes will always differ on the first frame.
-const _lastFrustumPlanes = new Float32Array(24);
-
-// Returns true if any frustum plane changed since the previous call,
-// and updates the stored copy when it does.
-const _frustumChangedSinceLastFrame = () => {
-	const planes = Camera.frustumPlanesArray;
-	let changed = false;
-	for (let i = 0; i < 6; i++) {
-		const p = planes[i];
-		const off = i * 4;
-		if (
-			p[0] !== _lastFrustumPlanes[off] ||
-			p[1] !== _lastFrustumPlanes[off + 1] ||
-			p[2] !== _lastFrustumPlanes[off + 2] ||
-			p[3] !== _lastFrustumPlanes[off + 3]
-		)
-			changed = true;
-		_lastFrustumPlanes[off] = p[0];
-		_lastFrustumPlanes[off + 1] = p[1];
-		_lastFrustumPlanes[off + 2] = p[2];
-		_lastFrustumPlanes[off + 3] = p[3];
-	}
-	return changed;
-};
-
-// ============================================================================
-// Per-frame entity BVH for hierarchical frustum culling
-// ============================================================================
-
-const _BVH_LEAF_MAX = 8;
-
-// Reusable node pool — objects are reused across frames, never freed
-const _bvhNodePool = [];
-let _bvhNodeCount = 0;
-
-// Scratch entity array — populated each frame with dynamic entities that have a boundingBox
-const _bvhEntityBuffer = [];
-
-// Static BVH — built once at finalizeStaticGeometry(), never rebuilt
-let _staticBVHRoot = -1;
-let _staticBVHNodeCount = 0;
-const _staticBVHEntityBuffer = [];
-
-const _bvhAllocNode = () => {
-	if (_bvhNodeCount >= _bvhNodePool.length) {
-		_bvhNodePool.push({
-			minX: 0,
-			minY: 0,
-			minZ: 0,
-			maxX: 0,
-			maxY: 0,
-			maxZ: 0,
-			start: 0,
-			end: 0,
-			left: -1,
-			right: -1,
-		});
-	}
-	const node = _bvhNodePool[_bvhNodeCount];
-	node.left = -1;
-	node.right = -1;
-	return _bvhNodeCount++;
-};
-
-const _bvhBuild = (start, end, buf) => {
-	const nodeIdx = _bvhAllocNode();
-	const node = _bvhNodePool[nodeIdx];
-	node.start = start;
-	node.end = end;
-
-	// Compute AABB over [start, end)
-	let minX = Infinity,
-		minY = Infinity,
-		minZ = Infinity;
-	let maxX = -Infinity,
-		maxY = -Infinity,
-		maxZ = -Infinity;
-	for (let i = start; i < end; i++) {
-		const bb = buf[i].boundingBox;
-		if (bb.min[0] < minX) minX = bb.min[0];
-		if (bb.min[1] < minY) minY = bb.min[1];
-		if (bb.min[2] < minZ) minZ = bb.min[2];
-		if (bb.max[0] > maxX) maxX = bb.max[0];
-		if (bb.max[1] > maxY) maxY = bb.max[1];
-		if (bb.max[2] > maxZ) maxZ = bb.max[2];
-	}
-	node.minX = minX;
-	node.minY = minY;
-	node.minZ = minZ;
-	node.maxX = maxX;
-	node.maxY = maxY;
-	node.maxZ = maxZ;
-
-	if (end - start <= _BVH_LEAF_MAX) {
-		return nodeIdx; // leaf
-	}
-
-	// Split along longest axis at spatial midpoint
-	const dx = maxX - minX,
-		dy = maxY - minY,
-		dz = maxZ - minZ;
-	const axis = dx >= dy && dx >= dz ? 0 : dy >= dz ? 1 : 2;
-	const splitVal =
-		axis === 0
-			? (minX + maxX) * 0.5
-			: axis === 1
-				? (minY + maxY) * 0.5
-				: (minZ + maxZ) * 0.5;
-
-	// In-place partition around splitVal
-	let l = start,
-		r = end - 1;
-	while (l <= r) {
-		const bb = buf[l].boundingBox;
-		const c = (bb.min[axis] + bb.max[axis]) * 0.5;
-		if (c <= splitVal) {
-			l++;
-		} else {
-			const tmp = buf[l];
-			buf[l] = buf[r];
-			buf[r] = tmp;
-			r--;
-		}
-	}
-	// Guard against degenerate splits (all centroids identical)
-	let mid = l;
-	if (mid === start || mid === end) mid = (start + end) >> 1;
-
-	node.left = _bvhBuild(start, mid, buf);
-	node.right = _bvhBuild(mid, end, buf);
-	return nodeIdx;
-};
-
-// Returns 0 = outside frustum, 1 = intersects frustum, 2 = fully inside frustum.
-const _bvhClassify = (node) => {
-	const planes = Camera.frustumPlanesArray;
-	let fullyInside = true;
-	for (let i = 0; i < 6; i++) {
-		const p = planes[i];
-		const nx = p[0],
-			ny = p[1],
-			nz = p[2],
-			d = p[3];
-		// P-vertex: furthest point in the direction of the plane normal
-		const px = nx > 0 ? node.maxX : node.minX;
-		const py = ny > 0 ? node.maxY : node.minY;
-		const pz = nz > 0 ? node.maxZ : node.minZ;
-		if (nx * px + ny * py + nz * pz + d < 0) return 0; // entire subtree outside
-		// N-vertex: closest point — if behind this plane the box straddles it
-		const ex = nx > 0 ? node.minX : node.maxX;
-		const ey = ny > 0 ? node.minY : node.maxY;
-		const ez = nz > 0 ? node.minZ : node.maxZ;
-		if (nx * ex + ny * ey + nz * ez + d < 0) fullyInside = false;
-	}
-	return fullyInside ? 2 : 1;
-};
-
-const _bvhTraverse = (nodeIdx, fullyInside, buf) => {
-	const node = _bvhNodePool[nodeIdx];
-	if (!fullyInside) {
-		const c = _bvhClassify(node);
-		if (c === 0) return;
-		fullyInside = c === 2;
-	}
-
-	if (node.left === -1) {
-		// Leaf: add entities; skip per-entity test if parent confirmed fully inside
-		for (let i = node.start; i < node.end; i++) {
-			const entity = buf[i];
-			if (fullyInside || entity.boundingBox.isVisible()) {
-				_visibilityCache[entity.type].push(entity);
-			}
-		}
-	} else {
-		_bvhTraverse(node.left, fullyInside, buf);
-		_bvhTraverse(node.right, fullyInside, buf);
-	}
-};
-
-// ============================================================================
 // Private functions
 // ============================================================================
 
@@ -298,7 +112,6 @@ const _addEntities = (e) => {
 		return;
 	}
 
-	_visibilityDirty = true;
 	if (Array.isArray(e)) {
 		for (let i = 0; i < e.length; i++) {
 			const entity = e[i];
@@ -328,7 +141,6 @@ const _removeEntity = (entity) => {
 	const index = _entities.indexOf(entity);
 	if (index !== -1) {
 		_swapAndPop(_entities, index);
-		_visibilityDirty = true;
 
 		const typeList = _entitiesByType[entity.type];
 		if (typeList) {
@@ -353,7 +165,6 @@ const _init = () => {
 	_entities.length = 0;
 	_collidables.length = 0;
 	_clearTypeLists();
-	_visibilityDirty = true;
 	_staticTrimesh = null;
 	_staticCollidable.collider = null;
 };
@@ -428,9 +239,26 @@ const _addStaticGeometry = (entity) => {
 	}
 
 	const flatIndices = new Int32Array(totalIndexCount);
+	const triangleFlags = new Uint8Array(totalIndexCount / 3);
 	let offset = 0;
 	for (const group of mesh.indices) {
 		flatIndices.set(group.array, offset);
+
+		const mat = Resources.get(group.material);
+		const isDoubleSided = mat
+			? mat.translucent || mat.doubleSided || mat.opacity < 1.0
+			: false;
+		Console.log(
+			`Material ${group.material}: translucent=${mat?.translucent} doubleSided=${mat?.doubleSided} opacity=${mat?.opacity} => flag=${isDoubleSided}`,
+		);
+		if (isDoubleSided) {
+			const startTri = offset / 3;
+			const numTri = group.array.length / 3;
+			for (let i = 0; i < numTri; i++) {
+				triangleFlags[startTri + i] = 1;
+			}
+		}
+
 		offset += group.array.length;
 	}
 
@@ -439,14 +267,28 @@ const _addStaticGeometry = (entity) => {
 	const worldVerts = new Float32Array(src.length);
 
 	for (let i = 0; i < src.length; i += 3) {
-		vec3.set(_transformVec, src[i], src[i + 1], src[i + 2]);
-		vec3.transformMat4(_transformVec, _transformVec, entity.base_matrix);
-		worldVerts[i] = _transformVec[0];
-		worldVerts[i + 1] = _transformVec[1];
-		worldVerts[i + 2] = _transformVec[2];
+		const x = src[i];
+		const y = src[i + 1];
+		const z = src[i + 2];
+		const _tempMatrix = entity.base_matrix;
+		worldVerts[i] =
+			_tempMatrix[0] * x +
+			_tempMatrix[4] * y +
+			_tempMatrix[8] * z +
+			_tempMatrix[12];
+		worldVerts[i + 1] =
+			_tempMatrix[1] * x +
+			_tempMatrix[5] * y +
+			_tempMatrix[9] * z +
+			_tempMatrix[13];
+		worldVerts[i + 2] =
+			_tempMatrix[2] * x +
+			_tempMatrix[6] * y +
+			_tempMatrix[10] * z +
+			_tempMatrix[14];
 	}
 
-	_staticTrimesh.addMesh(worldVerts, flatIndices);
+	_staticTrimesh.addMesh(worldVerts, flatIndices, triangleFlags);
 	entity.isStatic = true;
 };
 
@@ -455,36 +297,6 @@ const _finalizeStaticGeometry = () => {
 	_staticTrimesh.finalize();
 	const triCount = _staticTrimesh.indices.length / 3;
 	Console.log(`[Scene] Static trimesh finalized: ${triCount} triangles`);
-
-	// Build static BVH once from all entities marked isStatic that have bounding boxes.
-	// node pool starts fresh; static nodes occupy indices [0, _staticBVHNodeCount).
-	_staticBVHEntityBuffer.length = 0;
-	for (let i = 0; i < _entities.length; i++) {
-		const entity = _entities[i];
-		if (entity.isStatic && entity.boundingBox) {
-			_staticBVHEntityBuffer.push(entity);
-		}
-	}
-
-	_bvhNodeCount = 0;
-	if (_staticBVHEntityBuffer.length > 0) {
-		// Copy into _bvhEntityBuffer so _bvhBuild can use the same scratch buffer
-		for (let i = 0; i < _staticBVHEntityBuffer.length; i++) {
-			_bvhEntityBuffer[i] = _staticBVHEntityBuffer[i];
-		}
-		_bvhEntityBuffer.length = _staticBVHEntityBuffer.length;
-		_staticBVHRoot = _bvhBuild(
-			0,
-			_staticBVHEntityBuffer.length,
-			_staticBVHEntityBuffer,
-		);
-	} else {
-		_staticBVHRoot = -1;
-	}
-	_staticBVHNodeCount = _bvhNodeCount;
-	Console.log(
-		`[Scene] Static BVH built: ${_staticBVHEntityBuffer.length} entities, ${_staticBVHNodeCount} nodes`,
-	);
 };
 
 const _pause = (doPause) => {
@@ -522,7 +334,6 @@ const _update = (frameTime) => {
 		_collidables.length = cLen;
 
 		_rebuildTypeLists();
-		_visibilityDirty = true;
 		for (const entity of _entitiesToRemove) {
 			entity.dispose?.();
 		}
@@ -533,44 +344,14 @@ const _update = (frameTime) => {
 };
 
 const _updateVisibility = () => {
-	// Skip the rebuild if neither the camera frustum nor the entity set has changed.
-	// Note: entity *transforms* are not tracked here — dynamic objects moving within
-	// an already-visible cell may be one frame stale, which is imperceptible at 60 fps.
-	if (!_visibilityDirty && !_frustumChangedSinceLastFrame()) return;
-	_visibilityDirty = false;
-
-	// Reset visibility lists
 	for (let i = 0; i < _VISIBILITY_CACHE_TYPES.length; i++) {
 		_visibilityCache[_VISIBILITY_CACHE_TYPES[i]].length = 0;
 	}
 
-	// Traverse static BVH (built once in _finalizeStaticGeometry).
-	if (_staticBVHRoot >= 0) {
-		_bvhTraverse(_staticBVHRoot, false, _staticBVHEntityBuffer);
-	}
-
-	// Partition dynamic entities: those with bounding boxes go into the per-frame BVH;
-	// those without (e.g. directional lights) are always visible.
-	// node pool indices [0, _staticBVHNodeCount) are reserved for the static tree.
-	_bvhNodeCount = _staticBVHNodeCount;
-	let bvhLen = 0;
 	for (let i = 0; i < _entities.length; i++) {
 		const entity = _entities[i];
-		// Static entities in the static BVH are already handled above; skip them.
-		// Static entities without a boundingBox were never added to the static BVH
-		// and must still fall through to the visibility cache so they render.
-		if (entity.isStatic && entity.boundingBox) continue;
-		if (entity.boundingBox) {
-			_bvhEntityBuffer[bvhLen++] = entity;
-		} else {
-			_visibilityCache[entity.type].push(entity);
-		}
-	}
-	_bvhEntityBuffer.length = bvhLen;
-
-	if (bvhLen > 0) {
-		const root = _bvhBuild(0, bvhLen, _bvhEntityBuffer);
-		_bvhTraverse(root, false, _bvhEntityBuffer);
+		if (entity.boundingBox && !entity.boundingBox.isVisible()) continue;
+		_visibilityCache[entity.type].push(entity);
 	}
 };
 

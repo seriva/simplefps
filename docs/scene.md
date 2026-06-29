@@ -38,9 +38,7 @@ EntityTypes = {
 
 **Properties:**
 - `type`, `visible`, `base_matrix`, `ani_matrix`
-- `boundingBox` (for frustum and occlusion culling)
-- `isOccluder` (bool): If true, this entity is treated as a major occluder for others.
-- `isVisible` (bool): Current visibility state determined by occlusion queries.
+- `boundingBox` (optional): AABB for frustum culling; entities without one are always visible
 - `updateCallback`, `animationTime`
 
 **Lifecycle:**
@@ -75,9 +73,9 @@ Scene.loadLightGrid(config);
 Scene.raycast(from, to, options);      // Fast intersection against all collidables
 ```
 
-## Visibility & Occlusion
+## Visibility
 
-**Visibility Cache:** Type-segregated arrays of entities that passed both frustum and occlusion tests.
+**Visibility Cache:** Type-segregated arrays of entities that passed frustum culling.
 ```javascript
 Scene.visibilityCache = {
     [EntityTypes.MESH]: [...],
@@ -85,14 +83,7 @@ Scene.visibilityCache = {
 };
 ```
 
-**Culling Pipeline:**
-1. **Frustum Culling:** Per-entity AABB test against camera frustum planes.
-2. **Occlusion Culling:** Budget-aware hardware queries (96/frame). 
-   - Entities are split into Occluders (render first) and Occludees (tested against depth).
-   - Result is temporal (6-frame ring buffer) to prevent pipeline stalls.
-3. **Cache Sorting:** Visible entities are sorted into `visibilityCache` by type for efficient rendering passes.
-
-**Note:** Visibility is currently handled via per-entity tests rather than an Octree, as current scene complexity does not require hierarchical culling.
+**Culling:** Per-entity AABB test against camera frustum planes each frame. Entities with no `boundingBox` are always visible (directional lights, skybox, etc.).
 
 ## Update Loop
 
@@ -101,21 +92,18 @@ flowchart TD
     Update[For each entity] --> Callback[updateCallback]
     Callback --> Remove{false?}
     Remove -->|Yes| Mark[Mark removal]
-    Remove -->|No| BBox[Update Bounding Volume]
-    Mark --> Next[Next entity]
-    BBox --> Next
+    Remove -->|No| Next[Next entity]
+    Mark --> Next
     Next --> Cleanup[Batch remove marked]
-    Cleanup --> Visibility[Update Visibility Cache]
-    Visibility --> Occlusion[Process Occlusion Queries]
+    Cleanup --> Visibility[Rebuild Visibility Cache]
 ```
 
 ## Performance & Optimization
 
-1. **Memory Efficiency:** All core systems (Scene, BoundingBox, Ray, Octree) use **module-scoped pre-allocated temporaries** to eliminate per-frame GC allocations.
+1. **Memory Efficiency:** All core systems (Scene, BoundingBox, Ray) use **module-scoped pre-allocated temporaries** to eliminate per-frame GC allocations.
 2. **Batch Removal:** Entity removal is performed in-place using a `Set` for O(1) lookups and O(n) truncation to minimize array churn.
-3. **Static Merging:** `Scene.addStaticGeometry` allows merging thousands of static triangles into a single optimized `Trimesh`, significantly speeding up raycasting.
-4. **Instanced Billboards:** `ANIMATED_BILLBOARD` and `PARTICLE_EMITTER` use GPU instancing (WGSL) to render hundreds of sprites in a single draw call.
-5. **Ray-AABB Slab Method:** High-performance intersection test in the **physics-only Octree** avoids prototype lookups and redundant math for raycasting and collision detection.
+3. **Static Merging:** `Scene.addStaticGeometry` merges static mesh triangles into a single optimized `Trimesh` for fast raycasting.
+4. **Instanced Billboards:** `ANIMATED_BILLBOARD` and `PARTICLE_EMITTER` use GPU instancing to render hundreds of sprites in a single draw call.
 
 | Operation | Complexity | Optimization |
 |-----------|-----------|--------------|
@@ -123,8 +111,8 @@ flowchart TD
 | `removeEntity()` | O(n) | In-place removal with typed list cleanup |
 | `getEntities(type)` | O(1) | Returns pre-segregated typed lists |
 | `update()` | O(n) | Skips `isStatic` entities; batch cleanup |
-| `updateVisibility()` | O(n) | Frustum + Occlusion + Ring buffering |
-| `raycast()` | O(log n) | Octree-accelerated + Static geometry merging |
+| `updateVisibility()` | O(n) | Per-entity frustum AABB test |
+| `raycast()` | O(n) | Static geometry merging reduces collidable count |
 
 ## Console Commands
 
@@ -134,4 +122,3 @@ flowchart TD
 | `twf` | Toggle wireframes |
 | `tlv` | Toggle light volumes |
 | `tsk` | Toggle skeletons |
-| `toc` | Toggle occlusion culling |
