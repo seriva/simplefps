@@ -152,7 +152,10 @@ class Ray {
 			const dot = vec3.dot(_itLocalDir, _itNormal);
 			if (Math.abs(dot) < 0.000001) continue; // Parallel ray
 
-			if (this.skipBackfaces && dot > 0) continue; // Backface culling early
+			const isDoubleSided = mesh.triangleFlags
+				? mesh.triangleFlags[trianglesIndex] === 1
+				: false;
+			if (this.skipBackfaces && !isDoubleSided && dot > 0) continue; // Backface culling early
 
 			mesh.getVertex(indices[trianglesIndex * 3], _a);
 
@@ -202,6 +205,11 @@ class Ray {
 				_itWorldNormal[2] =
 					_itNormal[0] * m[2] + _itNormal[1] * m[6] + _itNormal[2] * m[10];
 				vec3.normalize(_itWorldNormal, _itWorldNormal);
+			}
+
+			// Flip the normal if we hit a backface so it correctly opposes the ray
+			if (dot > 0) {
+				vec3.negate(_itWorldNormal, _itWorldNormal);
 			}
 
 			this.reportIntersection(

@@ -33,7 +33,6 @@ SimpleFPS is an arena-based first-person shooter written in plain ES6 modules wi
 ## Tech Stack
 - **Language**: ES6 Modules (no TypeScript, no JSDoc)
 - **Rendering**: WebGL 2 + WebGPU (feature-detected at runtime)
-- **Physics**: cannon-es
 - **Math**: gl-matrix
 - **UI / Reactivity**: reactive.js (`state()` → `init()` → `render()` → `mount()` → `onCleanup()`)
 - **Networking**: PeerJS (WebRTC P2P)
@@ -57,4 +56,24 @@ Game code lives in `app/src/game/`, the engine in `app/src/engine/` (with subdir
 
 
 ## Project Map
-[Map generated natively by agent]
+src/game/ -> game logic
+  game.js -> main loop
+  state.js -> reactive store
+  ui.js, hud.js, menus.js -> interfaces
+  arena.js -> level load/setup
+  player.js, remoteplayer.js -> actor logic
+  weapons.js, projectiles.js, pickups.js -> combat & items
+  multiplayer.js -> p2p sync
+
+src/engine/ -> core systems (strict facade)
+  engine.js -> barrel export / loop
+  scene/ -> entities & raycast
+  rendering/ -> webgl+webgpu passes
+  physics/ -> trimesh, octree, fps controller
+  systems/ -> input, console, net, io
+  animation/ -> skeleton & blend
+
+scripts/ -> asset pipelines
+  bsp2map.js -> quake bsp
+  md5tomesh.js -> doom3 rig
+  obj2mesh.js -> static mesh
