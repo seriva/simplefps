@@ -2,6 +2,7 @@ import { mat4, vec3 } from "../dependencies/gl-matrix.js";
 import {
 	AnimatedBillboardEntity,
 	Camera,
+	DynamicBody,
 	MeshEntity,
 	ParticleEmitterEntity,
 	PointLightEntity,
@@ -14,9 +15,6 @@ import { EXPLOSION_CONFIG, PROJECTILE_CONFIG } from "./gamedefs.js";
 // Private
 // ============================================================================
 
-// Weapons use both-sided faces for projectile hits
-const _bothSidesRayOptions = { skipBackfaces: false, collisionFilterMask: 1 };
-
 // Projectile trajectory constants
 const _TRAJECTORY = {
 	SPEED: 900, // Units per second
@@ -28,9 +26,6 @@ const _TRAJECTORY = {
 const _activeProjectiles = new Set();
 
 // Pre-allocated vectors to avoid per-frame allocations
-const _nextPos = [0, 0, 0];
-const _inDir = [0, 0, 0];
-const _reflectDir = [0, 0, 0];
 const _projectileScaleVec = [1, 1, 1];
 const _projectileRight = vec3.create();
 const _worldUp = [0, 1, 0];
@@ -120,16 +115,15 @@ const _spawnExplosion = (position) => {
 	Resources.get("sounds/explosion.sfx").play();
 };
 
-// Update projectile - simple velocity-based physics
+// Update projectile - delegates to DynamicBody
 const _updateProjectile = (entity, frameTime) => {
-	const traj = entity.trajectory;
 	const scale = entity.data.meshScale || 1;
 
 	entity.data.elapsed += frameTime;
 
 	// Check lifetime
 	if (entity.data.elapsed > _TRAJECTORY.LIFETIME) {
-		_spawnExplosion(entity.trajectory.position);
+		_spawnExplosion(entity.physicsBody.position);
 		if (entity.linkedLight) {
 			Scene.removeEntity(entity.linkedLight);
 		}
@@ -139,92 +133,14 @@ const _updateProjectile = (entity, frameTime) => {
 	}
 
 	// Physics step
-	const dt = frameTime / 1000; // Convert to seconds
+	entity.physicsBody.update(frameTime);
 
-	// Apply gravity to velocity
-	traj.velocity[1] -= _TRAJECTORY.GRAVITY * dt;
-
-	// Calculate next position
-	_nextPos[0] = traj.position[0] + traj.velocity[0] * dt;
-	_nextPos[1] = traj.position[1] + traj.velocity[1] * dt;
-	_nextPos[2] = traj.position[2] + traj.velocity[2] * dt;
-
-	// Raycast from current to next position + lookahead for slow projectiles
-	const dx = _nextPos[0] - traj.position[0];
-	const dy = _nextPos[1] - traj.position[1];
-	const dz = _nextPos[2] - traj.position[2];
-	const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
-
-	// Minimum lookahead to prevent tunneling when moving slowly
-	const minLookahead = 5;
-	const lookahead = Math.max(dist, minLookahead);
-	const dirX = dist > 0.01 ? dx / dist : 0;
-	const dirY = dist > 0.01 ? dy / dist : -1;
-	const dirZ = dist > 0.01 ? dz / dist : 0;
-
-	const result = Scene.raycastStatic(
-		traj.position[0],
-		traj.position[1],
-		traj.position[2],
-		traj.position[0] + dirX * lookahead,
-		traj.position[1] + dirY * lookahead,
-		traj.position[2] + dirZ * lookahead,
-		_bothSidesRayOptions,
-	);
-
-	if (result.hasHit) {
-		// Bounce!
-		const hp = result.hitPointWorld;
-		const hn = result.hitNormalWorld;
-
-		traj.bounceCount++;
-
-		// Normalize velocity for reflection
-		const speed = Math.sqrt(
-			traj.velocity[0] ** 2 + traj.velocity[1] ** 2 + traj.velocity[2] ** 2,
-		);
-
-		// If too slow, just stop (prevents floor tunneling)
-		if (speed < 50) {
-			_spawnExplosion(traj.position);
-			if (entity.linkedLight) {
-				Scene.removeEntity(entity.linkedLight);
-			}
-			Scene.removeEntity(entity);
-			_activeProjectiles.delete(entity);
-			return false;
-		}
-
-		_inDir[0] = traj.velocity[0] / speed;
-		_inDir[1] = traj.velocity[1] / speed;
-		_inDir[2] = traj.velocity[2] / speed;
-
-		// Reflect: v' = v - 2(v·n)n
-		const dot = _inDir[0] * hn[0] + _inDir[1] * hn[1] + _inDir[2] * hn[2];
-		_reflectDir[0] = _inDir[0] - 2 * dot * hn[0];
-		_reflectDir[1] = _inDir[1] - 2 * dot * hn[1];
-		_reflectDir[2] = _inDir[2] - 2 * dot * hn[2];
-
-		// Apply restitution (energy loss)
-		const newSpeed = speed * 0.6;
-		traj.velocity[0] = _reflectDir[0] * newSpeed;
-		traj.velocity[1] = _reflectDir[1] * newSpeed;
-		traj.velocity[2] = _reflectDir[2] * newSpeed;
-
-		// Move to hit point + larger offset to stay above surface
-		const offset = 3.0;
-		traj.position[0] = hp[0] + hn[0] * offset;
-		traj.position[1] = hp[1] + hn[1] * offset;
-		traj.position[2] = hp[2] + hn[2] * offset;
-	} else {
-		// No hit, update position
-		traj.position[0] = _nextPos[0];
-		traj.position[1] = _nextPos[1];
-		traj.position[2] = _nextPos[2];
+	if (entity.physicsBody.isResting) {
+		return false;
 	}
 
 	// Build transform (no rotation)
-	mat4.fromTranslation(entity.ani_matrix, traj.position);
+	mat4.fromTranslation(entity.ani_matrix, entity.physicsBody.position);
 	_projectileScaleVec[0] =
 		_projectileScaleVec[1] =
 		_projectileScaleVec[2] =
@@ -233,7 +149,10 @@ const _updateProjectile = (entity, frameTime) => {
 
 	// Update light
 	if (entity.linkedLight) {
-		mat4.fromTranslation(entity.linkedLight.ani_matrix, traj.position);
+		mat4.fromTranslation(
+			entity.linkedLight.ani_matrix,
+			entity.physicsBody.position,
+		);
 	}
 
 	return true;
@@ -263,11 +182,21 @@ const _createProjectile = (spawnPos, config) => {
 	const d = Camera.direction;
 	const speed = config.velocity || _TRAJECTORY.SPEED;
 
-	entity.trajectory = {
-		position: [...spawnPos],
+	entity.physicsBody = new DynamicBody(spawnPos, {
 		velocity: [d[0] * speed, d[1] * speed, d[2] * speed],
-		bounceCount: 0,
-	};
+		gravity: _TRAJECTORY.GRAVITY,
+		restitution: 0.6,
+		radius: 3.0,
+		minBounceSpeed: 50,
+		onRest: (pos) => {
+			_spawnExplosion(pos);
+			if (entity.linkedLight) {
+				Scene.removeEntity(entity.linkedLight);
+			}
+			Scene.removeEntity(entity);
+			_activeProjectiles.delete(entity);
+		},
+	});
 
 	_activeProjectiles.add(entity);
 
