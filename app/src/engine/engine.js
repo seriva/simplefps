@@ -1,6 +1,7 @@
 // biome-ignore assist/source/organizeImports: exports grouped by category for readability
 import { Animation } from "./animation/animation.js";
 import { AnimationPlayer } from "./animation/animationplayer.js";
+import { DynamicBody } from "./physics/dynamicbody.js";
 import { FPSController } from "./physics/fpscontroller.js";
 import { RAY_MODES, Ray, RaycastResult } from "./physics/ray.js";
 import { NETWORK_MESSAGES, Network } from "./systems/network.js";
@@ -159,6 +160,7 @@ export {
 	AnimationPlayer,
 
 	// Physics
+	DynamicBody,
 	FPSController,
 	RAY_MODES,
 	Ray,
