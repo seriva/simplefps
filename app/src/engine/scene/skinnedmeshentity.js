@@ -132,7 +132,7 @@ class SkinnedMeshEntity extends MeshEntity {
 		if (!this.visible || !this.mesh?.skeleton || !this.animationPlayer) return;
 
 		this._initSkeletonMesh();
-		if (!this._skeletonMesh) return;
+		if (!this._skeletonMesh || !this._skeletonMesh.vertices) return;
 
 		const skeleton = this.mesh.skeleton;
 		const pose = this.animationPlayer.getPose();
