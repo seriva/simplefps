@@ -59,6 +59,12 @@ jobs:
   deploy:
     needs: [check]
     runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
     - name: Checkout
@@ -85,4 +91,5 @@ jobs:
         path: './public'
         
     - name: Deploy to GitHub Pages
-      uses: actions/deploy-pages@v5 
+      id: deployment
+      uses: actions/deploy-pages@v5
