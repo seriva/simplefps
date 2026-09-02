@@ -1,5 +1,8 @@
 # Ambient Probe Spatial Acceleration Implementation Plan
 
+> [!NOTE]
+> **Status: Completed / Verified.** `LightGrid` (`app/src/engine/scene/lightgrid.js`) was verified to already implement regular 3D grid cell indexing and trilinear interpolation (`_getAmbient`). `Scene.getAmbient` calls `LightGrid.getAmbient` directly with zero per-frame linear scanning. No code changes required.
+
 **Goal:** Replace the linear ambient light probe scan in `Scene.getAmbient()` with a spatial grid lookup so probe sampling cost stays O(1) regardless of probe count.
 
 **Architecture:** `lightgrid.js` already manages a probe grid — the fix is to expose a spatial query method that maps a world position directly to the nearest grid cell, rather than scanning all probes. No new data structures are needed if the existing grid is already cell-indexed; otherwise a flat 3D array index suffices.
