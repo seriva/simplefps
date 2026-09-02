@@ -1,5 +1,8 @@
 # Transparent / Glass Sorting Implementation Plan
 
+> [!NOTE]
+> **Status: Completed / Superseded.** Back-to-front sorting by projected depth was implemented in `app/src/engine/rendering/renderpasses.js` (`renderTransparent`). Sort buffer entry pooling (to eliminate GC allocations) and early-out optimization when no translucent meshes are visible are tracked and addressed in `docs/v0.0.3/code-review-quick-wins-plan.md` (Items B2 and B3).
+
 **Goal:** Fix incorrect blending of overlapping glass/transparent surfaces by sorting transparent draw calls back-to-front (painter's algorithm) before the transparent render pass. This eliminates the blending artefacts that occur with ≥ 3 overlapping glass surfaces.
 
 **Architecture:** The transparent/glass pass already renders after the lighting pass into the lighting buffer with alpha blending. The fix is CPU-side: sort transparent entities by distance from the camera (far-to-near) before issuing draw calls, with no shader or framebuffer changes. Full OIT (order-independent transparency) is out of scope — painter's algorithm covers the real-world glass geometry in this game (windows, panels) which rarely has >2 true intersecting surfaces.

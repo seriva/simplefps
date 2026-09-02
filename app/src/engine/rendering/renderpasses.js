@@ -69,7 +69,6 @@ const _debugState = {
 	showWireframes: false,
 	showLightVolumes: false,
 	showSkeleton: false,
-	showStats: false,
 };
 
 // Render stats (reset each frame, updated during rendering)
@@ -116,14 +115,12 @@ const toggleBoundingVolumes = _makeDebugToggle("showBoundingVolumes");
 const toggleWireframes = _makeDebugToggle("showWireframes");
 const toggleLightVolumes = _makeDebugToggle("showLightVolumes");
 const toggleSkeleton = _makeDebugToggle("showSkeleton");
-const toggleStats = _makeDebugToggle("showStats");
 
 // Register console commands
 Console.registerCmd("tbv", toggleBoundingVolumes);
 Console.registerCmd("twf", toggleWireframes);
 Console.registerCmd("tlv", toggleLightVolumes);
 Console.registerCmd("tsk", toggleSkeleton);
-Console.registerCmd("tst", toggleStats);
 
 // Sample ambient probe color for an entity based on its world position.
 // Result is cached per entity per frame to avoid redundant matrix ops when
@@ -233,7 +230,7 @@ const renderWorldGeometry = () => {
 	// Advance frame counter so per-entity caches (ambient probe, etc.) are invalidated
 	_renderFrame++;
 
-	if (_debugState.showStats) {
+	if (Settings.showStats) {
 		_renderStats.meshCount = 0;
 		_renderStats.lightCount = 0;
 		_renderStats.triangleCount = 0;
@@ -249,7 +246,7 @@ const renderWorldGeometry = () => {
 	const meshEntities = Scene.visibilityCache[EntityTypes.MESH];
 	for (const entity of meshEntities) {
 		entity.render(_sampleProbeColor(entity), "opaque", Shaders.geometry);
-		if (_debugState.showStats) {
+		if (Settings.showStats) {
 			_renderStats.meshCount++;
 			_renderStats.triangleCount += entity.mesh?.triangleCount || 0;
 		}
@@ -279,7 +276,7 @@ const renderWorldGeometry = () => {
 				"opaque",
 				Shaders.skinnedGeometry,
 			);
-			if (_debugState.showStats) {
+			if (Settings.showStats) {
 				_renderStats.meshCount++;
 				_renderStats.triangleCount += entity.mesh?.triangleCount || 0;
 			}
@@ -425,7 +422,7 @@ const renderLighting = () => {
 	Shaders.pointLight.setInt("normalBuffer", 1);
 	for (let i = 0; i < sortedPointLights.length; i++) {
 		sortedPointLights[i].light.render();
-		if (_debugState.showStats) _renderStats.lightCount++;
+		if (Settings.showStats) _renderStats.lightCount++;
 	}
 	Backend.unbindShader();
 
@@ -435,11 +432,11 @@ const renderLighting = () => {
 	Shaders.spotLight.setInt("normalBuffer", 1);
 	for (let i = 0; i < sortedSpotLights.length; i++) {
 		sortedSpotLights[i].light.render();
-		if (_debugState.showStats) _renderStats.lightCount++;
+		if (Settings.showStats) _renderStats.lightCount++;
 	}
 	Backend.unbindShader();
 
-	if (_debugState.showStats) {
+	if (Settings.showStats) {
 		Stats.setRenderStats(
 			_renderStats.meshCount,
 			_renderStats.lightCount,
