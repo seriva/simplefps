@@ -132,8 +132,12 @@ class Mesh {
 		// Add lightmap attribute
 		const allAttributes = [...baseAttributes, lightmapAttribute];
 
-		// Create base VAO (for non-skinned shaders)
-		this.vao = Backend.createVertexState({ attributes: allAttributes });
+		// Create base VAO (for non-skinned shaders, baking index buffer if single-group)
+		this.vao = Backend.createVertexState({
+			attributes: allAttributes,
+			indexBuffer:
+				this.indices.length === 1 ? this.indices[0].indexBuffer : null,
+		});
 	}
 
 	deleteMeshBuffers() {

@@ -414,13 +414,16 @@ class WebGLBackend extends RenderBackend {
 			_glVAO: vao,
 			_hasIntegerAttribs: hasIntegerAttribs,
 			_indexBuffer: descriptor.indexBuffer?._glBuffer || null,
+			_boundIndexBuffer: descriptor.indexBuffer?._glBuffer || null,
 		};
 	}
 
 	bindVertexState(vertexState) {
 		const gl = this._gl;
 		this._currentVAO = vertexState;
-		this._currentIndexBuffer = vertexState?._indexBuffer || null;
+		this._currentIndexBuffer = vertexState
+			? vertexState._boundIndexBuffer
+			: null;
 		gl.bindVertexArray(vertexState ? vertexState._glVAO : null);
 	}
 
@@ -916,6 +919,9 @@ class WebGLBackend extends RenderBackend {
 		if (this._currentIndexBuffer !== indexBuffer._glBuffer) {
 			gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer._glBuffer);
 			this._currentIndexBuffer = indexBuffer._glBuffer;
+			if (this._currentVAO) {
+				this._currentVAO._boundIndexBuffer = indexBuffer._glBuffer;
+			}
 		}
 		gl.drawElements(drawMode, indexCount, type, indexOffset * bytesPerElement);
 	}
@@ -935,6 +941,9 @@ class WebGLBackend extends RenderBackend {
 		if (this._currentIndexBuffer !== indexBuffer._glBuffer) {
 			gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer._glBuffer);
 			this._currentIndexBuffer = indexBuffer._glBuffer;
+			if (this._currentVAO) {
+				this._currentVAO._boundIndexBuffer = indexBuffer._glBuffer;
+			}
 		}
 		gl.drawElementsInstanced(
 			drawMode,

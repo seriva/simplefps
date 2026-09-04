@@ -9,12 +9,10 @@ const _bindMethods = (instance) => {
 	let proto = Object.getPrototypeOf(instance);
 	while (proto && proto !== Object.prototype) {
 		for (const key of Object.getOwnPropertyNames(proto)) {
-			if (
-				key !== "constructor" &&
-				typeof proto[key] === "function" &&
-				!Object.hasOwn(instance, key)
-			) {
-				instance[key] = proto[key].bind(instance);
+			if (key === "constructor" || Object.hasOwn(instance, key)) continue;
+			const desc = Object.getOwnPropertyDescriptor(proto, key);
+			if (desc && typeof desc.value === "function") {
+				instance[key] = desc.value.bind(instance);
 			}
 		}
 		proto = Object.getPrototypeOf(proto);
@@ -25,18 +23,29 @@ export const Backend = {};
 
 const _flattenBackend = (resolved) => {
 	_bindMethods(resolved);
-	Object.assign(Backend, resolved);
-	let proto = Object.getPrototypeOf(resolved);
-	while (proto && proto !== Object.prototype) {
-		for (const key of Object.getOwnPropertyNames(proto)) {
-			if (key !== "constructor" && !Backend[key]) {
-				Backend[key] =
-					typeof proto[key] === "function"
-						? proto[key].bind(resolved)
-						: resolved[key];
+
+	let current = resolved;
+	while (current && current !== Object.prototype) {
+		for (const key of Object.getOwnPropertyNames(current)) {
+			if (key === "constructor" || key in Backend) continue;
+
+			const desc = Object.getOwnPropertyDescriptor(current, key);
+			if (!desc) continue;
+
+			if (desc.get || desc.set) {
+				Object.defineProperty(Backend, key, {
+					get: desc.get ? desc.get.bind(resolved) : undefined,
+					set: desc.set ? desc.set.bind(resolved) : undefined,
+					enumerable: desc.enumerable,
+					configurable: true,
+				});
+			} else if (typeof desc.value === "function") {
+				Backend[key] = desc.value.bind(resolved);
+			} else {
+				Backend[key] = desc.value;
 			}
 		}
-		proto = Object.getPrototypeOf(proto);
+		current = Object.getPrototypeOf(current);
 	}
 };
 

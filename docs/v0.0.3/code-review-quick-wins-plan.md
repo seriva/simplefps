@@ -156,20 +156,20 @@
 
 ## Group C: Hygiene
 
-- [ ] **C1: Remove or pass the dead `time` uniform**
+- [x] **C1: Remove or pass the dead `time` uniform**
 
   `app/src/engine/rendering/renderer.js` — `render(time = 0)` is never passed a
   value from `engine.js`, so `cameraPosition.w` is always 0 and no shader reads
   it. Either pass the engine clock through or delete the slot (and the UBO
   comment).
 
-- [ ] **C2: Remove per-material debug log from static geometry build**
+- [x] **C2: Remove per-material debug log from static geometry build**
 
   `app/src/engine/scene/scene.js` (`_addStaticGeometry`) — a `Console.log` per
   material group spams the console on every map load. Delete it or demote behind
   a debug flag.
 
-- [ ] **C3: Dedicated inverse-direction scratch in octree ray query**
+- [x] **C3: Dedicated inverse-direction scratch in octree ray query**
 
   `app/src/engine/physics/octree.js` (`rayQueryLocal`) — repurposes
   `_tmpAABB.max` (which is also the caller's `direction` argument) as invDir
@@ -180,9 +180,9 @@
 
 ## Verification
 
-- [ ] `npm run check` and `npm run format` clean.
+- [x] `npm run check` and `npm run format` clean.
 - [ ] `npm run dev` smoke test per group:
   - Group A: walk into sloped/overhanging geometry, fire projectiles at floors and walls, confirm no regressions in movement or pickups.
   - Group B: confirm identical visuals (geometry, lights, shadows, glass, blur, FSR) on both WebGL and WebGPU backends; check noise texture no longer shimmers at distance after B7.
   - Group C: map load console output clean.
-- [ ] Update `CHANGELOG.md` before PR.
+- [x] Update `CHANGELOG.md` before PR.

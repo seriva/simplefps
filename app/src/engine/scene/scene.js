@@ -248,9 +248,6 @@ const _addStaticGeometry = (entity) => {
 		const isDoubleSided = mat
 			? mat.translucent || mat.doubleSided || mat.opacity < 1.0
 			: false;
-		Console.log(
-			`Material ${group.material}: translucent=${mat?.translucent} doubleSided=${mat?.doubleSided} opacity=${mat?.opacity} => flag=${isDoubleSided}`,
-		);
 		if (isDoubleSided) {
 			const startTri = offset / 3;
 			const numTri = group.array.length / 3;
