@@ -286,24 +286,84 @@ const renderWorldGeometry = () => {
 	}
 };
 
+let _lightsSortedFrame = -1;
+
+const _sortLightsByContribution = (lights, buf) => {
+	const cx = Camera.position[0];
+	const cy = Camera.position[1];
+	const cz = Camera.position[2];
+	for (let i = 0; i < lights.length; i++) {
+		const light = lights[i];
+		// Use base_matrix translation as world position approximation (ani_matrix is
+		// identity for static lights; close enough for contribution ordering)
+		const m = light.base_matrix;
+		const dx = m[12] - cx;
+		const dy = m[13] - cy;
+		const dz = m[14] - cz;
+		const dist2 = dx * dx + dy * dy + dz * dz || 1;
+		const score = light.intensity / dist2;
+		if (i < buf.length) {
+			buf[i].light = light;
+			buf[i].score = score;
+		} else {
+			buf.push({ light, score });
+		}
+	}
+	buf.length = lights.length;
+	buf.sort((a, b) => b.score - a.score);
+	return buf;
+};
+
+const _ensureLightsSorted = () => {
+	if (_lightsSortedFrame === _renderFrame) return;
+	_lightsSortedFrame = _renderFrame;
+	_sortLightsByContribution(
+		Scene.visibilityCache[EntityTypes.POINT_LIGHT],
+		_pointLightSortBuffer,
+	);
+	_sortLightsByContribution(
+		Scene.visibilityCache[EntityTypes.SPOT_LIGHT],
+		_spotLightSortBuffer,
+	);
+};
+
 const renderTransparent = () => {
+	const meshes = Scene.visibilityCache[EntityTypes.MESH];
+
+	// Early-out if no visible mesh has translucent materials
+	let transCount = 0;
+	const vp = Camera.viewProjection;
+	for (let i = 0; i < meshes.length; i++) {
+		const entity = meshes[i];
+		if (!entity.mesh?.hasTranslucent) continue;
+		const m = entity.base_matrix;
+		const w = vp[3] * m[12] + vp[7] * m[13] + vp[11] * m[14] + vp[15];
+		if (transCount < _transparentSortBuffer.length) {
+			_transparentSortBuffer[transCount].entity = entity;
+			_transparentSortBuffer[transCount].depth = w;
+		} else {
+			_transparentSortBuffer.push({ entity, depth: w });
+		}
+		transCount++;
+	}
+
+	if (transCount === 0) return;
+
+	_transparentSortBuffer.length = transCount;
+	_transparentSortBuffer.sort((a, b) => b.depth - a.depth);
+
 	Shaders.transparent.bind();
 	mat4.identity(_matModel);
 
 	Shaders.transparent.setMat4("matWorld", _matModel);
 	Shaders.transparent.setInt("colorSampler", 0);
 
-	// Sort by contribution so the highest-impact lights fill the limited UBO slots
-	const sortedPointLights = _sortLightsByContribution(
-		Scene.visibilityCache[EntityTypes.POINT_LIGHT],
-		_pointLightSortBuffer,
-	);
+	// Sort by contribution once per frame so the highest-impact lights fill the limited UBO slots
+	_ensureLightsSorted();
+	const sortedPointLights = _pointLightSortBuffer;
 	const numPointLights = Math.min(sortedPointLights.length, _MAX_POINT_LIGHTS);
 
-	const sortedSpotLights = _sortLightsByContribution(
-		Scene.visibilityCache[EntityTypes.SPOT_LIGHT],
-		_spotLightSortBuffer,
-	);
+	const sortedSpotLights = _spotLightSortBuffer;
 	const numSpotLights = Math.min(sortedSpotLights.length, _MAX_SPOT_LIGHTS);
 
 	if (!_lightingUBO) {
@@ -354,17 +414,7 @@ const renderTransparent = () => {
 	Backend.updateUBO(_lightingUBO, _lightingData);
 	Backend.bindUniformBuffer(_lightingUBO);
 
-	const meshes = Scene.visibilityCache[EntityTypes.MESH];
-	_transparentSortBuffer.length = 0;
-	for (let i = 0; i < meshes.length; i++) {
-		const entity = meshes[i];
-		const m = entity.base_matrix;
-		const vp = Camera.viewProjection;
-		const w = vp[3] * m[12] + vp[7] * m[13] + vp[11] * m[14] + vp[15];
-		_transparentSortBuffer.push({ entity, depth: w });
-	}
-	_transparentSortBuffer.sort((a, b) => b.depth - a.depth);
-	for (let i = 0; i < _transparentSortBuffer.length; i++) {
+	for (let i = 0; i < transCount; i++) {
 		const entity = _transparentSortBuffer[i].entity;
 		entity.render(
 			_sampleProbeColor(entity),
@@ -374,26 +424,6 @@ const renderTransparent = () => {
 	}
 
 	Backend.unbindShader();
-};
-
-const _sortLightsByContribution = (lights, buf) => {
-	buf.length = 0;
-	const cx = Camera.position[0];
-	const cy = Camera.position[1];
-	const cz = Camera.position[2];
-	for (let i = 0; i < lights.length; i++) {
-		const light = lights[i];
-		// Use base_matrix translation as world position approximation (ani_matrix is
-		// identity for static lights; close enough for contribution ordering)
-		const m = light.base_matrix;
-		const dx = m[12] - cx;
-		const dy = m[13] - cy;
-		const dz = m[14] - cz;
-		const dist2 = dx * dx + dy * dy + dz * dz || 1;
-		buf.push({ light, score: light.intensity / dist2 });
-	}
-	buf.sort((a, b) => b.score - a.score);
-	return buf;
 };
 
 const renderLighting = () => {
@@ -406,15 +436,10 @@ const renderLighting = () => {
 	}
 	Backend.unbindShader();
 
-	// Sort by contribution so highest-impact lights render first
-	const sortedPointLights = _sortLightsByContribution(
-		Scene.visibilityCache[EntityTypes.POINT_LIGHT],
-		_pointLightSortBuffer,
-	);
-	const sortedSpotLights = _sortLightsByContribution(
-		Scene.visibilityCache[EntityTypes.SPOT_LIGHT],
-		_spotLightSortBuffer,
-	);
+	// Sort by contribution once per frame so highest-impact lights render first
+	_ensureLightsSorted();
+	const sortedPointLights = _pointLightSortBuffer;
+	const sortedSpotLights = _spotLightSortBuffer;
 
 	// Point lights
 	Shaders.pointLight.bind();
@@ -457,13 +482,18 @@ const renderShadows = () => {
 	const meshEntities = Scene.visibilityCache[EntityTypes.MESH];
 
 	// Sort by projected screen-space size so large nearby entities consume budget first
-	_shadowSortBuffer.length = 0;
+	const vp = Camera.viewProjection;
 	for (let i = 0; i < meshEntities.length; i++) {
-		_shadowSortBuffer.push({
-			entity: meshEntities[i],
-			score: _shadowScreenSize(meshEntities[i], Camera.viewProjection),
-		});
+		const entity = meshEntities[i];
+		const score = _shadowScreenSize(entity, vp);
+		if (i < _shadowSortBuffer.length) {
+			_shadowSortBuffer[i].entity = entity;
+			_shadowSortBuffer[i].score = score;
+		} else {
+			_shadowSortBuffer.push({ entity, score });
+		}
 	}
+	_shadowSortBuffer.length = meshEntities.length;
 	_shadowSortBuffer.sort((a, b) => b.score - a.score);
 
 	let raycastBudget = _SHADOW_RAYCAST_BUDGET;

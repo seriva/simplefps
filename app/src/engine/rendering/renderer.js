@@ -45,6 +45,8 @@ const _scratch = {
 };
 
 let _blurSource = null;
+let _blurSourceFB = null;
+let _emissiveFB = null;
 
 const _fsr = {
 	framebuffer: null,
@@ -65,6 +67,10 @@ const _disposeResources = () => {
 		if (_g.normal) _g.normal.dispose();
 		if (_g.color) _g.color.dispose();
 		if (_g.emissive) _g.emissive.dispose();
+	}
+	if (_emissiveFB) {
+		Backend.deleteFramebuffer(_emissiveFB);
+		_emissiveFB = null;
 	}
 	if (_s.framebuffer) {
 		Backend.deleteFramebuffer(_s.framebuffer);
@@ -136,6 +142,10 @@ const _resize = (width, height) => {
 		depthAttachment: _depth.getHandle(),
 	});
 
+	_emissiveFB = Backend.createFramebuffer({
+		colorAttachments: [_g.emissive.getHandle()],
+	});
+
 	// **********************************
 	// shadow buffer
 	// **********************************
@@ -191,52 +201,48 @@ const _startBlurPass = (blurSource) => {
 	switch (blurSource) {
 		case _BlurSourceType.SHADOW:
 			_blurSource = _s.shadow;
+			_blurSourceFB = _s.framebuffer;
 			break;
 		case _BlurSourceType.LIGHTING:
 			_blurSource = _l.light;
+			_blurSourceFB = _l.framebuffer;
 			break;
 		case _BlurSourceType.EMISSIVE:
 			_blurSource = _g.emissive;
+			_blurSourceFB = _emissiveFB;
 			break;
 		default:
+			_blurSource = null;
+			_blurSourceFB = null;
 	}
-	Backend.bindFramebuffer(_scratch.framebuffer);
 	Backend.setViewport(0, 0, _g.width, _g.height);
 };
 
-const _endBlurPass = () => {
+const _endBlurPass = (iterations) => {
 	Texture.unBind(0);
-	// Restore default attachment
-	Backend.setFramebufferAttachment(
-		_scratch.framebuffer,
-		0,
-		_scratch.color.getHandle(),
-	);
+	if (iterations % 2 !== 0 && _blurSourceFB) {
+		// If odd iterations, copy final result from _scratch.color to _blurSourceFB
+		Backend.bindFramebuffer(_blurSourceFB);
+		Backend.clear({ color: [0, 0, 0, 0] });
+		_scratch.color.bind(0);
+		Shaders.kawaseBlur.setFloat("offset", 0);
+		Shapes.screenQuad.renderSingle();
+		Texture.unBind(0);
+	}
 	Backend.bindFramebuffer(null);
 };
 
 const _swapBlur = (i) => {
 	if (i % 2 === 0) {
-		Backend.setFramebufferAttachment(
-			_scratch.framebuffer,
-			0,
-			_scratch.color.getHandle(),
-		);
-		// Re-bind (as setFramebufferAttachment unbinds)
 		Backend.bindFramebuffer(_scratch.framebuffer);
 		_blurSource.bind(0);
 	} else {
-		Backend.setFramebufferAttachment(
-			_scratch.framebuffer,
-			0,
-			_blurSource.getHandle(),
-		);
-		// Re-bind
-		Backend.bindFramebuffer(_scratch.framebuffer);
+		Backend.bindFramebuffer(_blurSourceFB);
 		_scratch.color.bind(0);
 	}
 	Backend.clear({ color: [0, 0, 0, 0] });
 };
+
 const _blurImage = (source, iterations, radius) => {
 	if (iterations <= 0) return;
 	Shaders.kawaseBlur.bind();
@@ -248,7 +254,7 @@ const _blurImage = (source, iterations, radius) => {
 		Shaders.kawaseBlur.setFloat("offset", (i + 1) * radius);
 		Shapes.screenQuad.renderSingle();
 	}
-	_endBlurPass();
+	_endBlurPass(iterations);
 	Backend.unbindShader();
 };
 
@@ -369,6 +375,7 @@ const _generateProceduralNoise = () => {
 		pdata: data,
 		pformat: "rgba",
 		ptype: "ubyte",
+		mips: true,
 	});
 
 	_proceduralNoise.setTextureWrapMode("repeat");
@@ -674,6 +681,7 @@ const _updateFrameData = (time) => {
 // Public Renderer API
 const Renderer = {
 	resize() {
+		Backend.clearBindGroupCaches?.();
 		_resize(Backend.getWidth(), Backend.getHeight());
 	},
 

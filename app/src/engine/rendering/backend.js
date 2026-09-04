@@ -21,18 +21,24 @@ const _bindMethods = (instance) => {
 	}
 };
 
-export const Backend = new Proxy(
-	{},
-	{
-		get(_target, prop) {
-			return _resolved?.[prop];
-		},
-		set(_target, prop, value) {
-			if (_resolved) _resolved[prop] = value;
-			return true;
-		},
-	},
-);
+export const Backend = {};
+
+const _flattenBackend = (resolved) => {
+	_bindMethods(resolved);
+	Object.assign(Backend, resolved);
+	let proto = Object.getPrototypeOf(resolved);
+	while (proto && proto !== Object.prototype) {
+		for (const key of Object.getOwnPropertyNames(proto)) {
+			if (key !== "constructor" && !Backend[key]) {
+				Backend[key] =
+					typeof proto[key] === "function"
+						? proto[key].bind(resolved)
+						: resolved[key];
+			}
+		}
+		proto = Object.getPrototypeOf(proto);
+	}
+};
 
 export const backendReady = (async () => {
 	if (Settings.useWebGPU && navigator.gpu) {
@@ -50,7 +56,7 @@ export const backendReady = (async () => {
 		if (ok) {
 			Console.log("[Backend] Using WebGPU backend");
 			_resolved = webgpu;
-			_bindMethods(_resolved);
+			_flattenBackend(_resolved);
 			return;
 		}
 
@@ -66,5 +72,5 @@ export const backendReady = (async () => {
 	const webglOk = await webgl.init();
 	if (!webglOk) throw new Error("WebGL initialization failed");
 	_resolved = webgl;
-	_bindMethods(_resolved);
+	_flattenBackend(_resolved);
 })();

@@ -735,7 +735,12 @@ class WebGPUBackend extends RenderBackend {
 		);
 	}
 
+	clearBindGroupCaches() {
+		this._persistentBindGroupCache?.clear();
+	}
+
 	resize() {
+		this.clearBindGroupCaches();
 		const nativeWidth = this.getNativeWidth();
 		const nativeHeight = this.getNativeHeight();
 		const scaledWidth = this.getWidth();

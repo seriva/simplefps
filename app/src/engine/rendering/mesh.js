@@ -201,29 +201,35 @@ class Mesh {
 		);
 	}
 
-	renderIndices(applyMaterial, renderMode = null, mode = "all", shader = null) {
-		// Lazy initialization of grouped indices
-		if (!this._groupedIndices && this.resources) {
-			this._groupedIndices = {
-				opaque: [],
-				translucent: [],
-				all: this.indices,
-			};
+	_initGroupedIndices() {
+		if (this._groupedIndices || !this.resources) return;
+		this._groupedIndices = {
+			opaque: [],
+			translucent: [],
+			all: this.indices,
+		};
 
-			for (const indexObj of this.indices) {
-				const material =
-					indexObj.material !== "none"
-						? this.resources.get(indexObj.material)
-						: null;
+		for (const indexObj of this.indices) {
+			const material =
+				indexObj.material !== "none"
+					? this.resources.get(indexObj.material)
+					: null;
 
-				if (material?.translucent) {
-					this._groupedIndices.translucent.push(indexObj);
-				} else {
-					this._groupedIndices.opaque.push(indexObj);
-				}
+			if (material?.translucent) {
+				this._groupedIndices.translucent.push(indexObj);
+			} else {
+				this._groupedIndices.opaque.push(indexObj);
 			}
 		}
+	}
 
+	get hasTranslucent() {
+		this._initGroupedIndices();
+		return (this._groupedIndices?.translucent.length || 0) > 0;
+	}
+
+	renderIndices(applyMaterial, renderMode = null, mode = "all", shader = null) {
+		this._initGroupedIndices();
 		const targets = this._groupedIndices?.[mode] ?? this.indices;
 
 		for (const indexObj of targets) {
