@@ -76,6 +76,15 @@ class RenderBackend {
 		throw new Error("RenderBackend.createFramebuffer() must be implemented");
 	}
 
+	/**
+	 * Deletes a framebuffer descriptor/object.
+	 * NOTE: Framebuffers do NOT own attached textures. Attached textures remain valid
+	 * and must be disposed separately via Texture.dispose() or disposeTexture().
+	 */
+	deleteFramebuffer(_framebuffer) {
+		throw new Error("RenderBackend.deleteFramebuffer() must be implemented");
+	}
+
 	bindFramebuffer(_framebuffer) {
 		throw new Error("RenderBackend.bindFramebuffer() must be implemented");
 	}
@@ -238,6 +247,8 @@ class RenderBackend {
 	getAspectRatio() {
 		return 0;
 	}
+
+	clearBindGroupCaches() {}
 
 	resize() {
 		throw new Error("RenderBackend.resize() must be implemented");

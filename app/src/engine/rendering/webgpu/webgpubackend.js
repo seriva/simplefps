@@ -188,6 +188,7 @@ class WebGPUBackend extends RenderBackend {
 				device: this._device,
 				format: this._format,
 				alphaMode: "opaque",
+				usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC,
 			});
 
 			// Store capabilities
@@ -735,7 +736,12 @@ class WebGPUBackend extends RenderBackend {
 		);
 	}
 
+	clearBindGroupCaches() {
+		this._persistentBindGroupCache?.clear();
+	}
+
 	resize() {
+		this.clearBindGroupCaches();
 		const nativeWidth = this.getNativeWidth();
 		const nativeHeight = this.getNativeHeight();
 		const scaledWidth = this.getWidth();
@@ -755,6 +761,7 @@ class WebGPUBackend extends RenderBackend {
 				device: this._device,
 				format: this._format,
 				alphaMode: "opaque",
+				usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC,
 			});
 		}
 	}
@@ -912,22 +919,9 @@ class WebGPUBackend extends RenderBackend {
 		};
 	}
 
-	deleteFramebuffer(framebuffer) {
-		if (!framebuffer) return;
-
-		// Destroy color attachment textures
-		if (framebuffer.colorAttachments) {
-			for (const attachment of framebuffer.colorAttachments) {
-				if (attachment?._gpuTexture) {
-					attachment._gpuTexture.destroy();
-				}
-			}
-		}
-
-		// Destroy depth attachment texture
-		if (framebuffer.depthAttachment?._gpuTexture) {
-			framebuffer.depthAttachment._gpuTexture.destroy();
-		}
+	deleteFramebuffer(_framebuffer) {
+		// Framebuffers are lightweight render pass descriptors and do not own attached textures.
+		// Texture lifecycle is managed by Texture instances / disposeTexture().
 	}
 
 	bindFramebuffer(framebuffer) {

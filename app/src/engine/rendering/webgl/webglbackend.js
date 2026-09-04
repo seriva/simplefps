@@ -42,6 +42,7 @@ class WebGLBackend extends RenderBackend {
 		this._depthFunc = null;
 		this._cullEnabled = null;
 		this._cullFace = null;
+		this._currentIndexBuffer = null;
 	}
 
 	// =========================================================================
@@ -74,7 +75,7 @@ class WebGLBackend extends RenderBackend {
 		this._gl = this._canvas.getContext("webgl2", {
 			premultipliedAlpha: false,
 			antialias: false,
-			preserveDrawingBuffer: true,
+			preserveDrawingBuffer: false,
 		});
 
 		if (!this._gl) {
@@ -226,9 +227,13 @@ class WebGLBackend extends RenderBackend {
 		// Create storage
 		if (descriptor.format && !descriptor.mutable) {
 			// Immutable storage
+			const levels = descriptor.mips
+				? Math.floor(Math.log2(Math.max(descriptor.width, descriptor.height))) +
+					1
+				: 1;
 			gl.texStorage2D(
 				gl.TEXTURE_2D,
-				1,
+				levels,
 				typeof descriptor.format === "string"
 					? _TEXTURE_FORMATS[descriptor.format]
 					: descriptor.format,
@@ -398,15 +403,27 @@ class WebGLBackend extends RenderBackend {
 			}
 		}
 
+		if (descriptor.indexBuffer) {
+			gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, descriptor.indexBuffer._glBuffer);
+		}
+
 		gl.bindVertexArray(null);
 		gl.bindBuffer(gl.ARRAY_BUFFER, null);
 
-		return { _glVAO: vao, _hasIntegerAttribs: hasIntegerAttribs };
+		return {
+			_glVAO: vao,
+			_hasIntegerAttribs: hasIntegerAttribs,
+			_indexBuffer: descriptor.indexBuffer?._glBuffer || null,
+			_boundIndexBuffer: descriptor.indexBuffer?._glBuffer || null,
+		};
 	}
 
 	bindVertexState(vertexState) {
 		const gl = this._gl;
 		this._currentVAO = vertexState;
+		this._currentIndexBuffer = vertexState
+			? vertexState._boundIndexBuffer
+			: null;
 		gl.bindVertexArray(vertexState ? vertexState._glVAO : null);
 	}
 
@@ -483,6 +500,7 @@ class WebGLBackend extends RenderBackend {
 		return {
 			_glProgram: program,
 			_uniformCache: new Map(),
+			_uniformValueCache: new Map(),
 		};
 	}
 
@@ -898,7 +916,13 @@ class WebGLBackend extends RenderBackend {
 		const bytesPerElement = indexBuffer.bytesPerElement || 2;
 		const type = bytesPerElement === 4 ? gl.UNSIGNED_INT : gl.UNSIGNED_SHORT;
 
-		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer._glBuffer);
+		if (this._currentIndexBuffer !== indexBuffer._glBuffer) {
+			gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer._glBuffer);
+			this._currentIndexBuffer = indexBuffer._glBuffer;
+			if (this._currentVAO) {
+				this._currentVAO._boundIndexBuffer = indexBuffer._glBuffer;
+			}
+		}
 		gl.drawElements(drawMode, indexCount, type, indexOffset * bytesPerElement);
 	}
 
@@ -914,7 +938,13 @@ class WebGLBackend extends RenderBackend {
 		const bytesPerElement = indexBuffer.bytesPerElement || 2;
 		const type = bytesPerElement === 4 ? gl.UNSIGNED_INT : gl.UNSIGNED_SHORT;
 
-		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer._glBuffer);
+		if (this._currentIndexBuffer !== indexBuffer._glBuffer) {
+			gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer._glBuffer);
+			this._currentIndexBuffer = indexBuffer._glBuffer;
+			if (this._currentVAO) {
+				this._currentVAO._boundIndexBuffer = indexBuffer._glBuffer;
+			}
+		}
 		gl.drawElementsInstanced(
 			drawMode,
 			indexCount,
@@ -944,9 +974,13 @@ class WebGLBackend extends RenderBackend {
 
 		switch (type) {
 			case "int":
+				if (shader._uniformValueCache.get(name) === value) return;
+				shader._uniformValueCache.set(name, value);
 				gl.uniform1i(location, value);
 				break;
 			case "float":
+				if (shader._uniformValueCache.get(name) === value) return;
+				shader._uniformValueCache.set(name, value);
 				gl.uniform1f(location, value);
 				break;
 			case "vec2":
@@ -1020,6 +1054,8 @@ class WebGLBackend extends RenderBackend {
 			this._canvas.clientHeight * (window.devicePixelRatio || 1),
 		);
 	}
+
+	clearBindGroupCaches() {}
 
 	resize() {
 		const nativeWidth = this.getNativeWidth();

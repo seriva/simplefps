@@ -3,6 +3,7 @@ import { BoundingBox } from "./boundingbox.js";
 
 const _halfDiagonal = vec3.create();
 const _tmpAABB = new BoundingBox();
+const _invDir = vec3.create();
 const _queryQueue = [];
 
 // Module-scoped Ray-AABB intersection (Slab method)
@@ -172,17 +173,15 @@ class OctreeNode {
 		const invDirY = 1.0 / direction[1];
 		const invDirZ = 1.0 / direction[2];
 
-		// Reuse _tmpAABB.min as invDir storage (caller already consumed it)
-		const invDir = _tmpAABB.max; // Repurpose temporarily
-		invDir[0] = invDirX;
-		invDir[1] = invDirY;
-		invDir[2] = invDirZ;
+		_invDir[0] = invDirX;
+		_invDir[1] = invDirY;
+		_invDir[2] = invDirZ;
 
 		_queryQueue.push(this);
 		while (_queryQueue.length) {
 			const node = _queryQueue.pop();
 
-			if (_intersectRayAABB(node.aabb, origin, invDir, maxDist)) {
+			if (_intersectRayAABB(node.aabb, origin, _invDir, maxDist)) {
 				for (const d of node.data) {
 					result.push(d);
 				}

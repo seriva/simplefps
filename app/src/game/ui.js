@@ -5,6 +5,7 @@ import {
 	Reactive,
 	trusted,
 } from "../dependencies/reactive.js";
+import { Renderer } from "../engine/engine.js";
 import { Translations } from "./translations.js";
 
 // ============================================================================
@@ -598,9 +599,9 @@ class _MenuUI extends Reactive.Component {
 
 		// Capture canvas snapshot for backdrop (only when first showing menu)
 		if (!isVisible) {
-			const canvas = document.getElementById("context");
-			if (canvas) {
-				this.refs.backdrop.style.backgroundImage = `url(${canvas.toDataURL("image/jpeg", 0.8)})`;
+			const snapshot = Renderer.captureSnapshot();
+			if (snapshot) {
+				this.refs.backdrop.style.backgroundImage = `url(${snapshot})`;
 			}
 			this.backdropVisible.set(true);
 		}

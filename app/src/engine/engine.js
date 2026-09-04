@@ -71,7 +71,7 @@ const _frame = () => {
 
 	Camera.update();
 	Scene.update(_frameTime);
-	Renderer.render();
+	Renderer.render(now * 0.001);
 
 	_rafId = window.requestAnimationFrame(_frame);
 };

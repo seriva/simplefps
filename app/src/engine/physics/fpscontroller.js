@@ -414,29 +414,34 @@ class FPSController {
 		const radius = this.config.radius;
 		const depenetrationRadius = radius + 1;
 		const radiusSq = radius * radius;
+		const halfHeight = this.config.height * 0.5;
 
-		// Check all 8 directions in _radialDirs for robust depenetration
-		for (let i = 0; i < 8; i++) {
-			const dir = _radialDirs[i];
-			const result = Scene.raycastStatic(
-				x,
-				y,
-				z,
-				x + dir.x * depenetrationRadius,
-				y,
-				z + dir.z * depenetrationRadius,
-			);
+		for (let h = 0; h < _horizontalCheckHeights.length; h++) {
+			const checkY = y + _horizontalCheckHeights[h] * halfHeight;
 
-			if (result.hasHit) {
-				const hp = result.hitPointWorld;
-				const dx = hp[0] - x;
-				const dz = hp[2] - z;
-				const hitDistSq = dx * dx + dz * dz;
-				if (hitDistSq < radiusSq) {
-					const hitDist = Math.sqrt(hitDistSq);
-					const pushDist = radius - hitDist + 1;
-					x -= dir.x * pushDist;
-					z -= dir.z * pushDist;
+			// Check all 8 directions in _radialDirs for robust depenetration
+			for (let i = 0; i < 8; i++) {
+				const dir = _radialDirs[i];
+				const result = Scene.raycastStatic(
+					x,
+					checkY,
+					z,
+					x + dir.x * depenetrationRadius,
+					checkY,
+					z + dir.z * depenetrationRadius,
+				);
+
+				if (result.hasHit) {
+					const hp = result.hitPointWorld;
+					const dx = hp[0] - x;
+					const dz = hp[2] - z;
+					const hitDistSq = dx * dx + dz * dz;
+					if (hitDistSq < radiusSq) {
+						const hitDist = Math.sqrt(hitDistSq);
+						const pushDist = radius - hitDist + 1;
+						x -= dir.x * pushDist;
+						z -= dir.z * pushDist;
+					}
 				}
 			}
 		}
@@ -581,7 +586,7 @@ class FPSController {
 			const bobDecay = Math.exp(-10 * frameTime);
 			this.bobOffsetX *= bobDecay;
 			this.bobOffsetY *= bobDecay;
-			this.bobPhase *= 0.9;
+			this.bobPhase *= bobDecay;
 		}
 	}
 

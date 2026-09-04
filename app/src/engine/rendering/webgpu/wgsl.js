@@ -655,6 +655,11 @@ fn fs_main(input: BlurOutput) -> @location(0) vec4<f32> {
     let texelSize = 1.0 / frameData.viewportSize.xy;
     let uv = input.position.xy * texelSize;
 
+    // Negative offset is a sentinel for exact 1:1 identity sample (used during odd-iteration copy)
+    if (blurParams.offset < 0.0) {
+        return textureSample(colorBuffer, colorSampler, uv);
+    }
+
     let o = blurParams.offset + 0.5;
 
     var color = textureSample(colorBuffer, colorSampler, uv);

@@ -56,7 +56,7 @@ class DynamicBody {
 			_bothSidesRayOptions,
 		);
 
-		if (result.hasHit) {
+		if (result.hasHit && result.distance <= dist + this.radius) {
 			// Bounce!
 			const hp = result.hitPointWorld;
 			const hn = result.hitNormalWorld;

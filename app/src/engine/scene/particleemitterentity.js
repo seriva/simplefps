@@ -156,6 +156,7 @@ class ParticleEmitterEntity extends Entity {
 						offset: 20,
 					},
 				],
+				indexBuffer: Shapes.billboardQuad.indices[0].indexBuffer,
 			});
 		}
 

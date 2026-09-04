@@ -541,6 +541,12 @@ export const ShaderSources = {
                 vec2 texelSize = 1.0 / viewportSize.xy;
                 vec2 uv = gl_FragCoord.xy * texelSize;
 
+                // Negative offset is a sentinel for exact 1:1 identity sample (used during odd-iteration copy)
+                if (offset < 0.0) {
+                    fragColor = texture(colorBuffer, uv);
+                    return;
+                }
+
                 // Kawase blur: sample center + 4 diagonal corners
                 // This gives a pleasing blur with only 5 texture samples
                 float o = offset + 0.5; // Add 0.5 to leverage bilinear filtering
