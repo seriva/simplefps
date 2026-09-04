@@ -351,7 +351,8 @@ const _updateVisibility = () => {
 	for (let i = 0; i < _entities.length; i++) {
 		const entity = _entities[i];
 		if (entity.boundingBox && !entity.boundingBox.isVisible()) continue;
-		_visibilityCache[entity.type].push(entity);
+		const cache = _visibilityCache[entity.type];
+		if (cache) cache.push(entity);
 	}
 };
 
