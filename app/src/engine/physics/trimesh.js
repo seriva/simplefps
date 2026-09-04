@@ -11,7 +11,7 @@ const _ab = vec3.create();
 const _cb = vec3.create();
 
 class Trimesh {
-	constructor(vertices, indices) {
+	constructor(vertices, indices, triangleFlags = null) {
 		this.aabb = new BoundingBox();
 		this.tree = new Octree();
 

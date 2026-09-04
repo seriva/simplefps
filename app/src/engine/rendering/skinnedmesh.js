@@ -34,8 +34,14 @@ class SkinnedMesh extends Mesh {
 		);
 		this._buffers.push(this.jointWeightBuffer);
 
+		const singleIndexBuffer =
+			this.indices?.length === 1 ? this.indices[0].indexBuffer : null;
+
 		// base VAO used for debug rendering without skinning
-		this.vao = Backend.createVertexState({ attributes: baseAttributes });
+		this.vao = Backend.createVertexState({
+			attributes: baseAttributes,
+			indexBuffer: singleIndexBuffer,
+		});
 
 		const skinnedAttributes = [
 			...baseAttributes,
@@ -55,6 +61,7 @@ class SkinnedMesh extends Mesh {
 		];
 		this.skinnedVao = Backend.createVertexState({
 			attributes: skinnedAttributes,
+			indexBuffer: singleIndexBuffer,
 		});
 	}
 

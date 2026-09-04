@@ -169,6 +169,7 @@ class Ray {
 			if (
 				this.mode === RAY_MODES.CLOSEST &&
 				this.result.hasHit &&
+				isIdentity &&
 				scalar > this.result.distance
 			) {
 				continue;
@@ -212,13 +213,17 @@ class Ray {
 				vec3.negate(_itWorldNormal, _itWorldNormal);
 			}
 
+			const hitDistance = isIdentity
+				? scalar
+				: vec3.distance(this.from, _itWorldPoint);
+
 			this.reportIntersection(
 				_itWorldNormal,
 				_itWorldPoint,
 				mesh,
 				null, // body, deprecated
 				trianglesIndex,
-				scalar, // distance is exactly scalar
+				hitDistance,
 			);
 		}
 		_itTriangles.length = 0;

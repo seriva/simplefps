@@ -18,6 +18,8 @@ const _BlurSourceType = Object.freeze({
 });
 
 const _NOISE_TEXTURE_SIZE = 128;
+// Sentinel offset (< 0.0) instructs kawaseBlur shader to perform an exact 1:1 identity sample
+const _BLUR_IDENTITY_OFFSET = -1.0;
 
 const _g = {
 	framebuffer: null,
@@ -29,6 +31,7 @@ const _g = {
 
 const _s = {
 	framebuffer: null,
+	blurFB: null,
 	shadow: null,
 	width: 0,
 	height: 0,
@@ -36,6 +39,7 @@ const _s = {
 
 const _l = {
 	framebuffer: null,
+	blurFB: null,
 	light: null,
 };
 
@@ -45,6 +49,8 @@ const _scratch = {
 };
 
 let _blurSource = null;
+let _blurSourceFB = null;
+let _emissiveFB = null;
 
 const _fsr = {
 	framebuffer: null,
@@ -58,29 +64,73 @@ const _fsrCon0 = [0, 0, 0, 0];
 
 // Dispose old resources to prevent memory leaks on resize
 const _disposeResources = () => {
-	if (_depth) _depth.dispose();
+	if (_depth) {
+		_depth.dispose();
+		_depth = null;
+	}
 	if (_g.framebuffer) {
 		Backend.deleteFramebuffer(_g.framebuffer);
-		if (_g.worldPosition) _g.worldPosition.dispose();
-		if (_g.normal) _g.normal.dispose();
-		if (_g.color) _g.color.dispose();
-		if (_g.emissive) _g.emissive.dispose();
+		_g.framebuffer = null;
+		if (_g.worldPosition) {
+			_g.worldPosition.dispose();
+			_g.worldPosition = null;
+		}
+		if (_g.normal) {
+			_g.normal.dispose();
+			_g.normal = null;
+		}
+		if (_g.color) {
+			_g.color.dispose();
+			_g.color = null;
+		}
+		if (_g.emissive) {
+			_g.emissive.dispose();
+			_g.emissive = null;
+		}
+	}
+	if (_emissiveFB) {
+		Backend.deleteFramebuffer(_emissiveFB);
+		_emissiveFB = null;
+	}
+	if (_s.blurFB) {
+		Backend.deleteFramebuffer(_s.blurFB);
+		_s.blurFB = null;
 	}
 	if (_s.framebuffer) {
 		Backend.deleteFramebuffer(_s.framebuffer);
-		if (_s.shadow) _s.shadow.dispose();
+		_s.framebuffer = null;
+		if (_s.shadow) {
+			_s.shadow.dispose();
+			_s.shadow = null;
+		}
+	}
+	if (_l.blurFB) {
+		Backend.deleteFramebuffer(_l.blurFB);
+		_l.blurFB = null;
 	}
 	if (_l.framebuffer) {
 		Backend.deleteFramebuffer(_l.framebuffer);
-		if (_l.light) _l.light.dispose();
+		_l.framebuffer = null;
+		if (_l.light) {
+			_l.light.dispose();
+			_l.light = null;
+		}
 	}
 	if (_scratch.framebuffer) {
 		Backend.deleteFramebuffer(_scratch.framebuffer);
-		if (_scratch.color) _scratch.color.dispose();
+		_scratch.framebuffer = null;
+		if (_scratch.color) {
+			_scratch.color.dispose();
+			_scratch.color = null;
+		}
 	}
 	if (_fsr.framebuffer) {
 		Backend.deleteFramebuffer(_fsr.framebuffer);
-		if (_fsr.easu) _fsr.easu.dispose();
+		_fsr.framebuffer = null;
+		if (_fsr.easu) {
+			_fsr.easu.dispose();
+			_fsr.easu = null;
+		}
 	}
 };
 
@@ -136,6 +186,10 @@ const _resize = (width, height) => {
 		depthAttachment: _depth.getHandle(),
 	});
 
+	_emissiveFB = Backend.createFramebuffer({
+		colorAttachments: [_g.emissive.getHandle()],
+	});
+
 	// **********************************
 	// shadow buffer
 	// **********************************
@@ -145,6 +199,9 @@ const _resize = (width, height) => {
 	);
 	_s.shadow = shadowRes.texture;
 	_s.framebuffer = shadowRes.fb;
+	_s.blurFB = Backend.createFramebuffer({
+		colorAttachments: [_s.shadow.getHandle()],
+	});
 	_s.width = width;
 	_s.height = height;
 
@@ -157,6 +214,9 @@ const _resize = (width, height) => {
 	);
 	_l.light = lightRes.texture;
 	_l.framebuffer = lightRes.fb;
+	_l.blurFB = Backend.createFramebuffer({
+		colorAttachments: [_l.light.getHandle()],
+	});
 
 	// **********************************
 	// scratch buffer
@@ -191,54 +251,53 @@ const _startBlurPass = (blurSource) => {
 	switch (blurSource) {
 		case _BlurSourceType.SHADOW:
 			_blurSource = _s.shadow;
+			_blurSourceFB = _s.blurFB;
 			break;
 		case _BlurSourceType.LIGHTING:
 			_blurSource = _l.light;
+			_blurSourceFB = _l.blurFB;
 			break;
 		case _BlurSourceType.EMISSIVE:
 			_blurSource = _g.emissive;
+			_blurSourceFB = _emissiveFB;
 			break;
 		default:
+			_blurSource = null;
+			_blurSourceFB = null;
 	}
-	Backend.bindFramebuffer(_scratch.framebuffer);
 	Backend.setViewport(0, 0, _g.width, _g.height);
 };
 
-const _endBlurPass = () => {
+const _endBlurPass = (iterations) => {
 	Texture.unBind(0);
-	// Restore default attachment
-	Backend.setFramebufferAttachment(
-		_scratch.framebuffer,
-		0,
-		_scratch.color.getHandle(),
-	);
+	if (iterations % 2 !== 0 && _blurSourceFB) {
+		// If odd iterations, copy final result from _scratch.color to _blurSourceFB with exact 1:1 identity sample (offset < 0)
+		Backend.bindFramebuffer(_blurSourceFB);
+		Backend.clear({ color: [0, 0, 0, 0] });
+		_scratch.color.bind(0);
+		Shaders.kawaseBlur.setFloat("offset", _BLUR_IDENTITY_OFFSET);
+		Shapes.screenQuad.renderSingle();
+		Texture.unBind(0);
+	}
 	Backend.bindFramebuffer(null);
 };
 
 const _swapBlur = (i) => {
 	if (i % 2 === 0) {
-		Backend.setFramebufferAttachment(
-			_scratch.framebuffer,
-			0,
-			_scratch.color.getHandle(),
-		);
-		// Re-bind (as setFramebufferAttachment unbinds)
 		Backend.bindFramebuffer(_scratch.framebuffer);
 		_blurSource.bind(0);
 	} else {
-		Backend.setFramebufferAttachment(
-			_scratch.framebuffer,
-			0,
-			_blurSource.getHandle(),
-		);
-		// Re-bind
-		Backend.bindFramebuffer(_scratch.framebuffer);
+		Backend.bindFramebuffer(_blurSourceFB);
 		_scratch.color.bind(0);
 	}
 	Backend.clear({ color: [0, 0, 0, 0] });
 };
+
 const _blurImage = (source, iterations, radius) => {
 	if (iterations <= 0) return;
+	Backend.setDepthState(false, false);
+	Backend.setBlendState(false);
+	Backend.setCullState(false);
 	Shaders.kawaseBlur.bind();
 	Shaders.kawaseBlur.setInt("colorBuffer", 0);
 	_startBlurPass(source);
@@ -248,8 +307,11 @@ const _blurImage = (source, iterations, radius) => {
 		Shaders.kawaseBlur.setFloat("offset", (i + 1) * radius);
 		Shapes.screenQuad.renderSingle();
 	}
-	_endBlurPass();
+	_endBlurPass(iterations);
 	Backend.unbindShader();
+	Backend.setDepthState(true, true);
+	Backend.setCullState(true);
+	Backend.setBlendState(false);
 };
 
 const _generateProceduralNoise = () => {
@@ -369,6 +431,7 @@ const _generateProceduralNoise = () => {
 		pdata: data,
 		pformat: "rgba",
 		ptype: "ubyte",
+		mips: true,
 	});
 
 	_proceduralNoise.setTextureWrapMode("repeat");
@@ -508,11 +571,9 @@ const _transparentPass = () => {
 	// Match the depth range of the world geometry pass so depth comparisons are valid
 	Backend.setDepthRange(0.1, 1.0);
 
-	// Glass pass uses the existing depth buffer for testing but not writing (handled by Scene.renderGlass internal setup usually, but we should be explicit here if needed)
+	// Glass pass uses the existing depth buffer for testing but not writing
 	// We want to blend glass on top of lighting buffer
 	Backend.setBlendState(true, "src-alpha", "one-minus-src-alpha");
-
-	// Ensure we read depth but don't write it (standard for transparency)
 	Backend.setDepthState(true, false, "lequal");
 	Backend.setCullState(false);
 
@@ -674,6 +735,7 @@ const _updateFrameData = (time) => {
 // Public Renderer API
 const Renderer = {
 	resize() {
+		Backend.clearBindGroupCaches?.();
 		_resize(Backend.getWidth(), Backend.getHeight());
 	},
 
@@ -697,6 +759,17 @@ const Renderer = {
 		_debugPass();
 
 		Backend.endFrame();
+	},
+
+	captureSnapshot() {
+		this.render(performance.now() * 0.001);
+		const canvas = Backend.getCanvas?.();
+		if (!canvas) return null;
+		try {
+			return canvas.toDataURL("image/jpeg", 0.8);
+		} catch {
+			return null;
+		}
 	},
 };
 

@@ -19,7 +19,7 @@
 
 ## Group A: Correctness Bugs
 
-- [ ] **A1: Fix `triangleFlags` ReferenceError in Trimesh constructor**
+- [x] **A1: Fix `triangleFlags` ReferenceError in Trimesh constructor**
 
   `app/src/engine/physics/trimesh.js:22` — the populated-constructor branch reads
   `triangleFlags`, which is not a parameter (signature is `(vertices, indices)`).
@@ -28,14 +28,14 @@
 
   Fix: add `triangleFlags = null` as a third constructor parameter.
 
-- [ ] **A2: Guard unknown entity types in visibility update**
+- [x] **A2: Guard unknown entity types in visibility update**
 
   `app/src/engine/scene/scene.js` (`_updateVisibility`) — pushes to
   `_visibilityCache[entity.type]` without checking the key exists. An entity with
   an unregistered type throws a TypeError mid-frame. `_addEntities` already
   guards; mirror that guard here.
 
-- [ ] **A3: World-space distance for CLOSEST raycasts against transformed meshes**
+- [x] **A3: World-space distance for CLOSEST raycasts against transformed meshes**
 
   `app/src/engine/physics/ray.js` (`intersectTrimesh` / `reportIntersection`) —
   `scalar` is a local-space distance but CLOSEST mode compares it across
@@ -45,7 +45,7 @@
   Fix: when the matrix is not identity, report `vec3.dist(this.from, _itWorldPoint)`
   instead of `scalar`.
 
-- [ ] **A4: DynamicBody bounces early due to minimum lookahead**
+- [x] **A4: DynamicBody bounces early due to minimum lookahead**
 
   `app/src/engine/physics/dynamicbody.js` — `lookahead = max(dist, 5)` makes
   projectiles bounce when a surface is within 5 units even if this frame's travel
@@ -55,14 +55,14 @@
   hit distance is actually reached this frame (`hitDist <= dist + radius`);
   otherwise integrate position normally.
 
-- [ ] **A5: Depenetration only runs at one height**
+- [x] **A5: Depenetration only runs at one height**
 
   `app/src/engine/physics/fpscontroller.js` (`_resolveDepenetration`) — the 8
   radial rays run at the capsule centre height only, so shins/head can embed in
   sloped or overhanging geometry. Run the radial checks at the same three height
   offsets already used by `_horizontalCheckHeights`.
 
-- [ ] **A6: Frame-rate-dependent bob decay**
+- [x] **A6: Frame-rate-dependent bob decay**
 
   `app/src/engine/physics/fpscontroller.js` (`_updateHeadBob`) —
   `this.bobPhase *= 0.9` is a per-frame multiplier, so bob decays ~5× faster at
@@ -73,7 +73,7 @@
 
 ## Group B: Rendering / Backend Performance
 
-- [ ] **B1: Disable `preserveDrawingBuffer`**
+- [x] **B1: Disable `preserveDrawingBuffer`**
 
   `app/src/engine/rendering/webgl/webglbackend.js` — `preserveDrawingBuffer: true`
   forces the browser to copy (rather than swap) the backbuffer every frame.
@@ -83,7 +83,7 @@
   Fix: set to `false`. If screenshots are ever needed, capture within the same
   frame before returning to the browser.
 
-- [ ] **B2: Pool render-pass sort entries and sort lights once per frame**
+- [x] **B2: Pool render-pass sort entries and sort lights once per frame**
 
   `app/src/engine/rendering/renderpasses.js` — three per-frame allocation sites:
   `{entity, depth}` per visible mesh (transparent sort), `{light, score}` per
@@ -96,7 +96,7 @@
   count each frame), and compute the light contribution sort once per frame,
   consumed by both passes.
 
-- [ ] **B3: Early-out the transparent pass when nothing is translucent**
+- [x] **B3: Early-out the transparent pass when nothing is translucent**
 
   `app/src/engine/rendering/renderpasses.js` (`renderTransparent`) — currently
   sorts all lights, uploads the 464-byte lighting UBO, and depth-sorts every
@@ -105,7 +105,7 @@
   `_groupedIndices.translucent`) and skip the entire pass when no visible mesh
   has translucent groups.
 
-- [ ] **B4: Cache scalar uniform values per shader**
+- [x] **B4: Cache scalar uniform values per shader**
 
   `app/src/engine/rendering/webgl/webglbackend.js` (`setUniform`) — uniform
   locations are cached but values are not; constant sampler bindings like
@@ -113,7 +113,7 @@
   `int`/`float` uniforms in the per-shader cache and skip redundant `gl.uniform*`
   calls.
 
-- [ ] **B5: Flatten the Backend proxy after init**
+- [x] **B5: Flatten the Backend proxy after init**
 
   `app/src/engine/rendering/backend.js` — every `Backend.foo()` goes through a
   Proxy `get` trap, defeating inline caching on the hottest call path in the
@@ -122,7 +122,7 @@
   ordinary property lookups. Keep the Proxy only for the pre-init window, or
   export a plain object mutated once at resolve time.
 
-- [ ] **B6: Evict WebGPU persistent bind-group cache on resize**
+- [x] **B6: Evict WebGPU persistent bind-group cache on resize**
 
   `app/src/engine/rendering/webgpu/webgpubackend.js` — `_persistentBindGroupCache`
   is keyed on resource IDs and never evicted. Resizing recreates G-buffer
@@ -130,7 +130,7 @@
   forever. Add a `clearBindGroupCaches()` backend method and call it from
   `Renderer.resize()`.
 
-- [ ] **B7: Allocate full mip chain for mipmapped immutable textures**
+- [x] **B7: Allocate full mip chain for mipmapped immutable textures**
 
   `app/src/engine/rendering/webgl/webglbackend.js` (`createTexture`) — immutable
   path always allocates 1 mip level (`texStorage2D(…, 1, …)`), so
@@ -139,7 +139,7 @@
   descriptor; when set, allocate
   `Math.floor(Math.log2(Math.max(w, h))) + 1` levels.
 
-- [ ] **B8: Bake index buffers into VAOs**
+- [x] **B8: Bake index buffers into VAOs**
 
   `app/src/engine/rendering/webgl/webglbackend.js` (`drawIndexed`) — binds
   `ELEMENT_ARRAY_BUFFER` on every draw, mutating bound-VAO state and paying a
@@ -147,7 +147,7 @@
   unbinding the VAO) where possible, and track the current index buffer to skip
   redundant binds for multi-group meshes.
 
-- [ ] **B9: Blur ping-pong via two persistent framebuffers**
+- [x] **B9: Blur ping-pong via two persistent framebuffers**
 
   `app/src/engine/rendering/renderer.js` (`_swapBlur`) — swaps framebuffer
   attachments every blur iteration; attachment changes trigger framebuffer
@@ -156,20 +156,20 @@
 
 ## Group C: Hygiene
 
-- [ ] **C1: Remove or pass the dead `time` uniform**
+- [x] **C1: Remove or pass the dead `time` uniform**
 
   `app/src/engine/rendering/renderer.js` — `render(time = 0)` is never passed a
   value from `engine.js`, so `cameraPosition.w` is always 0 and no shader reads
   it. Either pass the engine clock through or delete the slot (and the UBO
   comment).
 
-- [ ] **C2: Remove per-material debug log from static geometry build**
+- [x] **C2: Remove per-material debug log from static geometry build**
 
   `app/src/engine/scene/scene.js` (`_addStaticGeometry`) — a `Console.log` per
   material group spams the console on every map load. Delete it or demote behind
   a debug flag.
 
-- [ ] **C3: Dedicated inverse-direction scratch in octree ray query**
+- [x] **C3: Dedicated inverse-direction scratch in octree ray query**
 
   `app/src/engine/physics/octree.js` (`rayQueryLocal`) — repurposes
   `_tmpAABB.max` (which is also the caller's `direction` argument) as invDir
@@ -180,9 +180,9 @@
 
 ## Verification
 
-- [ ] `npm run check` and `npm run format` clean.
+- [x] `npm run check` and `npm run format` clean.
 - [ ] `npm run dev` smoke test per group:
   - Group A: walk into sloped/overhanging geometry, fire projectiles at floors and walls, confirm no regressions in movement or pickups.
   - Group B: confirm identical visuals (geometry, lights, shadows, glass, blur, FSR) on both WebGL and WebGPU backends; check noise texture no longer shimmers at distance after B7.
   - Group C: map load console output clean.
-- [ ] Update `CHANGELOG.md` before PR.
+- [x] Update `CHANGELOG.md` before PR.
