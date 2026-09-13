@@ -10,6 +10,7 @@ import { Arena } from "./arena.js";
 import { WEAPON_INDEX } from "./gamedefs.js";
 import { Pickup } from "./pickups.js";
 import { Player } from "./player.js";
+import { Projectiles } from "./projectiles.js";
 import { State } from "./state.js";
 import { Weapons } from "./weapons.js";
 
@@ -18,6 +19,10 @@ const _strafeDir = vec3.create();
 const _origin = vec3.create();
 const _defaultSpawn = [0, 0, 0];
 const _STRAFE_ANGLE = glMatrix.toRadian(-90);
+
+const FIXED_DT = 1 / 120;
+const MAX_ACCUM = 0.1; // Matches the engine's 100ms frame cap
+let _accum = 0;
 
 let _controller = null;
 
@@ -41,6 +46,7 @@ const Game = {
 	},
 
 	async load(mapName) {
+		_accum = 0;
 		await Arena.load(mapName);
 
 		const spawnPoint = Arena.getSpawnPoint();
@@ -58,10 +64,14 @@ const Game = {
 		Weapons.load();
 		Player.reset();
 		Weapons.reset();
+		Projectiles.reset();
 	},
 
 	update(frameTime) {
-		if (State.current !== "GAME" || Console.isVisible()) return;
+		if (State.current !== "GAME" || Console.isVisible()) {
+			_accum = 0;
+			return;
+		}
 
 		const ft = frameTime / 1000;
 
@@ -93,10 +103,25 @@ const Game = {
 		vec3.normalize(_horizontalForward, _horizontalForward);
 		vec3.rotateY(_strafeDir, _horizontalForward, _origin, _STRAFE_ANGLE);
 
-		// Update FPS controller
+		// Fixed timestep physics step
+		_accum = Math.min(_accum + ft, MAX_ACCUM);
+		while (_accum >= FIXED_DT) {
+			if (_controller) {
+				_controller.update(FIXED_DT);
+				_controller.move(
+					strafe,
+					move,
+					_horizontalForward,
+					_strafeDir,
+					FIXED_DT,
+				);
+			}
+			Projectiles.update(FIXED_DT);
+			_accum -= FIXED_DT;
+		}
+
+		// Update camera smoothing and pickups
 		if (_controller) {
-			_controller.update(ft);
-			_controller.move(strafe, move, _horizontalForward, _strafeDir, ft);
 			_controller.syncCamera(ft);
 
 			// Check pickup collection

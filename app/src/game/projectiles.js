@@ -115,47 +115,48 @@ const _spawnExplosion = (position) => {
 	Resources.get("sounds/explosion.sfx").play();
 };
 
-// Update projectile - delegates to DynamicBody
-const _updateProjectile = (entity, frameTime) => {
-	const scale = entity.data.meshScale || 1;
+// Update projectiles on fixed physics tick
+const _update = (fixedDt) => {
+	const fixedDtMs = fixedDt * 1000;
+	for (const entity of _activeProjectiles) {
+		const scale = entity.data.meshScale || 1;
 
-	entity.data.elapsed += frameTime;
+		entity.data.elapsed += fixedDtMs;
 
-	// Check lifetime
-	if (entity.data.elapsed > _TRAJECTORY.LIFETIME) {
-		_spawnExplosion(entity.physicsBody.position);
-		if (entity.linkedLight) {
-			Scene.removeEntity(entity.linkedLight);
+		// Check lifetime
+		if (entity.data.elapsed > _TRAJECTORY.LIFETIME) {
+			_spawnExplosion(entity.physicsBody.position);
+			if (entity.linkedLight) {
+				Scene.removeEntity(entity.linkedLight);
+			}
+			Scene.removeEntity(entity);
+			_activeProjectiles.delete(entity);
+			continue;
 		}
-		Scene.removeEntity(entity);
-		_activeProjectiles.delete(entity);
-		return false;
+
+		// Physics step
+		entity.physicsBody.update(fixedDtMs);
+
+		if (entity.physicsBody.isResting) {
+			continue;
+		}
+
+		// Build transform (no rotation)
+		mat4.fromTranslation(entity.ani_matrix, entity.physicsBody.position);
+		_projectileScaleVec[0] =
+			_projectileScaleVec[1] =
+			_projectileScaleVec[2] =
+				scale;
+		mat4.scale(entity.ani_matrix, entity.ani_matrix, _projectileScaleVec);
+
+		// Update light
+		if (entity.linkedLight) {
+			mat4.fromTranslation(
+				entity.linkedLight.ani_matrix,
+				entity.physicsBody.position,
+			);
+		}
 	}
-
-	// Physics step
-	entity.physicsBody.update(frameTime);
-
-	if (entity.physicsBody.isResting) {
-		return false;
-	}
-
-	// Build transform (no rotation)
-	mat4.fromTranslation(entity.ani_matrix, entity.physicsBody.position);
-	_projectileScaleVec[0] =
-		_projectileScaleVec[1] =
-		_projectileScaleVec[2] =
-			scale;
-	mat4.scale(entity.ani_matrix, entity.ani_matrix, _projectileScaleVec);
-
-	// Update light
-	if (entity.linkedLight) {
-		mat4.fromTranslation(
-			entity.linkedLight.ani_matrix,
-			entity.physicsBody.position,
-		);
-	}
-
-	return true;
 };
 
 const _calculateSpawnPosition = (config) => {
@@ -175,7 +176,7 @@ const _calculateSpawnPosition = (config) => {
 };
 
 const _createProjectile = (spawnPos, config) => {
-	const entity = new MeshEntity([0, 0, 0], config.mesh, _updateProjectile);
+	const entity = new MeshEntity([0, 0, 0], config.mesh);
 	entity.data.meshScale = config.meshScale || 1;
 
 	// Camera.direction is always a unit vector
@@ -225,7 +226,15 @@ const Projectiles = {
 		Scene.addEntities([projectile.entity, projectile.light]);
 	},
 
+	update: _update,
+
 	reset() {
+		for (const entity of _activeProjectiles) {
+			if (entity.linkedLight) {
+				Scene.removeEntity(entity.linkedLight);
+			}
+			Scene.removeEntity(entity);
+		}
 		_activeProjectiles.clear();
 	},
 };
