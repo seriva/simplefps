@@ -22,7 +22,7 @@ let _pressed = {};
 let _downevents = [];
 
 const _onKeyUp = (ev) => {
-	delete _pressed[ev.keyCode];
+	_pressed[ev.keyCode] = false;
 	for (let l = 0; l < _downevents.length; l++) {
 		if (_downevents[l].key === ev.keyCode && _downevents[l].pressed) {
 			_downevents[l].pressed = false;
@@ -331,10 +331,10 @@ class _VirtualInputUI extends Reactive.Component {
 				this.stickX.set(0);
 				this.stickY.set(0);
 			});
-			delete _pressed[Settings.forward];
-			delete _pressed[Settings.backwards];
-			delete _pressed[Settings.left];
-			delete _pressed[Settings.right];
+			_pressed[Settings.forward] = false;
+			_pressed[Settings.backwards] = false;
+			_pressed[Settings.left] = false;
+			_pressed[Settings.right] = false;
 			this._dragStart = null;
 			this._stickPos = null;
 		});
@@ -374,10 +374,10 @@ class _VirtualInputUI extends Reactive.Component {
 					dAngle = 360 - Math.abs(dAngle);
 				}
 
-				delete _pressed[Settings.forward];
-				delete _pressed[Settings.backwards];
-				delete _pressed[Settings.left];
-				delete _pressed[Settings.right];
+				_pressed[Settings.forward] = false;
+				_pressed[Settings.backwards] = false;
+				_pressed[Settings.left] = false;
+				_pressed[Settings.right] = false;
 
 				if (dAngle && distance > _JOYSTICK_DEAD_ZONE) {
 					const a = dAngle;

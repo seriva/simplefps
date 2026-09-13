@@ -1,11 +1,14 @@
+import { vec3 } from "../../dependencies/gl-matrix.js";
 import { Scene } from "../scene/scene.js";
 
 const _bothSidesRayOptions = { skipBackfaces: false, collisionFilterMask: 1 };
 
 class DynamicBody {
 	constructor(position, options = {}) {
-		this.position = [...position];
-		this.velocity = options.velocity ? [...options.velocity] : [0, 0, 0];
+		this.position = vec3.clone(position);
+		this.velocity = options.velocity
+			? vec3.clone(options.velocity)
+			: vec3.create();
 		this.gravity = options.gravity ?? 300;
 		this.restitution = options.restitution ?? 0.6;
 		this.radius = options.radius ?? 3.0;

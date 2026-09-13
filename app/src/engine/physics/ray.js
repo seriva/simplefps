@@ -139,7 +139,13 @@ class Ray {
 		}
 
 		// Query octree directly in local space (no identity transform overhead)
-		mesh.tree.rayQueryLocal(_itLocalFrom, _itLocalDir, maxDist, _itTriangles);
+		mesh.tree.rayQueryLocal(
+			_itLocalFrom,
+			_itLocalDir,
+			maxDist,
+			_itTriangles,
+			_itInvDir,
+		);
 
 		for (
 			let i = 0, N = _itTriangles.length;

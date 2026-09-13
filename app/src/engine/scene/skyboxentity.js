@@ -5,6 +5,8 @@ import { Camera } from "../systems/camera.js";
 import { Resources } from "../systems/resources.js";
 import { Entity, EntityTypes } from "./entity.js";
 
+const _WHITE_PROBE = new Float32Array([1, 1, 1]);
+
 class SkyboxEntity extends Entity {
 	static FACE_NAMES = ["front", "back", "top", "bottom", "right", "left"];
 
@@ -30,7 +32,7 @@ class SkyboxEntity extends Entity {
 		// Set shader uniforms (matViewProj now in FrameData UBO)
 		this.shader.setMat4("matWorld", this.base_matrix);
 		// Set probe color (ignored by shader for skybox, but required for bind group)
-		this.shader.setVec3("uProbeColor", [1, 1, 1]);
+		this.shader.setVec3("uProbeColor", _WHITE_PROBE);
 
 		// Render (GL state managed by RenderPasses)
 		Shapes.skyBox.renderSingle();

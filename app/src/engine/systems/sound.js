@@ -3,36 +3,61 @@ import { Console } from "./console.js";
 // Private audio context
 const _audioContext = new (window.AudioContext || window.webkitAudioContext)();
 
-// Private function to load audio
-const _load = async (file, speed = 1, volume = 1, loop = false) => {
-	const response = await fetch(file);
-	if (!response?.ok) {
-		Console.warn(`[Sound] Failed to load: ${file} (${response.status})`);
-		return null;
+// Cache decoded audio buffers to avoid duplicate network requests and decoding
+const _audioBufferCache = new Map();
+
+// Resume suspended AudioContext on first user interaction or on play
+const _resumeAudio = () => {
+	if (_audioContext.state === "suspended") {
+		_audioContext.resume();
 	}
-	const arrayBuffer = await response.arrayBuffer();
-	const audioBuffer = await _audioContext.decodeAudioData(arrayBuffer);
+};
 
-	const source = _audioContext.createBufferSource();
-	source.buffer = audioBuffer;
-	source.playbackRate.value = speed;
-	source.loop = loop;
+if (typeof window !== "undefined") {
+	window.addEventListener("pointerdown", _resumeAudio, {
+		once: true,
+		passive: true,
+	});
+	window.addEventListener("keydown", _resumeAudio, {
+		once: true,
+		passive: true,
+	});
+	window.addEventListener("touchstart", _resumeAudio, {
+		once: true,
+		passive: true,
+	});
+}
 
-	const gainNode = _audioContext.createGain();
-	gainNode.gain.value = volume;
+// Load and decode audio buffer once per file
+const _loadAudioBuffer = async (file) => {
+	if (_audioBufferCache.has(file)) {
+		return _audioBufferCache.get(file);
+	}
 
-	source.connect(gainNode).connect(_audioContext.destination);
+	const promise = (async () => {
+		const response = await fetch(file);
+		if (!response?.ok) {
+			Console.warn(`[Sound] Failed to load: ${file} (${response.status})`);
+			return null;
+		}
+		const arrayBuffer = await response.arrayBuffer();
+		return _audioContext.decodeAudioData(arrayBuffer);
+	})();
 
-	return { source, gainNode };
+	_audioBufferCache.set(file, promise);
+	return promise;
 };
 
 class Sound {
-	_cache = {};
-	_sound;
+	_audioBuffer = null;
+	_gainNode = null;
+	_source = null;
 	_startTime = 0;
 	_pausedAt = 0;
 	_isPlaying = false;
-	_nextCacheIndex = 0;
+	_speed = 1;
+	_volume = 1;
+	_loop = false;
 
 	constructor({
 		file,
@@ -40,105 +65,106 @@ class Sound {
 		speed = 1,
 		volume = 1,
 		loop = false,
-		cacheSize = 5,
+		_cacheSize = 5,
 	}) {
 		this.file = file;
 		this.cached = cached;
-		this.cacheSize = cacheSize;
+		this._speed = speed;
+		this._volume = volume;
+		this._loop = loop;
 
-		if (cached) {
-			for (let i = 0; i < cacheSize; i++) {
-				_load(file, speed, volume, loop).then((sound) => {
-					this._cache[`${file}_${i}`] = sound;
-				});
-			}
-		} else {
-			_load(file, speed, volume, loop).then((sound) => {
-				this._sound = sound;
-			});
-		}
+		this._gainNode = _audioContext.createGain();
+		this._gainNode.gain.value = volume;
+		this._gainNode.connect(_audioContext.destination);
+
+		_loadAudioBuffer(file).then((buffer) => {
+			this._audioBuffer = buffer;
+		});
 	}
 
 	play(resume = false) {
-		if (!this.cached) {
-			if (!this._sound) {
-				Console.warn("[Sound] Not ready yet, skipping play");
-				return;
-			}
-			const newSource = _audioContext.createBufferSource();
-			newSource.buffer = this._sound.source.buffer;
-			newSource.playbackRate.value = this._sound.source.playbackRate.value;
-			newSource.loop = this._sound.source.loop;
-			newSource.connect(this._sound.gainNode);
+		_resumeAudio();
 
-			if (resume && this._pausedAt) {
-				this._startTime = _audioContext.currentTime - this._pausedAt;
-				newSource.start(0, this._pausedAt);
-			} else {
-				this._startTime = _audioContext.currentTime;
-				newSource.start(0);
-			}
-
-			this._sound.source = newSource;
-			this._isPlaying = true;
+		if (!this._audioBuffer) {
 			return;
 		}
 
-		const key = `${this.file}_${this._nextCacheIndex}`;
-		this._nextCacheIndex = (this._nextCacheIndex + 1) % this.cacheSize;
-		const cachedSound = this._cache[key];
-
-		if (cachedSound) {
-			const newSource = _audioContext.createBufferSource();
-			newSource.buffer = cachedSound.source.buffer;
-			newSource.playbackRate.value = cachedSound.source.playbackRate.value;
-			newSource.loop = cachedSound.source.loop;
-			newSource.connect(cachedSound.gainNode);
-
-			if (resume && this._pausedAt) {
-				this._startTime = _audioContext.currentTime - this._pausedAt;
-				newSource.start(0, this._pausedAt);
-			} else {
-				this._startTime = _audioContext.currentTime;
-				newSource.start(0);
+		// Non-cached sounds stop previously playing source to avoid overlapping
+		if (!this.cached && this._source) {
+			try {
+				this._source.stop();
+			} catch {
+				// Ignore if already stopped
 			}
-
-			this._cache[key].source = newSource;
-			this._isPlaying = true;
 		}
+
+		const newSource = _audioContext.createBufferSource();
+		newSource.buffer = this._audioBuffer;
+		newSource.playbackRate.value = this._speed;
+		newSource.loop = this._loop;
+		newSource.connect(this._gainNode);
+
+		if (resume && this._pausedAt) {
+			this._startTime = _audioContext.currentTime - this._pausedAt;
+			newSource.start(0, this._pausedAt);
+		} else {
+			this._startTime = _audioContext.currentTime;
+			newSource.start(0);
+		}
+
+		newSource.onended = () => {
+			if (this._source === newSource) {
+				this._isPlaying = false;
+			}
+		};
+
+		this._source = newSource;
+		this._isPlaying = true;
 	}
 
 	pause() {
-		if (!this.cached) {
-			const elapsed = _audioContext.currentTime - this._startTime;
-			this._pausedAt = elapsed;
-			this._sound.source.stop();
-			this._isPlaying = false;
+		if (this.cached) {
+			Console.warn("Cached sound can only play.");
 			return;
 		}
-		Console.warn("Cached sound can only play.");
+		if (this._source && this._isPlaying) {
+			const elapsed = _audioContext.currentTime - this._startTime;
+			this._pausedAt = elapsed;
+			try {
+				this._source.stop();
+			} catch {
+				// Ignore if already stopped
+			}
+			this._isPlaying = false;
+		}
 	}
 
 	resume() {
-		if (!this.cached) {
-			if (this._pausedAt) {
-				this.play(true);
-			} else {
-				this.play();
-			}
+		if (this.cached) {
+			Console.warn("Cached sound can only play.");
 			return;
 		}
-		Console.warn("Cached sound can only play.");
+		if (this._pausedAt) {
+			this.play(true);
+		} else {
+			this.play();
+		}
 	}
 
 	stop() {
-		if (!this.cached) {
-			this._sound.source.stop();
-			this._pausedAt = 0;
-			this._isPlaying = false;
+		if (this.cached) {
+			Console.warn("Cached sound can only play.");
 			return;
 		}
-		Console.warn("Cached sound can only play.");
+		if (this._source) {
+			try {
+				this._source.stop();
+			} catch {
+				// Ignore if already stopped
+			}
+			this._pausedAt = 0;
+			this._isPlaying = false;
+		}
 	}
 
 	isPlaying() {

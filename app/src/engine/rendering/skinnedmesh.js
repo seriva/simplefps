@@ -85,7 +85,7 @@ class SkinnedMesh extends Mesh {
 		Backend.bindVertexState(useSkinned ? this.skinnedVao : this.vao);
 	}
 
-	getBoneMatricesForGPU(pose) {
+	getBoneMatricesForGPU(pose, targetBuffer = null) {
 		if (!this.skeleton) return null;
 
 		const skinMatrices = this.skeleton.computeSkinningMatrices(pose);
@@ -99,11 +99,11 @@ class SkinnedMesh extends Mesh {
 		}
 
 		// sized for uniform buffer alignment (MAX_JOINTS mat4s)
-		if (!this._boneMatrixBuffer) {
+		if (!targetBuffer && !this._boneMatrixBuffer) {
 			this._boneMatrixBuffer = new Float32Array(MAX_JOINTS * 16);
 		}
 
-		const result = this._boneMatrixBuffer;
+		const result = targetBuffer || this._boneMatrixBuffer;
 		for (let i = 0; i < count; i++) {
 			result.set(skinMatrices[i], i * 16);
 		}
@@ -184,4 +184,4 @@ class SkinnedMesh extends Mesh {
 	}
 }
 
-export { SkinnedMesh };
+export { MAX_JOINTS, SkinnedMesh };

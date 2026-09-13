@@ -196,13 +196,20 @@ class Mesh {
 	}
 
 	_drawIndexObject(indexObj, applyMaterial, shader, actualRenderMode) {
-		this._bindMaterial(indexObj, applyMaterial, shader);
+		const mat =
+			indexObj.material !== "none" && applyMaterial && this.resources
+				? this.resources.get(indexObj.material)
+				: null;
+		if (mat) {
+			mat.bind(shader);
+		}
 		Backend.drawIndexed(
 			indexObj.indexBuffer,
 			indexObj.indexBuffer.length,
 			0,
 			actualRenderMode,
 		);
+		return mat;
 	}
 
 	_initGroupedIndices() {
@@ -236,8 +243,18 @@ class Mesh {
 		this._initGroupedIndices();
 		const targets = this._groupedIndices?.[mode] ?? this.indices;
 
+		let hadDoubleSided = false;
 		for (const indexObj of targets) {
-			this._drawIndexObject(indexObj, applyMaterial, shader, renderMode);
+			const mat = this._drawIndexObject(
+				indexObj,
+				applyMaterial,
+				shader,
+				renderMode,
+			);
+			if (mat?.doubleSided) hadDoubleSided = true;
+		}
+		if (hadDoubleSided) {
+			Backend.setCullState(true, "back");
 		}
 	}
 

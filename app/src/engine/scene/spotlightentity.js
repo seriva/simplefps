@@ -10,6 +10,12 @@ const _posRange = new Float32Array(4);
 const _colorIntensity = new Float32Array(4);
 const _dirCutoff = new Float32Array(4);
 
+// Reusable scratch variables for matrix building
+const _defaultDir = vec3.fromValues(0, 0, -1);
+const _spotRotQuat = quat.create();
+const _spotRotMat = mat4.create();
+const _spotScaleVec = vec3.create();
+
 class SpotLightEntity extends Entity {
 	// Private fields — single source of truth for position/direction
 	_position;
@@ -60,36 +66,34 @@ class SpotLightEntity extends Entity {
 
 	setPosition(position) {
 		vec3.copy(this._position, position);
-		this.base_matrix = this._buildTransformMatrix();
+		this._buildTransformMatrix(this.base_matrix);
 		this.updateBoundingVolume();
 	}
 
 	setDirection(direction) {
 		vec3.normalize(this._direction, direction);
-		this.base_matrix = this._buildTransformMatrix();
+		this._buildTransformMatrix(this.base_matrix);
 		this.updateBoundingVolume();
 	}
 
 	// Private method to build the transformation matrix from current private state
-	_buildTransformMatrix() {
-		const defaultDir = vec3.fromValues(0, 0, -1);
+	_buildTransformMatrix(targetMatrix = null) {
+		const matrix = targetMatrix || mat4.create();
 
 		// Calculate rotation using quaternion
-		const rotationQuat = quat.rotationTo(
-			quat.create(),
-			defaultDir,
-			this._direction,
-		);
-		const rotationMat = mat4.fromQuat(mat4.create(), rotationQuat);
-
-		const matrix = mat4.create();
+		quat.rotationTo(_spotRotQuat, _defaultDir, this._direction);
+		mat4.fromQuat(_spotRotMat, _spotRotQuat);
 
 		// T * R * S
+		mat4.identity(matrix);
 		mat4.translate(matrix, matrix, this._position);
-		mat4.multiply(matrix, matrix, rotationMat);
+		mat4.multiply(matrix, matrix, _spotRotMat);
 
 		const radius = Math.tan((this.angle * Math.PI) / 180) * this.range;
-		mat4.scale(matrix, matrix, [radius, radius, this.range]);
+		_spotScaleVec[0] = radius;
+		_spotScaleVec[1] = radius;
+		_spotScaleVec[2] = this.range;
+		mat4.scale(matrix, matrix, _spotScaleVec);
 
 		return matrix;
 	}
@@ -137,7 +141,7 @@ class SpotLightEntity extends Entity {
 		const unitBox = Shapes.spotlightVolume.boundingBox;
 		const m = this._getWorldMatrix();
 		if (!this.boundingBox) {
-			this.boundingBox = new BoundingBox([0, 0, 0], [1, 1, 1]);
+			this.boundingBox = new BoundingBox();
 		}
 		unitBox.transformInto(m, this.boundingBox);
 	}

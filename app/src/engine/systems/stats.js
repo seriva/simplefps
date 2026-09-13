@@ -132,6 +132,8 @@ class _StatsUI extends Reactive.Component {
 	}
 
 	update() {
+		if (!this.visible.get()) return;
+
 		const now = performance.now();
 		this.frameTime.set(now - (this._prevTime || now));
 		this._prevTime = now;
@@ -152,6 +154,7 @@ class _StatsUI extends Reactive.Component {
 	}
 
 	setRenderStats(meshCount, lightCount, triangleCount) {
+		if (!this.visible.get()) return;
 		this.batch(() => {
 			this.visibleMeshes.set(meshCount);
 			this.visibleLights.set(lightCount);
@@ -160,8 +163,14 @@ class _StatsUI extends Reactive.Component {
 	}
 
 	toggle(show) {
-		this.visible.set(show ?? !this.visible.get());
-		return this.visible.get();
+		const next = show ?? !this.visible.get();
+		if (next) {
+			this._prevTime = performance.now();
+			this._lastUpdate = performance.now();
+			this._frames = 0;
+		}
+		this.visible.set(next);
+		return next;
 	}
 }
 

@@ -7,9 +7,13 @@ import { Camera } from "../systems/camera.js";
 import { Resources } from "../systems/resources.js";
 import { Entity, EntityTypes } from "./entity.js";
 
-// Reusable temporary matrix to avoid per-frame allocations
+// Reusable temporary matrix, vectors, and uniform arrays to avoid per-frame allocations
 const _tempMatrix = mat4.create();
 const _worldPos = vec3.create();
+const _boxMin = vec3.create();
+const _boxMax = vec3.create();
+const _frameOffset = new Float32Array(2);
+const _frameScale = new Float32Array(2);
 
 class AnimatedBillboardEntity extends Entity {
 	_time = 0;
@@ -47,10 +51,12 @@ class AnimatedBillboardEntity extends Entity {
 
 		// Store position in base_matrix, consistent with all other entities
 		mat4.translate(this.base_matrix, this.base_matrix, position);
+		this.updateBoundingVolume();
 	}
 
 	update(frameTime) {
 		this._time += frameTime;
+		super.update(frameTime);
 		return this._time < this._duration;
 	}
 
@@ -118,8 +124,15 @@ class AnimatedBillboardEntity extends Entity {
 		const shader = Shaders.billboard;
 		shader.bind();
 		shader.setMat4("matWorld", _tempMatrix);
-		shader.setVec2("uFrameOffset", [col * cellSize, row * cellSize]);
-		shader.setVec2("uFrameScale", [cellSize, cellSize]);
+
+		_frameOffset[0] = col * cellSize;
+		_frameOffset[1] = row * cellSize;
+		shader.setVec2("uFrameOffset", _frameOffset);
+
+		_frameScale[0] = cellSize;
+		_frameScale[1] = cellSize;
+		shader.setVec2("uFrameScale", _frameScale);
+
 		shader.setFloat("uOpacity", opacity);
 
 		this._texture.bind(0);
@@ -136,13 +149,18 @@ class AnimatedBillboardEntity extends Entity {
 		mat4.getTranslation(_worldPos, _tempMatrix);
 
 		if (!this.boundingBox) {
-			this.boundingBox = new BoundingBox([0, 0, 0], [1, 1, 1]);
+			this.boundingBox = new BoundingBox();
 		}
 
-		this.boundingBox.set(
-			[_worldPos[0] - r, _worldPos[1] - r, _worldPos[2] - r],
-			[_worldPos[0] + r, _worldPos[1] + r, _worldPos[2] + r],
-		);
+		_boxMin[0] = _worldPos[0] - r;
+		_boxMin[1] = _worldPos[1] - r;
+		_boxMin[2] = _worldPos[2] - r;
+
+		_boxMax[0] = _worldPos[0] + r;
+		_boxMax[1] = _worldPos[1] + r;
+		_boxMax[2] = _worldPos[2] + r;
+
+		this.boundingBox.set(_boxMin, _boxMax);
 	}
 
 	dispose() {

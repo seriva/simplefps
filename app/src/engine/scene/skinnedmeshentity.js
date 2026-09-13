@@ -3,6 +3,7 @@ import { AnimationPlayer } from "../animation/animationplayer.js";
 import { BoundingBox } from "../physics/boundingbox.js";
 import { Mesh } from "../rendering/mesh.js";
 import { Shaders } from "../rendering/shaders.js";
+import { MAX_JOINTS } from "../rendering/skinnedmesh.js";
 import { Resources } from "../systems/resources.js";
 import { EntityTypes } from "./entity.js";
 import { MeshEntity } from "./meshentity.js";
@@ -10,7 +11,7 @@ import { MeshEntity } from "./meshentity.js";
 const _tempMatrix = mat4.create();
 
 // Reusable bounding boxes to avoid per-frame allocations
-const _localBB = new BoundingBox([0, 0, 0], [1, 1, 1]);
+const _localBB = new BoundingBox();
 
 class SkinnedMeshEntity extends MeshEntity {
 	_boneMatrices = null;
@@ -21,12 +22,13 @@ class SkinnedMeshEntity extends MeshEntity {
 		this.mesh = Resources.get(meshName);
 		this.scale = scale;
 		this.debugSkeleton = false;
-		this._boneMatrices = null;
 
 		if (this.mesh?.skeleton) {
 			this.animationPlayer = new AnimationPlayer(this.mesh.skeleton);
+			this._boneMatrices = new Float32Array(MAX_JOINTS * 16);
 		} else {
 			this.animationPlayer = null;
+			this._boneMatrices = null;
 		}
 	}
 
@@ -47,7 +49,8 @@ class SkinnedMeshEntity extends MeshEntity {
 
 		if (this.animationPlayer && this.mesh?.skeleton) {
 			const pose = this.animationPlayer.update(deltaTime / 1000);
-			this._boneMatrices = this.mesh.getBoneMatricesForGPU(pose);
+			this._boneMatrices ??= new Float32Array(MAX_JOINTS * 16);
+			this.mesh.getBoneMatricesForGPU(pose, this._boneMatrices);
 		}
 
 		super.update?.(deltaTime);
@@ -164,14 +167,19 @@ class SkinnedMeshEntity extends MeshEntity {
 		if (!this.animationPlayer) return;
 
 		const animBounds = this.animationPlayer.getCurrentBounds();
-		if (!animBounds) return;
-
-		// Reuse bounding box objects instead of creating new ones each frame
-		_localBB.set(animBounds.min, animBounds.max);
 		mat4.multiply(_tempMatrix, this.base_matrix, this.ani_matrix);
 
+		if (animBounds) {
+			_localBB.set(animBounds.min, animBounds.max);
+		} else if (this.mesh?.boundingBox) {
+			_localBB.set(this.mesh.boundingBox.min, this.mesh.boundingBox.max);
+		} else {
+			this.boundingBox = null;
+			return;
+		}
+
 		if (!this.boundingBox) {
-			this.boundingBox = new BoundingBox([0, 0, 0], [1, 1, 1]);
+			this.boundingBox = new BoundingBox();
 		}
 		_localBB.transformInto(_tempMatrix, this.boundingBox);
 	}
