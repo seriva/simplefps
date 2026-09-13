@@ -21,6 +21,7 @@ features (e.g. `docs/v0.0.3/`).
 | [Code Review Quick Wins](v0.0.3/code-review-quick-wins-plan.md) | Low | Done | July 2026 engine review fixes: Trimesh constructor bug, render-sort GC pressure, `preserveDrawingBuffer`, uniform/bind-group caching, mip allocation, depenetration heights, misc hygiene |
 | [Fixed Timestep Physics](v0.0.3/fixed-timestep-plan.md) | Medium | Done | 120 Hz accumulator decouples simulation from refresh rate; frame-rate-invariant jump height and movement, prerequisite for consistent P2P simulation |
 | [G-Buffer Depth Reconstruction](v0.0.3/gbuffer-depth-reconstruction-plan.md) | Medium | Planned | Reconstruct world/view position from depth buffer; eliminates 16-byte worldPosition render target to cut mobile memory bandwidth |
+| [Engine Improvements](v0.0.3/engine-improvements-plan.md) | Medium | Planned | Correctness fixes (circular import, skinned pose corruption, GPU buffer leak, billboard culling, audio autoplay/cache) and hot-path allocations |
 ---
 
 ## Out of scope
