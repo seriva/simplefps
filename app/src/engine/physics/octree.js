@@ -168,20 +168,19 @@ class OctreeNode {
 		);
 	}
 
-	rayQueryLocal(origin, direction, maxDist, result) {
-		const invDirX = 1.0 / direction[0];
-		const invDirY = 1.0 / direction[1];
-		const invDirZ = 1.0 / direction[2];
-
-		_invDir[0] = invDirX;
-		_invDir[1] = invDirY;
-		_invDir[2] = invDirZ;
+	rayQueryLocal(origin, direction, maxDist, result, invDir = null) {
+		const inv = invDir || _invDir;
+		if (!invDir) {
+			inv[0] = 1.0 / direction[0];
+			inv[1] = 1.0 / direction[1];
+			inv[2] = 1.0 / direction[2];
+		}
 
 		_queryQueue.push(this);
 		while (_queryQueue.length) {
 			const node = _queryQueue.pop();
 
-			if (_intersectRayAABB(node.aabb, origin, _invDir, maxDist)) {
+			if (_intersectRayAABB(node.aabb, origin, inv, maxDist)) {
 				for (const d of node.data) {
 					result.push(d);
 				}

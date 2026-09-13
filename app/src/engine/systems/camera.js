@@ -169,14 +169,18 @@ const Camera = {
 		);
 		_normalizePlane(this.frustumPlanes.top);
 
-		// Near plane
-		vec4.set(
-			this.frustumPlanes.near,
-			m[3] + m[2],
-			m[7] + m[6],
-			m[11] + m[10],
-			m[15] + m[14],
-		);
+		// Near plane: WebGPU (0 <= z <= w) uses row2; WebGL (-w <= z <= w) uses row3 + row2
+		if (Backend.name === "WebGPU") {
+			vec4.set(this.frustumPlanes.near, m[2], m[6], m[10], m[14]);
+		} else {
+			vec4.set(
+				this.frustumPlanes.near,
+				m[3] + m[2],
+				m[7] + m[6],
+				m[11] + m[10],
+				m[15] + m[14],
+			);
+		}
 		_normalizePlane(this.frustumPlanes.near);
 
 		// Far plane

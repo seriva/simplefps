@@ -1,23 +1,26 @@
-# Code Review Quick Wins Implementation Plan
+# Code Review & Engine Improvements Plan
 
-**Goal:** Fix the correctness bugs and land the low-effort / high-return performance items found in the July 2026 engine code review. Every item here is small, independent, and safe to ship incrementally — one commit per item (or per small group).
+**Goal:** Fix correctness/architectural bugs and land high-return performance / zero-allocation optimizations found across engine code reviews for v0.0.3.
 
-**Architecture:** No new systems. All changes are local fixes inside existing modules: `physics/`, `rendering/`, `scene/`. The two larger review findings (fixed-timestep physics, G-buffer position reconstruction) have their own plan documents and are explicitly out of scope here.
+**Architecture:** Local fixes and optimizations within existing engine modules: `physics/`, `rendering/`, `scene/`, `animation/`, and `systems/`. Out of scope: large architectural features with standalone plans (Fixed-Timestep Physics, G-Buffer Depth Reconstruction).
 
-**Tech Stack:** ES6 modules, gl-matrix, Biome (lint/format).
+**Tech Stack:** ES6 modules, gl-matrix, WebGL 2 / WebGPU, Biome (lint/format).
 
 ## Global Constraints
 
 - No `var`. Use `const` (preferred) or `let`.
 - No default exports. Named exports only.
-- No per-frame allocations in hot paths. All scratch objects pre-allocated at module scope.
+- Engine facade rule: `app/src/game/` imports only from `../engine/engine.js`. Engine-internal modules import each other directly and **never** from `engine.js`.
+- Zero per-frame allocations in hot paths. All scratch objects pre-allocated at module scope.
 - Log via `Console.log/warn/error`, not `console.*`.
 - Run `npm run check` and `npm run format` before every commit.
-- No new external dependencies.
+- Update `CHANGELOG.md` & `README.md` before PR.
 
 ---
 
-## Group A: Correctness Bugs
+## Round 1: Core Engine & Backend Review (July 2026)
+
+### Group A: Correctness Bugs
 
 - [x] **A1: Fix `triangleFlags` ReferenceError in Trimesh constructor**
 
@@ -71,7 +74,7 @@
   (Superseded automatically if the fixed-timestep plan lands first — still
   correct to fix now.)
 
-## Group B: Rendering / Backend Performance
+### Group B: Rendering / Backend Performance
 
 - [x] **B1: Disable `preserveDrawingBuffer`**
 
@@ -154,7 +157,7 @@
   revalidation on several drivers. Create two persistent scratch framebuffers at
   resize and ping-pong with `bindFramebuffer` only.
 
-## Group C: Hygiene
+### Group C: Hygiene
 
 - [x] **C1: Remove or pass the dead `time` uniform**
 
@@ -178,11 +181,115 @@
 
 ---
 
-## Verification
+## Round 2: Architecture, Scene & Zero-Allocation Review (September 2026)
 
-- [x] `npm run check` and `npm run format` clean.
-- [ ] `npm run dev` smoke test per group:
-  - Group A: walk into sloped/overhanging geometry, fire projectiles at floors and walls, confirm no regressions in movement or pickups.
-  - Group B: confirm identical visuals (geometry, lights, shadows, glass, blur, FSR) on both WebGL and WebGPU backends; check noise texture no longer shimmers at distance after B7.
-  - Group C: map load console output clean.
-- [x] Update `CHANGELOG.md` before PR.
+### Group D: Architecture & Correctness Bugs
+
+- [x] **D1: Fix Network module facade violation & circular import**
+
+  `app/src/engine/systems/network.js:2` imported `Console` from `../engine.js`, violating the engine facade rule and creating a circular dependency. Fixed by importing directly from `./console.js`.
+
+- [x] **D2: SkinnedMesh per-instance bone matrix buffer**
+
+  `app/src/engine/rendering/skinnedmesh.js:102-104` cached `_boneMatrixBuffer` on the shared `SkinnedMesh` instance, causing multi-entity pose overwrites. Fixed by moving buffer ownership to `SkinnedMeshEntity` and passing it into `getBoneMatricesForGPU(pose, targetBuffer)`.
+
+- [x] **D3: ParticleEmitterEntity GPU buffer disposal**
+
+  `app/src/engine/scene/particleemitterentity.js` created `_instanceBuffer` and `_vertexState` without a `dispose()` method, leaking buffers on emitter removal. Implemented `dispose()` calling `Backend.deleteBuffer` and `Backend.deleteVertexState`.
+
+- [x] **D4: AnimatedBillboardEntity updateBoundingVolume & frustum culling**
+
+  `app/src/engine/scene/animatedbillboardentity.js` overrode `update()` without calling `updateBoundingVolume()`, keeping bounding boxes `null` and disabling frustum culling. Restored bounding volume updates in `update()` and constructor.
+
+- [x] **D5: Web Audio autoplay resumption & single-decode caching**
+
+  `app/src/engine/systems/sound.js` evaluated `AudioContext` in suspended state without resuming, and fetched/decoded sounds up to 5 times in parallel. Added auto-resumption on user gestures and cached decoded `AudioBuffer`s by URL in a module-level Map.
+
+- [x] **D6: Fix WebGPU near frustum plane extraction in Camera**
+
+  `app/src/engine/systems/camera.js:174-180` extracted the near frustum plane using OpenGL `row3 + row2` (`m[3] + m[2]`). In WebGPU (`perspectiveZO`, `0 <= z <= w`), near plane is `z >= 0` (`row2`: `m[2], m[6], m[10], m[14]`). Branched near plane calculation by backend.
+
+- [x] **D7: Prevent cull state bleed & restore backface culling after double-sided materials**
+
+  `app/src/engine/rendering/material.js:95-99` disabled culling for double-sided materials without restoring it upon unbind, causing subsequent passes (FPS weapons, skinned meshes) to lose backface culling. Added restoration in `Material.unBind()`, `Mesh.renderIndices()`, and `RenderPasses.renderWorldGeometry()`.
+
+- [x] **D8: SkinnedMeshEntity fallback bounding box when animation bounds missing**
+
+  `app/src/engine/scene/skinnedmeshentity.js:169-179` returned early without updating or clearing `this.boundingBox` when playing animations without bounds. Added fallback to `this.mesh.boundingBox`.
+
+### Group E: Hot-Path Performance & Zero Allocations
+
+- [x] **E1: Zero per-frame allocations in AnimatedBillboardEntity**
+
+  `app/src/engine/scene/animatedbillboardentity.js` allocated four Array objects per frame for UV offsets/scales and bounding box updates. Pre-allocated module-level Float32Array scratch arrays.
+
+- [x] **E2: ParticleEmitterEntity Structure-of-Arrays (SoA)**
+
+  `app/src/engine/scene/particleemitterentity.js` allocated individual JavaScript objects per particle. Replaced with flat TypedArray Structure-of-Arrays storage (11 floats/particle) and swap-and-pop removal.
+
+- [x] **E3: Eliminate duplicate inverse-direction calculation in Octree ray queries**
+
+  `app/src/engine/physics/ray.js` and `app/src/engine/physics/octree.js` computed `1.0 / dir[x,y,z]` twice per raycast. Forwarded pre-computed `_itInvDir` from Ray into `rayQueryLocal`.
+
+- [x] **E4: FPSController depenetration early-out**
+
+  `app/src/engine/physics/fpscontroller.js` cast 24 static rays every tick even when stationary on flat floors. Added early-out when horizontal displacement and velocity are negligible.
+
+- [x] **E5: PointLightEntity transform allocation & redundant multiply**
+
+  `app/src/engine/scene/pointlightentity.js` allocated `[size, size, size]` per point light every frame and computed `base_matrix * ani_matrix` twice. Pre-allocated static scale vector and reused unscaled transform.
+
+- [x] **E6: SkyboxEntity per-frame probe color allocation**
+
+  `app/src/engine/scene/skyboxentity.js` allocated `[1, 1, 1]` on every frame. Pre-allocated module-level `_WHITE_PROBE` Float32Array.
+
+- [x] **E7: SpotLightEntity transform matrix construction**
+
+  `app/src/engine/scene/spotlightentity.js` allocated quaternions, matrices, and arrays on position/direction mutation. Pre-allocated module-level scratch objects and updated `base_matrix` in-place.
+
+- [x] **E8: Bypass Stats HUD reactive signal & DOM updates when hidden**
+
+  `app/src/engine/systems/stats.js` fired reactive signals and updated DOM text at 60/120Hz even when the stats HUD was hidden. Added early-out when `!this.visible.get()`.
+
+- [x] **E9: DynamicBody typed vector storage & Input keyup object de-optimization**
+
+  `app/src/engine/physics/dynamicbody.js` stored position/velocity as plain JS arrays; converted to `vec3` Float32Arrays. `app/src/engine/systems/input.js` used `delete` on `_pressed[keyCode]`; replaced with boolean assignment.
+
+---
+
+## Part 3: Roadmap Feature Tracking
+
+- [ ] **F1: G-Buffer Depth Reconstruction**
+  - Tracked in [`docs/v0.0.3/gbuffer-depth-reconstruction-plan.md`](gbuffer-depth-reconstruction-plan.md).
+  - Eliminates 16-byte `_g.worldPosition` RGBA16F render target; reconstructs world position from depth buffer in lighting pass to minimize mobile GPU memory bandwidth.
+
+---
+
+## Verification Plan
+
+### Automated Verification
+- Run Biome check and formatter:
+  ```bash
+  npm run check
+  npm run format
+  ```
+
+### Manual & Behavioral Verification
+1. **Multiplayer/Skinned Mesh Test**:
+   - Spawn multiple remote player meshes with distinct animations; confirm no pose bleeding or jumping between entities.
+   - Switch animations on skinned entities; verify bounding volumes stay valid and correctly cull/uncull.
+2. **GPU Memory & Particle Stress**:
+   - Fire continuous rocket/plasma bursts; verify via Chrome DevTools Memory / Performance that GPU buffer allocations and JavaScript heap remain flat.
+3. **Billboard Culling & Allocation Check**:
+   - Enable bounding volume debug mode (`tbv` in console); verify billboards show bounding boxes and are culled when looking away.
+   - Profile with allocation instrumentation to verify zero allocations in `AnimatedBillboardEntity.render()`.
+4. **Audio Playback**:
+   - Launch in fresh browser session; verify audio starts cleanly on first user interaction without browser warnings or repeated 5x network requests.
+5. **Physics Regression**:
+   - Test walking into corners, jumping against slopes, and step-climbing to ensure depenetration early-outs introduce no clipping or snagging.
+6. **WebGPU vs WebGL Near Culling**:
+   - Walk right up to static geometry and entities in WebGPU mode; verify near clipping behaves identically to WebGL.
+7. **Cull State & Double-Sided Materials**:
+   - Verify double-sided materials render on both faces without causing subsequent opaque or FPS meshes to lose backface culling.
+8. **Point Light & Skybox Zero Allocation**:
+   - Profile with DevTools Allocation Profiler over 60 frames; verify zero Array objects created by `PointLightEntity` and `SkyboxEntity`.

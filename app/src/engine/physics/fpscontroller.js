@@ -199,11 +199,21 @@ class FPSController {
 			dx,
 			dz,
 		);
-		({ x: slideX, z: slideZ } = this._resolveDepenetration(
-			slideX,
-			slideZ,
-			startY,
-		));
+
+		// Skip depenetration when stationary on ground to save 24 raycasts/tick
+		const isRestingGrounded =
+			this.grounded &&
+			this.wasGrounded &&
+			Math.abs(dx) <= 0.001 &&
+			Math.abs(dz) <= 0.001;
+
+		if (!isRestingGrounded) {
+			({ x: slideX, z: slideZ } = this._resolveDepenetration(
+				slideX,
+				slideZ,
+				startY,
+			));
+		}
 
 		// Check progress to see if we collided horizontally
 		const uncollidedDistSq = dx * dx + dz * dz;

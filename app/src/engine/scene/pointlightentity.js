@@ -1,4 +1,4 @@
-import { mat4 } from "../../dependencies/gl-matrix.js";
+import { mat4, vec3 } from "../../dependencies/gl-matrix.js";
 import { BoundingBox } from "../physics/boundingbox.js";
 import { Shaders } from "../rendering/shaders.js";
 import { Shapes } from "../rendering/shapes.js";
@@ -7,16 +7,21 @@ import { Entity, EntityTypes } from "./entity.js";
 class PointLightEntity extends Entity {
 	static SCALE_FACTOR = 1.0;
 	static _tempMatrix = mat4.create();
+	static _worldMatrix = mat4.create();
+	static _scaleVec = vec3.create();
 	static _tempPos = new Float32Array(3);
 	static _posRange = new Float32Array(4);
 	static _colorIntensity = new Float32Array(4);
 
-	_getTransformMatrix() {
-		const m = PointLightEntity._tempMatrix;
-		mat4.multiply(m, this.base_matrix, this.ani_matrix);
+	_getTransformMatrix(outMatrix = PointLightEntity._tempMatrix) {
+		mat4.multiply(outMatrix, this.base_matrix, this.ani_matrix);
 		const size = this.size * PointLightEntity.SCALE_FACTOR;
-		mat4.scale(m, m, [size, size, size]);
-		return m;
+		const s = PointLightEntity._scaleVec;
+		s[0] = size;
+		s[1] = size;
+		s[2] = size;
+		mat4.scale(outMatrix, outMatrix, s);
+		return outMatrix;
 	}
 
 	constructor(position, size, color, intensity, updateCallback) {
@@ -31,18 +36,18 @@ class PointLightEntity extends Entity {
 		if (!this.visible) return;
 
 		// Get the actual light position (without volume scaling)
-		mat4.multiply(
-			PointLightEntity._tempMatrix,
-			this.base_matrix,
-			this.ani_matrix,
-		);
-		mat4.getTranslation(
-			PointLightEntity._tempPos,
-			PointLightEntity._tempMatrix,
-		);
+		const unscaled = PointLightEntity._worldMatrix;
+		mat4.multiply(unscaled, this.base_matrix, this.ani_matrix);
+		mat4.getTranslation(PointLightEntity._tempPos, unscaled);
 
 		// Get the scaled volume transform for rendering the light volume geometry
-		const volumeTransform = this._getTransformMatrix();
+		const volumeTransform = PointLightEntity._tempMatrix;
+		const size = this.size * PointLightEntity.SCALE_FACTOR;
+		const s = PointLightEntity._scaleVec;
+		s[0] = size;
+		s[1] = size;
+		s[2] = size;
+		mat4.scale(volumeTransform, unscaled, s);
 
 		Shaders.pointLight.setMat4("matWorld", volumeTransform);
 		const p = PointLightEntity._tempPos;
@@ -72,7 +77,7 @@ class PointLightEntity extends Entity {
 		const unitBox = Shapes.pointLightVolume.boundingBox;
 		const m = this._getTransformMatrix();
 		if (!this.boundingBox) {
-			this.boundingBox = new BoundingBox([0, 0, 0], [1, 1, 1]);
+			this.boundingBox = new BoundingBox();
 		}
 		unitBox.transformInto(m, this.boundingBox);
 	}

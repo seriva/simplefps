@@ -129,6 +129,9 @@ class Material {
 		for (let i = 0; i < TEXTURE_SLOT_UNITS.length; i++) {
 			Texture.unBind(TEXTURE_SLOT_UNITS[i]);
 		}
+		if (this.doubleSided) {
+			Backend.setCullState(true, "back");
+		}
 	}
 
 	dispose() {
