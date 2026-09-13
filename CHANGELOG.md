@@ -16,6 +16,7 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 - Frame-rate-dependent head bob decay in `FPSController` by switching to dt-scaled exponential decay.
 
 ### Changed
+- Decoupled player movement and projectile simulation from render frame rate with a 120 Hz fixed-timestep accumulator.
 - Disabled `preserveDrawingBuffer` in WebGL backend to avoid backbuffer copies on mobile/tiled GPUs.
 - Reused pooled sort entries and consolidated light contribution sorting to run once per frame.
 - Early-out transparent render pass when no visible meshes contain translucent materials.

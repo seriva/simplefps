@@ -19,8 +19,8 @@ features (e.g. `docs/v0.0.3/`).
 | [Ambient Probe Acceleration](v0.0.3/ambient-probe-plan.md) | Low | Done | Verified in lightgrid.js; O(1) 3D grid cell lookup with trilinear interpolation and per-frame caching |
 | [Transparent Sorting](v0.0.3/transparent-sorting-plan.md) | Low | Done | Back-to-front depth sort landed in renderpasses.js; sort entry pooling and early-out tracked in Code Review Quick Wins (B2, B3) |
 | [Code Review Quick Wins](v0.0.3/code-review-quick-wins-plan.md) | Low | Done | July 2026 engine review fixes: Trimesh constructor bug, render-sort GC pressure, `preserveDrawingBuffer`, uniform/bind-group caching, mip allocation, depenetration heights, misc hygiene |
-| [Fixed Timestep Physics](v0.0.3/fixed-timestep-plan.md) | Medium | Planned | 120 Hz accumulator decouples simulation from refresh rate; frame-rate-invariant jump height and movement, prerequisite for consistent P2P simulation |
-| G-Buffer Depth Reconstruction | Medium | Planned | Reconstruct world/view position from depth buffer; eliminates 16-byte worldPosition render target to cut mobile memory bandwidth |
+| [Fixed Timestep Physics](v0.0.3/fixed-timestep-plan.md) | Medium | Done | 120 Hz accumulator decouples simulation from refresh rate; frame-rate-invariant jump height and movement, prerequisite for consistent P2P simulation |
+| [G-Buffer Depth Reconstruction](v0.0.3/gbuffer-depth-reconstruction-plan.md) | Medium | Planned | Reconstruct world/view position from depth buffer; eliminates 16-byte worldPosition render target to cut mobile memory bandwidth |
 ---
 
 ## Out of scope

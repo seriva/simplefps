@@ -30,7 +30,7 @@
 
 ### Steps
 
-- [ ] **Step 1: Add the accumulator**
+- [x] **Step 1: Add the accumulator**
 
   ```javascript
   const FIXED_DT = 1 / 120;
@@ -51,19 +51,19 @@
   held across the inner steps. Mouse look drives the camera directly and is not
   part of the fixed simulation.
 
-- [ ] **Step 2: Reset the accumulator on state changes**
+- [x] **Step 2: Reset the accumulator on state changes**
 
   Zero `_accum` on map load, respawn, pause/unpause, and when the game state
   leaves `GAME`, so a long pause does not replay a burst of catch-up steps.
 
-- [ ] **Step 3: Move velocity-integrating systems into the fixed step**
+- [x] **Step 3: Move velocity-integrating systems into the fixed step**
 
   Audit `DynamicBody` users (projectiles/grenades) and any other system that
   integrates velocity over dt. Entity `update` callbacks that only animate
   visuals stay on the variable render tick. Document the split in
   `docs/scene.md` if entity semantics change.
 
-- [ ] **Step 4: Remove now-redundant per-frame-rate compensation**
+- [x] **Step 4: Remove now-redundant per-frame-rate compensation**
 
   `FPSController._updateHeadBob` has `this.bobPhase *= 0.9` (per-frame decay);
   with a fixed dt this becomes consistent automatically, but convert it to
