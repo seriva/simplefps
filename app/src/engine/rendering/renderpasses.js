@@ -284,6 +284,8 @@ const renderWorldGeometry = () => {
 
 		Backend.unbindShader();
 	}
+
+	Backend.setCullState(true, "back");
 };
 
 let _lightsSortedFrame = -1;
