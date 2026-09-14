@@ -260,7 +260,7 @@
 ## Part 3: Roadmap Feature Tracking
 
 - [ ] **F1: G-Buffer Depth Reconstruction**
-  - Tracked in [`docs/v0.0.3/gbuffer-depth-reconstruction-plan.md`](gbuffer-depth-reconstruction-plan.md).
+  - Tracked in [`docs/v0.0.4/gbuffer-depth-reconstruction-plan.md`](../v0.0.4/gbuffer-depth-reconstruction-plan.md) (deferred to v0.0.4).
   - Eliminates 16-byte `_g.worldPosition` RGBA16F render target; reconstructs world position from depth buffer in lighting pass to minimize mobile GPU memory bandwidth.
 
 ---
