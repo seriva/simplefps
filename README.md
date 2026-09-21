@@ -22,7 +22,7 @@ Simple first person arena shooter game written in ES6 and WebGL with a PWA distr
 **Core**: ES6 Modules, simple-reactive (UI), gl-matrix (3D math)
 **Rendering**: WebGPU (experimental) & WebGL 2.0 backends
 **Build**: Microtastic (dev server, production builds, hot-reload)
-**Tools**: Biome (linting/formatting), Husky (git hooks), Devcontainer (development environment)
+**Tools**: Biome (linting/formatting), Lefthook (git hooks), Devcontainer (development environment)
 
 ## Project Structure
 
@@ -61,8 +61,8 @@ Open in VS Code with Dev Containers extension - all dependencies are pre-configu
 # System dependency for texture conversion (bsp2map/obj2mesh)
 sudo apt install imagemagick  # or: brew install imagemagick
 
-npm install              # Install dependencies (Node.js >= 20.0.0, npm >= 9.0.0)
-npm run prepare          # Setup Husky git hooks + bundle dependencies
+npm install              # Install dependencies (Node.js >= 24.0.0, npm >= 11.0.0)
+npm run prepare          # Setup Lefthook git hooks + bundle dependencies
 ```
 
 ### Commands

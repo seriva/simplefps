@@ -1,10 +1,10 @@
 pre-commit:
   commands:
     format:
+      priority: 1
       run: npm run format
-
-    stage-formatted:
-      run: git add -u
+      stage_fixed: true
 
     lint:
+      priority: 2
       run: npm run check

@@ -32,6 +32,22 @@ Thumbs.db
 # Lefthook generated hooks
 .lefthook/
 
-# Agentic session artifacts
+# Agentic session artifacts — add tool-specific dirs here as needed
+# (git only treats a leading # as a comment; trailing text becomes part of the pattern)
+# Claude Code superpowers
 docs/superpowers/
+# Cursor session state
+.cursor/sessions/
+# git worktrees
 .worktrees/
+# Aider
+.aider*
+# Continue.dev
+.continue/
+# Sourcegraph Cody
+.cody/
+# Tabnine
+.tabnine/
+# generic agent session files
+*.agent-session
+
