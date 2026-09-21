@@ -1,6 +1,6 @@
 {
   "name": "simplefps",
-  "version": "0.0.2",
+  "private": true,
   "description": "SimpleFPS",
   "author": "Luuk van Venrooij",
   "license": "MIT",
@@ -26,8 +26,8 @@
     "peerjs": "^1.5.5"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.5.11",
-    "lefthook": "^2.1.12",
+    "@biomejs/biome": "^2.5.14",
+    "lefthook": "^2.1.14",
     "microtastic": "^0.0.72",
     "pretty-json-stringify": "^0.0.2"
   },

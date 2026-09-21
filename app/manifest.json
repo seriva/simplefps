@@ -1,7 +1,6 @@
 {
     "name": "SimpleFPS",
     "short_name": "SimpleFPS",
-    "version": "0.1",
     "start_url": ".",
     "icons": [
         {

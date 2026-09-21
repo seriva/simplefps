@@ -3,9 +3,27 @@
 All notable changes to this project will be documented here.
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
-Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
-## [Unreleased]
+## [2026-09]
+
+### Changed
+- Moved completed feature plans into `docs/plans/archive/` to keep active planning directory uncluttered.
+- Reconfigured project structure as versionless (unversioned feature plans, removed semver metadata).
+- Synced agent workflow and bridge files with bootstrap.
+- Updated npm dependencies to latest versions (`@biomejs/biome`, `lefthook`).
+- Decoupled player movement and projectile simulation from render frame rate with a 120 Hz fixed-timestep accumulator.
+- Disabled `preserveDrawingBuffer` in WebGL backend to avoid backbuffer copies on mobile/tiled GPUs.
+- Reused pooled sort entries and consolidated light contribution sorting to run once per frame.
+- Early-out transparent render pass when no visible meshes contain translucent materials.
+- Cached scalar `int` and `float` uniform values per shader in WebGL backend to eliminate redundant GL calls.
+- Flattened `Backend` proxy at initialization to enable monomorphic inline-cached method calls.
+- Evicted WebGPU persistent bind-group cache upon canvas resize to prevent GPU memory leaks.
+- Allocated full mip chains for mipmapped immutable textures in WebGL backend.
+- Baked index buffers into VAOs for single-group meshes and tracked bound index buffers to eliminate redundant bindings.
+- Eliminated framebuffer attachment swapping during Kawase blur in favor of persistent ping-pong framebuffers.
+- Passed engine clock time into the camera frame data UBO.
+- Removed per-material debug logging during static geometry loading.
+- Replaced repurposed scratch vector in octree ray query with dedicated `_invDir` vector.
 
 ### Fixed
 - Latent `ReferenceError` in populated `Trimesh` constructor by adding missing `triangleFlags` parameter.
@@ -33,23 +51,6 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 - V8 object shape dictionary de-optimization in `Input` on key up by using boolean assignment instead of `delete`.
 - Polymorphic array overhead in `DynamicBody` by storing position and velocity as `vec3` Float32Arrays.
 
-### Changed
-- Decoupled player movement and projectile simulation from render frame rate with a 120 Hz fixed-timestep accumulator.
-- Disabled `preserveDrawingBuffer` in WebGL backend to avoid backbuffer copies on mobile/tiled GPUs.
-- Reused pooled sort entries and consolidated light contribution sorting to run once per frame.
-- Early-out transparent render pass when no visible meshes contain translucent materials.
-- Cached scalar `int` and `float` uniform values per shader in WebGL backend to eliminate redundant GL calls.
-- Flattened `Backend` proxy at initialization to enable monomorphic inline-cached method calls.
-- Evicted WebGPU persistent bind-group cache upon canvas resize to prevent GPU memory leaks.
-- Allocated full mip chains for mipmapped immutable textures in WebGL backend.
-- Baked index buffers into VAOs for single-group meshes and tracked bound index buffers to eliminate redundant bindings.
-- Eliminated framebuffer attachment swapping during Kawase blur in favor of persistent ping-pong framebuffers.
-- Passed engine clock time into the camera frame data UBO.
-- Removed per-material debug logging during static geometry loading.
-- Replaced repurposed scratch vector in octree ray query with dedicated `_invDir` vector.
-
-## [0.0.2] - 2026-05-07
-
 ### Added
-
 - Initial release.
+
