@@ -51,6 +51,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 - V8 object shape dictionary de-optimization in `Input` on key up by using boolean assignment instead of `delete`.
 - Polymorphic array overhead in `DynamicBody` by storing position and velocity as `vec3` Float32Arrays.
 
+
+## [2026-05]
+
 ### Added
 - Initial release.
 
