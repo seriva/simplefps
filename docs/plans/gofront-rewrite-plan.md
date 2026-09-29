@@ -1,7 +1,8 @@
 # GoFront Engine & Architecture Rewrite — Design Plan
 
-**Version:** v2.0.0  
-**Status:** Draft  
+**Version:** v2.1.0  
+**Target Toolchain:** GoFront v1.3.2  
+**Status:** Ready for Implementation  
 
 ---
 
@@ -9,14 +10,14 @@
 
 Rewrite SimpleFPS from vanilla ES6 and Microtastic into a 100% type-safe, compiled GoFront architecture with zero-allocation hot paths, native WebGL2/WebGPU buffer manipulation, and native GoFront UI components.
 
-The rewrite will **preserve the exact current folder structure and modular layout** (`app/src/engine/` and `app/src/game/`). All modules map 1-to-1 from `.js` to `.go` (and `.templ` for UI components). By leveraging GoFront v1.3.0 features (zero-allocation loops, TypedArrays, struct pointer unboxing, and `.templ` components), we eliminate runtime type ambiguity, replace `Reactive.js` with native GoFront patterns, remove `gl-matrix` and Microtastic dependencies, and deliver rock-solid 120+ FPS execution with 0 bytes allocated per frame in the game loop.
+The rewrite will **preserve the exact current folder structure and modular layout** (`app/src/engine/` and `app/src/game/`). All modules map 1-to-1 from `.js` to `.go` (and `.templ` for UI components). By leveraging GoFront v1.3.2 features (zero-allocation loops, TypedArrays, struct pointer unboxing, native `.templ` components, root test auto-detection, multi-file package type checking, and dual-directory dev watching), we eliminate runtime type ambiguity, replace `Reactive.js` with native GoFront patterns, remove `gl-matrix` and Microtastic dependencies, and deliver rock-solid 120+ FPS execution with 0 bytes allocated per frame in the game loop.
 
 ---
 
 ## Out of Scope
 
 - **Altering the Folder Structure:** No artificial `pkg/` or Go-idiomatic monorepo restructuring. The directory hierarchy mirrors the existing SimpleFPS codebase directly.
-- **Rewriting WebRTC/PeerJS from Scratch:** `peerjs` remains an external vendor dependency accessed through a typed GoFront wrapper (`js:./dependencies/peerjs.d.ts`).
+- **Rewriting WebRTC/PeerJS from Scratch:** `peerjs` remains an external vendor dependency bundled via GoFront's built-in vendor bundler (`gofront prep` / `gofront build`) and typed via `js:../dependencies/peerjs.d.ts`.
 - **Game Design & Content Changes:** All 3D assets (GLTF/GLB/OBJ meshes, textures, audio, arena layouts) and shader programs (GLSL for WebGL2, WGSL for WebGPU) remain identical.
 - **Dedicated Game Servers:** The architecture remains strictly client-side Peer-to-Peer (P2P) with no backend infrastructure.
 
@@ -28,22 +29,22 @@ The GoFront codebase preserves the current file and directory structure 1-to-1:
 
 ```
 app/
-├── index.html
+├── index.html                        # App shell & canvas mount
 └── src/
-    ├── main.go                       # Application entry point
+    ├── main.go                       # package main (application entry point)
     ├── dependencies/
     │   ├── peerjs.d.ts               # P2P multiplayer type definitions
-    │   └── peerjs.js                 # Bundled vendor dependency
-    ├── engine/
-    │   ├── engine.go                 # Engine facade and loop coordination
-    │   ├── animation/
+    │   └── peerjs.js                 # Bundled vendor dependency (via gofront prep/build)
+    ├── engine/                       # package engine (facade & composition root)
+    │   ├── engine.go
+    │   ├── animation/                # package animation
     │   │   ├── animation.go
     │   │   ├── animationplayer.go
     │   │   └── skeleton.go
-    │   ├── physics/
-    │   │   ├── vec3.go               # Native 3D vector math (replaces gl-matrix)
-    │   │   ├── mat4.go               # Native 4x4 matrix math (replaces gl-matrix)
-    │   │   ├── quat.go               # Native quaternion math (replaces gl-matrix)
+    │   ├── physics/                  # package physics (zero-alloc math & collision)
+    │   │   ├── vec3.go
+    │   │   ├── mat4.go
+    │   │   ├── quat.go
     │   │   ├── transform.go
     │   │   ├── ray.go
     │   │   ├── boundingbox.go
@@ -51,7 +52,7 @@ app/
     │   │   ├── octree.go
     │   │   ├── dynamicbody.go
     │   │   └── fpscontroller.go
-    │   ├── rendering/
+    │   ├── rendering/                # package rendering (pipeline, mesh, shaders)
     │   │   ├── backend.go
     │   │   ├── renderbackend.go
     │   │   ├── renderer.go
@@ -62,13 +63,13 @@ app/
     │   │   ├── texture.go
     │   │   ├── shaders.go
     │   │   ├── shapes.go
-    │   │   ├── webgl/
+    │   │   ├── webgl/                # package webgl (WebGL2 backend implementation)
     │   │   │   ├── glsl.go
     │   │   │   └── webglbackend.go
-    │   │   └── webgpu/
+    │   │   └── webgpu/               # package webgpu (WebGPU backend implementation)
     │   │       ├── wgsl.go
     │   │       └── webgpubackend.go
-    │   ├── scene/
+    │   ├── scene/                    # package scene (scene graph & entities)
     │   │   ├── entity.go
     │   │   ├── scene.go
     │   │   ├── lightgrid.go
@@ -81,7 +82,7 @@ app/
     │   │   ├── skyboxentity.go
     │   │   ├── particleemitterentity.go
     │   │   └── animatedbillboardentity.go
-    │   └── systems/
+    │   └── systems/                  # package systems (camera, input, sound, etc.)
     │       ├── camera.go
     │       ├── input.go
     │       ├── sound.go
@@ -91,7 +92,7 @@ app/
     │       ├── resources.go
     │       ├── settings.go
     │       └── binaryreader.go
-    └── game/
+    └── game/                         # package game (gameplay logic, state & UI)
         ├── game.go
         ├── state.go                  # State machine (replaces Reactive.js signals)
         ├── gamedefs.go
@@ -150,7 +151,7 @@ func (out *Vec3) Cross(a, b *Vec3) *Vec3 {
 }
 ```
 
-* Matrices (`Mat4`) use `[16]float32` backed directly by `Float32Array` memory for uniform buffer uploads.
+* Matrices (`Mat4`) use `[]float32` backed directly by `Float32Array` memory (allocated via `make([]float32, 16)`) for zero-allocation uniform buffer uploads via `gl.UniformMatrix4fv` / `gl.uniformMatrix4fv`.
 * Quaternions (`Quat`) use `{ X, Y, Z, W float32 }`.
 * Scratch instances (`var tmpVec = Vec3{}`) are pre-allocated per file for scratch calculations.
 
@@ -253,14 +254,31 @@ func (s *StateManager) Transition(next GameState) {
 ### 3. Rendering Pipeline & Native GPU Buffers (`engine/rendering/`)
 
 #### Direct TypedArray Integration
-* Vertex and Index Buffers use GoFront v1.3.0 native TypedArrays (`[]float32`, `[]uint16`, `[]uint32`).
+* Vertex and Index Buffers use GoFront native TypedArrays (`[]float32`, `[]uint16`, `[]uint32`).
 * When passing vertex data to GPU backends, `gl.BufferData(gl.ARRAY_BUFFER, mesh.Vertices, gl.STATIC_DRAW)` passes contiguous C++ memory directly to WebGL/WebGPU without conversion.
 * Sub-slice windowing (`mesh.Vertices[offset:end]`) emits `.subarray()`, allowing multi-mesh batching with zero copies.
+* Standard library WebGL2 and WebGPU typings (`WebGL2RenderingContext`, `GPUDevice`, `GPUQueue`) are available natively in GoFront without external `.d.ts` shims.
 
-#### Dual Backend Abstraction
-* `engine/rendering/backend.go`: Defines the common `RenderBackend` interface.
-* `engine/rendering/webgl/webglbackend.go`: Uses GoFront static `WebGL2RenderingContext` bindings with GLSL shaders.
-* `engine/rendering/webgpu/webgpubackend.go`: Uses GoFront static `GPUDevice` / `GPUQueue` bindings with WGSL shaders.
+#### Dual Backend Abstraction & Dependency Direction (Acyclic DAG)
+In vanilla SimpleFPS, `backend.js` imported `webglbackend.js`, while `webglbackend.js` imported `renderbackend.js` from `../renderbackend.js`. In GoFront's multi-file compiled package model, cyclic package imports are strictly disallowed.
+
+To maintain a clean Directed Acyclic Graph (DAG):
+1. `app/src/engine/rendering/` (`package rendering`) defines the common `RenderBackend` interface, render passes, mesh definitions, material types, and shader management.
+2. `app/src/engine/rendering/webgl/` (`package webgl`) and `app/src/engine/rendering/webgpu/` (`package webgpu`) import `../` (`engine/rendering`) and implement `RenderBackend`.
+3. `engine/rendering` **never** imports `webgl` or `webgpu`.
+4. `app/src/engine/engine.go` (`package engine`) serves as the engine facade and composition root. It imports `engine/rendering`, `engine/rendering/webgl`, and `engine/rendering/webgpu`, selects the backend (WebGPU if available and enabled, otherwise WebGL2), and passes the active backend instance into `renderer.NewRenderer(backend)`.
+
+```mermaid
+flowchart TD
+    WebGL["engine/rendering/webgl\n(package webgl)"] -->|implements RenderBackend| Rendering["engine/rendering\n(package rendering)"]
+    WebGPU["engine/rendering/webgpu\n(package webgpu)"] -->|implements RenderBackend| Rendering
+    Engine["engine/engine.go\n(package engine — Composition Root)"] --> WebGL
+    Engine --> WebGPU
+    Engine --> Rendering
+    Game["game/game.go\n(package game)"] --> Engine
+    Main["main.go\n(package main)"] --> Game
+    Main --> Engine
+```
 
 ---
 
@@ -276,6 +294,63 @@ func (s *StateManager) Transition(next GameState) {
 
 ---
 
+### 5. GoFront 1.3.2 Build Tooling, CLI & Configuration
+
+#### A. Zero-Config Project Layout Auto-Detection
+GoFront 1.3.2 natively identifies the SimpleFPS project layout:
+* **Source root (`srcDir`)**: Automatically resolves to `app/src` (compiled into `app/app.js` during dev, or `public/app.js` during build).
+* **Server root (`serveDir`)**: Automatically resolves to `app` (serves `app/index.html` and static assets).
+* **Release output (`outDir`)**: Defaults to `public`.
+
+#### B. Dual-Directory Live Watching in `gofront dev` (v1.3.2)
+* GoFront 1.3.2 monitors `app/src/` for `.go` and `.templ` source changes, running incremental re-compiles with fast sub-100ms rebuilds and live-reloads via SSE.
+* In addition, `handleDev` in GoFront 1.3.2 watches `serveDir` (`app/`) for `.css` (injecting CSS hot updates without losing game state or page refresh) and `index.html` (triggering full page reload).
+* Compile errors trigger the in-browser interactive error overlay with exact source carets while preserving dev server uptime.
+
+#### C. Multi-File Package Type Checking (`gofront check`)
+GoFront 1.3.2 fixed package directory symbol resolution (`resolveSrcDir`), verifying that package directories containing multiple `.go`/`.templ` files compile as a unified package rather than collapsing to single-file `main.go`. This enables `gofront check` across all package subtrees.
+
+#### D. Built-in Vendor Bundler with Node Polyfills (`peerjs`)
+SimpleFPS bundles `peerjs` for P2P networking. GoFront's built-in bundler (`gofront prep` / `gofront build`) packages external dependencies with Rolldown or esbuild. GoFront automatically detects and applies `@rolldown/plugin-node-polyfills` to provide necessary Node built-in shims for WebRTC/PeerJS.
+
+```json
+{
+  "name": "simplefps",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "gofront dev",
+    "build": "gofront build --pwa",
+    "check": "biome check . && gofront check",
+    "test": "gofront test app/src/engine/physics && gofront test app/src/game",
+    "format": "biome format --write ."
+  },
+  "dependencies": {
+    "peerjs": "^1.5.5"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.14",
+    "lefthook": "^2.1.14",
+    "rolldown": "^1.0.0-beta.3"
+  },
+  "vendor": {
+    "dest": [
+      "app/src/dependencies/peerjs.js",
+      "public/vendor.js"
+    ],
+    "packages": ["peerjs"],
+    "globals": {
+      "peerjs": "Peer"
+    }
+  }
+}
+```
+
+#### E. Offline PWA Support (`gofront build --pwa`)
+SimpleFPS already contains `app/manifest.json` and 192x192 / 512x512 icons. Running `gofront build --pwa` automatically generates `public/sw.js` with pre-cached game assets and registers the service worker in `index.html`.
+
+---
+
 ## Phased Implementation Plan
 
 ```mermaid
@@ -285,84 +360,94 @@ gantt
     axisFormat %d
 
     section Phase 1: Foundation
-    engine/physics Math (vec3, mat4, quat) :p1, 0, 3
-    Build Tooling & Scaffolding            :p2, 1, 3
+    GoFront 1.3.2 Toolchain & Scaffolding   :p0, 0, 2
+    engine/physics Math (vec3, mat4, quat) :p1, after p0, 3
 
     section Phase 2: Core Physics & State
     engine/physics (octree, fpscontroller) :p3, after p1, 4
-    game/state & engine/systems            :p4, after p2, 3
+    game/state & engine/systems            :p4, after p0, 3
 
     section Phase 3: UI & HUD
     game/menus.templ & loading.templ       :p5, after p4, 3
     game/hud.go Direct DOM Updating        :p6, after p5, 2
 
     section Phase 4: Rendering
-    engine/rendering/webgl                 :p7, after p3, 5
-    engine/rendering/webgpu                :p8, after p7, 5
+    engine/rendering Pipeline & Shaders    :p7a, after p3, 3
+    engine/rendering/webgl & webgpu        :p7b, after p7a, 4
 
     section Phase 5: Scene & Gameplay
-    engine/scene & animation               :p9, after p7, 4
+    engine/scene & animation               :p9, after p7b, 4
     game/ weapons, arena, player           :p10, after p9, 4
 
     section Phase 6: Networking & Polish
-    game/multiplayer (PeerJS)              :p11, after p10, 3
+    game/multiplayer (PeerJS Vendor Bundle):p11, after p10, 3
     Zero-Allocation Profiling & E2E        :p12, after p11, 3
 ```
 
-### Phase 1: Foundation & Math (`app/src/engine/physics/`)
-1. Configure project with `gofront dev` and `gofront build`.
-2. Implement `vec3.go`, `mat4.go`, `quat.go` in `engine/physics/`.
-3. Add unit tests verifying parity against `gl-matrix` output.
+### Phase 1: Foundation, Math & Toolchain Configuration (`app/src/engine/physics/`)
+1. Configure `package.json` with GoFront 1.3.2 scripts (`gofront dev`, `gofront build`, `gofront test`, `gofront check`).
+2. Remove legacy `microtastic` and `gl-matrix` dependencies.
+3. Configure `vendor` bundling for `peerjs`.
+4. Implement `vec3.go`, `mat4.go`, `quat.go` in `package physics`.
+5. Add unit tests (`vec3_test.go`, `mat4_test.go`) verified via `gofront test app/src/engine/physics`.
 
 ### Phase 2: Core Physics & Systems (`app/src/engine/physics/`, `engine/systems/`)
-1. Port `boundingbox.go`, `ray.go`, `trimesh.go`, `octree.go`, `dynamicbody.go`.
+1. Port `boundingbox.go`, `ray.go`, `trimesh.go`, `octree.go`, `dynamicbody.go` into `package physics`.
 2. Port `fpscontroller.go` (fixed 120 Hz timestep, Quake-style step-climbing, wall sliding).
-3. Port `camera.go`, `input.go`, `settings.go`, `binaryreader.go`, `sound.go`.
+3. Port `camera.go`, `input.go`, `settings.go`, `binaryreader.go`, `sound.go` into `package systems`.
 
 ### Phase 3: UI Overhaul & Eliminating `Reactive.js` (`app/src/game/`)
-1. Implement `game/state.go` state machine.
+1. Implement `game/state.go` state machine in `package game`.
 2. Build `game/menus.templ`, `game/loading.templ`, and `engine/systems/console.templ`.
 3. Build zero-allocation cached DOM HUD in `game/hud.go`.
-4. Remove `reactive.js` from `dependencies/` and `package.json`.
+4. Remove `reactive.js` from `dependencies/` and delete obsolete reactive assetCopy.
 
-### Phase 4: Rendering Backends (`app/src/engine/rendering/`)
-1. Port `shaders.go`, `shapes.go`, `mesh.go`, `material.go`, `texture.go`.
-2. Port `engine/rendering/webgl/` (`glsl.go`, `webglbackend.go`).
-3. Port `engine/rendering/webgpu/` (`wgsl.go`, `webgpubackend.go`).
-4. Port `renderpasses.go` and `renderer.go`.
+### Phase 4: Rendering Pipeline & Backends (`app/src/engine/rendering/`)
+1. Port `shaders.go`, `shapes.go`, `mesh.go`, `material.go`, `texture.go`, `renderpasses.go`, `renderer.go` into `package rendering`.
+2. Define `RenderBackend` interface in `renderbackend.go`.
+3. Port `engine/rendering/webgl/` (`glsl.go`, `webglbackend.go`) into `package webgl` implementing `RenderBackend`.
+4. Port `engine/rendering/webgpu/` (`wgsl.go`, `webgpubackend.go`) into `package webgpu` implementing `RenderBackend`.
+5. Wire backend selection in `engine/engine.go` (composition root).
 
 ### Phase 5: Scene Graph & Entities (`app/src/engine/scene/`, `engine/animation/`)
-1. Port `entity.go`, `scene.go`, `lightgrid.go`, and light entities.
+1. Port `entity.go`, `scene.go`, `lightgrid.go`, and light entities into `package scene`.
 2. Port `meshentity.go`, `skinnedmeshentity.go`, `particleemitter.go`.
-3. Port `skeleton.go`, `animation.go`, `animationplayer.go`.
+3. Port `skeleton.go`, `animation.go`, `animationplayer.go` into `package animation`.
 
 ### Phase 6: Gameplay Mechanics (`app/src/game/`)
-1. Port `weapons.go` (weapons definition, firing, switching).
-2. Port `projectiles.go`, `pickups.go`, `arena.go`, `player.go`, `update.go`.
+1. Port `weapons.go` (weapon definitions, firing, switching).
+2. Port `projectiles.go`, `pickups.go`, `arena.go`, `player.go`, `update.go` into `package game`.
 
 ### Phase 7: P2P Multiplayer (`app/src/game/multiplayer.go`)
-1. Set up `dependencies/peerjs.d.ts`.
-2. Port `netvalidation.go`, `multiplayer.go`, `remoteplayer.go` with snapshot interpolation.
+1. Configure `app/src/dependencies/peerjs.d.ts` and vendor bundle via `gofront prep`.
+2. Port `netvalidation.go`, `multiplayer.go`, `remoteplayer.go` using typed import `js:../dependencies/peerjs.d.ts`.
 
 ### Phase 8: Verification & Optimization
-1. Run Playwright E2E game verification suite (menu boot, player movement, shooting, collision).
-2. Assert heap memory delta via `v8.getHeapSpaceStatistics()` during active combat loop equals **0 bytes**.
+1. Run `gofront test` across all package suites.
+2. Run Playwright E2E game verification suite (menu boot, player movement, shooting, collision).
+3. Assert heap memory delta via `v8.getHeapSpaceStatistics()` during active combat loop equals **0 bytes**.
 
 ---
 
 ## Test Plan
 
 ### Unit Tests (`gofront test`)
-* `engine/physics`: Vector/matrix math accuracy, normalization, quaternion slerp, inverse transforms.
-* `engine/physics`: Octree raycast hit positions, AABB box intersection, sliding plane calculations.
-* `game/state`: State machine transitions, listener invocation, menu routing.
+* **Project Root Auto-Detection (v1.3.2):** Running `gofront test` from project root automatically detects `app/src`.
+* **Package Suites:**
+  * `gofront test app/src/engine/physics`: Vector/matrix math accuracy, normalization, quaternion slerp, octree raycast hits, sliding plane calculations.
+  * `gofront test app/src/game`: State machine transitions, listener invocation, menu routing.
+* **CLI Testing Flags:**
+  * `-v`: Verbose output with per-test subtest timing.
+  * `-run <regex>`: Filter tests by pattern.
+  * `--dom`: Run tests inside simulated JSDOM environment for `.templ` and UI components.
 
 ### E2E Integration Tests (Playwright)
-* Launch game in headless Chromium.
+* Launch game in headless Chromium via `npm run test:e2e`.
 * Test menu navigation -> play transition -> HUD visibility.
 * Simulate keyboard/mouse movement, shooting weapons, pickup collection.
 
 ### Zero-Allocation Benchmark
-* Run 100,000 frame ticks in Node.js headless benchmark.
-* Assert total allocated heap delta during active game loop is **0 bytes**.
+* Run 100,000 frame ticks in Node.js headless benchmark (mirroring `test/e2e/perf/zero-alloc.js`).
+* Assert total allocated heap delta during active game loop is **0 bytes** (V8 new_space delta < 64KB).
+
 
