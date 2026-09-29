@@ -27,7 +27,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.14",
-    "gofront": "^1.3.5",
+    "gofront": "^1.3.6",
     "lefthook": "^2.1.14",
     "rolldown": "^1.2.7"
   },
