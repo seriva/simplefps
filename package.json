@@ -14,27 +14,31 @@
     "url": "https://github.com/seriva/SimpleFPS.git"
   },
   "scripts": {
-    "prepare": "lefthook install && microtastic prep",
-    "dependencies": "microtastic prep",
-    "dev": "microtastic dev",
-    "prod": "npm run check && microtastic prod",
-    "format": "biome format --write .",
-    "check": "biome check ."
+    "prepare": "lefthook install && gofront prep",
+    "prep": "gofront prep",
+    "dev": "gofront dev",
+    "build": "gofront build --pwa",
+    "check": "biome check . && gofront check app/src/engine/physics",
+    "test": "gofront test app/src/engine/physics",
+    "format": "biome format --write ."
   },
   "dependencies": {
-    "gl-matrix": "^3.4.4",
     "peerjs": "^1.5.5"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.14",
+    "gofront": "^1.3.3",
     "lefthook": "^2.1.14",
-    "microtastic": "^0.0.72",
-    "pretty-json-stringify": "^0.0.2"
+    "rolldown": "^1.2.7"
   },
-  "assetCopy": [
-    {
-      "source": "node_modules/microtastic/reactive.js",
-      "dest": "app/src/dependencies/reactive.js"
+  "vendor": {
+    "dest": [
+      "app/src/dependencies/peerjs.js",
+      "public/vendor.js"
+    ],
+    "packages": ["peerjs"],
+    "globals": {
+      "peerjs": "Peer"
     }
-  ]
+  }
 }

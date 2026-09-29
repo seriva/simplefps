@@ -1,7 +1,7 @@
 # GoFront Engine & Architecture Rewrite — Design Plan
 
 **Version:** v2.1.0  
-**Target Toolchain:** GoFront v1.3.2  
+**Target Toolchain:** GoFront v1.3.3  
 **Status:** Ready for Implementation  
 
 ---
