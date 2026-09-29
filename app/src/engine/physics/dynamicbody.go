@@ -9,7 +9,7 @@ type RaycastStaticFunc func(fromX, fromY, fromZ, toX, toY, toZ float32, options 
 
 var (
 	// GlobalRaycastStatic is set by Scene or Engine to provide world geometry queries.
-	GlobalRaycastStatic RaycastStaticFunc
+	GlobalRaycastStatic func(fromX, fromY, fromZ, toX, toY, toZ float32, options *RayOptions, out *RaycastResult) *RaycastResult
 
 	_dbRaycastResult   RaycastResult
 	_dbBothSidesOption = RayOptions{SkipBackfaces: false, CollisionFilterMask: 1, Mode: RayModeClosest}
