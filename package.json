@@ -18,8 +18,8 @@
     "prep": "gofront prep",
     "dev": "gofront dev",
     "build": "gofront build --pwa",
-    "check": "biome check . && gofront check app/src/engine/physics",
-    "test": "gofront test app/src/engine/physics",
+    "check": "biome check . && gofront check app/src/engine/physics && gofront check app/src/engine/systems",
+    "test": "gofront test app/src/engine/physics && gofront test app/src/engine/systems",
     "format": "biome format --write ."
   },
   "dependencies": {
