@@ -66,3 +66,4 @@ func TestQuatNormalize(t *testing.T) {
 		t.Errorf("Quat normalize length is %f, expected 1.0", lenVal)
 	}
 }
+
