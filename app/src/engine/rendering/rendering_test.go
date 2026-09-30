@@ -79,6 +79,25 @@ func TestShapesInitialization(t *testing.T) {
 	if GlobalShapes.SkyBox.TriangleCount != 12 {
 		t.Errorf("Expected SkyBox to have 12 triangles, got %d", GlobalShapes.SkyBox.TriangleCount)
 	}
+	// Cone: 32-segment base fan (31 tris) + 32 side tris
+	if GlobalShapes.SpotlightVolume == nil || GlobalShapes.SpotlightVolume.TriangleCount != 63 {
+		t.Errorf("Expected SpotlightVolume with 63 triangles, got %+v", GlobalShapes.SpotlightVolume)
+	}
+	if len(GlobalShapes.SpotlightVolume.Vertices) != 33*3 {
+		t.Errorf("Expected 33 cone vertices, got %d", len(GlobalShapes.SpotlightVolume.Vertices)/3)
+	}
+	// Sphere: 2 caps × 8 + 8 bands × 16
+	if GlobalShapes.PointLightVolume == nil || GlobalShapes.PointLightVolume.TriangleCount != 144 {
+		t.Errorf("Expected PointLightVolume with 144 triangles, got %+v", GlobalShapes.PointLightVolume)
+	}
+	if len(GlobalShapes.PointLightVolume.Vertices) != 74*3 {
+		t.Errorf("Expected 74 sphere vertices, got %d", len(GlobalShapes.PointLightVolume.Vertices)/3)
+	}
+	// First ring vertex matches the hand-authored JS mesh (0.309, 0.9511, 0).
+	v := GlobalShapes.PointLightVolume.Vertices
+	if v[3] < 0.3085 || v[3] > 0.3095 || v[4] < 0.951 || v[4] > 0.9512 {
+		t.Errorf("Unexpected first ring vertex %v %v %v", v[3], v[4], v[5])
+	}
 }
 
 func TestRenderStats(t *testing.T) {

@@ -90,6 +90,29 @@ func (sm *SkinnedMesh) Bind(useSkinned bool) {
 	}
 }
 
+// RenderSingle binds the skinned (or base) VAO, draws all index groups, and unbinds.
+func (sm *SkinnedMesh) RenderSingle(applyMaterial bool, mode string, renderMode string, shader *Shader, useSkinned bool) {
+	sm.Bind(useSkinned)
+	sm.BaseMesh.RenderIndices(applyMaterial, mode, renderMode, shader)
+	sm.BaseMesh.Unbind()
+}
+
+// RenderWireframe draws the debug line buffers; useSkinned selects the skinned VAO so
+// the wireframe follows the animated pose.
+func (sm *SkinnedMesh) RenderWireframe(useSkinned bool) {
+	if !useSkinned || sm.SkinnedVAO == nil {
+		sm.BaseMesh.RenderWireframe()
+		return
+	}
+	if ActiveBackend == nil {
+		return
+	}
+	sm.BaseMesh.EnsureWireframeBuffers()
+	sm.Bind(true)
+	sm.BaseMesh.DrawWireframeBuffers()
+	sm.BaseMesh.Unbind()
+}
+
 // Dispose releases GPU resources allocated for skinning and geometry.
 func (sm *SkinnedMesh) Dispose() {
 	if ActiveBackend != nil && sm.SkinnedVAO != nil {

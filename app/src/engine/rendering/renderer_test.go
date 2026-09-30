@@ -427,9 +427,6 @@ func TestLightSorterAndLightingData(t *testing.T) {
 	s.Add(0, 10, 0, 0, 1, cam) // score 0.01
 	s.Add(1, 1, 0, 0, 1, cam)  // score 1
 	s.Add(2, 2, 0, 0, 8, cam)  // score 2
-	if s.Add(3, 1, 1, 1, 1, cam) {
-		t.Error("LightSorter must reject lights beyond capacity")
-	}
 	s.Sort()
 	if s.Count != 3 || s.Entries[0].Index != 2 || s.Entries[1].Index != 1 || s.Entries[2].Index != 0 {
 		t.Errorf("unexpected sort order: %v", s.Entries)
@@ -438,6 +435,12 @@ func TestLightSorterAndLightingData(t *testing.T) {
 	s.Add(5, 1, 1, 1, 1, cam)
 	if s.Count != 1 || len(s.Entries) != 3 {
 		t.Errorf("LightSorter must reuse its buffer across frames, count=%d len=%d", s.Count, len(s.Entries))
+	}
+	s.Add(6, 2, 0, 0, 1, cam)
+	s.Add(7, 3, 0, 0, 1, cam)
+	s.Add(8, 4, 0, 0, 1, cam) // exceeds capacity 3
+	if s.Count != 4 || len(s.Entries) < 4 || s.Entries[3].Index != 8 {
+		t.Errorf("LightSorter must grow beyond capacity, count=%d len=%d", s.Count, len(s.Entries))
 	}
 
 	ld := NewLightingData()

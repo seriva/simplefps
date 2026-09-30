@@ -235,7 +235,16 @@ func (m *Mesh) RenderWireframe() {
 		return
 	}
 	m.Bind()
+	m.EnsureWireframeBuffers()
+	m.DrawWireframeBuffers()
+	m.Unbind()
+}
 
+// EnsureWireframeBuffers lazily builds the line index buffers from the triangle groups.
+func (m *Mesh) EnsureWireframeBuffers() {
+	if ActiveBackend == nil {
+		return
+	}
 	if len(m.WireframeBuffers) == 0 {
 		m.WireframeBuffers = make([]WireframeBuffer, 0, len(m.Indices))
 		for i := 0; i < len(m.Indices); i++ {
@@ -259,12 +268,17 @@ func (m *Mesh) RenderWireframe() {
 			})
 		}
 	}
+}
 
+// DrawWireframeBuffers issues the line draws for the cached wireframe buffers
+// using whatever vertex state is currently bound.
+func (m *Mesh) DrawWireframeBuffers() {
+	if ActiveBackend == nil {
+		return
+	}
 	for i := 0; i < len(m.WireframeBuffers); i++ {
 		ActiveBackend.DrawIndexed(m.WireframeBuffers[i].Buffer, m.WireframeBuffers[i].Count, 0, "lines")
 	}
-
-	m.Unbind()
 }
 
 // Dispose frees all vertex buffers and index states allocated on the GPU.

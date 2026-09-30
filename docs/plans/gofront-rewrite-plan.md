@@ -2,7 +2,7 @@
 
 **Version:** v2.1.0  
 **Target Toolchain:** GoFront v1.3.7  
-**Status:** In Progress — Phase 1, 2 & 3 complete on branch `gofront`  
+**Status:** In Progress — Phase 1–5 complete on branch `gofront`  
 
 ---
 
@@ -30,8 +30,11 @@ ships two compiler fixes surfaced by this port:
   a reload; `.templ` files contain markup only.
 - `app/src/engine/rendering/` (+ `webgl/`, `webgpu/`) and `app/src/engine/engine.go` are ported:
   backend interface, resources, shaders, buffer allocation, full pass orchestration
-  (`Renderer.Render`), and backend selection with WebGPU → WebGL2 fallback. No scene exists yet,
-  so frames render against an empty `SceneSource`.
+  (`Renderer.Render`), and backend selection with WebGPU → WebGL2 fallback.
+- `app/src/engine/animation/` (skeleton, clips, player) and `app/src/engine/scene/` (entities,
+  scene container, light grid, all `SceneSource` passes) are ported with unit tests against a
+  recording mock backend. Nothing constructs a `Scene` yet — `engine.ActiveScene` is still nil
+  until the game package (Phase 6) wires it up.
 - There is no `app/src/main.go` yet, and legacy `.js` modules remain side-by-side for next phases.
 
 ---
@@ -457,10 +460,14 @@ gantt
 8. `rendering` has a recording `MockBackend` (`mockbackend_test.go`) used to assert the exact stage order for WebGL and WebGPU, buffer-format resolution, Kawase odd-iteration copy-back, FrameData/Material UBO byte layouts, light sorting, and a heap-growth guard proving `Render` allocates nothing per frame.
 9. Check and test suites pass across all packages (`npm run check && npm test && npm run test:dom`).
 
-### Phase 5: Scene Graph & Entities (`app/src/engine/scene/`, `engine/animation/`)
-1. Port `entity.go`, `scene.go`, `lightgrid.go`, and light entities into `package scene`.
-2. Port `meshentity.go`, `skinnedmeshentity.go`, `particleemitter.go`.
-3. Port `skeleton.go`, `animation.go`, `animationplayer.go` into `package animation`.
+### Phase 5: Scene Graph & Entities (`app/src/engine/scene/`, `engine/animation/`) — Done
+
+1. `package animation` (`skeleton.go`, `animation.go`, `animationplayer.go`): joint hierarchy with inverse bind matrices, `Pose` (flat position/rotation arrays), `GetWorldMatrices`/`ComputeSkinningMatrices` writing into pre-allocated `[]physics.Mat4`, binary clip parsing (`ParseBinaryAnimation`) with per-frame bounds, frame interpolation, and an `AnimationPlayer` (play/pause/stop/seek/loop/speed) that returns a reused `*Pose`.
+2. `package scene` entities (`entity.go`, `meshentity.go`, `skinnedmeshentity.go`, `lightentities.go`, `skyboxentity.go`, `animatedbillboardentity.go`, `particleemitterentity.go`): an `Entity` interface plus a shared `EntityBase` struct. GoFront has no promoted fields, so entities use explicit composition (`e.Base`, `GetBase()`) instead of JS class inheritance. Entities never import `scene` internals — the scene passes probe colour, render mode and shader into `Render`, and sets `SkyboxEntity.CameraPosition` / `AnimatedBillboardEntity.CameraView` before drawing. Spot light `Angle` stays in degrees (cutoff = cos). Particle emitters render with `RenderBackend.DrawInstanced` and per-instance vertex attributes (`VertexAttribute.Divisor`), both added to the backend interface and both backends in this phase.
+3. `Scene` (`scene.go`): fixed-capacity `entityList`s per type and a visible list per type (rebuilt with frustum culling in `UpdateVisibility`), swap-remove with deferred disposal, static geometry merging into one `physics.Trimesh` (world-space verts, double-sided flags for translucent/double-sided/alpha materials), and `Raycast`/`RaycastStatic`/`RaycastDynamic`. `NewScene` installs `physics.GlobalRaycastStatic` (as a closure — GoFront method values are not bound). `LightGrid` (`lightgrid.go`) does trilinear ambient lookup from a byte volume with the JS axis mapping (engine +Y → grid Z).
+4. `Scene` implements `rendering.SceneSource` in `renderpasses.go`: world/FPS geometry (with `uProbeColor` probe sampling cached per frame), shadows (screen-size sorted, 16 static raycasts per frame budget, skinned re-sampling every 3 frames or on movement), lighting (sorted point/spot volumes, directional screen quad), transparent (back-to-front by clip w, `LightingData` UBO), billboards/particles, and debug (bounding boxes coloured per type, wireframes, light volumes, skeletons). `RegisterDebugCommands()` exposes `tbv`/`twf`/`tlv`/`tsk`.
+5. Zero per-frame allocation: pre-sized score/sort lists, scratch matrices/vectors as package vars, single-value type assertions (emitted as `instanceof`), no `append`/tuple returns in passes. `scene_test.go` includes a heap-growth guard that runs 50 full frames and asserts buffer lengths are unchanged, alongside tests for entity lifecycle, culling, static raycasts, light grid sampling, and every render pass's shader/uniform/draw sequence.
+6. Two GoFront fixes surfaced by this phase: generic instantiation parsed as index expressions (typechecker), and `[]pkg.Type{...}` composite literals as call arguments (parser).
 
 ### Phase 6: Gameplay Mechanics (`app/src/game/`)
 1. Port `weapons.go` (weapon definitions, firing, switching).

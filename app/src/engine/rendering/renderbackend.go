@@ -38,6 +38,8 @@ type VertexAttribute struct {
 	Stride     int
 	Offset     int
 	Normalized bool
+	// Divisor > 0 marks a per-instance attribute (advances once per instance).
+	Divisor int
 }
 
 // VertexStateDescriptor defines vertex attribute configurations and optional index buffer.
@@ -122,6 +124,8 @@ type RenderBackend interface {
 
 	// Drawing
 	DrawIndexed(indexBuffer any, indexCount int, indexOffset int, mode string)
+	// DrawInstanced draws indexCount indices instanceCount times as triangles.
+	DrawInstanced(indexBuffer any, indexCount int, instanceCount int)
 
 	// Uniforms
 	SetUniform(name string, typeName string, value any)

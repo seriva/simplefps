@@ -984,22 +984,34 @@ func (b *WebGPUBackend) CreateVertexState(desc *rendering.VertexStateDescriptor)
 		attr := desc.Attributes[i]
 		buffers = append(buffers, attr.Buffer)
 		format := "float32x3"
-		if attr.Size == 2 {
+		stride := attr.Size * 4
+		if attr.Type == "ubyte" && attr.AsInteger {
+			if attr.Size == 2 {
+				format = "uint8x2"
+			} else {
+				format = "uint8x4"
+			}
+			stride = attr.Size
+		} else if attr.Size == 2 {
 			format = "float32x2"
 		} else if attr.Size == 4 {
-			if attr.AsInteger {
-				format = "uint8x4"
-			} else {
-				format = "float32x4"
-			}
+			format = "float32x4"
+		}
+		if attr.Stride > 0 {
+			stride = attr.Stride
+		}
+		stepMode := "vertex"
+		if attr.Divisor > 0 {
+			stepMode = "instance"
 		}
 
 		layout = append(layout, map[string]any{
-			"arrayStride": attr.Size * 4,
+			"arrayStride": stride,
+			"stepMode":    stepMode,
 			"attributes": []any{
 				map[string]any{
 					"shaderLocation": attr.Slot,
-					"offset":         0,
+					"offset":         attr.Offset,
 					"format":         format,
 				},
 			},
@@ -1523,6 +1535,17 @@ func (b *WebGPUBackend) getPipelineLayout(shaderName string) any {
 }
 
 func (b *WebGPUBackend) DrawIndexed(indexBuffer any, indexCount int, indexOffset int, mode string) {
+	b.drawIndexedInternal(indexBuffer, indexCount, indexOffset, mode, 1)
+}
+
+func (b *WebGPUBackend) DrawInstanced(indexBuffer any, indexCount int, instanceCount int) {
+	if instanceCount <= 0 {
+		return
+	}
+	b.drawIndexedInternal(indexBuffer, indexCount, 0, "triangles", instanceCount)
+}
+
+func (b *WebGPUBackend) drawIndexedInternal(indexBuffer any, indexCount int, indexOffset int, mode string, instanceCount int) {
 	if b.Device == nil || b.CurrentVertexState == nil || b.CurrentShader == nil {
 		return
 	}
@@ -1924,7 +1947,7 @@ func (b *WebGPUBackend) DrawIndexed(indexBuffer any, indexCount int, indexOffset
 	}
 
 	if pass.drawIndexed != nil {
-		pass.drawIndexed(indexCount, 1, indexOffset, 0, 0)
+		pass.drawIndexed(indexCount, instanceCount, indexOffset, 0, 0)
 	}
 }
 

@@ -467,10 +467,19 @@ func (s *LightSorter) Begin() {
 }
 
 // Add records a light's world position and intensity relative to the camera.
-// Returns false when the sorter is full.
-func (s *LightSorter) Add(index int, x, y, z, intensity float32, cam *physics.Vec3) bool {
+// The buffer doubles when full so no visible light is ever dropped.
+func (s *LightSorter) Add(index int, x, y, z, intensity float32, cam *physics.Vec3) {
 	if s.Count >= len(s.Entries) {
-		return false
+		newCap := len(s.Entries) * 2
+		if newCap < 8 {
+			newCap = 8
+		}
+		grown := make([]LightScore, newCap)
+		for i := 0; i < s.Count; i++ {
+			grown[i].Index = s.Entries[i].Index
+			grown[i].Score = s.Entries[i].Score
+		}
+		s.Entries = grown
 	}
 	dx := x - cam.X
 	dy := y - cam.Y
@@ -482,7 +491,6 @@ func (s *LightSorter) Add(index int, x, y, z, intensity float32, cam *physics.Ve
 	s.Entries[s.Count].Index = index
 	s.Entries[s.Count].Score = intensity / d2
 	s.Count++
-	return true
 }
 
 // Sort orders Entries[0:Count] by descending score (in-place insertion sort;

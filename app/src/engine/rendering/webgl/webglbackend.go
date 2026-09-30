@@ -908,6 +908,9 @@ func (b *WebGLBackend) CreateVertexState(desc *rendering.VertexStateDescriptor) 
 			gl.vertexAttribPointer(attr.Slot, attr.Size, attrType, attr.Normalized, attr.Stride, attr.Offset)
 		}
 		gl.enableVertexAttribArray(attr.Slot)
+		if attr.Divisor > 0 {
+			gl.vertexAttribDivisor(attr.Slot, attr.Divisor)
+		}
 	}
 
 	var boundIndexBuffer any
@@ -1139,6 +1142,33 @@ func (b *WebGLBackend) DrawIndexed(indexBuffer any, indexCount int, indexOffset 
 	}
 
 	gl.drawElements(drawMode, indexCount, indexType, indexOffset*bytesPerElement)
+}
+
+func (b *WebGLBackend) DrawInstanced(indexBuffer any, indexCount int, instanceCount int) {
+	if b.GL == nil || indexBuffer == nil || instanceCount <= 0 {
+		return
+	}
+	gl := b.GL
+	indexType := gl.UNSIGNED_INT
+	buf := indexBuffer
+	if h, ok := indexBuffer.(*WebGLBufferHandle); ok {
+		buf = h.GLBuffer
+		if h.BytesPerElement == 2 {
+			indexType = gl.UNSIGNED_SHORT
+		}
+	} else if indexBuffer._glBuffer != nil {
+		buf = indexBuffer._glBuffer
+		if indexBuffer.bytesPerElement == 2 {
+			indexType = gl.UNSIGNED_SHORT
+		}
+	}
+
+	if b.CurrentIndexBuffer != buf {
+		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, buf)
+		b.CurrentIndexBuffer = buf
+	}
+
+	gl.drawElementsInstanced(gl.TRIANGLES, indexCount, indexType, 0, instanceCount)
 }
 
 func (b *WebGLBackend) SetUniform(name string, typeName string, value any) {

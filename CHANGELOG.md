@@ -11,6 +11,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 - GoFront `systems` package: `Camera`, `BinaryReader`, `EngineSettings`, `Input`, `Sound` ported from the legacy modules, with headless and `--dom` tests.
 - `physics/integration_test.go`: subdivided-octree ray/AABB queries, trimesh raycasts, controller landing / wall blocking / step climbing, and a heap-growth guard for the physics step.
 - Per-package `interop.d.ts` declarations for browser globals GoFront does not predeclare (`Reflect`, `globalThis`, `process`).
+- GoFront `animation` package: `Skeleton`/`Joint`/`Pose`, skinning matrix computation, binary `Animation` clips with per-frame bounds, and `AnimationPlayer`, with unit tests.
+- GoFront `scene` package: `Entity` interface + `EntityBase`, mesh / skinned mesh / directional, point and spot light / skybox / animated billboard / particle emitter entities, `Scene` (typed entity lists, batch removal, frustum visibility, static geometry merging, raycasts, `physics.GlobalRaycastStatic` provider), `LightGrid`, and every `rendering.SceneSource` pass (geometry, shadows with raycast budget, lighting, transparent, billboards, debug) plus `RegisterDebugCommands` (`tbv`/`twf`/`tlv`/`tsk`). `scene_test.go` covers lifecycle, culling, raycasts, light grid sampling, pass ordering/uniforms and a per-frame heap-growth guard against a recording mock backend.
+- `RenderBackend.DrawInstanced` and `VertexAttribute.Divisor` (WebGL2 and WebGPU) for instanced particle rendering; `GlobalShapes.PointLightVolume`/`SpotlightVolume` light volume meshes; `Mesh.EnsureWireframeBuffers`/`DrawWireframeBuffers` and `SkinnedMesh.RenderSingle`/`RenderWireframe(useSkinned)`.
 
 ### Changed
 - Octree `AABBQuery`/`RayQuery`/`RayQueryLocal` write into a caller-provided `[]int` and return a count instead of allocating result slices; traversal uses a fixed-size package-level stack.

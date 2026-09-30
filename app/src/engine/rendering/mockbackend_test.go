@@ -229,6 +229,9 @@ func (m *MockBackend) Clear(options *ClearOptions)       { m.record("Clear", opt
 func (m *MockBackend) DrawIndexed(indexBuffer any, indexCount int, indexOffset int, mode string) {
 	m.record("DrawIndexed", indexCount)
 }
+func (m *MockBackend) DrawInstanced(indexBuffer any, indexCount int, instanceCount int) {
+	m.record("DrawInstanced", instanceCount)
+}
 func (m *MockBackend) SetUniform(name string, typeName string, value any) {
 	m.record("SetUniform", name)
 }
