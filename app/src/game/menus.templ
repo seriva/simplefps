@@ -1,0 +1,342 @@
+package game
+
+import (
+	"fmt"
+)
+
+templ MenuStyles() {
+	@templ.Raw(`<style>
+#ui {
+	background-color: transparent;
+	font-family: "Inter", "Segoe UI", system-ui, sans-serif;
+}
+#dialog-overlay {
+	position: fixed;
+	top: 0; left: 0;
+	width: 100vw; height: 100vh;
+	background: rgba(0, 0, 0, 0.5);
+	z-index: 2100;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	opacity: 0;
+	visibility: hidden;
+	transition: opacity 0.2s ease, visibility 0s 0.2s;
+}
+#dialog-overlay.visible {
+	opacity: 1;
+	visibility: visible;
+	transition: opacity 0.2s ease, visibility 0s;
+}
+.dialog-box {
+	background: rgba(30, 30, 30, 0.8);
+	backdrop-filter: blur(12px);
+	border: 1px solid rgba(255, 255, 255, 0.15);
+	border-radius: 12px;
+	box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+	width: 400px;
+	max-width: 90vw;
+	padding: 20px;
+	transform: scale(0.95);
+	transition: transform 0.2s ease;
+}
+#dialog-overlay.visible .dialog-box { transform: scale(1); }
+.dialog-header { font-size: 16px; color: #fff; margin-bottom: 10px; font-weight: 500; }
+.dialog-body { font-size: 14px; color: #ccc; margin-bottom: 20px; line-height: 1.5; }
+.dialog-footer { display: flex; justify-content: flex-end; gap: 10px; }
+.dialog-btn {
+	padding: 7px 14px;
+	border-radius: 4px;
+	cursor: pointer;
+	font-size: 13px;
+	border: 1px solid transparent;
+	transition: background 0.15s;
+}
+.dialog-btn.confirm { background: #4a90e2; color: white; }
+.dialog-btn.confirm:hover { background: #357abd; }
+.dialog-btn.cancel { background: transparent; border: 1px solid #444; color: #aaa; }
+.dialog-btn.cancel:hover { border-color: #666; color: #fff; }
+
+#menu-backdrop {
+	position: fixed;
+	top: 0; left: 0;
+	width: 100vw; height: 100vh;
+	background-size: cover;
+	background-position: center;
+	filter: blur(8px) brightness(0.7);
+	transform: scale(1.05);
+	z-index: 1;
+	opacity: 0;
+	visibility: hidden;
+	transition: opacity 200ms ease-out, visibility 0s 200ms;
+	pointer-events: none;
+}
+#menu-backdrop.visible {
+	opacity: 1;
+	visibility: visible;
+	transition: opacity 200ms ease-out, visibility 0s 0s;
+}
+
+#menu-base {
+	position: absolute;
+	top: 50%; left: 50%;
+	transform: translate(-50%, -50%);
+	background: rgba(30, 30, 30, 0.8);
+	border: 1px solid rgba(255, 255, 255, 0.15);
+	border-radius: 12px;
+	backdrop-filter: blur(12px);
+	box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+	color: #fff;
+	padding: 16px;
+	font-size: 14px;
+	width: 400px;
+	max-width: 75vw;
+	user-select: none;
+	z-index: 1000;
+	opacity: 0;
+	transition: opacity 200ms ease-out, transform 200ms ease-out;
+	display: none;
+}
+#menu-base.visible {
+	display: block;
+	opacity: 1;
+	transform: translate(-50%, -50%) scale(1);
+}
+
+#menu-header {
+	font-size: 18px;
+	font-weight: 400;
+	text-align: center;
+	margin-bottom: 12px;
+	letter-spacing: 2px;
+	text-transform: uppercase;
+	color: rgba(255, 255, 255, 0.4);
+}
+
+.menu-tabs { display: flex; gap: 2px; padding: 0; }
+.menu-tab {
+	flex: 1;
+	text-align: center;
+	padding: 8px 12px;
+	background: rgba(50, 50, 50, 0.6);
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	border-bottom: none;
+	border-radius: 6px 6px 0 0;
+	cursor: pointer;
+	color: rgba(255, 255, 255, 0.5);
+	font-size: 11px;
+	text-transform: uppercase;
+	letter-spacing: 1px;
+	transition: background 0.15s ease, color 0.15s ease;
+	position: relative;
+	top: 1px;
+}
+.menu-tab:hover { background: rgba(40, 40, 40, 0.7); color: rgba(255, 255, 255, 0.7); }
+.menu-tab.active {
+	background: rgba(0, 0, 0, 0.2);
+	border-color: rgba(255, 255, 255, 0.1);
+	border-bottom-color: transparent;
+	color: rgba(255, 255, 255, 0.9);
+	z-index: 2;
+}
+
+.menu-tab-content { display: none; }
+.menu-tab-content.active { display: block; margin-bottom: 8px; }
+
+.menu-tab-content .menu-panel {
+	border-radius: 0 0 6px 6px;
+	margin-top: 0;
+	border-top: 1px solid rgba(255, 255, 255, 0.1);
+	height: min(300px, 55vh);
+	overflow-y: auto;
+}
+
+.menu-button {
+	text-align: center;
+	background: rgba(50, 50, 50, 0.6);
+	border: 1px solid rgba(255, 255, 255, 0.2);
+	border-radius: 4px;
+	margin-bottom: 6px;
+	padding: 10px;
+	cursor: pointer;
+	transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+	text-transform: uppercase;
+	font-size: 13px;
+	letter-spacing: 1px;
+	color: rgba(255, 255, 255, 0.9);
+}
+.menu-button:hover {
+	background: rgba(60, 60, 60, 0.8);
+	border-color: rgba(255, 255, 255, 0.4);
+	transform: translateY(-1px);
+}
+.menu-button:active { transform: translateY(1px); background: rgba(255, 255, 255, 0.1); }
+.menu-button:last-child { margin-bottom: 0; }
+
+.menu-row {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 6px;
+	padding: 6px 4px;
+	color: rgba(255, 255, 255, 0.8);
+	font-size: 13px;
+}
+.menu-row:last-child { margin-bottom: 0; }
+
+.menu-panel {
+	background: rgba(0, 0, 0, 0.1);
+	border-radius: 6px;
+	padding: 10px;
+	margin-bottom: 8px;
+	border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.menu-panel:last-child { margin-bottom: 0; }
+
+.menu-slider { width: 50%; accent-color: #fff; cursor: pointer; }
+.menu-select {
+	width: 50%;
+	background: rgba(0, 0, 0, 0.3);
+	border: 1px solid rgba(255, 255, 255, 0.2);
+	border-radius: 4px;
+	color: #fff;
+	padding: 4px 8px;
+	font-family: inherit;
+	font-size: 13px;
+	cursor: pointer;
+	outline: none;
+}
+.menu-select:hover { background: rgba(40, 40, 40, 0.5); border-color: rgba(255, 255, 255, 0.4); }
+.menu-select option { background: #222; color: #fff; }
+.menu-checkbox {
+	width: 18px; height: 18px;
+	min-width: 18px; max-width: 18px;
+	min-height: 18px; max-height: 18px;
+	box-sizing: border-box;
+	cursor: pointer;
+	accent-color: #fff;
+}
+</style>`)
+}
+
+templ MenuView() {
+	<div id="ui">
+		<div id="menu-backdrop"></div>
+		<div id="menu-base">
+			<div id="menu-header"></div>
+			<div id="menu-controls"></div>
+		</div>
+		<div id="dialog-overlay">
+			<div class="dialog-box">
+				<div class="dialog-header" id="dialog-header"></div>
+				<div class="dialog-body" id="dialog-body"></div>
+				<div class="dialog-footer" id="dialog-footer">
+					<button class="dialog-btn cancel" id="dialog-btn-no">{ Translate("NO") }</button>
+					<button class="dialog-btn confirm" id="dialog-btn-yes">{ Translate("YES") }</button>
+				</div>
+			</div>
+		</div>
+	</div>
+}
+
+templ MainMenuContent(hasStarted bool) {
+	<div class="menu-button" data-action="start">
+		if hasStarted {
+			{ Translate("CONTINUE_GAME") }
+		} else {
+			{ Translate("START_GAME") }
+		}
+	</div>
+	<div class="menu-button" data-action="settings">{ Translate("SETTINGS") }</div>
+	<div class="menu-button" data-action="credits">{ Translate("CREDITS") }</div>
+	<div class="menu-button" data-action="version-check">{ Translate("VERSION_CHECK") }</div>
+}
+
+templ CreditsMenuContent() {
+	<div class="menu-panel">
+		<div class="menu-row">
+			<span>{ Translate("CREDITS_MAP") }</span>
+			<a href="https://lvlworld.com/review/id:2562" target="_blank" rel="noopener noreferrer" style="color:#6cb4ff;text-decoration:none">Focal Point by Lunaran</a>
+		</div>
+		<div class="menu-row">
+			<span>{ Translate("CREDITS_PICKUPS") }</span>
+			<a href="https://www.cgtrader.com/3d-models/science/other/sci-fi-powerups-set" target="_blank" rel="noopener noreferrer" style="color:#6cb4ff;text-decoration:none">Sci-Fi Powerups Set</a>
+		</div>
+		<div class="menu-row">
+			<span>{ Translate("CREDITS_WEAPONS") }</span>
+			<a href="https://www.cgtrader.com/3d-model-packs/sci-fi-weapon-pack" target="_blank" rel="noopener noreferrer" style="color:#6cb4ff;text-decoration:none">Sci-Fi Weapon Pack</a>
+		</div>
+		<div class="menu-row">
+			<span>{ Translate("CREDITS_ROBOT") }</span>
+			<a href="https://sketchfab.com/3d-models/vintage-robot-animated-1ccfb0b99b8a492d9f1144bb96d4a679" target="_blank" rel="noopener noreferrer" style="color:#6cb4ff;text-decoration:none">Vintage Robot Animated</a>
+		</div>
+	</div>
+	<div class="menu-button" data-action="back">{ Translate("BACK") }</div>
+}
+
+templ UpdateMenuContent() {
+	<div class="menu-button" data-action="update-yes">{ Translate("YES") }</div>
+	<div class="menu-button" data-action="update-no">{ Translate("NO") }</div>
+}
+
+templ SettingsMenuContent(activeTab int, useWebGPU bool, hasWebGPU bool, renderScale float32, gamma float32, doFSR bool, fsrSharpness float32, proceduralDetail bool, doDirt bool, showStats bool, lookSensitivity float32) {
+	<div class="menu-tabs">
+		<div class={ tabClass(activeTab == 0) } data-tab="0">{ Translate("GRAPHICS") }</div>
+		<div class={ tabClass(activeTab == 1) } data-tab="1">{ Translate("INPUT") }</div>
+	</div>
+
+	if activeTab == 0 {
+		<div class="menu-tab-content active">
+			<div class="menu-panel">
+				<div class="menu-row">
+					<span>{ Translate("RENDERER") }</span>
+					<select class="menu-select" id="setting-renderer">
+						if hasWebGPU {
+							<option value="true" selected?={ useWebGPU }>{ Translate("WEBGPU") } (Experimental)</option>
+						}
+						<option value="false" selected?={ !useWebGPU }>{ Translate("WEBGL") }</option>
+					</select>
+				</div>
+				<div class="menu-row">
+					<span>{ Translate("RENDER_SCALE") }</span>
+					<input type="range" class="menu-slider" id="setting-render-scale" min="0.5" max="1.0" step="0.05" value={ fmt.Sprintf("%0.2f", renderScale) }/>
+				</div>
+				<div class="menu-row">
+					<span>{ Translate("GAMMA") }</span>
+					<input type="range" class="menu-slider" id="setting-gamma" min="0.5" max="2.5" step="0.1" value={ fmt.Sprintf("%0.1f", gamma) }/>
+				</div>
+				<div class="menu-row">
+					<span>{ Translate("FSR") }</span>
+					<input type="checkbox" class="menu-checkbox" id="setting-fsr" checked?={ doFSR }/>
+				</div>
+				<div class="menu-row">
+					<span>{ Translate("FSR_SHARPNESS") }</span>
+					<input type="range" class="menu-slider" id="setting-fsr-sharpness" min="0.0" max="1.0" step="0.05" value={ fmt.Sprintf("%0.2f", fsrSharpness) }/>
+				</div>
+				<div class="menu-row">
+					<span>{ Translate("PROCEDURAL_DETAIL") }</span>
+					<input type="checkbox" class="menu-checkbox" id="setting-procedural-detail" checked?={ proceduralDetail }/>
+				</div>
+				<div class="menu-row">
+					<span>{ Translate("DIRT") }</span>
+					<input type="checkbox" class="menu-checkbox" id="setting-dirt" checked?={ doDirt }/>
+				</div>
+				<div class="menu-row">
+					<span>{ Translate("SHOW_STATS") }</span>
+					<input type="checkbox" class="menu-checkbox" id="setting-show-stats" checked?={ showStats }/>
+				</div>
+			</div>
+		</div>
+	} else {
+		<div class="menu-tab-content active">
+			<div class="menu-panel">
+				<div class="menu-row">
+					<span>{ Translate("LOOK_SENSITIVITY") }</span>
+					<input type="range" class="menu-slider" id="setting-look-sensitivity" min="0.1" max="1.0" step="0.05" value={ fmt.Sprintf("%0.2f", lookSensitivity) }/>
+				</div>
+			</div>
+		</div>
+	}
+
+	<div class="menu-button" data-action="back">{ Translate("BACK") }</div>
+}

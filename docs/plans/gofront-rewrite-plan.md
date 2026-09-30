@@ -2,7 +2,7 @@
 
 **Version:** v2.1.0  
 **Target Toolchain:** GoFront v1.3.7  
-**Status:** In Progress — Phase 1 & 2 complete on branch `gofront`  
+**Status:** In Progress — Phase 1, 2 & 3 complete on branch `gofront`  
 
 ---
 
@@ -20,13 +20,12 @@ ships two compiler fixes surfaced by this port:
 
 ## Branch State (`gofront`)
 
-- `app/src/engine/physics/` and `app/src/engine/systems/` are Go packages with
+- `app/src/engine/physics/`, `app/src/engine/systems/`, and `app/src/game/` are Go packages with
   unit and integration tests (`gofront test`, headless and `--dom`).
-- There is no `app/src/main.go` yet, and the legacy `.js` modules still exist
-  side-by-side; the legacy application is **not buildable** on this branch
-  (Microtastic and `gl-matrix` were removed from `package.json`).
-- The mobile virtual joystick (`input.js`) is deferred to Phase 3 where it becomes
-  a `.templ` component.
+- Mobile virtual controls are ported to `.templ` (`app/src/engine/systems/virtual_input.templ`).
+- In-game HUD, state machine, menus, loading screens, and debug console are ported to GoFront
+  (`.go` and `.templ` components) eliminating all `Reactive.js` dependencies.
+- There is no `app/src/main.go` yet, and legacy `.js` modules remain side-by-side for next phases.
 
 ---
 
@@ -422,11 +421,13 @@ gantt
 3. Port `camera.go`, `input.go`, `settings.go`, `binaryreader.go`, `sound.go` into `package systems`.
 4. `integration_test.go` covers subdivided-octree queries, trimesh raycasts, controller landing / wall blocking / step climbing, and a heap-growth guard for the physics step.
 
-### Phase 3: UI Overhaul & Eliminating `Reactive.js` (`app/src/game/`)
-1. Implement `game/state.go` state machine in `package game`.
-2. Build `game/menus.templ`, `game/loading.templ`, and `engine/systems/console.templ`.
-3. Build zero-allocation cached DOM HUD in `game/hud.go`.
-4. Remove `reactive.js` from `dependencies/` and delete obsolete reactive assetCopy.
+### Phase 3: UI Overhaul & Eliminating `Reactive.js` (`app/src/game/`, `engine/systems/`) — Done
+1. Implemented `game/state.go` state machine in `package game` replacing Reactive.js signals.
+2. Built `game/menus.templ`, `game/loading.templ`, `engine/systems/console.templ`, and `engine/systems/virtual_input.templ`.
+3. Built zero-allocation cached DOM HUD in `game/hud.go` and `game/hud.templ`.
+4. Ported `game/ui.go` and `game/translations.go`, wiring up menus, settings tabs, and modal dialogs.
+5. Ported `engine/systems/console.go`, providing debug command execution and history.
+6. Removed `reactive.js` dependencies and verified complete test coverage across `app/src/game` and `app/src/engine/systems` in both headless and DOM environments.
 
 ### Phase 4: Rendering Pipeline & Backends (`app/src/engine/rendering/`)
 1. Port `shaders.go`, `shapes.go`, `mesh.go`, `material.go`, `texture.go`, `renderpasses.go`, `renderer.go` into `package rendering`.

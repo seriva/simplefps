@@ -27,6 +27,8 @@ type InputManager struct {
 	onKeyDown   any
 	onKeyUp     any
 	onMouseMove any
+
+	virtualInputEl any
 }
 
 // NewInputManager initializes a new InputManager.
@@ -179,6 +181,32 @@ func (im *InputManager) ToggleCursor(show bool) {
 		}
 	} else if document.body != nil && document.body.requestPointerLock != nil {
 		document.body.requestPointerLock()
+	}
+}
+
+// MountVirtualInput mounts mobile touch controls if running on mobile.
+func (im *InputManager) MountVirtualInput() {
+	if document == nil || !ActiveSettings.IsMobile {
+		return
+	}
+	gom.MountTo("body", VirtualInputView())
+	im.virtualInputEl = document.getElementById("input")
+}
+
+// ToggleVirtualInput toggles the visibility of the mobile virtual joystick controls.
+func (im *InputManager) ToggleVirtualInput(show bool) {
+	if !ActiveSettings.IsMobile {
+		return
+	}
+	if im.virtualInputEl == nil {
+		im.MountVirtualInput()
+	}
+	if im.virtualInputEl != nil {
+		if show {
+			im.virtualInputEl.classList.add("visible")
+		} else {
+			im.virtualInputEl.classList.remove("visible")
+		}
 	}
 }
 

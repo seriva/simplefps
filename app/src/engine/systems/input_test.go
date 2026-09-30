@@ -120,3 +120,81 @@ func TestInputAttachDispatch(t *testing.T) {
 		t.Error("Events after Dispose must be ignored")
 	}
 }
+
+func TestClearInputEvents(t *testing.T) {
+	im := NewInputManager()
+	counter := 0
+	im.AddKeyDownEvent(65, func() { counter++ })
+
+	im.HandleKeyDown(65)
+	if counter != 1 {
+		t.Errorf("Expected counter = 1, got %d", counter)
+	}
+
+	// Verify key is pressed before clear
+	if !im.IsDown(65) {
+		t.Error("Key 65 should be down before ClearInputEvents")
+	}
+
+	im.ClearInputEvents()
+
+	// After clear, pressed state should be reset
+	if im.IsDown(65) {
+		t.Error("ClearInputEvents should reset pressed state")
+	}
+
+	// HandleKeyDown should no longer trigger the old callback
+	im.HandleKeyUp(65) // ensure clean state
+	im.HandleKeyDown(65)
+	if counter != 1 {
+		t.Errorf("Expected counter = 1 after ClearInputEvents, got %d", counter)
+	}
+}
+
+func TestResetDelta(t *testing.T) {
+	im := NewInputManager()
+	im.AddCursorMovement(10.0, 5.0)
+	im.ResetDelta()
+	im.Update()
+
+	m := im.CursorMovement()
+	if m.X != 0 || m.Y != 0 {
+		t.Errorf("Expected (0, 0) after ResetDelta, got (%f, %f)", m.X, m.Y)
+	}
+}
+
+func TestVirtualInputToggle(t *testing.T) {
+	im := NewInputManager()
+
+	// Desktop mode (default): virtual input should be a no-op.
+	im.ToggleVirtualInput(true)
+	if im.virtualInputEl != nil {
+		t.Error("ToggleVirtualInput should be a no-op on desktop")
+	}
+
+	// Simulate mobile mode.
+	origMobile := ActiveSettings.IsMobile
+	ActiveSettings.IsMobile = true
+	defer func() { ActiveSettings.IsMobile = origMobile }()
+
+	// Without DOM, MountVirtualInput should be safe.
+	im.MountVirtualInput()
+	if document == nil && im.virtualInputEl != nil {
+		t.Error("MountVirtualInput should not set virtualInputEl without DOM")
+	}
+
+	if document != nil {
+		im.MountVirtualInput()
+		if im.virtualInputEl == nil {
+			t.Error("Expected virtualInputEl after MountVirtualInput in DOM mode")
+		}
+
+		im.ToggleVirtualInput(true)
+		classes := im.virtualInputEl.className.(string)
+		if classes == "" {
+			t.Error("Expected visible class on virtual input element")
+		}
+
+		im.ToggleVirtualInput(false)
+	}
+}
