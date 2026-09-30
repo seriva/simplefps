@@ -4,6 +4,27 @@ All notable changes to this project will be documented here.
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
+## [Unreleased]
+
+### Added
+- GoFront `physics` package: `Vec3`/`Mat4`/`Quat` math, `BoundingBox`, `Ray`, `Trimesh`, `OctreeNode`, `DynamicBody`, `FPSController` with unit tests.
+- GoFront `systems` package: `Camera`, `BinaryReader`, `EngineSettings`, `Input`, `Sound` ported from the legacy modules, with headless and `--dom` tests.
+- `physics/integration_test.go`: subdivided-octree ray/AABB queries, trimesh raycasts, controller landing / wall blocking / step climbing, and a heap-growth guard for the physics step.
+- Per-package `interop.d.ts` declarations for browser globals GoFront does not predeclare (`Reflect`, `globalThis`, `process`).
+
+### Changed
+- Octree `AABBQuery`/`RayQuery`/`RayQueryLocal` write into a caller-provided `[]int` and return a count instead of allocating result slices; traversal uses a fixed-size package-level stack.
+- Frustum planes are a flat `[]float32` of 24 (`physics.ActiveFrustumPlanes`, `Camera.FrustumPlanes`) shared between camera and visibility checks.
+- Pointer-receiver math methods return the receiver (`return out`) now that GoFront types receivers as `*T`; removed `Mat4Create` and `Float32FromBits` helpers.
+- `BinaryReader` reads through a `DataView` and returns independent typed-array copies for `ReadFloat32Array`/`ReadUint32Array`/`ReadUint8Array`.
+- `EngineSettings` persists through `localStorage` via `ApplyJSON`/`ToJSON`; `DetectMobile` guards `window`, `userAgentData` and `matchMedia`.
+- Build tooling switched from Microtastic to GoFront (`dev`, `build --pwa`, `prep`, `check`, `test`, `test:dom`); `gl-matrix` removed; `gofront` at 1.3.7 (required for pointer receivers typed `*T` and zero-initialised omitted fields of imported struct types); `jsdom` added as a devDependency for `--dom` tests.
+- Documentation (`AGENTS.md`, `README.md`, `docs/roadmap.md`, rewrite plan) updated for the GoFront branch state and toolchain requirement.
+
+### Fixed
+- Octree `Insert` rolls back a fresh subdivision when no child accepts the element, and `RemoveEmptyNodes` compacts children in place.
+- `Camera` position/rotation fields are explicitly initialised in `NewCamera`.
+
 ## [2026-09]
 
 ### Changed

@@ -43,10 +43,10 @@ func TestOctreeInsertAndQuery(t *testing.T) {
 	}
 
 	queryBox := NewBoundingBoxFromValues(NewVec3(0, 0, 0), NewVec3(30, 30, 30))
-	var results []int
-	results = oct.AABBQuery(queryBox, results)
+	results := make([]int, 16)
+	n := oct.AABBQuery(queryBox, results)
 
-	if len(results) != 1 || results[0] != 42 {
-		t.Errorf("AABBQuery failed: expected [42], got %v", results)
+	if n != 1 || results[0] != 42 {
+		t.Errorf("AABBQuery failed: expected [42], got %v", results[:n])
 	}
 }

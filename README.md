@@ -19,24 +19,26 @@ Simple first person arena shooter game written in ES6 and WebGL with a PWA distr
 
 ## Tech Stack
 
-**Core**: ES6 Modules, simple-reactive (UI), gl-matrix (3D math)
+**Core**: [GoFront](https://github.com/seriva/gofront) (Go syntax compiled to JavaScript), in-engine 3D math (`physics.Vec3`/`Mat4`/`Quat`)
 **Rendering**: WebGPU (experimental) & WebGL 2.0 backends
-**Build**: Microtastic (dev server, production builds, hot-reload)
+**Build**: GoFront (dev server, production builds, vendor bundling, tests)
 **Tools**: Biome (linting/formatting), Lefthook (git hooks), Devcontainer (development environment)
+
+> The GoFront rewrite is in progress on the `gofront` branch: the `physics` and `systems` engine packages are ported and tested; rendering, scene, UI and game code are still the legacy ES6 modules. See [docs/plans/gofront-rewrite-plan.md](docs/plans/gofront-rewrite-plan.md).
 
 ## Project Structure
 
 ```
 app/
 ├── src/
-│   ├── dependencies/     # Bundled 3rd party libs (reactive, etc)
+│   ├── dependencies/     # Bundled 3rd party libs (peerjs)
 │   ├── engine/           # Core engine modules
 │   │   ├── engine.js     # Single entry point (barrel export + game loop)
 │   │   ├── animation/    # Skeletal animation system
-│   │   ├── physics/      # FPS controller, collision, octree
+│   │   ├── physics/      # package physics: vec3/mat4/quat, FPS controller, collision, octree
 │   │   ├── rendering/    # WebGPU/WebGL backends, shaders
 │   │   ├── scene/        # Entity system & scene graph
-│   │   └── systems/      # Camera, settings, input, audio, resources, console
+│   │   └── systems/      # package systems: camera, settings, input, audio, binary reader
 │   ├── game/             # Game-specific modules
 │   │   ├── weapons.js    # Weapon system
 │   │   ├── controls.js   # Game controls
@@ -67,10 +69,12 @@ npm run prepare          # Setup Lefthook git hooks + bundle dependencies
 
 ### Commands
 ```bash
-npm run dev          # Start development server (Microtastic)
-npm run prod         # Production build (runs linting → build)
+npm run dev          # Start development server (GoFront)
+npm run build        # Production PWA build
 npm run format       # Format code with Biome
-npm run check        # Lint code with Biome
-npm run dependencies # Bundle dependencies via Microtastic
+npm run check        # Biome lint + GoFront type-check of physics and systems
+npm test             # Run GoFront unit/integration tests for physics and systems
+npm run test:dom     # Same, with a JSDOM window/document for the systems package
+npm run prep         # Bundle vendor dependencies (peerjs)
 ```
 

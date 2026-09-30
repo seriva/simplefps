@@ -17,11 +17,6 @@ func NewMat4() Mat4 {
 	return m
 }
 
-// Mat4Create creates a new identity Mat4 (alias for NewMat4).
-func Mat4Create() Mat4 {
-	return NewMat4()
-}
-
 // Mat4Clone creates a clone of source matrix a.
 func Mat4Clone(a Mat4) Mat4 {
 	out := make([]float32, 16)

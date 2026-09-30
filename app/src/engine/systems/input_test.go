@@ -2,6 +2,8 @@ package systems
 
 import (
 	"testing"
+
+	"js:./interop.d.ts"
 )
 
 func TestInputKeys(t *testing.T) {
@@ -79,5 +81,42 @@ func TestInputCursorDeltaClamping(t *testing.T) {
 	m := im.CursorMovement()
 	if m.X != 300.0 || m.Y != -300.0 {
 		t.Errorf("Expected clamped movement (300, -300), got (%f, %f)", m.X, m.Y)
+	}
+}
+
+func TestInputAttachDispatch(t *testing.T) {
+	im := NewInputManager()
+	im.Attach()
+	defer im.Dispose()
+	if window == nil {
+		// Headless: Attach/Dispose/ToggleCursor must be safe no-ops.
+		im.ToggleCursor(false)
+		if im.IsCursorVisible() {
+			t.Error("ToggleCursor(false) should record hidden cursor")
+		}
+		return
+	}
+	// JSDOM (--dom): real events must flow through the registered listeners.
+	down := Reflect.construct(window.KeyboardEvent, []any{"keydown", map[string]any{"keyCode": 87}})
+	window.dispatchEvent(down)
+	if !im.IsDown(87) {
+		t.Error("keydown event should mark key 87 down")
+	}
+	up := Reflect.construct(window.KeyboardEvent, []any{"keyup", map[string]any{"keyCode": 87}})
+	window.dispatchEvent(up)
+	if im.IsDown(87) {
+		t.Error("keyup event should mark key 87 up")
+	}
+	move := Reflect.construct(window.MouseEvent, []any{"mousemove", map[string]any{"movementX": 4, "movementY": -2}})
+	window.dispatchEvent(move)
+	im.Update()
+	m := im.CursorMovement()
+	if m.X != 4 || m.Y != -2 {
+		t.Errorf("Expected movement (4, -2), got (%f, %f)", m.X, m.Y)
+	}
+	im.Dispose()
+	window.dispatchEvent(down)
+	if im.IsDown(87) {
+		t.Error("Events after Dispose must be ignored")
 	}
 }

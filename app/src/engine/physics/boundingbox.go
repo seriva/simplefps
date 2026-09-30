@@ -4,6 +4,10 @@ import (
 	"math"
 )
 
+// FrustumPlaneCount is the number of planes in a view frustum; planes are stored flat as
+// [a, b, c, d] * 6 in a []float32 so producers can alias the buffer without copying.
+const FrustumPlaneCount = 6
+
 var (
 	_bbCornersBuffer             [24]float32
 	_bbTempCorner                Vec3
@@ -12,10 +16,10 @@ var (
 	_bbTempCenter                Vec3
 	_bbTempDimensions            Vec3
 	_bbTempTransformMat          = NewMat4()
-	_bbTransformIntoFrameCorners = [8]Vec3{}
+	_bbTransformIntoFrameCorners = make([]Vec3, 8)
 	_bbP                         Vec3
-	// ActiveFrustumPlanes can be set by the camera system for frustum culling.
-	ActiveFrustumPlanes [6][4]float32
+	// ActiveFrustumPlanes is aliased by the camera system (flat 6x4 plane equations).
+	ActiveFrustumPlanes = make([]float32, FrustumPlaneCount*4)
 )
 
 // BoundingBox represents an Axis-Aligned Bounding Box (AABB).
@@ -84,14 +88,14 @@ func BoundingBoxFromPoints(points []float32) *BoundingBox {
 func (b *BoundingBox) Set(min, max *Vec3) *BoundingBox {
 	b.Min.Copy(min)
 	b.Max.Copy(max)
-	return &b
+	return b
 }
 
 // Copy copies bounds from another BoundingBox into this one.
 func (b *BoundingBox) Copy(src *BoundingBox) *BoundingBox {
 	b.Min.Copy(&src.Min)
 	b.Max.Copy(&src.Max)
-	return &b
+	return b
 }
 
 // Clone creates an exact replica of this BoundingBox.
@@ -107,7 +111,7 @@ func (b *BoundingBox) SetFromPoints(points []Vec3) *BoundingBox {
 	if len(points) == 0 {
 		b.Min.Set(0, 0, 0)
 		b.Max.Set(0, 0, 0)
-		return &b
+		return b
 	}
 
 	minX := points[0].X
@@ -141,7 +145,7 @@ func (b *BoundingBox) SetFromPoints(points []Vec3) *BoundingBox {
 
 	b.Min.Set(minX, minY, minZ)
 	b.Max.Set(maxX, maxY, maxZ)
-	return &b
+	return b
 }
 
 // Overlaps checks if this BoundingBox intersects another.
@@ -197,7 +201,7 @@ func (b *BoundingBox) ToLocalFrame(frame *Transform, target *BoundingBox) *Bound
 	for i := 0; i < 8; i++ {
 		frame.PointToLocal(&_bbTransformIntoFrameCorners[i], &_bbTransformIntoFrameCorners[i])
 	}
-	return target.SetFromPoints(_bbTransformIntoFrameCorners[:])
+	return target.SetFromPoints(_bbTransformIntoFrameCorners)
 }
 
 // ToWorldFrame transforms this bounding box from local frame to world space.
@@ -215,7 +219,7 @@ func (b *BoundingBox) ToWorldFrame(frame *Transform, target *BoundingBox) *Bound
 	for i := 0; i < 8; i++ {
 		frame.PointToWorld(&_bbTransformIntoFrameCorners[i], &_bbTransformIntoFrameCorners[i])
 	}
-	return target.SetFromPoints(_bbTransformIntoFrameCorners[:])
+	return target.SetFromPoints(_bbTransformIntoFrameCorners)
 }
 
 // Center computes the center point of this bounding box.
@@ -323,28 +327,32 @@ func (b *BoundingBox) TransformInto(matrix Mat4, out *BoundingBox) *BoundingBox 
 	return out
 }
 
-// IsVisibleWithPlanes tests whether this AABB is within or intersecting the 6 frustum planes.
-func (b *BoundingBox) IsVisibleWithPlanes(planes [6][4]float32) bool {
-	for i := 0; i < 6; i++ {
-		plane := planes[i]
+// IsVisibleWithPlanes tests whether this AABB is within or intersecting the frustum planes
+// (flat [a, b, c, d] * 6 layout, see FrustumPlaneCount).
+func (b *BoundingBox) IsVisibleWithPlanes(planes []float32) bool {
+	for i := 0; i < FrustumPlaneCount*4; i += 4 {
+		a := planes[i]
+		bb := planes[i+1]
+		c := planes[i+2]
+		d := planes[i+3]
 		var px, py, pz float32
-		if plane[0] > 0 {
+		if a > 0 {
 			px = b.Max.X
 		} else {
 			px = b.Min.X
 		}
-		if plane[1] > 0 {
+		if bb > 0 {
 			py = b.Max.Y
 		} else {
 			py = b.Min.Y
 		}
-		if plane[2] > 0 {
+		if c > 0 {
 			pz = b.Max.Z
 		} else {
 			pz = b.Min.Z
 		}
 
-		if (px*plane[0] + py*plane[1] + pz*plane[2] + plane[3]) < 0 {
+		if (px*a + py*bb + pz*c + d) < 0 {
 			return false
 		}
 	}

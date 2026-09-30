@@ -63,15 +63,15 @@ func TestBoundingBoxTransform(t *testing.T) {
 func TestBoundingBoxFrustumVisibility(t *testing.T) {
 	b := NewBoundingBoxFromValues(NewVec3(-5, -5, -10), NewVec3(5, 5, -5))
 
-	// Simple frustum planes pointing inward towards -Z
+	// Simple frustum planes pointing inward towards -Z, 4 floats per plane.
 	// Plane: nx*x + ny*y + nz*z + d >= 0 is inside
-	planes := [6][4]float32{
-		{1, 0, 0, 100},  // left
-		{-1, 0, 0, 100}, // right
-		{0, 1, 0, 100},  // bottom
-		{0, -1, 0, 100}, // top
-		{0, 0, -1, 0},   // near (z <= 0)
-		{0, 0, 1, 100},  // far (z >= -100)
+	planes := []float32{
+		1, 0, 0, 100, // left
+		-1, 0, 0, 100, // right
+		0, 1, 0, 100, // bottom
+		0, -1, 0, 100, // top
+		0, 0, -1, 0, // near (z <= 0)
+		0, 0, 1, 100, // far (z >= -100)
 	}
 
 	if !b.IsVisibleWithPlanes(planes) {

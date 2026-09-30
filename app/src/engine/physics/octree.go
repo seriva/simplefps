@@ -4,10 +4,14 @@ import (
 	"math"
 )
 
+// MaxOctreeStackDepth bounds the explicit traversal stack; 8 children per level, so a
+// depth-first walk of a tree with MaxDepth 8 never exceeds 8*7+1 live entries.
+const MaxOctreeStackDepth = 128
+
 var (
 	_octTmpAABB    BoundingBox
 	_octInvDir     Vec3
-	_octQueryQueue = make([]*OctreeNode, 0, 64)
+	_octQueryStack = make([]*OctreeNode, MaxOctreeStackDepth)
 	_childOffsets  = [8][3]float32{
 		{0, 0, 0},
 		{1, 0, 0},
@@ -138,7 +142,7 @@ func (node *OctreeNode) Insert(aabb *BoundingBox, elementData int, level int) bo
 			node.Subdivide()
 		}
 
-		for i := 0; i < 8; i++ {
+		for i := 0; i < len(node.Children); i++ {
 			if node.Children[i].Insert(aabb, elementData, level+1) {
 				return true
 			}
@@ -164,15 +168,14 @@ func (node *OctreeNode) Subdivide() {
 
 	root := node.Root
 	if root == nil {
-		root = &node
+		root = node
 	}
 
 	node.Children = make([]*OctreeNode, 8)
 	for i := 0; i < 8; i++ {
-		off := _childOffsets[i]
-		minX := l.X + off[0]*halfDiagX
-		minY := l.Y + off[1]*halfDiagY
-		minZ := l.Z + off[2]*halfDiagZ
+		minX := l.X + _childOffsets[i][0]*halfDiagX
+		minY := l.Y + _childOffsets[i][1]*halfDiagY
+		minZ := l.Z + _childOffsets[i][2]*halfDiagZ
 
 		child := &OctreeNode{
 			Root:     root,
@@ -188,42 +191,49 @@ func (node *OctreeNode) Subdivide() {
 	}
 }
 
-// AABBQuery collects all element data intersecting the given AABB.
-func (node *OctreeNode) AABBQuery(aabb *BoundingBox, result []int) []int {
-	_octQueryQueue = _octQueryQueue[:0]
-	_octQueryQueue = append(_octQueryQueue, node)
+// AABBQuery writes element data intersecting aabb into out and returns the count.
+// Results beyond len(out) are dropped; out must be pre-sized by the caller.
+func (node *OctreeNode) AABBQuery(aabb *BoundingBox, out []int) int {
+	count := 0
+	limit := len(out)
+	top := 0
+	_octQueryStack[top] = node
+	top++
 
-	for len(_octQueryQueue) > 0 {
-		idx := len(_octQueryQueue) - 1
-		curr := _octQueryQueue[idx]
-		_octQueryQueue = _octQueryQueue[:idx]
+	for top > 0 {
+		top--
+		curr := _octQueryStack[top]
 
 		if curr.AABB.Overlaps(aabb) {
-			for _, d := range curr.Data {
-				result = append(result, d)
+			data := curr.Data
+			for i := 0; i < len(data) && count < limit; i++ {
+				out[count] = data[i]
+				count++
 			}
-			for _, c := range curr.Children {
-				if c != nil {
-					_octQueryQueue = append(_octQueryQueue, c)
+			children := curr.Children
+			for i := 0; i < len(children); i++ {
+				if children[i] != nil && top < MaxOctreeStackDepth {
+					_octQueryStack[top] = children[i]
+					top++
 				}
 			}
 		}
 	}
 
-	return result
+	return count
 }
 
-// RayQuery queries elements intersecting ray transformed into tree's local space.
-func (node *OctreeNode) RayQuery(ray *Ray, treeTransform *Transform, result []int) []int {
+// RayQuery writes elements intersecting the ray (transformed into tree-local space) into out.
+func (node *OctreeNode) RayQuery(ray *Ray, treeTransform *Transform, out []int) int {
 	treeTransform.PointToLocal(&ray.From, &_octTmpAABB.Min)
 	treeTransform.VectorToLocal(&ray.Direction, &_octTmpAABB.Max)
 
 	maxDist := ray.From.Distance(&ray.To)
-	return node.RayQueryLocal(&_octTmpAABB.Min, &_octTmpAABB.Max, maxDist, result, nil)
+	return node.RayQueryLocal(&_octTmpAABB.Min, &_octTmpAABB.Max, maxDist, out, nil)
 }
 
-// RayQueryLocal queries elements intersecting ray in local coordinates.
-func (node *OctreeNode) RayQueryLocal(origin, direction *Vec3, maxDist float32, result []int, invDir *Vec3) []int {
+// RayQueryLocal writes elements intersecting the local-space ray into out and returns the count.
+func (node *OctreeNode) RayQueryLocal(origin, direction *Vec3, maxDist float32, out []int, invDir *Vec3) int {
 	inv := invDir
 	if inv == nil {
 		if direction.X != 0 {
@@ -244,38 +254,49 @@ func (node *OctreeNode) RayQueryLocal(origin, direction *Vec3, maxDist float32, 
 		inv = &_octInvDir
 	}
 
-	_octQueryQueue = _octQueryQueue[:0]
-	_octQueryQueue = append(_octQueryQueue, node)
+	count := 0
+	limit := len(out)
+	top := 0
+	_octQueryStack[top] = node
+	top++
 
-	for len(_octQueryQueue) > 0 {
-		idx := len(_octQueryQueue) - 1
-		curr := _octQueryQueue[idx]
-		_octQueryQueue = _octQueryQueue[:idx]
+	for top > 0 {
+		top--
+		curr := _octQueryStack[top]
 
 		if IntersectRayAABB(&curr.AABB, origin, inv, maxDist) {
-			for _, d := range curr.Data {
-				result = append(result, d)
+			data := curr.Data
+			for i := 0; i < len(data) && count < limit; i++ {
+				out[count] = data[i]
+				count++
 			}
-			for _, c := range curr.Children {
-				if c != nil {
-					_octQueryQueue = append(_octQueryQueue, c)
+			children := curr.Children
+			for i := 0; i < len(children); i++ {
+				if children[i] != nil && top < MaxOctreeStackDepth {
+					_octQueryStack[top] = children[i]
+					top++
 				}
 			}
 		}
 	}
 
-	return result
+	return count
 }
 
-// RemoveEmptyNodes removes leaves with no data and no children.
+// RemoveEmptyNodes removes leaves with no data and no children (build-time only).
 func (node *OctreeNode) RemoveEmptyNodes() {
-	for i := len(node.Children) - 1; i >= 0; i-- {
+	kept := 0
+	for i := 0; i < len(node.Children); i++ {
 		child := node.Children[i]
-		if child != nil {
-			child.RemoveEmptyNodes()
-			if len(child.Children) == 0 && len(child.Data) == 0 {
-				node.Children = append(node.Children[:i], node.Children[i+1:]...)
-			}
+		if child == nil {
+			continue
 		}
+		child.RemoveEmptyNodes()
+		if len(child.Children) == 0 && len(child.Data) == 0 {
+			continue
+		}
+		node.Children[kept] = child
+		kept++
 	}
+	node.Children = node.Children[:kept]
 }

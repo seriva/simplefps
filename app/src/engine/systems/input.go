@@ -22,6 +22,11 @@ type InputManager struct {
 	cursorDelta    CursorPos
 	cursorMovement CursorPos
 	visibleCursor  bool
+
+	// Bound DOM listeners, kept so Dispose can remove them.
+	onKeyDown   any
+	onKeyUp     any
+	onMouseMove any
 }
 
 // NewInputManager initializes a new InputManager.
@@ -123,6 +128,58 @@ func (im *InputManager) IsCursorVisible() bool {
 // SetCursorVisible sets the visible state of the cursor.
 func (im *InputManager) SetCursorVisible(visible bool) {
 	im.visibleCursor = visible
+}
+
+// Attach registers window keyboard/mouse listeners. No-op outside a browser or
+// when already attached.
+func (im *InputManager) Attach() {
+	if window == nil || im.onKeyDown != nil {
+		return
+	}
+	im.onKeyDown = func(ev any) {
+		im.HandleKeyDown(ev.keyCode.(int))
+	}
+	im.onKeyUp = func(ev any) {
+		im.HandleKeyUp(ev.keyCode.(int))
+	}
+	im.onMouseMove = func(ev any) {
+		im.AddCursorMovement(ev.movementX.(float32), ev.movementY.(float32))
+	}
+	window.addEventListener("keydown", im.onKeyDown, false)
+	window.addEventListener("keyup", im.onKeyUp, false)
+	window.addEventListener("mousemove", im.onMouseMove, false)
+}
+
+// Dispose removes the listeners registered by Attach.
+func (im *InputManager) Dispose() {
+	if window == nil || im.onKeyDown == nil {
+		return
+	}
+	window.removeEventListener("keydown", im.onKeyDown, false)
+	window.removeEventListener("keyup", im.onKeyUp, false)
+	window.removeEventListener("mousemove", im.onMouseMove, false)
+	im.onKeyDown = nil
+	im.onKeyUp = nil
+	im.onMouseMove = nil
+}
+
+// ToggleCursor shows the OS cursor (releasing pointer lock) or hides it
+// (requesting pointer lock on document.body). No-op on mobile or without a DOM.
+func (im *InputManager) ToggleCursor(show bool) {
+	if ActiveSettings.IsMobile {
+		return
+	}
+	im.visibleCursor = show
+	if document == nil {
+		return
+	}
+	if show {
+		if document.exitPointerLock != nil {
+			document.exitPointerLock()
+		}
+	} else if document.body != nil && document.body.requestPointerLock != nil {
+		document.body.requestPointerLock()
+	}
 }
 
 // GlobalInput is the singleton input manager.

@@ -17,18 +17,13 @@ func NewQuat(x, y, z, w float32) *Quat {
 	return &Quat{X: x, Y: y, Z: z, W: w}
 }
 
-// QuatFromValues initializes a new quaternion.
-func QuatFromValues(x, y, z, w float32) *Quat {
-	return &Quat{X: x, Y: y, Z: z, W: w}
-}
-
 // Set sets quaternion components.
 func (out *Quat) Set(x, y, z, w float32) *Quat {
 	out.X = x
 	out.Y = y
 	out.Z = z
 	out.W = w
-	return &out
+	return out
 }
 
 // Identity sets the quaternion to identity (0, 0, 0, 1).
@@ -37,7 +32,7 @@ func (out *Quat) Identity() *Quat {
 	out.Y = 0
 	out.Z = 0
 	out.W = 1
-	return &out
+	return out
 }
 
 // Copy copies src to out.
@@ -46,7 +41,7 @@ func (out *Quat) Copy(src *Quat) *Quat {
 	out.Y = src.Y
 	out.Z = src.Z
 	out.W = src.W
-	return &out
+	return out
 }
 
 // Clone creates a clone of this quaternion.
@@ -68,7 +63,7 @@ func (out *Quat) Multiply(a, b *Quat) *Quat {
 	out.Y = ay*bw + aw*by + az*bx - ax*bz
 	out.Z = az*bw + aw*bz + ax*by - ay*bx
 	out.W = aw*bw - ax*bx - ay*by - az*bz
-	return &out
+	return out
 }
 
 // Mul is an alias for Multiply.
@@ -110,7 +105,7 @@ func (out *Quat) Normalize(a *Quat) *Quat {
 		out.Z = 0
 		out.W = 1
 	}
-	return &out
+	return out
 }
 
 // Conjugate computes the conjugate of a.
@@ -119,7 +114,7 @@ func (out *Quat) Conjugate(a *Quat) *Quat {
 	out.Y = -a.Y
 	out.Z = -a.Z
 	out.W = a.W
-	return &out
+	return out
 }
 
 // Invert computes the inverse of quaternion a.
@@ -141,7 +136,7 @@ func (out *Quat) Invert(a *Quat) *Quat {
 		out.Z = 0
 		out.W = 0
 	}
-	return &out
+	return out
 }
 
 // FromAxisAngle sets out from a rotation axis and angle in radians.
@@ -152,7 +147,7 @@ func (out *Quat) FromAxisAngle(axis *Vec3, rad float32) *Quat {
 	out.Y = s * axis.Y
 	out.Z = s * axis.Z
 	out.W = float32(math.Cos(float64(halfRad)))
-	return &out
+	return out
 }
 
 // Slerp spherical-linearly interpolates between a and b by t.
@@ -190,7 +185,7 @@ func (out *Quat) Slerp(a, b *Quat, t float32) *Quat {
 	out.Y = scale0*ay + scale1*by
 	out.Z = scale0*az + scale1*bz
 	out.W = scale0*aw + scale1*bw
-	return &out
+	return out
 }
 
 var _rotTmpVec = Vec3{}
@@ -207,20 +202,20 @@ func (out *Quat) RotationTo(a, b *Vec3) *Quat {
 		}
 		_rotTmpVec.Normalize(&_rotTmpVec)
 		out.FromAxisAngle(&_rotTmpVec, float32(math.Pi))
-		return &out
+		return out
 	} else if dot > 0.999999 {
 		out.X = 0
 		out.Y = 0
 		out.Z = 0
 		out.W = 1
-		return &out
+		return out
 	} else {
 		_rotTmpVec.Cross(a, b)
 		out.X = _rotTmpVec.X
 		out.Y = _rotTmpVec.Y
 		out.Z = _rotTmpVec.Z
 		out.W = 1 + dot
-		out.Normalize(&out)
-		return &out
+		out.Normalize(out)
+		return out
 	}
 }

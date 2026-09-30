@@ -8,11 +8,14 @@ const (
 	RayModeClosest = 1
 	RayModeAny     = 2
 	RayModeAll     = 4
+
+	// MaxRayQueryResults caps candidate triangles per raycast; excess candidates are dropped.
+	MaxRayQueryResults = 4096
 )
 
 var (
 	_itNormal      Vec3
-	_itTriangles   = make([]int, 0, 128)
+	_itTriangles   = make([]int, MaxRayQueryResults)
 	_itVector      Vec3
 	_itLocalDir    Vec3
 	_itLocalFrom   Vec3
@@ -79,29 +82,27 @@ type RayOptions struct {
 
 // Ray represents a 3D ray segment with origin and endpoint.
 type Ray struct {
-	From                   Vec3
-	To                     Vec3
-	Direction              Vec3
-	Precision              float32
-	CheckCollisionResponse bool
-	SkipBackfaces          bool
-	CollisionFilterMask    int
-	CollisionFilterGroup   int
-	Mode                   int
-	Result                 RaycastResult
-	HasHit                 bool
-	Callback               func(*RaycastResult)
+	From                 Vec3
+	To                   Vec3
+	Direction            Vec3
+	Precision            float32
+	SkipBackfaces        bool
+	CollisionFilterMask  int
+	CollisionFilterGroup int
+	Mode                 int
+	Result               RaycastResult
+	HasHit               bool
+	Callback             func(*RaycastResult)
 }
 
 // NewRay creates and initializes a Ray between from and to.
 func NewRay(from, to *Vec3) *Ray {
 	r := &Ray{
-		Precision:              0.0001,
-		CheckCollisionResponse: true,
-		SkipBackfaces:          false,
-		CollisionFilterMask:    -1,
-		CollisionFilterGroup:   -1,
-		Mode:                   RayModeAny,
+		Precision:            0.0001,
+		SkipBackfaces:        false,
+		CollisionFilterMask:  -1,
+		CollisionFilterGroup: -1,
+		Mode:                 RayModeAny,
 	}
 	if from != nil {
 		r.From.Copy(from)
@@ -179,10 +180,9 @@ func (ray *Ray) IntersectTrimesh(mesh *Trimesh, worldMatrix Mat4) {
 		return
 	}
 
-	_itTriangles = _itTriangles[:0]
-	_itTriangles = mesh.Tree.RayQueryLocal(&_itLocalFrom, &_itLocalDir, maxDist, _itTriangles, &_itInvDir)
+	count := mesh.Tree.RayQueryLocal(&_itLocalFrom, &_itLocalDir, maxDist, _itTriangles, &_itInvDir)
 
-	for i := 0; i < len(_itTriangles) && !ray.Result.ShouldStop; i++ {
+	for i := 0; i < count && !ray.Result.ShouldStop; i++ {
 		trianglesIndex := _itTriangles[i]
 		mesh.GetNormal(trianglesIndex, &_itNormal)
 
@@ -257,7 +257,6 @@ func (ray *Ray) IntersectTrimesh(mesh *Trimesh, worldMatrix Mat4) {
 			hitDistance,
 		)
 	}
-	_itTriangles = _itTriangles[:0]
 }
 
 // ReportIntersection records an intersection based on ray mode.

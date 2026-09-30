@@ -4,12 +4,11 @@ import (
 	"math"
 )
 
-// RaycastStaticFunc defines the signature for querying static world collision geometry.
+// RaycastStaticFunc queries static world collision geometry; set by Scene or Engine.
 type RaycastStaticFunc func(fromX, fromY, fromZ, toX, toY, toZ float32, options *RayOptions, out *RaycastResult) *RaycastResult
 
 var (
-	// GlobalRaycastStatic is set by Scene or Engine to provide world geometry queries.
-	GlobalRaycastStatic func(fromX, fromY, fromZ, toX, toY, toZ float32, options *RayOptions, out *RaycastResult) *RaycastResult
+	GlobalRaycastStatic RaycastStaticFunc
 
 	_dbRaycastResult   RaycastResult
 	_dbBothSidesOption = RayOptions{SkipBackfaces: false, CollisionFilterMask: 1, Mode: RayModeClosest}

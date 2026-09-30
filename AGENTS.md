@@ -29,24 +29,25 @@
 # Part 2: Project Context
 
 ## Project Identity
-SimpleFPS is an arena-based first-person shooter written in plain ES6 modules with hybrid WebGL 2 / WebGPU rendering, distributed as a PWA for Desktop, Android, and iOS.
+SimpleFPS is an arena-based first-person shooter with hybrid WebGL 2 / WebGPU rendering, distributed as a PWA for Desktop, Android, and iOS. It is being rewritten from plain ES6 modules to [GoFront](https://github.com/seriva/gofront) (Go syntax compiled to JavaScript); see `docs/plans/gofront-rewrite-plan.md` for the phased plan and current branch state.
 
 ## Tech Stack
-- **Language**: ES6 Modules (no TypeScript, no JSDoc)
+- **Language**: GoFront (`.go` packages compiled to ES modules; `.templ` for UI components). Legacy `.js` modules remain until their package is ported.
 - **Rendering**: WebGL 2 + WebGPU (feature-detected at runtime)
-- **Math**: gl-matrix
-- **UI / Reactivity**: reactive.js (`state()` → `init()` → `render()` → `mount()` → `onCleanup()`)
-- **Networking**: PeerJS (WebRTC P2P)
-- **Build**: Microtastic (`npm run dev` / `npm run prod`)
+- **Math**: in-engine `physics.Vec3` / `Mat4` / `Quat` (`app/src/engine/physics/`), no `gl-matrix`
+- **Networking**: PeerJS (WebRTC P2P), bundled via `gofront prep`
+- **Build**: GoFront (`npm run dev` / `npm run build`)
+- **Test**: `gofront test <pkg>` (`npm test`; add `--dom` for a JSDOM `window`/`document`)
 - **Lint / Format**: Biome (`npm run check` / `npm run format`)
-- **Node**: >= 20.0.0, npm >= 9.0.0
+- **Node**: >= 24.0.0, npm >= 11.0.0
 
 ## Architecture
 Game code lives in `app/src/game/`, the engine in `app/src/engine/` (with subdirectories `animation/`, `physics/`, `rendering/`, `scene/`, `systems/`), and bundled third-party libs in `app/src/dependencies/`. `engine.js` is the barrel export and game-loop entry point — all game→engine access goes through it. Asset-conversion scripts live in `scripts/` (BSP, MD5, OBJ converters). Architecture docs live in `docs/` (`rendering.md`, `scene.md`, `networking.md`).
 
 ## Core Rules & Anti-Patterns
 - **Engine facade:** game code (`app/src/game/`) imports only from `../engine/engine.js` — never from engine subdirectories. Engine-internal modules import each other directly and never from `engine.js`.
-- **Zero per-frame allocations:** pre-allocate all scratch matrices/vectors/quaternions at module level (e.g. `const _tmpMat4 = mat4.create()`) and reuse via in-place gl-matrix ops. No object creation in hot paths.
+- **Zero per-frame allocations:** pre-allocate all scratch vectors/matrices/quaternions at package level (e.g. `var _tmpMat4 Mat4`) and reuse via in-place methods. Queries write into caller-provided slices and return a count. In GoFront, `[N]T` literals, `append`, reslicing, comma-ok type assertions, and assigning struct-typed fields all allocate — keep them out of hot paths.
+- **Browser interop:** globals GoFront does not predeclare (`Reflect`, `globalThis`, `process`, `AudioContext`, …) are declared in a per-package `interop.d.ts` imported via `import "js:./interop.d.ts"`. Guard `window == nil` so packages stay testable headless.
 - **Keep docs current:** changes to rendering, scene, or networking subsystems → update the corresponding `docs/*.md`. New player-visible features → update `README.md`. File-tree changes → update docs/agent-map.md.
 - **Use the in-game console:** log via `Console.log` / `.warn` / `.error` (imported through the engine facade), not `console.*`.
 - **No default exports:** always use named exports.

@@ -6,28 +6,30 @@ import (
 	"../physics"
 )
 
-// CameraFrustumPlanes holds the 6 normalized bounding planes of the camera view frustum.
-type CameraFrustumPlanes struct {
-	Near   [4]float32
-	Far    [4]float32
-	Left   [4]float32
-	Right  [4]float32
-	Top    [4]float32
-	Bottom [4]float32
-}
+// Frustum plane offsets into Camera.FrustumPlanes (each plane is 4 floats: a, b, c, d).
+const (
+	FrustumLeft   = 0
+	FrustumRight  = 4
+	FrustumBottom = 8
+	FrustumTop    = 12
+	FrustumNear   = 16
+	FrustumFar    = 20
+)
 
-func normalizePlane(plane [4]float32) [4]float32 {
-	lenSq := plane[0]*plane[0] + plane[1]*plane[1] + plane[2]*plane[2]
+// setPlane writes a normalized plane (a, b, c, d) into planes at offset off.
+func setPlane(planes []float32, off int, a, b, c, d float32) {
+	lenSq := a*a + b*b + c*c
 	if lenSq > 0 {
 		invLen := float32(1.0 / math.Sqrt(float64(lenSq)))
-		return [4]float32{
-			plane[0] * invLen,
-			plane[1] * invLen,
-			plane[2] * invLen,
-			plane[3] * invLen,
-		}
+		a *= invLen
+		b *= invLen
+		c *= invLen
+		d *= invLen
 	}
-	return plane
+	planes[off] = a
+	planes[off+1] = b
+	planes[off+2] = c
+	planes[off+3] = d
 }
 
 // Camera manages viewing transformations, projection matrices, and frustum culling.
@@ -44,10 +46,11 @@ type Camera struct {
 	Fov       float32
 	NearPlane float32
 	FarPlane  float32
+	Aspect    float32
 	IsWebGPU  bool
 
-	FrustumPlanes CameraFrustumPlanes
-	FrustumArray  [6][4]float32 // [0]=Left, [1]=Right, [2]=Bottom, [3]=Top, [4]=Near, [5]=Far
+	// Six normalized planes, 4 floats each; see Frustum* offsets. Aliases physics.ActiveFrustumPlanes.
+	FrustumPlanes []float32
 
 	// Pre-allocated scratch to avoid heap allocations in frame loops
 	target physics.Vec3
@@ -67,31 +70,27 @@ func NewCamera() *Camera {
 		Fov:                   45.0,
 		NearPlane:             0.1,
 		FarPlane:              8192.0,
-		IsWebGPU:              false,
-		FrustumPlanes:         CameraFrustumPlanes{},
-		FrustumArray: [6][4]float32{
-			{0, 0, 0, 0},
-			{0, 0, 0, 0},
-			{0, 0, 0, 0},
-			{0, 0, 0, 0},
-			{0, 0, 0, 0},
-			{0, 0, 0, 0},
-		},
+		FrustumPlanes:         physics.ActiveFrustumPlanes,
 		target:                *physics.NewVec3(0, 0, 0),
 	}
 	c.UpdateDirection()
 	return c
 }
 
-// SetProjection sets camera field of view and clipping planes.
+// SetProjection sets camera field of view and clipping planes, rebuilding the
+// projection matrix if an aspect ratio is already known.
 func (c *Camera) SetProjection(fov, nearPlane, farPlane float32) {
 	c.Fov = fov
 	c.NearPlane = nearPlane
 	c.FarPlane = farPlane
+	if c.Aspect > 0 {
+		c.UpdateProjection(c.Aspect)
+	}
 }
 
 // UpdateProjection computes the perspective projection matrix for the given aspect ratio.
 func (c *Camera) UpdateProjection(aspect float32) {
+	c.Aspect = aspect
 	fovyRad := c.Fov * float32(math.Pi/180.0)
 	if c.IsWebGPU {
 		physics.Mat4PerspectiveZO(c.Projection, fovyRad, aspect, c.NearPlane, c.FarPlane)
@@ -170,79 +169,26 @@ func (c *Camera) Update() {
 	physics.Mat4Multiply(c.ViewProjection, c.Projection, c.View)
 
 	m := c.ViewProjection
+	p := c.FrustumPlanes
 
-	// Left plane: row3 + row0
-	c.FrustumPlanes.Left = normalizePlane([4]float32{
-		m[3] + m[0],
-		m[7] + m[4],
-		m[11] + m[8],
-		m[15] + m[12],
-	})
-
-	// Right plane: row3 - row0
-	c.FrustumPlanes.Right = normalizePlane([4]float32{
-		m[3] - m[0],
-		m[7] - m[4],
-		m[11] - m[8],
-		m[15] - m[12],
-	})
-
-	// Bottom plane: row3 + row1
-	c.FrustumPlanes.Bottom = normalizePlane([4]float32{
-		m[3] + m[1],
-		m[7] + m[5],
-		m[11] + m[9],
-		m[15] + m[13],
-	})
-
-	// Top plane: row3 - row1
-	c.FrustumPlanes.Top = normalizePlane([4]float32{
-		m[3] - m[1],
-		m[7] - m[5],
-		m[11] - m[9],
-		m[15] - m[13],
-	})
+	setPlane(p, FrustumLeft, m[3]+m[0], m[7]+m[4], m[11]+m[8], m[15]+m[12])
+	setPlane(p, FrustumRight, m[3]-m[0], m[7]-m[4], m[11]-m[8], m[15]-m[12])
+	setPlane(p, FrustumBottom, m[3]+m[1], m[7]+m[5], m[11]+m[9], m[15]+m[13])
+	setPlane(p, FrustumTop, m[3]-m[1], m[7]-m[5], m[11]-m[9], m[15]-m[13])
 
 	// Near plane: WebGPU (0 <= z <= w) uses row2; WebGL (-w <= z <= w) uses row3 + row2
 	if c.IsWebGPU {
-		c.FrustumPlanes.Near = normalizePlane([4]float32{
-			m[2],
-			m[6],
-			m[10],
-			m[14],
-		})
+		setPlane(p, FrustumNear, m[2], m[6], m[10], m[14])
 	} else {
-		c.FrustumPlanes.Near = normalizePlane([4]float32{
-			m[3] + m[2],
-			m[7] + m[6],
-			m[11] + m[10],
-			m[15] + m[14],
-		})
+		setPlane(p, FrustumNear, m[3]+m[2], m[7]+m[6], m[11]+m[10], m[15]+m[14])
 	}
 
-	// Far plane: row3 - row2
-	c.FrustumPlanes.Far = normalizePlane([4]float32{
-		m[3] - m[2],
-		m[7] - m[6],
-		m[11] - m[10],
-		m[15] - m[14],
-	})
-
-	// Copy into sequential array for frustum culling queries
-	c.FrustumArray[0] = c.FrustumPlanes.Left
-	c.FrustumArray[1] = c.FrustumPlanes.Right
-	c.FrustumArray[2] = c.FrustumPlanes.Bottom
-	c.FrustumArray[3] = c.FrustumPlanes.Top
-	c.FrustumArray[4] = c.FrustumPlanes.Near
-	c.FrustumArray[5] = c.FrustumPlanes.Far
-
-	// Sync with global physics frustum planes for scene-wide culling
-	physics.ActiveFrustumPlanes = c.FrustumArray
+	setPlane(p, FrustumFar, m[3]-m[2], m[7]-m[6], m[11]-m[10], m[15]-m[14])
 
 	physics.Mat4Invert(c.InverseViewProjection, c.ViewProjection)
 }
 
 // IsBoxInFrustum tests if an AABB intersects or lies within the camera frustum.
 func (c *Camera) IsBoxInFrustum(box *physics.BoundingBox) bool {
-	return box.IsVisibleWithPlanes(c.FrustumArray)
+	return box.IsVisibleWithPlanes(c.FrustumPlanes)
 }

@@ -16,17 +16,12 @@ func NewVec3(x, y, z float32) *Vec3 {
 	return &Vec3{X: x, Y: y, Z: z}
 }
 
-// Vec3FromValues initializes a new Vec3 with given values.
-func Vec3FromValues(x, y, z float32) *Vec3 {
-	return &Vec3{X: x, Y: y, Z: z}
-}
-
 // Set sets the components of this Vec3.
 func (out *Vec3) Set(x, y, z float32) *Vec3 {
 	out.X = x
 	out.Y = y
 	out.Z = z
-	return &out
+	return out
 }
 
 // Copy copies the components of src into out.
@@ -34,7 +29,7 @@ func (out *Vec3) Copy(src *Vec3) *Vec3 {
 	out.X = src.X
 	out.Y = src.Y
 	out.Z = src.Z
-	return &out
+	return out
 }
 
 // Clone creates a clone of this Vec3.
@@ -47,7 +42,7 @@ func (out *Vec3) Zero() *Vec3 {
 	out.X = 0
 	out.Y = 0
 	out.Z = 0
-	return &out
+	return out
 }
 
 // Add adds a and b and stores the result in out.
@@ -55,7 +50,7 @@ func (out *Vec3) Add(a, b *Vec3) *Vec3 {
 	out.X = a.X + b.X
 	out.Y = a.Y + b.Y
 	out.Z = a.Z + b.Z
-	return &out
+	return out
 }
 
 // Sub subtracts b from a and stores the result in out.
@@ -63,7 +58,7 @@ func (out *Vec3) Sub(a, b *Vec3) *Vec3 {
 	out.X = a.X - b.X
 	out.Y = a.Y - b.Y
 	out.Z = a.Z - b.Z
-	return &out
+	return out
 }
 
 // Subtract is an alias for Sub.
@@ -76,7 +71,7 @@ func (out *Vec3) Multiply(a, b *Vec3) *Vec3 {
 	out.X = a.X * b.X
 	out.Y = a.Y * b.Y
 	out.Z = a.Z * b.Z
-	return &out
+	return out
 }
 
 // Divide divides components of a by b.
@@ -84,7 +79,7 @@ func (out *Vec3) Divide(a, b *Vec3) *Vec3 {
 	out.X = a.X / b.X
 	out.Y = a.Y / b.Y
 	out.Z = a.Z / b.Z
-	return &out
+	return out
 }
 
 // Scale scales vector a by scalar s and stores the result in out.
@@ -92,7 +87,7 @@ func (out *Vec3) Scale(a *Vec3, s float32) *Vec3 {
 	out.X = a.X * s
 	out.Y = a.Y * s
 	out.Z = a.Z * s
-	return &out
+	return out
 }
 
 // ScaleAndAdd adds a and (b * s) and stores the result in out.
@@ -100,7 +95,7 @@ func (out *Vec3) ScaleAndAdd(a, b *Vec3, s float32) *Vec3 {
 	out.X = a.X + b.X*s
 	out.Y = a.Y + b.Y*s
 	out.Z = a.Z + b.Z*s
-	return &out
+	return out
 }
 
 // Negate negates components of a.
@@ -108,7 +103,7 @@ func (out *Vec3) Negate(a *Vec3) *Vec3 {
 	out.X = -a.X
 	out.Y = -a.Y
 	out.Z = -a.Z
-	return &out
+	return out
 }
 
 // Cross computes cross product of a and b.
@@ -122,7 +117,7 @@ func (out *Vec3) Cross(a, b *Vec3) *Vec3 {
 	out.X = ay*bz - az*by
 	out.Y = az*bx - ax*bz
 	out.Z = ax*by - ay*bx
-	return &out
+	return out
 }
 
 // Dot computes the dot product of out and b.
@@ -172,7 +167,7 @@ func (out *Vec3) Normalize(a *Vec3) *Vec3 {
 		out.Y = 0
 		out.Z = 0
 	}
-	return &out
+	return out
 }
 
 // Min sets out to component-wise min of a and b.
@@ -192,7 +187,7 @@ func (out *Vec3) Min(a, b *Vec3) *Vec3 {
 	} else {
 		out.Z = b.Z
 	}
-	return &out
+	return out
 }
 
 // Max sets out to component-wise max of a and b.
@@ -212,7 +207,7 @@ func (out *Vec3) Max(a, b *Vec3) *Vec3 {
 	} else {
 		out.Z = b.Z
 	}
-	return &out
+	return out
 }
 
 // Lerp linearly interpolates between a and b by t.
@@ -220,7 +215,7 @@ func (out *Vec3) Lerp(a, b *Vec3, t float32) *Vec3 {
 	out.X = a.X + t*(b.X-a.X)
 	out.Y = a.Y + t*(b.Y-a.Y)
 	out.Z = a.Z + t*(b.Z-a.Z)
-	return &out
+	return out
 }
 
 // TransformMat4 transforms a by matrix m with perspective divide.
@@ -235,7 +230,7 @@ func (out *Vec3) TransformMat4(a *Vec3, m Mat4) *Vec3 {
 	out.X = (m[0]*x + m[4]*y + m[8]*z + m[12]) / w
 	out.Y = (m[1]*x + m[5]*y + m[9]*z + m[13]) / w
 	out.Z = (m[2]*x + m[6]*y + m[10]*z + m[14]) / w
-	return &out
+	return out
 }
 
 // TransformQuat transforms a by quaternion q.
@@ -253,7 +248,7 @@ func (out *Vec3) TransformQuat(a *Vec3, q *Quat) *Vec3 {
 	out.X = vx + qw*tx + (qy*tz - qz*ty)
 	out.Y = vy + qw*ty + (qz*tx - qx*tz)
 	out.Z = vz + qw*tz + (qx*ty - qy*tx)
-	return &out
+	return out
 }
 
 // RotateX rotates vector a around origin along X-axis.
@@ -269,7 +264,7 @@ func (out *Vec3) RotateX(a, origin *Vec3, rad float32) *Vec3 {
 	out.X = rx + origin.X
 	out.Y = ry + origin.Y
 	out.Z = rz + origin.Z
-	return &out
+	return out
 }
 
 // RotateY rotates vector a around origin along Y-axis.
@@ -285,7 +280,7 @@ func (out *Vec3) RotateY(a, origin *Vec3, rad float32) *Vec3 {
 	out.X = rx + origin.X
 	out.Y = ry + origin.Y
 	out.Z = rz + origin.Z
-	return &out
+	return out
 }
 
 // RotateZ rotates vector a around origin along Z-axis.
@@ -301,7 +296,7 @@ func (out *Vec3) RotateZ(a, origin *Vec3, rad float32) *Vec3 {
 	out.X = rx + origin.X
 	out.Y = ry + origin.Y
 	out.Z = rz + origin.Z
-	return &out
+	return out
 }
 
 // TransformMat4 transforms a by 4x4 matrix m.
@@ -316,5 +311,5 @@ func (out *Vec3) TransformMat4(a *Vec3, m Mat4) *Vec3 {
 	out.X = (m[0]*x + m[4]*y + m[8]*z + m[12]) / w
 	out.Y = (m[1]*x + m[5]*y + m[9]*z + m[13]) / w
 	out.Z = (m[2]*x + m[6]*y + m[10]*z + m[14]) / w
-	return &out
+	return out
 }

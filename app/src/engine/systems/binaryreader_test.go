@@ -5,26 +5,56 @@ import (
 	"testing"
 )
 
-func TestFloat32FromBits(t *testing.T) {
-	// 0.0 -> 0x00000000
-	if Float32FromBits(0) != 0.0 {
-		t.Errorf("Expected 0.0, got %f", Float32FromBits(0))
+func TestBinaryReaderSignedAndFloat(t *testing.T) {
+	// int16 -2 = 0xfffe; int32 -1 = 0xffffffff; float32 -1.0 = 0xbf800000
+	data := []byte{
+		0xfe, 0xff,
+		0xff, 0xff, 0xff, 0xff,
+		0x00, 0x00, 0x80, 0xbf,
 	}
-	// 1.0 -> 0x3f800000
-	if Float32FromBits(0x3f800000) != 1.0 {
-		t.Errorf("Expected 1.0, got %f", Float32FromBits(0x3f800000))
+	reader := NewBinaryReader(data)
+	if v := reader.ReadInt16(); v != -2 {
+		t.Errorf("ReadInt16 expected -2, got %d", v)
 	}
-	// 2.0 -> 0x40000000
-	if Float32FromBits(0x40000000) != 2.0 {
-		t.Errorf("Expected 2.0, got %f", Float32FromBits(0x40000000))
+	if v := reader.ReadInt32(); v != -1 {
+		t.Errorf("ReadInt32 expected -1, got %d", v)
 	}
-	// -1.0 -> 0xbf800000
-	if Float32FromBits(0xbf800000) != -1.0 {
-		t.Errorf("Expected -1.0, got %f", Float32FromBits(0xbf800000))
+	if v := reader.ReadFloat32(); v != -1.0 {
+		t.Errorf("ReadFloat32 expected -1.0, got %f", v)
 	}
-	// 0.5 -> 0x3f000000
-	if Float32FromBits(0x3f000000) != 0.5 {
-		t.Errorf("Expected 0.5, got %f", Float32FromBits(0x3f000000))
+	// Reads past the end return zero and do not advance.
+	if v := reader.ReadUint32(); v != 0 {
+		t.Errorf("ReadUint32 past end expected 0, got %d", v)
+	}
+	if reader.Remaining() != 0 {
+		t.Errorf("Expected 0 remaining, got %d", reader.Remaining())
+	}
+}
+
+func TestBinaryReaderSubsliceOffset(t *testing.T) {
+	// A reader over a sub-slice must respect the slice's byteOffset.
+	backing := []byte{0xaa, 0xbb, 0x00, 0x00, 0x80, 0x3f}
+	reader := NewBinaryReader(backing[2:])
+	if v := reader.ReadFloat32(); v != 1.0 {
+		t.Errorf("Expected 1.0 from sub-slice, got %f", v)
+	}
+}
+
+func TestBinaryReaderArraysAreCopies(t *testing.T) {
+	data := []byte{1, 2, 3, 4, 0x00, 0x00, 0x80, 0x3f}
+	reader := NewBinaryReader(data)
+
+	bytes := reader.ReadUint8Array(4)
+	bytes[0] = 99
+	if data[0] != 1 {
+		t.Error("ReadUint8Array must copy, not alias the source")
+	}
+
+	floats := reader.ReadFloat32Array(1)
+	floats[0] = 5
+	reader.Seek(4)
+	if v := reader.ReadFloat32(); v != 1.0 {
+		t.Errorf("ReadFloat32Array must copy; source changed to %f", v)
 	}
 }
 

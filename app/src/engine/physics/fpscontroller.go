@@ -465,10 +465,11 @@ func (c *FPSController) resolveDepenetration(x, z, y float32) (float32, float32)
 		checkY := y + _horizontalCheckHeights[h]*halfHeight
 
 		for i := 0; i < 8; i++ {
-			dir := _radialDirs[i]
+			dirX := _radialDirs[i][0]
+			dirZ := _radialDirs[i][1]
 			result := RaycastStatic(
 				x, checkY, z,
-				x+dir[0]*depenRadius, checkY, z+dir[1]*depenRadius,
+				x+dirX*depenRadius, checkY, z+dirZ*depenRadius,
 				nil, &_fcRaycastResult,
 			)
 
@@ -480,8 +481,8 @@ func (c *FPSController) resolveDepenetration(x, z, y float32) (float32, float32)
 				if hitDistSq < radiusSq {
 					hitDist := float32(math.Sqrt(float64(hitDistSq)))
 					pushDist := radius - hitDist + 1.0
-					x -= dir[0] * pushDist
-					z -= dir[1] * pushDist
+					x -= dirX * pushDist
+					z -= dirZ * pushDist
 				}
 			}
 		}

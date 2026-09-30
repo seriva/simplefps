@@ -1,8 +1,32 @@
 # GoFront Engine & Architecture Rewrite — Design Plan
 
 **Version:** v2.1.0  
-**Target Toolchain:** GoFront v1.3.3  
-**Status:** Ready for Implementation  
+**Target Toolchain:** GoFront v1.3.7  
+**Status:** In Progress — Phase 1 & 2 complete on branch `gofront`  
+
+---
+
+## Toolchain Note
+
+The `physics` and `systems` packages require GoFront **1.3.7 or later**, which
+ships two compiler fixes surfaced by this port:
+
+1. Pointer receivers are typed `*T` (previously `T`), so `return out` from a
+   `func (out *Vec3) …` method type-checks and does not clone.
+2. Omitted struct-typed fields of an *imported* struct type are zero-initialised
+   (`new V()`) instead of `null`.
+
+`gofront test --dom` (used by `npm run test:dom`) needs the `jsdom` devDependency.
+
+## Branch State (`gofront`)
+
+- `app/src/engine/physics/` and `app/src/engine/systems/` are Go packages with
+  unit and integration tests (`gofront test`, headless and `--dom`).
+- There is no `app/src/main.go` yet, and the legacy `.js` modules still exist
+  side-by-side; the legacy application is **not buildable** on this branch
+  (Microtastic and `gl-matrix` were removed from `package.json`).
+- The mobile virtual joystick (`input.js`) is deferred to Phase 3 where it becomes
+  a `.templ` component.
 
 ---
 
@@ -384,17 +408,19 @@ gantt
     Zero-Allocation Profiling & E2E        :p12, after p11, 3
 ```
 
-### Phase 1: Foundation, Math & Toolchain Configuration (`app/src/engine/physics/`)
-1. Configure `package.json` with GoFront 1.3.2 scripts (`gofront dev`, `gofront build`, `gofront test`, `gofront check`).
+### Phase 1: Foundation, Math & Toolchain Configuration (`app/src/engine/physics/`) — Done
+1. Configure `package.json` with GoFront scripts (`gofront dev`, `gofront build`, `gofront test`, `gofront check`).
 2. Remove legacy `microtastic` and `gl-matrix` dependencies.
 3. Configure `vendor` bundling for `peerjs`.
 4. Implement `vec3.go`, `mat4.go`, `quat.go` in `package physics`.
 5. Add unit tests (`vec3_test.go`, `mat4_test.go`) verified via `gofront test app/src/engine/physics`.
 
-### Phase 2: Core Physics & Systems (`app/src/engine/physics/`, `engine/systems/`)
+### Phase 2: Core Physics & Systems (`app/src/engine/physics/`, `engine/systems/`) — Done
 1. Port `boundingbox.go`, `ray.go`, `trimesh.go`, `octree.go`, `dynamicbody.go` into `package physics`.
+   Octree queries write into caller-provided `[]int` buffers and return a count; frustum planes are a flat `[]float32` of 24.
 2. Port `fpscontroller.go` (fixed 120 Hz timestep, Quake-style step-climbing, wall sliding).
 3. Port `camera.go`, `input.go`, `settings.go`, `binaryreader.go`, `sound.go` into `package systems`.
+4. `integration_test.go` covers subdivided-octree queries, trimesh raycasts, controller landing / wall blocking / step climbing, and a heap-growth guard for the physics step.
 
 ### Phase 3: UI Overhaul & Eliminating `Reactive.js` (`app/src/game/`)
 1. Implement `game/state.go` state machine in `package game`.

@@ -12,6 +12,7 @@ Design documents for planned features live in `docs/plans/`
 
 | Feature | Difficulty | Status | Notes |
 |---|---|---|---|
+| [GoFront Rewrite](plans/gofront-rewrite-plan.md) | High | In Progress (branch `gofront`) | Phases 1–2 done: `physics` and `systems` packages ported with zero-allocation queries and tests; rendering, scene, UI, game and networking pending |
 | [G-Buffer Depth Reconstruction](plans/gbuffer-depth-reconstruction-plan.md) | Medium | Planned | Reconstruct world/view position from depth buffer; eliminates 16-byte worldPosition render target to cut mobile memory bandwidth |
 
 ---
