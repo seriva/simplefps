@@ -1,5 +1,107 @@
 package systems
 
+templ VirtualInputStyles() {
+	@templ.Raw(`<style>
+#input { z-index: 2000; display: none; }
+#input.visible { display: block; }
+
+#look {
+	width: 80%;
+	height: 100%;
+	right: 0;
+	bottom: 0;
+	margin: 0;
+	padding: 0;
+	position: absolute;
+	z-index: 2002;
+}
+
+#cursor {
+	position: absolute;
+	display: block;
+	width: 14vmin;
+	height: 14vmin;
+	margin-left: -7vmin;
+	margin-top: -7vmin;
+	border-radius: 50%;
+	z-index: 2001;
+	user-select: none;
+	transition: opacity 100ms ease-in;
+	pointer-events: none;
+	opacity: 0;
+	background: rgba(40, 40, 40, 0.6);
+	border: 1px solid rgba(255, 255, 255, 0.2);
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+	backdrop-filter: blur(4px);
+}
+
+#joystick-base {
+	width: 28vmin;
+	height: 28vmin;
+	left: 8vmin;
+	bottom: 8vmin;
+	position: absolute;
+	border-radius: 50%;
+	z-index: 2001;
+	background: rgba(40, 40, 40, 0.6);
+	border: 1px solid rgba(255, 255, 255, 0.2);
+	box-sizing: border-box;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+	backdrop-filter: blur(4px);
+}
+
+#joystick-stick {
+	background: rgba(255, 255, 255, 0.2);
+	border: 1px solid rgba(255, 255, 255, 0.3);
+	box-shadow: 0 2px 2px rgba(0, 0, 0, 0.2);
+	border-radius: 50%;
+	cursor: pointer;
+	user-select: none;
+	width: 14vmin;
+	height: 14vmin;
+	left: 15vmin;
+	bottom: 15vmin;
+	position: absolute;
+	z-index: 2002;
+	transition: transform 0.2s;
+}
+#joystick-stick.dragging { transition: none; }
+
+.action-btn {
+	width: 18vmin;
+	height: 18vmin;
+	border-radius: 50%;
+	position: absolute;
+	z-index: 2003;
+	pointer-events: auto;
+	background: rgba(40, 40, 40, 0.6);
+	border: 1px solid rgba(255, 255, 255, 0.2);
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+	backdrop-filter: blur(4px);
+	color: rgba(255, 255, 255, 0.9);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	transition: transform 0.1s ease, background 0.2s;
+}
+.action-btn:active,
+.action-btn.pressed {
+	transform: scale(0.9);
+	background: rgba(80, 80, 80, 0.9);
+	border-color: rgba(255, 255, 255, 0.5);
+}
+.action-btn svg {
+	width: 6vmin;
+	height: 6vmin;
+	fill: currentColor;
+	pointer-events: none;
+}
+
+#btn-shoot { bottom: 8vmin; right: 26vmin; }
+#btn-jump { bottom: 26vmin; right: 8vmin; }
+</style>`)
+}
+
 templ VirtualInputView() {
 	<div id="input">
 		<div id="joystick-base"></div>
@@ -7,12 +109,15 @@ templ VirtualInputView() {
 		<div id="btn-shoot" class="action-btn">
 			<svg viewBox="0 0 24 24">
 				<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"></path>
+				<circle cx="12" cy="12" r="5"></circle>
 			</svg>
 		</div>
 		<div id="btn-jump" class="action-btn">
 			<svg viewBox="0 0 24 24">
-				<path d="M12 4l-8 8h5v8h6v-8h5z"></path>
+				<path d="M12 4l-8 8h6v8h4v-8h6z"></path>
 			</svg>
 		</div>
+		<div id="look"></div>
+		<div id="cursor"></div>
 	</div>
 }

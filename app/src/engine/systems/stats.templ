@@ -1,0 +1,22 @@
+package systems
+
+templ StatsStyles() {
+	@templ.Raw(`<style>
+#stats { margin: 0; padding: 0; background-color: transparent; }
+.stats-item { display: none; }
+.stats-item.visible { display: block; }
+#stats-renderer { font-size: 12px; color: #fff; left: 8px; top: 8px; z-index: 2001; position: absolute; }
+#stats-basic { font-size: 12px; color: #fff; left: 8px; top: 24px; z-index: 2001; position: absolute; }
+#stats-scene { font-size: 12px; color: #fff; left: 8px; top: 40px; z-index: 2001; position: absolute; }
+#stats-pos { color: #fff; font-size: 12px; left: 8px; top: 56px; z-index: 2001; position: absolute; }
+</style>`)
+}
+
+templ StatsView() {
+	<div id="stats">
+		<div id="stats-renderer" class="stats-item"><span id="stats-renderer-text"></span></div>
+		<div id="stats-basic" class="stats-item"><span id="stats-basic-text"></span></div>
+		<div id="stats-scene" class="stats-item"><span id="stats-scene-text"></span></div>
+		<div id="stats-pos" class="stats-item"><span id="stats-pos-text"></span></div>
+	</div>
+}

@@ -25,6 +25,10 @@ ships two compiler fixes surfaced by this port:
 - Mobile virtual controls are ported to `.templ` (`app/src/engine/systems/virtual_input.templ`).
 - In-game HUD, state machine, menus, loading screens, and debug console are ported to GoFront
   (`.go` and `.templ` components) eliminating all `Reactive.js` dependencies.
+- `app/src/engine/rendering/` (+ `webgl/`, `webgpu/`) and `app/src/engine/engine.go` are ported:
+  backend interface, resources, shaders, buffer allocation, full pass orchestration
+  (`Renderer.Render`), and backend selection with WebGPU → WebGL2 fallback. No scene exists yet,
+  so frames render against an empty `SceneSource`.
 - There is no `app/src/main.go` yet, and legacy `.js` modules remain side-by-side for next phases.
 
 ---
@@ -427,14 +431,27 @@ gantt
 3. Built zero-allocation cached DOM HUD in `game/hud.go` and `game/hud.templ`.
 4. Ported `game/ui.go` and `game/translations.go`, wiring up menus, settings tabs, and modal dialogs.
 5. Ported `engine/systems/console.go`, providing debug command execution and history.
-6. Removed `reactive.js` dependencies and verified complete test coverage across `app/src/game` and `app/src/engine/systems` in both headless and DOM environments.
+6. Ported mobile touch controls into `engine/systems/input.go` (look pad, joystick-to-keys mapping, shoot/jump buttons dispatching `game:shoot` / `game:jump`) with full styles in `virtual_input.templ`.
+7. Ported the debug stats overlay to `engine/systems/stats.go` + `stats.templ` (cached DOM, once-per-second text writes); `engine.go` mounts it, feeds `rendering.ActiveRenderStats`, and registers the `stats` console command.
+8. Removed `reactive.js` dependencies and verified complete test coverage across `app/src/game` and `app/src/engine/systems` in both headless and DOM environments.
 
-### Phase 4: Rendering Pipeline & Backends (`app/src/engine/rendering/`)
-1. Port `shaders.go`, `shapes.go`, `mesh.go`, `material.go`, `texture.go`, `renderpasses.go`, `renderer.go` into `package rendering`.
-2. Define `RenderBackend` interface in `renderbackend.go`.
-3. Port `engine/rendering/webgl/` (`glsl.go`, `webglbackend.go`) into `package webgl` implementing `RenderBackend`.
-4. Port `engine/rendering/webgpu/` (`wgsl.go`, `webgpubackend.go`) into `package webgpu` implementing `RenderBackend`.
-5. Wire backend selection in `engine/engine.go` (composition root).
+### Phase 4: Rendering Pipeline & Backends (`app/src/engine/rendering/`, `webgl/`, `webgpu/`, `engine.go`) — Done
+
+1. Defined abstract `RenderBackend` interface in `package rendering` (`renderbackend.go`) covering textures, framebuffers, uniform buffer objects (UBOs), vertex array objects (VAOs), pipeline states, and drawing commands.
+2. Ported shader catalog (`shaders.go`), shapes generator (`shapes.go`), mesh geometry buffers (`mesh.go`, `skinnedmesh.go`), material system (`material.go`, std140 byte layout), texture management (`texture.go`), render-buffer allocation and FrameData UBO (`renderer.go`), and the full pass orchestration in `renderpasses.go`: geometry, FPS geometry, shadow (with Kawase blur, skipped without casters), lighting (with `LightSorter` and `LightingData` UBO), transparent, billboards, emissive blur, post-processing, FSR EASU/RCAS, and debug stages. `Renderer.Render` drives the frame through a `SceneSource` interface so `rendering` stays independent of the future `scene` package.
+3. Decoupled `package rendering` completely from `systems.Camera`, using a clean `CameraView` struct and matrix slices.
+4. WebGL2 backend (`package webgl` in `app/src/engine/rendering/webgl/`):
+   - Inlined all 16 GLSL shader sources in `glsl.go`.
+   - Ported resource creation, state caching, UBOs, VAOs, and draw calls in `webglbackend.go`; honours `RenderScale`/`DoFSR` from settings.
+   - Unit tests in `webgl_test.go` cover construction, shader catalog wiring, state defaults, and that every pass uniform exists in the GLSL sources.
+5. WebGPU backend (`package webgpu` in `app/src/engine/rendering/webgpu/`):
+   - Inlined all 16 WGSL shader sources and bind group layouts in `wgsl.go`.
+   - Ported pipelines, bind groups, vertex/index buffers, and render passes in `webgpubackend.go`. Adapter/device acquisition is asynchronous; `Init` reports success/failure via callback and the engine awaits it before falling back.
+   - Unit tests in `webgpu_test.go` cover construction, shader catalog wiring, state tracking, headless init failure, format support, and struct-packing buffer reuse.
+6. Enforced strict Directed Acyclic Graph (DAG) architecture: `webgl` and `webgpu` import `rendering`; `rendering` never imports `webgl` or `webgpu`.
+7. Composition root in `app/src/engine/engine.go` selects the backend asynchronously (preferring WebGPU when supported and reported ready, falling back to WebGL2), syncs settings into the active backend, wires viewport resizing and lifecycle (`Init`, `Start`, `Pause`, `Dispose`), and invokes `Renderer.Render` each frame via `RenderFrame`.
+8. `rendering` has a recording `MockBackend` (`mockbackend_test.go`) used to assert the exact stage order for WebGL and WebGPU, buffer-format resolution, Kawase odd-iteration copy-back, FrameData/Material UBO byte layouts, light sorting, and a heap-growth guard proving `Render` allocates nothing per frame.
+9. Check and test suites pass across all packages (`npm run check && npm test && npm run test:dom`).
 
 ### Phase 5: Scene Graph & Entities (`app/src/engine/scene/`, `engine/animation/`)
 1. Port `entity.go`, `scene.go`, `lightgrid.go`, and light entities into `package scene`.

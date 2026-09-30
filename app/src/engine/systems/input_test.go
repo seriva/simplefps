@@ -196,5 +196,98 @@ func TestVirtualInputToggle(t *testing.T) {
 		}
 
 		im.ToggleVirtualInput(false)
+
+		// Full mobile markup and styles must be present.
+		for _, id := range []string{"look", "cursor", "joystick-base", "joystick-stick", "btn-shoot", "btn-jump"} {
+			if document.getElementById(id) == nil {
+				t.Errorf("Expected #%s in virtual input markup", id)
+			}
+		}
+		if document.head.innerHTML.(string) == "" {
+			t.Error("Expected virtual input styles mounted in head")
+		}
+	}
+}
+
+func TestVirtualLookPad(t *testing.T) {
+	im := NewInputManager()
+	origSens := ActiveSettings.LookSensitivity
+	ActiveSettings.LookSensitivity = 0.5
+	defer func() { ActiveSettings.LookSensitivity = origSens }()
+
+	// Moving without an active touch is ignored.
+	im.MoveLook(50, 50)
+	im.Update()
+	if m := im.CursorMovement(); m.X != 0 || m.Y != 0 {
+		t.Errorf("MoveLook without BeginLook should not move, got (%f, %f)", m.X, m.Y)
+	}
+
+	im.BeginLook(100, 100)
+	im.MoveLook(110, 95)
+	im.Update()
+	// Delta (10, -5) * sensitivity 0.5 * mobile multiplier 2 = (10, -5).
+	if m := im.CursorMovement(); m.X != 10 || m.Y != -5 {
+		t.Errorf("Expected movement (10, -5), got (%f, %f)", m.X, m.Y)
+	}
+
+	im.EndLook()
+	if m := im.CursorMovement(); m.X != 0 || m.Y != 0 {
+		t.Error("EndLook should zero the frame movement")
+	}
+	im.MoveLook(200, 200)
+	im.Update()
+	if m := im.CursorMovement(); m.X != 0 || m.Y != 0 {
+		t.Error("MoveLook after EndLook should be ignored")
+	}
+}
+
+func TestVirtualJoystick(t *testing.T) {
+	im := NewInputManager()
+	var pos CursorPos
+
+	if im.MoveJoystick(10, 10, &pos) {
+		t.Error("MoveJoystick without BeginJoystick should return false")
+	}
+	if im.EndJoystick() {
+		t.Error("EndJoystick without BeginJoystick should return false")
+	}
+
+	im.BeginJoystick(100, 100)
+
+	// Inside dead zone: no keys.
+	im.MoveJoystick(105, 100, &pos)
+	if im.IsDown(ActiveSettings.Right) {
+		t.Error("Dead zone drag must not press keys")
+	}
+
+	// Drag right beyond dead zone.
+	im.MoveJoystick(140, 100, &pos)
+	if !im.IsDown(ActiveSettings.Right) || im.IsDown(ActiveSettings.Left) {
+		t.Error("Dragging right should press Right only")
+	}
+	if pos.X != 40 || pos.Y != 0 {
+		t.Errorf("Expected stick offset (40, 0), got (%f, %f)", pos.X, pos.Y)
+	}
+
+	// Drag up (screen y decreases) -> forward; clamps to max radius.
+	im.MoveJoystick(100, 0, &pos)
+	if !im.IsDown(ActiveSettings.Forward) || im.IsDown(ActiveSettings.Right) {
+		t.Error("Dragging up should press Forward only")
+	}
+	if pos.Y != -joystickMaxRadius {
+		t.Errorf("Expected clamped offset -%f, got %f", joystickMaxRadius, pos.Y)
+	}
+
+	// Diagonal down-left -> backwards + left.
+	im.MoveJoystick(70, 130, &pos)
+	if !im.IsDown(ActiveSettings.Backwards) || !im.IsDown(ActiveSettings.Left) || im.IsDown(ActiveSettings.Forward) {
+		t.Error("Dragging down-left should press Backwards and Left")
+	}
+
+	if !im.EndJoystick() {
+		t.Error("EndJoystick should return true after an active drag")
+	}
+	if im.IsDown(ActiveSettings.Left) || im.IsDown(ActiveSettings.Backwards) {
+		t.Error("EndJoystick should release movement keys")
 	}
 }

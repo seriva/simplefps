@@ -4,3 +4,4 @@ declare namespace Reflect {
 }
 declare var globalThis: any;
 declare var process: any;
+declare var performance: any;

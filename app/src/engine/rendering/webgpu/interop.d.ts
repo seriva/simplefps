@@ -1,0 +1,17 @@
+declare var window: any;
+declare var document: any;
+declare var navigator: any;
+declare var GPUBufferUsage: any;
+declare var GPUMapMode: any;
+declare var GPUTextureUsage: any;
+declare var GPUShaderStage: any;
+declare var HTMLCanvasElement: any;
+declare var Uint8Array: any;
+declare var Float32Array: any;
+declare var Uint32Array: any;
+declare var Uint16Array: any;
+declare var console: any;
+declare var Math: any;
+declare var GPUColorWrite: any;
+declare var performance: any;
+declare function createImageBitmap(source: any): any;
