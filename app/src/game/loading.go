@@ -25,7 +25,6 @@ func (lm *LoadingManager) Mount() {
 	if document == nil || lm.mounted {
 		return
 	}
-	gom.MountTo("head", LoadingStyles())
 	gom.MountTo("body", LoadingView())
 	lm.loadingEl = document.getElementById("loading")
 	lm.mounted = true

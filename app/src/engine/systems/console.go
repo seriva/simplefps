@@ -14,71 +14,6 @@ const (
 	consoleMaxHistory   = 100
 )
 
-const consoleCSS = `
-#console {
-	position: fixed;
-	top: 0;
-	left: 0;
-	width: 100%;
-	height: 100%;
-	pointer-events: none;
-	z-index: 2500;
-}
-.console-body {
-	position: absolute;
-	width: 100%;
-	height: 45%;
-	left: 0;
-	top: 0;
-	overflow: hidden;
-	z-index: 2500;
-	transform: translateY(-100%);
-	pointer-events: none;
-	transition: transform 150ms ease-in-out;
-}
-.console-body.visible {
-	transform: translateY(0);
-	pointer-events: auto;
-}
-.console-content {
-	display: flex;
-	flex-direction: column-reverse;
-	border: 1px solid rgba(255, 255, 255, 0.15);
-	background-color: rgba(40, 40, 40, 0.8);
-	backdrop-filter: blur(12px);
-	width: 100%;
-	height: calc(100% - 30px);
-	overflow-y: auto;
-	overflow-x: hidden;
-	padding: 4px 8px;
-	box-sizing: border-box;
-}
-.console-content p {
-	font-size: 14px;
-	color: #fff;
-	white-space: nowrap;
-	margin: 0;
-	line-height: 1.15;
-}
-.console-input {
-	color: #fff;
-	font: bold 14px monospace;
-	position: absolute;
-	bottom: 0;
-	left: 0;
-	width: 100%;
-	height: 30px;
-	border: 1px solid rgba(255, 255, 255, 0.15);
-	border-top-color: rgba(255, 255, 255, 0.4);
-	border-bottom-width: 2px;
-	background-color: rgba(40, 40, 40, 0.8);
-	backdrop-filter: blur(12px);
-	outline: none;
-	box-sizing: border-box;
-	padding: 0 8px;
-}
-`
-
 // LogEntry represents an individual message logged to the debug console.
 type LogEntry struct {
 	Message string
@@ -131,7 +66,6 @@ func (cm *ConsoleManager) Mount() {
 	if document == nil || cm.mounted {
 		return
 	}
-	gom.MountTo("head", gom.Style(consoleCSS))
 	gom.MountTo("body", ConsoleView())
 
 	cm.bodyEl = document.getElementById("console-body")

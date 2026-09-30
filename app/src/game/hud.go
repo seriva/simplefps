@@ -39,7 +39,6 @@ func (h *HUD) Mount(isMobile bool) {
 	if document == nil || h.mounted {
 		return
 	}
-	gom.MountTo("head", HUDStyles())
 	gom.MountTo("body", HUDView(isMobile))
 
 	h.hudEl = document.getElementById("hud")

@@ -25,6 +25,9 @@ ships two compiler fixes surfaced by this port:
 - Mobile virtual controls are ported to `.templ` (`app/src/engine/systems/virtual_input.templ`).
 - In-game HUD, state machine, menus, loading screens, and debug console are ported to GoFront
   (`.go` and `.templ` components) eliminating all `Reactive.js` dependencies.
+- All CSS lives in one plain stylesheet, `app/style.css` (base, menus, HUD, loading, console, stats,
+  virtual input sections), linked from `app/index.html` so `gofront dev` hot-swaps it without
+  a reload; `.templ` files contain markup only.
 - `app/src/engine/rendering/` (+ `webgl/`, `webgpu/`) and `app/src/engine/engine.go` are ported:
   backend interface, resources, shaders, buffer allocation, full pass orchestration
   (`Renderer.Render`), and backend selection with WebGPU → WebGL2 fallback. No scene exists yet,
@@ -431,9 +434,10 @@ gantt
 3. Built zero-allocation cached DOM HUD in `game/hud.go` and `game/hud.templ`.
 4. Ported `game/ui.go` and `game/translations.go`, wiring up menus, settings tabs, and modal dialogs.
 5. Ported `engine/systems/console.go`, providing debug command execution and history.
-6. Ported mobile touch controls into `engine/systems/input.go` (look pad, joystick-to-keys mapping, shoot/jump buttons dispatching `game:shoot` / `game:jump`) with full styles in `virtual_input.templ`.
+6. Ported mobile touch controls into `engine/systems/input.go` (look pad, joystick-to-keys mapping, shoot/jump buttons dispatching `game:shoot` / `game:jump`) with markup in `virtual_input.templ`.
 7. Ported the debug stats overlay to `engine/systems/stats.go` + `stats.templ` (cached DOM, once-per-second text writes); `engine.go` mounts it, feeds `rendering.ActiveRenderStats`, and registers the `stats` console command.
 8. Removed `reactive.js` dependencies and verified complete test coverage across `app/src/game` and `app/src/engine/systems` in both headless and DOM environments.
+9. Moved all CSS out of `.templ`/`gom.Style`/inline `index.html` into a single `app/style.css`, linked from `index.html`, so the dev server's CSS hot-reload (§5B) applies and the stylesheet ships as a static asset in `gofront build`.
 
 ### Phase 4: Rendering Pipeline & Backends (`app/src/engine/rendering/`, `webgl/`, `webgpu/`, `engine.go`) — Done
 

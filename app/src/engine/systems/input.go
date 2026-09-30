@@ -354,7 +354,6 @@ func (im *InputManager) MountVirtualInput() {
 	if document == nil || !ActiveSettings.IsMobile || im.virtualInputEl != nil {
 		return
 	}
-	gom.MountTo("head", VirtualInputStyles())
 	gom.MountTo("body", VirtualInputView())
 	im.virtualInputEl = document.getElementById("input")
 	im.lookEl = document.getElementById("look")

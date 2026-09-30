@@ -56,7 +56,6 @@ func (ui *UIManager) Mount() {
 	if document == nil || ui.mounted {
 		return
 	}
-	gom.MountTo("head", MenuStyles())
 	gom.MountTo("body", MenuView())
 
 	ui.uiEl = document.getElementById("ui")

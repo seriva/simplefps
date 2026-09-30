@@ -1,9 +1,5 @@
 package game
 
-templ LoadingStyles() {
-	@templ.Raw("<style>#loading{z-index:2000;display:none}#loading.visible{display:block}#loading-background{width:100%;height:100%;position:absolute;left:0;top:0;margin:0;padding:0;background-color:#000;z-index:2001}#loading-logo{position:fixed;width:30vh;height:30vh;top:50%;left:50%;margin-top:-15vh;margin-left:-15vh;content:url(resources/logo.svg);z-index:2002}</style>")
-}
-
 templ LoadingView() {
 	<div id="loading">
 		<div id="loading-logo"></div>

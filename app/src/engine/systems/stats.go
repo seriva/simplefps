@@ -42,7 +42,6 @@ func (s *StatsOverlay) Mount() {
 	if document == nil || s.mounted {
 		return
 	}
-	gom.MountTo("head", StatsStyles())
 	gom.MountTo("body", StatsView())
 	s.items = append(s.items, document.getElementById("stats-renderer"))
 	s.items = append(s.items, document.getElementById("stats-basic"))

@@ -197,14 +197,11 @@ func TestVirtualInputToggle(t *testing.T) {
 
 		im.ToggleVirtualInput(false)
 
-		// Full mobile markup and styles must be present.
+		// Full mobile markup must be present (styles come from app/style.css).
 		for _, id := range []string{"look", "cursor", "joystick-base", "joystick-stick", "btn-shoot", "btn-jump"} {
 			if document.getElementById(id) == nil {
 				t.Errorf("Expected #%s in virtual input markup", id)
 			}
-		}
-		if document.head.innerHTML.(string) == "" {
-			t.Error("Expected virtual input styles mounted in head")
 		}
 	}
 }
