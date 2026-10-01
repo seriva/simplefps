@@ -24,7 +24,7 @@ Simple first person arena shooter written in Go syntax, compiled to JavaScript w
 **Build**: GoFront (dev server, production builds, vendor bundling, type-check, tests)
 **Tools**: Biome (lint/format for the few JS files), Lefthook (git hooks), jsdom (`--dom` tests), Playwright (E2E smoke test)
 
-> The GoFront rewrite is complete on the `gofront` branch: every engine and game module is a Go package or `.templ` component and no legacy JavaScript remains under `app/src`. See [docs/plans/gofront-rewrite-plan.md](docs/plans/gofront-rewrite-plan.md) for the design and phase history.
+> The GoFront rewrite is complete on the `gofront` branch: every engine and game module is a Go package or `.templ` component and no legacy JavaScript remains under `app/src`. See [docs/plans/archive/gofront-rewrite-plan.md](docs/plans/archive/gofront-rewrite-plan.md) for the design and phase history.
 
 ## Project Structure
 
@@ -46,6 +46,8 @@ app/
 │   └── game/             # package game: state machine, weapons, projectiles, pickups, arena,
 │                         #   multiplayer, HUD/menus/loading as .go + .templ
 ├── resources/            # Game assets (textures, models, sounds)
+├── style.css             # All UI/HUD/menu styles (hot-swapped by gofront dev)
+├── manifest.json         # PWA manifest
 └── index.html            # Main HTML file (loads vendor.js + app.js built by GoFront)
 tests/
 ├── e2e/smoke.spec.js     # Playwright smoke test (boot → menu → start game renders a frame)

@@ -29,7 +29,7 @@
 # Part 2: Project Context
 
 ## Project Identity
-SimpleFPS is an arena-based first-person shooter with hybrid WebGL 2 / WebGPU rendering, distributed as a PWA for Desktop, Android, and iOS. It is written in [GoFront](https://github.com/seriva/gofront) (Go syntax compiled to JavaScript); the rewrite from ES6 modules is complete — see `docs/plans/gofront-rewrite-plan.md` for the design decisions and phase history.
+SimpleFPS is an arena-based first-person shooter with hybrid WebGL 2 / WebGPU rendering, distributed as a PWA for Desktop, Android, and iOS. It is written in [GoFront](https://github.com/seriva/gofront) (Go syntax compiled to JavaScript); the rewrite from ES6 modules is complete — see `docs/plans/archive/gofront-rewrite-plan.md` for the design decisions and phase history.
 
 ## Tech Stack
 - **Language**: GoFront (`.go` packages compiled to ES modules; `.templ` for UI components). No JavaScript under `app/src`; the only JS files are `tests/**` , `playwright.config.js` and the asset converters in `scripts/`.

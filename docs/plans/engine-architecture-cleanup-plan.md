@@ -1,8 +1,8 @@
 # Engine Architecture Cleanup — Design Plan
 
 **Version:** v2.2.0
-**Status:** Draft
-**Depends on:** `gofront-rewrite-plan.md` (complete on branch `gofront`)
+**Status:** Draft (re-verified against `gofront` branch 2026-10-01)
+**Depends on:** `archive/gofront-rewrite-plan.md` (complete on branch `gofront`)
 
 ---
 
@@ -47,10 +47,30 @@ are the core; 4–6 are mechanical follow-ups that become easy once 1–3 land.
 
 **Problem.** `rendering.ActiveBackend`, `rendering.Shaders`, `rendering.GlobalShapes`,
 `rendering.ActiveRenderStats`, `physics.GlobalRaycastStatic` and
-`systems.ActiveSettings` are the JS singletons carried over. 85 call sites across
-`scene/` and `engine.go` read them. `NewScene()` silently overwrites
-`physics.GlobalRaycastStatic` as a side effect. Tests must poke globals before
-constructing anything.
+`systems.ActiveSettings` are the JS singletons carried over. ~80 cross-package
+reads in `scene/`, `engine.go`, `assets/` and `game/arena.go`, plus ~155
+unqualified reads inside `rendering/` itself (`mesh.go`, `texture.go`,
+`shaders.go`, `material.go`, `noise.go`, `skinnedmesh.go`) — the latter are the
+bulk of step 1a. `NewScene()` silently overwrites `physics.GlobalRaycastStatic`
+as a side effect. Tests must poke globals before constructing anything.
+
+Three more hot-path globals were missed in the first draft:
+
+- `rendering.ActiveDebugOptions` — read 5× in `scene/renderpasses.go`; the
+  `tbv/twf/tlv/tsk` console toggles that mutate it live in
+  `scene.RegisterDebugCommands`, which is the only reason `scene` imports
+  `systems.GlobalConsole`.
+- `physics.ActiveCameraPos/Dir/Up` — `*Vec3` aliases set by `game.go:76–78`,
+  read by `FPSController.Update` and the noclip path. Physics reaching for the
+  camera through a global is the same pattern as `GlobalRaycastStatic`.
+- `physics.ActiveFrustumPlanes` — aliased by `systems.Camera.FrustumPlanes`;
+  `BoundingBox.IsVisible()` reads it, and `Scene.Update` culling calls
+  `IsVisible()` (`scene.go:458`) instead of `IsVisibleWithPlanes(s.Camera.FrustumPlanes)`.
+
+Explicitly **not** in scope: app-level singletons `systems.GlobalConsole`,
+`systems.GlobalInput`, `systems.GlobalStats`, `assets.GlobalResources` and the
+`engine.Active*` composition-root vars. They are read from `game/` and `main.go`,
+not from render/physics hot paths, and replacing them is a separate decision.
 
 **Change.**
 
@@ -88,6 +108,16 @@ constructing anything.
   the game when it constructs them. `Scene` implements the interface; nothing
   is registered implicitly.
 
+- `physics.ActiveCameraPos/Dir/Up` → `FPSController` gets a `Camera *CameraPose`
+  field (`Position, Direction, Up *Vec3`) set once by the game; the noclip path
+  reads it from the controller. `physics.ActiveFrustumPlanes` is deleted;
+  `Camera` owns its plane slice and `Scene.Update` calls
+  `IsVisibleWithPlanes(s.Camera.FrustumPlanes)`. `BoundingBox.IsVisible()` goes.
+
+- `rendering.ActiveDebugOptions` → `Renderer.Debug DebugRenderOptions` (value).
+  `scene.RegisterDebugCommands` moves to `engine.go` next to `rscale`/`stats`,
+  which removes the `scene → systems.GlobalConsole` dependency entirely.
+
 - `systems.ActiveSettings` stays as the single settings store (it *is* the
   user-facing config), but nothing under `rendering/` or `scene/` reads it.
   `engine.go` already copies settings into `rendering.RenderOptions` each
@@ -100,12 +130,14 @@ and is passed into every pass; adding a second bag of pointers is noise.
 
 ### Phase 2 — Move the seam: renderer pulls, scene provides
 
-**Problem.** `scene/renderpasses.go` (≈350 lines) owns the per-pass loops,
+**Problem.** `scene/renderpasses.go` (≈600 lines) owns the per-pass loops,
 shader binds, uniform setup (`proceduralNoise`, `positionBuffer` slots), skybox
-depth-state toggling and stats accounting. `rendering/renderpasses.go` owns
-framebuffer + blend/depth/cull setup. Neither package can be understood alone,
-and the renderer cannot be tested against a fake scene without reimplementing
-half a pass.
+depth-state toggling and stats accounting. `rendering/renderpasses.go` (≈530
+lines) owns framebuffer + blend/depth/cull setup and has nine `scene != nil`
+guards. Neither package can be understood alone, and the renderer cannot be
+tested against a fake scene without reimplementing half a pass. `scene` also
+imports `rendering.LightSorter`/`LightingData` purely to do the renderer's
+sorting for it.
 
 **Change.** Invert `SceneSource` from "scene renders on request" to "scene
 hands out culled lists":
@@ -115,7 +147,7 @@ hands out culled lists":
 
 // Drawable is the only thing a pass needs from an entity.
 type Drawable interface {
-    Draw(r *Renderer, sh *Shader, mode MaterialMode, probe []float32)
+    Draw(r *Renderer, sh *Shader, mode MaterialMode)   // probe colour read from the entity's own cache
     DrawShadow(r *Renderer, sh *Shader)
     DrawDebug(r *Renderer)
     TriangleCount() int
@@ -128,24 +160,50 @@ type LightDrawable interface {
     LightScore(camPos *physics.Vec3) float32
 }
 
+// DrawList is a fixed-capacity view over a scene bucket. Items[:Count] is the
+// live range. (A plain []Drawable return is not an option: GoFront emits
+// s[:n] as .slice(), which allocates per call.)
+type DrawList struct {
+    Items []Drawable
+    Count int
+}
+type LightList struct {
+    Items []LightDrawable
+    Count int
+}
+
 type SceneSource interface {
     Ambient(out *physics.Vec3)
-    ProbeColor(d Drawable, out []float32)      // was Scene.sampleProbeColor
-    Skyboxes() []Drawable
-    Meshes() []Drawable                       // opaque world geometry
-    FPSMeshes() []Drawable
-    SkinnedMeshes() []Drawable
-    DirectionalLights() []Drawable
-    PointLights() []LightDrawable
-    SpotLights() []LightDrawable
-    Billboards() []Drawable
-    ParticleEmitters() []Drawable
-    TransparentGroups() []TransparentGroup    // pre-sorted back-to-front by scene
+    Skyboxes() *DrawList
+    Meshes() *DrawList                        // opaque world geometry
+    FPSMeshes() *DrawList
+    SkinnedMeshes() *DrawList
+    DirectionalLights() *DrawList
+    PointLights() *LightList
+    SpotLights() *LightList
+    Billboards() *DrawList
+    ParticleEmitters() *DrawList
+    Transparent() *DrawList                   // pre-sorted back-to-front by scene
 }
 ```
 
-Each accessor returns `s.visible[TypeX].Items[:Count]` — a re-slice, zero
-allocation, valid until the next `Scene.Update`.
+Each accessor returns a pointer to a `Scene`-owned list that is refilled during
+`Scene.Update` culling; zero allocation, valid until the next `Scene.Update`.
+
+**Probe colour.** The first draft had `SceneSource.ProbeColor(d Drawable, out)`
+and a `probe []float32` argument on `Draw`. That forces the scene to recover an
+entity position from a `Drawable` (type assertion or a position accessor on the
+interface). Instead: `Scene.Update` samples the probe for every culled-in mesh
+right after culling (same lazy per-frame cache as today, but keyed on the
+visible set rather than on "was drawn"), stores it in the entity's `probeCache`
+(Phase 4), and `Draw` reads its own cached colour. `Draw` drops the `probe`
+parameter; `SceneSource` drops `ProbeColor`. Visible set == drawn set for
+meshes, so sampled values and sample timing are unchanged.
+
+**Transparent.** Today `RenderTransparent` sorts visible meshes with a
+translucent material back-to-front into `transparentSort`. That sort stays in
+the scene (it is spatial, like culling) and fills the `Transparent()` list; the
+renderer just iterates it with `ModeTranslucent`.
 
 Responsibilities after the move:
 
@@ -153,7 +211,8 @@ Responsibilities after the move:
 |---|---|---|
 | Frustum culling, `visible[]` buckets | scene | scene |
 | Shadow raycast budget, `ShadowHeight*` state | scene | scene (`Scene.UpdateShadowHeights(budget)` called by `Scene.Update`, not by a pass) |
-| Light sorting (`LightSorter`), transparent sort | scene | rendering (`Renderer.lightingPass` sorts `LightDrawable` by `LightScore`) |
+| Ambient probe sampling (`sampleProbeColor`) | scene, lazily during draw | scene, after culling in `Scene.Update` |
+| Light sorting (`LightSorter`), transparent sort | scene | light sort → rendering (`Renderer.lightingPass` sorts `LightDrawable` by `LightScore`); transparent sort stays in scene |
 | Shader bind + per-pass uniforms | scene | rendering |
 | Depth/blend/cull/framebuffer | rendering | rendering |
 | Stats (`MeshCount`, `TriangleCount`, `LightCount`) | scene | rendering |
@@ -175,10 +234,11 @@ the renderer would still not be testable in isolation.
 
 **Problem.** `"opaque"`/`"all"`, `"one"`/`"zero"`/`"src-alpha"`, `"lequal"`,
 `"back"`, `"triangles"`/`"lines"`, `"vertex"`/`"index"/"uniform"` are bare
-strings on ~60 call sites. Every pass issues 4–6 `Set*State` calls and then
-undoes them by hand. The WebGPU backend already reduces these setters to a
-`pipeKey` string for its `PipelineCache`
-([webgpubackend.go:1625](../../app/src/engine/rendering/webgpu/webgpubackend.go#L1625)),
+strings on ~60 call sites; no named type or constant exists for any of them
+today. Every pass issues 4–6 `Set*State` calls and then undoes them by hand.
+The WebGPU backend already reduces these setters to a `pipeKey` string for its
+`PipelineCache`
+([webgpubackend.go:1797](../../app/src/engine/rendering/webgpu/webgpubackend.go#L1797)),
 i.e. it reconstructs a pipeline-state object from individually mutated fields.
 
 **Change.**
@@ -203,9 +263,13 @@ type PipelineState struct {
     CullFace    CullFace
     PolyOffset  bool
     OffsetFactor, OffsetUnits float32
-    ColorMask   [4]bool
+    ColorMask   uint8   // bit 0..3 = R,G,B,A; WebGPU already uses an int mask
 }
 ```
+
+`ColorMask` is a bitmask rather than `[4]bool`: GoFront emits `[N]T` as a typed
+array and clones it on every assignment/literal, which would make any
+`PipelineState` copy allocate.
 
 `RenderBackend` gains `ApplyState(*PipelineState)` and drops `SetBlendState`,
 `SetDepthState`, `SetCullState`, `SetPolygonOffset`, `SetColorMask`.
@@ -253,10 +317,15 @@ type shadowState struct {
     HeightState, SampleFrame            int
     SampleValid                         bool
 }
-type probeCache struct { Frame int; Color [3]float32 }
+type probeCache struct { Frame int; R, G, B float32 }
 ```
 
-embedded in `MeshEntity`, `FPSMeshEntity`, `SkinnedMeshEntity` only.
+held as named fields (`Shadow shadowState`, `Probe probeCache`) on `MeshEntity`,
+`FPSMeshEntity`, `SkinnedMeshEntity` only. Named fields, not embedding: GoFront
+does not expose promoted fields of embedded structs (the reason `GetBase()`
+exists), and struct-typed fields are cloned on assignment, so callers must
+mutate in place (`m.Shadow.Height = …`) and never copy the struct out.
+`probeCache` uses three scalars for the same reason `ColorMask` is a bitmask.
 
 `Scene.visible` becomes typed per kind (`visibleMeshes []*MeshEntity`,
 `visiblePointLights []*PointLightEntity`, …) so the accessors return
@@ -268,12 +337,17 @@ per-kind fields are nine short declarations and read fine.
 
 ### Phase 5 — `engine.go` cleanup
 
-- Remove the `scene == nil` branches in `Renderer.Render` and every pass.
-  `engine.ActiveScene` is required; `engine.Init` panics with a clear message
-  if `Start()` is called without one. `rendering_test.go` uses a `nopScene`
-  fixture instead of `nil`.
-- `bindGeometryShader()` double call in `RenderWorldGeometry` disappears with
-  Phase 2; verify no equivalent duplicate lands in `worldGeomPass`.
+- Remove the nine `scene == nil`/`scene != nil` branches in `Renderer.Render`
+  and the passes. `engine.ActiveScene` is required; `engine.Start()` returns an
+  `error` (logged via `GlobalConsole`) if called without one — the engine
+  packages contain no `panic` today and this plan does not introduce one.
+  `rendering_test.go` uses a `nopScene` fixture instead of `nil`.
+- `bindGeometryShader()` double call in `RenderWorldGeometry`
+  (`scene/renderpasses.go:281,285`) disappears with Phase 2; verify no
+  equivalent duplicate lands in `worldGeomPass`.
+- `scene.RegisterDebugCommands` moves here (Phase 1).
+- Sweep the 14 comments in `engine/` that still cite `renderer.js`,
+  `scene.js` etc.; describe the Go code, not the JS it was ported from.
 - `RenderOptions` is populated once per frame from `ActiveSettings` in
   `engine.frame()`; it is the *only* path settings take into rendering.
   Fields that no pass reads (`ShowStats` etc.) are dropped from it.
@@ -283,8 +357,8 @@ per-kind fields are nine short declarations and read fine.
 
 Update `docs/rendering.md` (pass table: who binds what) and `docs/scene.md`
 (`Entity` vs `Drawable`, accessor list). Update the "Branch State" section in
-`gofront-rewrite-plan.md` to reference this plan. No new doc files beyond this
-one.
+`archive/gofront-rewrite-plan.md` to reference this plan. No new doc files
+beyond this one.
 
 ---
 
@@ -293,7 +367,7 @@ one.
 | Step | Packages touched | Checkpoint |
 |---|---|---|
 | 1a | `rendering` | `Renderer` owns `Shaders`/`Shapes`/`Stats`; `Mesh`/`Shader`/`Texture` take backend param; `gofront test app/src/engine/rendering` green |
-| 1b | `scene`, `engine`, `game` | all 85 global reads replaced; `RaycastProvider` wired; `gofront test` for `scene`, `game` green; `npm run test:dom` green |
+| 1b | `scene`, `engine`, `game`, `physics`, `systems` | all cross-package global reads replaced (incl. `ActiveDebugOptions`, `ActiveCamera*`, `ActiveFrustumPlanes`); `RaycastProvider` wired; `RegisterDebugCommands` in `engine`; `gofront test` for `scene`, `physics`, `game` green; `npm run test:dom` green |
 | 2 | `rendering`, `scene` | `Drawable`/`SceneSource` accessors; loops moved; scene tests rewritten to assert on `visible` buckets, renderer tests use `mockScene` returning fixed `Drawable` slices |
 | 3 | `rendering`, `webgl`, `webgpu` | typed enums + `PipelineState`; `MockBackend` records `ApplyState` calls; recorded call sequence for a frame compared against a golden list |
 | 4 | `scene` | slim `Entity`, typed buckets, `shadowState`/`probeCache` |
@@ -332,9 +406,19 @@ must match before/after for each step.
   `PipelineState` presets must not allocate per frame. Check with the browser
   allocation profiler on frame 100–200 of the demo arena: 0 bytes from
   `engine/*` frames.
-- **Tests that read globals.** `scene_test.go:559–729` and
-  `rendering_test.go:104–109` assert on `ActiveRenderStats`/`GlobalShapes`;
-  they move to `renderer.Stats` / `renderer.Shapes`.
+- **Tests that read globals.** `scene_test.go:559–729` (7 sites) and
+  `rendering_test.go:70–109` (20 sites) assert on
+  `ActiveRenderStats`/`GlobalShapes`; they move to `renderer.Stats` /
+  `renderer.Shapes`.
+- **`Renderer.Stats` as a value field.** GoFront clones struct-typed fields on
+  assignment, so `st := r.Stats` allocates. The stats overlay and the `stats`
+  console command must read `r.Stats.MeshCount` etc. field-by-field, or `Stats`
+  becomes `*RenderStats` allocated once in `NewRenderer`. Same rule for
+  `Renderer.Debug`.
+- **`game/` touches `EntityBase` directly.** 15 sites use `x.Base.Field`
+  (`arena.go:331,335`, …) and 4 use `GetBase()`. Phase 4 only moves mesh-only
+  fields, so these keep compiling; grep `\.Base\.(Shadow|Probe)` to confirm
+  none reach the moved state.
 - **Entities constructed by game code** (`game/`) call `NewMeshEntity(...)`
   etc. and may pass `rendering.Shaders.X`; constructor signatures that took a
   shader must now be given `renderer.Shaders.X` or resolve the shader inside
@@ -373,3 +457,39 @@ must match before/after for each step.
   demo arena on WebGL2 and WebGPU, reference screenshot diff; `stats` console
   command shows identical counts; allocation profiler shows 0 bytes/frame
   from engine packages.
+
+---
+
+## Go-Idiom Audit (outside this plan's scope)
+
+Findings from re-checking the tree against conventional Go layout. None block
+the phases above; each is a candidate follow-up, listed so it is a conscious
+decision rather than an omission.
+
+- **Interfaces on the consumer side.** Already correct for `RenderBackend`
+  (rendering), `SceneSource`/`Drawable` (rendering) and `RaycastProvider`
+  (physics). `scene.Entity` is implementer-side, which is fine: its only
+  consumer is `Scene`.
+- **`Get*` getters.** ~50 (`GetBase`, `GetWidth`, `GetTexture`, …). Go style
+  drops the prefix, but `GetBase()` exists because GoFront cannot promote
+  embedded fields and a `Base` field plus a `Base()` method is illegal Go.
+  Renaming would mean `base EntityBase` (unexported) + `Base()`, touching the
+  15 `x.Base.` sites in `game/`. Not worth a churn pass on its own; do it only
+  if Phase 4 is already rewriting those call sites.
+- **`systems` is a grab-bag.** `camera`, `settings`, `console`, `input`,
+  `network`, `sound`, `stats`, `binaryreader` share a package by history, not
+  cohesion — the Go equivalent of `util/`. After Phase 1 the only engine-side
+  import of `systems` is `scene → systems.Camera`. Natural homes if split later:
+  `binaryreader` → `assets`, `camera` → `rendering` (it already aliases
+  `rendering.CameraView` data), `network` → own package. Folder moves are
+  excluded by this plan; record the intent in `roadmap.md`.
+- **Backend file size.** `webgpubackend.go` (~2250 lines) and
+  `webglbackend.go` (~1300 lines) are single files. Splitting a package across
+  files (`buffers.go`, `textures.go`, `pipeline.go`, `state.go`) is not a
+  folder restructure and is zero-risk; a good warm-up for Phase 3 since
+  `ApplyState` lands in exactly those files.
+- **Relative imports** (`"../physics"`) are a GoFront requirement, not a
+  style choice; nothing to do.
+- **Constructors return concrete types** (`*Renderer`, `*Scene`, `*WebGLBackend`)
+  — correct Go practice, keep.
+- **No `panic` in engine packages.** Keep it that way (see Phase 5).

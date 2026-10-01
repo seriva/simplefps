@@ -1,16 +1,19 @@
 # GoFront Engine & Architecture Rewrite — Design Plan
 
 **Version:** v2.1.0  
-**Target Toolchain:** GoFront v1.3.8 (unreleased; `main` past tag `1.3.7`)  
-**Status:** In Progress — Phase 1–8 complete on branch `gofront`  
+**Target Toolchain:** GoFront v1.3.9  
+**Status:** Completed (2026-10) — all eight phases landed on branch `gofront`  
+
+> **Status: Completed / Verified.** Every engine and game module is a Go package or `.templ`
+> component, no legacy JavaScript remains under `app/src`, and `npm run test:all` (check, unit,
+> `--dom`, zero-alloc perf, Playwright E2E) passes against the published GoFront 1.3.9.
 
 ---
 
 ## Toolchain Note
 
-The port requires GoFront **1.3.8 or later** — i.e. the current `main` of the
-`gofront` repo, which is five commits past the published `1.3.7`. Fixes surfaced
-by this port and needed to compile it:
+The port requires GoFront **1.3.8 or later** (`package.json` pins `^1.3.9`). The following
+compiler fixes were surfaced by this port and shipped in GoFront 1.3.7–1.3.8:
 
 1. Pointer receivers are typed `*T` (previously `T`), so `return out` from a
    `func (out *Vec3) …` method type-checks and does not clone.
@@ -23,11 +26,7 @@ by this port and needed to compile it:
    assertions emit unique temporaries; `f().(T)` evaluates `f()` once.
 6. Generic instantiation vs. index expression disambiguation (`xs[d.Field]`),
    and `[]pkg.T{...}` composite literals as call arguments.
-
-Until 1.3.8 is published, `node_modules/gofront` must be an `npm link` to the
-local checkout; `npm install` replaces the link with registry 1.3.7 (symptom:
-`skeleton.go "Cannot assign [][]float32"` or a `RenderBackend not implemented`
-overlay) — re-run `npm link gofront` afterwards.
+7. Recursive package patterns (`gofront check app/src/...`, `gofront test app/src/...`).
 
 `gofront test --dom` (used by `npm run test:dom`) needs the `jsdom` devDependency.
 
