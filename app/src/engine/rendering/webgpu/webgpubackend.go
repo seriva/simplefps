@@ -165,6 +165,7 @@ type WebGPUBackend struct {
 	Uniforms      map[string]any
 
 	PipelineCache        map[string]any
+	MipmapPipelines      map[string]any
 	PipelineLayoutCache  map[string]any
 	BindGroupLayoutCache map[string]any
 
@@ -198,6 +199,7 @@ func NewWebGPUBackend() *WebGPUBackend {
 		BoundUBOs:               make(map[int]any),
 		Uniforms:                make(map[string]any),
 		PipelineCache:           make(map[string]any),
+		MipmapPipelines:         make(map[string]any),
 		PipelineLayoutCache:     make(map[string]any),
 		BindGroupLayoutCache:    make(map[string]any),
 		PersistentBindGroupCache: make(map[string]any),
@@ -474,6 +476,10 @@ func (b *WebGPUBackend) CreateTexture(desc *rendering.TextureDescriptor) any {
 		format = mapped
 	}
 	isDepth := format == "depth24plus"
+	levels := 1
+	if desc.Mipmaps && !isDepth {
+		levels = mipLevelCountFor(w, h)
+	}
 
 	usage := GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT
 	if isDepth {
@@ -486,8 +492,9 @@ func (b *WebGPUBackend) CreateTexture(desc *rendering.TextureDescriptor) any {
 			"height":             h,
 			"depthOrArrayLayers": 1,
 		},
-		"format": format,
-		"usage":  usage,
+		"mipLevelCount": levels,
+		"format":        format,
+		"usage":         usage,
 	})
 
 	var view any
@@ -526,19 +533,20 @@ func (b *WebGPUBackend) CreateTexture(desc *rendering.TextureDescriptor) any {
 	samplerID := b.ResourceIdCounter
 
 	return &WebGPUTextureHandle{
-		GPUTexture:  gpuTex,
-		TextureView: view,
-		GPUSampler:  sampler,
-		Width:       w,
-		Height:      h,
-		Format:      format,
-		ID:          texID,
-		SamplerID:   samplerID,
-		WrapMode:    "repeat",
-		MinFilter:   "linear",
-		MagFilter:   "linear",
-		MipFilter:   "linear",
-		Anisotropy:  1,
+		GPUTexture:    gpuTex,
+		TextureView:   view,
+		GPUSampler:    sampler,
+		Width:         w,
+		Height:        h,
+		Format:        format,
+		MipLevelCount: levels,
+		ID:            texID,
+		SamplerID:     samplerID,
+		WrapMode:      "repeat",
+		MinFilter:     "linear",
+		MagFilter:     "linear",
+		MipFilter:     "linear",
+		Anisotropy:    1,
 	}
 }
 
@@ -557,29 +565,166 @@ func (b *WebGPUBackend) DisposeTexture(texture any) {
 	}
 }
 
+// mipLevelCountFor returns the full mip chain length for a w x h texture.
+func mipLevelCountFor(w, h int) int {
+	maxDim := w
+	if h > maxDim {
+		maxDim = h
+	}
+	levels := 1
+	for maxDim > 1 {
+		maxDim >>= 1
+		levels++
+	}
+	return levels
+}
+
+// UploadTextureFromImage copies a decoded image into the texture, recreating
+// the GPU texture (with a full mip chain) when the size differs from the
+// placeholder allocated by CreateTexture.
 func (b *WebGPUBackend) UploadTextureFromImage(texture any, image any) {
 	if b.Device == nil || texture == nil || image == nil {
 		return
 	}
-	var tex any
-	if h, ok := texture.(*WebGPUTextureHandle); ok {
-		tex = h.GPUTexture
-		h.Width = image.width
-		h.Height = image.height
-	} else if texture._gpuTexture != nil {
-		tex = texture._gpuTexture
+	h, ok := texture.(*WebGPUTextureHandle)
+	if !ok {
+		return
+	}
+	w := image.width.(int)
+	ht := image.height.(int)
+	if w <= 0 || ht <= 0 {
+		return
+	}
+	levels := mipLevelCountFor(w, ht)
+
+	if h.GPUTexture == nil || h.Width != w || h.Height != ht || h.MipLevelCount != levels {
+		if h.GPUTexture != nil && h.GPUTexture.destroy != nil {
+			h.GPUTexture.destroy()
+		}
+		format := h.Format
+		if format == "" {
+			format = "rgba8unorm"
+		}
+		h.GPUTexture = b.Device.createTexture(map[string]any{
+			"size":          map[string]any{"width": w, "height": ht, "depthOrArrayLayers": 1},
+			"mipLevelCount": levels,
+			"format":        format,
+			"usage":         GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT,
+		})
+		h.TextureView = h.GPUTexture.createView()
+		h.Width = w
+		h.Height = ht
+		h.Format = format
+		h.MipLevelCount = levels
+		// New view: bump the ID so cached bind groups are not reused.
+		b.ResourceIdCounter++
+		h.ID = b.ResourceIdCounter
 	}
 
 	if b.Device.queue != nil && b.Device.queue.copyExternalImageToTexture != nil {
 		b.Device.queue.copyExternalImageToTexture(
 			map[string]any{"source": image},
-			map[string]any{"texture": tex},
-			map[string]any{"width": image.width, "height": image.height},
+			map[string]any{"texture": h.GPUTexture},
+			map[string]any{"width": w, "height": ht},
 		)
 	}
 }
 
+const mipmapBlitWGSL = `
+struct VSOutput {
+	@builtin(position) position: vec4<f32>,
+	@location(0) uv: vec2<f32>,
+};
+
+@vertex
+fn vs_main(@builtin(vertex_index) vertexIndex: u32) -> VSOutput {
+	var pos = array<vec2<f32>, 4>(
+		vec2(-1.0, 1.0), vec2(1.0, 1.0), vec2(-1.0, -1.0), vec2(1.0, -1.0)
+	);
+	var uv = array<vec2<f32>, 4>(
+		vec2(0.0, 0.0), vec2(1.0, 0.0), vec2(0.0, 1.0), vec2(1.0, 1.0)
+	);
+	var out: VSOutput;
+	out.position = vec4<f32>(pos[vertexIndex], 0.0, 1.0);
+	out.uv = uv[vertexIndex];
+	return out;
+}
+
+@group(0) @binding(0) var imgSampler: sampler;
+@group(0) @binding(1) var img: texture_2d<f32>;
+
+@fragment
+fn fs_main(in: VSOutput) -> @location(0) vec4<f32> {
+	return textureSample(img, imgSampler, in.uv);
+}
+`
+
+// mipmapPipeline returns the cached blit pipeline used to downsample mip levels.
+func (b *WebGPUBackend) mipmapPipeline(format string) any {
+	if p, ok := b.MipmapPipelines[format]; ok {
+		return p
+	}
+	module := b.Device.createShaderModule(map[string]any{"label": "mipmap-blit", "code": mipmapBlitWGSL})
+	pipeline := b.Device.createRenderPipeline(map[string]any{
+		"label":  "mipmap-pipeline-" + format,
+		"layout": "auto",
+		"vertex": map[string]any{"module": module, "entryPoint": "vs_main"},
+		"fragment": map[string]any{
+			"module":     module,
+			"entryPoint": "fs_main",
+			"targets":    []any{map[string]any{"format": format}},
+		},
+		"primitive": map[string]any{"topology": "triangle-strip"},
+	})
+	b.MipmapPipelines[format] = pipeline
+	return pipeline
+}
+
+// GenerateMipmaps renders each mip level from the previous one. Uses the
+// frame's command encoder when inside a frame (and no pass is open),
+// otherwise submits immediately.
 func (b *WebGPUBackend) GenerateMipmaps(texture any) {
+	h, ok := texture.(*WebGPUTextureHandle)
+	if !ok || b.Device == nil || h.GPUTexture == nil || h.MipLevelCount <= 1 {
+		return
+	}
+	format := h.Format
+	if format == "" {
+		format = "rgba8unorm"
+	}
+	pipeline := b.mipmapPipeline(format)
+
+	encoder := b.CommandEncoder
+	submitImmediate := false
+	if encoder == nil || b.CurrentPass != nil {
+		encoder = b.Device.createCommandEncoder()
+		submitImmediate = true
+	}
+
+	srcView := h.GPUTexture.createView(map[string]any{"baseMipLevel": 0, "mipLevelCount": 1})
+	for i := 1; i < h.MipLevelCount; i++ {
+		dstView := h.GPUTexture.createView(map[string]any{"baseMipLevel": i, "mipLevelCount": 1})
+		pass := encoder.beginRenderPass(map[string]any{
+			"colorAttachments": []any{
+				map[string]any{"view": dstView, "loadOp": "clear", "storeOp": "store"},
+			},
+		})
+		pass.setPipeline(pipeline)
+		pass.setBindGroup(0, b.Device.createBindGroup(map[string]any{
+			"layout": pipeline.getBindGroupLayout(0),
+			"entries": []any{
+				map[string]any{"binding": 0, "resource": b.DefaultSampler},
+				map[string]any{"binding": 1, "resource": srcView},
+			},
+		}))
+		pass.draw(4)
+		pass.end()
+		srcView = dstView
+	}
+
+	if submitImmediate {
+		b.Device.queue.submit([]any{encoder.finish()})
+	}
 }
 
 func (b *WebGPUBackend) SetTextureWrapMode(texture any, mode string) {
@@ -803,12 +948,24 @@ func (b *WebGPUBackend) DeleteBuffer(buffer any) {
 	}
 }
 
+// wgslLabelFor finds the catalog name whose WGSL source matches code; the label
+// keys pipeline layouts and binding lookups in drawIndexedInternal.
+func wgslLabelFor(code string) string {
+	for name, def := range WgslShaderSources {
+		if def.Code == code {
+			return name
+		}
+	}
+	return "unknown"
+}
+
 func (b *WebGPUBackend) CreateShaderProgram(vertexOrWgsl string, fragment string) any {
 	if b.Device == nil {
 		return nil
 	}
 	shaderModule := b.Device.createShaderModule(map[string]any{
-		"code": vertexOrWgsl,
+		"label": wgslLabelFor(vertexOrWgsl),
+		"code":  vertexOrWgsl,
 	})
 	return &WebGPUShaderHandle{
 		GPUShaderModule: shaderModule,
@@ -1038,9 +1195,24 @@ func (b *WebGPUBackend) SetBlendState(enabled bool, srcFactor, dstFactor string)
 	b.BlendState.DstFactor = dstFactor
 }
 
+// depthCompareFuncs maps GL-style depth function names to GPUCompareFunction.
+var depthCompareFuncs = map[string]string{
+	"never":    "never",
+	"less":     "less",
+	"equal":    "equal",
+	"lequal":   "less-equal",
+	"greater":  "greater",
+	"notequal": "not-equal",
+	"gequal":   "greater-equal",
+	"always":   "always",
+}
+
 func (b *WebGPUBackend) SetDepthState(testEnabled bool, writeEnabled bool, funcName string) {
 	b.DepthState.Test = testEnabled
 	b.DepthState.Write = writeEnabled
+	if mapped, ok := depthCompareFuncs[funcName]; ok {
+		funcName = mapped
+	}
 	b.DepthState.Func = funcName
 }
 

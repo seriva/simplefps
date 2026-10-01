@@ -2,7 +2,7 @@
 
 **Version:** v2.2.0
 **Status:** Draft
-**Depends on:** `gofront-rewrite-plan.md` Phases 1–5 (complete on branch `gofront`)
+**Depends on:** `gofront-rewrite-plan.md` (complete on branch `gofront`)
 
 ---
 
@@ -33,8 +33,6 @@ to today and `gofront test` for `rendering`, `scene`, `game` stays green.
   handle structs are a possible follow-up, not part of this plan.
 - **Folder restructuring.** Package boundaries and file layout stay as in the
   rewrite plan.
-- **Touching the legacy `.js` modules.** They are deleted by the rewrite plan's
-  later phases, not modified here.
 - **Game package changes** other than what the `Scene`/`engine` API changes
   force (constructor arguments, no behavioural change).
 

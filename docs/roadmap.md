@@ -12,7 +12,7 @@ Design documents for planned features live in `docs/plans/`
 
 | Feature | Difficulty | Status | Notes |
 |---|---|---|---|
-| [GoFront Rewrite](plans/gofront-rewrite-plan.md) | High | In Progress (branch `gofront`) | Phases 1–2 done: `physics` and `systems` packages ported with zero-allocation queries and tests; rendering, scene, UI, game and networking pending |
+| [Engine Architecture Cleanup](plans/engine-architecture-cleanup-plan.md) | Medium | Draft | Move the `rendering.SceneSource` seam so `scene` owns pass orchestration instead of `rendering` reaching back into the scene |
 | [G-Buffer Depth Reconstruction](plans/gbuffer-depth-reconstruction-plan.md) | Medium | Planned | Reconstruct world/view position from depth buffer; eliminates 16-byte worldPosition render target to cut mobile memory bandwidth |
 
 ---
@@ -21,10 +21,11 @@ Design documents for planned features live in `docs/plans/`
 
 | Feature | Difficulty | Status | Notes |
 |---------|------------|--------|-------|
+| [GoFront Rewrite](plans/gofront-rewrite-plan.md) | High | Completed (branch `gofront`) | All engine and game packages ported from ES6 to GoFront `.go`/`.templ`; legacy JS deleted; `main.go` boot; recursive `gofront check/test app/src/...`; zero-alloc perf benchmark and Playwright smoke test |
 | [Physics Improvements](plans/archive/physics-improvements-plan.md) | Medium | Completed (2026-09) | Iterative wall sliding, Quake-style step-climbing, 8-directional depenetration, raycasting micro-opts, raycastStatic/Dynamic split |
 | [Rendering Performance](plans/archive/rendering-performance-plan.md) | Medium | Completed (2026-09) | Two-level BVH, light contribution culling, skip shadow blur when idle, priority-queue shadow budget, compact light UBO layout |
-| [Ambient Probe Acceleration](plans/archive/ambient-probe-plan.md) | Low | Completed (2026-09) | Verified in lightgrid.js; O(1) 3D grid cell lookup with trilinear interpolation and per-frame caching |
-| [Transparent Sorting](plans/archive/transparent-sorting-plan.md) | Low | Completed (2026-09) | Back-to-front depth sort landed in renderpasses.js; sort entry pooling and early-out tracked in Code Review Quick Wins (B2, B3) |
+| [Ambient Probe Acceleration](plans/archive/ambient-probe-plan.md) | Low | Completed (2026-09) | Verified in `scene/lightgrid.go`; O(1) 3D grid cell lookup with trilinear interpolation and per-frame caching |
+| [Transparent Sorting](plans/archive/transparent-sorting-plan.md) | Low | Completed (2026-09) | Back-to-front depth sort landed in `scene/renderpasses.go`; sort entry pooling and early-out tracked in Code Review Quick Wins (B2, B3) |
 | [Fixed Timestep Physics](plans/archive/fixed-timestep-plan.md) | Medium | Completed (2026-09) | 120 Hz accumulator decouples simulation from refresh rate; frame-rate-invariant jump height and movement, prerequisite for consistent P2P simulation |
 | [Code Review & Engine Improvements](plans/archive/code-review-quick-wins-plan.md) | Medium | Completed (2026-09) | Engine review fixes across Rounds 1 & 2: backend GL/WebGPU optimizations, architecture/facade integrity, skinned animation, particle leaks, cull state, WebGPU near culling, audio cache, and zero-allocation hot paths |
 ---

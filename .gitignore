@@ -5,7 +5,9 @@ node_modules/
 dist/
 out/
 public/
-app/src/dependencies/
+app/app.js
+app/app.js.map
+app/vendor.js
 
 # Coverage
 coverage/
@@ -50,4 +52,7 @@ docs/superpowers/
 .tabnine/
 # generic agent session files
 *.agent-session
+# test reports
+playwright-report/
+test-results/
 

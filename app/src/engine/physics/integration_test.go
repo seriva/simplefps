@@ -263,6 +263,11 @@ func TestPhysicsStepDoesNotAllocate(t *testing.T) {
 	if heapUsed() < 0 {
 		t.Skip("process.memoryUsage unavailable")
 	}
+	// jsdom adds ~2 KB/step of unrelated churn to the heap counter; the budget
+	// is only meaningful in the headless harness.
+	if document != nil {
+		t.Skip("heap measurement is only stable without --dom")
+	}
 	tm := gridFloor(16, 1600, 0)
 	installTrimeshRaycaster(tm)
 	defer func() { GlobalRaycastStatic = nil }()

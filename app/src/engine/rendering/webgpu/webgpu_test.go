@@ -269,3 +269,55 @@ func TestWebGPUPackStructReusesBuffer(t *testing.T) {
 		t.Error("Unknown struct name must return nil")
 	}
 }
+
+func TestMipLevelCountFor(t *testing.T) {
+	cases := []struct {
+		w, h, want int
+	}{
+		{1, 1, 1},
+		{2, 2, 2},
+		{256, 256, 9},
+		{512, 128, 10},
+		{100, 300, 9},
+	}
+	for _, c := range cases {
+		if got := mipLevelCountFor(c.w, c.h); got != c.want {
+			t.Errorf("mipLevelCountFor(%d, %d) = %d, want %d", c.w, c.h, got, c.want)
+		}
+	}
+}
+
+func TestWgslLabelFor(t *testing.T) {
+	for name, def := range WgslShaderSources {
+		if got := wgslLabelFor(def.Code); got != name {
+			t.Errorf("wgslLabelFor(%s source) = %q", name, got)
+		}
+	}
+	if got := wgslLabelFor("not a catalog shader"); got != "unknown" {
+		t.Errorf("Expected 'unknown' for unmatched source, got %q", got)
+	}
+}
+
+func TestSetDepthStateMapsGLFuncNames(t *testing.T) {
+	backend := NewWebGPUBackend()
+	cases := map[string]string{
+		"lequal":     "less-equal",
+		"gequal":     "greater-equal",
+		"notequal":   "not-equal",
+		"less":       "less",
+		"always":     "always",
+		"less-equal": "less-equal",
+	}
+	for in, want := range cases {
+		backend.SetDepthState(true, true, in)
+		if backend.DepthState.Func != want {
+			t.Errorf("SetDepthState(%q) -> %q, want %q", in, backend.DepthState.Func, want)
+		}
+	}
+}
+
+func TestGenerateMipmapsNoopWithoutDevice(t *testing.T) {
+	backend := NewWebGPUBackend()
+	backend.GenerateMipmaps(&WebGPUTextureHandle{MipLevelCount: 4})
+	backend.GenerateMipmaps(nil)
+}

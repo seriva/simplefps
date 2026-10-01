@@ -1,9 +1,5 @@
 package physics
 
-import (
-	"math"
-)
-
 const (
 	RayModeClosest = 1
 	RayModeAny     = 2
@@ -59,18 +55,6 @@ func (r *RaycastResult) Reset() {
 	r.HitFaceIndex = -1
 	r.Distance = -1
 	r.ShouldStop = false
-}
-
-// Set populates hit properties in-place.
-func (r *RaycastResult) Set(from, to, normal, hitPoint *Vec3, shape, body interface{}, distance float32) {
-	r.RayFromWorld.Copy(from)
-	r.RayToWorld.Copy(to)
-	r.HitNormalWorld.Copy(normal)
-	r.HitPointWorld.Copy(hitPoint)
-	r.Shape = shape
-	r.Body = body
-	r.Distance = distance
-	r.HasHit = true
 }
 
 // RayOptions specifies configuration options for ray queries.
@@ -159,21 +143,11 @@ func (ray *Ray) IntersectTrimesh(mesh *Trimesh, worldMatrix Mat4) {
 
 	maxDist := _itLocalFrom.Distance(&_itLocalTo)
 
-	if _itLocalDir.X != 0 {
-		_itInvDir.X = 1.0 / _itLocalDir.X
-	} else {
-		_itInvDir.X = float32(math.Inf(1))
-	}
-	if _itLocalDir.Y != 0 {
-		_itInvDir.Y = 1.0 / _itLocalDir.Y
-	} else {
-		_itInvDir.Y = float32(math.Inf(1))
-	}
-	if _itLocalDir.Z != 0 {
-		_itInvDir.Z = 1.0 / _itLocalDir.Z
-	} else {
-		_itInvDir.Z = float32(math.Inf(1))
-	}
+	// Float division by a zero component yields ±Inf, which IntersectRayAABB
+	// handles; branching on a math.Inf constant made V8 box a heap number per cast.
+	_itInvDir.X = 1.0 / _itLocalDir.X
+	_itInvDir.Y = 1.0 / _itLocalDir.Y
+	_itInvDir.Z = 1.0 / _itLocalDir.Z
 
 	// Early rejection: Check if ray intersects the mesh's root bounding box
 	if !IntersectRayAABB(&mesh.AABB, &_itLocalFrom, &_itInvDir, maxDist) {
@@ -248,42 +222,33 @@ func (ray *Ray) IntersectTrimesh(mesh *Trimesh, worldMatrix Mat4) {
 			hitDistance = ray.From.Distance(&_itWorldPoint)
 		}
 
-		ray.ReportIntersection(
-			&_itWorldNormal,
-			&_itWorldPoint,
-			mesh,
-			nil,
-			trianglesIndex,
-			hitDistance,
-		)
-	}
-}
-
-// ReportIntersection records an intersection based on ray mode.
-func (ray *Ray) ReportIntersection(normal, hitPointWorld *Vec3, shape, body interface{}, hitFaceIndex int, distance float32) {
-	if ray.SkipBackfaces && normal.Dot(&ray.Direction) > 0 {
-		return
-	}
-
-	result := &ray.Result
-	result.HitFaceIndex = hitFaceIndex
-
-	switch ray.Mode {
-	case RayModeAll:
-		ray.HasHit = true
-		result.Set(&ray.From, &ray.To, normal, hitPointWorld, shape, body, distance)
-		if ray.Callback != nil {
-			ray.Callback(result)
+		if ray.SkipBackfaces && _itWorldNormal.Dot(&ray.Direction) > 0 {
+			continue
 		}
-	case RayModeClosest:
-		if distance < result.Distance || !result.HasHit {
-			ray.HasHit = true
-			result.Set(&ray.From, &ray.To, normal, hitPointWorld, shape, body, distance)
+		result := &ray.Result
+		result.HitFaceIndex = trianglesIndex
+		if ray.Mode == RayModeClosest && result.HasHit && hitDistance >= result.Distance {
+			continue
 		}
-	case RayModeAny:
+		// Written inline: passing the float32 distance through a helper call made
+		// V8 box it as a heap number per hit whenever the callee was not inlined.
 		ray.HasHit = true
-		result.Set(&ray.From, &ray.To, normal, hitPointWorld, shape, body, distance)
-		result.ShouldStop = true
+		result.RayFromWorld.Copy(&ray.From)
+		result.RayToWorld.Copy(&ray.To)
+		result.HitNormalWorld.Copy(&_itWorldNormal)
+		result.HitPointWorld.Copy(&_itWorldPoint)
+		result.Shape = mesh
+		result.Body = nil
+		result.Distance = hitDistance
+		result.HasHit = true
+		switch ray.Mode {
+		case RayModeAll:
+			if ray.Callback != nil {
+				ray.Callback(result)
+			}
+		case RayModeAny:
+			result.ShouldStop = true
+		}
 	}
 }
 

@@ -130,19 +130,20 @@ func (m *Mesh) InitMeshBuffers() {
 		Type:   "float",
 	}
 
-	attrs := []VertexAttribute{posAttr, uvAttr, normalAttr}
-
-	// Lightmap UVs
-	if m.HasLightmapUVs {
-		m.LightmapUVBuffer = ActiveBackend.CreateBuffer(m.LightmapUVs, "vertex")
-		m.Buffers = append(m.Buffers, m.LightmapUVBuffer)
-		attrs = append(attrs, VertexAttribute{
-			Buffer: m.LightmapUVBuffer,
-			Slot:   AttrLightmapUVs,
-			Size:   2,
-			Type:   "float",
-		})
+	// Lightmap UVs (always bound, zero-filled when absent, so the shader's
+	// location(3) input is always backed by a buffer).
+	lightmapUVs := m.LightmapUVs
+	if !m.HasLightmapUVs {
+		lightmapUVs = make([]float32, vertexCount*2)
 	}
+	m.LightmapUVBuffer = ActiveBackend.CreateBuffer(lightmapUVs, "vertex")
+	m.Buffers = append(m.Buffers, m.LightmapUVBuffer)
+	attrs := []VertexAttribute{posAttr, uvAttr, normalAttr, {
+		Buffer: m.LightmapUVBuffer,
+		Slot:   AttrLightmapUVs,
+		Size:   2,
+		Type:   "float",
+	}}
 
 	var singleIndexBuffer any
 	if len(m.Indices) == 1 {

@@ -2,24 +2,26 @@
 
 ## Overview
 
-SimpleFPS uses **Deferred Rendering** with WebGL 2 and WebGPU backends, featuring G-Buffer lighting, shadow mapping, and post-processing. It includes high-performance optimizations like budget-aware occlusion culling and FidelityFX Super Resolution (FSR).
+SimpleFPS uses **Deferred Rendering** with WebGL 2 and WebGPU backends, featuring G-Buffer lighting, shadow mapping, and post-processing. It includes FidelityFX Super Resolution (FSR) upscaling and a zero-allocation per-frame path.
 
 ## File Structure
 
 ```
-app/src/engine/rendering/
-├── backend.js           # Backend selector
-├── renderbackend.js     # Abstract API base class
-├── renderer.js          # Deferred pipeline orchestrator
-├── renderpasses.js      # Render pass implementations
-├── shaders.js, material.js, mesh.js, texture.js, shapes.js
-├── webgl/               # WebGL 2 implementation + GLSL
-└── webgpu/              # WebGPU implementation + WGSL
+app/src/engine/
+├── engine.go                # SelectBackend(): WebGPU if preferred+available, else WebGL2
+└── rendering/               # package rendering
+    ├── renderbackend.go     # RenderBackend interface + shared types (TextureDesc, BlendState, …)
+    ├── renderer.go          # Deferred pipeline orchestrator (G-buffer, lighting, post, FSR)
+    ├── renderpasses.go      # Renderer.Render(): pass sequencing, RenderStats, SceneSource interface
+    ├── shaders.go           # Shader wrapper (Bind/SetUniform) over backend programs; Shaders registry
+    ├── material.go, mesh.go, skinnedmesh.go, texture.go, shapes.go, noise.go
+    ├── webgl/               # package webgl: WebGLBackend + GLSL
+    └── webgpu/              # package webgpu: WebGPUBackend + WGSL
 ```
 
 ## Backend Abstraction
 
-**RenderBackend** provides a unified API abstracted over WebGL/WebGPU:
+**`rendering.RenderBackend`** is a Go interface implemented by `webgl.WebGLBackend` and `webgpu.WebGPUBackend`:
 
 | Category | Methods |
 |----------|---------|
@@ -28,7 +30,7 @@ app/src/engine/rendering/
 | **State** | `setBlendState()`, `setDepthState()`, `setCullState()` |
 | **Drawing** | `bindShader()`, `bindTexture()`, `drawIndexed()` |
 
-Backend selection is **asynchronous** and uses a transparent `Proxy` so the rest of the codebase can `import { Backend }` unchanged. WebGPU is tried first; if `init()` throws or returns false, it falls back to WebGL automatically and saves the updated setting. After the backend resolves, all prototype methods are pre-bound to the instance (`_bindMethods`) so `this` references inside methods are correct without re-entering the proxy trap on every call.
+Backend selection lives in `engine.SelectBackend(preferWebGPU, onReady)`: WebGPU is only attempted when the setting prefers it **and** `navigator.gpu` exists; if its async `Init` reports failure the engine falls back to WebGL2. The chosen backend is published as `engine.CurrentBackend` / `rendering.ActiveBackend` and everything outside `engine` talks to it through the interface only — `webgl` and `webgpu` are imported by `engine.go` alone.
 
 ## Baked Lighting System
 
@@ -64,7 +66,7 @@ Pass order: Geometry → Shadow → FPS Geometry → Lighting → Transparent �
 | 2 | RGBA8 | Albedo (a = lightmap flag: 1.0 = lightmapped/skybox, 0.0 = dynamic) |
 | 3 | RGBA8 | Emissive |
 
-**Render Order:** Skybox → Occluders → Occlusion Queries → Occludees  
+**Render Order:** Skybox → static meshes → skinned meshes; the per-type entity loops live in `scene/renderpasses.go`, which `Renderer` drives through the `SceneSource` interface.  
 Depth range: 0.1-1.0 (world geometry)
 
 **Advanced Features:**
@@ -107,16 +109,10 @@ Console commands:
 - `twf`: Toggle Wireframes
 - `tlv`: Toggle Light Volumes
 - `tsk`: Toggle Skeleton
-- `toc`: Toggle Occlusion Culling
 
 ## Performance Optimizations
 
-1. **Occlusion Culling (Budget-Aware):**
-   - **Occluder/Occludee Split:** Occluders populate depth, then occludees are queried.
-   - **Query Budget:** Limits queries to 96 per frame, round-robin through all entities via a cursor.
-   - **Ring Buffering:** Uses a 6-slot query buffer per entity to handle GPU readback latency without stalls.
-   - **Async Readback:** (WebGPU) 3-buffer ring buffer for non-blocking result retrieval.
-   - **Scope:** Culls Meshes, SkinnedMeshes, PointLights, and SpotLights.
+1. **Frustum Culling:** `Scene.UpdateVisibility` rebuilds a type-segregated visible-entity cache once per frame from each entity's bounding box, so every render pass iterates only the entities of the type it needs.
 
 2. **WebGPU Backend Optimizations:**
    - **O(1) Uniform Buffer Pooling:** Reuses buffers of various sizes to avoid per-frame allocations.
@@ -124,9 +120,8 @@ Console commands:
    - **Explicit Pipeline Layout Caching:** Persistent and per-frame BindGroup and Pipeline caches.
    - **State Filtering:** Avoids redundant GPU state changes.
 
-3. **Incremental Visibility Culling:** Scene maintains a type-segregated visible entity cache that is only rebuilt when the camera frustum or the set of bounded entities has actually changed. A flat copy of the last frustum planes is compared each frame; if unchanged, the rebuild is skipped entirely.
-4. **Pre-allocated Arrays:** Scratch buffers reused per-frame for FSR passes and frustum comparisons (no GC).
-5. **Depth Range Partitioning:** World (0.1-1.0) / FPS (0.0-0.1) avoids z-fighting.
+3. **Zero Per-Frame Allocations:** Scratch vectors/matrices and sort buffers are package-level and reused; the render path is covered by heap-growth tests (`rendering_test.go`, `scene_test.go`) and the raycast benchmark in `tests/perf/zero-alloc.js`.
+4. **Depth Range Partitioning:** World (0.1-1.0) / FPS (0.0-0.1) avoids z-fighting.
 
 ## Uniform Buffer Objects (UBOs)
 
@@ -150,5 +145,4 @@ Console commands:
 | **Shaders** | GLSL | WGSL |
 | **Uniforms** | Individual `setUniform` | UBOs / Dynamic Offsets |
 | **State** | Global state machine | Pipeline objects |
-| **Occlusion** | `getQueryObject` | `resolveQuerySet` + `mapAsync` |
 

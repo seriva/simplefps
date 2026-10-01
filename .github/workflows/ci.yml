@@ -53,8 +53,11 @@ jobs:
           git push
         fi
 
-    - name: Lint
+    - name: Lint and type-check
       run: npm run check
+
+    - name: Test
+      run: npm test
 
   deploy:
     needs: [check]
@@ -80,7 +83,7 @@ jobs:
       run: npm install
 
     - name: Build
-      run: npm run prod
+      run: npm run build
       
     - name: Setup Pages
       uses: actions/configure-pages@v6

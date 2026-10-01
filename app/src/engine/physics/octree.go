@@ -1,9 +1,5 @@
 package physics
 
-import (
-	"math"
-)
-
 // MaxOctreeStackDepth bounds the explicit traversal stack; 8 children per level, so a
 // depth-first walk of a tree with MaxDepth 8 never exceeds 8*7+1 live entries.
 const MaxOctreeStackDepth = 128
@@ -236,21 +232,9 @@ func (node *OctreeNode) RayQuery(ray *Ray, treeTransform *Transform, out []int) 
 func (node *OctreeNode) RayQueryLocal(origin, direction *Vec3, maxDist float32, out []int, invDir *Vec3) int {
 	inv := invDir
 	if inv == nil {
-		if direction.X != 0 {
-			_octInvDir.X = 1.0 / direction.X
-		} else {
-			_octInvDir.X = float32(math.Inf(1))
-		}
-		if direction.Y != 0 {
-			_octInvDir.Y = 1.0 / direction.Y
-		} else {
-			_octInvDir.Y = float32(math.Inf(1))
-		}
-		if direction.Z != 0 {
-			_octInvDir.Z = 1.0 / direction.Z
-		} else {
-			_octInvDir.Z = float32(math.Inf(1))
-		}
+		_octInvDir.X = 1.0 / direction.X
+		_octInvDir.Y = 1.0 / direction.Y
+		_octInvDir.Z = 1.0 / direction.Z
 		inv = &_octInvDir
 	}
 

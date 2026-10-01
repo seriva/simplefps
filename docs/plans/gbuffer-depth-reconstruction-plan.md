@@ -3,20 +3,23 @@
 **Goal:** Eliminate the 16-byte `worldPosition` G-buffer render target to reduce mobile VRAM usage and memory bandwidth. We will reconstruct the world position mathematically from the hardware depth buffer in the deferred lighting passes.
 
 **Constraint Checklist & Confidence Score:**
-1. No `var`? Yes.
-2. No default exports? Yes.
-3. No per-frame allocations? Yes.
-4. Log via `Console.log/warn/error`? Yes.
-5. No new external dependencies? Yes.
+1. No per-frame allocations? Yes.
+2. Log via `systems.GlobalConsole.Log/Warn/Error`? Yes.
+3. No new external dependencies? Yes.
+4. GPU work stays behind `rendering.RenderBackend`? Yes.
 Confidence Score: 5/5
+
+> **Note:** This plan was written against the pre-GoFront JavaScript sources. File paths below have
+> been updated to the Go port, but the quoted line numbers and JS snippets are approximate — locate
+> the equivalent Go code (`allocateBuffers`, `lightingPass`, `Shaders.*`) before editing.
 
 ---
 
 ## Task 1: Renderer Pipeline Updates
-We need to remove the `worldPosition` texture from the G-buffer and bind the existing `_depth` texture during lighting. 
+We need to remove the `worldPosition` texture from the G-buffer and bind the existing depth texture during lighting. 
 *Note: `matInvViewProj` is already present in the Frame Data UBO in both backends, so no UBO layout changes are required.*
 
-**File:** `app/src/engine/rendering/renderer.js`
+**File:** `app/src/engine/rendering/renderer.go`
 - **Lines ~174:** Delete the line `_g.worldPosition = new Texture({ format: "rgba16f", width, height });`
 - **Lines ~74:** Delete the disposal logic `if (_g.worldPosition) { _g.worldPosition.dispose(); _g.worldPosition = null; }`
 - **Lines ~181:** In `Backend.createFramebuffer` for `_g.framebuffer`, remove `_g.worldPosition.getHandle(),` from the `colorAttachments` array.
@@ -27,7 +30,7 @@ We need to remove the `worldPosition` texture from the G-buffer and bind the exi
 ## Task 2: WebGL 2 (GLSL) Shaders
 Update the GLSL shaders to stop writing position and instead read depth to reconstruct position.
 
-**File:** `app/src/engine/rendering/webgl/glsl.js`
+**File:** `app/src/engine/rendering/webgl/glsl.go`
 - **Geometry Passes (`deferred_geometry`, `skinned_deferred_geometry`)** (approx lines 135, 990):
   - Delete `layout(location=0) out vec4 fragPosition;`
   - Renumber the remaining locations:
@@ -52,7 +55,7 @@ Update the GLSL shaders to stop writing position and instead read depth to recon
 ## Task 3: WebGPU (WGSL) Shaders
 Update the WGSL shaders. WebGPU clip space Z is `[0, 1]` and Y points up, but screen UV Y points down.
 
-**File:** `app/src/engine/rendering/webgpu/wgsl.js`
+**File:** `app/src/engine/rendering/webgpu/wgsl.go`
 - **Geometry Passes (`entityShader`, `skinnedEntityShader` etc.)**:
   - In the output struct (e.g., `GbufferOutput`), delete `@location(0) worldPosition: vec4<f32>,` (approx lines 153, 318, 984).
   - Renumber the locations: `normal` becomes `@location(0)`, `color` becomes `@location(1)`, `emissive` becomes `@location(2)`.
@@ -75,7 +78,7 @@ Update the WGSL shaders. WebGPU clip space Z is `[0, 1]` and Y points up, but sc
 ---
 
 ## Verification
-1. Run `npm run check` and `npm run format`. Fix any syntax issues.
-2. Run `npm run dev` in WebGL mode and verify identical geometry/lighting to before.
+1. Run `npm run check` and `npm test` (`TestAllocateBuffersResolvesEveryFormat` and `TestRenderFrameDoesNotAllocate` in `rendering/renderer_test.go` must still pass; update the expected attachment list).
+2. Run `npm run dev` in WebGL mode and verify identical geometry/lighting to before; `npm run test:e2e` must still see a lit frame.
 3. Run `npm run dev` in WebGPU mode (using Chrome Canary or Edge) and verify identical rendering.
 4. Verify using Spectre.js / WebGPU Inspector that the G-buffer only has 3 color attachments plus depth.

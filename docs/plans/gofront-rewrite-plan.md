@@ -1,20 +1,33 @@
 # GoFront Engine & Architecture Rewrite — Design Plan
 
 **Version:** v2.1.0  
-**Target Toolchain:** GoFront v1.3.7  
-**Status:** In Progress — Phase 1–6 complete on branch `gofront`  
+**Target Toolchain:** GoFront v1.3.8 (unreleased; `main` past tag `1.3.7`)  
+**Status:** In Progress — Phase 1–8 complete on branch `gofront`  
 
 ---
 
 ## Toolchain Note
 
-The `physics` and `systems` packages require GoFront **1.3.7 or later**, which
-ships two compiler fixes surfaced by this port:
+The port requires GoFront **1.3.8 or later** — i.e. the current `main` of the
+`gofront` repo, which is five commits past the published `1.3.7`. Fixes surfaced
+by this port and needed to compile it:
 
 1. Pointer receivers are typed `*T` (previously `T`), so `return out` from a
    `func (out *Vec3) …` method type-checks and does not clone.
 2. Omitted struct-typed fields of an *imported* struct type are zero-initialised
    (`new V()`) instead of `null`.
+3. `&pkg.T{}` / `var v pkg.T` / `v := pkg.T{}` for imported struct types emit
+   `new T()` and are typed `T` (not `any`), so `&v` is not boxed.
+4. `sort.Slice`/`SliceStable`/`SliceIsSorted` use Go index semantics.
+5. `rand.Float32` is typed `float32`; multi-assign with blanks and comma-ok
+   assertions emit unique temporaries; `f().(T)` evaluates `f()` once.
+6. Generic instantiation vs. index expression disambiguation (`xs[d.Field]`),
+   and `[]pkg.T{...}` composite literals as call arguments.
+
+Until 1.3.8 is published, `node_modules/gofront` must be an `npm link` to the
+local checkout; `npm install` replaces the link with registry 1.3.7 (symptom:
+`skeleton.go "Cannot assign [][]float32"` or a `RenderBackend not implemented`
+overlay) — re-run `npm link gofront` afterwards.
 
 `gofront test --dom` (used by `npm run test:dom`) needs the `jsdom` devDependency.
 
@@ -41,7 +54,14 @@ ships two compiler fixes surfaced by this port:
 - P2P multiplayer is ported: `systems.Network` wraps the vendored PeerJS (typed by
   `app/src/dependencies/peerjs.d.ts`), and `game.Multiplayer`/`RemotePlayer` handle host state
   broadcast, client position upload and remote easing, with fake-peer tests (headless and `--dom`).
-- There is no `app/src/main.go` yet, and legacy `.js` modules remain side-by-side for next phases.
+- `app/src/main.go` (package `main`) boots the app: `engine.SelectBackend` → `ResourceManager`
+  → `NewGame`, wires the menus/HUD/console and the render loop. All legacy `.js` modules under
+  `app/src/` are deleted; the app is 100% Go/`.templ` compiled by `gofront dev` / `gofront build`.
+- Phase 8 is done: `tests/perf/zero-alloc.js` (`npm run test:perf`) compiles the `physics` package
+  with the GoFront compiler API and asserts a 100k-raycast sweep stays under 64 KB of new-space
+  growth; `tests/e2e/smoke.spec.js` (`npm run test:e2e`, Playwright, WebGL2 in headless Chromium)
+  asserts the compiled app boots to the menu without errors and renders a lit frame after start.
+  `npm run test:all` runs check, unit, `--dom`, perf and E2E.
 
 ---
 
@@ -56,7 +76,7 @@ The rewrite will **preserve the exact current folder structure and modular layou
 ## Out of Scope
 
 - **Altering the Folder Structure:** No artificial `pkg/` or Go-idiomatic monorepo restructuring. The directory hierarchy mirrors the existing SimpleFPS codebase directly.
-- **Rewriting WebRTC/PeerJS from Scratch:** `peerjs` remains an external vendor dependency bundled via GoFront's built-in vendor bundler (`gofront prep` / `gofront build`) and typed via `js:../dependencies/peerjs.d.ts`.
+- **Rewriting WebRTC/PeerJS from Scratch:** `peerjs` remains an external vendor dependency bundled via GoFront's built-in vendor bundler (`gofront prep` / `gofront build`) into `app/vendor.js` and typed via `js:../dependencies/peerjs.d.ts`.
 - **Game Design & Content Changes:** All 3D assets (GLTF/GLB/OBJ meshes, textures, audio, arena layouts) and shader programs (GLSL for WebGL2, WGSL for WebGPU) remain identical.
 - **Dedicated Game Servers:** The architecture remains strictly client-side Peer-to-Peer (P2P) with no backend infrastructure.
 
@@ -69,11 +89,13 @@ The GoFront codebase preserves the current file and directory structure 1-to-1:
 ```
 app/
 ├── index.html                        # App shell & canvas mount
+├── style.css                         # Single plain stylesheet (hot-reloaded by gofront dev)
+├── vendor.js                         # Bundled peerjs (gofront prep/build; gitignored)
 └── src/
     ├── main.go                       # package main (application entry point)
+    ├── interop.d.ts                  # Browser globals GoFront does not predeclare
     ├── dependencies/
-    │   ├── peerjs.d.ts               # P2P multiplayer type definitions
-    │   └── peerjs.js                 # Bundled vendor dependency (via gofront prep/build)
+    │   └── peerjs.d.ts               # P2P multiplayer type definitions
     ├── engine/                       # package engine (facade & composition root)
     │   ├── engine.go
     │   ├── animation/                # package animation
@@ -360,8 +382,12 @@ SimpleFPS bundles `peerjs` for P2P networking. GoFront's built-in bundler (`gofr
   "scripts": {
     "dev": "gofront dev",
     "build": "gofront build --pwa",
-    "check": "biome check . && gofront check",
-    "test": "gofront test app/src/engine/physics && gofront test app/src/game",
+    "check": "biome check . && gofront check app/src/...",
+    "test": "gofront test app/src/...",
+    "test:dom": "gofront test --dom app/src/...",
+    "test:perf": "node tests/perf/zero-alloc.js",
+    "test:e2e": "playwright test",
+    "test:all": "npm run check && npm test && npm run test:dom && npm run test:perf && npm run test:e2e",
     "format": "biome format --write ."
   },
   "dependencies": {
@@ -369,12 +395,15 @@ SimpleFPS bundles `peerjs` for P2P networking. GoFront's built-in bundler (`gofr
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.14",
+    "@playwright/test": "^1.63.0",
+    "gofront": "^1.3.8",
+    "jsdom": "^30.1.1",
     "lefthook": "^2.1.14",
-    "rolldown": "^1.0.0-beta.3"
+    "rolldown": "^1.2.7"
   },
   "vendor": {
     "dest": [
-      "app/src/dependencies/peerjs.js",
+      "app/vendor.js",
       "public/vendor.js"
     ],
     "packages": ["peerjs"],
@@ -489,16 +518,18 @@ gantt
 3. `package game`: `netvalidation.go` (`IsVec3`, `Vec3FromAny`, `Vec3ToArray`), `remoteplayer.go` (eased mesh entity per remote peer), `multiplayer.go` (host state broadcast at 30 Hz, client position upload, stamp-based add/retarget/remove of remotes, `host`/`join` console commands). `Game` owns a `Multiplayer` and ticks it every frame, including while menus are open.
 4. Tests: `network_test.go` (systems) and `multiplayer_test.go` (game) cover host/client flows, failures, state application and remote easing. GoFront fix surfaced: `v := pkg.T{}` composite literals with a qualified type were typed `any`, so `&v` was boxed; `resolveTypeNode` now resolves `SelectorExpr` type nodes.
 
-### Phase 8: Verification & Optimization
-1. Run `gofront test` across all package suites.
-2. Run Playwright E2E game verification suite (menu boot, player movement, shooting, collision).
-3. Assert heap memory delta via `v8.getHeapSpaceStatistics()` during active combat loop equals **0 bytes**.
+### Phase 8: Verification & Optimization — Done
+1. `gofront test` passes across all package suites (headless and `--dom`); `gofront build --pwa` produces the offline bundle.
+2. Playwright smoke suite (`tests/e2e/smoke.spec.js`): boot to menu on WebGL2 with no page errors, start game → HUD + populated scene + non-black frame. Full gameplay E2E (movement/shooting/collision) was prototyped and deliberately dropped as not needed at this stage.
+3. Zero-allocation benchmark (`tests/perf/zero-alloc.js`): 100k `IntersectTrimesh` raycasts against a 2048-triangle mesh, best of five sweeps; new-space delta < 64 KB (measured ≈3 KB). Surfaced and fixed a real per-cast allocation: a `float32` distance passed into the `ReportIntersection`/`RaycastResult.Set` helpers was boxed as a HeapNumber by V8 whenever the callee was not inlined (which varied run to run), so hit recording now writes `Ray.Result` fields directly.
+4. Runtime fixes found while booting the full app: WebGPU `createShaderModule` must receive a `label` for the bind-group lookup (`wgslLabelFor`), texture recreation on image upload, mip levels and depth compare state; lightmap vertex attribute binding in `mesh.go`.
 
 ---
 
 ## Test Plan
 
 ### Unit Tests (`gofront test`)
+* **Recursive package patterns:** `gofront test app/src/...` and `gofront check app/src/...` cover every package under `app/src` (including `main`), so `package.json` no longer lists packages by hand.
 * **Project Root Auto-Detection (v1.3.2):** Running `gofront test` from project root automatically detects `app/src`.
 * **Package Suites:**
   * `gofront test app/src/engine/physics`: Vector/matrix math accuracy, normalization, quaternion slerp, octree raycast hits, sliding plane calculations.
@@ -508,13 +539,13 @@ gantt
   * `-run <regex>`: Filter tests by pattern.
   * `--dom`: Run tests inside simulated JSDOM environment for `.templ` and UI components.
 
-### E2E Integration Tests (Playwright)
-* Launch game in headless Chromium via `npm run test:e2e`.
-* Test menu navigation -> play transition -> HUD visibility.
-* Simulate keyboard/mouse movement, shooting weapons, pickup collection.
+### E2E Smoke Tests (Playwright)
+* `npm run test:e2e` launches `gofront dev --port 3131` and headless Chromium (SwiftShader, WebGL2; settings seeded via `localStorage` with `UseWebGPU:false, ShowStats:true`).
+* Boot → main menu visible, renderer reports `webgl2`, arena loaded, no page errors.
+* Start game → HUD visible, scene stats populated, canvas screenshot is >5% lit.
 
 ### Zero-Allocation Benchmark
-* Run 100,000 frame ticks in Node.js headless benchmark (mirroring `test/e2e/perf/zero-alloc.js`).
-* Assert total allocated heap delta during active game loop is **0 bytes** (V8 new_space delta < 64KB).
+* `npm run test:perf` runs `tests/perf/zero-alloc.js`: compiles `app/src/engine/physics` via `compileDir`, warms up, then performs 5 × 100,000 raycasts.
+* Asserts the best sweep's V8 new-space delta < 64 KB (measured ≈3 KB); run with `--max-semi-space-size=512 --expose-gc` when bisecting allocations.
 
 

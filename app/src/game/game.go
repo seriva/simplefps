@@ -139,11 +139,9 @@ func (g *Game) SpawnPlayer() {
 
 // Update is the per-frame gameplay tick (frameTime in ms): look, movement
 // input, fixed-step physics, camera sync, pickups and scene update.
+// Multiplayer is ticked separately via engine.SetCallbacks' always-update so
+// networking continues while the engine is paused.
 func (g *Game) Update(frameTime float32) {
-	// Networking always ticks, even while menus are open (mirrors the legacy
-	// alwaysUpdate callback).
-	g.Multiplayer.Update(frameTime / 1000)
-
 	if !CanUseGameplayInput() {
 		g.accum = 0
 		if g.Scene != nil {
