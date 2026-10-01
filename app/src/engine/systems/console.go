@@ -276,6 +276,18 @@ func (cm *ConsoleManager) ExecuteCmd(cmdLine string) string {
 	cmdName := strings.ToLower(parts[0])
 	cmdArgs := parts[1:]
 
+	// Legacy call syntax: name(arg1, arg2)
+	if open := strings.Index(cmdLine, "("); open > 0 && strings.HasSuffix(cmdLine, ")") {
+		cmdName = strings.ToLower(strings.TrimSpace(cmdLine[:open]))
+		cmdArgs = nil
+		for _, a := range strings.Split(cmdLine[open+1:len(cmdLine)-1], ",") {
+			a = strings.Trim(strings.TrimSpace(a), "\"'")
+			if a != "" {
+				cmdArgs = append(cmdArgs, a)
+			}
+		}
+	}
+
 	if handler, ok := cm.commands[cmdName]; ok {
 		result := handler(cmdArgs)
 		if result != "" {

@@ -7,7 +7,6 @@ import (
 	"./rendering/webgl"
 	"./rendering/webgpu"
 	"./systems"
-	"js:./interop.d.ts"
 )
 
 var (

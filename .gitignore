@@ -2,17 +2,10 @@
 node_modules/
 
 # Build output
-dist/
-out/
 public/
 app/app.js
 app/app.js.map
 app/vendor.js
-
-# Coverage
-coverage/
-*.lcov
-.nyc_output/
 
 # Environment
 .env
@@ -23,7 +16,6 @@ coverage/
 Thumbs.db
 
 # Editor
-.vscode/
 .idea/
 *.swp
 *.swo

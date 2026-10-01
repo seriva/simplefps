@@ -7,12 +7,12 @@
 	},
 	"files": {
 		"ignoreUnknown": false,
-		"includes": ["tests/**/*.js", "playwright.config.js"]
+		"includes": ["tests/**/*.js", "scripts/**/*.js", "playwright.config.js"]
 	},
 	"formatter": {
 		"enabled": true,
 		"indentStyle": "tab",
-		"includes": ["tests/**/*.js", "playwright.config.js"]
+		"includes": ["tests/**/*.js", "scripts/**/*.js", "playwright.config.js"]
 	},
 	"assist": { "actions": { "source": { "organizeImports": "on" } } },
 	"linter": {

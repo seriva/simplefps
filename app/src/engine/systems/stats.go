@@ -8,8 +8,9 @@ import (
 	"js:./interop.d.ts"
 )
 
-// StatsOverlay renders the debug FPS / renderer / scene overlay. It uses cached
-// DOM references and only writes text once per second.
+// StatsOverlay renders the debug FPS / renderer / scene overlay using cached
+// DOM references; text is written every frame, with fps and memory sampled
+// once per second.
 type StatsOverlay struct {
 	visible    bool
 	mounted    bool
@@ -19,6 +20,7 @@ type StatsOverlay struct {
 	prevTime   float64
 	lastUpdate float64
 	frameTime  float64
+	memMB      int
 
 	backendName string
 	meshCount   int
@@ -116,8 +118,8 @@ func (s *StatsOverlay) FPS() int {
 	return s.lastFPS
 }
 
-// Update counts a frame at time now (ms) and refreshes the overlay text once
-// per second. camPos may be nil.
+// Update counts a frame at time now (ms) and refreshes the overlay text.
+// camPos may be nil.
 func (s *StatsOverlay) Update(now float64, camPos *physics.Vec3) {
 	if !s.visible {
 		return
@@ -131,21 +133,12 @@ func (s *StatsOverlay) Update(now float64, camPos *physics.Vec3) {
 	s.prevTime = now
 	s.frames++
 
-	if now-s.lastUpdate < 1000 {
-		return
-	}
-	s.lastFPS = s.frames
-	s.frames = 0
-	s.lastUpdate = now
-
+	// Everything refreshes every frame except fps and memory, which are
+	// sampled once per second.
 	if s.basicEl != nil {
-		mem := 0
-		if performance != nil && performance.memory != nil {
-			mem = int(math.Round(performance.memory.usedJSHeapSize.(float64) / 1048576))
-		}
 		s.basicEl.textContent = strconv.Itoa(s.lastFPS) + "fps - " +
 			strconv.Itoa(int(math.Round(s.frameTime))) + "ms - " +
-			strconv.Itoa(mem) + "mb"
+			strconv.Itoa(s.memMB) + "mb"
 	}
 	if s.sceneEl != nil {
 		s.sceneEl.textContent = "m:" + strconv.Itoa(s.meshCount) +
@@ -156,6 +149,16 @@ func (s *StatsOverlay) Update(now float64, camPos *physics.Vec3) {
 		s.posEl.textContent = "xyz:" + strconv.Itoa(int(math.Round(float64(camPos.X)))) +
 			"," + strconv.Itoa(int(math.Round(float64(camPos.Y)))) +
 			"," + strconv.Itoa(int(math.Round(float64(camPos.Z))))
+	}
+
+	if now-s.lastUpdate < 1000 {
+		return
+	}
+	s.lastFPS = s.frames
+	s.frames = 0
+	s.lastUpdate = now
+	if performance != nil && performance.memory != nil {
+		s.memMB = int(math.Round(performance.memory.usedJSHeapSize.(float64) / 1048576))
 	}
 }
 

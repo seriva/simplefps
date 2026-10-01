@@ -454,7 +454,8 @@ func (s *Scene) UpdateVisibility() {
 	for i := 0; i < s.entities.Count; i++ {
 		e := s.entities.Items[i]
 		b := e.GetBase()
-		if b.BoundingBox != nil && !b.BoundingBox.IsVisible() {
+		// View models are camera-attached; never frustum-cull them.
+		if b.Type != TypeFPSMesh && b.BoundingBox != nil && !b.BoundingBox.IsVisible() {
 			continue
 		}
 		if b.Type > 0 && b.Type < TypeCount {

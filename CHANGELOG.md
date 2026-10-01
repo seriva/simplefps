@@ -24,7 +24,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 - Pointer-receiver math methods return the receiver (`return out`) now that GoFront types receivers as `*T`; removed `Mat4Create` and `Float32FromBits` helpers.
 - `BinaryReader` reads through a `DataView` and returns independent typed-array copies for `ReadFloat32Array`/`ReadUint32Array`/`ReadUint8Array`.
 - `EngineSettings` persists through `localStorage` via `ApplyJSON`/`ToJSON`; `DetectMobile` guards `window`, `userAgentData` and `matchMedia`.
-- Build tooling switched from Microtastic to GoFront (`dev`, `build --pwa`, `prep`, `check`, `test`, `test:dom`); `gl-matrix` removed; `gofront` at 1.3.7 (required for pointer receivers typed `*T` and zero-initialised omitted fields of imported struct types); `jsdom` added as a devDependency for `--dom` tests.
+- Build tooling switched from Microtastic to GoFront (`dev`, `build --pwa`, `prep`, `check`, `test`, `test:dom`); `gl-matrix` removed; `gofront` at 1.3.8 (required for pointer receivers typed `*T` and zero-initialised omitted fields of imported struct types); `jsdom` added as a devDependency for `--dom` tests.
 - Documentation (`AGENTS.md`, `README.md`, `docs/roadmap.md`, rewrite plan) updated for the GoFront branch state and toolchain requirement.
 - `biome` now lints `tests/**` and `playwright.config.js` instead of `app/src` (which no longer contains JavaScript).
 - `check`, `test` and `test:dom` scripts use GoFront's recursive `app/src/...` pattern instead of a hand-maintained chain of per-package commands; `--dom` now covers every package (the physics heap-growth guard skips under jsdom, where the measurement is not meaningful).
@@ -33,6 +33,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 - All legacy JavaScript modules under `app/src/` (engine, game, UI, `Reactive.js`); the app is now compiled entirely from Go and `.templ` sources.
 
 ### Fixed
+- Debug console commands `tbv`/`twf`/`tlv`/`tsk` reported `Unknown command`: `scene.RegisterDebugCommands()` was only called from tests; `NewDefaultGame` now registers them. `ConsoleManager.ExecuteCmd` also accepts the legacy call syntax (`twf()`, `rscale(0.5)`, `join("id")`) alongside `name arg arg`.
+- Production bundle was only partially minified and HUD SVG icons were invisible; both were GoFront bugs (minifier regex-literal misdetection after `)`, `<svg>` emitted via `createElement`) fixed in the local GoFront build.
 - Octree `Insert` rolls back a fresh subdivision when no child accepts the element, and `RemoveEmptyNodes` compacts children in place.
 - `Camera` position/rotation fields are explicitly initialised in `NewCamera`.
 - WebGPU backend: shader modules are created with a `label` (looked up from `WgslShaderSources`) so bind-group layouts resolve and the scene renders; textures are recreated on image upload with correct mip levels and `CreateTexture` allocates a full mip chain when `Mipmaps` is set (procedural noise texture); `GenerateMipmaps` never encodes into an encoder with an open pass; depth compare state fixed. Lightmap vertex attribute binding fixed in `rendering/mesh.go`.

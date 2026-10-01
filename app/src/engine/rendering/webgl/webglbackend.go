@@ -2,7 +2,6 @@ package webgl
 
 import (
 	"../" // rendering
-	"js:./interop.d.ts"
 )
 
 // WebGLTextureHandle wraps a WebGLTexture and its dimensions.

@@ -203,6 +203,12 @@ func (g *Game) Update(frameTime float32) {
 		g.Pickups.Update(&g.Controller.Position)
 	}
 
+	// Refresh view/frustum now so scene culling sees this frame's camera pose
+	// instead of last frame's (the engine's own Camera.Update runs after us).
+	if g.Camera != nil {
+		g.Camera.Update()
+	}
+
 	if g.Scene != nil {
 		g.Scene.Update(frameTime)
 	}
@@ -216,6 +222,7 @@ func NewDefaultGame() *Game {
 		camera = systems.NewCamera()
 	}
 	s := scene.NewScene(camera)
+	scene.RegisterDebugCommands()
 	assets.GlobalResources.OnLoadStart = func() { GlobalLoading.Toggle(true) }
 	assets.GlobalResources.OnLoadEnd = func() { GlobalLoading.Toggle(false) }
 	return NewGame(s, camera)

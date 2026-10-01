@@ -59,6 +59,9 @@ jobs:
     - name: Test
       run: npm test
 
+    - name: Test (jsdom)
+      run: npm run test:dom
+
   deploy:
     needs: [check]
     runs-on: ubuntu-latest

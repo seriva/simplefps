@@ -72,6 +72,17 @@ func TestConsoleCommands(t *testing.T) {
 		t.Errorf("Unexpected args: %v", passedArgs)
 	}
 
+	// Legacy call syntax
+	executed = false
+	cm.ExecuteCmd("testcmd()")
+	if !executed || len(passedArgs) != 0 {
+		t.Errorf("testcmd() should execute with no args, got executed=%v args=%v", executed, passedArgs)
+	}
+	cm.ExecuteCmd("TestCmd(0.5, \"abc\")")
+	if len(passedArgs) != 2 || passedArgs[0] != "0.5" || passedArgs[1] != "abc" {
+		t.Errorf("Unexpected call-syntax args: %v", passedArgs)
+	}
+
 	// Unknown command
 	resUnknown := cm.ExecuteCmd("nonexistent")
 	if resUnknown != "" {

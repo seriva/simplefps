@@ -49,7 +49,7 @@ type Entry struct {
 //	list            -> {resources:[...]} loaded recursively
 type ResourceManager struct {
 	BasePath string
-
+	
 	// OnLoadStart / OnLoadEnd bracket every Load call (nested lists included).
 	OnLoadStart func()
 	OnLoadEnd   func()

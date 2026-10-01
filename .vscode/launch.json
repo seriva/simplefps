@@ -8,8 +8,8 @@
             "name": "Launch SimpleFPS",
             "request": "launch",
             "type": "chrome",
-            "url": "http://localhost:8181",
-            "webRoot": "${workspaceFolder}/app/"
+            "url": "http://localhost:3000",
+            "webRoot": "${workspaceFolder}/public/"
         }
     ]
 }
