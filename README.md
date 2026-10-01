@@ -24,8 +24,6 @@ Simple first person arena shooter written in Go syntax, compiled to JavaScript w
 **Build**: GoFront (dev server, production builds, vendor bundling, type-check, tests)
 **Tools**: Biome (lint/format for the few JS files), Lefthook (git hooks), jsdom (`--dom` tests), Playwright (E2E smoke test)
 
-> The GoFront rewrite is complete on the `gofront` branch: every engine and game module is a Go package or `.templ` component and no legacy JavaScript remains under `app/src`. See [docs/plans/archive/gofront-rewrite-plan.md](docs/plans/archive/gofront-rewrite-plan.md) for the design and phase history.
-
 ## Project Structure
 
 ```
