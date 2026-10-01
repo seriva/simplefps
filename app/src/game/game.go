@@ -27,6 +27,7 @@ type Game struct {
 	Arena       *Arena
 	Controls    *Controls
 	Controller  *physics.FPSController
+	Multiplayer *Multiplayer
 
 	accum float32
 
@@ -50,6 +51,7 @@ func NewGame(s *scene.Scene, camera *systems.Camera) *Game {
 	g.Pickups = NewPickupSystem(g.Player)
 	g.Arena = NewArena(s, camera, g.Pickups)
 	g.Controls = NewControls(g.Weapons)
+	g.Multiplayer = NewMultiplayer(s, camera)
 
 	g.Pickups.OnWeaponCollected = func(pickupType string) {
 		if idx := WeaponIndexByType(pickupType); idx >= 0 {
@@ -76,6 +78,7 @@ func (g *Game) Init() {
 		physics.ActiveCameraUp = &g.Camera.UpVector
 	}
 	engine.ActiveScene = g.Scene
+	g.Multiplayer.Init()
 
 	if window != nil && g.onJump == nil {
 		g.onJump = func(e any) { g.Jump() }
@@ -83,8 +86,9 @@ func (g *Game) Init() {
 	}
 }
 
-// Dispose removes the jump listener.
+// Dispose removes the jump listener and tears down networking.
 func (g *Game) Dispose() {
+	g.Multiplayer.Disconnect()
 	if window != nil && g.onJump != nil {
 		window.removeEventListener("game:jump", g.onJump)
 		g.onJump = nil
@@ -136,6 +140,10 @@ func (g *Game) SpawnPlayer() {
 // Update is the per-frame gameplay tick (frameTime in ms): look, movement
 // input, fixed-step physics, camera sync, pickups and scene update.
 func (g *Game) Update(frameTime float32) {
+	// Networking always ticks, even while menus are open (mirrors the legacy
+	// alwaysUpdate callback).
+	g.Multiplayer.Update(frameTime / 1000)
+
 	if !CanUseGameplayInput() {
 		g.accum = 0
 		if g.Scene != nil {

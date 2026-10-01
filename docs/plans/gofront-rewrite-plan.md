@@ -38,6 +38,9 @@ ships two compiler fixes surfaced by this port:
   `app/src/game/` (player state, weapons, projectiles, pickups, arena, controls, update manager,
   `Game` fixed-step loop) are ported with headless and `--dom` tests. `NewGame` constructs the
   `Scene` and sets `engine.ActiveScene`.
+- P2P multiplayer is ported: `systems.Network` wraps the vendored PeerJS (typed by
+  `app/src/dependencies/peerjs.d.ts`), and `game.Multiplayer`/`RemotePlayer` handle host state
+  broadcast, client position upload and remote easing, with fake-peer tests (headless and `--dom`).
 - There is no `app/src/main.go` yet, and legacy `.js` modules remain side-by-side for next phases.
 
 ---
@@ -479,9 +482,12 @@ gantt
 3. Fixed-capacity active lists with swap-remove, scratch vectors as struct fields, and no per-frame allocation in `Update` paths. `gameplay_test.go` covers definitions, player clamping, weapon load/select/switch/shoot cooldown, projectile lifecycle, pickup collect/respawn, arena parsing/build/missing-map load, game spawn/update, control guards and the update manager (headless and `--dom`).
 4. Two GoFront fixes surfaced by this phase: `rand.Float32` typed as `float64` (typechecker), and multi-assign with blanks / comma-ok assertions re-declaring `let __t` in the same scope (codegen now emits unique `const __tN`).
 
-### Phase 7: P2P Multiplayer (`app/src/game/multiplayer.go`)
-1. Configure `app/src/dependencies/peerjs.d.ts` and vendor bundle via `gofront prep`.
-2. Port `netvalidation.go`, `multiplayer.go`, `remoteplayer.go` using typed import `js:../dependencies/peerjs.d.ts`.
+### Phase 7: P2P Multiplayer (`app/src/game/multiplayer.go`) — Done
+
+1. `app/src/dependencies/peerjs.d.ts` declares `PeerClient`/`PeerDataConnection` interfaces for the vendored PeerJS bundle (`window.Peer`, bundled via `gofront prep`/`gofront build`).
+2. `systems.Network` (`engine/systems/network.go`): host/client roles, async `Host()`/`Connect()` with timeout, client list with fixed capacity, reused `POS`/`STATE` packets, injectable `PeerFactory` so tests use fake peers/connections (no WebRTC in tests).
+3. `package game`: `netvalidation.go` (`IsVec3`, `Vec3FromAny`, `Vec3ToArray`), `remoteplayer.go` (eased mesh entity per remote peer), `multiplayer.go` (host state broadcast at 30 Hz, client position upload, stamp-based add/retarget/remove of remotes, `host`/`join` console commands). `Game` owns a `Multiplayer` and ticks it every frame, including while menus are open.
+4. Tests: `network_test.go` (systems) and `multiplayer_test.go` (game) cover host/client flows, failures, state application and remote easing. GoFront fix surfaced: `v := pkg.T{}` composite literals with a qualified type were typed `any`, so `&v` was boxed; `resolveTypeNode` now resolves `SelectorExpr` type nodes.
 
 ### Phase 8: Verification & Optimization
 1. Run `gofront test` across all package suites.

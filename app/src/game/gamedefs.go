@@ -204,3 +204,19 @@ const (
 	ArenaNPCScale       = float32(0.035)
 	ArenaNPCMatrixScale = float32(10)
 )
+
+// ----------------------------------------------------------------------------
+// Multiplayer
+// ----------------------------------------------------------------------------
+
+const (
+	// NetUpdateIntervalMs throttles position packets to 30 Hz.
+	NetUpdateIntervalMs = float64(1000.0 / 30.0)
+	// HostPlayerID is the host's id inside STATE packets.
+	HostPlayerID = "host"
+
+	RemotePlayerMesh  = "meshes/ball.mesh"
+	RemotePlayerScale = float32(33) // same size as the grenade projectile
+	// RemotePlayerLerpDecay smooths remote positions (~0.1 s lag at 60 fps).
+	RemotePlayerLerpDecay = float32(15)
+)
