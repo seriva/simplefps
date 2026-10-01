@@ -110,23 +110,11 @@ func (m *Material) Bind(shader *Shader) {
 		b.UpdateUBO(m.ubo, materialUBOInts, 0)
 		b.BindUniformBuffer(m.ubo)
 	}
-
-	// Cull states
-	if b != nil {
-		if m.DoubleSided {
-			b.SetCullState(false, "back")
-		} else if !m.Translucent {
-			b.SetCullState(true, "back")
-		}
-	}
 }
 
 // Unbind detaches material textures.
 func (m *Material) Unbind() {
 	UnbindTextureRange(m.backend, 0, 5)
-	if m.DoubleSided && m.backend != nil {
-		m.backend.SetCullState(true, "back")
-	}
 }
 
 // Dispose releases GPU buffers owned by the material.

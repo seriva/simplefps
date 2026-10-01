@@ -89,7 +89,7 @@ type RenderBackend interface {
 	BindTexture(texture any, unit int)
 	UnbindTexture(unit int)
 
-	CreateBuffer(data any, usage string) any // usage: "vertex", "index", "uniform"
+	CreateBuffer(data any, usage BufferUsage) any
 	UpdateBuffer(buffer any, data any, offset int)
 	DeleteBuffer(buffer any)
 
@@ -113,17 +113,18 @@ type RenderBackend interface {
 	DeleteVertexState(state any)
 
 	// State Management
-	SetBlendState(enabled bool, srcFactor, dstFactor string)
-	SetDepthState(testEnabled bool, writeEnabled bool, funcName string)
-	SetCullState(enabled bool, face string)
-	SetPolygonOffset(enabled bool, factor, units float32)
-	SetColorMask(r, g, b, a bool)
+	// ApplyState sets the full fixed-function state in one call; nil is a
+	// no-op. Backends may skip redundant GL calls when state is unchanged.
+	ApplyState(state *PipelineState)
+	// State returns the pointer last passed to ApplyState (nil before the
+	// first call); callers use it to derive per-draw variants (CullOff).
+	State() *PipelineState
 	SetViewport(x, y, width, height int)
 	SetDepthRange(near, far float32)
 	Clear(options *ClearOptions)
 
 	// Drawing
-	DrawIndexed(indexBuffer any, indexCount int, indexOffset int, mode string)
+	DrawIndexed(indexBuffer any, indexCount int, indexOffset int, mode Topology)
 	// DrawInstanced draws indexCount indices instanceCount times as triangles.
 	DrawInstanced(indexBuffer any, indexCount int, instanceCount int)
 

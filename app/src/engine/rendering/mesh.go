@@ -90,13 +90,13 @@ func (m *Mesh) InitMeshBuffers() {
 
 	// Create Index Buffers
 	for i := 0; i < len(m.Indices); i++ {
-		buf := b.CreateBuffer(m.Indices[i].Array, "index")
+		buf := b.CreateBuffer(m.Indices[i].Array, UsageIndex)
 		m.Indices[i].IndexBuffer = buf
 		m.Buffers = append(m.Buffers, buf)
 	}
 
 	// Positions
-	m.VertexBuffer = b.CreateBuffer(m.Vertices, "vertex")
+	m.VertexBuffer = b.CreateBuffer(m.Vertices, UsageVertex)
 	m.Buffers = append(m.Buffers, m.VertexBuffer)
 	posAttr := VertexAttribute{
 		Buffer: m.VertexBuffer,
@@ -110,7 +110,7 @@ func (m *Mesh) InitMeshBuffers() {
 	if !m.HasUVs {
 		uvs = make([]float32, vertexCount*2)
 	}
-	m.UVBuffer = b.CreateBuffer(uvs, "vertex")
+	m.UVBuffer = b.CreateBuffer(uvs, UsageVertex)
 	m.Buffers = append(m.Buffers, m.UVBuffer)
 	uvAttr := VertexAttribute{
 		Buffer: m.UVBuffer,
@@ -124,7 +124,7 @@ func (m *Mesh) InitMeshBuffers() {
 	if !m.HasNormals {
 		normals = make([]float32, vertexCount*3)
 	}
-	m.NormalBuffer = b.CreateBuffer(normals, "vertex")
+	m.NormalBuffer = b.CreateBuffer(normals, UsageVertex)
 	m.Buffers = append(m.Buffers, m.NormalBuffer)
 	normalAttr := VertexAttribute{
 		Buffer: m.NormalBuffer,
@@ -139,7 +139,7 @@ func (m *Mesh) InitMeshBuffers() {
 	if !m.HasLightmapUVs {
 		lightmapUVs = make([]float32, vertexCount*2)
 	}
-	m.LightmapUVBuffer = b.CreateBuffer(lightmapUVs, "vertex")
+	m.LightmapUVBuffer = b.CreateBuffer(lightmapUVs, UsageVertex)
 	m.Buffers = append(m.Buffers, m.LightmapUVBuffer)
 	attrs := []VertexAttribute{posAttr, uvAttr, normalAttr, {
 		Buffer: m.LightmapUVBuffer,
@@ -189,23 +189,25 @@ func (m *Mesh) UpdateVertexBuffer(data []float32) {
 	}
 }
 
-// RenderSingle binds the VAO, draws indices, and unbinds.
-// mode is the primitive ("triangles"/"lines"); renderMode filters index groups
-// by material translucency: "all", "opaque", or "translucent".
-func (m *Mesh) RenderSingle(applyMaterial bool, mode string, renderMode string, shader *Shader) {
+// RenderSingle binds the VAO, draws indices, and unbinds. renderMode filters
+// index groups by material translucency.
+func (m *Mesh) RenderSingle(applyMaterial bool, topo Topology, renderMode MaterialMode, shader *Shader) {
 	m.Bind()
-	m.RenderIndices(applyMaterial, mode, renderMode, shader)
+	m.RenderIndices(applyMaterial, topo, renderMode, shader)
 	m.Unbind()
 }
 
 // RenderIndices iterates over index groups and issues indexed draws.
-func (m *Mesh) RenderIndices(applyMaterial bool, mode string, renderMode string, shader *Shader) {
+// Double-sided materials draw with the current pass state's CullOff twin and
+// the pass state is restored before returning.
+func (m *Mesh) RenderIndices(applyMaterial bool, topo Topology, renderMode MaterialMode, shader *Shader) {
 	b := m.backend
 	if b == nil {
 		return
 	}
 
-	hadDoubleSided := false
+	passState := b.State()
+	cullOff := false
 	for i := 0; i < len(m.Indices); i++ {
 		idx := &m.Indices[i]
 		var mat *Material
@@ -213,24 +215,30 @@ func (m *Mesh) RenderIndices(applyMaterial bool, mode string, renderMode string,
 			mat = m.MaterialLookup[idx.Material]
 		}
 		translucent := mat != nil && mat.Translucent
-		if renderMode == "opaque" && translucent {
+		if renderMode == ModeOpaque && translucent {
 			continue
 		}
-		if renderMode == "translucent" && !translucent {
+		if renderMode == ModeTranslucent && !translucent {
 			continue
 		}
 		if applyMaterial && mat != nil {
 			mat.Bind(shader)
-			if mat.DoubleSided {
-				hadDoubleSided = true
+			wantCullOff := mat.DoubleSided && passState != nil && passState.CullOff != nil
+			if wantCullOff != cullOff {
+				if wantCullOff {
+					b.ApplyState(passState.CullOff)
+				} else {
+					b.ApplyState(passState)
+				}
+				cullOff = wantCullOff
 			}
 		}
 
-		b.DrawIndexed(idx.IndexBuffer, len(idx.Array), 0, mode)
+		b.DrawIndexed(idx.IndexBuffer, len(idx.Array), 0, topo)
 	}
 
-	if hadDoubleSided {
-		b.SetCullState(true, "back")
+	if cullOff {
+		b.ApplyState(passState)
 	}
 }
 
@@ -266,7 +274,7 @@ func (m *Mesh) EnsureWireframeBuffers() {
 				lines[c+5] = arr[j]
 				c += 6
 			}
-			buf := m.backend.CreateBuffer(lines, "index")
+			buf := m.backend.CreateBuffer(lines, UsageIndex)
 			m.WireframeBuffers = append(m.WireframeBuffers, WireframeBuffer{
 				Buffer: buf,
 				Count:  linesCount,
@@ -282,7 +290,7 @@ func (m *Mesh) DrawWireframeBuffers() {
 		return
 	}
 	for i := 0; i < len(m.WireframeBuffers); i++ {
-		m.backend.DrawIndexed(m.WireframeBuffers[i].Buffer, m.WireframeBuffers[i].Count, 0, "lines")
+		m.backend.DrawIndexed(m.WireframeBuffers[i].Buffer, m.WireframeBuffers[i].Count, 0, TopoLines)
 	}
 }
 

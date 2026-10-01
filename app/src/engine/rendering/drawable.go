@@ -6,9 +6,9 @@ import "../physics"
 // renderer binds the shader and GPU state for a pass, then calls one of these
 // per visible entity. Implementations live in package scene.
 type Drawable interface {
-	// Draw issues the entity's geometry with the pass's bound shader. mode is
-	// the material filter ("all"/"opaque"/"translucent").
-	Draw(r *Renderer, sh *Shader, mode string)
+	// Draw issues the entity's geometry with the pass's bound shader; mode
+	// filters index groups by material translucency.
+	Draw(r *Renderer, sh *Shader, mode MaterialMode)
 	// DrawShadow draws the flattened drop shadow with the bound shadow shader.
 	DrawShadow(r *Renderer, sh *Shader)
 	// DrawWireframe draws the debug wireframe (or light volume) with the bound
@@ -129,9 +129,6 @@ type SceneSource interface {
 // hasShadowCasters reports whether any visible mesh or skinned mesh casts a
 // drop shadow (gates the shadow blur).
 func hasShadowCasters(scene SceneSource) bool {
-	if scene == nil {
-		return false
-	}
 	meshes := scene.Meshes()
 	for i := 0; i < meshes.Count; i++ {
 		if meshes.Items[i].CastsShadow() {

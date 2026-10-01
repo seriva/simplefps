@@ -109,11 +109,21 @@ func TestWebGPUBackendDefaults(t *testing.T) {
 
 func TestWebGPUStateTracking(t *testing.T) {
     backend := NewWebGPUBackend()
-    
-    // Test blend state tracking
-    backend.SetBlendState(true, "src-alpha", "one-minus-src-alpha")
+
+    s := &rendering.PipelineState{
+        Blend: true, SrcFactor: rendering.BlendSrcAlpha, DstFactor: rendering.BlendOneMinusSrcAlpha,
+        DepthTest: false, DepthWrite: true, DepthFunc: rendering.DepthAlways,
+        Cull: true, CullFace: rendering.CullFront,
+        PolyOffset: true, OffsetFactor: -1, OffsetUnits: -2,
+        ColorMask: rendering.ColorMaskR | rendering.ColorMaskA,
+    }
+    backend.ApplyState(s)
+    if backend.State() != s {
+        t.Error("State() should return the applied pointer")
+    }
+
     if !backend.BlendState.Enabled {
-        t.Error("Expected BlendState.Enabled to be true after SetBlendState")
+        t.Error("Expected BlendState.Enabled to be true after ApplyState")
     }
     if backend.BlendState.SrcFactor != "src-alpha" {
         t.Errorf("Expected SrcFactor 'src-alpha', got '%s'", backend.BlendState.SrcFactor)
@@ -121,11 +131,9 @@ func TestWebGPUStateTracking(t *testing.T) {
     if backend.BlendState.DstFactor != "one-minus-src-alpha" {
         t.Errorf("Expected DstFactor 'one-minus-src-alpha', got '%s'", backend.BlendState.DstFactor)
     }
-    
-    // Test depth state tracking
-    backend.SetDepthState(false, true, "always")
+
     if backend.DepthState.Test {
-        t.Error("Expected DepthState.Test to be false after SetDepthState")
+        t.Error("Expected DepthState.Test to be false after ApplyState")
     }
     if !backend.DepthState.Write {
         t.Error("Expected DepthState.Write to be true")
@@ -133,14 +141,45 @@ func TestWebGPUStateTracking(t *testing.T) {
     if backend.DepthState.Func != "always" {
         t.Errorf("Expected DepthState.Func 'always', got '%s'", backend.DepthState.Func)
     }
-    
-    // Test cull state tracking
-    backend.SetCullState(true, "front")
+
     if !backend.CullState.Enabled {
         t.Error("Expected CullState.Enabled to be true")
     }
     if backend.CullState.Face != "front" {
         t.Errorf("Expected CullState.Face 'front', got '%s'", backend.CullState.Face)
+    }
+
+    if !backend.DepthBias.Enabled || backend.DepthBias.DepthBias != -2 || backend.DepthBias.DepthBiasSlopeScale != -1 {
+        t.Errorf("polygon offset not mapped onto DepthBias: %+v", backend.DepthBias)
+    }
+    if !backend.ColorMask.R || backend.ColorMask.G || backend.ColorMask.B || !backend.ColorMask.A {
+        t.Errorf("colour mask bits not mapped: %+v", backend.ColorMask)
+    }
+
+    // Switching to an opaque preset must clear everything again.
+    backend.ApplyState(&rendering.PipelineState{
+        SrcFactor: rendering.BlendOne, DstFactor: rendering.BlendZero,
+        DepthTest: true, DepthWrite: true, DepthFunc: rendering.DepthLEqual,
+        Cull: true, CullFace: rendering.CullBack, ColorMask: rendering.ColorMaskAll,
+    })
+    if backend.BlendState.Enabled || backend.DepthBias.Enabled || backend.DepthBias.DepthBias != 0 {
+        t.Error("opaque preset should disable blending and depth bias")
+    }
+    if backend.DepthState.Func != "less-equal" || backend.CullState.Face != "back" {
+        t.Errorf("opaque preset mapped wrongly: depth=%s cull=%s", backend.DepthState.Func, backend.CullState.Face)
+    }
+    if !(backend.ColorMask.R && backend.ColorMask.G && backend.ColorMask.B && backend.ColorMask.A) {
+        t.Error("ColorMaskAll should enable every channel")
+    }
+}
+
+func TestWebGPUApplyStateNilIsNoop(t *testing.T) {
+    backend := NewWebGPUBackend()
+    s := &rendering.PipelineState{Blend: true, SrcFactor: rendering.BlendOne, DstFactor: rendering.BlendOne}
+    backend.ApplyState(s)
+    backend.ApplyState(nil)
+    if backend.State() != s || !backend.BlendState.Enabled {
+        t.Error("ApplyState(nil) must leave the tracked state untouched")
     }
 }
 
@@ -189,7 +228,7 @@ func TestWebGPUTextureCreation(t *testing.T) {
 func TestWebGPUBufferCreation(t *testing.T) {
     backend := NewWebGPUBackend()
     // Without a device, CreateBuffer should return nil
-    buf := backend.CreateBuffer(nil, "vertex")
+    buf := backend.CreateBuffer(nil, rendering.UsageVertex)
     if buf != nil {
         t.Error("Expected CreateBuffer to return nil without device")
     }
@@ -341,20 +380,22 @@ func TestWgslLabelFor(t *testing.T) {
 	}
 }
 
-func TestSetDepthStateMapsGLFuncNames(t *testing.T) {
+func TestApplyStateMapsDepthFuncs(t *testing.T) {
 	backend := NewWebGPUBackend()
-	cases := map[string]string{
-		"lequal":     "less-equal",
-		"gequal":     "greater-equal",
-		"notequal":   "not-equal",
-		"less":       "less",
-		"always":     "always",
-		"less-equal": "less-equal",
+	cases := map[rendering.DepthFunc]string{
+		rendering.DepthNever:    "never",
+		rendering.DepthLess:     "less",
+		rendering.DepthEqual:    "equal",
+		rendering.DepthLEqual:   "less-equal",
+		rendering.DepthGreater:  "greater",
+		rendering.DepthNotEqual: "not-equal",
+		rendering.DepthGEqual:   "greater-equal",
+		rendering.DepthAlways:   "always",
 	}
 	for in, want := range cases {
-		backend.SetDepthState(true, true, in)
+		backend.ApplyState(&rendering.PipelineState{DepthTest: true, DepthWrite: true, DepthFunc: in})
 		if backend.DepthState.Func != want {
-			t.Errorf("SetDepthState(%q) -> %q, want %q", in, backend.DepthState.Func, want)
+			t.Errorf("ApplyState(DepthFunc %q) -> %q, want %q", string(in), backend.DepthState.Func, want)
 		}
 	}
 }

@@ -90,18 +90,23 @@ func NewAnimatedBillboardEntity(position *physics.Vec3, cfg *BillboardConfig) *A
 
 func (e *AnimatedBillboardEntity) GetBase() *EntityBase { return &e.Base }
 
-// Update advances the lifetime; returns false once the duration has elapsed.
+// Update advances the lifetime; returns false once the duration has elapsed
+// or the update callback requests removal.
 func (e *AnimatedBillboardEntity) Update(frameTime float32) bool {
 	e.time += frameTime
-	baseUpdate(e, frameTime)
-	return e.time < e.duration
+	if !e.Base.Visible {
+		return e.time < e.duration
+	}
+	keep := baseUpdate(e, frameTime)
+	e.UpdateBoundingVolume()
+	return keep && e.time < e.duration
 }
 
 // Time returns the elapsed lifetime in ms.
 func (e *AnimatedBillboardEntity) Time() float32 { return e.time }
 
 // Draw draws the billboard with the bound billboard shader.
-func (e *AnimatedBillboardEntity) Draw(r *rendering.Renderer, sh *rendering.Shader, mode string) {
+func (e *AnimatedBillboardEntity) Draw(r *rendering.Renderer, sh *rendering.Shader, mode rendering.MaterialMode) {
 	quad := r.Shapes.BillboardQuad
 	if e.texture == nil || e.time <= 0 || sh == nil || quad == nil {
 		return
@@ -167,7 +172,7 @@ func (e *AnimatedBillboardEntity) Draw(r *rendering.Renderer, sh *rendering.Shad
 	sh.SetFloat("uOpacity", opacity)
 
 	e.texture.Bind(0)
-	quad.RenderSingle(false, "triangles", "all", sh)
+	quad.RenderSingle(false, rendering.TopoTriangles, rendering.ModeAll, sh)
 	rendering.UnbindTextureRange(r.Backend, 0, 1)
 }
 

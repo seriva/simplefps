@@ -38,6 +38,7 @@ type MockBackend struct {
 	Formats   map[string]bool
 	fbCounter int
 	caps      *Capabilities
+	state     *PipelineState
 }
 
 func newMockBackend(width, height int, webgpu bool) *MockBackend {
@@ -156,9 +157,9 @@ func (m *MockBackend) SetTextureAnisotropy(texture any, level int) {
 func (m *MockBackend) BindTexture(texture any, unit int) { m.record("BindTexture", unit) }
 func (m *MockBackend) UnbindTexture(unit int)            { m.record("UnbindTexture", unit) }
 
-func (m *MockBackend) CreateBuffer(data any, usage string) any {
-	m.record("CreateBuffer", usage)
-	return &mockCall{Name: usage}
+func (m *MockBackend) CreateBuffer(data any, usage BufferUsage) any {
+	m.record("CreateBuffer", string(usage))
+	return &mockCall{Name: string(usage)}
 }
 func (m *MockBackend) UpdateBuffer(buffer any, data any, offset int) { m.record("UpdateBuffer", nil) }
 func (m *MockBackend) DeleteBuffer(buffer any)                     { m.record("DeleteBuffer", nil) }
@@ -203,21 +204,16 @@ func (m *MockBackend) CreateVertexState(desc *VertexStateDescriptor) any {
 func (m *MockBackend) BindVertexState(state any) { m.record("BindVertexState", state) }
 func (m *MockBackend) DeleteVertexState(state any) {}
 
-func (m *MockBackend) SetBlendState(enabled bool, srcFactor, dstFactor string) {
-	if enabled {
-		m.record("SetBlendState", srcFactor+"/"+dstFactor)
-	} else {
-		m.record("SetBlendState", "off")
+// ApplyState records the preset pointer so tests can assert which state a
+// pass drew with.
+func (m *MockBackend) ApplyState(state *PipelineState) {
+	if state == nil {
+		return
 	}
+	m.record("ApplyState", state)
+	m.state = state
 }
-func (m *MockBackend) SetDepthState(testEnabled bool, writeEnabled bool, funcName string) {
-	m.record("SetDepthState", funcName)
-}
-func (m *MockBackend) SetCullState(enabled bool, face string) { m.record("SetCullState", enabled) }
-func (m *MockBackend) SetPolygonOffset(enabled bool, factor, units float32) {
-	m.record("SetPolygonOffset", enabled)
-}
-func (m *MockBackend) SetColorMask(r, g, b, a bool)      { m.record("SetColorMask", r) }
+func (m *MockBackend) State() *PipelineState            { return m.state }
 func (m *MockBackend) SetViewport(x, y, width, height int) { m.record("SetViewport", width) }
 // SetDepthRange records near/far as an int code: near*10*10 + far*10
 // (0.1..1 -> 20, 0..0.1 -> 1, 0..1 -> 10).
@@ -226,7 +222,7 @@ func (m *MockBackend) SetDepthRange(near, far float32) {
 }
 func (m *MockBackend) Clear(options *ClearOptions)       { m.record("Clear", options) }
 
-func (m *MockBackend) DrawIndexed(indexBuffer any, indexCount int, indexOffset int, mode string) {
+func (m *MockBackend) DrawIndexed(indexBuffer any, indexCount int, indexOffset int, mode Topology) {
 	m.record("DrawIndexed", indexCount)
 }
 func (m *MockBackend) DrawInstanced(indexBuffer any, indexCount int, instanceCount int) {
@@ -259,7 +255,7 @@ type mockDrawable struct {
 	bounds  *physics.BoundingBox
 }
 
-func (d *mockDrawable) Draw(r *Renderer, sh *Shader, mode string) { d.backend.record("draw", d.name) }
+func (d *mockDrawable) Draw(r *Renderer, sh *Shader, mode MaterialMode) { d.backend.record("draw", d.name) }
 func (d *mockDrawable) DrawShadow(r *Renderer, sh *Shader)         { d.backend.record("shadow", d.name) }
 func (d *mockDrawable) DrawWireframe(r *Renderer, sh *Shader)      { d.backend.record("wire", d.name) }
 func (d *mockDrawable) DrawSkeleton(r *Renderer, sh *Shader)       { d.backend.record("skel", d.name) }
@@ -326,6 +322,34 @@ func (s *mockScene) SpotLights() *LightList       { return s.spots }
 func (s *mockScene) Billboards() *DrawList        { return s.billboards }
 func (s *mockScene) ParticleEmitters() *DrawList  { return s.particles }
 func (s *mockScene) Transparent() *DrawList       { return s.transparent }
+
+// nopScene is a SceneSource with nothing to draw: every list is empty and the
+// ambient colour is black. Used where a test only exercises the screen-space
+// passes.
+type nopScene struct {
+	draw  *DrawList
+	light *LightList
+}
+
+func newNopScene() *nopScene {
+	return &nopScene{draw: NewDrawList(1), light: NewLightList(1)}
+}
+
+func (s *nopScene) Ambient(out *physics.Vec3) {
+	out.X = 0
+	out.Y = 0
+	out.Z = 0
+}
+func (s *nopScene) Skyboxes() *DrawList          { return s.draw }
+func (s *nopScene) Meshes() *DrawList            { return s.draw }
+func (s *nopScene) FPSMeshes() *DrawList         { return s.draw }
+func (s *nopScene) SkinnedMeshes() *DrawList     { return s.draw }
+func (s *nopScene) DirectionalLights() *DrawList { return s.draw }
+func (s *nopScene) PointLights() *LightList      { return s.light }
+func (s *nopScene) SpotLights() *LightList       { return s.light }
+func (s *nopScene) Billboards() *DrawList        { return s.draw }
+func (s *nopScene) ParticleEmitters() *DrawList  { return s.draw }
+func (s *nopScene) Transparent() *DrawList       { return s.draw }
 
 // newMockRenderer wires a mock backend, shaders, shapes and an initialised renderer.
 func newMockRenderer(width, height int, webgpu bool, doFSR bool) (*MockBackend, *Renderer) {

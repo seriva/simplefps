@@ -66,7 +66,14 @@ type Scene struct {
 	entities    *entityList
 	collidables *entityList
 	byType      []*entityList
-	visible     []*entityList
+
+	// Visibility cache: the culled meshes and skinned meshes the scene itself
+	// post-processes (probes, drop shadows, transparency). Other kinds go
+	// straight into their draw list. Refilled by UpdateVisibility.
+	visibleMeshes       []*MeshEntity
+	visibleMeshCount    int
+	visibleSkinned      []*SkinnedMeshEntity
+	visibleSkinnedCount int
 
 	// Draw lists (see drawlists.go); refilled by UpdateVisibility.
 	skyboxes          *rendering.DrawList
@@ -96,6 +103,7 @@ type Scene struct {
 	transparentSort *scoreList
 	probePos        *physics.Vec3
 	probeMatrix     physics.Mat4
+	probeColor      []float32
 	pendingRemoval  bool
 }
 
@@ -109,7 +117,8 @@ func NewScene(camera *systems.Camera) *Scene {
 		entities:          newEntityList(64),
 		collidables:       newEntityList(16),
 		byType:            make([]*entityList, TypeCount),
-		visible:           make([]*entityList, TypeCount),
+		visibleMeshes:     make([]*MeshEntity, 64),
+		visibleSkinned:    make([]*SkinnedMeshEntity, 16),
 		skyboxes:          rendering.NewDrawList(2),
 		meshes:            rendering.NewDrawList(64),
 		fpsMeshes:         rendering.NewDrawList(4),
@@ -129,10 +138,10 @@ func NewScene(camera *systems.Camera) *Scene {
 		transparentSort:   newScoreList(64),
 		probePos:          &physics.Vec3{},
 		probeMatrix:       physics.NewMat4(),
+		probeColor:        make([]float32, 3),
 	}
 	for t := 1; t < TypeCount; t++ {
 		s.byType[t] = newEntityList(16)
-		s.visible[t] = newEntityList(16)
 	}
 	s.SetAmbient(defaultAmbient[0], defaultAmbient[1], defaultAmbient[2])
 	return s
@@ -240,13 +249,16 @@ func (s *Scene) GetEntities(entityType int) ([]Entity, int) {
 // EntityCount returns the number of registered entities.
 func (s *Scene) EntityCount() int { return s.entities.Count }
 
-// VisibleEntities returns the frustum-visible entities of a type from the last Update.
-func (s *Scene) VisibleEntities(entityType int) ([]Entity, int) {
-	if entityType <= 0 || entityType >= TypeCount {
-		return nil, 0
-	}
-	l := s.visible[entityType]
-	return l.Items, l.Count
+// VisibleMeshes returns the frustum-visible TypeMesh entities from the last
+// Update (valid up to count).
+func (s *Scene) VisibleMeshes() ([]*MeshEntity, int) {
+	return s.visibleMeshes, s.visibleMeshCount
+}
+
+// VisibleSkinnedMeshes returns the frustum-visible skinned meshes from the
+// last Update (valid up to count).
+func (s *Scene) VisibleSkinnedMeshes() ([]*SkinnedMeshEntity, int) {
+	return s.visibleSkinned, s.visibleSkinnedCount
 }
 
 // Init clears entity lists and static geometry without disposing entities.
@@ -255,8 +267,8 @@ func (s *Scene) Init() {
 	s.collidables.Clear()
 	for t := 1; t < TypeCount; t++ {
 		s.byType[t].Clear()
-		s.visible[t].Clear()
 	}
+	s.clearVisible()
 	s.resetDrawLists()
 	s.staticTrimesh = nil
 }
@@ -455,13 +467,11 @@ func (s *Scene) compactRemoved() {
 	s.entities.Count = eLen
 }
 
-// UpdateVisibility rebuilds the per-type visibility cache and the renderer's
-// draw lists: hidden entities are dropped, everything else is frustum-culled
-// (view models excepted) and routed by type.
+// UpdateVisibility rebuilds the visibility cache and the renderer's draw
+// lists: hidden entities are dropped, everything else is frustum-culled (view
+// models excepted) and routed by type.
 func (s *Scene) UpdateVisibility() {
-	for t := 1; t < TypeCount; t++ {
-		s.visible[t].Clear()
-	}
+	s.clearVisible()
 	s.resetDrawLists()
 	var planes []float32
 	if s.Camera != nil {
@@ -477,7 +487,6 @@ func (s *Scene) UpdateVisibility() {
 		if planes != nil && b.Type != TypeFPSMesh && b.BoundingBox != nil && !b.BoundingBox.IsVisibleWithPlanes(planes) {
 			continue
 		}
-		s.visible[b.Type].Add(e)
 		s.addVisible(e, b)
 	}
 	s.buildTransparent()

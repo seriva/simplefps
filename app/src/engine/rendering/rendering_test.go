@@ -119,9 +119,18 @@ func TestRenderStats(t *testing.T) {
 func TestRenderResetsStats(t *testing.T) {
 	_, r := newMockRenderer(8, 8, false, false)
 	r.Stats.MeshCount = 3
-	r.Render(newTestCamera(), nil, defaultRenderOptions(false), 0)
+	r.Render(newTestCamera(), newNopScene(), defaultRenderOptions(false), 0)
 	if r.Stats.MeshCount != 0 {
 		t.Errorf("Render must reset Stats at frame start, got MeshCount=%d", r.Stats.MeshCount)
+	}
+}
+
+func TestRenderRequiresScene(t *testing.T) {
+	mb, r := newMockRenderer(8, 8, false, false)
+	mb.Log = mb.Log[:0]
+	r.Render(newTestCamera(), nil, defaultRenderOptions(false), 0)
+	if mb.Count("BeginFrame") != 0 {
+		t.Error("Render without a scene must skip the frame entirely")
 	}
 }
 

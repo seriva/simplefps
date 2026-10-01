@@ -90,19 +90,65 @@ func (s *Scene) resetDrawLists() {
 	s.transparent.Reset()
 }
 
-// addVisible routes a culled entity into its draw list and applies the
-// per-frame scene inputs entities cannot reach themselves (camera, probes).
+// ---------------------------------------------------------------------------
+// Visibility cache
+// ---------------------------------------------------------------------------
+
+func (s *Scene) clearVisible() {
+	for i := 0; i < s.visibleMeshCount; i++ {
+		s.visibleMeshes[i] = nil
+	}
+	s.visibleMeshCount = 0
+	for i := 0; i < s.visibleSkinnedCount; i++ {
+		s.visibleSkinned[i] = nil
+	}
+	s.visibleSkinnedCount = 0
+}
+
+func (s *Scene) pushVisibleMesh(me *MeshEntity) {
+	if s.visibleMeshCount >= len(s.visibleMeshes) {
+		grown := make([]*MeshEntity, len(s.visibleMeshes)*2+16)
+		for i := 0; i < s.visibleMeshCount; i++ {
+			grown[i] = s.visibleMeshes[i]
+		}
+		s.visibleMeshes = grown
+	}
+	s.visibleMeshes[s.visibleMeshCount] = me
+	s.visibleMeshCount++
+}
+
+func (s *Scene) pushVisibleSkinned(sk *SkinnedMeshEntity) {
+	if s.visibleSkinnedCount >= len(s.visibleSkinned) {
+		grown := make([]*SkinnedMeshEntity, len(s.visibleSkinned)*2+16)
+		for i := 0; i < s.visibleSkinnedCount; i++ {
+			grown[i] = s.visibleSkinned[i]
+		}
+		s.visibleSkinned = grown
+	}
+	s.visibleSkinned[s.visibleSkinnedCount] = sk
+	s.visibleSkinnedCount++
+}
+
+// addVisible routes a culled entity into its typed bucket / draw list and
+// applies the per-frame scene inputs entities cannot reach themselves
+// (camera, probes). The concrete type is guaranteed by AddEntity's
+// entityTypeMatches check.
 func (s *Scene) addVisible(e Entity, b *EntityBase) {
 	switch b.Type {
 	case TypeMesh:
-		s.sampleProbeColor(b)
-		s.meshes.Add(e)
+		me := e.(*MeshEntity)
+		s.sampleProbeColor(b, &me.Probe)
+		s.pushVisibleMesh(me)
+		s.meshes.Add(me)
 	case TypeFPSMesh:
-		s.sampleProbeColor(b)
-		s.fpsMeshes.Add(e)
+		me := e.(*MeshEntity)
+		s.sampleProbeColor(b, &me.Probe)
+		s.fpsMeshes.Add(me)
 	case TypeSkinnedMesh:
-		s.sampleProbeColor(b)
-		s.skinnedMeshes.Add(e)
+		sk := e.(*SkinnedMeshEntity)
+		s.sampleProbeColor(b, &sk.Probe)
+		s.pushVisibleSkinned(sk)
+		s.skinnedMeshes.Add(sk)
 	case TypeSkybox:
 		sky := e.(*SkyboxEntity)
 		if s.Camera != nil {
@@ -110,34 +156,34 @@ func (s *Scene) addVisible(e Entity, b *EntityBase) {
 		} else {
 			sky.CameraPosition = nil
 		}
-		s.skyboxes.Add(e)
+		s.skyboxes.Add(sky)
 	case TypeDirectionalLight:
-		s.directionalLights.Add(e)
+		s.directionalLights.Add(e.(*DirectionalLightEntity))
 	case TypePointLight:
 		s.pointLights.Add(e.(*PointLightEntity))
 	case TypeSpotLight:
 		s.spotLights.Add(e.(*SpotLightEntity))
 	case TypeAnimatedBillboard:
+		bb := e.(*AnimatedBillboardEntity)
 		if s.Camera != nil {
-			e.(*AnimatedBillboardEntity).CameraView = s.Camera.View
+			bb.CameraView = s.Camera.View
 		}
-		s.billboards.Add(e)
+		s.billboards.Add(bb)
 	case TypeParticleEmitter:
-		s.particleEmitters.Add(e)
+		s.particleEmitters.Add(e.(*ParticleEmitterEntity))
 	}
 }
 
 // buildTransparent collects visible meshes with translucent materials sorted
 // back-to-front (descending clip-space w).
 func (s *Scene) buildTransparent() {
-	meshes := s.visible[TypeMesh]
 	var vp physics.Mat4
 	if s.Camera != nil {
 		vp = s.Camera.ViewProjection
 	}
 	s.transparentSort.Begin()
-	for i := 0; i < meshes.Count; i++ {
-		me := meshes.Items[i].(*MeshEntity)
+	for i := 0; i < s.visibleMeshCount; i++ {
+		me := s.visibleMeshes[i]
 		if !me.HasTranslucent() {
 			continue
 		}
@@ -150,7 +196,7 @@ func (s *Scene) buildTransparent() {
 	}
 	s.transparentSort.SortDescending()
 	for i := 0; i < s.transparentSort.Count; i++ {
-		s.transparent.Add(meshes.Items[s.transparentSort.Entries[i].Index])
+		s.transparent.Add(s.visibleMeshes[s.transparentSort.Entries[i].Index])
 	}
 }
 
@@ -158,16 +204,19 @@ func (s *Scene) buildTransparent() {
 // Ambient probes and drop-shadow heights
 // ---------------------------------------------------------------------------
 
-// sampleProbeColor refreshes the entity's ambient probe colour (world pos + 32 Y).
-func (s *Scene) sampleProbeColor(b *EntityBase) {
+// sampleProbeColor refreshes p with the ambient at the entity (world pos + 32 Y).
+func (s *Scene) sampleProbeColor(b *EntityBase, p *probeCache) {
 	physics.Mat4Multiply(s.probeMatrix, b.BaseMatrix, b.AniMatrix)
 	physics.Mat4GetTranslation(s.probePos, s.probeMatrix)
 	s.probePos.Y += 32
-	s.AmbientAt(s.probePos, b.ProbeColor)
+	s.AmbientAt(s.probePos, s.probeColor)
+	p.R = s.probeColor[0]
+	p.G = s.probeColor[1]
+	p.B = s.probeColor[2]
 }
 
 // calculateShadowHeight raycasts downward from the entity to find the ground.
-func (s *Scene) calculateShadowHeight(b *EntityBase) {
+func (s *Scene) calculateShadowHeight(b *EntityBase, sh *shadowState) {
 	physics.Mat4GetTranslation(s.probePos, b.BaseMatrix)
 	res := s.RaycastStatic(
 		s.probePos.X, s.probePos.Y+1, s.probePos.Z,
@@ -175,36 +224,36 @@ func (s *Scene) calculateShadowHeight(b *EntityBase) {
 		nil,
 	)
 	if res.HasHit {
-		b.ShadowHeight = res.HitPointWorld.Y
-		b.ShadowHeightState = ShadowHeightValid
+		sh.Height = res.HitPointWorld.Y
+		sh.HeightState = ShadowHeightValid
 	} else {
-		b.ShadowHeightState = ShadowHeightNone
+		sh.HeightState = ShadowHeightNone
 	}
 }
 
 // shouldUpdateSkinnedShadowHeight rate-limits skinned shadow raycasts by
 // movement and camera distance.
-func (s *Scene) shouldUpdateSkinnedShadowHeight(b *EntityBase) bool {
+func (s *Scene) shouldUpdateSkinnedShadowHeight(b *EntityBase, sh *shadowState) bool {
 	physics.Mat4GetTranslation(s.probePos, b.BaseMatrix)
 	x := s.probePos.X
 	y := s.probePos.Y
 	z := s.probePos.Z
 
-	if !b.ShadowSampleValid {
-		b.ShadowSampleValid = true
-		b.ShadowSampleX = x
-		b.ShadowSampleY = y
-		b.ShadowSampleZ = z
-		b.ShadowSampleFrame = s.shadowFrame
+	if !sh.SampleValid {
+		sh.SampleValid = true
+		sh.SampleX = x
+		sh.SampleY = y
+		sh.SampleZ = z
+		sh.SampleFrame = s.shadowFrame
 		return true
 	}
 
-	dx := x - b.ShadowSampleX
-	dy := y - b.ShadowSampleY
-	dz := z - b.ShadowSampleZ
+	dx := x - sh.SampleX
+	dy := y - sh.SampleY
+	dz := z - sh.SampleZ
 	movedSq := dx*dx + dy*dy + dz*dz
 
-	frameDelta := s.shadowFrame - b.ShadowSampleFrame
+	frameDelta := s.shadowFrame - sh.SampleFrame
 	if frameDelta < 0 {
 		frameDelta += shadowFrameWrap
 	}
@@ -223,10 +272,10 @@ func (s *Scene) shouldUpdateSkinnedShadowHeight(b *EntityBase) bool {
 	lodInterval := skinnedShadowRaycastInterval + lod
 
 	if movedSq >= float32(skinnedShadowMoveEpsilonSq) || frameDelta >= lodInterval {
-		b.ShadowSampleX = x
-		b.ShadowSampleY = y
-		b.ShadowSampleZ = z
-		b.ShadowSampleFrame = s.shadowFrame
+		sh.SampleX = x
+		sh.SampleY = y
+		sh.SampleZ = z
+		sh.SampleFrame = s.shadowFrame
 		return true
 	}
 	return false
@@ -264,26 +313,25 @@ func (s *Scene) updateShadowHeights() {
 		vp = s.Camera.ViewProjection
 	}
 
-	meshes := s.visible[TypeMesh]
 	s.shadowSort.Begin()
-	for i := 0; i < meshes.Count; i++ {
-		b := meshes.Items[i].GetBase()
-		if b.CastShadow && b.ShadowHeightState == ShadowHeightPending {
-			s.shadowSort.Add(i, shadowScreenSize(b, vp))
+	for i := 0; i < s.visibleMeshCount; i++ {
+		me := s.visibleMeshes[i]
+		if me.Base.CastShadow && me.Shadow.HeightState == ShadowHeightPending {
+			s.shadowSort.Add(i, shadowScreenSize(&me.Base, vp))
 		}
 	}
 	s.shadowSort.SortDescending()
 	budget := shadowRaycastBudget
 	for i := 0; i < s.shadowSort.Count && budget > 0; i++ {
-		s.calculateShadowHeight(meshes.Items[s.shadowSort.Entries[i].Index].GetBase())
+		me := s.visibleMeshes[s.shadowSort.Entries[i].Index]
+		s.calculateShadowHeight(&me.Base, &me.Shadow)
 		budget--
 	}
 
-	skinned := s.visible[TypeSkinnedMesh]
-	for i := 0; i < skinned.Count; i++ {
-		b := skinned.Items[i].GetBase()
-		if b.CastShadow && s.shouldUpdateSkinnedShadowHeight(b) {
-			s.calculateShadowHeight(b)
+	for i := 0; i < s.visibleSkinnedCount; i++ {
+		sk := s.visibleSkinned[i]
+		if sk.Base.CastShadow && s.shouldUpdateSkinnedShadowHeight(&sk.Base, &sk.Shadow) {
+			s.calculateShadowHeight(&sk.Base, &sk.Shadow)
 		}
 	}
 }

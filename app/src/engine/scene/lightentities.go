@@ -45,18 +45,17 @@ func (e *DirectionalLightEntity) GetBase() *EntityBase { return &e.Base }
 func (e *DirectionalLightEntity) Update(frameTime float32) bool {
 	return baseUpdate(e, frameTime)
 }
-func (e *DirectionalLightEntity) UpdateBoundingVolume() {}
 
 // Draw sets the light uniforms on the bound directionalLight shader and
 // draws the screen quad.
-func (e *DirectionalLightEntity) Draw(r *rendering.Renderer, sh *rendering.Shader, mode string) {
+func (e *DirectionalLightEntity) Draw(r *rendering.Renderer, sh *rendering.Shader, mode rendering.MaterialMode) {
 	quad := r.Shapes.ScreenQuad
 	if sh == nil || quad == nil {
 		return
 	}
 	sh.SetVec3("directionalLight.direction", e.Direction)
 	sh.SetVec3("directionalLight.color", e.Color)
-	quad.RenderSingle(false, "triangles", "all", sh)
+	quad.RenderSingle(false, rendering.TopoTriangles, rendering.ModeAll, sh)
 }
 func (e *DirectionalLightEntity) DrawShadow(r *rendering.Renderer, sh *rendering.Shader)    {}
 func (e *DirectionalLightEntity) DrawWireframe(r *rendering.Renderer, sh *rendering.Shader) {}
@@ -91,7 +90,12 @@ func NewPointLightEntity(position *physics.Vec3, size float32, color []float32, 
 
 func (e *PointLightEntity) GetBase() *EntityBase { return &e.Base }
 func (e *PointLightEntity) Update(frameTime float32) bool {
-	return baseUpdate(e, frameTime)
+	if !e.Base.Visible {
+		return true
+	}
+	keep := baseUpdate(e, frameTime)
+	e.UpdateBoundingVolume()
+	return keep
 }
 
 // WorldPosition writes the light's world position (base * ani translation).
@@ -109,7 +113,7 @@ func (e *PointLightEntity) volumeMatrix() physics.Mat4 {
 }
 
 // Draw draws the point light volume with the bound pointLight shader.
-func (e *PointLightEntity) Draw(r *rendering.Renderer, sh *rendering.Shader, mode string) {
+func (e *PointLightEntity) Draw(r *rendering.Renderer, sh *rendering.Shader, mode rendering.MaterialMode) {
 	volMesh := r.Shapes.PointLightVolume
 	if sh == nil || volMesh == nil {
 		return
@@ -126,7 +130,7 @@ func (e *PointLightEntity) Draw(r *rendering.Renderer, sh *rendering.Shader, mod
 	sh.SetMat4("matWorld", vol)
 	sh.SetVec4("pointLight.posRange", lightPosRange)
 	sh.SetVec4("pointLight.colorIntensity", lightColorInt)
-	volMesh.RenderSingle(false, "triangles", "all", sh)
+	volMesh.RenderSingle(false, rendering.TopoTriangles, rendering.ModeAll, sh)
 }
 
 func (e *PointLightEntity) DrawShadow(r *rendering.Renderer, sh *rendering.Shader)   {}
@@ -158,6 +162,7 @@ func (e *PointLightEntity) AddToLighting(data *rendering.LightingData) bool {
 	return data.AddPointLight(lightPos.X, lightPos.Y, lightPos.Z, e.Size, e.Color[0], e.Color[1], e.Color[2], e.Intensity)
 }
 
+// UpdateBoundingVolume fits the AABB to the transformed sphere volume.
 func (e *PointLightEntity) UpdateBoundingVolume() {
 	if e.Base.BoundingBox == nil {
 		e.Base.BoundingBox = physics.NewBoundingBox()
@@ -203,7 +208,12 @@ func NewSpotLightEntity(position, direction *physics.Vec3, color []float32, inte
 
 func (e *SpotLightEntity) GetBase() *EntityBase { return &e.Base }
 func (e *SpotLightEntity) Update(frameTime float32) bool {
-	return baseUpdate(e, frameTime)
+	if !e.Base.Visible {
+		return true
+	}
+	keep := baseUpdate(e, frameTime)
+	e.UpdateBoundingVolume()
+	return keep
 }
 
 // SetPosition moves the light and rebuilds its matrix.
@@ -235,7 +245,7 @@ func (e *SpotLightEntity) updateMatrix() {
 }
 
 // Draw draws the cone volume with the bound spotLight shader.
-func (e *SpotLightEntity) Draw(r *rendering.Renderer, sh *rendering.Shader, mode string) {
+func (e *SpotLightEntity) Draw(r *rendering.Renderer, sh *rendering.Shader, mode rendering.MaterialMode) {
 	volMesh := r.Shapes.SpotlightVolume
 	if sh == nil || volMesh == nil {
 		return
@@ -257,7 +267,7 @@ func (e *SpotLightEntity) Draw(r *rendering.Renderer, sh *rendering.Shader, mode
 	sh.SetVec4("spotLight.posRange", lightPosRange)
 	sh.SetVec4("spotLight.colorIntensity", lightColorInt)
 	sh.SetVec4("spotLight.dirCutoff", lightDirCutoff)
-	volMesh.RenderSingle(false, "triangles", "all", sh)
+	volMesh.RenderSingle(false, rendering.TopoTriangles, rendering.ModeAll, sh)
 }
 
 func (e *SpotLightEntity) DrawShadow(r *rendering.Renderer, sh *rendering.Shader)   {}
@@ -290,6 +300,7 @@ func (e *SpotLightEntity) AddToLighting(data *rendering.LightingData) bool {
 		e.Direction.X, e.Direction.Y, e.Direction.Z, e.Cutoff)
 }
 
+// UpdateBoundingVolume fits the AABB to the transformed cone volume.
 func (e *SpotLightEntity) UpdateBoundingVolume() {
 	if e.Base.BoundingBox == nil {
 		e.Base.BoundingBox = physics.NewBoundingBox()

@@ -17,6 +17,11 @@ var (
 type MeshEntity struct {
 	Base EntityBase
 	Mesh *rendering.Mesh
+
+	// Shadow and Probe are refreshed by the Scene for visible entities;
+	// mutate their fields in place.
+	Shadow shadowState
+	Probe  probeCache
 }
 
 // NewMeshEntity places mesh at position with a uniform scale. entityType is
@@ -25,9 +30,6 @@ func NewMeshEntity(entityType int, position *physics.Vec3, mesh *rendering.Mesh,
 	e := &MeshEntity{Mesh: mesh}
 	initBase(&e.Base, entityType, update)
 	e.Base.CastShadow = false
-	if mesh != nil {
-		e.Base.TriangleCount = mesh.TriangleCount
-	}
 	if position != nil {
 		physics.Mat4Translate(e.Base.BaseMatrix, e.Base.BaseMatrix, position)
 	}
@@ -51,19 +53,24 @@ func (e *MeshEntity) SetRotation(rx, ry, rz float32) {
 }
 
 func (e *MeshEntity) Update(frameTime float32) bool {
-	return baseUpdate(e, frameTime)
+	if !e.Base.Visible {
+		return true
+	}
+	keep := baseUpdate(e, frameTime)
+	e.UpdateBoundingVolume()
+	return keep
 }
 
 // Draw sets the world matrix and ambient probe on the bound geometry /
 // transparent shader and issues the mesh in the given material mode.
-func (e *MeshEntity) Draw(r *rendering.Renderer, sh *rendering.Shader, mode string) {
+func (e *MeshEntity) Draw(r *rendering.Renderer, sh *rendering.Shader, mode rendering.MaterialMode) {
 	if e.Mesh == nil || sh == nil {
 		return
 	}
 	physics.Mat4Multiply(meshTempMatrix, e.Base.BaseMatrix, e.Base.AniMatrix)
-	sh.SetVec3("uProbeColor", e.Base.ProbeColor)
+	setProbeUniform(sh, &e.Probe)
 	sh.SetMat4("matWorld", meshTempMatrix)
-	e.Mesh.RenderSingle(true, "triangles", mode, sh)
+	e.Mesh.RenderSingle(true, rendering.TopoTriangles, mode, sh)
 }
 
 func (e *MeshEntity) DrawWireframe(r *rendering.Renderer, sh *rendering.Shader) {
@@ -82,7 +89,7 @@ func (e *MeshEntity) DrawShadow(r *rendering.Renderer, sh *rendering.Shader) {
 	if !e.Base.CastShadow || e.Mesh == nil || sh == nil {
 		return
 	}
-	if e.Base.ShadowHeightState != ShadowHeightValid {
+	if e.Shadow.HeightState != ShadowHeightValid {
 		return
 	}
 	m := meshTempMatrix
@@ -90,15 +97,22 @@ func (e *MeshEntity) DrawShadow(r *rendering.Renderer, sh *rendering.Shader) {
 	m[1] *= 0.1
 	m[5] *= 0.1
 	m[9] *= 0.1
-	m[13] = e.Base.ShadowHeight
+	m[13] = e.Shadow.Height
 	sh.SetMat4("matWorld", m)
-	e.Mesh.RenderSingle(false, "triangles", "all", sh)
+	e.Mesh.RenderSingle(false, rendering.TopoTriangles, rendering.ModeAll, sh)
 }
 
 func (e *MeshEntity) Bounds() *physics.BoundingBox { return e.Base.BoundingBox }
-func (e *MeshEntity) TriangleCount() int           { return e.Base.TriangleCount }
 func (e *MeshEntity) CastsShadow() bool            { return e.Base.CastShadow }
 
+func (e *MeshEntity) TriangleCount() int {
+	if e.Mesh == nil {
+		return 0
+	}
+	return e.Mesh.TriangleCount
+}
+
+// UpdateBoundingVolume transforms the mesh AABB by the world matrix.
 func (e *MeshEntity) UpdateBoundingVolume() {
 	if e.Mesh == nil || e.Mesh.BoundingBox == nil {
 		return

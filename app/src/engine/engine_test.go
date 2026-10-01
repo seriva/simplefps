@@ -4,12 +4,40 @@ import (
 	"strings"
 	"testing"
 
+	"./physics"
 	"./rendering"
 	"./systems"
 )
 
+// nopScene is an empty SceneSource standing in for the game scene (twin of
+// rendering's nopScene; test files cannot be shared across packages).
+type nopScene struct {
+	draw  *rendering.DrawList
+	light *rendering.LightList
+}
+
+func newNopScene() *nopScene {
+	return &nopScene{draw: rendering.NewDrawList(1), light: rendering.NewLightList(1)}
+}
+
+func (s *nopScene) Ambient(out *physics.Vec3) {
+	out.X = 0
+	out.Y = 0
+	out.Z = 0
+}
+func (s *nopScene) Skyboxes() *rendering.DrawList          { return s.draw }
+func (s *nopScene) Meshes() *rendering.DrawList            { return s.draw }
+func (s *nopScene) FPSMeshes() *rendering.DrawList         { return s.draw }
+func (s *nopScene) SkinnedMeshes() *rendering.DrawList     { return s.draw }
+func (s *nopScene) DirectionalLights() *rendering.DrawList { return s.draw }
+func (s *nopScene) PointLights() *rendering.LightList      { return s.light }
+func (s *nopScene) SpotLights() *rendering.LightList       { return s.light }
+func (s *nopScene) Billboards() *rendering.DrawList        { return s.draw }
+func (s *nopScene) ParticleEmitters() *rendering.DrawList  { return s.draw }
+func (s *nopScene) Transparent() *rendering.DrawList       { return s.draw }
+
 func TestBackendSelection(t *testing.T) {
-	// In headless Node.js, WebGPU is not supported by default, so it selects WebGL2
+	// Headless Node has no WebGPU, so selection must land on WebGL2.
 	var backend rendering.RenderBackend
 	SelectBackend(false, func(b rendering.RenderBackend) { backend = b })
 	if backend == nil {
@@ -71,7 +99,9 @@ func TestEngineLifecycle(t *testing.T) {
 
 	FrameStep(1000.0)
 	FrameStep(1016.0)
+	ActiveScene = newNopScene()
 	RenderFrame(1.016)
+	ActiveScene = nil
 
 	if !gameUpdated {
 		t.Error("Expected gameUpdate callback to be called")
@@ -131,4 +161,24 @@ func TestEngineConsoleCommands(t *testing.T) {
 	if !d.ShowBoundingVolumes || !d.ShowLightVolumes || !d.ShowSkeleton {
 		t.Error("tbv/tlv/tsk must write through to the live debug options")
 	}
+}
+
+func TestStartRequiresScene(t *testing.T) {
+	Init(false, nil)
+	defer Dispose()
+
+	ActiveScene = nil
+	if err := Start(); err != ErrNoScene {
+		t.Fatalf("Start without ActiveScene must return ErrNoScene, got %v", err)
+	}
+	if rafId != nil {
+		t.Error("Start must not schedule a frame without a scene")
+	}
+
+	ActiveScene = newNopScene()
+	defer func() { ActiveScene = nil }()
+	if err := Start(); err != nil {
+		t.Fatalf("Start with a scene must succeed, got %v", err)
+	}
+	Stop()
 }

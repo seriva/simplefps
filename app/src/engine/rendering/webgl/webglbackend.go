@@ -14,7 +14,7 @@ type WebGLTextureHandle struct {
 // WebGLBufferHandle wraps a WebGLBuffer and metadata.
 type WebGLBufferHandle struct {
 	GLBuffer        any
-	Usage           string
+	Usage           rendering.BufferUsage
 	Length          int
 	BytesPerElement int
 }
@@ -59,19 +59,26 @@ type WebGLBackend struct {
 	CurrentVAO         any
 	TextureUnit0       int
 	WrapModes          map[string]int
-	BlendFactors       map[string]int
-	DepthFuncs         map[string]int
+	BlendFactors       map[rendering.BlendFactor]int
+	DepthFuncs         map[rendering.DepthFunc]int
 	TextureFormats     map[string]int
 	FrameId            int
+	// Cached GL state; `any` so the zero value (nil) never matches a bool and
+	// the first ApplyState always reaches the GL.
 	BlendEnabled       any
-	BlendSrc           string
-	BlendDst           string
+	BlendSrc           rendering.BlendFactor
+	BlendDst           rendering.BlendFactor
 	DepthTest          any
 	DepthWrite         any
-	DepthFunc          string
+	DepthFunc          rendering.DepthFunc
 	CullEnabled        any
-	CullFace           string
+	CullFace           rendering.CullFace
+	PolyOffsetEnabled  any
+	PolyOffsetFactor   float32
+	PolyOffsetUnits    float32
+	ColorMask          any
 	CurrentIndexBuffer any
+	state              *rendering.PipelineState
 
 	RenderScale float32
 	DoFSR       bool
@@ -82,8 +89,8 @@ func NewWebGLBackend() *WebGLBackend {
 	return &WebGLBackend{
 		Capabilities:   &rendering.Capabilities{},
 		WrapModes:      make(map[string]int),
-		BlendFactors:   make(map[string]int),
-		DepthFuncs:     make(map[string]int),
+		BlendFactors:   make(map[rendering.BlendFactor]int),
+		DepthFuncs:     make(map[rendering.DepthFunc]int),
 		TextureFormats: make(map[string]int),
 		RenderScale:    1.0,
 		DoFSR:          false,
@@ -158,35 +165,7 @@ func (b *WebGLBackend) initSync() bool {
 
 	// Cache GL constants
 	b.TextureUnit0 = gl.TEXTURE0
-
-	b.BlendFactors["zero"] = gl.ZERO
-	b.BlendFactors["one"] = gl.ONE
-	b.BlendFactors["src-alpha"] = gl.SRC_ALPHA
-	b.BlendFactors["one-minus-src-alpha"] = gl.ONE_MINUS_SRC_ALPHA
-	b.BlendFactors["dst-color"] = gl.DST_COLOR
-
-	b.DepthFuncs["never"] = gl.NEVER
-	b.DepthFuncs["less"] = gl.LESS
-	b.DepthFuncs["equal"] = gl.EQUAL
-	b.DepthFuncs["lequal"] = gl.LEQUAL
-	b.DepthFuncs["greater"] = gl.GREATER
-	b.DepthFuncs["notequal"] = gl.NOTEQUAL
-	b.DepthFuncs["gequal"] = gl.GEQUAL
-	b.DepthFuncs["always"] = gl.ALWAYS
-
-	b.WrapModes["repeat"] = gl.REPEAT
-	b.WrapModes["clamp-to-edge"] = gl.CLAMP_TO_EDGE
-	b.WrapModes["mirrored-repeat"] = gl.MIRRORED_REPEAT
-
-	b.TextureFormats["depth24"] = gl.DEPTH_COMPONENT24
-	b.TextureFormats["rgba16f"] = gl.RGBA16F
-	b.TextureFormats["rgba8"] = gl.RGBA8
-	b.TextureFormats["rg8"] = gl.RG8
-	b.TextureFormats["r8"] = gl.R8
-	b.TextureFormats["rgba"] = gl.RGBA
-	b.TextureFormats["depth"] = gl.DEPTH_COMPONENT
-	b.TextureFormats["ubyte"] = gl.UNSIGNED_BYTE
-	b.TextureFormats["float"] = gl.FLOAT
+	b.initLookupTables()
 
 	// Default state
 	gl.clearColor(0.0, 0.0, 0.0, 1.0)
@@ -207,6 +186,39 @@ func (b *WebGLBackend) initSync() bool {
 	}
 
 	return true
+}
+
+// initLookupTables maps engine enums onto the GL constants of b.GL.
+func (b *WebGLBackend) initLookupTables() {
+	gl := b.GL
+	b.BlendFactors[rendering.BlendZero] = gl.ZERO
+	b.BlendFactors[rendering.BlendOne] = gl.ONE
+	b.BlendFactors[rendering.BlendSrcAlpha] = gl.SRC_ALPHA
+	b.BlendFactors[rendering.BlendOneMinusSrcAlpha] = gl.ONE_MINUS_SRC_ALPHA
+	b.BlendFactors[rendering.BlendDstColor] = gl.DST_COLOR
+
+	b.DepthFuncs[rendering.DepthNever] = gl.NEVER
+	b.DepthFuncs[rendering.DepthLess] = gl.LESS
+	b.DepthFuncs[rendering.DepthEqual] = gl.EQUAL
+	b.DepthFuncs[rendering.DepthLEqual] = gl.LEQUAL
+	b.DepthFuncs[rendering.DepthGreater] = gl.GREATER
+	b.DepthFuncs[rendering.DepthNotEqual] = gl.NOTEQUAL
+	b.DepthFuncs[rendering.DepthGEqual] = gl.GEQUAL
+	b.DepthFuncs[rendering.DepthAlways] = gl.ALWAYS
+
+	b.WrapModes["repeat"] = gl.REPEAT
+	b.WrapModes["clamp-to-edge"] = gl.CLAMP_TO_EDGE
+	b.WrapModes["mirrored-repeat"] = gl.MIRRORED_REPEAT
+
+	b.TextureFormats["depth24"] = gl.DEPTH_COMPONENT24
+	b.TextureFormats["rgba16f"] = gl.RGBA16F
+	b.TextureFormats["rgba8"] = gl.RGBA8
+	b.TextureFormats["rg8"] = gl.RG8
+	b.TextureFormats["r8"] = gl.R8
+	b.TextureFormats["rgba"] = gl.RGBA
+	b.TextureFormats["depth"] = gl.DEPTH_COMPONENT
+	b.TextureFormats["ubyte"] = gl.UNSIGNED_BYTE
+	b.TextureFormats["float"] = gl.FLOAT
 }
 
 func (b *WebGLBackend) Dispose() {
@@ -472,14 +484,14 @@ func (b *WebGLBackend) UnbindTexture(unit int) {
 	gl.bindTexture(gl.TEXTURE_2D, nil)
 }
 
-func (b *WebGLBackend) CreateBuffer(data any, usage string) any {
+func (b *WebGLBackend) CreateBuffer(data any, usage rendering.BufferUsage) any {
 	gl := b.GL
 	if gl == nil || data == nil {
 		return nil
 	}
 	buf := gl.createBuffer()
 	target := gl.ARRAY_BUFFER
-	if usage == "index" {
+	if usage == rendering.UsageIndex {
 		target = gl.ELEMENT_ARRAY_BUFFER
 	}
 
@@ -504,7 +516,7 @@ func (b *WebGLBackend) UpdateBuffer(buffer any, data any, offset int) {
 	target := gl.ARRAY_BUFFER
 	if h, ok := buffer.(*WebGLBufferHandle); ok {
 		buf = h.GLBuffer
-		if h.Usage == "index" {
+		if h.Usage == rendering.UsageIndex {
 			target = gl.ELEMENT_ARRAY_BUFFER
 		}
 	} else if buffer.usage == "index" {
@@ -970,10 +982,25 @@ func (b *WebGLBackend) DeleteVertexState(state any) {
 	gl.deleteVertexArray(vao)
 }
 
-func (b *WebGLBackend) SetBlendState(enabled bool, srcFactor, dstFactor string) {
-	if b.GL == nil {
+// ApplyState diffs s against the cached GL state and issues only the calls
+// that change something. Re-applying the current pointer is free.
+func (b *WebGLBackend) ApplyState(s *rendering.PipelineState) {
+	if b.GL == nil || s == nil || s == b.state {
 		return
 	}
+	b.applyBlend(s.Blend, s.SrcFactor, s.DstFactor)
+	b.applyDepth(s.DepthTest, s.DepthWrite, s.DepthFunc)
+	b.applyCull(s.Cull, s.CullFace)
+	b.applyPolygonOffset(s.PolyOffset, s.OffsetFactor, s.OffsetUnits)
+	b.applyColorMask(s.ColorMask)
+	b.state = s
+}
+
+func (b *WebGLBackend) State() *rendering.PipelineState {
+	return b.state
+}
+
+func (b *WebGLBackend) applyBlend(enabled bool, srcFactor, dstFactor rendering.BlendFactor) {
 	if b.BlendEnabled == enabled && (!enabled || (b.BlendSrc == srcFactor && b.BlendDst == dstFactor)) {
 		return
 	}
@@ -999,10 +1026,7 @@ func (b *WebGLBackend) SetBlendState(enabled bool, srcFactor, dstFactor string) 
 	b.BlendDst = dstFactor
 }
 
-func (b *WebGLBackend) SetDepthState(testEnabled bool, writeEnabled bool, funcName string) {
-	if b.GL == nil {
-		return
-	}
+func (b *WebGLBackend) applyDepth(testEnabled bool, writeEnabled bool, funcName rendering.DepthFunc) {
 	if b.DepthTest == testEnabled && b.DepthWrite == writeEnabled && b.DepthFunc == funcName {
 		return
 	}
@@ -1029,10 +1053,7 @@ func (b *WebGLBackend) SetDepthState(testEnabled bool, writeEnabled bool, funcNa
 	b.DepthFunc = funcName
 }
 
-func (b *WebGLBackend) SetCullState(enabled bool, face string) {
-	if b.GL == nil {
-		return
-	}
+func (b *WebGLBackend) applyCull(enabled bool, face rendering.CullFace) {
 	if b.CullEnabled == enabled && (!enabled || b.CullFace == face) {
 		return
 	}
@@ -1042,7 +1063,7 @@ func (b *WebGLBackend) SetCullState(enabled bool, face string) {
 			gl.enable(gl.CULL_FACE)
 		}
 		cf := gl.BACK
-		if face == "front" {
+		if face == rendering.CullFront {
 			cf = gl.FRONT
 		}
 		gl.cullFace(cf)
@@ -1053,8 +1074,8 @@ func (b *WebGLBackend) SetCullState(enabled bool, face string) {
 	b.CullFace = face
 }
 
-func (b *WebGLBackend) SetPolygonOffset(enabled bool, factor, units float32) {
-	if b.GL == nil {
+func (b *WebGLBackend) applyPolygonOffset(enabled bool, factor, units float32) {
+	if b.PolyOffsetEnabled == enabled && (!enabled || (b.PolyOffsetFactor == factor && b.PolyOffsetUnits == units)) {
 		return
 	}
 	gl := b.GL
@@ -1064,6 +1085,22 @@ func (b *WebGLBackend) SetPolygonOffset(enabled bool, factor, units float32) {
 	} else {
 		gl.disable(gl.POLYGON_OFFSET_FILL)
 	}
+	b.PolyOffsetEnabled = enabled
+	b.PolyOffsetFactor = factor
+	b.PolyOffsetUnits = units
+}
+
+func (b *WebGLBackend) applyColorMask(mask uint8) {
+	if b.ColorMask == mask {
+		return
+	}
+	b.GL.colorMask(
+		mask&rendering.ColorMaskR != 0,
+		mask&rendering.ColorMaskG != 0,
+		mask&rendering.ColorMaskB != 0,
+		mask&rendering.ColorMaskA != 0,
+	)
+	b.ColorMask = mask
 }
 
 func (b *WebGLBackend) SetViewport(x, y, width, height int) {
@@ -1097,24 +1134,17 @@ func (b *WebGLBackend) Clear(options *rendering.ClearOptions) {
 	}
 }
 
-func (b *WebGLBackend) SetColorMask(r, g, bl, a bool) {
-	if b.GL == nil {
-		return
-	}
-	b.GL.colorMask(r, g, bl, a)
-}
-
-func (b *WebGLBackend) DrawIndexed(indexBuffer any, indexCount int, indexOffset int, mode string) {
+func (b *WebGLBackend) DrawIndexed(indexBuffer any, indexCount int, indexOffset int, mode rendering.Topology) {
 	if b.GL == nil || indexBuffer == nil {
 		return
 	}
 	gl := b.GL
 	drawMode := gl.TRIANGLES
-	if mode == "lines" {
+	if mode == rendering.TopoLines {
 		drawMode = gl.LINES
-	} else if mode == "points" {
+	} else if mode == rendering.TopoPoints {
 		drawMode = gl.POINTS
-	} else if mode == "triangle-strip" {
+	} else if mode == rendering.TopoTriangleStrip {
 		drawMode = gl.TRIANGLE_STRIP
 	}
 

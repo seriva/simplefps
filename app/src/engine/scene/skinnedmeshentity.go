@@ -24,6 +24,11 @@ type SkinnedMeshEntity struct {
 	AnimationPlayer *animation.AnimationPlayer
 	Scale           float32
 
+	// Shadow and Probe are refreshed by the Scene for visible entities;
+	// mutate their fields in place.
+	Shadow shadowState
+	Probe  probeCache
+
 	boneMatrices []float32
 	skeletonMesh *rendering.Mesh
 }
@@ -33,9 +38,6 @@ func NewSkinnedMeshEntity(position *physics.Vec3, mesh *rendering.SkinnedMesh, s
 	e := &SkinnedMeshEntity{Mesh: mesh, Skeleton: skeleton, Scale: scale}
 	initBase(&e.Base, TypeSkinnedMesh, update)
 	e.Base.CastShadow = false
-	if mesh != nil {
-		e.Base.TriangleCount = mesh.BaseMesh.TriangleCount
-	}
 	if position != nil {
 		physics.Mat4Translate(e.Base.BaseMatrix, e.Base.BaseMatrix, position)
 	}
@@ -88,32 +90,34 @@ func (e *SkinnedMeshEntity) Update(frameTime float32) bool {
 			}
 		}
 	}
-	return baseUpdate(e, frameTime)
+	keep := baseUpdate(e, frameTime)
+	e.UpdateBoundingVolume()
+	return keep
 }
 
-func (e *SkinnedMeshEntity) Draw(r *rendering.Renderer, sh *rendering.Shader, mode string) {
+func (e *SkinnedMeshEntity) Draw(r *rendering.Renderer, sh *rendering.Shader, mode rendering.MaterialMode) {
 	if e.boneMatrices == nil || e.Mesh == nil || sh == nil {
 		return
 	}
 	physics.Mat4Multiply(skinnedTempMatrix, e.Base.BaseMatrix, e.Base.AniMatrix)
-	sh.SetVec3("uProbeColor", e.Base.ProbeColor)
+	setProbeUniform(sh, &e.Probe)
 	sh.SetMat4("matWorld", skinnedTempMatrix)
 	sh.SetMat4Array("boneMatrices", e.boneMatrices)
-	e.Mesh.RenderSingle(true, "triangles", mode, sh, true)
+	e.Mesh.RenderSingle(true, rendering.TopoTriangles, mode, sh, true)
 }
 
 func (e *SkinnedMeshEntity) DrawShadow(r *rendering.Renderer, sh *rendering.Shader) {
 	if e.boneMatrices == nil || !e.Base.CastShadow || e.Mesh == nil || sh == nil {
 		return
 	}
-	if e.Base.ShadowHeightState != ShadowHeightValid {
+	if e.Shadow.HeightState != ShadowHeightValid {
 		return
 	}
 	physics.Mat4Multiply(skinnedTempMatrix, e.Base.BaseMatrix, e.Base.AniMatrix)
 	sh.SetMat4("matWorld", skinnedTempMatrix)
-	sh.SetFloat("shadowHeight", e.Base.ShadowHeight)
+	sh.SetFloat("shadowHeight", e.Shadow.Height)
 	sh.SetMat4Array("boneMatrices", e.boneMatrices)
-	e.Mesh.RenderSingle(false, "triangles", "all", sh, true)
+	e.Mesh.RenderSingle(false, rendering.TopoTriangles, rendering.ModeAll, sh, true)
 }
 
 // DrawWireframe draws the animated wireframe via the skinnedDebug shader
@@ -143,8 +147,14 @@ func (e *SkinnedMeshEntity) DrawWireframe(r *rendering.Renderer, sh *rendering.S
 }
 
 func (e *SkinnedMeshEntity) Bounds() *physics.BoundingBox { return e.Base.BoundingBox }
-func (e *SkinnedMeshEntity) TriangleCount() int           { return e.Base.TriangleCount }
 func (e *SkinnedMeshEntity) CastsShadow() bool            { return e.Base.CastShadow }
+
+func (e *SkinnedMeshEntity) TriangleCount() int {
+	if e.Mesh == nil {
+		return 0
+	}
+	return e.Mesh.BaseMesh.TriangleCount
+}
 
 func (e *SkinnedMeshEntity) initSkeletonMesh(b rendering.RenderBackend) {
 	if e.skeletonMesh != nil || e.Skeleton == nil {
@@ -194,7 +204,7 @@ func (e *SkinnedMeshEntity) DrawSkeleton(r *rendering.Renderer, sh *rendering.Sh
 	physics.Mat4Multiply(skinnedTempMatrix, e.Base.BaseMatrix, e.Base.AniMatrix)
 	sh.SetMat4("matWorld", skinnedTempMatrix)
 	sh.SetVec4("debugColor", skeletonColor)
-	e.skeletonMesh.RenderSingle(false, "lines", "all", sh)
+	e.skeletonMesh.RenderSingle(false, rendering.TopoLines, rendering.ModeAll, sh)
 }
 
 // UpdateBoundingVolume uses the animation's per-frame bounds when available,

@@ -40,7 +40,7 @@ type WebGPUTextureHandle struct {
 // WebGPUBufferHandle wraps a GPUBuffer with metadata.
 type WebGPUBufferHandle struct {
 	GPUBuffer       any
-	Usage           string
+	Usage           rendering.BufferUsage
 	Length          int
 	BytesPerElement int
 	ID              int
@@ -82,8 +82,8 @@ type uniformBufferPool struct {
 	Buffers []any
 }
 
-// packStructBuffers mirrors _packStructBuffers in webgpubackend.js: one
-// pre-allocated Float32Array per WGSL uniform struct, reused every draw.
+// packStructBuffers holds one pre-allocated staging slice per WGSL uniform
+// struct, reused every draw so uniform packing never allocates.
 var packStructBuffers = map[string][]float32{
 	"pointLight":          make([]float32, 8),
 	"directionalLight":    make([]float32, 8),
@@ -146,6 +146,7 @@ type WebGPUBackend struct {
 		DepthBiasSlopeScale float32
 		DepthBiasClamp      float32
 	}
+	state *rendering.PipelineState
 	DepthRange struct {
 		Min float32
 		Max float32
@@ -169,7 +170,8 @@ type WebGPUBackend struct {
 	PipelineLayoutCache  map[string]any
 	BindGroupLayoutCache map[string]any
 
-	// Per-draw caches (see webgpubackend.js "Optimization" blocks).
+	// Per-draw caches: bind groups keyed by resource set, pooled uniform
+	// buffers, and the pipeline/bind groups bound in the current pass.
 	PersistentBindGroupCache map[string]any
 	FrameBindGroupCache      map[string]any
 	UniformBufferPools       map[int]*uniformBufferPool
@@ -881,14 +883,14 @@ func (b *WebGPUBackend) UnbindTexture(unit int) {
 	delete(b.BoundTextures, unit)
 }
 
-func (b *WebGPUBackend) CreateBuffer(data any, usage string) any {
+func (b *WebGPUBackend) CreateBuffer(data any, usage rendering.BufferUsage) any {
 	if b.Device == nil {
 		return nil
 	}
 	gpuUsage := GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST
-	if usage == "index" {
+	if usage == rendering.UsageIndex {
 		gpuUsage = GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST
-	} else if usage == "uniform" {
+	} else if usage == rendering.UsageUniform {
 		gpuUsage = GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
 	}
 
@@ -1191,48 +1193,59 @@ func (b *WebGPUBackend) BindVertexState(state any) {
 func (b *WebGPUBackend) DeleteVertexState(state any) {
 }
 
-func (b *WebGPUBackend) SetBlendState(enabled bool, srcFactor, dstFactor string) {
-	b.BlendState.Enabled = enabled
-	b.BlendState.SrcFactor = srcFactor
-	b.BlendState.DstFactor = dstFactor
+// depthCompareFuncs maps engine depth functions to GPUCompareFunction.
+var depthCompareFuncs = map[rendering.DepthFunc]string{
+	rendering.DepthNever:    "never",
+	rendering.DepthLess:     "less",
+	rendering.DepthEqual:    "equal",
+	rendering.DepthLEqual:   "less-equal",
+	rendering.DepthGreater:  "greater",
+	rendering.DepthNotEqual: "not-equal",
+	rendering.DepthGEqual:   "greater-equal",
+	rendering.DepthAlways:   "always",
 }
 
-// depthCompareFuncs maps GL-style depth function names to GPUCompareFunction.
-var depthCompareFuncs = map[string]string{
-	"never":    "never",
-	"less":     "less",
-	"equal":    "equal",
-	"lequal":   "less-equal",
-	"greater":  "greater",
-	"notequal": "not-equal",
-	"gequal":   "greater-equal",
-	"always":   "always",
-}
-
-func (b *WebGPUBackend) SetDepthState(testEnabled bool, writeEnabled bool, funcName string) {
-	b.DepthState.Test = testEnabled
-	b.DepthState.Write = writeEnabled
-	if mapped, ok := depthCompareFuncs[funcName]; ok {
-		funcName = mapped
+// ApplyState copies s into the pipeline-key state; the actual GPU pipeline is
+// resolved lazily at draw time from these fields.
+func (b *WebGPUBackend) ApplyState(s *rendering.PipelineState) {
+	if s == nil || s == b.state {
+		return
 	}
-	b.DepthState.Func = funcName
-}
+	b.BlendState.Enabled = s.Blend
+	b.BlendState.SrcFactor = string(s.SrcFactor)
+	b.BlendState.DstFactor = string(s.DstFactor)
 
-func (b *WebGPUBackend) SetCullState(enabled bool, face string) {
-	b.CullState.Enabled = enabled
-	b.CullState.Face = face
-}
+	b.DepthState.Test = s.DepthTest
+	b.DepthState.Write = s.DepthWrite
+	if mapped, ok := depthCompareFuncs[s.DepthFunc]; ok {
+		b.DepthState.Func = mapped
+	} else {
+		b.DepthState.Func = string(s.DepthFunc)
+	}
 
-func (b *WebGPUBackend) SetPolygonOffset(enabled bool, factor, units float32) {
-	b.DepthBias.Enabled = enabled
-	if enabled {
-		b.DepthBias.DepthBias = int(units)
-		b.DepthBias.DepthBiasSlopeScale = factor
+	b.CullState.Enabled = s.Cull
+	b.CullState.Face = string(s.CullFace)
+
+	b.DepthBias.Enabled = s.PolyOffset
+	if s.PolyOffset {
+		b.DepthBias.DepthBias = int(s.OffsetUnits)
+		b.DepthBias.DepthBiasSlopeScale = s.OffsetFactor
 	} else {
 		b.DepthBias.DepthBias = 0
 		b.DepthBias.DepthBiasSlopeScale = 0
 	}
 	b.DepthBias.DepthBiasClamp = 0
+
+	b.ColorMask.R = s.ColorMask&rendering.ColorMaskR != 0
+	b.ColorMask.G = s.ColorMask&rendering.ColorMaskG != 0
+	b.ColorMask.B = s.ColorMask&rendering.ColorMaskB != 0
+	b.ColorMask.A = s.ColorMask&rendering.ColorMaskA != 0
+
+	b.state = s
+}
+
+func (b *WebGPUBackend) State() *rendering.PipelineState {
+	return b.state
 }
 
 func (b *WebGPUBackend) SetViewport(x, y, width, height int) {
@@ -1710,7 +1723,7 @@ func (b *WebGPUBackend) getPipelineLayout(shaderName string) any {
 	return layout
 }
 
-func (b *WebGPUBackend) DrawIndexed(indexBuffer any, indexCount int, indexOffset int, mode string) {
+func (b *WebGPUBackend) DrawIndexed(indexBuffer any, indexCount int, indexOffset int, mode rendering.Topology) {
 	b.drawIndexedInternal(indexBuffer, indexCount, indexOffset, mode, 1)
 }
 
@@ -1718,10 +1731,10 @@ func (b *WebGPUBackend) DrawInstanced(indexBuffer any, indexCount int, instanceC
 	if instanceCount <= 0 {
 		return
 	}
-	b.drawIndexedInternal(indexBuffer, indexCount, 0, "triangles", instanceCount)
+	b.drawIndexedInternal(indexBuffer, indexCount, 0, rendering.TopoTriangles, instanceCount)
 }
 
-func (b *WebGPUBackend) drawIndexedInternal(indexBuffer any, indexCount int, indexOffset int, mode string, instanceCount int) {
+func (b *WebGPUBackend) drawIndexedInternal(indexBuffer any, indexCount int, indexOffset int, mode rendering.Topology, instanceCount int) {
 	if b.Device == nil || b.CurrentVertexState == nil || b.CurrentShader == nil {
 		return
 	}
@@ -1735,11 +1748,11 @@ func (b *WebGPUBackend) drawIndexedInternal(indexBuffer any, indexCount int, ind
 	}
 
 	topology := "triangle-list"
-	if mode == "lines" {
+	if mode == rendering.TopoLines {
 		topology = "line-list"
-	} else if mode == "points" {
+	} else if mode == rendering.TopoPoints {
 		topology = "point-list"
-	} else if mode == "triangle-strip" {
+	} else if mode == rendering.TopoTriangleStrip {
 		topology = "triangle-strip"
 	}
 
@@ -2159,13 +2172,6 @@ func (b *WebGPUBackend) textureViewFor(unit int, depthOnly bool) (any, int) {
 
 func (b *WebGPUBackend) SetUniform(name string, typeName string, value any) {
 	b.Uniforms[name] = value
-}
-
-func (b *WebGPUBackend) SetColorMask(r, g, bl, a bool) {
-	b.ColorMask.R = r
-	b.ColorMask.G = g
-	b.ColorMask.B = bl
-	b.ColorMask.A = a
 }
 
 func (b *WebGPUBackend) GetCapabilities() *rendering.Capabilities {

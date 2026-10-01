@@ -35,7 +35,6 @@ func (e *SkyboxEntity) GetBase() *EntityBase { return &e.Base }
 func (e *SkyboxEntity) Update(frameTime float32) bool {
 	return baseUpdate(e, frameTime)
 }
-func (e *SkyboxEntity) UpdateBoundingVolume() {}
 
 func (e *SkyboxEntity) updateMatrix() {
 	if e.CameraPosition != nil {
@@ -47,7 +46,7 @@ func (e *SkyboxEntity) updateMatrix() {
 
 // Draw draws the cube with the bound geometry shader (depth handled by the
 // renderer) centred on CameraPosition.
-func (e *SkyboxEntity) Draw(r *rendering.Renderer, sh *rendering.Shader, mode string) {
+func (e *SkyboxEntity) Draw(r *rendering.Renderer, sh *rendering.Shader, mode rendering.MaterialMode) {
 	sky := e.Mesh
 	if sh == nil || sky == nil {
 		return
@@ -55,7 +54,7 @@ func (e *SkyboxEntity) Draw(r *rendering.Renderer, sh *rendering.Shader, mode st
 	e.updateMatrix()
 	sh.SetMat4("matWorld", e.Base.BaseMatrix)
 	sh.SetVec3("uProbeColor", skyboxProbe)
-	sky.RenderSingle(true, "triangles", "all", sh)
+	sky.RenderSingle(true, rendering.TopoTriangles, rendering.ModeAll, sh)
 }
 
 func (e *SkyboxEntity) DrawShadow(r *rendering.Renderer, sh *rendering.Shader)   {}
@@ -71,7 +70,7 @@ func (e *SkyboxEntity) DrawWireframe(r *rendering.Renderer, sh *rendering.Shader
 }
 
 func (e *SkyboxEntity) Bounds() *physics.BoundingBox { return e.Base.BoundingBox }
-func (e *SkyboxEntity) TriangleCount() int           { return e.Base.TriangleCount }
+func (e *SkyboxEntity) TriangleCount() int           { return 0 }
 func (e *SkyboxEntity) CastsShadow() bool            { return false }
 
 func (e *SkyboxEntity) Dispose() {

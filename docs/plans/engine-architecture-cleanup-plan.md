@@ -1,7 +1,7 @@
 # Engine Architecture Cleanup — Design Plan
 
 **Version:** v2.2.0
-**Status:** Draft (re-verified against `gofront` branch 2026-10-01)
+**Status:** Implemented on branch `gofront` (Phases 1–6, 2026-10-01); design summarised in `docs/architecture.md`
 **Depends on:** `archive/gofront-rewrite-plan.md` (complete on branch `gofront`)
 
 ---
@@ -327,10 +327,13 @@ exists), and struct-typed fields are cloned on assignment, so callers must
 mutate in place (`m.Shadow.Height = …`) and never copy the struct out.
 `probeCache` uses three scalars for the same reason `ColorMask` is a bitmask.
 
-`Scene.visible` becomes typed per kind (`visibleMeshes []*MeshEntity`,
-`visiblePointLights []*PointLightEntity`, …) so the accessors return
-`[]Drawable` via a pre-allocated interface slice refreshed during culling
-(one interface conversion per visible entity per frame, no allocation).
+`Scene.visible` becomes typed per kind for the kinds the scene itself
+post-processes (`visibleMeshes []*MeshEntity` for probes / drop shadows /
+transparent sort, `visibleSkinned []*SkinnedMeshEntity` for probes / skinned
+shadow re-sampling); every other kind is routed straight into its `DrawList`
+by a type switch on `EntityBase.Type` (safe because `AddEntity` rejects a
+built-in type id on a foreign struct). One interface conversion per visible
+entity per frame, no allocation.
 
 **Rejected:** generics-based `entityList[T]`. GoFront has no generics; the
 per-kind fields are nine short declarations and read fine.
@@ -338,10 +341,13 @@ per-kind fields are nine short declarations and read fine.
 ### Phase 5 — `engine.go` cleanup
 
 - Remove the nine `scene == nil`/`scene != nil` branches in `Renderer.Render`
-  and the passes. `engine.ActiveScene` is required; `engine.Start()` returns an
-  `error` (logged via `GlobalConsole`) if called without one — the engine
-  packages contain no `panic` today and this plan does not introduce one.
-  `rendering_test.go` uses a `nopScene` fixture instead of `nil`.
+  and the passes; a single guard in `Renderer.Render` skips the frame when any
+  input is nil. `engine.ActiveScene` is required: `engine.Start()` returns
+  `ErrNoScene` (logged via `GlobalConsole`) if called without one and
+  `engine.RenderFrame` is a no-op until it is set — the engine packages
+  contain no `panic` today and this plan does not introduce one.
+  `rendering_test.go` and `engine_test.go` use a `nopScene` fixture instead
+  of `nil`.
 - `bindGeometryShader()` double call in `RenderWorldGeometry`
   (`scene/renderpasses.go:281,285`) disappears with Phase 2; verify no
   equivalent duplicate lands in `worldGeomPass`.
@@ -355,10 +361,11 @@ per-kind fields are nine short declarations and read fine.
 
 ### Phase 6 — Docs
 
-Update `docs/rendering.md` (pass table: who binds what) and `docs/scene.md`
-(`Entity` vs `Drawable`, accessor list). Update the "Branch State" section in
-`archive/gofront-rewrite-plan.md` to reference this plan. No new doc files
-beyond this one.
+Replace `docs/rendering.md`, `docs/scene.md` and `docs/networking.md` with a single
+`docs/architecture.md` covering package layout and dependency rules, the boot/frame
+loop, the pass table (who binds what), `Entity` vs `Drawable` and the scene accessors,
+networking, and the zero-allocation invariants. Update the "Branch State" section in
+`archive/gofront-rewrite-plan.md` to reference this plan. No other new doc files.
 
 ---
 
@@ -370,8 +377,8 @@ beyond this one.
 | 1b | `scene`, `engine`, `game`, `physics`, `systems` | all cross-package global reads replaced (incl. `ActiveDebugOptions`, `ActiveCamera*`, `ActiveFrustumPlanes`); `RaycastProvider` wired; `RegisterDebugCommands` in `engine`; `gofront test` for `scene`, `physics`, `game` green; `npm run test:dom` green |
 | 2 | `rendering`, `scene` | `Drawable`/`SceneSource` accessors; loops moved; scene tests rewritten to assert on `visible` buckets, renderer tests use `mockScene` returning fixed `Drawable` slices |
 | 3 | `rendering`, `webgl`, `webgpu` | typed enums + `PipelineState`; `MockBackend` records `ApplyState` calls; recorded call sequence for a frame compared against a golden list |
-| 4 | `scene` | slim `Entity`, typed buckets, `shadowState`/`probeCache` |
-| 5 | `engine`, `rendering` | nil-scene paths removed |
+| 4 | `scene` | slim `Entity`, typed mesh/skinned buckets, `shadowState`/`probeCache` |
+| 5 | `engine`, `rendering` | nil-scene paths removed; `Start() error` / `ErrNoScene`; `RenderFrame` guards `ActiveScene` |
 | 6 | `docs` | — |
 
 Visual regression check after steps 1b, 2, 3, 4: run `npm run dev`, load
@@ -384,10 +391,11 @@ must match before/after for each step.
 
 ## Edge Cases
 
-- **Re-sliced accessor lifetime.** `Meshes()` etc. alias `Scene.visible`
+- **Re-sliced accessor lifetime.** `Meshes()` etc. alias `Scene`-owned
   storage; a pass must not call `Scene.Update`/`Add`/`Remove` mid-frame.
-  Document on the interface; `Scene` asserts `!s.inRender` in `Add`/`Remove`
-  under `gofront test` builds.
+  Documented on the interface. No runtime `inRender` assertion: after Phase 2
+  the renderer never calls back into the scene, so there is no path that could
+  trip it.
 - **Method values.** GoFront emits method values unbound
   (see `NewScene` closure comment). `RaycastProvider` must be an interface,
   never `func` fields assigned from methods.
@@ -435,10 +443,10 @@ must match before/after for each step.
   `LightScore`. Golden sequence for a one-mesh/one-point-light/one-skybox
   frame, both `IsWebGPU()` branches.
 - **Unit — `scene`:**
-  culling fills the right typed buckets; accessors alias `visible` storage
+  culling fills the right typed buckets; accessors alias scene-owned storage
   and return `Count`-length slices; `UpdateShadowHeights` honours budget and
-  order; `Scene` satisfies `physics.RaycastProvider`; `Add`/`Remove` during
-  render is rejected.
+  order; `Scene` satisfies `physics.RaycastProvider`; a foreign struct
+  carrying a built-in type id is rejected by `AddEntity`.
 - **Unit — `physics`:**
   `FPSController`/`DynamicBody` with a stub `RaycastProvider`; no reference
   to a package-level provider remains (`grep GlobalRaycastStatic` is empty).
@@ -450,9 +458,9 @@ must match before/after for each step.
   `MockBackend`; `RenderStats` for the demo-arena entity set equals the
   pre-refactor snapshot.
 - **Negative cases:**
-  `engine.Start()` without `ActiveScene` panics with the expected message;
-  `Scene.Add` during a pass panics in test builds; `ApplyState(nil)` is a
-  no-op, not a crash.
+  `engine.Start()` without `ActiveScene` returns `ErrNoScene` and schedules no
+  frame; `Renderer.Render` with a nil scene skips the frame (`BeginFrame`
+  never issued); `ApplyState(nil)` is a no-op, not a crash.
 - **Manual:**
   demo arena on WebGL2 and WebGPU, reference screenshot diff; `stats` console
   command shows identical counts; allocation profiler shows 0 bytes/frame

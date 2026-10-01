@@ -137,7 +137,7 @@ func (e *ParticleEmitterEntity) ensureGPUState(b rendering.RenderBackend, quad *
 	if e.vertexState != nil {
 		b.DeleteVertexState(e.vertexState)
 	}
-	e.instanceBuffer = b.CreateBuffer(e.instanceData, "vertex")
+	e.instanceBuffer = b.CreateBuffer(e.instanceData, rendering.UsageVertex)
 	e.vertexState = b.CreateVertexState(&rendering.VertexStateDescriptor{
 		Attributes: []rendering.VertexAttribute{
 			{Buffer: quad.VertexBuffer, Slot: 0, Size: 3, Type: "float", Offset: 0, Stride: 12},
@@ -153,7 +153,7 @@ func (e *ParticleEmitterEntity) ensureGPUState(b rendering.RenderBackend, quad *
 
 // Draw uploads per-instance data and issues one instanced draw with the
 // bound instancedBillboard shader.
-func (e *ParticleEmitterEntity) Draw(r *rendering.Renderer, sh *rendering.Shader, mode string) {
+func (e *ParticleEmitterEntity) Draw(r *rendering.Renderer, sh *rendering.Shader, mode rendering.MaterialMode) {
 	n := e.count
 	b := r.Backend
 	quad := r.Shapes.BillboardQuad
@@ -202,7 +202,6 @@ func (e *ParticleEmitterEntity) DrawSkeleton(r *rendering.Renderer, sh *renderin
 func (e *ParticleEmitterEntity) Bounds() *physics.BoundingBox                             { return e.Base.BoundingBox }
 func (e *ParticleEmitterEntity) TriangleCount() int                                       { return 0 }
 func (e *ParticleEmitterEntity) CastsShadow() bool                                        { return false }
-func (e *ParticleEmitterEntity) UpdateBoundingVolume()                                    {}
 
 func (e *ParticleEmitterEntity) Dispose() {
 	baseDispose(&e.Base)

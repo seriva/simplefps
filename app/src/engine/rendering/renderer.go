@@ -148,7 +148,7 @@ func (r *Renderer) Init(width, height int, doFSR bool) {
 }
 
 // AllocateBuffers allocates the G-buffer, shadow, light, scratch and (optionally) FSR
-// targets, mirroring renderer.js `_resize`.
+// targets at the current Width/Height; called from Init and Resize.
 func (r *Renderer) AllocateBuffers(doFSR bool) {
 	if r.Backend == nil || r.Width <= 0 || r.Height <= 0 {
 		return

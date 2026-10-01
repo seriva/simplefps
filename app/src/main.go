@@ -59,7 +59,10 @@ async func boot() any {
 
 	// Render one frame behind the blur before revealing the menu.
 	game.GlobalState.EnterGame()
-	engine.Start()
+	if err := engine.Start(); err != nil {
+		game.GlobalLoading.Toggle(false)
+		return nil
+	}
 	await sleep(100)
 	game.GlobalLoading.Toggle(false)
 	game.GlobalState.EnterMenu("MAIN_MENU")

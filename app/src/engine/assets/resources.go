@@ -35,9 +35,8 @@ type Entry struct {
 	Bytes       []byte
 }
 
-// ResourceManager fetches, decodes and caches game assets by path
-// (resources.js). Paths are relative to BasePath; the file extension selects
-// the decoder:
+// ResourceManager fetches, decodes and caches game assets by path. Paths are
+// relative to BasePath; the file extension selects the decoder:
 //
 //	webp            -> Texture (Blob upload)
 //	mesh / bmesh    -> Mesh (JSON / binary)
@@ -454,7 +453,7 @@ func (r *ResourceManager) trackMesh(m *rendering.Mesh) {
 }
 
 // newImageTexture creates a 1x1 placeholder and streams the Blob into it.
-// Image textures default to repeat wrapping (texture.js).
+// Image textures default to repeat wrapping so tiled surfaces work unchanged.
 func newImageTexture(b rendering.RenderBackend, blob any) *rendering.Texture {
 	t := rendering.NewTexture(b, &rendering.TextureDescriptor{Width: 1, Height: 1, Mutable: true})
 	t.SetWrapMode("repeat")

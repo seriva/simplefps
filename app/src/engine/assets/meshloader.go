@@ -27,8 +27,8 @@ type MeshData struct {
 // HasSkeleton reports whether the file carried joint definitions.
 func (md *MeshData) HasSkeleton() bool { return len(md.Joints) > 0 }
 
-// ParseBinaryMesh decodes the binary mesh format (mesh.js loadFromBinary +
-// skinnedmesh.js _loadExtraDataFromBlob).
+// ParseBinaryMesh decodes the binary mesh format, including the optional
+// skinning section (joints, weights, skeleton) appended by the exporter.
 //
 // Header (u32 each): version, vertexCount, uvCount, lightmapUVCount (v>=2,
 // otherwise a reserved word), normalCount, indexGroupCount, and for v>=3

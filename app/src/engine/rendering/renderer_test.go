@@ -58,7 +58,7 @@ func TestAllocateBuffersResolvesEveryFormat(t *testing.T) {
 		}
 	}
 
-	// Format parity with renderer.js.
+	// G-buffer attachment formats the lighting and post passes depend on.
 	if r.Depth.GetHandle().(*mockTexture).Format != "depth24" {
 		t.Error("Depth must be depth24")
 	}
@@ -180,29 +180,30 @@ func TestRenderStageOrderWebGL(t *testing.T) {
 		{"Clear", clearAmbient},
 		{"BindTexture", 5},
 		{"BindShader", "geometry"},
-		{"SetDepthState", "lequal"},
+		{"ApplyState", stateSkybox},
 		{"draw", "skybox"},
+		{"ApplyState", stateOpaque},
 		{"draw", "mesh"},
 		{"draw", "fps"},
 		{"BindShader", "skinnedGeometry"},
 		{"draw", "skinned"},
-		{"SetCullState", true},
-		// Shadow pass: white clear, colour mask, lequal, polygon offset.
+		{"ApplyState", stateOpaque},
+		// Shadow pass: white clear, shadow preset (polygon offset, no cull).
 		{"BindFramebuffer", r.ShadowBuffer.Framebuffer},
 		{"Clear", clearWhite},
-		{"SetColorMask", true},
-		{"SetDepthState", "lequal"},
-		{"SetPolygonOffset", true},
+		{"ApplyState", stateShadow},
 		{"BindShader", "entityShadows"},
 		{"SetUniform", "ambient"},
 		{"shadow", "mesh"},
 		{"BindShader", "skinnedEntityShadows"},
 		{"shadow", "skinned"},
-		{"SetPolygonOffset", false},
+		{"ApplyState", stateOpaque},
 		// Shadow blur (WebGL only).
+		{"ApplyState", statePostProcess},
 		{"BindShader", "kawaseBlur"},
 		{"BindFramebuffer", r.ScratchBuffer.Framebuffer},
 		{"BindFramebuffer", r.ShadowBuffer.BlurFB},
+		{"ApplyState", stateOpaque},
 		// FPS geometry: depth range 0..0.1, no clear.
 		{"SetDepthRange", depthRange0to01},
 		{"BindFramebuffer", r.GBuffer.Framebuffer},
@@ -215,48 +216,56 @@ func TestRenderStageOrderWebGL(t *testing.T) {
 		{"BindTexture", 1},
 		{"BindTexture", 2},
 		{"BindTexture", 3},
-		{"SetBlendState", "one/one"},
+		{"ApplyState", stateLightingAdditive},
 		{"BindShader", "directionalLight"},
 		{"draw", "directional"},
 		{"BindShader", "pointLight"},
 		{"draw", "point"},
 		{"BindShader", "spotLight"},
 		{"draw", "spot"},
+		{"ApplyState", stateOpaque},
 		// Lighting blur (1 iteration → identity copy-back).
 		{"BindShader", "kawaseBlur"},
 		{"BindFramebuffer", r.LightBuffer.BlurFB},
 		// Transparent into light FB (lighting UBO uploaded first), then billboards additive.
 		{"BindFramebuffer", r.LightBuffer.Framebuffer},
-		{"SetBlendState", "src-alpha/one-minus-src-alpha"},
+		{"ApplyState", stateTransparent},
 		{"BindShader", "transparent"},
 		{"UpdateUBO", r.LightingUBO},
 		{"draw", "transparent"},
-		{"SetBlendState", "src-alpha/one"},
+		{"ApplyState", stateBillboardAdditive},
 		{"BindShader", "billboard"},
 		{"draw", "billboard"},
 		{"BindShader", "instancedBillboard"},
 		{"draw", "particle"},
+		{"ApplyState", stateOpaque},
 		// Emissive blur.
 		{"BindShader", "kawaseBlur"},
 		{"BindFramebuffer", r.EmissiveFB},
 		// Post-processing to scratch (FSR on), 6 samplers.
 		{"BindFramebuffer", r.ScratchBuffer.Framebuffer},
+		{"ApplyState", statePostProcess},
 		{"BindShader", "postProcessing"},
 		{"SetUniform", "normalBuffer"},
 		{"DrawIndexed", 6},
+		{"ApplyState", stateOpaque},
 		// FSR EASU → RCAS.
+		{"ApplyState", statePostProcess},
 		{"BindFramebuffer", r.FSRBuffer.Framebuffer},
 		{"SetViewport", mb.NativeW},
 		{"BindShader", "fsrEasu"},
 		{"DrawIndexed", 6},
 		{"BindShader", "fsrRcas"},
 		{"DrawIndexed", 6},
+		{"ApplyState", stateOpaque},
 		// Debug overlay last (wireframes enabled).
 		{"BindShader", "debug"},
+		{"ApplyState", stateDebug},
 		{"wire", "mesh"},
 		{"wire", "skinned"},
 		{"wire", "fps"},
 		{"wire", "skybox"},
+		{"ApplyState", stateOpaque},
 		{"EndFrame", nil},
 	})
 
@@ -385,7 +394,7 @@ func TestKawaseOddIterationCopyBack(t *testing.T) {
 	opts.ShadowBlurIterations = 0
 	opts.LightBlurIterations = 0
 	opts.EmissiveIterations = 3
-	r.Render(newTestCamera(), nil, opts, 0)
+	r.Render(newTestCamera(), newNopScene(), opts, 0)
 
 	// 3 blur draws + 1 identity copy-back; offsets 0.3, 0.6, 0.9 then -1.
 	offsets := 0

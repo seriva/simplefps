@@ -9,13 +9,13 @@ Simple first person arena shooter written in Go syntax, compiled to JavaScript w
 ## Features
 
 - **Gameplay**: Arena-based FPS with physics-based projectiles, multiple weapons (Energy Scepter, Plasma Pistol, Pulse Cannon, Laser Gatling), and cross-platform controls
-- **Rendering**: Hybrid WebGL/WebGPU engine with PBR-like lighting, UBOs, detail textures, emissive materials, and post-processing pipeline. See [Rendering Architecture](docs/rendering.md).
+- **Rendering**: Hybrid WebGL/WebGPU engine with PBR-like lighting, UBOs, detail textures, emissive materials, and post-processing pipeline. See [Architecture — Rendering](docs/architecture.md#rendering).
 - **UI**: Menus, HUD, loading screens and debug console as GoFront `.templ` components with a small game state machine
 - **Performance**: Zero-allocation hot paths (physics step, raycasts, render frame) guarded by heap-growth tests and a benchmark; linear depth buffer; PWA support
-- **Architecture**: Go packages (`engine`, `physics`, `rendering`, `scene`, `game`, …) with an entity system, scene management, and comprehensive input handling. See [Scene System](docs/scene.md).
+- **Architecture**: Go packages (`engine`, `physics`, `rendering`, `scene`, `game`, …) with an entity system, scene management, and comprehensive input handling. See [Architecture](docs/architecture.md).
 - **Cross-Platform**: Runs on Desktop, Android, and iOS with touch controls and responsive design
 - **Settings**: In-game settings menu with graphics (including renderer selection) and input configuration
-- **Networking**: Client-authoritative P2P multiplayer via PeerJS (WebRTC) for simple host/join sessions. See [Networking Architecture](docs/networking.md).
+- **Networking**: Client-authoritative P2P multiplayer via PeerJS (WebRTC) for simple host/join sessions. See [Architecture — Networking](docs/architecture.md#networking).
 
 ## Tech Stack
 
@@ -41,7 +41,7 @@ app/
 │   │   ├── rendering/    # package rendering: RenderBackend interface, renderer, passes, materials
 │   │   │   ├── webgl/    # package webgl: WebGL2 backend + GLSL shaders
 │   │   │   └── webgpu/   # package webgpu: WebGPU backend + WGSL shaders
-│   │   ├── scene/        # package scene: entities, scene graph, light grid, scene passes
+│   │   ├── scene/        # package scene: entities, culling, light grid, draw lists for the renderer
 │   │   └── systems/      # package systems: camera, settings, input, audio, console, network
 │   └── game/             # package game: state machine, weapons, projectiles, pickups, arena,
 │                         #   multiplayer, HUD/menus/loading as .go + .templ

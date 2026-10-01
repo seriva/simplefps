@@ -42,7 +42,9 @@ type DebugRenderOptions struct {
 	ShowSkeleton        bool
 }
 
-// RenderOptions carries the Settings values read by renderer.js each frame.
+// RenderOptions is the per-frame snapshot of the Settings the passes read.
+// The engine fills it once per frame; it is the only path settings take into
+// the renderer.
 type RenderOptions struct {
 	ProceduralDetail     bool
 	ShadowBlurIterations int
@@ -84,13 +86,70 @@ var (
 	boundsOrange  = []float32{1, 0.5, 0, 1}
 )
 
-func sampleAmbient(scene SceneSource) {
-	ambientScratch.X = 0
-	ambientScratch.Y = 0
-	ambientScratch.Z = 0
-	if scene != nil {
-		scene.Ambient(ambientScratch)
+// Pipeline-state presets. Every pass applies one on entry and stateOpaque on
+// exit; stateOpaque matches the backends' initial GL state.
+var (
+	stateOpaque = withCullOff(&PipelineState{
+		SrcFactor: BlendOne, DstFactor: BlendZero,
+		DepthTest: true, DepthWrite: true, DepthFunc: DepthLEqual,
+		Cull: true, CullFace: CullBack,
+		ColorMask: ColorMaskAll,
+	})
+	// stateSkybox: depth off so the sky never occludes world geometry.
+	stateSkybox = withCullOff(&PipelineState{
+		SrcFactor: BlendOne, DstFactor: BlendZero,
+		DepthFunc: DepthLEqual,
+		Cull: true, CullFace: CullBack,
+		ColorMask: ColorMaskAll,
+	})
+	// stateShadow: depth-tested, no depth write, polygon offset pulls the
+	// flattened shadow geometry towards the camera; no culling.
+	stateShadow = &PipelineState{
+		SrcFactor: BlendOne, DstFactor: BlendZero,
+		DepthTest: true, DepthFunc: DepthLEqual,
+		CullFace: CullBack,
+		PolyOffset: true, OffsetFactor: -1, OffsetUnits: -1,
+		ColorMask: ColorMaskAll,
 	}
+	// stateLightingAdditive: light volumes accumulate with one/one blending.
+	stateLightingAdditive = withCullOff(&PipelineState{
+		Blend: true, SrcFactor: BlendOne, DstFactor: BlendOne,
+		DepthFunc: DepthLEqual,
+		Cull: true, CullFace: CullBack,
+		ColorMask: ColorMaskAll,
+	})
+	// stateTransparent: alpha blend, depth-tested but not written, no culling.
+	stateTransparent = &PipelineState{
+		Blend: true, SrcFactor: BlendSrcAlpha, DstFactor: BlendOneMinusSrcAlpha,
+		DepthTest: true, DepthFunc: DepthLEqual,
+		CullFace: CullBack,
+		ColorMask: ColorMaskAll,
+	}
+	// stateBillboardAdditive: stateTransparent with additive destination.
+	stateBillboardAdditive = &PipelineState{
+		Blend: true, SrcFactor: BlendSrcAlpha, DstFactor: BlendOne,
+		DepthTest: true, DepthFunc: DepthLEqual,
+		CullFace: CullBack,
+		ColorMask: ColorMaskAll,
+	}
+	// statePostProcess: full-screen quads (blur, post-processing, FSR).
+	statePostProcess = &PipelineState{
+		SrcFactor: BlendOne, DstFactor: BlendZero,
+		DepthFunc: DepthLEqual,
+		CullFace: CullBack,
+		ColorMask: ColorMaskAll,
+	}
+	// stateDebug: overlay lines drawn over everything.
+	stateDebug = withCullOff(&PipelineState{
+		SrcFactor: BlendOne, DstFactor: BlendZero,
+		DepthFunc: DepthLEqual,
+		Cull: true, CullFace: CullBack,
+		ColorMask: ColorMaskAll,
+	})
+)
+
+func sampleAmbient(scene SceneSource) {
+	scene.Ambient(ambientScratch)
 	ambientVec[0] = ambientScratch.X
 	ambientVec[1] = ambientScratch.Y
 	ambientVec[2] = ambientScratch.Z
@@ -102,10 +161,12 @@ func sampleAmbient(scene SceneSource) {
 	clearAmbientColor.Color[2] = ambientScratch.Z
 }
 
-// Render draws one full frame following the renderer.js stage order.
-// scene may be nil, in which case only the screen-space passes run.
+// Render draws one full frame: world geometry into the G-buffer, drop
+// shadows, FPS geometry, deferred lighting, transparents, emissive blur,
+// post-processing, optional FSR and the debug overlay. All inputs are
+// required; the frame is skipped if any is missing.
 func (r *Renderer) Render(cam *CameraView, scene SceneSource, opts *RenderOptions, time float32) {
-	if r.Backend == nil || cam == nil || opts == nil || r.GBuffer.Framebuffer == nil {
+	if r.Backend == nil || cam == nil || scene == nil || opts == nil || r.GBuffer.Framebuffer == nil {
 		return
 	}
 	b := r.Backend
@@ -148,14 +209,14 @@ func (r *Renderer) bindGeometryShader(sh *Shader) {
 }
 
 // drawList draws every item of list with sh in the given material mode.
-func drawList(r *Renderer, list *DrawList, sh *Shader, mode string) {
+func drawList(r *Renderer, list *DrawList, sh *Shader, mode MaterialMode) {
 	for i := 0; i < list.Count; i++ {
 		list.Items[i].Draw(r, sh, mode)
 	}
 }
 
 // drawListCounted is drawList plus mesh/triangle stats accounting.
-func drawListCounted(r *Renderer, list *DrawList, sh *Shader, mode string) {
+func drawListCounted(r *Renderer, list *DrawList, sh *Shader, mode MaterialMode) {
 	for i := 0; i < list.Count; i++ {
 		d := list.Items[i]
 		d.Draw(r, sh, mode)
@@ -164,21 +225,21 @@ func drawListCounted(r *Renderer, list *DrawList, sh *Shader, mode string) {
 	}
 }
 
-// drawBound binds sh, draws list in "all" mode and unbinds; skipped when the
+// drawBound binds sh, draws list in ModeAll and unbinds; skipped when the
 // list is empty or the shader is missing.
 func (r *Renderer) drawBound(list *DrawList, sh *Shader) {
 	if sh == nil || list.Count == 0 {
 		return
 	}
 	sh.Bind()
-	drawList(r, list, sh, "all")
+	drawList(r, list, sh, ModeAll)
 	r.Backend.UnbindShader()
 }
 
 // worldGeomPass fills the G-buffer: skybox (depth off), opaque meshes, FPS
-// meshes (opaque, full depth range — redrawn by fpsGeomPass at near range so
-// view models layer over the world; intentional double draw from the JS
-// engine), then skinned meshes.
+// meshes, then skinned meshes. FPS meshes are drawn here at full depth range
+// so they occlude and receive lighting like world geometry, and again by
+// fpsGeomPass in the near depth range so view models layer over the world.
 func (r *Renderer) worldGeomPass(scene SceneSource) {
 	b := r.Backend
 	b.SetDepthRange(0.1, 1.0)
@@ -188,25 +249,22 @@ func (r *Renderer) worldGeomPass(scene SceneSource) {
 	if r.ProceduralNoise != nil {
 		r.ProceduralNoise.Bind(5)
 	}
-	if scene != nil {
-		geo := r.Shaders.Geometry
-		if geo != nil {
-			r.bindGeometryShader(geo)
-			b.SetDepthState(false, false, "lequal")
-			drawList(r, scene.Skyboxes(), geo, "all")
-			b.SetDepthState(true, true, "lequal")
+	if geo := r.Shaders.Geometry; geo != nil {
+		r.bindGeometryShader(geo)
+		b.ApplyState(stateSkybox)
+		drawList(r, scene.Skyboxes(), geo, ModeAll)
+		b.ApplyState(stateOpaque)
 
-			drawListCounted(r, scene.Meshes(), geo, "opaque")
-			drawList(r, scene.FPSMeshes(), geo, "opaque")
-			b.UnbindShader()
-		}
-		if skinned := r.Shaders.SkinnedGeometry; skinned != nil {
-			r.bindGeometryShader(skinned)
-			drawListCounted(r, scene.SkinnedMeshes(), skinned, "opaque")
-			b.UnbindShader()
-		}
-		b.SetCullState(true, "back")
+		drawListCounted(r, scene.Meshes(), geo, ModeOpaque)
+		drawList(r, scene.FPSMeshes(), geo, ModeOpaque)
+		b.UnbindShader()
 	}
+	if skinned := r.Shaders.SkinnedGeometry; skinned != nil {
+		r.bindGeometryShader(skinned)
+		drawListCounted(r, scene.SkinnedMeshes(), skinned, ModeOpaque)
+		b.UnbindShader()
+	}
+	b.ApplyState(stateOpaque)
 	b.BindFramebuffer(nil)
 	b.SetDepthRange(0.0, 1.0)
 }
@@ -216,15 +274,14 @@ func (r *Renderer) fpsGeomPass(scene SceneSource) {
 	b.SetDepthRange(0.0, 0.1)
 	b.BindFramebuffer(r.GBuffer.Framebuffer)
 	b.SetViewport(0, 0, r.Width, r.Height)
+	b.ApplyState(stateOpaque)
 	if r.ProceduralNoise != nil {
 		r.ProceduralNoise.Bind(5)
 	}
-	if scene != nil {
-		if geo := r.Shaders.Geometry; geo != nil {
-			r.bindGeometryShader(geo)
-			drawList(r, scene.FPSMeshes(), geo, "all")
-			b.UnbindShader()
-		}
+	if geo := r.Shaders.Geometry; geo != nil {
+		r.bindGeometryShader(geo)
+		drawList(r, scene.FPSMeshes(), geo, ModeAll)
+		b.UnbindShader()
 	}
 	b.BindFramebuffer(nil)
 	b.SetDepthRange(0.0, 1.0)
@@ -250,24 +307,16 @@ func (r *Renderer) shadowPass(scene SceneSource) {
 	b.BindFramebuffer(r.ShadowBuffer.Framebuffer)
 	b.SetViewport(0, 0, r.ShadowBuffer.Width, r.ShadowBuffer.Height)
 	b.Clear(clearWhite)
-	b.SetColorMask(true, true, true, true)
-	b.SetBlendState(false, "one", "zero")
-	b.SetDepthState(true, false, "lequal")
-	b.SetPolygonOffset(true, -1.0, -1.0)
-	b.SetCullState(false, "back")
+	b.ApplyState(stateShadow)
 
-	if scene != nil {
-		if sh := r.Shaders.EntityShadows; sh != nil {
-			r.drawShadows(scene.Meshes(), sh)
-		}
-		if sh := r.Shaders.SkinnedEntityShadows; sh != nil {
-			r.drawShadows(scene.SkinnedMeshes(), sh)
-		}
+	if sh := r.Shaders.EntityShadows; sh != nil {
+		r.drawShadows(scene.Meshes(), sh)
+	}
+	if sh := r.Shaders.SkinnedEntityShadows; sh != nil {
+		r.drawShadows(scene.SkinnedMeshes(), sh)
 	}
 
-	b.SetCullState(true, "back")
-	b.SetPolygonOffset(false, 0, 0)
-	b.SetDepthState(true, true, "lequal")
+	b.ApplyState(stateOpaque)
 	b.BindFramebuffer(nil)
 	b.SetDepthRange(0.0, 1.0)
 }
@@ -309,7 +358,7 @@ func (r *Renderer) drawLightsSorted(list *LightList, sorter *LightSorter, sh *Sh
 	sh.SetInt("positionBuffer", 0)
 	sh.SetInt("normalBuffer", 1)
 	for i := 0; i < sorter.Count; i++ {
-		list.Items[sorter.Entries[i].Index].Draw(r, sh, "all")
+		list.Items[sorter.Entries[i].Index].Draw(r, sh, ModeAll)
 		r.Stats.LightCount++
 	}
 	r.Backend.UnbindShader()
@@ -326,30 +375,24 @@ func (r *Renderer) lightingPass(cam *CameraView, scene SceneSource, opts *Render
 	r.ShadowBuffer.Shadow.Bind(2)
 	r.GBuffer.Color.Bind(3)
 
-	b.SetCullState(true, "back")
-	b.SetDepthState(false, false, "lequal")
-	b.SetBlendState(true, "one", "one")
+	b.ApplyState(stateLightingAdditive)
 
-	if scene != nil {
-		if dl := r.Shaders.DirectionalLight; dl != nil {
-			dl.Bind()
-			dl.SetInt("normalBuffer", 1)
-			dl.SetInt("colorBuffer", 3)
-			drawList(r, scene.DirectionalLights(), dl, "all")
-			b.UnbindShader()
-		}
-		r.sortLights(cam, scene)
-		if pl := r.Shaders.PointLight; pl != nil {
-			r.drawLightsSorted(scene.PointLights(), r.pointSorter, pl)
-		}
-		if sl := r.Shaders.SpotLight; sl != nil {
-			r.drawLightsSorted(scene.SpotLights(), r.spotSorter, sl)
-		}
+	if dl := r.Shaders.DirectionalLight; dl != nil {
+		dl.Bind()
+		dl.SetInt("normalBuffer", 1)
+		dl.SetInt("colorBuffer", 3)
+		drawList(r, scene.DirectionalLights(), dl, ModeAll)
+		b.UnbindShader()
+	}
+	r.sortLights(cam, scene)
+	if pl := r.Shaders.PointLight; pl != nil {
+		r.drawLightsSorted(scene.PointLights(), r.pointSorter, pl)
+	}
+	if sl := r.Shaders.SpotLight; sl != nil {
+		r.drawLightsSorted(scene.SpotLights(), r.spotSorter, sl)
 	}
 
-	b.SetBlendState(false, "one", "zero")
-	b.SetDepthState(true, true, "lequal")
-	b.SetCullState(true, "back")
+	b.ApplyState(stateOpaque)
 
 	UnbindTextureRange(b, 0, 4)
 	b.BindFramebuffer(nil)
@@ -378,30 +421,22 @@ func (r *Renderer) transparentPass(scene SceneSource) {
 	b.SetViewport(0, 0, r.Width, r.Height)
 	b.SetDepthRange(0.1, 1.0)
 
-	b.SetBlendState(true, "src-alpha", "one-minus-src-alpha")
-	b.SetDepthState(true, false, "lequal")
-	b.SetCullState(false, "back")
-	if scene != nil {
-		transparent := scene.Transparent()
-		if sh := r.Shaders.Transparent; sh != nil && transparent.Count > 0 {
-			sh.Bind()
-			sh.SetMat4("matWorld", r.identity)
-			sh.SetInt("colorSampler", 0)
-			r.uploadTransparentLighting(scene)
-			drawList(r, transparent, sh, "translucent")
-			b.UnbindShader()
-		}
+	b.ApplyState(stateTransparent)
+	transparent := scene.Transparent()
+	if sh := r.Shaders.Transparent; sh != nil && transparent.Count > 0 {
+		sh.Bind()
+		sh.SetMat4("matWorld", r.identity)
+		sh.SetInt("colorSampler", 0)
+		r.uploadTransparentLighting(scene)
+		drawList(r, transparent, sh, ModeTranslucent)
+		b.UnbindShader()
 	}
 
-	b.SetBlendState(true, "src-alpha", "one")
-	if scene != nil {
-		r.drawBound(scene.Billboards(), r.Shaders.Billboard)
-		r.drawBound(scene.ParticleEmitters(), r.Shaders.InstancedBillboard)
-	}
+	b.ApplyState(stateBillboardAdditive)
+	r.drawBound(scene.Billboards(), r.Shaders.Billboard)
+	r.drawBound(scene.ParticleEmitters(), r.Shaders.InstancedBillboard)
 
-	b.SetCullState(true, "back")
-	b.SetDepthState(true, true, "lequal")
-	b.SetBlendState(false, "one", "zero")
+	b.ApplyState(stateOpaque)
 	b.SetDepthRange(0.0, 1.0)
 	b.BindFramebuffer(nil)
 }
@@ -419,7 +454,7 @@ func (r *Renderer) drawBounds(list *DrawList, sh *Shader, color []float32) {
 			continue
 		}
 		sh.SetMat4("matWorld", bb.GetTransformMatrix())
-		box.RenderSingle(true, "lines", "all", sh)
+		box.RenderSingle(true, TopoLines, ModeAll, sh)
 	}
 }
 
@@ -436,7 +471,7 @@ func (r *Renderer) drawLightBounds(list *LightList, sh *Shader, color []float32)
 			continue
 		}
 		sh.SetMat4("matWorld", bb.GetTransformMatrix())
-		box.RenderSingle(true, "lines", "all", sh)
+		box.RenderSingle(true, TopoLines, ModeAll, sh)
 	}
 }
 
@@ -450,7 +485,7 @@ func drawWireframes(r *Renderer, list *DrawList, sh *Shader) {
 // straight to the backbuffer according to r.Debug.
 func (r *Renderer) debugPass(scene SceneSource) {
 	d := r.Debug
-	if scene == nil || (!d.ShowBoundingVolumes && !d.ShowWireframes && !d.ShowLightVolumes && !d.ShowSkeleton) {
+	if !d.ShowBoundingVolumes && !d.ShowWireframes && !d.ShowLightVolumes && !d.ShowSkeleton {
 		return
 	}
 	sh := r.Shaders.Debug
@@ -459,7 +494,7 @@ func (r *Renderer) debugPass(scene SceneSource) {
 	}
 	b := r.Backend
 	sh.Bind()
-	b.SetDepthState(false, false, "lequal")
+	b.ApplyState(stateDebug)
 
 	if d.ShowBoundingVolumes {
 		r.drawBounds(scene.Meshes(), sh, boundsRed)
@@ -500,7 +535,7 @@ func (r *Renderer) debugPass(scene SceneSource) {
 		}
 	}
 
-	b.SetDepthState(true, true, "lequal")
+	b.ApplyState(stateOpaque)
 	b.UnbindShader()
 }
 
@@ -519,6 +554,7 @@ func (r *Renderer) postProcessingPass(opts *RenderOptions) {
 		b.SetViewport(0, 0, r.Width, r.Height)
 		b.Clear(clearBlack)
 	}
+	b.ApplyState(statePostProcess)
 
 	r.GBuffer.Color.Bind(0)
 	r.LightBuffer.Light.Bind(1)
@@ -547,11 +583,12 @@ func (r *Renderer) postProcessingPass(opts *RenderOptions) {
 	sh.SetFloat("shadowIntensity", opts.ShadowIntensity)
 	sh.SetVec3("uAmbient", ambientVec)
 	if r.Shapes.ScreenQuad != nil {
-		r.Shapes.ScreenQuad.RenderSingle(false, "triangles", "all", sh)
+		r.Shapes.ScreenQuad.RenderSingle(false, TopoTriangles, ModeAll, sh)
 	}
 
 	b.UnbindShader()
 	UnbindTextureRange(b, 0, 6)
+	b.ApplyState(stateOpaque)
 	if opts.DoFSR {
 		b.BindFramebuffer(nil)
 	}
@@ -567,7 +604,7 @@ func (r *Renderer) fsrPass(opts *RenderOptions) {
 	nw := b.GetNativeWidth()
 	nh := b.GetNativeHeight()
 
-	b.SetDepthState(false, false, "lequal")
+	b.ApplyState(statePostProcess)
 
 	b.BindFramebuffer(r.FSRBuffer.Framebuffer)
 	b.SetViewport(0, 0, nw, nh)
@@ -580,7 +617,7 @@ func (r *Renderer) fsrPass(opts *RenderOptions) {
 	easu.SetVec4("con0", r.fsrCon0)
 	r.ScratchBuffer.Color.Bind(0)
 	if r.Shapes.ScreenQuad != nil {
-		r.Shapes.ScreenQuad.RenderSingle(false, "triangles", "all", easu)
+		r.Shapes.ScreenQuad.RenderSingle(false, TopoTriangles, ModeAll, easu)
 	}
 
 	b.BindFramebuffer(nil)
@@ -594,16 +631,17 @@ func (r *Renderer) fsrPass(opts *RenderOptions) {
 	}
 	rcas.SetFloat("sharpness", sharp)
 	if r.Shapes.ScreenQuad != nil {
-		r.Shapes.ScreenQuad.RenderSingle(false, "triangles", "all", rcas)
+		r.Shapes.ScreenQuad.RenderSingle(false, TopoTriangles, ModeAll, rcas)
 	}
 
-	b.SetDepthState(true, true, "lequal")
+	b.ApplyState(stateOpaque)
 	b.UnbindShader()
 	UnbindTextureRange(b, 0, 1)
 }
 
 // ---------------------------------------------------------------------------
-// Kawase blur (renderer.js _blurImage / _swapBlur / _endBlurPass)
+// Kawase blur: ping-pongs a source texture through its BlurFB with growing
+// offsets; odd iteration counts end with an identity copy back to the source.
 // ---------------------------------------------------------------------------
 
 func (r *Renderer) startBlurPass(source int) {
@@ -646,7 +684,7 @@ func (r *Renderer) endBlurPass(iterations int) {
 		r.ScratchBuffer.Color.Bind(0)
 		r.Shaders.KawaseBlur.SetFloat("offset", blurIdentityOffset)
 		if r.Shapes.ScreenQuad != nil {
-			r.Shapes.ScreenQuad.RenderSingle(false, "triangles", "all", r.Shaders.KawaseBlur)
+			r.Shapes.ScreenQuad.RenderSingle(false, TopoTriangles, ModeAll, r.Shaders.KawaseBlur)
 		}
 		UnbindTexture(b, 0)
 	}
@@ -659,32 +697,29 @@ func (r *Renderer) blurImage(source int, iterations int, radius float32) {
 		return
 	}
 	b := r.Backend
-	b.SetDepthState(false, false, "lequal")
-	b.SetBlendState(false, "one", "zero")
-	b.SetCullState(false, "back")
+	b.ApplyState(statePostProcess)
 	blur.Bind()
 	blur.SetInt("colorBuffer", 0)
 	r.startBlurPass(source)
 	if r.blurSource == nil {
 		b.UnbindShader()
+		b.ApplyState(stateOpaque)
 		return
 	}
 	for i := 0; i < iterations; i++ {
 		r.swapBlur(i)
 		blur.SetFloat("offset", float32(i+1)*radius)
 		if r.Shapes.ScreenQuad != nil {
-			r.Shapes.ScreenQuad.RenderSingle(false, "triangles", "all", blur)
+			r.Shapes.ScreenQuad.RenderSingle(false, TopoTriangles, ModeAll, blur)
 		}
 	}
 	r.endBlurPass(iterations)
 	b.UnbindShader()
-	b.SetDepthState(true, true, "lequal")
-	b.SetCullState(true, "back")
-	b.SetBlendState(false, "one", "zero")
+	b.ApplyState(stateOpaque)
 }
 
 // ---------------------------------------------------------------------------
-// Lighting UBO helpers (renderpasses.js L292-372)
+// Light sorting and the LightingData UBO staging buffer
 // ---------------------------------------------------------------------------
 
 // LightScore pairs a light index with its contribution score for sorting.
@@ -770,7 +805,8 @@ func NewLightingData() *LightingData {
 	return &LightingData{Data: make([]float32, LightingDataSize)}
 }
 
-// Reset zeroes the light counts (data for unused slots is left stale, as in JS).
+// Reset zeroes the light counts; unused slots keep stale data, which the
+// shaders never read because they loop over the uploaded counts.
 func (l *LightingData) Reset() {
 	l.PointCount = 0
 	l.SpotCount = 0

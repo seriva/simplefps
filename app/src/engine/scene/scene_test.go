@@ -22,6 +22,7 @@ type testBackend struct {
 	Recording bool
 	Log       []call
 	caps      *rendering.Capabilities
+	state     *rendering.PipelineState
 }
 
 func newTestBackend() *testBackend {
@@ -124,9 +125,9 @@ func (m *testBackend) SetTextureFilter(texture any, minF, magF, mipF string)    
 func (m *testBackend) SetTextureAnisotropy(texture any, level int)                  {}
 func (m *testBackend) BindTexture(texture any, unit int)                            { m.record("BindTexture", unit) }
 func (m *testBackend) UnbindTexture(unit int)                                       { m.record("UnbindTexture", unit) }
-func (m *testBackend) CreateBuffer(data any, usage string) any {
-	m.record("CreateBuffer", usage)
-	return &call{Name: usage}
+func (m *testBackend) CreateBuffer(data any, usage rendering.BufferUsage) any {
+	m.record("CreateBuffer", string(usage))
+	return &call{Name: string(usage)}
 }
 func (m *testBackend) UpdateBuffer(buffer any, data any, offset int) { m.record("UpdateBuffer", nil) }
 func (m *testBackend) DeleteBuffer(buffer any)                     { m.record("DeleteBuffer", nil) }
@@ -153,16 +154,22 @@ func (m *testBackend) CreateVertexState(desc *rendering.VertexStateDescriptor) a
 }
 func (m *testBackend) BindVertexState(state any)                          { m.record("BindVertexState", nil) }
 func (m *testBackend) DeleteVertexState(state any)                        { m.record("DeleteVertexState", nil) }
-func (m *testBackend) SetBlendState(enabled bool, src, dst string)         {}
-func (m *testBackend) SetDepthState(test bool, write bool, funcName string) { m.record("SetDepthState", test) }
-func (m *testBackend) SetCullState(enabled bool, face string)             { m.record("SetCullState", enabled) }
-func (m *testBackend) SetPolygonOffset(enabled bool, factor, units float32) {}
-func (m *testBackend) SetColorMask(r, g, b, a bool)                       {}
+
+// ApplyState records the preset's DepthTest flag so tests can spot the
+// skybox (depth off) and the restore to opaque (depth on).
+func (m *testBackend) ApplyState(state *rendering.PipelineState) {
+	if state == nil {
+		return
+	}
+	m.record("ApplyState", state.DepthTest)
+	m.state = state
+}
+func (m *testBackend) State() *rendering.PipelineState                   { return m.state }
 func (m *testBackend) SetViewport(x, y, width, height int)                {}
 func (m *testBackend) SetDepthRange(near, far float32)                    {}
 func (m *testBackend) Clear(options *rendering.ClearOptions)              {}
-func (m *testBackend) DrawIndexed(indexBuffer any, indexCount int, indexOffset int, mode string) {
-	m.record("DrawIndexed", mode)
+func (m *testBackend) DrawIndexed(indexBuffer any, indexCount int, indexOffset int, mode rendering.Topology) {
+	m.record("DrawIndexed", string(mode))
 }
 func (m *testBackend) DrawInstanced(indexBuffer any, indexCount int, instanceCount int) {
 	m.record("DrawInstanced", instanceCount)
@@ -376,7 +383,7 @@ func TestBoundingVolumeAndVisibility(t *testing.T) {
 		t.Fatalf("far bbox = %+v", bb)
 	}
 
-	_, vis := s.VisibleEntities(TypeMesh)
+	_, vis := s.VisibleMeshes()
 	if vis != 2 {
 		t.Fatalf("all-zero planes should keep everything visible, got %d", vis)
 	}
@@ -385,15 +392,15 @@ func TestBoundingVolumeAndVisibility(t *testing.T) {
 	s.Camera.FrustumPlanes[0] = 1
 	s.Camera.FrustumPlanes[3] = -10
 	s.UpdateVisibility()
-	items, vis := s.VisibleEntities(TypeMesh)
-	if vis != 1 || items[0] != Entity(far) {
+	items, vis := s.VisibleMeshes()
+	if vis != 1 || items[0] != far {
 		t.Errorf("culling kept %d entities", vis)
 	}
 
 	// No camera: nothing is culled.
 	s.Camera = nil
 	s.UpdateVisibility()
-	_, vis = s.VisibleEntities(TypeMesh)
+	_, vis = s.VisibleMeshes()
 	if vis != 2 {
 		t.Errorf("camera-less scene culled: %d visible", vis)
 	}
@@ -616,15 +623,15 @@ func TestRenderWorldGeometryOrderAndUniforms(t *testing.T) {
 		t.Errorf("boneMatrices set %d times", mb.CountArg("SetUniform", "boneMatrices"))
 	}
 	// Skybox drawn with depth off inside the geometry window.
-	if mb.CountBetween("SetDepthState", false, geo, geoEnd) != 1 {
+	if mb.CountBetween("ApplyState", false, geo, geoEnd) != 1 {
 		t.Errorf("skybox depth state not toggled")
 	}
 	// skybox 6 groups + mesh in the geometry window, skinned in its own.
 	if mb.CountBetween("DrawIndexed", "triangles", geo, geoEnd) != 7 || mb.CountBetween("DrawIndexed", "triangles", sk, skEnd) != 1 {
 		t.Errorf("draws = %d geometry, %d skinned", mb.CountBetween("DrawIndexed", "triangles", geo, geoEnd), mb.CountBetween("DrawIndexed", "triangles", sk, skEnd))
 	}
-	if mb.IndexFrom("SetCullState", true, skEnd) == -1 {
-		t.Errorf("world pass must end restoring cull state")
+	if mb.IndexFrom("ApplyState", true, skEnd) == -1 {
+		t.Errorf("world pass must end restoring the opaque state")
 	}
 	st := r.Stats
 	if st.MeshCount != 2 || st.TriangleCount != 4 {
@@ -665,14 +672,14 @@ func TestRenderShadowsBudgetAndHeights(t *testing.T) {
 	s.Update(16)
 	resolved := 0
 	for i := 0; i < 20; i++ {
-		if casters[i].Base.ShadowHeightState == ShadowHeightValid {
+		if casters[i].Shadow.HeightState == ShadowHeightValid {
 			resolved++
-			if !approx(casters[i].Base.ShadowHeight, 0) {
-				t.Errorf("shadow height = %v", casters[i].Base.ShadowHeight)
+			if !approx(casters[i].Shadow.Height, 0) {
+				t.Errorf("shadow height = %v", casters[i].Shadow.Height)
 			}
 		}
 	}
-	if noGround.Base.ShadowHeightState == ShadowHeightValid {
+	if noGround.Shadow.HeightState == ShadowHeightValid {
 		resolved++
 	}
 	pendingAfterFirst := 21 - resolved
@@ -680,8 +687,8 @@ func TestRenderShadowsBudgetAndHeights(t *testing.T) {
 		t.Errorf("raycast budget not respected: resolved=%d", resolved)
 	}
 	// Non-casting floor never consumes budget.
-	if floor.Base.CastShadow || floor.Base.ShadowHeightState != ShadowHeightPending {
-		t.Errorf("non-caster should stay pending (CastShadow=%v state=%d)", floor.Base.CastShadow, floor.Base.ShadowHeightState)
+	if floor.Base.CastShadow || floor.Shadow.HeightState != ShadowHeightPending {
+		t.Errorf("non-caster should stay pending (CastShadow=%v state=%d)", floor.Base.CastShadow, floor.Shadow.HeightState)
 	}
 
 	mb.Reset()
@@ -694,19 +701,19 @@ func TestRenderShadowsBudgetAndHeights(t *testing.T) {
 		t.Errorf("ambient uniform not set")
 	}
 	firstDraws := mb.CountBetween("DrawIndexed", "triangles", start, end)
-	if firstDraws != resolved-boolToInt(noGround.Base.ShadowHeightState == ShadowHeightValid) {
+	if firstDraws != resolved-boolToInt(noGround.Shadow.HeightState == ShadowHeightValid) {
 		t.Errorf("draws %d != resolved casters %d", firstDraws, resolved)
 	}
 
 	// Second update resolves the rest.
 	s.Update(16)
 	for i := 0; i < 20; i++ {
-		if casters[i].Base.ShadowHeightState != ShadowHeightValid {
+		if casters[i].Shadow.HeightState != ShadowHeightValid {
 			t.Fatalf("caster %d unresolved after 2 updates", i)
 		}
 	}
-	if noGround.Base.ShadowHeightState != ShadowHeightNone {
-		t.Errorf("entity above nothing should be ShadowHeightNone, got %d", noGround.Base.ShadowHeightState)
+	if noGround.Shadow.HeightState != ShadowHeightNone {
+		t.Errorf("entity above nothing should be ShadowHeightNone, got %d", noGround.Shadow.HeightState)
 	}
 }
 
@@ -727,8 +734,8 @@ func TestSkinnedShadowSampling(t *testing.T) {
 	sk.Base.CastShadow = true
 	s.AddEntity(sk)
 	s.Update(16)
-	if sk.Base.ShadowHeightState != ShadowHeightValid || !approx(sk.Base.ShadowHeight, 0) {
-		t.Fatalf("skinned shadow height not sampled: state=%d", sk.Base.ShadowHeightState)
+	if sk.Shadow.HeightState != ShadowHeightValid || !approx(sk.Shadow.Height, 0) {
+		t.Fatalf("skinned shadow height not sampled: state=%d", sk.Shadow.HeightState)
 	}
 
 	mb.Reset()
@@ -737,15 +744,15 @@ func TestSkinnedShadowSampling(t *testing.T) {
 		t.Errorf("skinned shadow uniforms missing")
 	}
 	// Unmoved entity within interval: no re-sample.
-	frame := sk.Base.ShadowSampleFrame
+	frame := sk.Shadow.SampleFrame
 	s.Update(16)
-	if sk.Base.ShadowSampleFrame != frame {
+	if sk.Shadow.SampleFrame != frame {
 		t.Errorf("re-sampled without movement")
 	}
 	// Move beyond epsilon triggers re-sample.
 	physics.Mat4Translate(sk.Base.BaseMatrix, sk.Base.BaseMatrix, physics.NewVec3(1, 0, 0))
 	s.Update(16)
-	if sk.Base.ShadowSampleFrame == frame {
+	if sk.Shadow.SampleFrame == frame {
 		t.Errorf("movement should re-sample")
 	}
 }
@@ -806,20 +813,13 @@ func TestRenderLightingDrawsAllLightsBeyondSorterCapacity(t *testing.T) {
 	}
 }
 
-// foreignMesh reuses the built-in TypeMesh id on a non-MeshEntity struct.
+// foreignMesh reuses the built-in TypeMesh id on a non-MeshEntity struct. It
+// only satisfies Entity (no Drawable), which is all the Scene may require.
 type foreignMesh struct{ Base EntityBase }
 
-func (f *foreignMesh) GetBase() *EntityBase                                             { return &f.Base }
-func (f *foreignMesh) Update(frameTime float32) bool                                     { return true }
-func (f *foreignMesh) UpdateBoundingVolume()                                             {}
-func (f *foreignMesh) Dispose()                                                          {}
-func (f *foreignMesh) Draw(r *rendering.Renderer, sh *rendering.Shader, mode string)     {}
-func (f *foreignMesh) DrawShadow(r *rendering.Renderer, sh *rendering.Shader)            {}
-func (f *foreignMesh) DrawWireframe(r *rendering.Renderer, sh *rendering.Shader)         {}
-func (f *foreignMesh) DrawSkeleton(r *rendering.Renderer, sh *rendering.Shader)          {}
-func (f *foreignMesh) Bounds() *physics.BoundingBox                                     { return nil }
-func (f *foreignMesh) TriangleCount() int                                               { return 0 }
-func (f *foreignMesh) CastsShadow() bool                                                { return false }
+func (f *foreignMesh) GetBase() *EntityBase         { return &f.Base }
+func (f *foreignMesh) Update(frameTime float32) bool { return true }
+func (f *foreignMesh) Dispose()                      {}
 
 func TestAddEntityRejectsMismatchedTypeID(t *testing.T) {
 	_, _, s := setup()
@@ -829,11 +829,83 @@ func TestAddEntityRejectsMismatchedTypeID(t *testing.T) {
 	if s.EntityCount() != 0 {
 		t.Fatalf("foreign entity with built-in type id was added")
 	}
-	// Unknown type ids are still accepted.
+	// Unknown type ids are still accepted and ignored by the draw lists.
 	initBase(&f.Base, TypeCount+1, nil)
 	s.AddEntity(f)
 	if s.EntityCount() != 1 {
 		t.Fatalf("custom type id entity not added")
+	}
+	s.Update(16)
+	if s.Meshes().Count != 0 {
+		t.Errorf("non-drawable entity reached a draw list")
+	}
+}
+
+func TestVisibilityFillsTypedBuckets(t *testing.T) {
+	_, _, s := setup()
+	mesh := meshAt(0, 0, 0)
+	hidden := meshAt(1, 0, 0)
+	hidden.Base.Visible = false
+	fps := NewMeshEntity(TypeFPSMesh, physics.NewVec3(0, 0, 0), unitQuad("none"), nil, 1)
+	sk := NewSkinnedMeshEntity(physics.NewVec3(0, 0, 0), skinnedQuad(), testSkeleton(), nil, 1)
+	pl := NewPointLightEntity(physics.NewVec3(0, 2, 0), 4, []float32{1, 1, 1}, 1, nil)
+	sl := NewSpotLightEntity(physics.NewVec3(0, 5, 0), physics.NewVec3(0, -1, 0), []float32{1, 1, 1}, 1, 30, 20, nil)
+	dl := NewDirectionalLightEntity([]float32{0, -1, 0}, []float32{1, 1, 1}, nil)
+	s.AddEntities([]Entity{mesh, hidden, fps, sk, pl, sl, dl})
+	s.Update(16)
+
+	meshes, n := s.VisibleMeshes()
+	if n != 1 || meshes[0] != mesh {
+		t.Fatalf("visible meshes = %d (FPS/skinned/hidden must not land here)", n)
+	}
+	skinned, n := s.VisibleSkinnedMeshes()
+	if n != 1 || skinned[0] != sk {
+		t.Fatalf("visible skinned = %d", n)
+	}
+
+	// Draw lists alias the same entities, in culling order, with Count-length contents.
+	var dm rendering.Drawable = mesh
+	var df rendering.Drawable = fps
+	var ds rendering.Drawable = sk
+	var dd rendering.Drawable = dl
+	if s.Meshes().Count != 1 || s.Meshes().Items[0] != dm {
+		t.Errorf("Meshes() does not alias the visible mesh")
+	}
+	if s.FPSMeshes().Count != 1 || s.FPSMeshes().Items[0] != df {
+		t.Errorf("FPSMeshes() wrong")
+	}
+	if s.SkinnedMeshes().Count != 1 || s.SkinnedMeshes().Items[0] != ds {
+		t.Errorf("SkinnedMeshes() wrong")
+	}
+	if s.DirectionalLights().Count != 1 || s.DirectionalLights().Items[0] != dd {
+		t.Errorf("DirectionalLights() wrong")
+	}
+	var lp rendering.LightDrawable = pl
+	var ls rendering.LightDrawable = sl
+	if s.PointLights().Count != 1 || s.PointLights().Items[0] != lp {
+		t.Errorf("PointLights() wrong")
+	}
+	if s.SpotLights().Count != 1 || s.SpotLights().Items[0] != ls {
+		t.Errorf("SpotLights() wrong")
+	}
+
+	// Probe colours are sampled for every visible mesh kind (flat ambient).
+	if !approx(mesh.Probe.R, 0.5) || !approx(fps.Probe.G, 0.5) || !approx(sk.Probe.B, 0.5) {
+		t.Errorf("probe colours not sampled: %v %v %v", mesh.Probe.R, fps.Probe.G, sk.Probe.B)
+	}
+	if hidden.Probe.R != 0 {
+		t.Errorf("hidden mesh should not be probed")
+	}
+
+	// Removing clears the buckets on the next update.
+	s.RemoveEntity(mesh)
+	s.RemoveEntity(sk)
+	s.Update(16)
+	if _, n := s.VisibleMeshes(); n != 0 {
+		t.Errorf("mesh bucket not cleared: %d", n)
+	}
+	if _, n := s.VisibleSkinnedMeshes(); n != 0 {
+		t.Errorf("skinned bucket not cleared: %d", n)
 	}
 }
 
@@ -867,7 +939,7 @@ func TestRenderTransparentSortsAndUploadsLights(t *testing.T) {
 	mb.Reset()
 
 	if s.Transparent().Count != 2 {
-		_, visN := s.VisibleEntities(TypeMesh)
+		_, visN := s.VisibleMeshes()
 		t.Fatalf("transparent count = %d (visible=%d, translucent=%v)", s.Transparent().Count, visN, nearG.HasTranslucent())
 	}
 	var first rendering.Drawable = farG
@@ -1032,7 +1104,7 @@ func TestSceneUpdateAndRenderNoGrowth(t *testing.T) {
 		renderFrame(r, s)
 	}
 	size := func() int {
-		return len(s.entities.Items) + len(s.shadowSort.Entries) + len(s.transparentSort.Entries) + len(s.visible[TypeMesh].Items) +
+		return len(s.entities.Items) + len(s.shadowSort.Entries) + len(s.transparentSort.Entries) + len(s.visibleMeshes) + len(s.visibleSkinned) +
 			len(s.meshes.Items) + len(s.skinnedMeshes.Items) + len(s.pointLights.Items) + len(s.spotLights.Items) + len(s.transparent.Items)
 	}
 	for i := 0; i < 3; i++ {

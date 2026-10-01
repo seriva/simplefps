@@ -44,10 +44,10 @@ func (sm *SkinnedMesh) InitMeshBuffers() {
 	sm.BaseMesh.InitMeshBuffers()
 
 	if len(sm.GPUJointIndices) > 0 && len(sm.GPUJointWeights) > 0 {
-		sm.JointIndexBuffer = b.CreateBuffer(sm.GPUJointIndices, "vertex")
+		sm.JointIndexBuffer = b.CreateBuffer(sm.GPUJointIndices, UsageVertex)
 		sm.BaseMesh.Buffers = append(sm.BaseMesh.Buffers, sm.JointIndexBuffer)
 
-		sm.JointWeightBuffer = b.CreateBuffer(sm.GPUJointWeights, "vertex")
+		sm.JointWeightBuffer = b.CreateBuffer(sm.GPUJointWeights, UsageVertex)
 		sm.BaseMesh.Buffers = append(sm.BaseMesh.Buffers, sm.JointWeightBuffer)
 
 		var singleIndexBuffer any
@@ -94,9 +94,9 @@ func (sm *SkinnedMesh) Bind(useSkinned bool) {
 }
 
 // RenderSingle binds the skinned (or base) VAO, draws all index groups, and unbinds.
-func (sm *SkinnedMesh) RenderSingle(applyMaterial bool, mode string, renderMode string, shader *Shader, useSkinned bool) {
+func (sm *SkinnedMesh) RenderSingle(applyMaterial bool, topo Topology, renderMode MaterialMode, shader *Shader, useSkinned bool) {
 	sm.Bind(useSkinned)
-	sm.BaseMesh.RenderIndices(applyMaterial, mode, renderMode, shader)
+	sm.BaseMesh.RenderIndices(applyMaterial, topo, renderMode, shader)
 	sm.BaseMesh.Unbind()
 }
 

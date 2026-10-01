@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"errors"
 	"strconv"
 
 	"./physics"
@@ -26,14 +27,20 @@ var (
 	ActiveRenderer *rendering.Renderer
 	CurrentBackend rendering.RenderBackend
 
-	// ActiveScene is the SceneSource rendered each frame (set by Phase 5 / game code).
+	// ActiveScene is the SceneSource rendered each frame. Game code sets it
+	// before Start; the renderer never runs without one.
 	ActiveScene rendering.SceneSource
 
 	// DirtTexture is the lens-dirt overlay handed to the post-processing pass.
 	DirtTexture *rendering.Texture
 
+	// renderOptions is refilled from ActiveSettings once per frame by
+	// RenderFrame; it is the only path settings take into the renderer.
 	renderOptions = &rendering.RenderOptions{}
 	cameraView    = &rendering.CameraView{}
+
+	// ErrNoScene is returned by Start when ActiveScene is unset.
+	ErrNoScene = errors.New("engine: Start called without an ActiveScene")
 )
 
 // SelectBackend picks WebGPU when preferred and available, otherwise WebGL2,
@@ -279,7 +286,7 @@ func syncRenderOptions() {
 
 // RenderFrame renders one frame with the active camera, scene and settings.
 func RenderFrame(timeSeconds float32) {
-	if ActiveRenderer == nil || ActiveCamera == nil {
+	if ActiveRenderer == nil || ActiveCamera == nil || ActiveScene == nil {
 		return
 	}
 	cameraView.Position = ActiveCamera.Position
@@ -313,13 +320,19 @@ func frameLoop() {
 	}
 }
 
-// Start begins the requestAnimationFrame loop.
-func Start() {
+// Start begins the requestAnimationFrame loop. It fails with ErrNoScene
+// (also logged to the console) when no ActiveScene has been installed.
+func Start() error {
+	if ActiveScene == nil {
+		systems.GlobalConsole.Error(ErrNoScene.Error())
+		return ErrNoScene
+	}
 	if rafId == nil && window != nil && window.requestAnimationFrame != nil {
 		systems.GlobalInput.ResetDelta()
 		lastTime = 0
 		rafId = window.requestAnimationFrame(frameLoop)
 	}
+	return nil
 }
 
 // Stop pauses the requestAnimationFrame loop.

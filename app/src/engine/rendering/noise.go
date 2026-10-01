@@ -55,7 +55,8 @@ func noisePerm512(i int) int {
 	return noisePerm[i&255]
 }
 
-// noisePeriodic is periodic gradient (Perlin) noise with the JS reference's hashing.
+// noisePeriodic is periodic gradient (Perlin) noise over a fixed permutation
+// table; the shaders' procedural detail expects exactly this hashing.
 func noisePeriodic(x, y float64, period int) float64 {
 	xi := int(math.Floor(x))
 	yi := int(math.Floor(y))

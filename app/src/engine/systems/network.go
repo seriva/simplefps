@@ -5,7 +5,7 @@ import (
 	"js:./interop.d.ts"
 )
 
-// Network message types (NETWORK_MESSAGES in network.js).
+// Network message types carried in the PeerJS payload's "type" field.
 const (
 	NetMsgPosition = "POS"   // client -> host: own position
 	NetMsgState    = "STATE" // host -> clients: all positions
@@ -61,9 +61,9 @@ func newDeferred() *deferred {
 	return d
 }
 
-// Network is the unified PeerJS wrapper for both the host and client roles
-// (network.js). The host keeps one DataConnection per client and relays
-// state; a client holds a single connection to the host.
+// Network is the PeerJS wrapper for both the host and client roles. The host
+// keeps one DataConnection per client and relays state; a client holds a
+// single connection to the host.
 type Network struct {
 	Role int
 
