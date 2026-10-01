@@ -36,12 +36,15 @@ var (
 		{-0.70710678, -0.70710678},
 	}
 	_noclip bool
-
-	// Active camera bindings for direct synchronization
-	ActiveCameraPos *Vec3
-	ActiveCameraDir *Vec3
-	ActiveCameraUp  *Vec3
 )
+
+// CameraPose aliases the camera vectors the controller writes to (SyncCamera)
+// and reads from (noclip).
+type CameraPose struct {
+	Position  *Vec3
+	Direction *Vec3
+	Up        *Vec3
+}
 
 // ToggleNoclip toggles noclip mode and returns the new state.
 func ToggleNoclip() bool {
@@ -91,6 +94,11 @@ func DefaultFPSControllerConfig() FPSControllerConfig {
 
 // FPSController implements a Quake-style kinematic character controller.
 type FPSController struct {
+	// Provider supplies static world raycasts; nil means no collision.
+	Provider RaycastProvider
+	// Camera is the pose SyncCamera drives; nil disables SyncCamera and noclip movement.
+	Camera *CameraPose
+
 	Config      FPSControllerConfig
 	Position    Vec3
 	Velocity    Vec3
@@ -345,7 +353,7 @@ func (c *FPSController) resolveHorizontalCollision(startX, startY, startZ, dx, d
 
 		for h := 0; h < 3; h++ {
 			checkY := startY + _horizontalCheckHeights[h]*c.Config.Height*0.5
-			result := RaycastStatic(
+			result := raycastStatic(c.Provider,
 				x, checkY, z,
 				x+dirX*rayLength, checkY, z+dirZ*rayLength,
 				nil, &_fcRaycastResult,
@@ -415,7 +423,7 @@ func (c *FPSController) tryStepClimb(startX, startY, startZ, dx, dz, slideX, sli
 	landedY := c.resolveGroundCollision(movedX, movedZ, stepUpY, -StepHeight)
 
 	// A: Check ceiling clearance at elevated position
-	ceil1 := RaycastStatic(
+	ceil1 := raycastStatic(c.Provider,
 		movedX, stepUpY, movedZ,
 		movedX, stepUpY+c.Config.Height*0.5, movedZ,
 		nil, &_fcRaycastResult,
@@ -427,7 +435,7 @@ func (c *FPSController) tryStepClimb(startX, startY, startZ, dx, dz, slideX, sli
 	}
 
 	// B: Check ceiling clearance at landed position
-	ceil2 := RaycastStatic(
+	ceil2 := raycastStatic(c.Provider,
 		movedX, landedY, movedZ,
 		movedX, landedY+c.Config.Height*0.5, movedZ,
 		nil, &_fcRaycastResult,
@@ -467,7 +475,7 @@ func (c *FPSController) resolveDepenetration(x, z, y float32) (float32, float32)
 		for i := 0; i < 8; i++ {
 			dirX := _radialDirs[i][0]
 			dirZ := _radialDirs[i][1]
-			result := RaycastStatic(
+			result := raycastStatic(c.Provider,
 				x, checkY, z,
 				x+dirX*depenRadius, checkY, z+dirZ*depenRadius,
 				nil, &_fcRaycastResult,
@@ -516,7 +524,7 @@ func (c *FPSController) resolveGroundCollision(finalX, finalZ, startY, dy float3
 			oz = _radialDirs[i][1] * checkRadius
 		}
 
-		result := RaycastStatic(
+		result := raycastStatic(c.Provider,
 			finalX+ox, rayStartY, finalZ+oz,
 			finalX+ox, rayEndY, finalZ+oz,
 			nil, &_fcRaycastResult,
@@ -557,7 +565,7 @@ func (c *FPSController) resolveCeilingCollision(finalX, startY, finalZ float32) 
 	}
 
 	radius := c.Config.Radius
-	result := RaycastStatic(
+	result := raycastStatic(c.Provider,
 		finalX, startY, finalZ,
 		finalX, startY+radius+10.0, finalZ,
 		nil, &_fcRaycastResult,
@@ -567,10 +575,11 @@ func (c *FPSController) resolveCeilingCollision(finalX, startY, finalZ float32) 
 	}
 }
 
-// SyncCamera updates camera smoothing, head bob, and roll using the active camera bindings.
+// SyncCamera updates camera smoothing, head bob, and roll on c.Camera.
 func (c *FPSController) SyncCamera(frameTime float32) {
-	if ActiveCameraPos != nil && ActiveCameraDir != nil && ActiveCameraUp != nil {
-		c.SyncCameraWith(ActiveCameraPos, ActiveCameraDir, ActiveCameraUp, frameTime)
+	cam := c.Camera
+	if cam != nil && cam.Position != nil && cam.Direction != nil && cam.Up != nil {
+		c.SyncCameraWith(cam.Position, cam.Direction, cam.Up, frameTime)
 	}
 }
 
@@ -673,12 +682,13 @@ func (c *FPSController) updateCameraRoll(camDir, camUp *Vec3, horizontalSpeed, f
 }
 
 func (c *FPSController) noclipMove(inputX, inputZ float32, _cameraForward, cameraRight *Vec3, frameTime float32) {
-	if ActiveCameraDir == nil || ActiveCameraPos == nil {
+	if c.Camera == nil || c.Camera.Direction == nil || c.Camera.Position == nil {
 		return
 	}
+	camPos := c.Camera.Position
 
 	_fcNoclipDir.Zero()
-	_fcNoclipDir.ScaleAndAdd(&_fcNoclipDir, ActiveCameraDir, inputZ)
+	_fcNoclipDir.ScaleAndAdd(&_fcNoclipDir, c.Camera.Direction, inputZ)
 	_fcNoclipDir.ScaleAndAdd(&_fcNoclipDir, cameraRight, inputX)
 
 	noclipLen := _fcNoclipDir.Length()
@@ -687,12 +697,12 @@ func (c *FPSController) noclipMove(inputX, inputZ float32, _cameraForward, camer
 	}
 
 	speed := NoclipSpeed * frameTime
-	ActiveCameraPos.X += _fcNoclipDir.X * speed
-	ActiveCameraPos.Y += _fcNoclipDir.Y * speed
-	ActiveCameraPos.Z += _fcNoclipDir.Z * speed
+	camPos.X += _fcNoclipDir.X * speed
+	camPos.Y += _fcNoclipDir.Y * speed
+	camPos.Z += _fcNoclipDir.Z * speed
 
-	c.Position.X = ActiveCameraPos.X
-	c.Position.Y = ActiveCameraPos.Y - (c.Config.EyeHeight - c.Config.Height*0.5)
-	c.Position.Z = ActiveCameraPos.Z
+	c.Position.X = camPos.X
+	c.Position.Y = camPos.Y - (c.Config.EyeHeight - c.Config.Height*0.5)
+	c.Position.Z = camPos.Z
 	c.Velocity.Zero()
 }

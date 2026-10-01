@@ -18,8 +18,6 @@ var (
 	_bbTempTransformMat          = NewMat4()
 	_bbTransformIntoFrameCorners = make([]Vec3, 8)
 	_bbP                         Vec3
-	// ActiveFrustumPlanes is aliased by the camera system (flat 6x4 plane equations).
-	ActiveFrustumPlanes = make([]float32, FrustumPlaneCount*4)
 )
 
 // BoundingBox represents an Axis-Aligned Bounding Box (AABB).
@@ -357,9 +355,4 @@ func (b *BoundingBox) IsVisibleWithPlanes(planes []float32) bool {
 		}
 	}
 	return true
-}
-
-// IsVisible tests whether this AABB is visible in the active camera frustum.
-func (b *BoundingBox) IsVisible() bool {
-	return b.IsVisibleWithPlanes(ActiveFrustumPlanes)
 }

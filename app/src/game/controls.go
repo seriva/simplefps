@@ -111,10 +111,16 @@ func (c *Controls) Init() {
 		}
 	}
 	c.onKeyDown = func(e any) {
-		if int(e.keyCode.(float64)) != systems.ActiveSettings.Jump || !CanUseGameplayInput() {
+		if e.repeat == true {
 			return
 		}
-		if e.repeat == true {
+		if e.key == "`" || e.key == "~" {
+			// preventDefault stops the browser from typing "`" into the newly focused input.
+			e.preventDefault()
+			systems.GlobalConsole.Toggle()
+			return
+		}
+		if int(e.keyCode.(float64)) != systems.ActiveSettings.Jump || !CanUseGameplayInput() {
 			return
 		}
 		e.preventDefault()
@@ -130,8 +136,6 @@ func (c *Controls) Init() {
 	window.addEventListener("keyup", c.onKeyUp)
 	window.addEventListener("keydown", c.onKeyDown)
 
-	systems.GlobalInput.AddKeyDownEvent(192, func() { systems.GlobalConsole.Toggle() })
-	systems.GlobalInput.AddKeyDownEvent(13, func() { systems.GlobalConsole.Execute() })
 	c.initialized = true
 }
 

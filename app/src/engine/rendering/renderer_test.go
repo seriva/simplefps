@@ -166,8 +166,9 @@ func assertOrder(t *testing.T, mb *MockBackend, steps []mockCall) {
 
 func TestRenderStageOrderWebGL(t *testing.T) {
 	mb, r := newMockRenderer(64, 32, false, true)
-	scene := &mockScene{backend: mb, casters: true}
+	scene := newMockScene(mb, true)
 	opts := defaultRenderOptions(true)
+	r.Debug.ShowWireframes = true
 	r.Render(newTestCamera(), scene, opts, 1.5)
 
 	assertOrder(t, mb, []mockCall{
@@ -178,14 +179,25 @@ func TestRenderStageOrderWebGL(t *testing.T) {
 		{"BindFramebuffer", r.GBuffer.Framebuffer},
 		{"Clear", clearAmbient},
 		{"BindTexture", 5},
-		{"scene:World", nil},
+		{"BindShader", "geometry"},
+		{"SetDepthState", "lequal"},
+		{"draw", "skybox"},
+		{"draw", "mesh"},
+		{"draw", "fps"},
+		{"BindShader", "skinnedGeometry"},
+		{"draw", "skinned"},
+		{"SetCullState", true},
 		// Shadow pass: white clear, colour mask, lequal, polygon offset.
 		{"BindFramebuffer", r.ShadowBuffer.Framebuffer},
 		{"Clear", clearWhite},
 		{"SetColorMask", true},
 		{"SetDepthState", "lequal"},
 		{"SetPolygonOffset", true},
-		{"scene:Shadows", nil},
+		{"BindShader", "entityShadows"},
+		{"SetUniform", "ambient"},
+		{"shadow", "mesh"},
+		{"BindShader", "skinnedEntityShadows"},
+		{"shadow", "skinned"},
 		{"SetPolygonOffset", false},
 		// Shadow blur (WebGL only).
 		{"BindShader", "kawaseBlur"},
@@ -194,7 +206,8 @@ func TestRenderStageOrderWebGL(t *testing.T) {
 		// FPS geometry: depth range 0..0.1, no clear.
 		{"SetDepthRange", depthRange0to01},
 		{"BindFramebuffer", r.GBuffer.Framebuffer},
-		{"scene:FPS", nil},
+		{"BindShader", "geometry"},
+		{"draw", "fps"},
 		// Lighting: ambient clear, gbuffer 0-3, additive.
 		{"BindFramebuffer", r.LightBuffer.Framebuffer},
 		{"Clear", clearAmbientColor},
@@ -203,16 +216,26 @@ func TestRenderStageOrderWebGL(t *testing.T) {
 		{"BindTexture", 2},
 		{"BindTexture", 3},
 		{"SetBlendState", "one/one"},
-		{"scene:Lighting", nil},
+		{"BindShader", "directionalLight"},
+		{"draw", "directional"},
+		{"BindShader", "pointLight"},
+		{"draw", "point"},
+		{"BindShader", "spotLight"},
+		{"draw", "spot"},
 		// Lighting blur (1 iteration → identity copy-back).
 		{"BindShader", "kawaseBlur"},
 		{"BindFramebuffer", r.LightBuffer.BlurFB},
-		// Transparent into light FB, then billboards additive.
+		// Transparent into light FB (lighting UBO uploaded first), then billboards additive.
 		{"BindFramebuffer", r.LightBuffer.Framebuffer},
 		{"SetBlendState", "src-alpha/one-minus-src-alpha"},
-		{"scene:Transparent", nil},
+		{"BindShader", "transparent"},
+		{"UpdateUBO", r.LightingUBO},
+		{"draw", "transparent"},
 		{"SetBlendState", "src-alpha/one"},
-		{"scene:Billboards", nil},
+		{"BindShader", "billboard"},
+		{"draw", "billboard"},
+		{"BindShader", "instancedBillboard"},
+		{"draw", "particle"},
 		// Emissive blur.
 		{"BindShader", "kawaseBlur"},
 		{"BindFramebuffer", r.EmissiveFB},
@@ -228,9 +251,27 @@ func TestRenderStageOrderWebGL(t *testing.T) {
 		{"DrawIndexed", 6},
 		{"BindShader", "fsrRcas"},
 		{"DrawIndexed", 6},
-		{"scene:Debug", nil},
+		// Debug overlay last (wireframes enabled).
+		{"BindShader", "debug"},
+		{"wire", "mesh"},
+		{"wire", "skinned"},
+		{"wire", "fps"},
+		{"wire", "skybox"},
 		{"EndFrame", nil},
 	})
+
+	// Stats come from the counted lists: mesh + skinned, 2 + 5 triangles, 2 lights.
+	if r.Stats.MeshCount != 2 || r.Stats.TriangleCount != 7 || r.Stats.LightCount != 2 {
+		t.Errorf("stats = %+v", r.Stats)
+	}
+	// FPS meshes are drawn twice (world pass + near-range pass); mesh once.
+	if mb.CountArg("draw", "fps") != 2 || mb.CountArg("draw", "mesh") != 1 {
+		t.Errorf("fps draws=%d mesh draws=%d", mb.CountArg("draw", "fps"), mb.CountArg("draw", "mesh"))
+	}
+	// Only the mesh lists are shadow casters; skeletons/bounds are off.
+	if mb.Count("shadow") != 2 || mb.Count("skel") != 0 {
+		t.Errorf("shadow draws=%d skel draws=%d", mb.Count("shadow"), mb.Count("skel"))
+	}
 
 	// Post-processing bound six sampler units.
 	ppStart := indexOfCall(mb, "BindShader", "postProcessing", 0)
@@ -258,8 +299,9 @@ func TestRenderStageOrderWebGL(t *testing.T) {
 
 func TestRenderStageOrderWebGPU(t *testing.T) {
 	mb, r := newMockRenderer(64, 32, true, false)
-	scene := &mockScene{backend: mb, casters: true}
+	scene := newMockScene(mb, true)
 	opts := defaultRenderOptions(false)
+	r.Debug.ShowBoundingVolumes = true
 	r.Render(newTestCamera(), scene, opts, 1.5)
 
 	// Shadow blur is skipped on WebGPU: lighting + emissive only.
@@ -275,24 +317,65 @@ func TestRenderStageOrderWebGPU(t *testing.T) {
 	}
 	assertOrder(t, mb, []mockCall{
 		{"BeginFrame", nil},
-		{"scene:World", nil},
-		{"scene:Shadows", nil},
-		{"scene:FPS", nil},
-		{"scene:Lighting", nil},
-		{"scene:Transparent", nil},
-		{"scene:Billboards", nil},
+		{"draw", "skybox"},
+		{"shadow", "mesh"},
+		{"draw", "fps"},
+		{"draw", "directional"},
+		{"draw", "transparent"},
+		{"draw", "billboard"},
 		{"BindShader", "postProcessing"},
-		{"scene:Debug", nil},
+		{"BindShader", "debug"},
+		{"SetUniform", "debugColor"},
+		{"DrawIndexed", 24},
 		{"EndFrame", nil},
 	})
+	// Only the mesh mock has bounds: exactly one bounding box (24 line indices) drawn.
+	if mb.CountArg("DrawIndexed", 24) != 1 {
+		t.Errorf("bounding box draws = %d, want 1", mb.CountArg("DrawIndexed", 24))
+	}
 }
 
 func TestShadowBlurSkippedWithoutCasters(t *testing.T) {
 	mb, r := newMockRenderer(64, 32, false, false)
-	scene := &mockScene{backend: mb, casters: false}
+	scene := newMockScene(mb, false)
 	r.Render(newTestCamera(), scene, defaultRenderOptions(false), 0)
 	if mb.CountArg("BindFramebuffer", r.ShadowBuffer.BlurFB) != 0 {
 		t.Error("shadow blur must be skipped when the scene has no casters")
+	}
+}
+
+func TestTransparentPassSkipsShaderWhenEmpty(t *testing.T) {
+	mb, r := newMockRenderer(64, 32, false, false)
+	scene := newMockScene(mb, false)
+	scene.transparent.Reset()
+	r.Render(newTestCamera(), scene, defaultRenderOptions(false), 0)
+	if mb.CountArg("BindShader", "transparent") != 0 || mb.CountArg("UpdateUBO", r.LightingUBO) != 0 {
+		t.Error("transparent shader/UBO must not be touched without translucent drawables")
+	}
+}
+
+func TestRenderSortsLightsByScore(t *testing.T) {
+	mb, r := newMockRenderer(64, 32, false, false)
+	scene := newMockScene(mb, false)
+	scene.points.Reset()
+	scene.points.Add(&mockDrawable{backend: mb, name: "dim", score: 0.1})
+	scene.points.Add(&mockDrawable{backend: mb, name: "bright", score: 5})
+	for i := 0; i < MaxPointLights; i++ {
+		scene.points.Add(&mockDrawable{backend: mb, name: "filler", score: 1})
+	}
+	r.Render(newTestCamera(), scene, defaultRenderOptions(false), 0)
+
+	bright := indexOfCall(mb, "draw", "bright", 0)
+	dim := indexOfCall(mb, "draw", "dim", 0)
+	if bright < 0 || dim < 0 || bright > dim {
+		t.Errorf("brightest light must draw first: bright=%d dim=%d", bright, dim)
+	}
+	if r.Stats.LightCount != MaxPointLights+3 {
+		t.Errorf("LightCount = %d", r.Stats.LightCount)
+	}
+	// Transparent UBO holds the top MaxPointLights only: the dim light is cut.
+	if r.lighting.PointCount != MaxPointLights || r.lighting.Data[7] != 5 {
+		t.Errorf("lighting UBO count=%d first intensity=%v", r.lighting.PointCount, r.lighting.Data[7])
 	}
 }
 
@@ -383,17 +466,16 @@ func TestRenderFrameDoesNotAllocate(t *testing.T) {
 	}
 	mb, r := newMockRenderer(64, 32, false, true)
 	mb.Recording = false
-	scene := &mockScene{backend: mb, casters: true}
+	scene := newMockScene(mb, true)
 	opts := defaultRenderOptions(true)
 	cam := newTestCamera()
-	mat := NewMaterial("heap")
-	mat.Bind(nil)
+	mat := NewMaterial(mb, "heap")
+	mat.Bind(r.Shaders.Geometry)
 
 	frame := func(n int) {
 		for i := 0; i < n; i++ {
-			ClearRenderStats()
 			r.Render(cam, scene, opts, float32(i)*0.016)
-			mat.Bind(nil)
+			mat.Bind(r.Shaders.Geometry)
 		}
 	}
 	frame(200) // warm up
@@ -422,23 +504,26 @@ func TestRenderFrameDoesNotAllocate(t *testing.T) {
 
 func TestLightSorterAndLightingData(t *testing.T) {
 	cam := &physics.Vec3{}
+	if ContributionScore(10, 0, 0, 1, cam) != 0.01 || ContributionScore(0, 0, 0, 3, cam) != 3 {
+		t.Errorf("ContributionScore = intensity / d² (d²=0 → 1)")
+	}
 	s := NewLightSorter(3)
 	s.Begin()
-	s.Add(0, 10, 0, 0, 1, cam) // score 0.01
-	s.Add(1, 1, 0, 0, 1, cam)  // score 1
-	s.Add(2, 2, 0, 0, 8, cam)  // score 2
+	s.Add(0, 0.01)
+	s.Add(1, 1)
+	s.Add(2, 2)
 	s.Sort()
 	if s.Count != 3 || s.Entries[0].Index != 2 || s.Entries[1].Index != 1 || s.Entries[2].Index != 0 {
 		t.Errorf("unexpected sort order: %v", s.Entries)
 	}
 	s.Begin()
-	s.Add(5, 1, 1, 1, 1, cam)
+	s.Add(5, 1)
 	if s.Count != 1 || len(s.Entries) != 3 {
 		t.Errorf("LightSorter must reuse its buffer across frames, count=%d len=%d", s.Count, len(s.Entries))
 	}
-	s.Add(6, 2, 0, 0, 1, cam)
-	s.Add(7, 3, 0, 0, 1, cam)
-	s.Add(8, 4, 0, 0, 1, cam) // exceeds capacity 3
+	s.Add(6, 1)
+	s.Add(7, 1)
+	s.Add(8, 1) // exceeds capacity 3
 	if s.Count != 4 || len(s.Entries) < 4 || s.Entries[3].Index != 8 {
 		t.Errorf("LightSorter must grow beyond capacity, count=%d len=%d", s.Count, len(s.Entries))
 	}

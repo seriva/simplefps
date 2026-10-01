@@ -83,8 +83,7 @@ func TestFPSControllerNoclip(t *testing.T) {
 	camPos := Vec3{X: 10, Y: 20, Z: 30}
 	camDir := Vec3{X: 0, Y: 0, Z: 1}
 	camRight := Vec3{X: 1, Y: 0, Z: 0}
-	ActiveCameraPos = &camPos
-	ActiveCameraDir = &camDir
+	ctrl.Camera = &CameraPose{Position: &camPos, Direction: &camDir}
 
 	ctrl.Move(0, 1, &camDir, &camRight, 0.1)
 
@@ -93,6 +92,4 @@ func TestFPSControllerNoclip(t *testing.T) {
 	}
 
 	SetNoclip(false)
-	ActiveCameraPos = nil
-	ActiveCameraDir = nil
 }

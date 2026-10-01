@@ -52,11 +52,12 @@ type Material struct {
 	ReflectionMaskTexture *Texture
 	LightmapTexture       *Texture
 
-	ubo any
+	backend RenderBackend
+	ubo     any
 }
 
-// NewMaterial creates a Material with default properties.
-func NewMaterial(name string) *Material {
+// NewMaterial creates a Material with default properties whose UBO lives on b.
+func NewMaterial(b RenderBackend, name string) *Material {
 	return &Material{
 		Name:               name,
 		GeomType:           1,
@@ -64,14 +65,12 @@ func NewMaterial(name string) *Material {
 		Translucent:        false,
 		DoubleSided:        false,
 		Opacity:            1.0,
+		backend:            b,
 	}
 }
 
 // Bind sets texture units, updates the MaterialData UBO, and updates cull states.
 func (m *Material) Bind(shader *Shader) {
-	if shader == nil {
-		shader = Shaders.Geometry
-	}
 	if shader == nil {
 		return
 	}
@@ -101,38 +100,39 @@ func (m *Material) Bind(shader *Shader) {
 	// Material UBO: 32 bytes (binding point 1)
 	// ivec4 flags (geomType, doEmissive, doReflection, hasLightmap)
 	// vec4 params (reflectionStrength, opacity, pad, pad)
-	if m.ubo == nil && ActiveBackend != nil {
-		m.ubo = ActiveBackend.CreateUBO(32, 1)
+	b := m.backend
+	if m.ubo == nil && b != nil {
+		m.ubo = b.CreateUBO(32, 1)
 	}
 
-	if m.ubo != nil && ActiveBackend != nil {
+	if m.ubo != nil && b != nil {
 		PackMaterialData(m)
-		ActiveBackend.UpdateUBO(m.ubo, materialUBOInts, 0)
-		ActiveBackend.BindUniformBuffer(m.ubo)
+		b.UpdateUBO(m.ubo, materialUBOInts, 0)
+		b.BindUniformBuffer(m.ubo)
 	}
 
 	// Cull states
-	if ActiveBackend != nil {
+	if b != nil {
 		if m.DoubleSided {
-			ActiveBackend.SetCullState(false, "back")
+			b.SetCullState(false, "back")
 		} else if !m.Translucent {
-			ActiveBackend.SetCullState(true, "back")
+			b.SetCullState(true, "back")
 		}
 	}
 }
 
 // Unbind detaches material textures.
 func (m *Material) Unbind() {
-	UnbindTextureRange(0, 5)
-	if m.DoubleSided && ActiveBackend != nil {
-		ActiveBackend.SetCullState(true, "back")
+	UnbindTextureRange(m.backend, 0, 5)
+	if m.DoubleSided && m.backend != nil {
+		m.backend.SetCullState(true, "back")
 	}
 }
 
 // Dispose releases GPU buffers owned by the material.
 func (m *Material) Dispose() {
-	if m.ubo != nil && ActiveBackend != nil {
-		ActiveBackend.DeleteUBO(m.ubo)
+	if m.ubo != nil && m.backend != nil {
+		m.backend.DeleteUBO(m.ubo)
 		m.ubo = nil
 	}
 }

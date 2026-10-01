@@ -60,12 +60,31 @@ func (m *testBackend) CountArg(name string, arg any) int {
 
 // IndexOf returns the first log index with name/arg, or -1.
 func (m *testBackend) IndexOf(name string, arg any) int {
-	for i := 0; i < len(m.Log); i++ {
+	return m.IndexFrom(name, arg, 0)
+}
+
+// IndexFrom returns the first log index >= from with name/arg, or -1.
+func (m *testBackend) IndexFrom(name string, arg any, from int) int {
+	for i := from; i < len(m.Log); i++ {
 		if m.Log[i].Name == name && m.Log[i].Arg == arg {
 			return i
 		}
 	}
 	return -1
+}
+
+// CountBetween counts name/arg entries in [from, to); to < 0 means end of log.
+func (m *testBackend) CountBetween(name string, arg any, from, to int) int {
+	if to < 0 || to > len(m.Log) {
+		to = len(m.Log)
+	}
+	n := 0
+	for i := from; i < to; i++ {
+		if m.Log[i].Name == name && m.Log[i].Arg == arg {
+			n++
+		}
+	}
+	return n
 }
 
 func (m *testBackend) Reset() { m.Log = m.Log[:0] }
@@ -76,22 +95,22 @@ func (m *testBackend) Dispose()                      {}
 func (m *testBackend) BeginFrame()                   {}
 func (m *testBackend) EndFrame()                     {}
 func (m *testBackend) InitShaders(catalog *rendering.ShaderCatalog) {
-	catalog.Geometry = rendering.NewShader("geometry", "")
-	catalog.SkinnedGeometry = rendering.NewShader("skinnedGeometry", "")
-	catalog.EntityShadows = rendering.NewShader("entityShadows", "")
-	catalog.SkinnedEntityShadows = rendering.NewShader("skinnedEntityShadows", "")
-	catalog.DirectionalLight = rendering.NewShader("directionalLight", "")
-	catalog.PointLight = rendering.NewShader("pointLight", "")
-	catalog.SpotLight = rendering.NewShader("spotLight", "")
-	catalog.KawaseBlur = rendering.NewShader("kawaseBlur", "")
-	catalog.PostProcessing = rendering.NewShader("postProcessing", "")
-	catalog.FsrEasu = rendering.NewShader("fsrEasu", "")
-	catalog.FsrRcas = rendering.NewShader("fsrRcas", "")
-	catalog.Transparent = rendering.NewShader("transparent", "")
-	catalog.Debug = rendering.NewShader("debug", "")
-	catalog.SkinnedDebug = rendering.NewShader("skinnedDebug", "")
-	catalog.Billboard = rendering.NewShader("billboard", "")
-	catalog.InstancedBillboard = rendering.NewShader("instancedBillboard", "")
+	catalog.Geometry = rendering.NewShader(m, "geometry", "")
+	catalog.SkinnedGeometry = rendering.NewShader(m, "skinnedGeometry", "")
+	catalog.EntityShadows = rendering.NewShader(m, "entityShadows", "")
+	catalog.SkinnedEntityShadows = rendering.NewShader(m, "skinnedEntityShadows", "")
+	catalog.DirectionalLight = rendering.NewShader(m, "directionalLight", "")
+	catalog.PointLight = rendering.NewShader(m, "pointLight", "")
+	catalog.SpotLight = rendering.NewShader(m, "spotLight", "")
+	catalog.KawaseBlur = rendering.NewShader(m, "kawaseBlur", "")
+	catalog.PostProcessing = rendering.NewShader(m, "postProcessing", "")
+	catalog.FsrEasu = rendering.NewShader(m, "fsrEasu", "")
+	catalog.FsrRcas = rendering.NewShader(m, "fsrRcas", "")
+	catalog.Transparent = rendering.NewShader(m, "transparent", "")
+	catalog.Debug = rendering.NewShader(m, "debug", "")
+	catalog.SkinnedDebug = rendering.NewShader(m, "skinnedDebug", "")
+	catalog.Billboard = rendering.NewShader(m, "billboard", "")
+	catalog.InstancedBillboard = rendering.NewShader(m, "instancedBillboard", "")
 }
 func (m *testBackend) SupportsFormat(format string) bool { return true }
 func (m *testBackend) CreateTexture(desc *rendering.TextureDescriptor) any {
@@ -171,20 +190,57 @@ func approx(a, b float32) bool {
 	return d < 0.001 && d > -0.001
 }
 
+// testBE is the backend of the most recent setup(); mesh fixtures build on it.
+var testBE *testBackend
+
 // setup wires a mock backend, shaders, shapes, renderer and a fresh scene.
 func setup() (*testBackend, *rendering.Renderer, *Scene) {
 	mb := newTestBackend()
+	testBE = mb
 	r := rendering.NewRenderer(mb)
-	rendering.InitShaders()
-	rendering.InitShapes()
+	r.InitShaders()
+	r.InitShapes()
 	r.Init(320, 240, false)
-	for i := 0; i < len(physics.ActiveFrustumPlanes); i++ {
-		physics.ActiveFrustumPlanes[i] = 0
-	}
 	cam := systems.NewCamera()
+	for i := 0; i < len(cam.FrustumPlanes); i++ {
+		cam.FrustumPlanes[i] = 0
+	}
 	s := NewScene(cam)
 	mb.Reset()
 	return mb, r, s
+}
+
+// testView mirrors engine.RenderFrame's CameraView snapshot of the scene camera.
+var testView = &rendering.CameraView{
+	View:                  physics.NewMat4(),
+	Projection:            physics.NewMat4(),
+	ViewProjection:        physics.NewMat4(),
+	InverseViewProjection: physics.NewMat4(),
+}
+
+// testOpts: no blur passes, no FSR, no dirt — keeps the log to scene draws.
+var testOpts = &rendering.RenderOptions{}
+
+// renderFrame runs one full renderer frame pulling from s.
+func renderFrame(r *rendering.Renderer, s *Scene) {
+	if s.Camera != nil {
+		testView.Position = s.Camera.Position
+		testView.View = s.Camera.View
+		testView.Projection = s.Camera.Projection
+		testView.ViewProjection = s.Camera.ViewProjection
+		testView.InverseViewProjection = s.Camera.InverseViewProjection
+	}
+	r.Render(testView, s, testOpts, 0)
+}
+
+// shaderWindow returns [start, end) log indices of the first bind of shader
+// up to the following UnbindShader (end = -1 when never unbound).
+func shaderWindow(mb *testBackend, shader string) (int, int) {
+	start := mb.IndexOf("BindShader", shader)
+	if start < 0 {
+		return -1, -1
+	}
+	return start, mb.IndexFrom("UnbindShader", nil, start)
 }
 
 // unitQuad builds a 2-triangle mesh in the XZ plane at y=0 spanning [-1,1].
@@ -192,7 +248,7 @@ func unitQuad(material string) *rendering.Mesh {
 	verts := []float32{-1, 0, -1, 1, 0, -1, 1, 0, 1, -1, 0, 1}
 	idx := []uint32{0, 2, 1, 0, 3, 2}
 	groups := []rendering.IndexGroup{rendering.IndexGroup{Material: material, Array: idx}}
-	return rendering.NewMesh(verts, nil, nil, nil, groups)
+	return rendering.NewMesh(testBE, verts, nil, nil, nil, groups)
 }
 
 func meshAt(x, y, z float32) *MeshEntity {
@@ -216,7 +272,7 @@ func skinnedQuad() *rendering.SkinnedMesh {
 	for i := 0; i < 4; i++ {
 		weights[i*4] = 1
 	}
-	return rendering.NewSkinnedMesh(verts, nil, nil, groups, joints, weights)
+	return rendering.NewSkinnedMesh(testBE, verts, nil, nil, groups, joints, weights)
 }
 
 // ---------------------------------------------------------------------------
@@ -326,15 +382,21 @@ func TestBoundingVolumeAndVisibility(t *testing.T) {
 	}
 
 	// Plane x - 10 >= 0 keeps only boxes reaching x >= 10.
-	physics.ActiveFrustumPlanes[0] = 1
-	physics.ActiveFrustumPlanes[3] = -10
+	s.Camera.FrustumPlanes[0] = 1
+	s.Camera.FrustumPlanes[3] = -10
 	s.UpdateVisibility()
 	items, vis := s.VisibleEntities(TypeMesh)
 	if vis != 1 || items[0] != Entity(far) {
 		t.Errorf("culling kept %d entities", vis)
 	}
-	physics.ActiveFrustumPlanes[0] = 0
-	physics.ActiveFrustumPlanes[3] = 0
+
+	// No camera: nothing is culled.
+	s.Camera = nil
+	s.UpdateVisibility()
+	_, vis = s.VisibleEntities(TypeMesh)
+	if vis != 2 {
+		t.Errorf("camera-less scene culled: %d visible", vis)
+	}
 }
 
 func TestMeshEntitySetRotationWarnsWhenStatic(t *testing.T) {
@@ -399,11 +461,19 @@ func TestStaticGeometryRaycast(t *testing.T) {
 		t.Errorf("SkipBackfaces=false should hit from below")
 	}
 
-	// Installed as the global static provider for physics.
-	out := &physics.RaycastResult{}
-	got := physics.RaycastStatic(1, 5, 1, 1, -5, 1, nil, out)
-	if got != out || !out.HasHit || !approx(out.HitPointWorld.Y, 0) {
-		t.Errorf("GlobalRaycastStatic not wired: %+v", out)
+	// Usable as a physics.RaycastProvider (e.g. by DynamicBody).
+	var provider physics.RaycastProvider = s
+	got := provider.RaycastStatic(1, 5, 1, 1, -5, 1, nil)
+	if !got.HasHit || !approx(got.HitPointWorld.Y, 0) {
+		t.Errorf("RaycastProvider: %+v", got)
+	}
+	body := physics.NewDynamicBody(physics.NewVec3(0.5, 2, 0.5), &physics.DynamicBodyConfig{Radius: 1, Gravity: 1000})
+	body.Provider = s
+	for i := 0; i < 20 && !body.IsResting && body.BounceCount == 0; i++ {
+		body.Update(50)
+	}
+	if body.BounceCount == 0 && !body.IsResting {
+		t.Errorf("DynamicBody never hit the static floor via the scene provider")
 	}
 
 	// Dispose releases the merged trimesh's buffers and drops the reference.
@@ -416,7 +486,7 @@ func TestStaticGeometryRaycast(t *testing.T) {
 func TestStaticGeometryDoubleSidedFlags(t *testing.T) {
 	_, _, s := setup()
 	mesh := unitQuad("glass")
-	mat := rendering.NewMaterial("glass")
+	mat := rendering.NewMaterial(testBE, "glass")
 	mat.Translucent = true
 	mesh.MaterialLookup["glass"] = mat
 	e := NewMeshEntity(TypeMesh, physics.NewVec3(0, 0, 0), mesh, nil, 1)
@@ -522,48 +592,55 @@ func TestAmbientDefaultsAndLightGrid(t *testing.T) {
 
 func TestRenderWorldGeometryOrderAndUniforms(t *testing.T) {
 	mb, r, s := setup()
-	s.AddEntity(NewSkyboxEntity("test", nil))
+	s.AddEntity(NewSkyboxEntity("test", r.Shapes.SkyBox, nil))
 	s.AddEntity(meshAt(0, 0, 0))
 	skinned := NewSkinnedMeshEntity(physics.NewVec3(0, 0, 0), skinnedQuad(), testSkeleton(), nil, 1)
 	s.AddEntity(skinned)
 	s.Update(16)
 	mb.Reset()
-	rendering.ClearRenderStats()
 
-	s.RenderWorldGeometry(r)
+	renderFrame(r, s)
 
-	geo := mb.IndexOf("BindShader", "geometry")
-	sk := mb.IndexOf("BindShader", "skinnedGeometry")
+	geo, geoEnd := shaderWindow(mb, "geometry")
+	sk, skEnd := shaderWindow(mb, "skinnedGeometry")
 	if geo == -1 || sk == -1 || sk < geo {
 		t.Fatalf("shader order wrong: geometry=%d skinned=%d", geo, sk)
 	}
 	if mb.CountArg("SetUniform", "proceduralNoise") < 2 {
 		t.Errorf("proceduralNoise not set for both shaders")
 	}
-	if mb.CountArg("SetUniform", "uProbeColor") < 3 {
-		t.Errorf("uProbeColor set %d times, want >= 3", mb.CountArg("SetUniform", "uProbeColor"))
+	if mb.CountBetween("SetUniform", "uProbeColor", geo, skEnd) != 3 {
+		t.Errorf("uProbeColor set %d times in world pass, want 3", mb.CountBetween("SetUniform", "uProbeColor", geo, skEnd))
 	}
 	if mb.CountArg("SetUniform", "boneMatrices") != 1 {
 		t.Errorf("boneMatrices set %d times", mb.CountArg("SetUniform", "boneMatrices"))
 	}
-	// skybox depth off/on + three draws (skybox 6 groups, mesh, skinned)
-	if mb.CountArg("SetDepthState", false) != 1 {
+	// Skybox drawn with depth off inside the geometry window.
+	if mb.CountBetween("SetDepthState", false, geo, geoEnd) != 1 {
 		t.Errorf("skybox depth state not toggled")
 	}
-	if mb.CountArg("DrawIndexed", "triangles") != 8 {
-		t.Errorf("draws = %d, want 8", mb.CountArg("DrawIndexed", "triangles"))
+	// skybox 6 groups + mesh in the geometry window, skinned in its own.
+	if mb.CountBetween("DrawIndexed", "triangles", geo, geoEnd) != 7 || mb.CountBetween("DrawIndexed", "triangles", sk, skEnd) != 1 {
+		t.Errorf("draws = %d geometry, %d skinned", mb.CountBetween("DrawIndexed", "triangles", geo, geoEnd), mb.CountBetween("DrawIndexed", "triangles", sk, skEnd))
 	}
-	if mb.Log[len(mb.Log)-1].Name != "SetCullState" {
-		t.Errorf("pass must end restoring cull state")
+	if mb.IndexFrom("SetCullState", true, skEnd) == -1 {
+		t.Errorf("world pass must end restoring cull state")
 	}
-	st := rendering.ActiveRenderStats
+	st := r.Stats
 	if st.MeshCount != 2 || st.TriangleCount != 4 {
 		t.Errorf("stats = %+v", st)
 	}
 
 	// Skybox material names assigned to the shared cube.
-	if rendering.GlobalShapes.SkyBox.Indices[2].Material != "mat_skybox_test_top" {
-		t.Errorf("skybox material = %q", rendering.GlobalShapes.SkyBox.Indices[2].Material)
+	if r.Shapes.SkyBox.Indices[2].Material != "mat_skybox_test_top" {
+		t.Errorf("skybox material = %q", r.Shapes.SkyBox.Indices[2].Material)
+	}
+
+	// Hidden entities leave the draw lists entirely.
+	skinned.Base.Visible = false
+	s.UpdateVisibility()
+	if s.SkinnedMeshes().Count != 0 || s.Meshes().Count != 1 || s.Skyboxes().Count != 1 {
+		t.Errorf("draw lists after hide: skinned=%d meshes=%d sky=%d", s.SkinnedMeshes().Count, s.Meshes().Count, s.Skyboxes().Count)
 	}
 }
 
@@ -583,14 +660,9 @@ func TestRenderShadowsBudgetAndHeights(t *testing.T) {
 	noGround := meshAt(500, 5, 500)
 	noGround.Base.CastShadow = true
 	s.AddEntity(noGround)
+
+	// First update resolves at most the raycast budget.
 	s.Update(16)
-	mb.Reset()
-
-	if !s.HasShadowCasters() {
-		t.Fatalf("HasShadowCasters false")
-	}
-
-	s.RenderShadows(r)
 	resolved := 0
 	for i := 0; i < 20; i++ {
 		if casters[i].Base.ShadowHeightState == ShadowHeightValid {
@@ -607,30 +679,34 @@ func TestRenderShadowsBudgetAndHeights(t *testing.T) {
 	if resolved > shadowRaycastBudget || pendingAfterFirst == 0 {
 		t.Errorf("raycast budget not respected: resolved=%d", resolved)
 	}
-	if mb.IndexOf("BindShader", "entityShadows") == -1 {
-		t.Errorf("entityShadows not bound")
-	}
-	if mb.CountArg("SetUniform", "ambient") < 1 {
-		t.Errorf("ambient uniform not set")
-	}
-	firstDraws := mb.CountArg("DrawIndexed", "triangles")
-	if firstDraws != resolved-boolToInt(noGround.Base.ShadowHeightState == ShadowHeightValid) {
-		t.Errorf("draws %d != resolved casters", firstDraws)
+	// Non-casting floor never consumes budget.
+	if floor.Base.CastShadow || floor.Base.ShadowHeightState != ShadowHeightPending {
+		t.Errorf("non-caster should stay pending (CastShadow=%v state=%d)", floor.Base.CastShadow, floor.Base.ShadowHeightState)
 	}
 
-	// Second frame resolves the rest.
-	s.RenderShadows(r)
+	mb.Reset()
+	renderFrame(r, s)
+	start, end := shaderWindow(mb, "entityShadows")
+	if start == -1 {
+		t.Fatalf("entityShadows not bound")
+	}
+	if mb.CountBetween("SetUniform", "ambient", start, end) < 1 {
+		t.Errorf("ambient uniform not set")
+	}
+	firstDraws := mb.CountBetween("DrawIndexed", "triangles", start, end)
+	if firstDraws != resolved-boolToInt(noGround.Base.ShadowHeightState == ShadowHeightValid) {
+		t.Errorf("draws %d != resolved casters %d", firstDraws, resolved)
+	}
+
+	// Second update resolves the rest.
+	s.Update(16)
 	for i := 0; i < 20; i++ {
 		if casters[i].Base.ShadowHeightState != ShadowHeightValid {
-			t.Fatalf("caster %d unresolved after 2 frames", i)
+			t.Fatalf("caster %d unresolved after 2 updates", i)
 		}
 	}
 	if noGround.Base.ShadowHeightState != ShadowHeightNone {
 		t.Errorf("entity above nothing should be ShadowHeightNone, got %d", noGround.Base.ShadowHeightState)
-	}
-	// Floor itself does not cast (CastShadow false by default for meshes).
-	if floor.Base.CastShadow {
-		t.Errorf("mesh entities default CastShadow=false")
 	}
 }
 
@@ -651,24 +727,24 @@ func TestSkinnedShadowSampling(t *testing.T) {
 	sk.Base.CastShadow = true
 	s.AddEntity(sk)
 	s.Update(16)
-	mb.Reset()
-
-	s.RenderShadows(r)
 	if sk.Base.ShadowHeightState != ShadowHeightValid || !approx(sk.Base.ShadowHeight, 0) {
 		t.Fatalf("skinned shadow height not sampled: state=%d", sk.Base.ShadowHeightState)
 	}
+
+	mb.Reset()
+	renderFrame(r, s)
 	if mb.IndexOf("BindShader", "skinnedEntityShadows") == -1 || mb.CountArg("SetUniform", "shadowHeight") != 1 {
 		t.Errorf("skinned shadow uniforms missing")
 	}
 	// Unmoved entity within interval: no re-sample.
 	frame := sk.Base.ShadowSampleFrame
-	s.RenderShadows(r)
+	s.Update(16)
 	if sk.Base.ShadowSampleFrame != frame {
 		t.Errorf("re-sampled without movement")
 	}
 	// Move beyond epsilon triggers re-sample.
 	physics.Mat4Translate(sk.Base.BaseMatrix, sk.Base.BaseMatrix, physics.NewVec3(1, 0, 0))
-	s.RenderShadows(r)
+	s.Update(16)
 	if sk.Base.ShadowSampleFrame == frame {
 		t.Errorf("movement should re-sample")
 	}
@@ -686,9 +762,8 @@ func TestRenderLightingSortsByContribution(t *testing.T) {
 	s.AddEntity(NewDirectionalLightEntity([]float32{0, -1, 0}, []float32{1, 1, 1}, nil))
 	s.Update(16)
 	mb.Reset()
-	rendering.ClearRenderStats()
 
-	s.RenderLighting(r)
+	renderFrame(r, s)
 
 	if mb.IndexOf("BindShader", "directionalLight") == -1 || mb.IndexOf("BindShader", "pointLight") == -1 || mb.IndexOf("BindShader", "spotLight") == -1 {
 		t.Fatalf("light shaders not bound")
@@ -696,14 +771,16 @@ func TestRenderLightingSortsByContribution(t *testing.T) {
 	if mb.CountArg("SetUniform", "pointLight.posRange") != 2 || mb.CountArg("SetUniform", "spotLight.dirCutoff") != 1 {
 		t.Errorf("light uniforms not set")
 	}
-	if rendering.ActiveRenderStats.LightCount != 3 {
-		t.Errorf("LightCount = %d", rendering.ActiveRenderStats.LightCount)
+	if r.Stats.LightCount != 3 {
+		t.Errorf("LightCount = %d", r.Stats.LightCount)
 	}
-	// Point sorter puts near (index 1) first.
-	lights, _ := s.VisibleEntities(TypePointLight)
-	first := lights[s.pointSorter.Entries[0].Index].(*PointLightEntity)
-	if first != near {
-		t.Errorf("nearest light should sort first")
+	// The renderer orders lights by LightScore: near must outrank far.
+	cam := &s.Camera.Position
+	if near.LightScore(cam) <= far.LightScore(cam) {
+		t.Errorf("near score %v should beat far %v", near.LightScore(cam), far.LightScore(cam))
+	}
+	if !approx(spot.LightScore(cam), 2.0/25.0) {
+		t.Errorf("spot score = %v", spot.LightScore(cam))
 	}
 	if !approx(spot.Cutoff, 0.8660254) {
 		t.Errorf("spot cutoff = %v", spot.Cutoff)
@@ -712,34 +789,37 @@ func TestRenderLightingSortsByContribution(t *testing.T) {
 
 func TestRenderLightingDrawsAllLightsBeyondSorterCapacity(t *testing.T) {
 	mb, r, s := setup()
-	const n = 70 // > NewLightSorter(64)
+	const n = 70 // > renderer's NewLightSorter(64)
 	for i := 0; i < n; i++ {
 		s.AddEntity(NewPointLightEntity(physics.NewVec3(float32(i), 0, 0), 5, []float32{1, 1, 1}, 1, nil))
 	}
 	s.Update(16)
 	mb.Reset()
-	rendering.ClearRenderStats()
 
-	s.RenderLighting(r)
+	renderFrame(r, s)
 
 	if got := mb.CountArg("SetUniform", "pointLight.posRange"); got != n {
 		t.Errorf("rendered %d point lights, want %d", got, n)
 	}
-	if rendering.ActiveRenderStats.LightCount != n {
-		t.Errorf("LightCount = %d, want %d", rendering.ActiveRenderStats.LightCount, n)
+	if r.Stats.LightCount != n {
+		t.Errorf("LightCount = %d, want %d", r.Stats.LightCount, n)
 	}
 }
 
 // foreignMesh reuses the built-in TypeMesh id on a non-MeshEntity struct.
 type foreignMesh struct{ Base EntityBase }
 
-func (f *foreignMesh) GetBase() *EntityBase                                                  { return &f.Base }
-func (f *foreignMesh) Update(frameTime float32) bool                                          { return true }
-func (f *foreignMesh) UpdateBoundingVolume()                                                  {}
-func (f *foreignMesh) Render(probeColor []float32, renderMode string, shader *rendering.Shader) {}
-func (f *foreignMesh) RenderShadow(renderMode string, shader *rendering.Shader)               {}
-func (f *foreignMesh) RenderWireFrame()                                                       {}
-func (f *foreignMesh) Dispose()                                                               {}
+func (f *foreignMesh) GetBase() *EntityBase                                             { return &f.Base }
+func (f *foreignMesh) Update(frameTime float32) bool                                     { return true }
+func (f *foreignMesh) UpdateBoundingVolume()                                             {}
+func (f *foreignMesh) Dispose()                                                          {}
+func (f *foreignMesh) Draw(r *rendering.Renderer, sh *rendering.Shader, mode string)     {}
+func (f *foreignMesh) DrawShadow(r *rendering.Renderer, sh *rendering.Shader)            {}
+func (f *foreignMesh) DrawWireframe(r *rendering.Renderer, sh *rendering.Shader)         {}
+func (f *foreignMesh) DrawSkeleton(r *rendering.Renderer, sh *rendering.Shader)          {}
+func (f *foreignMesh) Bounds() *physics.BoundingBox                                     { return nil }
+func (f *foreignMesh) TriangleCount() int                                               { return 0 }
+func (f *foreignMesh) CastsShadow() bool                                                { return false }
 
 func TestAddEntityRejectsMismatchedTypeID(t *testing.T) {
 	_, _, s := setup()
@@ -769,7 +849,7 @@ func TestRenderTransparentSortsAndUploadsLights(t *testing.T) {
 	vp[11] = 1
 	vp[15] = 1
 
-	glass := rendering.NewMaterial("glass")
+	glass := rendering.NewMaterial(testBE, "glass")
 	glass.Translucent = true
 	makeGlass := func(z float32) *MeshEntity {
 		m := unitQuad("glass")
@@ -786,43 +866,44 @@ func TestRenderTransparentSortsAndUploadsLights(t *testing.T) {
 	s.Update(16)
 	mb.Reset()
 
-	s.RenderTransparent(r)
-
-	if mb.IndexOf("BindShader", "transparent") == -1 {
+	if s.Transparent().Count != 2 {
 		_, visN := s.VisibleEntities(TypeMesh)
-		t.Fatalf("transparent shader not bound (visible=%d, translucent=%v, sortCount=%d, log=%d)", visN, nearG.HasTranslucent(), s.transparentSort.Count, len(mb.Log))
+		t.Fatalf("transparent count = %d (visible=%d, translucent=%v)", s.Transparent().Count, visN, nearG.HasTranslucent())
 	}
-	if mb.Count("UpdateUBO") < 1 || mb.Count("BindUniformBuffer") < 1 {
-		t.Errorf("lighting UBO not uploaded: update=%d bind=%d", mb.Count("UpdateUBO"), mb.Count("BindUniformBuffer"))
-	}
-	if s.lighting.PointCount != 1 || !approx(s.lighting.Data[1], 1) || !approx(s.lighting.Data[3], 3) {
-		t.Errorf("lighting data = count %d, %v", s.lighting.PointCount, s.lighting.Data[0:8])
-	}
-	if s.transparentSort.Count != 2 {
-		t.Fatalf("transparent count = %d", s.transparentSort.Count)
-	}
-	meshes, _ := s.VisibleEntities(TypeMesh)
-	if meshes[s.transparentSort.Entries[0].Index] != Entity(farG) {
+	var first rendering.Drawable = farG
+	if s.Transparent().Items[0] != first {
 		t.Errorf("farthest translucent should render first")
 	}
-	if mb.CountArg("DrawIndexed", "triangles") != 2 {
-		t.Errorf("translucent draws = %d", mb.CountArg("DrawIndexed", "triangles"))
+
+	renderFrame(r, s)
+
+	start, end := shaderWindow(mb, "transparent")
+	if start == -1 {
+		t.Fatalf("transparent shader not bound")
+	}
+	// Lighting UBO goes up right after the shader binds, before any entity draw.
+	firstDraw := mb.IndexFrom("SetUniform", "uProbeColor", start)
+	if mb.CountBetween("UpdateUBO", nil, start, firstDraw) != 1 || mb.CountBetween("BindUniformBuffer", nil, start, firstDraw) < 1 {
+		t.Errorf("lighting UBO not uploaded before translucent draws")
+	}
+	if mb.CountBetween("DrawIndexed", "triangles", start, end) != 2 {
+		t.Errorf("translucent draws = %d", mb.CountBetween("DrawIndexed", "triangles", start, end))
 	}
 
-	// No translucent meshes -> early out without binding anything.
+	// No translucent meshes -> transparent shader never bound.
 	s.RemoveEntity(nearG)
 	s.RemoveEntity(farG)
 	s.Update(16)
 	mb.Reset()
-	s.RenderTransparent(r)
-	if len(mb.Log) != 0 {
-		t.Errorf("expected early-out, got %d calls", len(mb.Log))
+	renderFrame(r, s)
+	if s.Transparent().Count != 0 || mb.IndexOf("BindShader", "transparent") != -1 {
+		t.Errorf("expected transparent pass skip")
 	}
 }
 
 func TestBillboardAndParticles(t *testing.T) {
 	mb, r, s := setup()
-	tex := rendering.NewTexture(&rendering.TextureDescriptor{Width: 4, Height: 4, Format: "rgba8"})
+	tex := rendering.NewTexture(mb, &rendering.TextureDescriptor{Width: 4, Height: 4, Format: "rgba8"})
 	bb := NewAnimatedBillboardEntity(physics.NewVec3(0, 1, 0), &BillboardConfig{
 		Texture: tex, Duration: 100, GridSize: 2, FrameCount: 4, Scale: 2,
 	})
@@ -838,7 +919,7 @@ func TestBillboardAndParticles(t *testing.T) {
 
 	s.Update(30)
 	mb.Reset()
-	s.RenderBillboards(r)
+	renderFrame(r, s)
 
 	if mb.IndexOf("BindShader", "billboard") == -1 || mb.CountArg("SetUniform", "uFrameOffset") != 1 {
 		t.Errorf("billboard shader/uniforms missing")
@@ -874,21 +955,22 @@ func TestRenderDebugTogglesAndColors(t *testing.T) {
 	s.Update(16)
 	mb.Reset()
 
-	opts := rendering.ActiveDebugOptions
+	opts := r.Debug
 	opts.ShowBoundingVolumes = false
 	opts.ShowWireframes = false
 	opts.ShowLightVolumes = false
 	opts.ShowSkeleton = false
-	s.RenderDebug(r)
-	if len(mb.Log) != 0 {
+	renderFrame(r, s)
+	if mb.IndexOf("BindShader", "debug") != -1 || mb.IndexOf("BindShader", "skinnedDebug") != -1 {
 		t.Fatalf("debug pass should be a no-op when disabled")
 	}
+	mb.Reset()
 
 	opts.ShowBoundingVolumes = true
 	opts.ShowWireframes = true
 	opts.ShowLightVolumes = true
 	opts.ShowSkeleton = true
-	s.RenderDebug(r)
+	renderFrame(r, s)
 	if mb.IndexOf("BindShader", "debug") == -1 {
 		t.Errorf("debug shader not bound")
 	}
@@ -904,18 +986,6 @@ func TestRenderDebugTogglesAndColors(t *testing.T) {
 	if mb.Count("UpdateBuffer") != 1 {
 		t.Errorf("skeleton vertices should upload once, got %d", mb.Count("UpdateBuffer"))
 	}
-	opts.ShowBoundingVolumes = false
-	opts.ShowWireframes = false
-	opts.ShowLightVolumes = false
-	opts.ShowSkeleton = false
-
-	// Console toggles flip the shared options.
-	RegisterDebugCommands()
-	systems.GlobalConsole.ExecuteCmd("tbv")
-	if !opts.ShowBoundingVolumes {
-		t.Errorf("tbv did not toggle bounding volumes")
-	}
-	opts.ShowBoundingVolumes = false
 }
 
 func TestSkinnedEntityAnimationDrivesBones(t *testing.T) {
@@ -959,21 +1029,20 @@ func TestSceneUpdateAndRenderNoGrowth(t *testing.T) {
 
 	frame := func() {
 		s.Update(16)
-		s.RenderWorldGeometry(r)
-		s.RenderShadows(r)
-		s.RenderFPSGeometry(r)
-		s.RenderLighting(r)
-		s.RenderTransparent(r)
-		s.RenderBillboards(r)
+		renderFrame(r, s)
+	}
+	size := func() int {
+		return len(s.entities.Items) + len(s.shadowSort.Entries) + len(s.transparentSort.Entries) + len(s.visible[TypeMesh].Items) +
+			len(s.meshes.Items) + len(s.skinnedMeshes.Items) + len(s.pointLights.Items) + len(s.spotLights.Items) + len(s.transparent.Items)
 	}
 	for i := 0; i < 3; i++ {
 		frame()
 	}
-	before := len(s.entities.Items) + len(s.shadowSort.Entries) + len(s.transparentSort.Entries) + len(s.visible[TypeMesh].Items)
+	before := size()
 	for i := 0; i < 50; i++ {
 		frame()
 	}
-	after := len(s.entities.Items) + len(s.shadowSort.Entries) + len(s.transparentSort.Entries) + len(s.visible[TypeMesh].Items)
+	after := size()
 	if before != after {
 		t.Errorf("per-frame buffers grew: %d -> %d", before, after)
 	}

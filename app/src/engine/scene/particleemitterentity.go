@@ -46,6 +46,8 @@ type ParticleEmitterEntity struct {
 	instanceBuffer any
 	vertexState    any
 	instanceData   []float32
+	// backend that owns instanceBuffer/vertexState (set on first Render).
+	backend rendering.RenderBackend
 }
 
 // NewParticleEmitterEntity creates an empty emitter for texture.
@@ -119,12 +121,11 @@ func (e *ParticleEmitterEntity) Update(frameTime float32) bool {
 	return e.count > 0
 }
 
-func (e *ParticleEmitterEntity) ensureGPUState(requiredSize int) {
-	b := rendering.ActiveBackend
-	quad := rendering.GlobalShapes.BillboardQuad
+func (e *ParticleEmitterEntity) ensureGPUState(b rendering.RenderBackend, quad *rendering.Mesh, requiredSize int) {
 	if e.instanceBuffer != nil && len(e.instanceData) >= requiredSize {
 		return
 	}
+	e.backend = b
 	newSize := requiredSize * 2
 	if newSize < 100*particleFloatsPerInstance {
 		newSize = 100 * particleFloatsPerInstance
@@ -150,17 +151,17 @@ func (e *ParticleEmitterEntity) ensureGPUState(requiredSize int) {
 	})
 }
 
-// Render uploads per-instance data and issues one instanced draw.
-func (e *ParticleEmitterEntity) Render(probeColor []float32, renderMode string, shader *rendering.Shader) {
+// Draw uploads per-instance data and issues one instanced draw with the
+// bound instancedBillboard shader.
+func (e *ParticleEmitterEntity) Draw(r *rendering.Renderer, sh *rendering.Shader, mode string) {
 	n := e.count
-	b := rendering.ActiveBackend
-	sh := rendering.Shaders.InstancedBillboard
-	quad := rendering.GlobalShapes.BillboardQuad
-	if !e.Base.Visible || e.texture == nil || n == 0 || b == nil || sh == nil || quad == nil || len(quad.Indices) == 0 {
+	b := r.Backend
+	quad := r.Shapes.BillboardQuad
+	if e.texture == nil || n == 0 || b == nil || sh == nil || quad == nil || len(quad.Indices) == 0 {
 		return
 	}
 	requiredSize := n * particleFloatsPerInstance
-	e.ensureGPUState(requiredSize)
+	e.ensureGPUState(b, quad, requiredSize)
 
 	offset := 0
 	p := e.particleData
@@ -188,21 +189,24 @@ func (e *ParticleEmitterEntity) Render(probeColor []float32, renderMode string, 
 	// Whole buffer (<= 2x live data) rather than a per-frame subarray view.
 	b.UpdateBuffer(e.instanceBuffer, e.instanceData, 0)
 
-	sh.Bind()
 	e.texture.Bind(0)
 	b.BindVertexState(e.vertexState)
 	b.DrawInstanced(quad.Indices[0].IndexBuffer, len(quad.Indices[0].Array), n)
 	b.BindVertexState(nil)
-	rendering.UnbindTextureRange(0, 1)
+	rendering.UnbindTextureRange(b, 0, 1)
 }
 
-func (e *ParticleEmitterEntity) RenderShadow(renderMode string, shader *rendering.Shader) {}
-func (e *ParticleEmitterEntity) RenderWireFrame()                                       {}
-func (e *ParticleEmitterEntity) UpdateBoundingVolume()                                  {}
+func (e *ParticleEmitterEntity) DrawShadow(r *rendering.Renderer, sh *rendering.Shader)    {}
+func (e *ParticleEmitterEntity) DrawWireframe(r *rendering.Renderer, sh *rendering.Shader) {}
+func (e *ParticleEmitterEntity) DrawSkeleton(r *rendering.Renderer, sh *rendering.Shader)  {}
+func (e *ParticleEmitterEntity) Bounds() *physics.BoundingBox                             { return e.Base.BoundingBox }
+func (e *ParticleEmitterEntity) TriangleCount() int                                       { return 0 }
+func (e *ParticleEmitterEntity) CastsShadow() bool                                        { return false }
+func (e *ParticleEmitterEntity) UpdateBoundingVolume()                                    {}
 
 func (e *ParticleEmitterEntity) Dispose() {
 	baseDispose(&e.Base)
-	b := rendering.ActiveBackend
+	b := e.backend
 	if b != nil {
 		if e.instanceBuffer != nil {
 			b.DeleteBuffer(e.instanceBuffer)
@@ -213,6 +217,7 @@ func (e *ParticleEmitterEntity) Dispose() {
 	}
 	e.instanceBuffer = nil
 	e.vertexState = nil
+	e.backend = nil
 	e.count = 0
 	e.particleData = nil
 	e.instanceData = nil

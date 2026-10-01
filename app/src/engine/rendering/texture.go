@@ -7,38 +7,41 @@ import (
 // DefaultAnisotropy defines the anisotropic filtering level applied to textures.
 var DefaultAnisotropy int = 16
 
-// Texture encapsulates a GPU texture handle with filtering and wrapping parameters.
+// Texture encapsulates a GPU texture handle with filtering and wrapping
+// parameters, bound to the backend that created it.
 type Texture struct {
-	handle any
-	filter string
-	wrap   string
+	backend RenderBackend
+	handle  any
+	filter  string
+	wrap    string
 }
 
-// NewTexture creates a Texture configured by the provided descriptor.
-func NewTexture(desc *TextureDescriptor) *Texture {
+// NewTexture creates a Texture on b configured by the provided descriptor.
+func NewTexture(b RenderBackend, desc *TextureDescriptor) *Texture {
 	t := &Texture{
-		wrap: "clamp-to-edge",
+		backend: b,
+		wrap:    "clamp-to-edge",
 	}
-	if ActiveBackend != nil {
-		t.handle = ActiveBackend.CreateTexture(desc)
+	if b != nil {
+		t.handle = b.CreateTexture(desc)
 		if desc != nil && desc.Data == nil && desc.PData == nil {
-			ActiveBackend.SetTextureWrapMode(t.handle, "clamp-to-edge")
+			b.SetTextureWrapMode(t.handle, "clamp-to-edge")
 		}
 	}
 	return t
 }
 
-// CreateSolidColorTexture creates a 1x1 RGBA texture.
-func CreateSolidColorTexture(r, g, b, a uint8) *Texture {
-	t := &Texture{}
-	if ActiveBackend != nil {
+// CreateSolidColorTexture creates a 1x1 RGBA texture on backend.
+func CreateSolidColorTexture(backend RenderBackend, r, g, b, a uint8) *Texture {
+	t := &Texture{backend: backend}
+	if backend != nil {
 		desc := &TextureDescriptor{
 			Width:   1,
 			Height:  1,
 			Mutable: true,
 			PData:   []uint8{r, g, b, a},
 		}
-		t.handle = ActiveBackend.CreateTexture(desc)
+		t.handle = backend.CreateTexture(desc)
 	}
 	return t
 }
@@ -50,23 +53,23 @@ func (t *Texture) GetHandle() any {
 
 // Bind activates the texture on the specified texture unit.
 func (t *Texture) Bind(unit int) {
-	if t.handle != nil && ActiveBackend != nil {
-		ActiveBackend.BindTexture(t.handle, unit)
+	if t.handle != nil && t.backend != nil {
+		t.backend.BindTexture(t.handle, unit)
 	}
 }
 
 // UnbindTexture detaches the texture on the given unit.
-func UnbindTexture(unit int) {
-	if ActiveBackend != nil {
-		ActiveBackend.UnbindTexture(unit)
+func UnbindTexture(b RenderBackend, unit int) {
+	if b != nil {
+		b.UnbindTexture(unit)
 	}
 }
 
 // UnbindTextureRange detaches count textures starting at the given unit.
-func UnbindTextureRange(start, count int) {
-	if ActiveBackend != nil {
+func UnbindTextureRange(b RenderBackend, start, count int) {
+	if b != nil {
 		for i := 0; i < count; i++ {
-			ActiveBackend.UnbindTexture(start + i)
+			b.UnbindTexture(start + i)
 		}
 	}
 }
@@ -74,15 +77,15 @@ func UnbindTextureRange(start, count int) {
 // SetWrapMode configures texture edge wrapping.
 func (t *Texture) SetWrapMode(mode string) {
 	t.wrap = mode
-	if t.handle != nil && ActiveBackend != nil {
-		ActiveBackend.SetTextureWrapMode(t.handle, mode)
+	if t.handle != nil && t.backend != nil {
+		t.backend.SetTextureWrapMode(t.handle, mode)
 	}
 }
 
 // SetFilter configures minification, magnification, and mipmap filters.
 func (t *Texture) SetFilter(minFilter, magFilter, mipFilter string) {
-	if t.handle != nil && ActiveBackend != nil {
-		ActiveBackend.SetTextureFilter(t.handle, minFilter, magFilter, mipFilter)
+	if t.handle != nil && t.backend != nil {
+		t.backend.SetTextureFilter(t.handle, minFilter, magFilter, mipFilter)
 	}
 }
 
@@ -93,18 +96,19 @@ func (t *Texture) LoadImageTexture(imageData any) {
 	}
 	img := Reflect.construct(Image, []any{})
 	img.onload = func() {
-		if t.handle == nil || ActiveBackend == nil {
+		b := t.backend
+		if t.handle == nil || b == nil {
 			return
 		}
-		ActiveBackend.UploadTextureFromImage(t.handle, img)
-		ActiveBackend.GenerateMipmaps(t.handle)
+		b.UploadTextureFromImage(t.handle, img)
+		b.GenerateMipmaps(t.handle)
 		wrapMode := t.wrap
 		if wrapMode == "" {
 			wrapMode = "repeat"
 		}
-		ActiveBackend.SetTextureWrapMode(t.handle, wrapMode)
+		b.SetTextureWrapMode(t.handle, wrapMode)
 		if DefaultAnisotropy > 1 {
-			ActiveBackend.SetTextureAnisotropy(t.handle, DefaultAnisotropy)
+			b.SetTextureAnisotropy(t.handle, DefaultAnisotropy)
 		}
 		if URL != nil && URL.revokeObjectURL != nil {
 			URL.revokeObjectURL(img.src)
@@ -117,8 +121,8 @@ func (t *Texture) LoadImageTexture(imageData any) {
 
 // Dispose frees the texture from GPU memory.
 func (t *Texture) Dispose() {
-	if t.handle != nil && ActiveBackend != nil {
-		ActiveBackend.DisposeTexture(t.handle)
+	if t.handle != nil && t.backend != nil {
+		t.backend.DisposeTexture(t.handle)
 		t.handle = nil
 	}
 }

@@ -158,6 +158,10 @@ type Arena struct {
 	SpawnPoint *SpawnPoint
 	Name       string
 
+	// SkyboxMesh is the shared cube the skybox entity renders (normally the
+	// renderer's Shapes.SkyBox). Nil in headless tests.
+	SkyboxMesh *rendering.Mesh
+
 	// OnLoadStart / OnLoadEnd bracket Load (loading screen hooks).
 	OnLoadStart func()
 	OnLoadEnd   func()
@@ -282,9 +286,9 @@ func (a *Arena) setupLighting(cfg *ArenaConfig) {
 
 func (a *Arena) setupEnvironment(cfg *ArenaConfig) {
 	if cfg.Skybox != "" {
-		a.Scene.AddEntity(scene.NewSkyboxEntity(cfg.Skybox, nil))
+		a.Scene.AddEntity(scene.NewSkyboxEntity(cfg.Skybox, a.SkyboxMesh, nil))
 		// The shared skybox cube was just renamed to this arena's materials.
-		assets.GlobalResources.BindMesh(rendering.GlobalShapes.SkyBox)
+		assets.GlobalResources.BindMesh(a.SkyboxMesh)
 	}
 	for i := 0; i < len(cfg.Chunks); i++ {
 		mesh := assets.GlobalResources.GetMesh(cfg.Chunks[i])

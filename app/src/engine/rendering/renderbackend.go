@@ -144,6 +144,3 @@ type RenderBackend interface {
 	ClearBindGroupCaches()
 }
 
-// ActiveBackend holds the currently active RenderBackend instance.
-var ActiveBackend RenderBackend
-

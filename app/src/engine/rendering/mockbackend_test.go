@@ -116,22 +116,22 @@ func (m *MockBackend) EndFrame()                { m.record("EndFrame", nil) }
 
 // InitShaders assigns labelled shaders; the program handle is the label string.
 func (m *MockBackend) InitShaders(catalog *ShaderCatalog) {
-	catalog.Geometry = NewShader("geometry", "")
-	catalog.SkinnedGeometry = NewShader("skinnedGeometry", "")
-	catalog.EntityShadows = NewShader("entityShadows", "")
-	catalog.SkinnedEntityShadows = NewShader("skinnedEntityShadows", "")
-	catalog.DirectionalLight = NewShader("directionalLight", "")
-	catalog.PointLight = NewShader("pointLight", "")
-	catalog.SpotLight = NewShader("spotLight", "")
-	catalog.KawaseBlur = NewShader("kawaseBlur", "")
-	catalog.PostProcessing = NewShader("postProcessing", "")
-	catalog.FsrEasu = NewShader("fsrEasu", "")
-	catalog.FsrRcas = NewShader("fsrRcas", "")
-	catalog.Transparent = NewShader("transparent", "")
-	catalog.Debug = NewShader("debug", "")
-	catalog.SkinnedDebug = NewShader("skinnedDebug", "")
-	catalog.Billboard = NewShader("billboard", "")
-	catalog.InstancedBillboard = NewShader("instancedBillboard", "")
+	catalog.Geometry = NewShader(m, "geometry", "")
+	catalog.SkinnedGeometry = NewShader(m, "skinnedGeometry", "")
+	catalog.EntityShadows = NewShader(m, "entityShadows", "")
+	catalog.SkinnedEntityShadows = NewShader(m, "skinnedEntityShadows", "")
+	catalog.DirectionalLight = NewShader(m, "directionalLight", "")
+	catalog.PointLight = NewShader(m, "pointLight", "")
+	catalog.SpotLight = NewShader(m, "spotLight", "")
+	catalog.KawaseBlur = NewShader(m, "kawaseBlur", "")
+	catalog.PostProcessing = NewShader(m, "postProcessing", "")
+	catalog.FsrEasu = NewShader(m, "fsrEasu", "")
+	catalog.FsrRcas = NewShader(m, "fsrRcas", "")
+	catalog.Transparent = NewShader(m, "transparent", "")
+	catalog.Debug = NewShader(m, "debug", "")
+	catalog.SkinnedDebug = NewShader(m, "skinnedDebug", "")
+	catalog.Billboard = NewShader(m, "billboard", "")
+	catalog.InstancedBillboard = NewShader(m, "instancedBillboard", "")
 }
 
 func (m *MockBackend) SupportsFormat(format string) bool { return m.Formats[format] }
@@ -247,10 +247,68 @@ func (m *MockBackend) GetAspectRatio() float32        { return float32(m.Width) 
 func (m *MockBackend) Resize()                        { m.record("Resize", nil) }
 func (m *MockBackend) ClearBindGroupCaches()          { m.record("ClearBindGroupCaches", nil) }
 
-// mockScene records SceneSource callbacks into the backend log as "scene:*".
+// mockDrawable records Draw* callbacks into the backend log as
+// ("draw"/"shadow"/"wire"/"skel", name).
+type mockDrawable struct {
+	backend *MockBackend
+	name    string
+	casts   bool
+	tris    int
+	score   float32
+	spot    bool
+	bounds  *physics.BoundingBox
+}
+
+func (d *mockDrawable) Draw(r *Renderer, sh *Shader, mode string) { d.backend.record("draw", d.name) }
+func (d *mockDrawable) DrawShadow(r *Renderer, sh *Shader)         { d.backend.record("shadow", d.name) }
+func (d *mockDrawable) DrawWireframe(r *Renderer, sh *Shader)      { d.backend.record("wire", d.name) }
+func (d *mockDrawable) DrawSkeleton(r *Renderer, sh *Shader)       { d.backend.record("skel", d.name) }
+func (d *mockDrawable) Bounds() *physics.BoundingBox               { return d.bounds }
+func (d *mockDrawable) TriangleCount() int                         { return d.tris }
+func (d *mockDrawable) CastsShadow() bool                          { return d.casts }
+func (d *mockDrawable) LightScore(camPos *physics.Vec3) float32    { return d.score }
+func (d *mockDrawable) AddToLighting(data *LightingData) bool {
+	if d.spot {
+		return data.AddSpotLight(0, 0, 0, 1, 1, 1, 1, d.score, 0, -1, 0, 0.5)
+	}
+	return data.AddPointLight(0, 0, 0, 1, 1, 1, 1, d.score)
+}
+
+// mockScene is a SceneSource with one mock drawable per list.
 type mockScene struct {
 	backend *MockBackend
-	casters bool
+
+	skyboxes, meshes, fps, skinned, directional, billboards, particles, transparent *DrawList
+	points, spots                                                                  *LightList
+}
+
+// newMockScene builds a scene with one drawable of every kind; casters
+// controls whether the mesh/skinned entries cast shadows.
+func newMockScene(mb *MockBackend, casters bool) *mockScene {
+	s := &mockScene{
+		backend:     mb,
+		skyboxes:    NewDrawList(1),
+		meshes:      NewDrawList(1),
+		fps:         NewDrawList(1),
+		skinned:     NewDrawList(1),
+		directional: NewDrawList(1),
+		billboards:  NewDrawList(1),
+		particles:   NewDrawList(1),
+		transparent: NewDrawList(1),
+		points:      NewLightList(1),
+		spots:       NewLightList(1),
+	}
+	s.skyboxes.Add(&mockDrawable{backend: mb, name: "skybox"})
+	s.meshes.Add(&mockDrawable{backend: mb, name: "mesh", casts: casters, tris: 2, bounds: physics.NewBoundingBox()})
+	s.fps.Add(&mockDrawable{backend: mb, name: "fps", tris: 3})
+	s.skinned.Add(&mockDrawable{backend: mb, name: "skinned", casts: casters, tris: 5})
+	s.directional.Add(&mockDrawable{backend: mb, name: "directional"})
+	s.points.Add(&mockDrawable{backend: mb, name: "point", score: 1})
+	s.spots.Add(&mockDrawable{backend: mb, name: "spot", score: 1, spot: true})
+	s.billboards.Add(&mockDrawable{backend: mb, name: "billboard"})
+	s.particles.Add(&mockDrawable{backend: mb, name: "particle"})
+	s.transparent.Add(&mockDrawable{backend: mb, name: "transparent"})
+	return s
 }
 
 func (s *mockScene) Ambient(out *physics.Vec3) {
@@ -258,21 +316,23 @@ func (s *mockScene) Ambient(out *physics.Vec3) {
 	out.Y = 0.2
 	out.Z = 0.3
 }
-func (s *mockScene) RenderWorldGeometry(r *Renderer) { s.backend.record("scene:World", nil) }
-func (s *mockScene) RenderFPSGeometry(r *Renderer)   { s.backend.record("scene:FPS", nil) }
-func (s *mockScene) RenderShadows(r *Renderer)       { s.backend.record("scene:Shadows", nil) }
-func (s *mockScene) RenderLighting(r *Renderer)      { s.backend.record("scene:Lighting", nil) }
-func (s *mockScene) RenderTransparent(r *Renderer)   { s.backend.record("scene:Transparent", nil) }
-func (s *mockScene) RenderBillboards(r *Renderer)    { s.backend.record("scene:Billboards", nil) }
-func (s *mockScene) RenderDebug(r *Renderer)         { s.backend.record("scene:Debug", nil) }
-func (s *mockScene) HasShadowCasters() bool          { return s.casters }
+func (s *mockScene) Skyboxes() *DrawList          { return s.skyboxes }
+func (s *mockScene) Meshes() *DrawList            { return s.meshes }
+func (s *mockScene) FPSMeshes() *DrawList         { return s.fps }
+func (s *mockScene) SkinnedMeshes() *DrawList     { return s.skinned }
+func (s *mockScene) DirectionalLights() *DrawList { return s.directional }
+func (s *mockScene) PointLights() *LightList      { return s.points }
+func (s *mockScene) SpotLights() *LightList       { return s.spots }
+func (s *mockScene) Billboards() *DrawList        { return s.billboards }
+func (s *mockScene) ParticleEmitters() *DrawList  { return s.particles }
+func (s *mockScene) Transparent() *DrawList       { return s.transparent }
 
 // newMockRenderer wires a mock backend, shaders, shapes and an initialised renderer.
 func newMockRenderer(width, height int, webgpu bool, doFSR bool) (*MockBackend, *Renderer) {
 	mb := newMockBackend(width, height, webgpu)
 	r := NewRenderer(mb)
-	InitShaders()
-	InitShapes()
+	r.InitShaders()
+	r.InitShapes()
 	r.Init(width, height, doFSR)
 	mb.Reset()
 	return mb, r

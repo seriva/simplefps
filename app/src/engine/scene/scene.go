@@ -58,15 +58,27 @@ func (l *entityList) Clear() {
 }
 
 // Scene owns entities, the merged static collision trimesh, ambient lighting
-// and drives per-pass rendering through rendering.SceneSource.
+// and the per-frame draw lists the renderer pulls through rendering.SceneSource.
 type Scene struct {
-	// Camera supplies view transforms/position to passes and entities.
+	// Camera supplies view transforms/position to culling and entities.
 	Camera *systems.Camera
 
 	entities    *entityList
 	collidables *entityList
 	byType      []*entityList
 	visible     []*entityList
+
+	// Draw lists (see drawlists.go); refilled by UpdateVisibility.
+	skyboxes          *rendering.DrawList
+	meshes            *rendering.DrawList
+	fpsMeshes         *rendering.DrawList
+	skinnedMeshes     *rendering.DrawList
+	directionalLights *rendering.DrawList
+	pointLights       *rendering.LightList
+	spotLights        *rendering.LightList
+	billboards        *rendering.DrawList
+	particleEmitters  *rendering.DrawList
+	transparent       *rendering.DrawList
 
 	ambient   []float32
 	lightGrid *LightGrid
@@ -78,25 +90,19 @@ type Scene struct {
 	ray         *physics.Ray
 	defaultOpts *physics.RayOptions
 
-	// Render-pass state (see renderpasses.go).
-	renderFrame       int
-	shadowFrame       int
-	lightsSortedFrame int
-	pointSorter       *rendering.LightSorter
-	spotSorter        *rendering.LightSorter
-	lighting          *rendering.LightingData
-	shadowSort        *scoreList
-	transparentSort   *scoreList
-	probePos          *physics.Vec3
-	probeMatrix       physics.Mat4
-	identity          physics.Mat4
-	ambientOut        []float32
-	pendingRemoval    bool
+	// Per-frame scratch (see drawlists.go).
+	shadowFrame     int
+	shadowSort      *scoreList
+	transparentSort *scoreList
+	probePos        *physics.Vec3
+	probeMatrix     physics.Mat4
+	pendingRemoval  bool
 }
 
 var defaultAmbient = []float32{0.5, 0.5, 0.5}
 
-// NewScene creates an empty scene and installs it as the static raycast provider.
+// NewScene creates an empty scene. It satisfies physics.RaycastProvider and
+// rendering.SceneSource; the game wires it into controllers/bodies explicitly.
 func NewScene(camera *systems.Camera) *Scene {
 	s := &Scene{
 		Camera:            camera,
@@ -104,31 +110,31 @@ func NewScene(camera *systems.Camera) *Scene {
 		collidables:       newEntityList(16),
 		byType:            make([]*entityList, TypeCount),
 		visible:           make([]*entityList, TypeCount),
+		skyboxes:          rendering.NewDrawList(2),
+		meshes:            rendering.NewDrawList(64),
+		fpsMeshes:         rendering.NewDrawList(4),
+		skinnedMeshes:     rendering.NewDrawList(16),
+		directionalLights: rendering.NewDrawList(2),
+		pointLights:       rendering.NewLightList(64),
+		spotLights:        rendering.NewLightList(16),
+		billboards:        rendering.NewDrawList(16),
+		particleEmitters:  rendering.NewDrawList(8),
+		transparent:       rendering.NewDrawList(16),
 		ambient:           make([]float32, 3),
 		lightGrid:         NewLightGrid(),
 		staticMatrix:      physics.NewMat4(),
 		ray:               physics.NewRay(nil, nil),
 		defaultOpts:       &physics.RayOptions{SkipBackfaces: true, CollisionFilterMask: 1, Mode: physics.RayModeClosest},
-		lightsSortedFrame: -1,
-		pointSorter:       rendering.NewLightSorter(64),
-		spotSorter:        rendering.NewLightSorter(64),
-		lighting:          rendering.NewLightingData(),
 		shadowSort:        newScoreList(64),
 		transparentSort:   newScoreList(64),
 		probePos:          &physics.Vec3{},
 		probeMatrix:       physics.NewMat4(),
-		identity:          physics.NewMat4(),
-		ambientOut:        make([]float32, 3),
 	}
 	for t := 1; t < TypeCount; t++ {
 		s.byType[t] = newEntityList(16)
 		s.visible[t] = newEntityList(16)
 	}
 	s.SetAmbient(defaultAmbient[0], defaultAmbient[1], defaultAmbient[2])
-	// Closure rather than a method value: GoFront emits method values unbound.
-	physics.GlobalRaycastStatic = func(fromX, fromY, fromZ, toX, toY, toZ float32, options *physics.RayOptions, out *physics.RaycastResult) *physics.RaycastResult {
-		return s.raycastStaticProvider(fromX, fromY, fromZ, toX, toY, toZ, options, out)
-	}
 	return s
 }
 
@@ -251,6 +257,7 @@ func (s *Scene) Init() {
 		s.byType[t].Clear()
 		s.visible[t].Clear()
 	}
+	s.resetDrawLists()
 	s.staticTrimesh = nil
 }
 
@@ -381,7 +388,8 @@ func (s *Scene) Pause(doPause bool) { s.paused = doPause }
 func (s *Scene) IsPaused() bool { return s.paused }
 
 // Update advances all non-static entities by frameTime (ms), removes those
-// that returned false, and rebuilds the visibility cache.
+// that returned false, rebuilds the visibility cache / draw lists and
+// resolves drop-shadow heights for the visible casters.
 func (s *Scene) Update(frameTime float32) {
 	if s.paused {
 		return
@@ -404,6 +412,7 @@ func (s *Scene) Update(frameTime float32) {
 	}
 
 	s.UpdateVisibility()
+	s.updateShadowHeights()
 }
 
 func (s *Scene) compactRemoved() {
@@ -446,22 +455,32 @@ func (s *Scene) compactRemoved() {
 	s.entities.Count = eLen
 }
 
-// UpdateVisibility rebuilds the per-type visibility cache via frustum culling.
+// UpdateVisibility rebuilds the per-type visibility cache and the renderer's
+// draw lists: hidden entities are dropped, everything else is frustum-culled
+// (view models excepted) and routed by type.
 func (s *Scene) UpdateVisibility() {
 	for t := 1; t < TypeCount; t++ {
 		s.visible[t].Clear()
 	}
+	s.resetDrawLists()
+	var planes []float32
+	if s.Camera != nil {
+		planes = s.Camera.FrustumPlanes
+	}
 	for i := 0; i < s.entities.Count; i++ {
 		e := s.entities.Items[i]
 		b := e.GetBase()
-		// View models are camera-attached; never frustum-cull them.
-		if b.Type != TypeFPSMesh && b.BoundingBox != nil && !b.BoundingBox.IsVisible() {
+		if !b.Visible || b.Type <= 0 || b.Type >= TypeCount {
 			continue
 		}
-		if b.Type > 0 && b.Type < TypeCount {
-			s.visible[b.Type].Add(e)
+		// View models are camera-attached; never frustum-cull them.
+		if planes != nil && b.Type != TypeFPSMesh && b.BoundingBox != nil && !b.BoundingBox.IsVisibleWithPlanes(planes) {
+			continue
 		}
+		s.visible[b.Type].Add(e)
+		s.addVisible(e, b)
 	}
+	s.buildTransparent()
 }
 
 // ---------------------------------------------------------------------------
@@ -503,7 +522,7 @@ func (s *Scene) Raycast(fromX, fromY, fromZ, toX, toY, toZ float32, options *phy
 	return &s.ray.Result
 }
 
-// RaycastStatic tests only the merged static trimesh.
+// RaycastStatic tests only the merged static trimesh (physics.RaycastProvider).
 func (s *Scene) RaycastStatic(fromX, fromY, fromZ, toX, toY, toZ float32, options *physics.RayOptions) *physics.RaycastResult {
 	s.setupRay(fromX, fromY, fromZ, toX, toY, toZ, options)
 	if s.staticTrimesh != nil {
@@ -520,23 +539,4 @@ func (s *Scene) RaycastDynamic(fromX, fromY, fromZ, toX, toY, toZ float32, optio
 		s.ray.IntersectTrimesh(b.Collider, b.BaseMatrix)
 	}
 	return &s.ray.Result
-}
-
-// raycastStaticProvider adapts RaycastStatic to physics.RaycastStaticFunc.
-func (s *Scene) raycastStaticProvider(fromX, fromY, fromZ, toX, toY, toZ float32, options *physics.RayOptions, out *physics.RaycastResult) *physics.RaycastResult {
-	res := s.RaycastStatic(fromX, fromY, fromZ, toX, toY, toZ, options)
-	if out == nil {
-		return res
-	}
-	out.HasHit = res.HasHit
-	out.Distance = res.Distance
-	out.HitFaceIndex = res.HitFaceIndex
-	out.ShouldStop = res.ShouldStop
-	out.RayFromWorld.Copy(&res.RayFromWorld)
-	out.RayToWorld.Copy(&res.RayToWorld)
-	out.HitNormalWorld.Copy(&res.HitNormalWorld)
-	out.HitPointWorld.Copy(&res.HitPointWorld)
-	out.Shape = res.Shape
-	out.Body = res.Body
-	return out
 }

@@ -117,4 +117,18 @@ func TestEngineConsoleCommands(t *testing.T) {
 	if first == second || (first != "noclip on" && first != "noclip off") {
 		t.Errorf("tnc should toggle, got %q then %q", first, second)
 	}
+
+	d := ActiveRenderer.Debug
+	if c.ExecuteCmd("twf") != "wireframes on" || !d.ShowWireframes {
+		t.Error("twf must flip ActiveRenderer.Debug.ShowWireframes on")
+	}
+	if c.ExecuteCmd("twf") != "wireframes off" || d.ShowWireframes {
+		t.Error("twf must flip ActiveRenderer.Debug.ShowWireframes off")
+	}
+	c.ExecuteCmd("tbv")
+	c.ExecuteCmd("tlv")
+	c.ExecuteCmd("tsk")
+	if !d.ShowBoundingVolumes || !d.ShowLightVolumes || !d.ShowSkeleton {
+		t.Error("tbv/tlv/tsk must write through to the live debug options")
+	}
 }

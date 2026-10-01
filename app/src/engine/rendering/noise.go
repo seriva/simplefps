@@ -122,9 +122,9 @@ func GenerateProceduralNoiseData(size int) []uint8 {
 	return data
 }
 
-// NewProceduralNoiseTexture uploads the detail map as a repeating, mipmapped texture.
-func NewProceduralNoiseTexture(anisotropy int) *Texture {
-	tex := NewTexture(&TextureDescriptor{
+// NewProceduralNoiseTexture uploads the detail map to b as a repeating, mipmapped texture.
+func NewProceduralNoiseTexture(b RenderBackend, anisotropy int) *Texture {
+	tex := NewTexture(b, &TextureDescriptor{
 		Width:   NoiseTextureSize,
 		Height:  NoiseTextureSize,
 		Format:  "rgba8",
@@ -133,10 +133,10 @@ func NewProceduralNoiseTexture(anisotropy int) *Texture {
 		PData:   GenerateProceduralNoiseData(NoiseTextureSize),
 	})
 	tex.SetWrapMode("repeat")
-	if ActiveBackend != nil && tex.handle != nil {
-		ActiveBackend.GenerateMipmaps(tex.handle)
+	if b != nil && tex.handle != nil {
+		b.GenerateMipmaps(tex.handle)
 		if anisotropy > 1 {
-			ActiveBackend.SetTextureAnisotropy(tex.handle, anisotropy)
+			b.SetTextureAnisotropy(tex.handle, anisotropy)
 		}
 	}
 	return tex

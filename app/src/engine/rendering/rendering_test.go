@@ -13,7 +13,7 @@ func TestMeshCreationAndBoundingBox(t *testing.T) {
 		{Material: "default", Array: []uint32{0, 1, 0}},
 	}
 
-	mesh := NewMesh(verts, nil, nil, nil, indices)
+	mesh := NewMesh(nil, verts, nil, nil, nil, indices)
 	if mesh.BoundingBox == nil {
 		t.Fatal("Expected bounding box to be computed")
 	}
@@ -36,7 +36,7 @@ func TestSkinnedMeshCreation(t *testing.T) {
 	joints := []uint8{0, 0, 0, 0, 1, 0, 0, 0}
 	weights := []float32{1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0}
 
-	sm := NewSkinnedMesh(verts, nil, nil, indices, joints, weights)
+	sm := NewSkinnedMesh(nil, verts, nil, nil, indices, joints, weights)
 	if sm == nil {
 		t.Fatal("Expected SkinnedMesh instance")
 	}
@@ -46,7 +46,7 @@ func TestSkinnedMeshCreation(t *testing.T) {
 }
 
 func TestMaterialProperties(t *testing.T) {
-	mat := NewMaterial("brick")
+	mat := NewMaterial(nil, "brick")
 	if mat.Name != "brick" {
 		t.Errorf("Expected material name 'brick', got '%s'", mat.Name)
 	}
@@ -63,50 +63,76 @@ func TestRendererCreation(t *testing.T) {
 	if r.Width != 0 || r.Height != 0 {
 		t.Errorf("Expected 0x0 initial dimensions, got %dx%d", r.Width, r.Height)
 	}
+	if r.Shaders == nil || r.Shapes == nil || r.Stats == nil || r.Debug == nil {
+		t.Error("NewRenderer must allocate Shaders, Shapes, Stats and Debug")
+	}
 }
 
 func TestShapesInitialization(t *testing.T) {
-	InitShapes()
-	if GlobalShapes.ScreenQuad == nil {
+	r := NewRenderer(nil)
+	r.InitShapes()
+	shapes := r.Shapes
+	if shapes.ScreenQuad == nil {
 		t.Fatal("Expected ScreenQuad to be initialized")
 	}
-	if GlobalShapes.ScreenQuad.TriangleCount != 2 {
-		t.Errorf("Expected ScreenQuad to have 2 triangles, got %d", GlobalShapes.ScreenQuad.TriangleCount)
+	if shapes.ScreenQuad.TriangleCount != 2 {
+		t.Errorf("Expected ScreenQuad to have 2 triangles, got %d", shapes.ScreenQuad.TriangleCount)
 	}
-	if GlobalShapes.SkyBox == nil {
+	if shapes.SkyBox == nil {
 		t.Fatal("Expected SkyBox to be initialized")
 	}
-	if GlobalShapes.SkyBox.TriangleCount != 12 {
-		t.Errorf("Expected SkyBox to have 12 triangles, got %d", GlobalShapes.SkyBox.TriangleCount)
+	if shapes.SkyBox.TriangleCount != 12 {
+		t.Errorf("Expected SkyBox to have 12 triangles, got %d", shapes.SkyBox.TriangleCount)
 	}
 	// Cone: 32-segment base fan (31 tris) + 32 side tris
-	if GlobalShapes.SpotlightVolume == nil || GlobalShapes.SpotlightVolume.TriangleCount != 63 {
-		t.Errorf("Expected SpotlightVolume with 63 triangles, got %+v", GlobalShapes.SpotlightVolume)
+	if shapes.SpotlightVolume == nil || shapes.SpotlightVolume.TriangleCount != 63 {
+		t.Errorf("Expected SpotlightVolume with 63 triangles, got %+v", shapes.SpotlightVolume)
 	}
-	if len(GlobalShapes.SpotlightVolume.Vertices) != 33*3 {
-		t.Errorf("Expected 33 cone vertices, got %d", len(GlobalShapes.SpotlightVolume.Vertices)/3)
+	if len(shapes.SpotlightVolume.Vertices) != 33*3 {
+		t.Errorf("Expected 33 cone vertices, got %d", len(shapes.SpotlightVolume.Vertices)/3)
 	}
 	// Sphere: 2 caps × 8 + 8 bands × 16
-	if GlobalShapes.PointLightVolume == nil || GlobalShapes.PointLightVolume.TriangleCount != 144 {
-		t.Errorf("Expected PointLightVolume with 144 triangles, got %+v", GlobalShapes.PointLightVolume)
+	if shapes.PointLightVolume == nil || shapes.PointLightVolume.TriangleCount != 144 {
+		t.Errorf("Expected PointLightVolume with 144 triangles, got %+v", shapes.PointLightVolume)
 	}
-	if len(GlobalShapes.PointLightVolume.Vertices) != 74*3 {
-		t.Errorf("Expected 74 sphere vertices, got %d", len(GlobalShapes.PointLightVolume.Vertices)/3)
+	if len(shapes.PointLightVolume.Vertices) != 74*3 {
+		t.Errorf("Expected 74 sphere vertices, got %d", len(shapes.PointLightVolume.Vertices)/3)
 	}
 	// First ring vertex matches the hand-authored JS mesh (0.309, 0.9511, 0).
-	v := GlobalShapes.PointLightVolume.Vertices
+	v := shapes.PointLightVolume.Vertices
 	if v[3] < 0.3085 || v[3] > 0.3095 || v[4] < 0.951 || v[4] > 0.9512 {
 		t.Errorf("Unexpected first ring vertex %v %v %v", v[3], v[4], v[5])
 	}
 }
 
 func TestRenderStats(t *testing.T) {
-	ActiveRenderStats.MeshCount = 10
-	ActiveRenderStats.LightCount = 5
-	ActiveRenderStats.TriangleCount = 1000
-	ClearRenderStats()
-	if ActiveRenderStats.MeshCount != 0 || ActiveRenderStats.LightCount != 0 || ActiveRenderStats.TriangleCount != 0 {
-		t.Errorf("Expected reset stats, got %+v", ActiveRenderStats)
+	r := NewRenderer(nil)
+	r.Stats.MeshCount = 10
+	r.Stats.LightCount = 5
+	r.Stats.TriangleCount = 1000
+	r.Stats.Reset()
+	if r.Stats.MeshCount != 0 || r.Stats.LightCount != 0 || r.Stats.TriangleCount != 0 {
+		t.Errorf("Expected reset stats, got %+v", r.Stats)
+	}
+}
+
+func TestRenderResetsStats(t *testing.T) {
+	_, r := newMockRenderer(8, 8, false, false)
+	r.Stats.MeshCount = 3
+	r.Render(newTestCamera(), nil, defaultRenderOptions(false), 0)
+	if r.Stats.MeshCount != 0 {
+		t.Errorf("Render must reset Stats at frame start, got MeshCount=%d", r.Stats.MeshCount)
+	}
+}
+
+func TestDisposeReleasesShapes(t *testing.T) {
+	mb, r := newMockRenderer(8, 8, false, false)
+	r.Dispose()
+	if r.Shapes.ScreenQuad != nil || r.Shapes.SkyBox != nil {
+		t.Error("Renderer.Dispose must release the shared shapes")
+	}
+	if mb.Count("DeleteBuffer") == 0 {
+		t.Error("disposing shapes must delete their GPU buffers")
 	}
 }
 

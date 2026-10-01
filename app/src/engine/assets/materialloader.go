@@ -30,8 +30,8 @@ func (d *MaterialDef) TexturePaths() []string {
 // ({materials:[{name, base?, textures{...}, geomType, reflectionStrength,
 // translucent, doubleSided, opacity}]}) into materials. A `base` entry merges
 // the base's textures (child wins) and inherits unset scalar properties, as
-// Material.loadLibrary did.
-func ParseMaterialLibrary(text string) []*MaterialDef {
+// Material.loadLibrary did. Materials are created on backend b.
+func ParseMaterialLibrary(b rendering.RenderBackend, text string) []*MaterialDef {
 	defs := make([]*MaterialDef, 0)
 	parsed := JSON.parse(text)
 	if parsed == nil || parsed.materials == nil {
@@ -68,7 +68,7 @@ func ParseMaterialLibrary(text string) []*MaterialDef {
 		}
 		copyTextureSlots(def.Textures, m.textures)
 
-		mat := rendering.NewMaterial(def.Name)
+		mat := rendering.NewMaterial(b, def.Name)
 		mat.GeomType = jsonInt(inherit(m.geomType, base, "geomType"), 1)
 		mat.ReflectionStrength = jsonFloat(inherit(m.reflectionStrength, base, "reflectionStrength"), 1.0)
 		mat.Translucent = jsonBool(inherit(m.translucent, base, "translucent"), false)

@@ -12,8 +12,8 @@ var (
 	skinnedBBMin      = &physics.Vec3{}
 	skinnedBBMax      = &physics.Vec3{}
 	skinnedJointPos   = &physics.Vec3{}
-	debugWhite        = []float32{1, 1, 1, 1}
-	debugGreen        = []float32{0, 1, 0, 1}
+	skinnedWireColor  = []float32{1, 1, 1, 1}
+	skeletonColor     = []float32{0, 1, 0, 1}
 )
 
 // SkinnedMeshEntity renders a GPU-skinned mesh driven by an AnimationPlayer.
@@ -91,58 +91,62 @@ func (e *SkinnedMeshEntity) Update(frameTime float32) bool {
 	return baseUpdate(e, frameTime)
 }
 
-func (e *SkinnedMeshEntity) Render(probeColor []float32, renderMode string, shader *rendering.Shader) {
-	if !e.Base.Visible || e.boneMatrices == nil || e.Mesh == nil || shader == nil {
+func (e *SkinnedMeshEntity) Draw(r *rendering.Renderer, sh *rendering.Shader, mode string) {
+	if e.boneMatrices == nil || e.Mesh == nil || sh == nil {
 		return
 	}
 	physics.Mat4Multiply(skinnedTempMatrix, e.Base.BaseMatrix, e.Base.AniMatrix)
-	shader.SetVec3("uProbeColor", probeColor)
-	shader.SetMat4("matWorld", skinnedTempMatrix)
-	shader.SetMat4Array("boneMatrices", e.boneMatrices)
-	e.Mesh.RenderSingle(true, "triangles", renderMode, shader, true)
+	sh.SetVec3("uProbeColor", e.Base.ProbeColor)
+	sh.SetMat4("matWorld", skinnedTempMatrix)
+	sh.SetMat4Array("boneMatrices", e.boneMatrices)
+	e.Mesh.RenderSingle(true, "triangles", mode, sh, true)
 }
 
-func (e *SkinnedMeshEntity) RenderShadow(renderMode string, shader *rendering.Shader) {
-	if !e.Base.Visible || e.boneMatrices == nil || !e.Base.CastShadow || e.Mesh == nil || shader == nil {
+func (e *SkinnedMeshEntity) DrawShadow(r *rendering.Renderer, sh *rendering.Shader) {
+	if e.boneMatrices == nil || !e.Base.CastShadow || e.Mesh == nil || sh == nil {
 		return
 	}
 	if e.Base.ShadowHeightState != ShadowHeightValid {
 		return
 	}
 	physics.Mat4Multiply(skinnedTempMatrix, e.Base.BaseMatrix, e.Base.AniMatrix)
-	shader.SetMat4("matWorld", skinnedTempMatrix)
-	shader.SetFloat("shadowHeight", e.Base.ShadowHeight)
-	shader.SetMat4Array("boneMatrices", e.boneMatrices)
-	e.Mesh.RenderSingle(false, "triangles", renderMode, shader, true)
+	sh.SetMat4("matWorld", skinnedTempMatrix)
+	sh.SetFloat("shadowHeight", e.Base.ShadowHeight)
+	sh.SetMat4Array("boneMatrices", e.boneMatrices)
+	e.Mesh.RenderSingle(false, "triangles", "all", sh, true)
 }
 
-// RenderWireFrame draws the animated wireframe via the skinnedDebug shader,
-// falling back to the bind pose with the plain debug shader.
-func (e *SkinnedMeshEntity) RenderWireFrame() {
-	if !e.Base.Visible || e.boneMatrices == nil || e.Mesh == nil {
+// DrawWireframe draws the animated wireframe via the skinnedDebug shader
+// (re-binding sh afterwards), falling back to the bind pose with sh.
+func (e *SkinnedMeshEntity) DrawWireframe(r *rendering.Renderer, sh *rendering.Shader) {
+	if e.boneMatrices == nil || e.Mesh == nil {
 		return
 	}
 	physics.Mat4Multiply(skinnedTempMatrix, e.Base.BaseMatrix, e.Base.AniMatrix)
-	sd := rendering.Shaders.SkinnedDebug
+	sd := r.Shaders.SkinnedDebug
 	if sd == nil {
-		if rendering.Shaders.Debug == nil {
+		if sh == nil {
 			return
 		}
-		rendering.Shaders.Debug.SetMat4("matWorld", skinnedTempMatrix)
+		sh.SetMat4("matWorld", skinnedTempMatrix)
 		e.Mesh.RenderWireframe(false)
 		return
 	}
 	sd.Bind()
 	sd.SetMat4("matWorld", skinnedTempMatrix)
 	sd.SetMat4Array("boneMatrices", e.boneMatrices)
-	sd.SetVec4("debugColor", debugWhite)
+	sd.SetVec4("debugColor", skinnedWireColor)
 	e.Mesh.RenderWireframe(true)
-	if rendering.Shaders.Debug != nil {
-		rendering.Shaders.Debug.Bind()
+	if sh != nil {
+		sh.Bind()
 	}
 }
 
-func (e *SkinnedMeshEntity) initSkeletonMesh() {
+func (e *SkinnedMeshEntity) Bounds() *physics.BoundingBox { return e.Base.BoundingBox }
+func (e *SkinnedMeshEntity) TriangleCount() int           { return e.Base.TriangleCount }
+func (e *SkinnedMeshEntity) CastsShadow() bool            { return e.Base.CastShadow }
+
+func (e *SkinnedMeshEntity) initSkeletonMesh(b rendering.RenderBackend) {
 	if e.skeletonMesh != nil || e.Skeleton == nil {
 		return
 	}
@@ -164,15 +168,16 @@ func (e *SkinnedMeshEntity) initSkeletonMesh() {
 	}
 	vertices := make([]float32, e.Skeleton.JointCount*3)
 	groups := []rendering.IndexGroup{rendering.IndexGroup{Material: "none", Array: indices}}
-	e.skeletonMesh = rendering.NewMesh(vertices, nil, nil, nil, groups)
+	e.skeletonMesh = rendering.NewMesh(b, vertices, nil, nil, nil, groups)
 }
 
-// RenderSkeleton draws joint-to-parent lines in the current pose (debug shader, green).
-func (e *SkinnedMeshEntity) RenderSkeleton() {
-	if !e.Base.Visible || e.Skeleton == nil || e.AnimationPlayer == nil || rendering.Shaders.Debug == nil {
+// DrawSkeleton draws joint-to-parent lines in the current pose with the bound
+// debug shader (green).
+func (e *SkinnedMeshEntity) DrawSkeleton(r *rendering.Renderer, sh *rendering.Shader) {
+	if e.Skeleton == nil || e.AnimationPlayer == nil || sh == nil {
 		return
 	}
-	e.initSkeletonMesh()
+	e.initSkeletonMesh(r.Backend)
 	if e.skeletonMesh == nil {
 		return
 	}
@@ -187,10 +192,8 @@ func (e *SkinnedMeshEntity) RenderSkeleton() {
 	e.skeletonMesh.UpdateVertexBuffer(verts)
 
 	physics.Mat4Multiply(skinnedTempMatrix, e.Base.BaseMatrix, e.Base.AniMatrix)
-	sh := rendering.Shaders.Debug
-	sh.Bind()
 	sh.SetMat4("matWorld", skinnedTempMatrix)
-	sh.SetVec4("debugColor", debugGreen)
+	sh.SetVec4("debugColor", skeletonColor)
 	e.skeletonMesh.RenderSingle(false, "lines", "all", sh)
 }
 

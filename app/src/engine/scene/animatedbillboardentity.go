@@ -100,11 +100,10 @@ func (e *AnimatedBillboardEntity) Update(frameTime float32) bool {
 // Time returns the elapsed lifetime in ms.
 func (e *AnimatedBillboardEntity) Time() float32 { return e.time }
 
-// Render draws the billboard with the billboard shader (binds it itself).
-func (e *AnimatedBillboardEntity) Render(probeColor []float32, renderMode string, shader *rendering.Shader) {
-	sh := rendering.Shaders.Billboard
-	quad := rendering.GlobalShapes.BillboardQuad
-	if !e.Base.Visible || e.texture == nil || e.time <= 0 || sh == nil || quad == nil {
+// Draw draws the billboard with the bound billboard shader.
+func (e *AnimatedBillboardEntity) Draw(r *rendering.Renderer, sh *rendering.Shader, mode string) {
+	quad := r.Shapes.BillboardQuad
+	if e.texture == nil || e.time <= 0 || sh == nil || quad == nil {
 		return
 	}
 	progress := e.time / e.duration
@@ -158,7 +157,6 @@ func (e *AnimatedBillboardEntity) Render(probeColor []float32, renderMode string
 		0, 0, 0, 0,
 		bbWorldPos.X, bbWorldPos.Y, bbWorldPos.Z, 1)
 
-	sh.Bind()
 	sh.SetMat4("matWorld", bbTempMatrix)
 	bbFrameOffset[0] = float32(col) * cellSize
 	bbFrameOffset[1] = float32(row) * cellSize
@@ -170,11 +168,15 @@ func (e *AnimatedBillboardEntity) Render(probeColor []float32, renderMode string
 
 	e.texture.Bind(0)
 	quad.RenderSingle(false, "triangles", "all", sh)
-	rendering.UnbindTextureRange(0, 1)
+	rendering.UnbindTextureRange(r.Backend, 0, 1)
 }
 
-func (e *AnimatedBillboardEntity) RenderShadow(renderMode string, shader *rendering.Shader) {}
-func (e *AnimatedBillboardEntity) RenderWireFrame()                                       {}
+func (e *AnimatedBillboardEntity) DrawShadow(r *rendering.Renderer, sh *rendering.Shader)    {}
+func (e *AnimatedBillboardEntity) DrawWireframe(r *rendering.Renderer, sh *rendering.Shader) {}
+func (e *AnimatedBillboardEntity) DrawSkeleton(r *rendering.Renderer, sh *rendering.Shader)  {}
+func (e *AnimatedBillboardEntity) Bounds() *physics.BoundingBox                             { return e.Base.BoundingBox }
+func (e *AnimatedBillboardEntity) TriangleCount() int                                       { return 0 }
+func (e *AnimatedBillboardEntity) CastsShadow() bool                                        { return false }
 
 // UpdateBoundingVolume uses the maximum scale as a bounding radius.
 func (e *AnimatedBillboardEntity) UpdateBoundingVolume() {

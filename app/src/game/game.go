@@ -69,20 +69,34 @@ func NewGame(s *scene.Scene, camera *systems.Camera) *Game {
 	return g
 }
 
-// Init binds the camera to the physics controller, installs the scene as the
-// render source and registers the jump listener.
+// Init installs the scene as the render source, binds the controller (if
+// already spawned) and registers the jump listener.
 func (g *Game) Init() {
-	if g.Camera != nil {
-		physics.ActiveCameraPos = &g.Camera.Position
-		physics.ActiveCameraDir = &g.Camera.Direction
-		physics.ActiveCameraUp = &g.Camera.UpVector
-	}
+	g.bindController()
 	engine.ActiveScene = g.Scene
 	g.Multiplayer.Init()
 
 	if window != nil && g.onJump == nil {
 		g.onJump = func(e any) { g.Jump() }
 		window.addEventListener("game:jump", g.onJump)
+	}
+}
+
+// bindController points the FPS controller at the scene (static raycasts)
+// and the camera pose it drives.
+func (g *Game) bindController() {
+	if g.Controller == nil {
+		return
+	}
+	if g.Scene != nil {
+		g.Controller.Provider = g.Scene
+	}
+	if g.Camera != nil {
+		g.Controller.Camera = &physics.CameraPose{
+			Position:  &g.Camera.Position,
+			Direction: &g.Camera.Direction,
+			Up:        &g.Camera.UpVector,
+		}
 	}
 }
 
@@ -126,6 +140,7 @@ func (g *Game) SpawnPlayer() {
 		OnLand: func() { g.Weapons.OnLand() },
 		OnJump: func() { g.Weapons.OnJump() },
 	})
+	g.bindController()
 
 	if g.Camera != nil {
 		g.Camera.SetRotation(0, ToDegree(spawn.Rotation.Y), 0)
@@ -222,8 +237,11 @@ func NewDefaultGame() *Game {
 		camera = systems.NewCamera()
 	}
 	s := scene.NewScene(camera)
-	scene.RegisterDebugCommands()
 	assets.GlobalResources.OnLoadStart = func() { GlobalLoading.Toggle(true) }
 	assets.GlobalResources.OnLoadEnd = func() { GlobalLoading.Toggle(false) }
-	return NewGame(s, camera)
+	g := NewGame(s, camera)
+	if engine.ActiveRenderer != nil {
+		g.Arena.SkyboxMesh = engine.ActiveRenderer.Shapes.SkyBox
+	}
+	return g
 }

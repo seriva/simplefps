@@ -58,8 +58,8 @@ type EntityBase struct {
 	ShadowHeight      float32
 	ShadowHeightState int
 
-	// Ambient probe cache (per render frame).
-	ProbeFrame int
+	// ProbeColor is the ambient probe sample refreshed by Scene.Update for
+	// visible mesh entities (geometry shader uProbeColor).
 	ProbeColor []float32
 
 	// Skinned shadow re-sample tracking.
@@ -74,19 +74,24 @@ type EntityBase struct {
 	markedForRemoval bool
 }
 
-// Entity is the polymorphic contract the Scene drives each frame.
+// Entity is the polymorphic contract the Scene drives each frame. It is a
+// superset of rendering.Drawable (spelled out: GoFront does not promote
+// embedded interface methods through a struct type assertion).
 type Entity interface {
 	GetBase() *EntityBase
 	// Update advances the entity by frameTime (ms); false requests removal.
 	Update(frameTime float32) bool
 	UpdateBoundingVolume()
-	// Render draws with the given ambient probe colour, material filter
-	// ("all"/"opaque"/"translucent") and shader.
-	Render(probeColor []float32, renderMode string, shader *rendering.Shader)
-	// RenderShadow draws the flattened drop shadow with the given shader.
-	RenderShadow(renderMode string, shader *rendering.Shader)
-	RenderWireFrame()
 	Dispose()
+
+	// rendering.Drawable
+	Draw(r *rendering.Renderer, sh *rendering.Shader, mode string)
+	DrawShadow(r *rendering.Renderer, sh *rendering.Shader)
+	DrawWireframe(r *rendering.Renderer, sh *rendering.Shader)
+	DrawSkeleton(r *rendering.Renderer, sh *rendering.Shader)
+	Bounds() *physics.BoundingBox
+	TriangleCount() int
+	CastsShadow() bool
 }
 
 // initBase fills the defaults shared by all entities.
@@ -98,7 +103,6 @@ func initBase(b *EntityBase, entityType int, update UpdateCallback) {
 	b.BaseMatrix = physics.NewMat4()
 	b.AniMatrix = physics.NewMat4()
 	b.ProbeColor = make([]float32, 3)
-	b.ProbeFrame = -1
 	b.ShadowHeightState = ShadowHeightPending
 	b.Callback = update
 }
@@ -121,17 +125,4 @@ func baseUpdate(e Entity, frameTime float32) bool {
 func baseDispose(b *EntityBase) {
 	b.Callback = nil
 	b.BoundingBox = nil
-}
-
-// RenderBoundingBox draws the entity's AABB with the debug shader (lines).
-func RenderBoundingBox(b *EntityBase) {
-	if b.BoundingBox == nil || !b.Visible {
-		return
-	}
-	sh := rendering.Shaders.Debug
-	if sh == nil || rendering.GlobalShapes.BoundingBoxMesh == nil {
-		return
-	}
-	sh.SetMat4("matWorld", b.BoundingBox.GetTransformMatrix())
-	rendering.GlobalShapes.BoundingBoxMesh.RenderSingle(true, "lines", "all", sh)
 }

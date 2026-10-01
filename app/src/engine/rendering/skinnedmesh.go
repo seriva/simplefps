@@ -13,10 +13,11 @@ type SkinnedMesh struct {
 	BoneMatrixBuffer  []float32
 }
 
-// NewSkinnedMesh creates a SkinnedMesh instance with allocated vertex and joint states.
-func NewSkinnedMesh(vertices, uvs, normals []float32, indices []IndexGroup, jointIndices []uint8, jointWeights []float32) *SkinnedMesh {
+// NewSkinnedMesh creates a SkinnedMesh on b with allocated vertex and joint states.
+func NewSkinnedMesh(b RenderBackend, vertices, uvs, normals []float32, indices []IndexGroup, jointIndices []uint8, jointWeights []float32) *SkinnedMesh {
 	sm := &SkinnedMesh{
 		BaseMesh: Mesh{
+			backend:          b,
 			Vertices:         vertices,
 			UVs:              uvs,
 			Normals:          normals,
@@ -35,17 +36,18 @@ func NewSkinnedMesh(vertices, uvs, normals []float32, indices []IndexGroup, join
 
 // InitMeshBuffers allocates base vertex attributes as well as skinning attributes.
 func (sm *SkinnedMesh) InitMeshBuffers() {
-	if ActiveBackend == nil || len(sm.BaseMesh.Vertices) == 0 {
+	b := sm.BaseMesh.backend
+	if b == nil || len(sm.BaseMesh.Vertices) == 0 {
 		return
 	}
 
 	sm.BaseMesh.InitMeshBuffers()
 
 	if len(sm.GPUJointIndices) > 0 && len(sm.GPUJointWeights) > 0 {
-		sm.JointIndexBuffer = ActiveBackend.CreateBuffer(sm.GPUJointIndices, "vertex")
+		sm.JointIndexBuffer = b.CreateBuffer(sm.GPUJointIndices, "vertex")
 		sm.BaseMesh.Buffers = append(sm.BaseMesh.Buffers, sm.JointIndexBuffer)
 
-		sm.JointWeightBuffer = ActiveBackend.CreateBuffer(sm.GPUJointWeights, "vertex")
+		sm.JointWeightBuffer = b.CreateBuffer(sm.GPUJointWeights, "vertex")
 		sm.BaseMesh.Buffers = append(sm.BaseMesh.Buffers, sm.JointWeightBuffer)
 
 		var singleIndexBuffer any
@@ -71,7 +73,7 @@ func (sm *SkinnedMesh) InitMeshBuffers() {
 			{Buffer: sm.JointWeightBuffer, Slot: AttrJointWeights, Size: 4, Type: "float"},
 		}
 
-		sm.SkinnedVAO = ActiveBackend.CreateVertexState(&VertexStateDescriptor{
+		sm.SkinnedVAO = b.CreateVertexState(&VertexStateDescriptor{
 			Attributes:  attrs,
 			IndexBuffer: singleIndexBuffer,
 		})
@@ -80,13 +82,14 @@ func (sm *SkinnedMesh) InitMeshBuffers() {
 
 // Bind activates either the skinned VAO or base unskinned VAO.
 func (sm *SkinnedMesh) Bind(useSkinned bool) {
-	if ActiveBackend == nil {
+	b := sm.BaseMesh.backend
+	if b == nil {
 		return
 	}
 	if useSkinned && sm.SkinnedVAO != nil {
-		ActiveBackend.BindVertexState(sm.SkinnedVAO)
+		b.BindVertexState(sm.SkinnedVAO)
 	} else if sm.BaseMesh.VAO != nil {
-		ActiveBackend.BindVertexState(sm.BaseMesh.VAO)
+		b.BindVertexState(sm.BaseMesh.VAO)
 	}
 }
 
@@ -104,7 +107,7 @@ func (sm *SkinnedMesh) RenderWireframe(useSkinned bool) {
 		sm.BaseMesh.RenderWireframe()
 		return
 	}
-	if ActiveBackend == nil {
+	if sm.BaseMesh.backend == nil {
 		return
 	}
 	sm.BaseMesh.EnsureWireframeBuffers()
@@ -115,8 +118,8 @@ func (sm *SkinnedMesh) RenderWireframe(useSkinned bool) {
 
 // Dispose releases GPU resources allocated for skinning and geometry.
 func (sm *SkinnedMesh) Dispose() {
-	if ActiveBackend != nil && sm.SkinnedVAO != nil {
-		ActiveBackend.DeleteVertexState(sm.SkinnedVAO)
+	if sm.BaseMesh.backend != nil && sm.SkinnedVAO != nil {
+		sm.BaseMesh.backend.DeleteVertexState(sm.SkinnedVAO)
 		sm.SkinnedVAO = nil
 	}
 	sm.BaseMesh.Dispose()

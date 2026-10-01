@@ -1321,7 +1321,7 @@ func (b *WebGLBackend) InitShaders(catalog *rendering.ShaderCatalog) {
 		if len(def.Vertex) == 0 {
 			return nil
 		}
-		return rendering.NewShader(def.Vertex, def.Fragment)
+		return rendering.NewShader(b, def.Vertex, def.Fragment)
 	}
 
 	catalog.Geometry = load("geometry")

@@ -187,14 +187,14 @@ func ParseJSONMesh(text string) *MeshData {
 }
 
 // BuildMesh uploads decoded rigid mesh data to the GPU.
-func BuildMesh(md *MeshData) *rendering.Mesh {
-	return rendering.NewMesh(md.Vertices, md.UVs, md.Normals, md.LightmapUVs, md.Indices)
+func BuildMesh(b rendering.RenderBackend, md *MeshData) *rendering.Mesh {
+	return rendering.NewMesh(b, md.Vertices, md.UVs, md.Normals, md.LightmapUVs, md.Indices)
 }
 
 // BuildSkinnedMesh uploads decoded skinned mesh data and builds its skeleton
 // (nil when the file has no joints).
-func BuildSkinnedMesh(md *MeshData) (*rendering.SkinnedMesh, *animation.Skeleton) {
-	sm := rendering.NewSkinnedMesh(md.Vertices, md.UVs, md.Normals, md.Indices, md.JointIndices, md.JointWeights)
+func BuildSkinnedMesh(b rendering.RenderBackend, md *MeshData) (*rendering.SkinnedMesh, *animation.Skeleton) {
+	sm := rendering.NewSkinnedMesh(b, md.Vertices, md.UVs, md.Normals, md.Indices, md.JointIndices, md.JointWeights)
 	var skeleton *animation.Skeleton
 	if md.HasSkeleton() {
 		skeleton = animation.NewSkeleton(md.Joints)

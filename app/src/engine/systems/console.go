@@ -89,6 +89,8 @@ func (cm *ConsoleManager) Mount() {
 			key := e.key.(string)
 			if key == "`" || key == "~" {
 				e.preventDefault()
+				// Stop the window-level toggle from firing on the same keypress.
+				e.stopPropagation()
 				cm.Toggle()
 				return
 			}

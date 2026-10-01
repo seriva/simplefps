@@ -28,6 +28,7 @@ type WireframeBuffer struct {
 
 // Mesh encapsulates GPU vertex buffers, index groups, and spatial bounding volume.
 type Mesh struct {
+	backend          RenderBackend
 	Vertices         []float32
 	UVs              []float32
 	Normals          []float32
@@ -51,9 +52,10 @@ type Mesh struct {
 	MaterialLookup map[string]*Material
 }
 
-// NewMesh creates a Mesh and initializes its GPU buffers and AABB.
-func NewMesh(vertices, uvs, normals, lightmapUVs []float32, indices []IndexGroup) *Mesh {
+// NewMesh creates a Mesh on b and initializes its GPU buffers and AABB.
+func NewMesh(b RenderBackend, vertices, uvs, normals, lightmapUVs []float32, indices []IndexGroup) *Mesh {
 	m := &Mesh{
+		backend:          b,
 		Vertices:         vertices,
 		UVs:              uvs,
 		Normals:          normals,
@@ -78,22 +80,23 @@ func (m *Mesh) InitMeshBuffers() {
 		m.TriangleCount += len(m.Indices[i].Array) / 3
 	}
 
-	if ActiveBackend == nil || len(m.Vertices) == 0 {
+	if m.backend == nil || len(m.Vertices) == 0 {
 		return
 	}
+	b := m.backend
 
 	vertexCount := len(m.Vertices) / 3
 	m.Buffers = make([]any, 0)
 
 	// Create Index Buffers
 	for i := 0; i < len(m.Indices); i++ {
-		buf := ActiveBackend.CreateBuffer(m.Indices[i].Array, "index")
+		buf := b.CreateBuffer(m.Indices[i].Array, "index")
 		m.Indices[i].IndexBuffer = buf
 		m.Buffers = append(m.Buffers, buf)
 	}
 
 	// Positions
-	m.VertexBuffer = ActiveBackend.CreateBuffer(m.Vertices, "vertex")
+	m.VertexBuffer = b.CreateBuffer(m.Vertices, "vertex")
 	m.Buffers = append(m.Buffers, m.VertexBuffer)
 	posAttr := VertexAttribute{
 		Buffer: m.VertexBuffer,
@@ -107,7 +110,7 @@ func (m *Mesh) InitMeshBuffers() {
 	if !m.HasUVs {
 		uvs = make([]float32, vertexCount*2)
 	}
-	m.UVBuffer = ActiveBackend.CreateBuffer(uvs, "vertex")
+	m.UVBuffer = b.CreateBuffer(uvs, "vertex")
 	m.Buffers = append(m.Buffers, m.UVBuffer)
 	uvAttr := VertexAttribute{
 		Buffer: m.UVBuffer,
@@ -121,7 +124,7 @@ func (m *Mesh) InitMeshBuffers() {
 	if !m.HasNormals {
 		normals = make([]float32, vertexCount*3)
 	}
-	m.NormalBuffer = ActiveBackend.CreateBuffer(normals, "vertex")
+	m.NormalBuffer = b.CreateBuffer(normals, "vertex")
 	m.Buffers = append(m.Buffers, m.NormalBuffer)
 	normalAttr := VertexAttribute{
 		Buffer: m.NormalBuffer,
@@ -136,7 +139,7 @@ func (m *Mesh) InitMeshBuffers() {
 	if !m.HasLightmapUVs {
 		lightmapUVs = make([]float32, vertexCount*2)
 	}
-	m.LightmapUVBuffer = ActiveBackend.CreateBuffer(lightmapUVs, "vertex")
+	m.LightmapUVBuffer = b.CreateBuffer(lightmapUVs, "vertex")
 	m.Buffers = append(m.Buffers, m.LightmapUVBuffer)
 	attrs := []VertexAttribute{posAttr, uvAttr, normalAttr, {
 		Buffer: m.LightmapUVBuffer,
@@ -150,7 +153,7 @@ func (m *Mesh) InitMeshBuffers() {
 		singleIndexBuffer = m.Indices[0].IndexBuffer
 	}
 
-	m.VAO = ActiveBackend.CreateVertexState(&VertexStateDescriptor{
+	m.VAO = b.CreateVertexState(&VertexStateDescriptor{
 		Attributes:  attrs,
 		IndexBuffer: singleIndexBuffer,
 	})
@@ -165,24 +168,24 @@ func (m *Mesh) UpdateBoundingBox() {
 	}
 }
 
-// Bind activates the mesh vertex array state on the active GPU backend.
+// Bind activates the mesh vertex array state on its GPU backend.
 func (m *Mesh) Bind() {
-	if m.VAO != nil && ActiveBackend != nil {
-		ActiveBackend.BindVertexState(m.VAO)
+	if m.VAO != nil && m.backend != nil {
+		m.backend.BindVertexState(m.VAO)
 	}
 }
 
 // Unbind deactivates the vertex array state.
 func (m *Mesh) Unbind() {
-	if ActiveBackend != nil {
-		ActiveBackend.BindVertexState(nil)
+	if m.backend != nil {
+		m.backend.BindVertexState(nil)
 	}
 }
 
 // UpdateVertexBuffer uploads fresh coordinates into the vertex buffer.
 func (m *Mesh) UpdateVertexBuffer(data []float32) {
-	if m.VertexBuffer != nil && ActiveBackend != nil {
-		ActiveBackend.UpdateBuffer(m.VertexBuffer, data, 0)
+	if m.VertexBuffer != nil && m.backend != nil {
+		m.backend.UpdateBuffer(m.VertexBuffer, data, 0)
 	}
 }
 
@@ -197,7 +200,8 @@ func (m *Mesh) RenderSingle(applyMaterial bool, mode string, renderMode string, 
 
 // RenderIndices iterates over index groups and issues indexed draws.
 func (m *Mesh) RenderIndices(applyMaterial bool, mode string, renderMode string, shader *Shader) {
-	if ActiveBackend == nil {
+	b := m.backend
+	if b == nil {
 		return
 	}
 
@@ -222,17 +226,17 @@ func (m *Mesh) RenderIndices(applyMaterial bool, mode string, renderMode string,
 			}
 		}
 
-		ActiveBackend.DrawIndexed(idx.IndexBuffer, len(idx.Array), 0, mode)
+		b.DrawIndexed(idx.IndexBuffer, len(idx.Array), 0, mode)
 	}
 
 	if hadDoubleSided {
-		ActiveBackend.SetCullState(true, "back")
+		b.SetCullState(true, "back")
 	}
 }
 
 // RenderWireframe renders cached lines index buffers for debug inspection.
 func (m *Mesh) RenderWireframe() {
-	if ActiveBackend == nil {
+	if m.backend == nil {
 		return
 	}
 	m.Bind()
@@ -243,7 +247,7 @@ func (m *Mesh) RenderWireframe() {
 
 // EnsureWireframeBuffers lazily builds the line index buffers from the triangle groups.
 func (m *Mesh) EnsureWireframeBuffers() {
-	if ActiveBackend == nil {
+	if m.backend == nil {
 		return
 	}
 	if len(m.WireframeBuffers) == 0 {
@@ -262,7 +266,7 @@ func (m *Mesh) EnsureWireframeBuffers() {
 				lines[c+5] = arr[j]
 				c += 6
 			}
-			buf := ActiveBackend.CreateBuffer(lines, "index")
+			buf := m.backend.CreateBuffer(lines, "index")
 			m.WireframeBuffers = append(m.WireframeBuffers, WireframeBuffer{
 				Buffer: buf,
 				Count:  linesCount,
@@ -274,29 +278,30 @@ func (m *Mesh) EnsureWireframeBuffers() {
 // DrawWireframeBuffers issues the line draws for the cached wireframe buffers
 // using whatever vertex state is currently bound.
 func (m *Mesh) DrawWireframeBuffers() {
-	if ActiveBackend == nil {
+	if m.backend == nil {
 		return
 	}
 	for i := 0; i < len(m.WireframeBuffers); i++ {
-		ActiveBackend.DrawIndexed(m.WireframeBuffers[i].Buffer, m.WireframeBuffers[i].Count, 0, "lines")
+		m.backend.DrawIndexed(m.WireframeBuffers[i].Buffer, m.WireframeBuffers[i].Count, 0, "lines")
 	}
 }
 
 // Dispose frees all vertex buffers and index states allocated on the GPU.
 func (m *Mesh) Dispose() {
-	if ActiveBackend == nil {
+	b := m.backend
+	if b == nil {
 		return
 	}
 	if m.VAO != nil {
-		ActiveBackend.DeleteVertexState(m.VAO)
+		b.DeleteVertexState(m.VAO)
 		m.VAO = nil
 	}
 	for i := 0; i < len(m.Buffers); i++ {
-		ActiveBackend.DeleteBuffer(m.Buffers[i])
+		b.DeleteBuffer(m.Buffers[i])
 	}
 	m.Buffers = nil
 	for i := 0; i < len(m.WireframeBuffers); i++ {
-		ActiveBackend.DeleteBuffer(m.WireframeBuffers[i].Buffer)
+		b.DeleteBuffer(m.WireframeBuffers[i].Buffer)
 	}
 	m.WireframeBuffers = nil
 }

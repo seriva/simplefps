@@ -4,9 +4,25 @@ import (
 	"testing"
 )
 
-func TestDynamicBodyFreeFall(t *testing.T) {
-	GlobalRaycastStatic = nil // No obstacles
+// floorRaycaster is a RaycastProvider that reports a flat floor at Y = 0.
+type floorRaycaster struct {
+	res RaycastResult
+}
 
+func (f *floorRaycaster) RaycastStatic(fromX, fromY, fromZ, toX, toY, toZ float32, options *RayOptions) *RaycastResult {
+	out := &f.res
+	out.Reset()
+	if toY <= 0 && fromY >= 0 {
+		out.HasHit = true
+		out.Distance = fromY
+		out.HitPointWorld.Set(fromX, 0, fromZ)
+		out.HitNormalWorld.Set(0, 1, 0) // Floor normal points +Y
+	}
+	return out
+}
+
+func TestDynamicBodyFreeFall(t *testing.T) {
+	// No provider: no obstacles.
 	pos := Vec3{X: 0, Y: 100, Z: 0}
 	body := NewDynamicBody(&pos, &DynamicBodyConfig{
 		Gravity: 100,
@@ -28,17 +44,6 @@ func TestDynamicBodyBounce(t *testing.T) {
 	bounced := false
 	var bounceSpeed float32
 
-	// Mock raycast hitting floor at Y = 0
-	GlobalRaycastStatic = func(fromX, fromY, fromZ, toX, toY, toZ float32, options *RayOptions, out *RaycastResult) *RaycastResult {
-		if toY <= 0 && fromY >= 0 {
-			out.HasHit = true
-			out.Distance = fromY
-			out.HitPointWorld.Set(fromX, 0, fromZ)
-			out.HitNormalWorld.Set(0, 1, 0) // Floor normal points +Y
-		}
-		return out
-	}
-
 	pos := Vec3{X: 0, Y: 2, Z: 0}
 	vel := Vec3{X: 0, Y: -100, Z: 0}
 	body := NewDynamicBody(&pos, &DynamicBodyConfig{
@@ -51,6 +56,7 @@ func TestDynamicBodyBounce(t *testing.T) {
 			bounceSpeed = newSpeed
 		},
 	})
+	body.Provider = &floorRaycaster{}
 	body.Gravity = 0
 
 	body.Update(100.0)
@@ -64,6 +70,4 @@ func TestDynamicBodyBounce(t *testing.T) {
 	if body.Velocity.Y <= 0 {
 		t.Errorf("Expected upward velocity after bounce, got %f", body.Velocity.Y)
 	}
-
-	GlobalRaycastStatic = nil
 }

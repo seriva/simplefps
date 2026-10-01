@@ -79,16 +79,14 @@ func Resize() {
 func Init(preferWebGPU bool, onReady func()) {
 	SelectBackend(preferWebGPU, func(backend rendering.RenderBackend) {
 		CurrentBackend = backend
-		rendering.ActiveBackend = CurrentBackend
 		syncBackendSettings()
-
-		rendering.InitShaders()
-		rendering.InitShapes()
 
 		ActiveCamera = systems.NewCamera()
 		ActiveCamera.IsWebGPU = CurrentBackend.IsWebGPU()
 
 		ActiveRenderer = rendering.NewRenderer(CurrentBackend)
+		ActiveRenderer.InitShaders()
+		ActiveRenderer.InitShapes()
 		ActiveRenderer.Init(CurrentBackend.GetWidth(), CurrentBackend.GetHeight(), systems.ActiveSettings.DoFSR)
 		initialized = true
 
@@ -101,6 +99,7 @@ func Init(preferWebGPU bool, onReady func()) {
 		systems.GlobalConsole.RegisterCmd("settings", settingsCmd)
 		systems.GlobalConsole.RegisterCmd("sstore", sstoreCmd)
 		systems.GlobalConsole.RegisterCmd("tnc", tncCmd)
+		RegisterDebugCommands()
 		systems.GlobalStats.Mount()
 		systems.GlobalStats.SetBackendName(CurrentBackend.Name())
 		if systems.ActiveSettings.ShowStats {
@@ -139,6 +138,48 @@ func tncCmd(args []string) string {
 		return "noclip on"
 	}
 	return "noclip off"
+}
+
+// RegisterDebugCommands registers the debug overlay toggles (tbv, twf, tlv,
+// tsk) on the global console. They flip ActiveRenderer.Debug at call time.
+func RegisterDebugCommands() {
+	c := systems.GlobalConsole
+	c.RegisterCmd("tbv", func(args []string) string {
+		return toggleDebug("bounding volumes", func(d *rendering.DebugRenderOptions) bool {
+			d.ShowBoundingVolumes = !d.ShowBoundingVolumes
+			return d.ShowBoundingVolumes
+		})
+	})
+	c.RegisterCmd("twf", func(args []string) string {
+		return toggleDebug("wireframes", func(d *rendering.DebugRenderOptions) bool {
+			d.ShowWireframes = !d.ShowWireframes
+			return d.ShowWireframes
+		})
+	})
+	c.RegisterCmd("tlv", func(args []string) string {
+		return toggleDebug("light volumes", func(d *rendering.DebugRenderOptions) bool {
+			d.ShowLightVolumes = !d.ShowLightVolumes
+			return d.ShowLightVolumes
+		})
+	})
+	c.RegisterCmd("tsk", func(args []string) string {
+		return toggleDebug("skeleton", func(d *rendering.DebugRenderOptions) bool {
+			d.ShowSkeleton = !d.ShowSkeleton
+			return d.ShowSkeleton
+		})
+	})
+}
+
+// toggleDebug runs flip against the live debug options and reports the new state.
+// (Pointer-to-bool-field would be a detached box in GoFront, hence the callback.)
+func toggleDebug(name string, flip func(d *rendering.DebugRenderOptions) bool) string {
+	if ActiveRenderer == nil {
+		return "no renderer"
+	}
+	if flip(ActiveRenderer.Debug) {
+		return name + " on"
+	}
+	return name + " off"
 }
 
 // rscaleCmd sets the render scale (0.2..1) and reallocates render targets.
@@ -247,9 +288,8 @@ func RenderFrame(timeSeconds float32) {
 	cameraView.ViewProjection = ActiveCamera.ViewProjection
 	cameraView.InverseViewProjection = ActiveCamera.InverseViewProjection
 	syncRenderOptions()
-	rendering.ClearRenderStats()
 	ActiveRenderer.Render(cameraView, ActiveScene, renderOptions, timeSeconds)
-	rs := rendering.ActiveRenderStats
+	rs := ActiveRenderer.Stats
 	systems.GlobalStats.SetRenderStats(rs.MeshCount, rs.LightCount, rs.TriangleCount)
 }
 
@@ -326,7 +366,6 @@ func Dispose() {
 	if CurrentBackend != nil {
 		CurrentBackend.Dispose()
 		CurrentBackend = nil
-		rendering.ActiveBackend = nil
 	}
 	initialized = false
 }

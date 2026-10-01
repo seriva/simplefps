@@ -17,6 +17,10 @@ var (
 	lightDirCutoff    = make([]float32, 4)
 	spotForward       = &physics.Vec3{X: 0, Y: 0, Z: -1}
 	spotRotation      = &physics.Quat{}
+	// Local-space bounds of the unit light volumes built by rendering.Shapes
+	// (sphere: ±1; cone: apex at origin, base at z = -1).
+	pointVolumeBounds = physics.NewBoundingBoxFromValues(&physics.Vec3{X: -1, Y: -1, Z: -1}, &physics.Vec3{X: 1, Y: 1, Z: 1})
+	spotVolumeBounds  = physics.NewBoundingBoxFromValues(&physics.Vec3{X: -1, Y: -1, Z: -1}, &physics.Vec3{X: 1, Y: 1, Z: 0})
 )
 
 // ---------------------------------------------------------------------------
@@ -43,20 +47,24 @@ func (e *DirectionalLightEntity) Update(frameTime float32) bool {
 }
 func (e *DirectionalLightEntity) UpdateBoundingVolume() {}
 
-// Render sets the light uniforms on the bound directionalLight shader and
+// Draw sets the light uniforms on the bound directionalLight shader and
 // draws the screen quad.
-func (e *DirectionalLightEntity) Render(probeColor []float32, renderMode string, shader *rendering.Shader) {
-	sh := rendering.Shaders.DirectionalLight
-	if sh == nil || rendering.GlobalShapes.ScreenQuad == nil {
+func (e *DirectionalLightEntity) Draw(r *rendering.Renderer, sh *rendering.Shader, mode string) {
+	quad := r.Shapes.ScreenQuad
+	if sh == nil || quad == nil {
 		return
 	}
 	sh.SetVec3("directionalLight.direction", e.Direction)
 	sh.SetVec3("directionalLight.color", e.Color)
-	rendering.GlobalShapes.ScreenQuad.RenderSingle(false, "triangles", "all", sh)
+	quad.RenderSingle(false, "triangles", "all", sh)
 }
-func (e *DirectionalLightEntity) RenderShadow(renderMode string, shader *rendering.Shader) {}
-func (e *DirectionalLightEntity) RenderWireFrame()                                       {}
-func (e *DirectionalLightEntity) Dispose()                                               { baseDispose(&e.Base) }
+func (e *DirectionalLightEntity) DrawShadow(r *rendering.Renderer, sh *rendering.Shader)    {}
+func (e *DirectionalLightEntity) DrawWireframe(r *rendering.Renderer, sh *rendering.Shader) {}
+func (e *DirectionalLightEntity) DrawSkeleton(r *rendering.Renderer, sh *rendering.Shader)  {}
+func (e *DirectionalLightEntity) Bounds() *physics.BoundingBox                             { return e.Base.BoundingBox }
+func (e *DirectionalLightEntity) TriangleCount() int                                       { return 0 }
+func (e *DirectionalLightEntity) CastsShadow() bool                                        { return false }
+func (e *DirectionalLightEntity) Dispose()                                                 { baseDispose(&e.Base) }
 
 // ---------------------------------------------------------------------------
 // Point light
@@ -100,10 +108,10 @@ func (e *PointLightEntity) volumeMatrix() physics.Mat4 {
 	return lightVolumeMatrix
 }
 
-// Render draws the point light volume with the bound pointLight shader.
-func (e *PointLightEntity) Render(probeColor []float32, renderMode string, shader *rendering.Shader) {
-	sh := rendering.Shaders.PointLight
-	if !e.Base.Visible || sh == nil || rendering.GlobalShapes.PointLightVolume == nil {
+// Draw draws the point light volume with the bound pointLight shader.
+func (e *PointLightEntity) Draw(r *rendering.Renderer, sh *rendering.Shader, mode string) {
+	volMesh := r.Shapes.PointLightVolume
+	if sh == nil || volMesh == nil {
 		return
 	}
 	vol := e.volumeMatrix()
@@ -118,28 +126,43 @@ func (e *PointLightEntity) Render(probeColor []float32, renderMode string, shade
 	sh.SetMat4("matWorld", vol)
 	sh.SetVec4("pointLight.posRange", lightPosRange)
 	sh.SetVec4("pointLight.colorIntensity", lightColorInt)
-	rendering.GlobalShapes.PointLightVolume.RenderSingle(false, "triangles", "all", sh)
+	volMesh.RenderSingle(false, "triangles", "all", sh)
 }
 
-func (e *PointLightEntity) RenderShadow(renderMode string, shader *rendering.Shader) {}
+func (e *PointLightEntity) DrawShadow(r *rendering.Renderer, sh *rendering.Shader)   {}
+func (e *PointLightEntity) DrawSkeleton(r *rendering.Renderer, sh *rendering.Shader) {}
 
-func (e *PointLightEntity) RenderWireFrame() {
-	if !e.Base.Visible || rendering.Shaders.Debug == nil || rendering.GlobalShapes.PointLightVolume == nil {
+// DrawWireframe draws the sphere volume outline with the bound debug shader.
+func (e *PointLightEntity) DrawWireframe(r *rendering.Renderer, sh *rendering.Shader) {
+	volMesh := r.Shapes.PointLightVolume
+	if sh == nil || volMesh == nil {
 		return
 	}
-	rendering.Shaders.Debug.SetMat4("matWorld", e.volumeMatrix())
-	rendering.GlobalShapes.PointLightVolume.RenderWireframe()
+	sh.SetMat4("matWorld", e.volumeMatrix())
+	volMesh.RenderWireframe()
+}
+
+func (e *PointLightEntity) Bounds() *physics.BoundingBox { return e.Base.BoundingBox }
+func (e *PointLightEntity) TriangleCount() int           { return 0 }
+func (e *PointLightEntity) CastsShadow() bool            { return false }
+
+// LightScore ranks the light by intensity over squared distance to camPos.
+func (e *PointLightEntity) LightScore(camPos *physics.Vec3) float32 {
+	e.WorldPosition(lightPos)
+	return rendering.ContributionScore(lightPos.X, lightPos.Y, lightPos.Z, e.Intensity, camPos)
+}
+
+// AddToLighting packs the light into the transparent-pass UBO.
+func (e *PointLightEntity) AddToLighting(data *rendering.LightingData) bool {
+	e.WorldPosition(lightPos)
+	return data.AddPointLight(lightPos.X, lightPos.Y, lightPos.Z, e.Size, e.Color[0], e.Color[1], e.Color[2], e.Intensity)
 }
 
 func (e *PointLightEntity) UpdateBoundingVolume() {
-	vol := rendering.GlobalShapes.PointLightVolume
-	if vol == nil || vol.BoundingBox == nil {
-		return
-	}
 	if e.Base.BoundingBox == nil {
 		e.Base.BoundingBox = physics.NewBoundingBox()
 	}
-	vol.BoundingBox.TransformInto(e.volumeMatrix(), e.Base.BoundingBox)
+	pointVolumeBounds.TransformInto(e.volumeMatrix(), e.Base.BoundingBox)
 }
 
 func (e *PointLightEntity) Dispose() { baseDispose(&e.Base) }
@@ -211,10 +234,10 @@ func (e *SpotLightEntity) updateMatrix() {
 	physics.Mat4Scale(m, m, lightScaleVec)
 }
 
-// Render draws the cone volume with the bound spotLight shader.
-func (e *SpotLightEntity) Render(probeColor []float32, renderMode string, shader *rendering.Shader) {
-	sh := rendering.Shaders.SpotLight
-	if !e.Base.Visible || sh == nil || rendering.GlobalShapes.SpotlightVolume == nil {
+// Draw draws the cone volume with the bound spotLight shader.
+func (e *SpotLightEntity) Draw(r *rendering.Renderer, sh *rendering.Shader, mode string) {
+	volMesh := r.Shapes.SpotlightVolume
+	if sh == nil || volMesh == nil {
 		return
 	}
 	physics.Mat4Multiply(lightVolumeMatrix, e.Base.BaseMatrix, e.Base.AniMatrix)
@@ -234,30 +257,45 @@ func (e *SpotLightEntity) Render(probeColor []float32, renderMode string, shader
 	sh.SetVec4("spotLight.posRange", lightPosRange)
 	sh.SetVec4("spotLight.colorIntensity", lightColorInt)
 	sh.SetVec4("spotLight.dirCutoff", lightDirCutoff)
-	rendering.GlobalShapes.SpotlightVolume.RenderSingle(false, "triangles", "all", sh)
+	volMesh.RenderSingle(false, "triangles", "all", sh)
 }
 
-func (e *SpotLightEntity) RenderShadow(renderMode string, shader *rendering.Shader) {}
+func (e *SpotLightEntity) DrawShadow(r *rendering.Renderer, sh *rendering.Shader)   {}
+func (e *SpotLightEntity) DrawSkeleton(r *rendering.Renderer, sh *rendering.Shader) {}
 
-func (e *SpotLightEntity) RenderWireFrame() {
-	if !e.Base.Visible || rendering.Shaders.Debug == nil || rendering.GlobalShapes.SpotlightVolume == nil {
+// DrawWireframe draws the cone volume outline with the bound debug shader.
+func (e *SpotLightEntity) DrawWireframe(r *rendering.Renderer, sh *rendering.Shader) {
+	volMesh := r.Shapes.SpotlightVolume
+	if sh == nil || volMesh == nil {
 		return
 	}
 	physics.Mat4Multiply(lightVolumeMatrix, e.Base.BaseMatrix, e.Base.AniMatrix)
-	rendering.Shaders.Debug.SetMat4("matWorld", lightVolumeMatrix)
-	rendering.GlobalShapes.SpotlightVolume.RenderWireframe()
+	sh.SetMat4("matWorld", lightVolumeMatrix)
+	volMesh.RenderWireframe()
+}
+
+func (e *SpotLightEntity) Bounds() *physics.BoundingBox { return e.Base.BoundingBox }
+func (e *SpotLightEntity) TriangleCount() int           { return 0 }
+func (e *SpotLightEntity) CastsShadow() bool            { return false }
+
+// LightScore ranks the light by intensity over squared distance to camPos.
+func (e *SpotLightEntity) LightScore(camPos *physics.Vec3) float32 {
+	return rendering.ContributionScore(e.Position.X, e.Position.Y, e.Position.Z, e.Intensity, camPos)
+}
+
+// AddToLighting packs the light into the transparent-pass UBO.
+func (e *SpotLightEntity) AddToLighting(data *rendering.LightingData) bool {
+	return data.AddSpotLight(e.Position.X, e.Position.Y, e.Position.Z, e.Range,
+		e.Color[0], e.Color[1], e.Color[2], e.Intensity,
+		e.Direction.X, e.Direction.Y, e.Direction.Z, e.Cutoff)
 }
 
 func (e *SpotLightEntity) UpdateBoundingVolume() {
-	vol := rendering.GlobalShapes.SpotlightVolume
-	if vol == nil || vol.BoundingBox == nil {
-		return
-	}
 	if e.Base.BoundingBox == nil {
 		e.Base.BoundingBox = physics.NewBoundingBox()
 	}
 	physics.Mat4Multiply(lightVolumeMatrix, e.Base.BaseMatrix, e.Base.AniMatrix)
-	vol.BoundingBox.TransformInto(lightVolumeMatrix, e.Base.BoundingBox)
+	spotVolumeBounds.TransformInto(lightVolumeMatrix, e.Base.BoundingBox)
 }
 
 func (e *SpotLightEntity) Dispose() { baseDispose(&e.Base) }

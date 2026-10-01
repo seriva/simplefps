@@ -121,7 +121,7 @@ func TestParseBinaryMeshVersion2(t *testing.T) {
 		t.Error("rigid mesh must not have a skeleton")
 	}
 
-	mesh := BuildMesh(md)
+	mesh := BuildMesh(nil, md)
 	if mesh == nil || mesh.TriangleCount != 1 || mesh.BoundingBox == nil {
 		t.Error("BuildMesh should produce a mesh with one triangle and bounds")
 	}
@@ -228,7 +228,7 @@ func TestParseBinaryMeshSkinnedVersion5(t *testing.T) {
 		t.Error("gpu joint weights mismatch")
 	}
 
-	sm, skeleton := BuildSkinnedMesh(md)
+	sm, skeleton := BuildSkinnedMesh(nil, md)
 	if sm == nil || skeleton == nil || skeleton.JointCount != 2 {
 		t.Fatal("BuildSkinnedMesh should return mesh and 2-joint skeleton")
 	}
@@ -258,7 +258,7 @@ func TestParseJSONMesh(t *testing.T) {
 }
 
 func TestParseMaterialLibraryInheritance(t *testing.T) {
-	defs := ParseMaterialLibrary(`{"materials":[
+	defs := ParseMaterialLibrary(nil, `{"materials":[
 		{"name":"lightmapped","textures":{"lightmap":"lm.webp"},"geomType":2,"reflectionStrength":0.5,"translucent":true},
 		{"name":"wall","base":"lightmapped","textures":{"albedo":"wall.webp"},"opacity":0.75,"doubleSided":true},
 		{"name":"plain"}
@@ -284,7 +284,7 @@ func TestParseMaterialLibraryInheritance(t *testing.T) {
 	if len(paths) != 2 {
 		t.Errorf("expected 2 texture paths, got %d", len(paths))
 	}
-	if len(ParseMaterialLibrary("{}")) != 0 {
+	if len(ParseMaterialLibrary(nil, "{}")) != 0 {
 		t.Error("missing materials array should yield nothing")
 	}
 }
@@ -301,7 +301,7 @@ func TestParseResourceList(t *testing.T) {
 
 func TestResourceManagerRegistryAndLinks(t *testing.T) {
 	r := NewResourceManager()
-	r.Init()
+	r.Init(nil)
 	if !r.Has("black") || !r.Has("white") || r.Count() != 2 {
 		t.Fatal("Init should register black/white textures")
 	}
@@ -321,7 +321,7 @@ func TestResourceManagerRegistryAndLinks(t *testing.T) {
 		t.Error("no materials loaded yet")
 	}
 
-	texPaths := r.RegisterMaterialLibrary("meshes/materials.mat", ParseMaterialLibrary(`{"materials":[
+	texPaths := r.RegisterMaterialLibrary("meshes/materials.mat", ParseMaterialLibrary(nil, `{"materials":[
 		{"name":"lightmapped","textures":{"lightmap":"lm.webp"}},
 		{"name":"wall","base":"lightmapped","textures":{"albedo":"wall.webp","emissive":"glow.webp"}}
 	]}`))
@@ -334,8 +334,8 @@ func TestResourceManagerRegistryAndLinks(t *testing.T) {
 	}
 
 	// Textures arrive last.
-	r.Register("wall.webp", &Entry{Kind: KindTexture, Texture: rendering.CreateSolidColorTexture(255, 0, 0, 255)})
-	r.Register("lm.webp", &Entry{Kind: KindTexture, Texture: rendering.CreateSolidColorTexture(0, 255, 0, 255)})
+	r.Register("wall.webp", &Entry{Kind: KindTexture, Texture: rendering.CreateSolidColorTexture(nil, 255, 0, 0, 255)})
+	r.Register("lm.webp", &Entry{Kind: KindTexture, Texture: rendering.CreateSolidColorTexture(nil, 0, 255, 0, 255)})
 	r.ResolveLinks()
 
 	wall := r.GetMaterial("wall")

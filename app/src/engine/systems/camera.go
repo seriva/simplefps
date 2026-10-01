@@ -49,7 +49,7 @@ type Camera struct {
 	Aspect    float32
 	IsWebGPU  bool
 
-	// Six normalized planes, 4 floats each; see Frustum* offsets. Aliases physics.ActiveFrustumPlanes.
+	// Six normalized planes, 4 floats each; see Frustum* offsets.
 	FrustumPlanes []float32
 
 	// Pre-allocated scratch to avoid heap allocations in frame loops
@@ -70,7 +70,7 @@ func NewCamera() *Camera {
 		Fov:                   45.0,
 		NearPlane:             0.1,
 		FarPlane:              8192.0,
-		FrustumPlanes:         physics.ActiveFrustumPlanes,
+		FrustumPlanes:         make([]float32, physics.FrustumPlaneCount*4),
 		target:                *physics.NewVec3(0, 0, 0),
 	}
 	c.UpdateDirection()

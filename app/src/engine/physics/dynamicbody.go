@@ -4,26 +4,25 @@ import (
 	"math"
 )
 
-// RaycastStaticFunc queries static world collision geometry; set by Scene or Engine.
-type RaycastStaticFunc func(fromX, fromY, fromZ, toX, toY, toZ float32, options *RayOptions, out *RaycastResult) *RaycastResult
+// RaycastProvider queries static world collision geometry (implemented by
+// scene.Scene). The returned result is owned by the provider and only valid
+// until the next call.
+type RaycastProvider interface {
+	RaycastStatic(fromX, fromY, fromZ, toX, toY, toZ float32, options *RayOptions) *RaycastResult
+}
 
 var (
-	GlobalRaycastStatic RaycastStaticFunc
-
 	_dbRaycastResult   RaycastResult
 	_dbBothSidesOption = RayOptions{SkipBackfaces: false, CollisionFilterMask: 1, Mode: RayModeClosest}
 )
 
-// RaycastStatic performs a static world raycast using the registered provider.
-func RaycastStatic(fromX, fromY, fromZ, toX, toY, toZ float32, options *RayOptions, out *RaycastResult) *RaycastResult {
-	if out == nil {
-		out = &_dbRaycastResult
+// raycastStatic queries p, or returns the reset miss scratch when p is nil.
+func raycastStatic(p RaycastProvider, fromX, fromY, fromZ, toX, toY, toZ float32, options *RayOptions, miss *RaycastResult) *RaycastResult {
+	if p == nil {
+		miss.Reset()
+		return miss
 	}
-	out.Reset()
-	if GlobalRaycastStatic != nil {
-		return GlobalRaycastStatic(fromX, fromY, fromZ, toX, toY, toZ, options, out)
-	}
-	return out
+	return p.RaycastStatic(fromX, fromY, fromZ, toX, toY, toZ, options)
 }
 
 // DynamicBodyConfig contains parameters for initializing a DynamicBody.
@@ -39,6 +38,8 @@ type DynamicBodyConfig struct {
 
 // DynamicBody represents a bouncing projectile or physics sphere using raycasts.
 type DynamicBody struct {
+	// Provider supplies static world raycasts; nil means no collision.
+	Provider       RaycastProvider
 	Position       Vec3
 	Velocity       Vec3
 	Gravity        float32
@@ -121,7 +122,7 @@ func (body *DynamicBody) Update(frameTime float32) bool {
 		dirZ = 0
 	}
 
-	result := RaycastStatic(
+	result := raycastStatic(body.Provider,
 		body.Position.X,
 		body.Position.Y,
 		body.Position.Z,

@@ -54,28 +54,32 @@ func (e *MeshEntity) Update(frameTime float32) bool {
 	return baseUpdate(e, frameTime)
 }
 
-func (e *MeshEntity) Render(probeColor []float32, renderMode string, shader *rendering.Shader) {
-	if !e.Base.Visible || e.Mesh == nil || shader == nil {
+// Draw sets the world matrix and ambient probe on the bound geometry /
+// transparent shader and issues the mesh in the given material mode.
+func (e *MeshEntity) Draw(r *rendering.Renderer, sh *rendering.Shader, mode string) {
+	if e.Mesh == nil || sh == nil {
 		return
 	}
 	physics.Mat4Multiply(meshTempMatrix, e.Base.BaseMatrix, e.Base.AniMatrix)
-	shader.SetVec3("uProbeColor", probeColor)
-	shader.SetMat4("matWorld", meshTempMatrix)
-	e.Mesh.RenderSingle(true, "triangles", renderMode, shader)
+	sh.SetVec3("uProbeColor", e.Base.ProbeColor)
+	sh.SetMat4("matWorld", meshTempMatrix)
+	e.Mesh.RenderSingle(true, "triangles", mode, sh)
 }
 
-func (e *MeshEntity) RenderWireFrame() {
-	if !e.Base.Visible || e.Mesh == nil || rendering.Shaders.Debug == nil {
+func (e *MeshEntity) DrawWireframe(r *rendering.Renderer, sh *rendering.Shader) {
+	if e.Mesh == nil || sh == nil {
 		return
 	}
 	physics.Mat4Multiply(meshTempMatrix, e.Base.BaseMatrix, e.Base.AniMatrix)
-	rendering.Shaders.Debug.SetMat4("matWorld", meshTempMatrix)
+	sh.SetMat4("matWorld", meshTempMatrix)
 	e.Mesh.RenderWireframe()
 }
 
-// RenderShadow squashes the world matrix onto the cached ground height.
-func (e *MeshEntity) RenderShadow(renderMode string, shader *rendering.Shader) {
-	if !e.Base.Visible || !e.Base.CastShadow || e.Mesh == nil || shader == nil {
+func (e *MeshEntity) DrawSkeleton(r *rendering.Renderer, sh *rendering.Shader) {}
+
+// DrawShadow squashes the world matrix onto the cached ground height.
+func (e *MeshEntity) DrawShadow(r *rendering.Renderer, sh *rendering.Shader) {
+	if !e.Base.CastShadow || e.Mesh == nil || sh == nil {
 		return
 	}
 	if e.Base.ShadowHeightState != ShadowHeightValid {
@@ -87,9 +91,13 @@ func (e *MeshEntity) RenderShadow(renderMode string, shader *rendering.Shader) {
 	m[5] *= 0.1
 	m[9] *= 0.1
 	m[13] = e.Base.ShadowHeight
-	shader.SetMat4("matWorld", m)
-	e.Mesh.RenderSingle(false, "triangles", renderMode, shader)
+	sh.SetMat4("matWorld", m)
+	e.Mesh.RenderSingle(false, "triangles", "all", sh)
 }
+
+func (e *MeshEntity) Bounds() *physics.BoundingBox { return e.Base.BoundingBox }
+func (e *MeshEntity) TriangleCount() int           { return e.Base.TriangleCount }
+func (e *MeshEntity) CastsShadow() bool            { return e.Base.CastShadow }
 
 func (e *MeshEntity) UpdateBoundingVolume() {
 	if e.Mesh == nil || e.Mesh.BoundingBox == nil {

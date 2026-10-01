@@ -27,7 +27,7 @@ func unitQuad() *rendering.Mesh {
 	verts := []float32{-1, 0, -1, 1, 0, -1, 1, 0, 1, -1, 0, 1}
 	idx := []uint32{0, 2, 1, 0, 3, 2}
 	groups := []rendering.IndexGroup{rendering.IndexGroup{Material: "none", Array: idx}}
-	return rendering.NewMesh(verts, nil, nil, nil, groups)
+	return rendering.NewMesh(nil, verts, nil, nil, nil, groups)
 }
 
 // ---------------------------------------------------------------------------
@@ -587,9 +587,6 @@ func TestGameSpawnAndUpdate(t *testing.T) {
 	s, cam := newTestScene()
 	g := NewGame(s, cam)
 	g.Init()
-	if physics.ActiveCameraPos != &cam.Position {
-		t.Error("controller camera binding not set")
-	}
 
 	g.Arena.SpawnPoint = &SpawnPoint{}
 	g.Arena.SpawnPoint.Position.Set(100, 0, 200)
@@ -598,6 +595,12 @@ func TestGameSpawnAndUpdate(t *testing.T) {
 
 	if g.Controller == nil || g.Controller.Position.X != 100 {
 		t.Fatal("controller not spawned")
+	}
+	if g.Controller.Camera == nil || g.Controller.Camera.Position != &cam.Position {
+		t.Error("controller camera binding not set")
+	}
+	if g.Controller.Provider == nil {
+		t.Error("controller raycast provider not set")
 	}
 	if !approx(cam.Rotation.Y, 90, 1e-3) {
 		t.Errorf("camera yaw = %f", cam.Rotation.Y)

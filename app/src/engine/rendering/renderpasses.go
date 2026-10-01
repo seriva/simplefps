@@ -27,7 +27,12 @@ type RenderStats struct {
 	TriangleCount int
 }
 
-var ActiveRenderStats = &RenderStats{}
+// Reset zeroes the metrics; Renderer.Render calls it at the start of a frame.
+func (s *RenderStats) Reset() {
+	s.MeshCount = 0
+	s.LightCount = 0
+	s.TriangleCount = 0
+}
 
 // DebugRenderOptions controls overlay visualizations.
 type DebugRenderOptions struct {
@@ -35,29 +40,6 @@ type DebugRenderOptions struct {
 	ShowWireframes      bool
 	ShowLightVolumes    bool
 	ShowSkeleton        bool
-}
-
-var ActiveDebugOptions = &DebugRenderOptions{}
-
-// ClearRenderStats resets geometry metrics at the beginning of each frame.
-func ClearRenderStats() {
-	ActiveRenderStats.MeshCount = 0
-	ActiveRenderStats.LightCount = 0
-	ActiveRenderStats.TriangleCount = 0
-}
-
-// SceneSource is the minimal scene contract the renderer needs. The
-// implementation lives in package scene (Phase 5); passes call back into it.
-type SceneSource interface {
-	Ambient(out *physics.Vec3)
-	RenderWorldGeometry(r *Renderer)
-	RenderFPSGeometry(r *Renderer)
-	RenderShadows(r *Renderer)
-	RenderLighting(r *Renderer)
-	RenderTransparent(r *Renderer)
-	RenderBillboards(r *Renderer)
-	RenderDebug(r *Renderer)
-	HasShadowCasters() bool
 }
 
 // RenderOptions carries the Settings values read by renderer.js each frame.
@@ -89,6 +71,17 @@ var (
 	clearAmbientColor = &ClearOptions{Color: []float32{0, 0, 0, 1}, ClearColor: true}
 	ambientScratch    = &physics.Vec3{}
 	ambientVec        = make([]float32, 3)
+	whiteProbe        = []float32{1, 1, 1}
+	debugWhite        = []float32{1, 1, 1, 1}
+	debugYellow       = []float32{1, 1, 0, 1}
+	// Bounding-box overlay colours per draw list.
+	boundsRed     = []float32{1, 0, 0, 1}
+	boundsGreen   = []float32{0, 1, 0, 1}
+	boundsYellow  = []float32{1, 1, 0, 1}
+	boundsBlue    = []float32{0, 0, 1, 1}
+	boundsMagenta = []float32{1, 0, 1, 1}
+	boundsCyan    = []float32{0, 1, 1, 1}
+	boundsOrange  = []float32{1, 0.5, 0, 1}
 )
 
 func sampleAmbient(scene SceneSource) {
@@ -110,13 +103,15 @@ func sampleAmbient(scene SceneSource) {
 }
 
 // Render draws one full frame following the renderer.js stage order.
-// scene may be nil (pre-Phase-5), in which case scene callbacks are skipped.
+// scene may be nil, in which case only the screen-space passes run.
 func (r *Renderer) Render(cam *CameraView, scene SceneSource, opts *RenderOptions, time float32) {
-	if r.Backend == nil || opts == nil || r.GBuffer.Framebuffer == nil {
+	if r.Backend == nil || cam == nil || opts == nil || r.GBuffer.Framebuffer == nil {
 		return
 	}
 	b := r.Backend
 	b.BeginFrame()
+	r.Stats.Reset()
+	r.ProceduralDetail = opts.ProceduralDetail
 
 	sampleAmbient(scene)
 	r.UpdateFrameDataUBO(cam, time, opts.ProceduralDetail)
@@ -127,20 +122,63 @@ func (r *Renderer) Render(cam *CameraView, scene SceneSource, opts *RenderOption
 		r.shadowBlurPass(scene, opts)
 	}
 	r.fpsGeomPass(scene)
-	r.lightingPass(scene, opts)
+	r.lightingPass(cam, scene, opts)
 	r.transparentPass(scene)
 	r.blurImage(BlurSourceEmissive, opts.EmissiveIterations, opts.EmissiveOffset)
 	r.postProcessingPass(opts)
 	if opts.DoFSR {
 		r.fsrPass(opts)
 	}
-	if scene != nil {
-		scene.RenderDebug(r)
-	}
+	r.debugPass(scene)
 
 	b.EndFrame()
 }
 
+// bindGeometryShader binds sh with the per-pass uniforms shared by the
+// geometry and skinned-geometry shaders.
+func (r *Renderer) bindGeometryShader(sh *Shader) {
+	sh.Bind()
+	sh.SetInt("proceduralNoise", 5)
+	if r.ProceduralDetail {
+		sh.SetInt("doProceduralDetail", 1)
+	} else {
+		sh.SetInt("doProceduralDetail", 0)
+	}
+	sh.SetMat4("matWorld", r.identity)
+}
+
+// drawList draws every item of list with sh in the given material mode.
+func drawList(r *Renderer, list *DrawList, sh *Shader, mode string) {
+	for i := 0; i < list.Count; i++ {
+		list.Items[i].Draw(r, sh, mode)
+	}
+}
+
+// drawListCounted is drawList plus mesh/triangle stats accounting.
+func drawListCounted(r *Renderer, list *DrawList, sh *Shader, mode string) {
+	for i := 0; i < list.Count; i++ {
+		d := list.Items[i]
+		d.Draw(r, sh, mode)
+		r.Stats.MeshCount++
+		r.Stats.TriangleCount += d.TriangleCount()
+	}
+}
+
+// drawBound binds sh, draws list in "all" mode and unbinds; skipped when the
+// list is empty or the shader is missing.
+func (r *Renderer) drawBound(list *DrawList, sh *Shader) {
+	if sh == nil || list.Count == 0 {
+		return
+	}
+	sh.Bind()
+	drawList(r, list, sh, "all")
+	r.Backend.UnbindShader()
+}
+
+// worldGeomPass fills the G-buffer: skybox (depth off), opaque meshes, FPS
+// meshes (opaque, full depth range — redrawn by fpsGeomPass at near range so
+// view models layer over the world; intentional double draw from the JS
+// engine), then skinned meshes.
 func (r *Renderer) worldGeomPass(scene SceneSource) {
 	b := r.Backend
 	b.SetDepthRange(0.1, 1.0)
@@ -151,7 +189,23 @@ func (r *Renderer) worldGeomPass(scene SceneSource) {
 		r.ProceduralNoise.Bind(5)
 	}
 	if scene != nil {
-		scene.RenderWorldGeometry(r)
+		geo := r.Shaders.Geometry
+		if geo != nil {
+			r.bindGeometryShader(geo)
+			b.SetDepthState(false, false, "lequal")
+			drawList(r, scene.Skyboxes(), geo, "all")
+			b.SetDepthState(true, true, "lequal")
+
+			drawListCounted(r, scene.Meshes(), geo, "opaque")
+			drawList(r, scene.FPSMeshes(), geo, "opaque")
+			b.UnbindShader()
+		}
+		if skinned := r.Shaders.SkinnedGeometry; skinned != nil {
+			r.bindGeometryShader(skinned)
+			drawListCounted(r, scene.SkinnedMeshes(), skinned, "opaque")
+			b.UnbindShader()
+		}
+		b.SetCullState(true, "back")
 	}
 	b.BindFramebuffer(nil)
 	b.SetDepthRange(0.0, 1.0)
@@ -166,10 +220,25 @@ func (r *Renderer) fpsGeomPass(scene SceneSource) {
 		r.ProceduralNoise.Bind(5)
 	}
 	if scene != nil {
-		scene.RenderFPSGeometry(r)
+		if geo := r.Shaders.Geometry; geo != nil {
+			r.bindGeometryShader(geo)
+			drawList(r, scene.FPSMeshes(), geo, "all")
+			b.UnbindShader()
+		}
 	}
 	b.BindFramebuffer(nil)
 	b.SetDepthRange(0.0, 1.0)
+}
+
+// drawShadows binds sh with the ambient uniforms and draws every caster.
+func (r *Renderer) drawShadows(list *DrawList, sh *Shader) {
+	sh.Bind()
+	sh.SetVec3("ambient", ambientVec)
+	sh.SetVec3("uProbeColor", ambientVec)
+	for i := 0; i < list.Count; i++ {
+		list.Items[i].DrawShadow(r, sh)
+	}
+	r.Backend.UnbindShader()
 }
 
 func (r *Renderer) shadowPass(scene SceneSource) {
@@ -188,7 +257,12 @@ func (r *Renderer) shadowPass(scene SceneSource) {
 	b.SetCullState(false, "back")
 
 	if scene != nil {
-		scene.RenderShadows(r)
+		if sh := r.Shaders.EntityShadows; sh != nil {
+			r.drawShadows(scene.Meshes(), sh)
+		}
+		if sh := r.Shaders.SkinnedEntityShadows; sh != nil {
+			r.drawShadows(scene.SkinnedMeshes(), sh)
+		}
 	}
 
 	b.SetCullState(true, "back")
@@ -203,13 +277,45 @@ func (r *Renderer) shadowBlurPass(scene SceneSource, opts *RenderOptions) {
 	if r.Backend.IsWebGPU() {
 		return
 	}
-	if scene == nil || !scene.HasShadowCasters() {
+	if !hasShadowCasters(scene) {
 		return
 	}
 	r.blurImage(BlurSourceShadow, opts.ShadowBlurIterations, opts.ShadowBlurOffset)
 }
 
-func (r *Renderer) lightingPass(scene SceneSource, opts *RenderOptions) {
+// sortLights ranks the visible point and spot lights by contribution at the
+// camera; the lighting pass draws in that order and the transparent pass
+// packs the top entries into the LightingData UBO.
+func (r *Renderer) sortLights(cam *CameraView, scene SceneSource) {
+	camPos := &cam.Position
+	r.pointSorter.Begin()
+	pl := scene.PointLights()
+	for i := 0; i < pl.Count; i++ {
+		r.pointSorter.Add(i, pl.Items[i].LightScore(camPos))
+	}
+	r.pointSorter.Sort()
+
+	r.spotSorter.Begin()
+	sl := scene.SpotLights()
+	for i := 0; i < sl.Count; i++ {
+		r.spotSorter.Add(i, sl.Items[i].LightScore(camPos))
+	}
+	r.spotSorter.Sort()
+}
+
+// drawLightsSorted draws list in sorter order with sh and counts them.
+func (r *Renderer) drawLightsSorted(list *LightList, sorter *LightSorter, sh *Shader) {
+	sh.Bind()
+	sh.SetInt("positionBuffer", 0)
+	sh.SetInt("normalBuffer", 1)
+	for i := 0; i < sorter.Count; i++ {
+		list.Items[sorter.Entries[i].Index].Draw(r, sh, "all")
+		r.Stats.LightCount++
+	}
+	r.Backend.UnbindShader()
+}
+
+func (r *Renderer) lightingPass(cam *CameraView, scene SceneSource, opts *RenderOptions) {
 	b := r.Backend
 	b.BindFramebuffer(r.LightBuffer.Framebuffer)
 	b.SetViewport(0, 0, r.Width, r.Height)
@@ -225,17 +331,45 @@ func (r *Renderer) lightingPass(scene SceneSource, opts *RenderOptions) {
 	b.SetBlendState(true, "one", "one")
 
 	if scene != nil {
-		scene.RenderLighting(r)
+		if dl := r.Shaders.DirectionalLight; dl != nil {
+			dl.Bind()
+			dl.SetInt("normalBuffer", 1)
+			dl.SetInt("colorBuffer", 3)
+			drawList(r, scene.DirectionalLights(), dl, "all")
+			b.UnbindShader()
+		}
+		r.sortLights(cam, scene)
+		if pl := r.Shaders.PointLight; pl != nil {
+			r.drawLightsSorted(scene.PointLights(), r.pointSorter, pl)
+		}
+		if sl := r.Shaders.SpotLight; sl != nil {
+			r.drawLightsSorted(scene.SpotLights(), r.spotSorter, sl)
+		}
 	}
 
 	b.SetBlendState(false, "one", "zero")
 	b.SetDepthState(true, true, "lequal")
 	b.SetCullState(true, "back")
 
-	UnbindTextureRange(0, 4)
+	UnbindTextureRange(b, 0, 4)
 	b.BindFramebuffer(nil)
 
 	r.blurImage(BlurSourceLighting, opts.LightBlurIterations, 0.2)
+}
+
+// uploadTransparentLighting packs the highest-contribution lights (sorted by
+// lightingPass this frame) into the LightingData UBO.
+func (r *Renderer) uploadTransparentLighting(scene SceneSource) {
+	r.lighting.Reset()
+	pl := scene.PointLights()
+	for i := 0; i < r.pointSorter.Count && i < MaxPointLights; i++ {
+		pl.Items[r.pointSorter.Entries[i].Index].AddToLighting(r.lighting)
+	}
+	sl := scene.SpotLights()
+	for i := 0; i < r.spotSorter.Count && i < MaxSpotLights; i++ {
+		sl.Items[r.spotSorter.Entries[i].Index].AddToLighting(r.lighting)
+	}
+	r.lighting.Upload(r)
 }
 
 func (r *Renderer) transparentPass(scene SceneSource) {
@@ -248,12 +382,21 @@ func (r *Renderer) transparentPass(scene SceneSource) {
 	b.SetDepthState(true, false, "lequal")
 	b.SetCullState(false, "back")
 	if scene != nil {
-		scene.RenderTransparent(r)
+		transparent := scene.Transparent()
+		if sh := r.Shaders.Transparent; sh != nil && transparent.Count > 0 {
+			sh.Bind()
+			sh.SetMat4("matWorld", r.identity)
+			sh.SetInt("colorSampler", 0)
+			r.uploadTransparentLighting(scene)
+			drawList(r, transparent, sh, "translucent")
+			b.UnbindShader()
+		}
 	}
 
 	b.SetBlendState(true, "src-alpha", "one")
 	if scene != nil {
-		scene.RenderBillboards(r)
+		r.drawBound(scene.Billboards(), r.Shaders.Billboard)
+		r.drawBound(scene.ParticleEmitters(), r.Shaders.InstancedBillboard)
 	}
 
 	b.SetCullState(true, "back")
@@ -263,9 +406,107 @@ func (r *Renderer) transparentPass(scene SceneSource) {
 	b.BindFramebuffer(nil)
 }
 
+// drawBounds draws the AABB of every item in list with the bound debug shader.
+func (r *Renderer) drawBounds(list *DrawList, sh *Shader, color []float32) {
+	box := r.Shapes.BoundingBoxMesh
+	if box == nil || list.Count == 0 {
+		return
+	}
+	sh.SetVec4("debugColor", color)
+	for i := 0; i < list.Count; i++ {
+		bb := list.Items[i].Bounds()
+		if bb == nil {
+			continue
+		}
+		sh.SetMat4("matWorld", bb.GetTransformMatrix())
+		box.RenderSingle(true, "lines", "all", sh)
+	}
+}
+
+// drawLightBounds is drawBounds for a LightList.
+func (r *Renderer) drawLightBounds(list *LightList, sh *Shader, color []float32) {
+	box := r.Shapes.BoundingBoxMesh
+	if box == nil || list.Count == 0 {
+		return
+	}
+	sh.SetVec4("debugColor", color)
+	for i := 0; i < list.Count; i++ {
+		bb := list.Items[i].Bounds()
+		if bb == nil {
+			continue
+		}
+		sh.SetMat4("matWorld", bb.GetTransformMatrix())
+		box.RenderSingle(true, "lines", "all", sh)
+	}
+}
+
+func drawWireframes(r *Renderer, list *DrawList, sh *Shader) {
+	for i := 0; i < list.Count; i++ {
+		list.Items[i].DrawWireframe(r, sh)
+	}
+}
+
+// debugPass draws bounding boxes, wireframes, light volumes and skeletons
+// straight to the backbuffer according to r.Debug.
+func (r *Renderer) debugPass(scene SceneSource) {
+	d := r.Debug
+	if scene == nil || (!d.ShowBoundingVolumes && !d.ShowWireframes && !d.ShowLightVolumes && !d.ShowSkeleton) {
+		return
+	}
+	sh := r.Shaders.Debug
+	if sh == nil {
+		return
+	}
+	b := r.Backend
+	sh.Bind()
+	b.SetDepthState(false, false, "lequal")
+
+	if d.ShowBoundingVolumes {
+		r.drawBounds(scene.Meshes(), sh, boundsRed)
+		r.drawBounds(scene.FPSMeshes(), sh, boundsGreen)
+		r.drawBounds(scene.DirectionalLights(), sh, boundsYellow)
+		r.drawLightBounds(scene.PointLights(), sh, boundsYellow)
+		r.drawLightBounds(scene.SpotLights(), sh, boundsYellow)
+		r.drawBounds(scene.Skyboxes(), sh, boundsBlue)
+		r.drawBounds(scene.SkinnedMeshes(), sh, boundsMagenta)
+		r.drawBounds(scene.Billboards(), sh, boundsCyan)
+		r.drawBounds(scene.ParticleEmitters(), sh, boundsOrange)
+	}
+
+	if d.ShowWireframes {
+		sh.SetVec4("debugColor", debugWhite)
+		drawWireframes(r, scene.Meshes(), sh)
+		drawWireframes(r, scene.SkinnedMeshes(), sh)
+		drawWireframes(r, scene.FPSMeshes(), sh)
+		drawWireframes(r, scene.Skyboxes(), sh)
+	}
+
+	if d.ShowLightVolumes {
+		sh.SetVec4("debugColor", debugYellow)
+		pl := scene.PointLights()
+		for i := 0; i < pl.Count; i++ {
+			pl.Items[i].DrawWireframe(r, sh)
+		}
+		sl := scene.SpotLights()
+		for i := 0; i < sl.Count; i++ {
+			sl.Items[i].DrawWireframe(r, sh)
+		}
+	}
+
+	if d.ShowSkeleton {
+		skinned := scene.SkinnedMeshes()
+		for i := 0; i < skinned.Count; i++ {
+			skinned.Items[i].DrawSkeleton(r, sh)
+		}
+	}
+
+	b.SetDepthState(true, true, "lequal")
+	b.UnbindShader()
+}
+
 func (r *Renderer) postProcessingPass(opts *RenderOptions) {
 	b := r.Backend
-	sh := Shaders.PostProcessing
+	sh := r.Shaders.PostProcessing
 	if sh == nil {
 		return
 	}
@@ -305,19 +546,21 @@ func (r *Renderer) postProcessingPass(opts *RenderOptions) {
 	sh.SetFloat("dirtIntensity", dirt)
 	sh.SetFloat("shadowIntensity", opts.ShadowIntensity)
 	sh.SetVec3("uAmbient", ambientVec)
-	if GlobalShapes.ScreenQuad != nil {
-		GlobalShapes.ScreenQuad.RenderSingle(false, "triangles", "all", sh)
+	if r.Shapes.ScreenQuad != nil {
+		r.Shapes.ScreenQuad.RenderSingle(false, "triangles", "all", sh)
 	}
 
 	b.UnbindShader()
-	UnbindTextureRange(0, 6)
+	UnbindTextureRange(b, 0, 6)
 	if opts.DoFSR {
 		b.BindFramebuffer(nil)
 	}
 }
 
 func (r *Renderer) fsrPass(opts *RenderOptions) {
-	if r.ScratchBuffer.Color == nil || r.FSRBuffer.EASU == nil || Shaders.FsrEasu == nil || Shaders.FsrRcas == nil {
+	easu := r.Shaders.FsrEasu
+	rcas := r.Shaders.FsrRcas
+	if r.ScratchBuffer.Color == nil || r.FSRBuffer.EASU == nil || easu == nil || rcas == nil {
 		return
 	}
 	b := r.Backend
@@ -328,35 +571,35 @@ func (r *Renderer) fsrPass(opts *RenderOptions) {
 
 	b.BindFramebuffer(r.FSRBuffer.Framebuffer)
 	b.SetViewport(0, 0, nw, nh)
-	Shaders.FsrEasu.Bind()
-	Shaders.FsrEasu.SetInt("colorBuffer", 0)
+	easu.Bind()
+	easu.SetInt("colorBuffer", 0)
 	r.fsrCon0[0] = float32(r.Width)
 	r.fsrCon0[1] = float32(r.Height)
 	r.fsrCon0[2] = float32(nw)
 	r.fsrCon0[3] = float32(nh)
-	Shaders.FsrEasu.SetVec4("con0", r.fsrCon0)
+	easu.SetVec4("con0", r.fsrCon0)
 	r.ScratchBuffer.Color.Bind(0)
-	if GlobalShapes.ScreenQuad != nil {
-		GlobalShapes.ScreenQuad.RenderSingle(false, "triangles", "all", Shaders.FsrEasu)
+	if r.Shapes.ScreenQuad != nil {
+		r.Shapes.ScreenQuad.RenderSingle(false, "triangles", "all", easu)
 	}
 
 	b.BindFramebuffer(nil)
 	b.SetViewport(0, 0, nw, nh)
 	r.FSRBuffer.EASU.Bind(0)
-	Shaders.FsrRcas.Bind()
-	Shaders.FsrRcas.SetInt("colorBuffer", 0)
+	rcas.Bind()
+	rcas.SetInt("colorBuffer", 0)
 	sharp := opts.FsrSharpness
 	if sharp == 0 {
 		sharp = 0.2
 	}
-	Shaders.FsrRcas.SetFloat("sharpness", sharp)
-	if GlobalShapes.ScreenQuad != nil {
-		GlobalShapes.ScreenQuad.RenderSingle(false, "triangles", "all", Shaders.FsrRcas)
+	rcas.SetFloat("sharpness", sharp)
+	if r.Shapes.ScreenQuad != nil {
+		r.Shapes.ScreenQuad.RenderSingle(false, "triangles", "all", rcas)
 	}
 
 	b.SetDepthState(true, true, "lequal")
 	b.UnbindShader()
-	UnbindTextureRange(0, 1)
+	UnbindTextureRange(b, 0, 1)
 }
 
 // ---------------------------------------------------------------------------
@@ -395,31 +638,32 @@ func (r *Renderer) swapBlur(i int) {
 
 func (r *Renderer) endBlurPass(iterations int) {
 	b := r.Backend
-	UnbindTexture(0)
+	UnbindTexture(b, 0)
 	if iterations%2 != 0 && r.blurSourceFB != nil {
 		// Odd iteration count: copy scratch back to the source with an identity sample.
 		b.BindFramebuffer(r.blurSourceFB)
 		b.Clear(clearTransparent)
 		r.ScratchBuffer.Color.Bind(0)
-		Shaders.KawaseBlur.SetFloat("offset", blurIdentityOffset)
-		if GlobalShapes.ScreenQuad != nil {
-			GlobalShapes.ScreenQuad.RenderSingle(false, "triangles", "all", Shaders.KawaseBlur)
+		r.Shaders.KawaseBlur.SetFloat("offset", blurIdentityOffset)
+		if r.Shapes.ScreenQuad != nil {
+			r.Shapes.ScreenQuad.RenderSingle(false, "triangles", "all", r.Shaders.KawaseBlur)
 		}
-		UnbindTexture(0)
+		UnbindTexture(b, 0)
 	}
 	b.BindFramebuffer(nil)
 }
 
 func (r *Renderer) blurImage(source int, iterations int, radius float32) {
-	if iterations <= 0 || Shaders.KawaseBlur == nil || r.ScratchBuffer.Framebuffer == nil {
+	blur := r.Shaders.KawaseBlur
+	if iterations <= 0 || blur == nil || r.ScratchBuffer.Framebuffer == nil {
 		return
 	}
 	b := r.Backend
 	b.SetDepthState(false, false, "lequal")
 	b.SetBlendState(false, "one", "zero")
 	b.SetCullState(false, "back")
-	Shaders.KawaseBlur.Bind()
-	Shaders.KawaseBlur.SetInt("colorBuffer", 0)
+	blur.Bind()
+	blur.SetInt("colorBuffer", 0)
 	r.startBlurPass(source)
 	if r.blurSource == nil {
 		b.UnbindShader()
@@ -427,9 +671,9 @@ func (r *Renderer) blurImage(source int, iterations int, radius float32) {
 	}
 	for i := 0; i < iterations; i++ {
 		r.swapBlur(i)
-		Shaders.KawaseBlur.SetFloat("offset", float32(i+1)*radius)
-		if GlobalShapes.ScreenQuad != nil {
-			GlobalShapes.ScreenQuad.RenderSingle(false, "triangles", "all", Shaders.KawaseBlur)
+		blur.SetFloat("offset", float32(i+1)*radius)
+		if r.Shapes.ScreenQuad != nil {
+			r.Shapes.ScreenQuad.RenderSingle(false, "triangles", "all", blur)
 		}
 	}
 	r.endBlurPass(iterations)
@@ -466,9 +710,9 @@ func (s *LightSorter) Begin() {
 	s.Count = 0
 }
 
-// Add records a light's world position and intensity relative to the camera.
+// Add records a light's contribution score (see LightDrawable.LightScore).
 // The buffer doubles when full so no visible light is ever dropped.
-func (s *LightSorter) Add(index int, x, y, z, intensity float32, cam *physics.Vec3) {
+func (s *LightSorter) Add(index int, score float32) {
 	if s.Count >= len(s.Entries) {
 		newCap := len(s.Entries) * 2
 		if newCap < 8 {
@@ -481,6 +725,13 @@ func (s *LightSorter) Add(index int, x, y, z, intensity float32, cam *physics.Ve
 		}
 		s.Entries = grown
 	}
+	s.Entries[s.Count].Index = index
+	s.Entries[s.Count].Score = score
+	s.Count++
+}
+
+// ContributionScore is the default LightScore: intensity / distance² to cam.
+func ContributionScore(x, y, z, intensity float32, cam *physics.Vec3) float32 {
 	dx := x - cam.X
 	dy := y - cam.Y
 	dz := z - cam.Z
@@ -488,9 +739,7 @@ func (s *LightSorter) Add(index int, x, y, z, intensity float32, cam *physics.Ve
 	if d2 == 0 {
 		d2 = 1
 	}
-	s.Entries[s.Count].Index = index
-	s.Entries[s.Count].Score = intensity / d2
-	s.Count++
+	return intensity / d2
 }
 
 // Sort orders Entries[0:Count] by descending score (in-place insertion sort;

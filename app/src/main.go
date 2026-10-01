@@ -36,7 +36,7 @@ async func boot() any {
 	await initEngine()
 	systems.GlobalInput.Attach()
 
-	assets.GlobalResources.Init()
+	assets.GlobalResources.Init(engine.GetBackend())
 	await assets.GlobalResources.Load(coreResources)
 	engine.DirtTexture = assets.GlobalResources.GetTexture("system/dirt.webp")
 

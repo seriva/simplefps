@@ -2,7 +2,8 @@ package rendering
 
 import "math"
 
-// Shapes contains shared geometric primitives used across passes.
+// Shapes contains shared geometric primitives used across passes. The
+// Renderer owns one instance; see Renderer.InitShapes.
 type Shapes struct {
 	ScreenQuad       *Mesh
 	SkyBox           *Mesh
@@ -12,13 +13,11 @@ type Shapes struct {
 	BillboardQuad    *Mesh
 }
 
-// GlobalShapes stores the singleton geometry primitives.
-var GlobalShapes = &Shapes{}
-
-// InitShapes builds shared primitive meshes on the active GPU backend.
-func InitShapes() {
+// Init builds the shared primitive meshes on b.
+func (s *Shapes) Init(b RenderBackend) {
 	// Screen Quad
-	GlobalShapes.ScreenQuad = NewMesh(
+	s.ScreenQuad = NewMesh(
+		b,
 		[]float32{-1, -1, 0, 1, -1, 0, -1, 1, 0, 1, 1, 0},
 		nil,
 		nil,
@@ -29,7 +28,8 @@ func InitShapes() {
 	)
 
 	// Billboard Quad
-	GlobalShapes.BillboardQuad = NewMesh(
+	s.BillboardQuad = NewMesh(
+		b,
 		[]float32{-0.5, -0.5, 0, 0.5, -0.5, 0, -0.5, 0.5, 0, 0.5, 0.5, 0},
 		[]float32{0, 1, 1, 1, 0, 0, 1, 0},
 		nil,
@@ -40,7 +40,8 @@ func InitShapes() {
 	)
 
 	// SkyBox
-	GlobalShapes.SkyBox = NewMesh(
+	s.SkyBox = NewMesh(
+		b,
 		[]float32{
 			// Front
 			1, 1, 1, 1, -1, 1, -1, -1, 1, -1, 1, 1,
@@ -80,7 +81,8 @@ func InitShapes() {
 	for i := 0; i < 24; i++ {
 		bbIndices[i] = uint32(i)
 	}
-	GlobalShapes.BoundingBoxMesh = NewMesh(
+	s.BoundingBoxMesh = NewMesh(
+		b,
 		[]float32{
 			-0.5, -0.5, 0.5, 0.5, -0.5, 0.5, 0.5, -0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, -0.5, 0.5, 0.5, -0.5, 0.5, 0.5, -0.5, -0.5, 0.5,
 			-0.5, -0.5, -0.5, 0.5, -0.5, -0.5, 0.5, -0.5, -0.5, 0.5, 0.5, -0.5, 0.5, 0.5, -0.5, -0.5, 0.5, -0.5, -0.5, 0.5, -0.5, -0.5, -0.5, -0.5,
@@ -94,13 +96,13 @@ func InitShapes() {
 		},
 	)
 
-	GlobalShapes.SpotlightVolume = buildSpotlightVolume()
-	GlobalShapes.PointLightVolume = buildPointLightVolume()
+	s.SpotlightVolume = buildSpotlightVolume(b)
+	s.PointLightVolume = buildPointLightVolume(b)
 }
 
 // buildSpotlightVolume builds a unit cone: apex at origin, 32-segment base
 // circle of radius 1 at z = -1. Scaled per light by radius/range.
-func buildSpotlightVolume() *Mesh {
+func buildSpotlightVolume(b RenderBackend) *Mesh {
 	const segments = 32
 	verts := make([]float32, (segments+1)*3)
 	for i := 0; i < segments; i++ {
@@ -127,12 +129,12 @@ func buildSpotlightVolume() *Mesh {
 		}
 		idx = append(idx, 0, next, uint32(i))
 	}
-	return NewMesh(verts, nil, nil, nil, []IndexGroup{{Material: "none", Array: idx}})
+	return NewMesh(b, verts, nil, nil, nil, []IndexGroup{{Material: "none", Array: idx}})
 }
 
 // buildPointLightVolume builds a unit UV sphere with 9 latitude rings of 8
 // segments plus two poles (74 vertices). Scaled per light by size.
-func buildPointLightVolume() *Mesh {
+func buildPointLightVolume(b RenderBackend) *Mesh {
 	const rings = 9
 	const segments = 8
 	verts := make([]float32, 0, (rings*segments+2)*3)
@@ -166,33 +168,33 @@ func buildPointLightVolume() *Mesh {
 	for s := 0; s < segments; s++ {
 		idx = append(idx, south, ring(rings-1, s+1), ring(rings-1, s))
 	}
-	return NewMesh(verts, nil, nil, nil, []IndexGroup{{Material: "none", Array: idx}})
+	return NewMesh(b, verts, nil, nil, nil, []IndexGroup{{Material: "none", Array: idx}})
 }
 
-// DisposeShapes frees allocated primitive meshes.
-func DisposeShapes() {
-	if GlobalShapes.ScreenQuad != nil {
-		GlobalShapes.ScreenQuad.Dispose()
-		GlobalShapes.ScreenQuad = nil
+// Dispose frees allocated primitive meshes.
+func (s *Shapes) Dispose() {
+	if s.ScreenQuad != nil {
+		s.ScreenQuad.Dispose()
+		s.ScreenQuad = nil
 	}
-	if GlobalShapes.BillboardQuad != nil {
-		GlobalShapes.BillboardQuad.Dispose()
-		GlobalShapes.BillboardQuad = nil
+	if s.BillboardQuad != nil {
+		s.BillboardQuad.Dispose()
+		s.BillboardQuad = nil
 	}
-	if GlobalShapes.SkyBox != nil {
-		GlobalShapes.SkyBox.Dispose()
-		GlobalShapes.SkyBox = nil
+	if s.SkyBox != nil {
+		s.SkyBox.Dispose()
+		s.SkyBox = nil
 	}
-	if GlobalShapes.BoundingBoxMesh != nil {
-		GlobalShapes.BoundingBoxMesh.Dispose()
-		GlobalShapes.BoundingBoxMesh = nil
+	if s.BoundingBoxMesh != nil {
+		s.BoundingBoxMesh.Dispose()
+		s.BoundingBoxMesh = nil
 	}
-	if GlobalShapes.SpotlightVolume != nil {
-		GlobalShapes.SpotlightVolume.Dispose()
-		GlobalShapes.SpotlightVolume = nil
+	if s.SpotlightVolume != nil {
+		s.SpotlightVolume.Dispose()
+		s.SpotlightVolume = nil
 	}
-	if GlobalShapes.PointLightVolume != nil {
-		GlobalShapes.PointLightVolume.Dispose()
-		GlobalShapes.PointLightVolume = nil
+	if s.PointLightVolume != nil {
+		s.PointLightVolume.Dispose()
+		s.PointLightVolume = nil
 	}
 }

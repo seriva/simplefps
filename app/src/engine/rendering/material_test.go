@@ -7,7 +7,7 @@ import (
 )
 
 func TestMaterialDataByteLayout(t *testing.T) {
-	m := NewMaterial("layout")
+	m := NewMaterial(nil, "layout")
 	m.GeomType = 2
 	m.EmissiveTexture = &Texture{}
 	m.LightmapTexture = &Texture{}
@@ -46,7 +46,7 @@ func TestMaterialDataByteLayout(t *testing.T) {
 	expectInt(28, 0)
 
 	// The scratch buffer is shared across calls (no per-bind allocation).
-	m2 := NewMaterial("other")
+	m2 := NewMaterial(nil, "other")
 	var buf1 any = ints.buffer
 	var buf2 any = PackMaterialData(m2).buffer
 	if buf1 != buf2 {
@@ -55,17 +55,21 @@ func TestMaterialDataByteLayout(t *testing.T) {
 }
 
 func TestMaterialBindUploadsUBO(t *testing.T) {
-	mb, _ := newMockRenderer(8, 8, false, false)
-	m := NewMaterial("bind")
-	m.Bind(nil)
+	mb, r := newMockRenderer(8, 8, false, false)
+	m := NewMaterial(mb, "bind")
+	m.Bind(r.Shaders.Geometry)
 	if mb.CountArg("CreateUBO", 1) != 1 {
 		t.Error("Material.Bind must create a UBO on binding point 1")
 	}
 	if mb.Count("UpdateUBO") != 1 {
 		t.Error("Material.Bind must upload the material UBO once")
 	}
-	m.Bind(nil)
+	m.Bind(r.Shaders.Geometry)
 	if mb.CountArg("CreateUBO", 1) != 1 {
 		t.Error("Material.Bind must not recreate its UBO")
+	}
+	m.Bind(nil)
+	if mb.Count("UpdateUBO") != 2 {
+		t.Error("Material.Bind without a shader must be a no-op")
 	}
 }

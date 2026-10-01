@@ -2266,7 +2266,7 @@ func (b *WebGPUBackend) InitShaders(catalog *rendering.ShaderCatalog) {
 		if len(def.Code) == 0 {
 			return nil
 		}
-		return rendering.NewShader(def.Code, "")
+		return rendering.NewShader(b, def.Code, "")
 	}
 
 	catalog.Geometry = load("geometry")

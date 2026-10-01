@@ -42,27 +42,29 @@ func wallX(tm *Trimesh, x, z0, z1, y0, y1 float32) {
 	tm.AddMesh(verts, idx, nil)
 }
 
-// installTrimeshRaycaster routes RaycastStatic through the given mesh using a
-// single reused Ray so the provider itself does not allocate.
-func installTrimeshRaycaster(tm *Trimesh) {
+// trimeshRaycaster is a RaycastProvider over a single mesh using one reused
+// Ray so the provider itself does not allocate.
+type trimeshRaycaster struct {
+	tm  *Trimesh
+	ray *Ray
+}
+
+func newTrimeshRaycaster(tm *Trimesh) *trimeshRaycaster {
 	ray := NewRay(nil, nil)
 	ray.Mode = RayModeClosest
-	GlobalRaycastStatic = func(fromX, fromY, fromZ, toX, toY, toZ float32, options *RayOptions, out *RaycastResult) *RaycastResult {
-		ray.From.Set(fromX, fromY, fromZ)
-		ray.To.Set(toX, toY, toZ)
-		ray.UpdateDirection()
-		ray.HasHit = false
-		ray.Result.Reset()
-		ray.SkipBackfaces = options != nil && options.SkipBackfaces
-		ray.IntersectTrimesh(tm, nil)
-		if ray.HasHit {
-			out.HitPointWorld.Copy(&ray.Result.HitPointWorld)
-			out.HitNormalWorld.Copy(&ray.Result.HitNormalWorld)
-			out.Distance = ray.Result.Distance
-			out.HasHit = true
-		}
-		return out
-	}
+	return &trimeshRaycaster{tm: tm, ray: ray}
+}
+
+func (p *trimeshRaycaster) RaycastStatic(fromX, fromY, fromZ, toX, toY, toZ float32, options *RayOptions) *RaycastResult {
+	ray := p.ray
+	ray.From.Set(fromX, fromY, fromZ)
+	ray.To.Set(toX, toY, toZ)
+	ray.UpdateDirection()
+	ray.HasHit = false
+	ray.Result.Reset()
+	ray.SkipBackfaces = options != nil && options.SkipBackfaces
+	ray.IntersectTrimesh(p.tm, nil)
+	return &ray.Result
 }
 
 func TestOctreeSubdividedRayAndAABBQuery(t *testing.T) {
@@ -151,11 +153,10 @@ func TestRayIntersectSubdividedTrimesh(t *testing.T) {
 
 func TestFPSControllerLandsOnTrimesh(t *testing.T) {
 	tm := gridFloor(8, 1600, 0)
-	installTrimeshRaycaster(tm)
-	defer func() { GlobalRaycastStatic = nil }()
 
 	spawn := Vec3{X: 800, Y: 200, Z: 800}
 	ctrl := NewFPSController(&spawn, nil)
+	ctrl.Provider = newTrimeshRaycaster(tm)
 	dt := float32(1.0 / 120.0)
 	for i := 0; i < 600; i++ {
 		ctrl.Update(dt)
@@ -179,11 +180,10 @@ func TestFPSControllerBlockedByWall(t *testing.T) {
 	// Tall wall at x = 1000 across the whole floor.
 	wallX(tm, 1000, -100, 1700, -10, 400)
 	tm.Finalize()
-	installTrimeshRaycaster(tm)
-	defer func() { GlobalRaycastStatic = nil }()
 
 	spawn := Vec3{X: 800, Y: 0, Z: 800}
 	ctrl := NewFPSController(&spawn, nil)
+	ctrl.Provider = newTrimeshRaycaster(tm)
 	ctrl.Grounded = true
 	ctrl.WasGrounded = true
 
@@ -223,11 +223,10 @@ func TestFPSControllerClimbsStep(t *testing.T) {
 	// Riser between the two levels.
 	wallX(tm, 800, -100, 900, 0, stepY)
 	tm.Finalize()
-	installTrimeshRaycaster(tm)
-	defer func() { GlobalRaycastStatic = nil }()
 
 	spawn := Vec3{X: 600, Y: 0, Z: 400}
 	ctrl := NewFPSController(&spawn, nil)
+	ctrl.Provider = newTrimeshRaycaster(tm)
 	ctrl.Grounded = true
 	ctrl.WasGrounded = true
 
@@ -269,11 +268,10 @@ func TestPhysicsStepDoesNotAllocate(t *testing.T) {
 		t.Skip("heap measurement is only stable without --dom")
 	}
 	tm := gridFloor(16, 1600, 0)
-	installTrimeshRaycaster(tm)
-	defer func() { GlobalRaycastStatic = nil }()
 
 	spawn := Vec3{X: 800, Y: 0, Z: 800}
 	ctrl := NewFPSController(&spawn, nil)
+	ctrl.Provider = newTrimeshRaycaster(tm)
 	camFwd := Vec3{X: 0.7071, Y: 0, Z: 0.7071}
 	camRight := Vec3{X: 0.7071, Y: 0, Z: -0.7071}
 	dt := float32(1.0 / 120.0)

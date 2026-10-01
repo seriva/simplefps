@@ -57,12 +57,22 @@ const FrameDataSize = 288
 // frameData is the persistent staging buffer for the FrameData UBO.
 var frameData = make([]float32, 72)
 
-// Renderer drives the multi-pass deferred rendering pipeline.
+// Renderer drives the multi-pass deferred rendering pipeline and owns every
+// GPU-side singleton (shader catalog, primitive shapes, per-frame stats).
 type Renderer struct {
 	Backend RenderBackend
+	Shaders *ShaderCatalog
+	Shapes  *Shapes
+	// Stats is reset at the start of every Render call. Pointer rather than
+	// value: GoFront clones struct-typed fields on read.
+	Stats *RenderStats
+	Debug *DebugRenderOptions
 	Width   int
 	Height  int
 	DoFSR   bool
+	// ProceduralDetail mirrors RenderOptions.ProceduralDetail for the current
+	// frame so scene passes never read settings directly.
+	ProceduralDetail bool
 
 	// Depth is shared by the G-buffer, shadow FB and light FB.
 	Depth         *Texture
@@ -78,19 +88,44 @@ type Renderer struct {
 	FrameDataUBO any
 	LightingUBO  any
 
+	// Per-frame light ordering and the LightingData staging buffer.
+	pointSorter *LightSorter
+	spotSorter  *LightSorter
+	lighting    *LightingData
+	identity    physics.Mat4
+
 	blurSource   *Texture
 	blurSourceFB any
 	fsrCon0      []float32
 }
 
 // NewRenderer creates an uninitialized Renderer tied to the specified backend.
+// Call InitShaders and InitShapes before Init.
 func NewRenderer(backend RenderBackend) *Renderer {
-	r := &Renderer{
-		Backend: backend,
-		fsrCon0: make([]float32, 4),
+	return &Renderer{
+		Backend:     backend,
+		Shaders:     NewShaderCatalog(),
+		Shapes:      &Shapes{},
+		Stats:       &RenderStats{},
+		Debug:       &DebugRenderOptions{},
+		pointSorter: NewLightSorter(64),
+		spotSorter:  NewLightSorter(64),
+		lighting:    NewLightingData(),
+		identity:    physics.NewMat4(),
+		fsrCon0:     make([]float32, 4),
 	}
-	ActiveBackend = backend
-	return r
+}
+
+// InitShaders compiles the shader catalog on the backend.
+func (r *Renderer) InitShaders() {
+	if r.Backend != nil {
+		r.Backend.InitShaders(r.Shaders)
+	}
+}
+
+// InitShapes builds the shared primitive meshes on the backend.
+func (r *Renderer) InitShapes() {
+	r.Shapes.Init(r.Backend)
 }
 
 // Init sets up render buffers and UBOs according to viewport dimensions.
@@ -122,13 +157,14 @@ func (r *Renderer) AllocateBuffers(doFSR bool) {
 	r.DoFSR = doFSR
 	w := r.Width
 	h := r.Height
+	b := r.Backend
 
-	r.Depth = NewTexture(&TextureDescriptor{Width: w, Height: h, Format: "depth24"})
+	r.Depth = NewTexture(b, &TextureDescriptor{Width: w, Height: h, Format: "depth24"})
 
-	r.GBuffer.WorldPosition = NewTexture(&TextureDescriptor{Width: w, Height: h, Format: "rgba16f"})
-	r.GBuffer.Normal = NewTexture(&TextureDescriptor{Width: w, Height: h, Format: "rgba8"})
-	r.GBuffer.Color = NewTexture(&TextureDescriptor{Width: w, Height: h, Format: "rgba8"})
-	r.GBuffer.Emissive = NewTexture(&TextureDescriptor{Width: w, Height: h, Format: "rgba8"})
+	r.GBuffer.WorldPosition = NewTexture(b, &TextureDescriptor{Width: w, Height: h, Format: "rgba16f"})
+	r.GBuffer.Normal = NewTexture(b, &TextureDescriptor{Width: w, Height: h, Format: "rgba8"})
+	r.GBuffer.Color = NewTexture(b, &TextureDescriptor{Width: w, Height: h, Format: "rgba8"})
+	r.GBuffer.Emissive = NewTexture(b, &TextureDescriptor{Width: w, Height: h, Format: "rgba8"})
 
 	r.GBuffer.Framebuffer = r.Backend.CreateFramebuffer(&FramebufferDescriptor{
 		ColorAttachments: []any{
@@ -149,7 +185,7 @@ func (r *Renderer) AllocateBuffers(doFSR bool) {
 
 	r.ShadowBuffer.Width = w
 	r.ShadowBuffer.Height = h
-	r.ShadowBuffer.Shadow = NewTexture(&TextureDescriptor{Width: w, Height: h, Format: "r8"})
+	r.ShadowBuffer.Shadow = NewTexture(b, &TextureDescriptor{Width: w, Height: h, Format: "r8"})
 	r.ShadowBuffer.Framebuffer = r.Backend.CreateFramebuffer(&FramebufferDescriptor{
 		ColorAttachments: []any{r.ShadowBuffer.Shadow.GetHandle()},
 		DepthAttachment:  r.Depth.GetHandle(),
@@ -162,7 +198,7 @@ func (r *Renderer) AllocateBuffers(doFSR bool) {
 		Height:           h,
 	})
 
-	r.LightBuffer.Light = NewTexture(&TextureDescriptor{Width: w, Height: h, Format: "rgba8"})
+	r.LightBuffer.Light = NewTexture(b, &TextureDescriptor{Width: w, Height: h, Format: "rgba8"})
 	r.LightBuffer.Framebuffer = r.Backend.CreateFramebuffer(&FramebufferDescriptor{
 		ColorAttachments: []any{r.LightBuffer.Light.GetHandle()},
 		DepthAttachment:  r.Depth.GetHandle(),
@@ -175,7 +211,7 @@ func (r *Renderer) AllocateBuffers(doFSR bool) {
 		Height:           h,
 	})
 
-	r.ScratchBuffer.Color = NewTexture(&TextureDescriptor{Width: w, Height: h, Format: "rgba8"})
+	r.ScratchBuffer.Color = NewTexture(b, &TextureDescriptor{Width: w, Height: h, Format: "rgba8"})
 	r.ScratchBuffer.Framebuffer = r.Backend.CreateFramebuffer(&FramebufferDescriptor{
 		ColorAttachments: []any{r.ScratchBuffer.Color.GetHandle()},
 		Width:            w,
@@ -183,7 +219,7 @@ func (r *Renderer) AllocateBuffers(doFSR bool) {
 	})
 
 	if r.ProceduralNoise == nil {
-		r.ProceduralNoise = NewProceduralNoiseTexture(DefaultAnisotropy)
+		r.ProceduralNoise = NewProceduralNoiseTexture(b, DefaultAnisotropy)
 	}
 
 	if doFSR {
@@ -195,7 +231,7 @@ func (r *Renderer) AllocateBuffers(doFSR bool) {
 		if nh < 1 {
 			nh = 1
 		}
-		r.FSRBuffer.EASU = NewTexture(&TextureDescriptor{Width: nw, Height: nh, Format: "rgba8"})
+		r.FSRBuffer.EASU = NewTexture(b, &TextureDescriptor{Width: nw, Height: nh, Format: "rgba8"})
 		r.FSRBuffer.Framebuffer = r.Backend.CreateFramebuffer(&FramebufferDescriptor{
 			ColorAttachments: []any{r.FSRBuffer.EASU.GetHandle()},
 			Width:            nw,
@@ -256,9 +292,11 @@ func (r *Renderer) DisposeBuffers() {
 	r.FSRBuffer.EASU = disposeTex(r.FSRBuffer.EASU)
 }
 
-// Dispose shuts down the renderer and deletes all GPU allocations.
+// Dispose shuts down the renderer and deletes all GPU allocations, including
+// the shared shapes.
 func (r *Renderer) Dispose() {
 	r.DisposeBuffers()
+	r.Shapes.Dispose()
 	if r.Backend != nil {
 		r.ProceduralNoise = disposeTex(r.ProceduralNoise)
 		if r.FrameDataUBO != nil {

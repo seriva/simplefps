@@ -49,11 +49,12 @@ type Entry struct {
 //	list            -> {resources:[...]} loaded recursively
 type ResourceManager struct {
 	BasePath string
-	
+
 	// OnLoadStart / OnLoadEnd bracket every Load call (nested lists included).
 	OnLoadStart func()
 	OnLoadEnd   func()
 
+	backend      rendering.RenderBackend
 	entries      map[string]*Entry
 	loading      map[string]any // path -> in-flight promise
 	loadingLists map[string]bool
@@ -73,11 +74,16 @@ func NewResourceManager() *ResourceManager {
 	}
 }
 
-// Init registers the built-in "black" and "white" 1x1 textures.
-func (r *ResourceManager) Init() {
-	r.entries["black"] = &Entry{Kind: KindTexture, Texture: rendering.CreateSolidColorTexture(0, 0, 0, 255)}
-	r.entries["white"] = &Entry{Kind: KindTexture, Texture: rendering.CreateSolidColorTexture(255, 255, 255, 255)}
+// Init binds the GPU backend used for every texture/mesh/material this
+// manager creates and registers the built-in "black" and "white" 1x1 textures.
+func (r *ResourceManager) Init(b rendering.RenderBackend) {
+	r.backend = b
+	r.entries["black"] = &Entry{Kind: KindTexture, Texture: rendering.CreateSolidColorTexture(b, 0, 0, 0, 255)}
+	r.entries["white"] = &Entry{Kind: KindTexture, Texture: rendering.CreateSolidColorTexture(b, 255, 255, 255, 255)}
 }
+
+// Backend returns the render backend bound by Init (nil before Init).
+func (r *ResourceManager) Backend() rendering.RenderBackend { return r.backend }
 
 // Has reports whether key is loaded.
 func (r *ResourceManager) Has(key string) bool {
@@ -294,16 +300,16 @@ func (r *ResourceManager) Decode(path string, ext string, data any) *Entry {
 	var e *Entry
 	switch ext {
 	case "webp":
-		e = &Entry{Kind: KindTexture, Texture: newImageTexture(data)}
+		e = &Entry{Kind: KindTexture, Texture: newImageTexture(r.backend, data)}
 	case "mesh":
-		e = &Entry{Kind: KindMesh, Mesh: BuildMesh(ParseJSONMesh(data.(string)))}
+		e = &Entry{Kind: KindMesh, Mesh: BuildMesh(r.backend, ParseJSONMesh(data.(string)))}
 	case "bmesh":
-		e = &Entry{Kind: KindMesh, Mesh: BuildMesh(ParseBinaryMesh(data.([]byte)))}
+		e = &Entry{Kind: KindMesh, Mesh: BuildMesh(r.backend, ParseBinaryMesh(data.([]byte)))}
 	case "smesh":
-		sm, sk := BuildSkinnedMesh(ParseJSONMesh(data.(string)))
+		sm, sk := BuildSkinnedMesh(r.backend, ParseJSONMesh(data.(string)))
 		e = &Entry{Kind: KindSkinnedMesh, SkinnedMesh: sm, Skeleton: sk}
 	case "sbmesh":
-		sm, sk := BuildSkinnedMesh(ParseBinaryMesh(data.([]byte)))
+		sm, sk := BuildSkinnedMesh(r.backend, ParseBinaryMesh(data.([]byte)))
 		e = &Entry{Kind: KindSkinnedMesh, SkinnedMesh: sm, Skeleton: sk}
 	case "banim":
 		e = &Entry{Kind: KindAnimation, Animation: animation.ParseBinaryAnimation(path, data.([]byte))}
@@ -339,7 +345,7 @@ func (r *ResourceManager) RegisterMaterialLibrary(path string, defs []*MaterialD
 }
 
 async func (r *ResourceManager) loadMaterialLibrary(path string, text string) any {
-	texPaths := r.RegisterMaterialLibrary(path, ParseMaterialLibrary(text))
+	texPaths := r.RegisterMaterialLibrary(path, ParseMaterialLibrary(r.backend, text))
 	if len(texPaths) > 0 {
 		await r.Load(texPaths)
 	}
@@ -413,17 +419,14 @@ func (r *ResourceManager) resolveLinks() {
 	for i := 0; i < len(r.meshes); i++ {
 		r.bindMeshMaterials(r.meshes[i])
 	}
-	if rendering.GlobalShapes.SkyBox != nil {
-		r.bindMeshMaterials(rendering.GlobalShapes.SkyBox)
-	}
 }
 
-// BindMesh fills m.MaterialLookup from the loaded materials. Use it for
-// meshes created outside the manager (e.g. the shared skybox after its
-// material names change).
+// BindMesh fills m.MaterialLookup from the loaded materials and keeps m
+// tracked so later loads re-bind it. Use it for meshes created outside the
+// manager (e.g. the renderer's skybox cube after its material names change).
 func (r *ResourceManager) BindMesh(m *rendering.Mesh) {
 	if m != nil {
-		r.bindMeshMaterials(m)
+		r.trackMesh(m)
 	}
 }
 
@@ -442,6 +445,7 @@ func (r *ResourceManager) bindMeshMaterials(m *rendering.Mesh) {
 func (r *ResourceManager) trackMesh(m *rendering.Mesh) {
 	for i := 0; i < len(r.meshes); i++ {
 		if r.meshes[i] == m {
+			r.bindMeshMaterials(m)
 			return
 		}
 	}
@@ -451,8 +455,8 @@ func (r *ResourceManager) trackMesh(m *rendering.Mesh) {
 
 // newImageTexture creates a 1x1 placeholder and streams the Blob into it.
 // Image textures default to repeat wrapping (texture.js).
-func newImageTexture(blob any) *rendering.Texture {
-	t := rendering.NewTexture(&rendering.TextureDescriptor{Width: 1, Height: 1, Mutable: true})
+func newImageTexture(b rendering.RenderBackend, blob any) *rendering.Texture {
+	t := rendering.NewTexture(b, &rendering.TextureDescriptor{Width: 1, Height: 1, Mutable: true})
 	t.SetWrapMode("repeat")
 	t.LoadImageTexture(blob)
 	return t
