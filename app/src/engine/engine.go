@@ -238,7 +238,8 @@ func frameLoop() {
 	}
 	var now float64
 	if performance != nil && performance.now != nil {
-		now = performance.now().(float64)
+		ts := performance.now()
+		now = ts.(float64)
 	}
 	FrameStep(now)
 	RenderFrame(float32(now * 0.001))

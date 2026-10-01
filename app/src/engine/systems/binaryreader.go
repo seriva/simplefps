@@ -101,8 +101,16 @@ func (br *BinaryReader) ReadFloat32Array(count int) []float32 {
 	if br.Offset+count*4 > len(br.Data) {
 		count = (len(br.Data) - br.Offset) / 4
 	}
-	view := Reflect.construct(globalThis.Float32Array, []any{br.buf, br.base + br.Offset, count})
-	res := Reflect.construct(globalThis.Float32Array, []any{view}).([]float32)
+	var res []float32
+	if (br.base+br.Offset)%4 == 0 {
+		view := Reflect.construct(globalThis.Float32Array, []any{br.buf, br.base + br.Offset, count})
+		res = Reflect.construct(globalThis.Float32Array, []any{view}).([]float32)
+	} else {
+		// Typed-array views require 4-byte alignment; copy bytes to a fresh buffer.
+		var bytes any = br.ReadUint8Array(count * 4)
+		br.Offset -= count * 4
+		res = Reflect.construct(globalThis.Float32Array, []any{bytes.buffer, bytes.byteOffset, count}).([]float32)
+	}
 	br.Offset += count * 4
 	return res
 }
@@ -115,8 +123,15 @@ func (br *BinaryReader) ReadUint32Array(count int) []uint32 {
 	if br.Offset+count*4 > len(br.Data) {
 		count = (len(br.Data) - br.Offset) / 4
 	}
-	view := Reflect.construct(globalThis.Uint32Array, []any{br.buf, br.base + br.Offset, count})
-	res := Reflect.construct(globalThis.Uint32Array, []any{view}).([]uint32)
+	var res []uint32
+	if (br.base+br.Offset)%4 == 0 {
+		view := Reflect.construct(globalThis.Uint32Array, []any{br.buf, br.base + br.Offset, count})
+		res = Reflect.construct(globalThis.Uint32Array, []any{view}).([]uint32)
+	} else {
+		var bytes any = br.ReadUint8Array(count * 4)
+		br.Offset -= count * 4
+		res = Reflect.construct(globalThis.Uint32Array, []any{bytes.buffer, bytes.byteOffset, count}).([]uint32)
+	}
 	br.Offset += count * 4
 	return res
 }

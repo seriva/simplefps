@@ -2,7 +2,7 @@
 
 **Version:** v2.1.0  
 **Target Toolchain:** GoFront v1.3.7  
-**Status:** In Progress — Phase 1–5 complete on branch `gofront`  
+**Status:** In Progress — Phase 1–6 complete on branch `gofront`  
 
 ---
 
@@ -33,8 +33,11 @@ ships two compiler fixes surfaced by this port:
   (`Renderer.Render`), and backend selection with WebGPU → WebGL2 fallback.
 - `app/src/engine/animation/` (skeleton, clips, player) and `app/src/engine/scene/` (entities,
   scene container, light grid, all `SceneSource` passes) are ported with unit tests against a
-  recording mock backend. Nothing constructs a `Scene` yet — `engine.ActiveScene` is still nil
-  until the game package (Phase 6) wires it up.
+  recording mock backend.
+- `app/src/engine/assets/` (mesh/material/resource-list parsing, `ResourceManager`) and
+  `app/src/game/` (player state, weapons, projectiles, pickups, arena, controls, update manager,
+  `Game` fixed-step loop) are ported with headless and `--dom` tests. `NewGame` constructs the
+  `Scene` and sets `engine.ActiveScene`.
 - There is no `app/src/main.go` yet, and legacy `.js` modules remain side-by-side for next phases.
 
 ---
@@ -469,9 +472,12 @@ gantt
 5. Zero per-frame allocation: pre-sized score/sort lists, scratch matrices/vectors as package vars, single-value type assertions (emitted as `instanceof`), no `append`/tuple returns in passes. `scene_test.go` includes a heap-growth guard that runs 50 full frames and asserts buffer lengths are unchanged, alongside tests for entity lifecycle, culling, static raycasts, light grid sampling, and every render pass's shader/uniform/draw sequence.
 6. Two GoFront fixes surfaced by this phase: generic instantiation parsed as index expressions (typechecker), and `[]pkg.Type{...}` composite literals as call arguments (parser).
 
-### Phase 6: Gameplay Mechanics (`app/src/game/`)
-1. Port `weapons.go` (weapon definitions, firing, switching).
-2. Port `projectiles.go`, `pickups.go`, `arena.go`, `player.go`, `update.go` into `package game`.
+### Phase 6: Gameplay Mechanics (`app/src/game/`, `engine/assets/`) — Done
+
+1. `package assets` (`meshloader.go`, `materialloader.go`, `resources.go`): binary/JSON mesh parsing (`ParseBinaryMesh` v1/v2/v5-skinned → `BuildMesh`/`BuildSkinnedMesh`), material libraries with `base` inheritance, resource lists, and a `ResourceManager` (`Load`/`Fetch`/`Decode`, typed getters, dedupe, list cycle guard, `ResolveLinks` binding textures and material lookups to meshes and the skybox). `systems.BinaryReader` now copies bytes when a typed-array view would be unaligned.
+2. `package game` (`gamedefs.go`, `player.go`, `weapons.go`, `projectiles.go`, `pickups.go`, `arena.go`, `controls.go`, `game.go`, `update.go`): weapon definitions/animation/switching/recoil, projectile `DynamicBody` lifecycle with explosion billboards and spark emitters, pickup spawn/collect/respawn with lights, arena config parsing (`ParseArenaConfig`) plus build (lighting, light grid, skybox, static chunks, pickups, NPC spawn models), DOM controls with gameplay-input guards, a service-worker `UpdateManager`, and `Game` (fixed 1/120 s physics step, HUD/loading wiring, `SpawnPlayer`).
+3. Fixed-capacity active lists with swap-remove, scratch vectors as struct fields, and no per-frame allocation in `Update` paths. `gameplay_test.go` covers definitions, player clamping, weapon load/select/switch/shoot cooldown, projectile lifecycle, pickup collect/respawn, arena parsing/build/missing-map load, game spawn/update, control guards and the update manager (headless and `--dom`).
+4. Two GoFront fixes surfaced by this phase: `rand.Float32` typed as `float64` (typechecker), and multi-assign with blanks / comma-ok assertions re-declaring `let __t` in the same scope (codegen now emits unique `const __tN`).
 
 ### Phase 7: P2P Multiplayer (`app/src/game/multiplayer.go`)
 1. Configure `app/src/dependencies/peerjs.d.ts` and vendor bundle via `gofront prep`.

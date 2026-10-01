@@ -314,7 +314,8 @@ func (r *Renderer) CaptureSnapshot(cam *CameraView, scene SceneSource, opts *Ren
 	}
 	t := float32(0)
 	if performance != nil && performance.now != nil {
-		t = float32(performance.now().(float64) * 0.001)
+		ts := performance.now()
+		t = float32(ts.(float64) * 0.001)
 	}
 	r.Render(cam, scene, opts, t)
 	canvas := r.Backend.GetCanvas()
