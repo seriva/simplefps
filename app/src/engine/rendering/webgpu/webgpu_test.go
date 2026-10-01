@@ -195,6 +195,49 @@ func TestWebGPUBufferCreation(t *testing.T) {
     }
 }
 
+func TestWebGPUPackStructPassesThroughRawUniforms(t *testing.T) {
+    backend := NewWebGPUBackend()
+    if got := backend.packStruct("debugColor"); got != nil {
+        t.Errorf("unset debugColor: got %v, want nil", got)
+    }
+    color := []float32{1, 1, 0, 1}
+    backend.SetUniform("debugColor", "vec4", color)
+    got := backend.packStruct("debugColor")
+    if len(got) != 4 || got[0] != 1 || got[1] != 1 || got[2] != 0 || got[3] != 1 {
+        t.Errorf("debugColor: got %v, want %v", got, color)
+    }
+    bones := make([]float32, 64*16)
+    bones[5] = 2
+    backend.SetUniform("boneMatrices", "mat4array", bones)
+    if got := backend.packStruct("boneMatrices"); len(got) != 1024 || got[5] != 2 {
+        t.Errorf("boneMatrices: len=%d", len(got))
+    }
+}
+
+func TestWebGPUVertexStateFormats(t *testing.T) {
+    backend := NewWebGPUBackend()
+    vs := backend.CreateVertexState(&rendering.VertexStateDescriptor{
+        Attributes: []rendering.VertexAttribute{
+            {Slot: 0, Size: 1, Type: "float", Stride: 24, Offset: 16},
+            {Slot: 1, Size: 2, Type: "float"},
+            {Slot: 2, Size: 3, Type: "float"},
+            {Slot: 3, Size: 4, Type: "float"},
+        },
+    })
+    h, ok := vs.(*WebGPUVertexStateHandle)
+    if !ok {
+        t.Fatal("Expected WebGPUVertexStateHandle")
+    }
+    want := []string{"float32", "float32x2", "float32x3", "float32x4"}
+    for i, w := range want {
+        attrs := h.Layout[i].(map[string]any)["attributes"].([]any)
+        got := attrs[0].(map[string]any)["format"].(string)
+        if got != w {
+            t.Errorf("attribute %d: format %q, want %q", i, got, w)
+        }
+    }
+}
+
 func TestWebGPUFramebufferCreation(t *testing.T) {
     backend := NewWebGPUBackend()
     fb := backend.CreateFramebuffer(&rendering.FramebufferDescriptor{

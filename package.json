@@ -37,16 +37,29 @@
     "lefthook": "^2.1.14",
     "rolldown": "^1.2.7"
   },
-  "vendor": {
-    "dest": [
-      "app/vendor.js",
-      "public/vendor.js"
-    ],
-    "packages": [
-      "peerjs"
-    ],
-    "globals": {
-      "peerjs": "Peer"
-    }
+  "gofront": {
+    "vendor": {
+      "dest": [
+        "app/vendor.js",
+        "public/vendor.js"
+      ],
+      "packages": [
+        "peerjs"
+      ],
+      "globals": {
+        "peerjs": "Peer"
+      }
+    },
+    "assetExtensions": [
+      ".arena",
+      ".banim",
+      ".bin",
+      ".bmesh",
+      ".list",
+      ".mat",
+      ".mesh",
+      ".sbmesh",
+      ".sfx"
+    ]
   }
 }

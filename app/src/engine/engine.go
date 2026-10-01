@@ -3,6 +3,7 @@ package engine
 import (
 	"strconv"
 
+	"./physics"
 	"./rendering"
 	"./rendering/webgl"
 	"./rendering/webgpu"
@@ -97,6 +98,9 @@ func Init(preferWebGPU bool, onReady func()) {
 		}
 		systems.GlobalConsole.RegisterCmd("rscale", rscaleCmd)
 		systems.GlobalConsole.RegisterCmd("stats", statsCmd)
+		systems.GlobalConsole.RegisterCmd("settings", settingsCmd)
+		systems.GlobalConsole.RegisterCmd("sstore", sstoreCmd)
+		systems.GlobalConsole.RegisterCmd("tnc", tncCmd)
 		systems.GlobalStats.Mount()
 		systems.GlobalStats.SetBackendName(CurrentBackend.Name())
 		if systems.ActiveSettings.ShowStats {
@@ -116,6 +120,25 @@ func statsCmd(args []string) string {
 		return "stats on"
 	}
 	return "stats off"
+}
+
+// settingsCmd dumps the active settings as JSON.
+func settingsCmd(args []string) string {
+	return systems.ActiveSettings.ToJSON()
+}
+
+// sstoreCmd persists the active settings to localStorage.
+func sstoreCmd(args []string) string {
+	systems.ActiveSettings.Save()
+	return "settings stored"
+}
+
+// tncCmd toggles noclip on the FPS controller.
+func tncCmd(args []string) string {
+	if physics.ToggleNoclip() {
+		return "noclip on"
+	}
+	return "noclip off"
 }
 
 // rscaleCmd sets the render scale (0.2..1) and reallocates render targets.

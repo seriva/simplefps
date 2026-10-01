@@ -1149,6 +1149,8 @@ func (b *WebGPUBackend) CreateVertexState(desc *rendering.VertexStateDescriptor)
 				format = "uint8x4"
 			}
 			stride = attr.Size
+		} else if attr.Size == 1 {
+			format = "float32"
 		} else if attr.Size == 2 {
 			format = "float32x2"
 		} else if attr.Size == 4 {
@@ -1448,11 +1450,13 @@ func fillSlice(dst []float32, start int, src []float32) {
 }
 
 // packStruct fills the pre-allocated buffer for a WGSL uniform struct from
-// the scalar/vector uniforms set via SetUniform. Returns nil for unknown names.
+// the scalar/vector uniforms set via SetUniform. Names without a struct layout
+// (debugColor, boneMatrices) are plain float arrays uploaded as-is; returns
+// nil when nothing is known about name.
 func (b *WebGPUBackend) packStruct(name string) []float32 {
 	buf := packStructBuffers[name]
 	if buf == nil {
-		return nil
+		return b.uniformSlice(name)
 	}
 	for i := range buf {
 		buf[i] = 0

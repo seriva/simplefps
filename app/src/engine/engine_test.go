@@ -1,9 +1,11 @@
 package engine
 
 import (
+	"strings"
 	"testing"
 
 	"./rendering"
+	"./systems"
 )
 
 func TestBackendSelection(t *testing.T) {
@@ -96,5 +98,23 @@ func TestEngineLifecycle(t *testing.T) {
 	}
 	if ActiveRenderer != nil {
 		t.Error("Expected ActiveRenderer to be cleaned up after dispose")
+	}
+}
+
+func TestEngineConsoleCommands(t *testing.T) {
+	Init(false, nil)
+	defer Dispose()
+	c := systems.GlobalConsole
+
+	if res := c.ExecuteCmd("settings"); !strings.Contains(res, "\"RenderScale\"") {
+		t.Errorf("settings should dump JSON, got %q", res)
+	}
+	if res := c.ExecuteCmd("sstore"); res != "settings stored" {
+		t.Errorf("sstore result %q", res)
+	}
+	first := c.ExecuteCmd("tnc")
+	second := c.ExecuteCmd("tnc")
+	if first == second || (first != "noclip on" && first != "noclip off") {
+		t.Errorf("tnc should toggle, got %q then %q", first, second)
 	}
 }
