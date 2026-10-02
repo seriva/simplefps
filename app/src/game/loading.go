@@ -25,8 +25,9 @@ func (lm *LoadingManager) Mount() {
 	if document == nil || lm.mounted {
 		return
 	}
-	gom.MountTo("body", LoadingView())
-	lm.loadingEl = document.getElementById("loading")
+	refs := map[string]any{}
+	gom.MountTo("body", LoadingView(), refs)
+	lm.loadingEl = refs["loading"]
 	lm.mounted = true
 }
 

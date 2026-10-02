@@ -56,18 +56,19 @@ func (ui *UIManager) Mount() {
 	if document == nil || ui.mounted {
 		return
 	}
-	gom.MountTo("body", MenuView())
+	refs := map[string]any{}
+	gom.MountTo("body", MenuView(), refs)
 
-	ui.uiEl = document.getElementById("ui")
-	ui.backdropEl = document.getElementById("menu-backdrop")
-	ui.menuBaseEl = document.getElementById("menu-base")
-	ui.headerEl = document.getElementById("menu-header")
-	ui.controlsEl = document.getElementById("menu-controls")
-	ui.dialogOverlayEl = document.getElementById("dialog-overlay")
-	ui.dialogHeaderEl = document.getElementById("dialog-header")
-	ui.dialogBodyEl = document.getElementById("dialog-body")
-	ui.dialogBtnYes = document.getElementById("dialog-btn-yes")
-	ui.dialogBtnNo = document.getElementById("dialog-btn-no")
+	ui.uiEl            = refs["ui"]
+	ui.backdropEl      = refs["backdrop"]
+	ui.menuBaseEl      = refs["menuBase"]
+	ui.headerEl        = refs["header"]
+	ui.controlsEl      = refs["controls"]
+	ui.dialogOverlayEl = refs["dialogOverlay"]
+	ui.dialogHeaderEl  = refs["dialogHeader"]
+	ui.dialogBodyEl    = refs["dialogBody"]
+	ui.dialogBtnYes    = refs["dialogBtnYes"]
+	ui.dialogBtnNo     = refs["dialogBtnNo"]
 
 	if ui.uiEl != nil {
 		ui.uiEl.addEventListener("click", func(e any) {

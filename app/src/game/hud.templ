@@ -1,9 +1,9 @@
 package game
 
 templ HUDView(isMobile bool) {
-	<div id="hud">
+	<div id="hud" ref="hud">
 		if isMobile {
-			<div id="button-menu">
+			<div id="button-menu" ref="menuBtn">
 				<svg viewBox="0 0 24 24">
 					<path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"></path>
 				</svg>
@@ -12,22 +12,22 @@ templ HUDView(isMobile bool) {
 		<div id="crosshair"></div>
 		<div id="player-stats">
 			<div class="stat-item">
-				<svg class="stat-icon health" id="hud-health-icon" viewBox="0 0 24 24">
+				<svg class="stat-icon health" id="hud-health-icon" ref="healthIcon" viewBox="0 0 24 24">
 					<path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"></path>
 				</svg>
-				<span class="stat-value" id="hud-health-val">100</span>
+				<span class="stat-value" id="hud-health-val" ref="healthEl">100</span>
 			</div>
 			<div class="stat-item">
-				<svg class="stat-icon armor" id="hud-armor-icon" viewBox="0 0 24 24">
+				<svg class="stat-icon armor" id="hud-armor-icon" ref="armorIcon" viewBox="0 0 24 24">
 					<path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"></path>
 				</svg>
-				<span class="stat-value" id="hud-armor-val">0</span>
+				<span class="stat-value" id="hud-armor-val" ref="armorEl">0</span>
 			</div>
 			<div class="stat-item">
-				<svg class="stat-icon ammo" id="hud-ammo-icon" viewBox="0 0 24 24">
+				<svg class="stat-icon ammo" id="hud-ammo-icon" ref="ammoIcon" viewBox="0 0 24 24">
 					<path d="M7 2h10v2H7zm0 4h10v2H7zm0 4h10v2H7zM7 14h10v2H7zm0 4h10v2H7z"></path>
 				</svg>
-				<span class="stat-value" id="hud-ammo-val">50</span>
+				<span class="stat-value" id="hud-ammo-val" ref="ammoEl">50</span>
 			</div>
 		</div>
 	</div>

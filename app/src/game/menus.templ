@@ -5,19 +5,19 @@ import (
 )
 
 templ MenuView() {
-	<div id="ui">
-		<div id="menu-backdrop"></div>
-		<div id="menu-base">
-			<div id="menu-header"></div>
-			<div id="menu-controls"></div>
+	<div id="ui" ref="ui">
+		<div id="menu-backdrop" ref="backdrop"></div>
+		<div id="menu-base" ref="menuBase">
+			<div id="menu-header" ref="header"></div>
+			<div id="menu-controls" ref="controls"></div>
 		</div>
-		<div id="dialog-overlay">
+		<div id="dialog-overlay" ref="dialogOverlay">
 			<div class="dialog-box">
-				<div class="dialog-header" id="dialog-header"></div>
-				<div class="dialog-body" id="dialog-body"></div>
+				<div class="dialog-header" id="dialog-header" ref="dialogHeader"></div>
+				<div class="dialog-body" id="dialog-body" ref="dialogBody"></div>
 				<div class="dialog-footer" id="dialog-footer">
-					<button class="dialog-btn cancel" id="dialog-btn-no">{ Translate("NO") }</button>
-					<button class="dialog-btn confirm" id="dialog-btn-yes">{ Translate("YES") }</button>
+					<button class="dialog-btn cancel" id="dialog-btn-no" ref="dialogBtnNo">{ Translate("NO") }</button>
+					<button class="dialog-btn confirm" id="dialog-btn-yes" ref="dialogBtnYes">{ Translate("YES") }</button>
 				</div>
 			</div>
 		</div>

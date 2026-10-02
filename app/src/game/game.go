@@ -66,6 +66,9 @@ func NewGame(s *scene.Scene, camera *systems.Camera) *Game {
 	}
 	g.Arena.OnLoadStart = func() { GlobalLoading.Toggle(true) }
 	g.Arena.OnLoadEnd = func() { GlobalLoading.Toggle(false) }
+	GlobalState.CanPause = func() bool {
+		return g.Multiplayer == nil || !g.Multiplayer.IsConnected()
+	}
 	return g
 }
 
@@ -103,6 +106,9 @@ func (g *Game) bindController() {
 // Dispose removes the jump listener and tears down networking.
 func (g *Game) Dispose() {
 	g.Multiplayer.Disconnect()
+	if GlobalState.CanPause != nil {
+		GlobalState.CanPause = nil
+	}
 	if window != nil && g.onJump != nil {
 		window.removeEventListener("game:jump", g.onJump)
 		g.onJump = nil
@@ -157,10 +163,16 @@ func (g *Game) SpawnPlayer() {
 // Multiplayer is ticked separately via engine.SetCallbacks' always-update so
 // networking continues while the engine is paused.
 func (g *Game) Update(frameTime float32) {
+	if engine.IsPaused() {
+		return
+	}
+
 	if !CanUseGameplayInput() {
 		g.accum = 0
-		if g.Scene != nil {
-			g.Scene.Update(frameTime)
+		if g.Multiplayer != nil && g.Multiplayer.IsConnected() {
+			if g.Scene != nil {
+				g.Scene.Update(frameTime)
+			}
 		}
 		return
 	}

@@ -1,21 +1,21 @@
 package systems
 
 templ VirtualInputView() {
-	<div id="input">
+	<div id="input" ref="virtualInput">
 		<div id="joystick-base"></div>
-		<div id="joystick-stick"></div>
-		<div id="btn-shoot" class="action-btn">
+		<div id="joystick-stick" ref="stick"></div>
+		<div id="btn-shoot" class="action-btn" ref="btnShoot">
 			<svg viewBox="0 0 24 24">
 				<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"></path>
 				<circle cx="12" cy="12" r="5"></circle>
 			</svg>
 		</div>
-		<div id="btn-jump" class="action-btn">
+		<div id="btn-jump" class="action-btn" ref="btnJump">
 			<svg viewBox="0 0 24 24">
 				<path d="M12 4l-8 8h6v8h4v-8h6z"></path>
 			</svg>
 		</div>
-		<div id="look"></div>
-		<div id="cursor"></div>
+		<div id="look" ref="look"></div>
+		<div id="cursor" ref="cursor"></div>
 	</div>
 }

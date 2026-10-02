@@ -354,13 +354,14 @@ func (im *InputManager) MountVirtualInput() {
 	if document == nil || !ActiveSettings.IsMobile || im.virtualInputEl != nil {
 		return
 	}
-	gom.MountTo("body", VirtualInputView())
-	im.virtualInputEl = document.getElementById("input")
-	im.lookEl = document.getElementById("look")
-	im.cursorEl = document.getElementById("cursor")
-	im.stickEl = document.getElementById("joystick-stick")
-	im.btnShootEl = document.getElementById("btn-shoot")
-	im.btnJumpEl = document.getElementById("btn-jump")
+	refs := map[string]any{}
+	gom.MountTo("body", VirtualInputView(), refs)
+	im.virtualInputEl = refs["virtualInput"]
+	im.lookEl = refs["look"]
+	im.cursorEl = refs["cursor"]
+	im.stickEl = refs["stick"]
+	im.btnShootEl = refs["btnShoot"]
+	im.btnJumpEl = refs["btnJump"]
 
 	if im.lookEl != nil {
 		im.lookEl.addEventListener("touchstart", func(ev any) {

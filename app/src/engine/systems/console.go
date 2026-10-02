@@ -66,12 +66,13 @@ func (cm *ConsoleManager) Mount() {
 	if document == nil || cm.mounted {
 		return
 	}
-	gom.MountTo("body", ConsoleView())
+	refs := map[string]any{}
+	gom.MountTo("body", ConsoleView(), refs)
 
-	cm.bodyEl = document.getElementById("console-body")
-	cm.contentEl = document.getElementById("console-content")
-	cm.logsEl = document.getElementById("console-logs")
-	cm.inputEl = document.getElementById("console-input")
+	cm.bodyEl = refs["body"]
+	cm.contentEl = refs["content"]
+	cm.logsEl = refs["logs"]
+	cm.inputEl = refs["input"]
 
 	if cm.inputEl != nil {
 		cm.onInput = func(e any) {

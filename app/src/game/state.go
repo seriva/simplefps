@@ -3,6 +3,7 @@ package game
 import (
 	"strings"
 
+	"../engine"
 	"../engine/systems"
 	"js:./interop.d.ts"
 )
@@ -40,6 +41,7 @@ type StateManager struct {
 	listeners []StateListener
 	canvasEl  any
 
+	CanPause      func() bool
 	onChangeState any
 	initialized   bool
 }
@@ -68,6 +70,12 @@ func (s *StateManager) Transition(next GameState) {
 		systems.GlobalInput.ToggleCursor(!isGame)
 		systems.GlobalInput.ToggleVirtualInput(isGame)
 		s.SetBlurred(!isGame)
+
+		if isGame {
+			engine.Pause(false)
+		} else if s.CanPause == nil || s.CanPause() {
+			engine.Pause(true)
+		}
 
 		if GlobalHUD != nil {
 			GlobalHUD.Toggle(isGame)

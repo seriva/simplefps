@@ -44,15 +44,16 @@ func (s *StatsOverlay) Mount() {
 	if document == nil || s.mounted {
 		return
 	}
-	gom.MountTo("body", StatsView())
-	s.items = append(s.items, document.getElementById("stats-renderer"))
-	s.items = append(s.items, document.getElementById("stats-basic"))
-	s.items = append(s.items, document.getElementById("stats-scene"))
-	s.items = append(s.items, document.getElementById("stats-pos"))
-	s.rendererEl = document.getElementById("stats-renderer-text")
-	s.basicEl = document.getElementById("stats-basic-text")
-	s.sceneEl = document.getElementById("stats-scene-text")
-	s.posEl = document.getElementById("stats-pos-text")
+	refs := map[string]any{}
+	gom.MountTo("body", StatsView(), refs)
+	s.items = append(s.items, refs["rendererItem"])
+	s.items = append(s.items, refs["basicItem"])
+	s.items = append(s.items, refs["sceneItem"])
+	s.items = append(s.items, refs["posItem"])
+	s.rendererEl = refs["renderer"]
+	s.basicEl    = refs["basic"]
+	s.sceneEl    = refs["scene"]
+	s.posEl      = refs["pos"]
 	s.mounted = true
 	s.writeRenderer()
 	s.applyVisibility()
