@@ -1,7 +1,52 @@
 package systems
 
+css statsStyle() {
+	margin: 0;
+	padding: 0;
+	background-color: transparent;
+
+	& .stats-item {
+		display: none;
+	}
+	& .stats-item.visible {
+		display: block;
+	}
+	& #stats-renderer {
+		font-size: 12px;
+		color: #fff;
+		left: 8px;
+		top: 8px;
+		z-index: 2001;
+		position: absolute;
+	}
+	& #stats-basic {
+		font-size: 12px;
+		color: #fff;
+		left: 8px;
+		top: 24px;
+		z-index: 2001;
+		position: absolute;
+	}
+	& #stats-scene {
+		font-size: 12px;
+		color: #fff;
+		left: 8px;
+		top: 40px;
+		z-index: 2001;
+		position: absolute;
+	}
+	& #stats-pos {
+		color: #fff;
+		font-size: 12px;
+		left: 8px;
+		top: 56px;
+		z-index: 2001;
+		position: absolute;
+	}
+}
+
 templ StatsView() {
-	<div id="stats">
+	<div id="stats" class={ statsStyle() }>
 		<div id="stats-renderer" ref="rendererItem" class="stats-item"><span id="stats-renderer-text" ref="renderer"></span></div>
 		<div id="stats-basic" ref="basicItem" class="stats-item"><span id="stats-basic-text" ref="basic"></span></div>
 		<div id="stats-scene" ref="sceneItem" class="stats-item"><span id="stats-scene-text" ref="scene"></span></div>
