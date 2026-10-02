@@ -14,27 +14,52 @@
     "url": "https://github.com/seriva/SimpleFPS.git"
   },
   "scripts": {
-    "prepare": "lefthook install && microtastic prep",
-    "dependencies": "microtastic prep",
-    "dev": "microtastic dev",
-    "prod": "npm run check && microtastic prod",
-    "format": "biome format --write .",
-    "check": "biome check ."
+    "prepare": "lefthook install && gofront prep",
+    "prep": "gofront prep",
+    "dev": "gofront dev",
+    "build": "gofront build --pwa",
+    "check": "biome check . && gofront check app/src/...",
+    "test": "gofront test app/src/...",
+    "test:dom": "gofront test --dom app/src/...",
+    "test:perf": "node tests/perf/zero-alloc.js",
+    "test:e2e": "playwright test",
+    "test:all": "npm run check && npm test && npm run test:dom && npm run test:perf && npm run test:e2e",
+    "format": "biome format --write ."
   },
   "dependencies": {
-    "gl-matrix": "^3.4.4",
     "peerjs": "^1.5.5"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.14",
+    "@playwright/test": "^1.63.0",
+    "gofront": "^1.3.12",
+    "jsdom": "^30.1.1",
     "lefthook": "^2.1.14",
-    "microtastic": "^0.0.72",
-    "pretty-json-stringify": "^0.0.2"
+    "rolldown": "^1.2.7"
   },
-  "assetCopy": [
-    {
-      "source": "node_modules/microtastic/reactive.js",
-      "dest": "app/src/dependencies/reactive.js"
-    }
-  ]
+  "gofront": {
+    "vendor": {
+      "dest": [
+        "app/vendor.js",
+        "public/vendor.js"
+      ],
+      "packages": [
+        "peerjs"
+      ],
+      "globals": {
+        "peerjs": "Peer"
+      }
+    },
+    "assetExtensions": [
+      ".arena",
+      ".banim",
+      ".bin",
+      ".bmesh",
+      ".list",
+      ".mat",
+      ".mesh",
+      ".sbmesh",
+      ".sfx"
+    ]
+  }
 }

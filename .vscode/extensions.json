@@ -1,9 +1,6 @@
 {
     "recommendations": [
         "biomejs.biome",
-        "tobermory.es6-string-html",
-        "boyswan.glsl-literal",
-        "ggsimm.wgsl-literal",
         "polymeilex.wgsl"
     ]
 }
