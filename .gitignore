@@ -2,15 +2,10 @@
 node_modules/
 
 # Build output
-dist/
-out/
 public/
-app/src/dependencies/
-
-# Coverage
-coverage/
-*.lcov
-.nyc_output/
+app/app.js
+app/app.js.map
+app/vendor.js
 
 # Environment
 .env
@@ -21,7 +16,6 @@ coverage/
 Thumbs.db
 
 # Editor
-.vscode/
 .idea/
 *.swp
 *.swo
@@ -50,4 +44,7 @@ docs/superpowers/
 .tabnine/
 # generic agent session files
 *.agent-session
+# test reports
+playwright-report/
+test-results/
 

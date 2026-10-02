@@ -29,29 +29,29 @@
 # Part 2: Project Context
 
 ## Project Identity
-SimpleFPS is an arena-based first-person shooter written in plain ES6 modules with hybrid WebGL 2 / WebGPU rendering, distributed as a PWA for Desktop, Android, and iOS.
+SimpleFPS is an arena-based first-person shooter with hybrid WebGL 2 / WebGPU rendering, distributed as a PWA for Desktop, Android, and iOS. It is written in [GoFront](https://github.com/seriva/gofront) (Go syntax compiled to JavaScript); the rewrite from ES6 modules is complete — see `docs/plans/archive/gofront-rewrite-plan.md` for the design decisions and phase history.
 
 ## Tech Stack
-- **Language**: ES6 Modules (no TypeScript, no JSDoc)
+- **Language**: GoFront (`.go` packages compiled to ES modules; `.templ` for UI components). No JavaScript under `app/src`; the only JS files are `tests/**` , `playwright.config.js` and the asset converters in `scripts/`.
 - **Rendering**: WebGL 2 + WebGPU (feature-detected at runtime)
-- **Math**: gl-matrix
-- **UI / Reactivity**: reactive.js (`state()` → `init()` → `render()` → `mount()` → `onCleanup()`)
-- **Networking**: PeerJS (WebRTC P2P)
-- **Build**: Microtastic (`npm run dev` / `npm run prod`)
-- **Lint / Format**: Biome (`npm run check` / `npm run format`)
-- **Node**: >= 20.0.0, npm >= 9.0.0
+- **Math**: in-engine `physics.Vec3` / `Mat4` / `Quat` (`app/src/engine/physics/`), no third-party math library
+- **Networking**: PeerJS (WebRTC P2P), bundled via `gofront prep`
+- **Build**: GoFront (`npm run dev` / `npm run build`)
+- **Test**: `npm test` (`gofront test app/src/...`, every package), `npm run test:dom` (same with a jsdom `window`/`document`), `npm run test:perf` (zero-allocation raycast benchmark), `npm run test:e2e` (Playwright smoke test), `npm run test:all`
+- **Lint / Format / Type-check**: `npm run check` = Biome lint (JS files only) + `gofront check app/src/...`; `npm run format` = Biome format
+- **Node**: >= 24.0.0, npm >= 11.0.0. While GoFront fixes from the rewrite are unreleased, `npm link gofront` to the sibling checkout (re-run after `npm install`).
 
 ## Architecture
-Game code lives in `app/src/game/`, the engine in `app/src/engine/` (with subdirectories `animation/`, `physics/`, `rendering/`, `scene/`, `systems/`), and bundled third-party libs in `app/src/dependencies/`. `engine.js` is the barrel export and game-loop entry point — all game→engine access goes through it. Asset-conversion scripts live in `scripts/` (BSP, MD5, OBJ converters). Architecture docs live in `docs/` (`rendering.md`, `scene.md`, `networking.md`).
+Game code lives in `app/src/game/` (package `game`), the engine in `app/src/engine/` (package `engine` plus `animation/`, `assets/`, `physics/`, `rendering/`, `rendering/webgl/`, `rendering/webgpu/`, `scene/`, `systems/`), and typings for vendored libs in `app/src/dependencies/`. `app/src/main.go` is the application entry point: it selects the render backend, loads resources, boots the game and registers the update/render callbacks with `engine`. Asset-conversion scripts live in `scripts/` (BSP, MD5, OBJ converters). The architecture is documented in `docs/architecture.md` (package layout, dependency rules, frame loop, rendering passes, scene, networking, performance invariants).
 
 ## Core Rules & Anti-Patterns
-- **Engine facade:** game code (`app/src/game/`) imports only from `../engine/engine.js` — never from engine subdirectories. Engine-internal modules import each other directly and never from `engine.js`.
-- **Zero per-frame allocations:** pre-allocate all scratch matrices/vectors/quaternions at module level (e.g. `const _tmpMat4 = mat4.create()`) and reuse via in-place gl-matrix ops. No object creation in hot paths.
-- **Keep docs current:** changes to rendering, scene, or networking subsystems → update the corresponding `docs/*.md`. New player-visible features → update `README.md`. File-tree changes → update docs/agent-map.md.
-- **Use the in-game console:** log via `Console.log` / `.warn` / `.error` (imported through the engine facade), not `console.*`.
-- **No default exports:** always use named exports.
-- **No `var`:** use `const` (preferred) or `let`.
+- **Dependency direction:** `game` and `main` may import any engine package; engine packages import only each other (never `game`) and never form cycles. Backend packages (`webgl`, `webgpu`) are only imported by `engine` for selection — everything else talks to `rendering.RenderBackend`.
+- **Zero per-frame allocations:** pre-allocate all scratch vectors/matrices/quaternions at package level (e.g. `var _tmpMat4 Mat4`) and reuse via in-place methods. Queries write into caller-provided slices and return a count. In GoFront, `[N]T` literals, `append`, reslicing, comma-ok type assertions, and assigning struct-typed fields all allocate — keep them out of hot paths.
+- **Browser interop:** globals GoFront does not predeclare (`Reflect`, `globalThis`, `process`, `Image`, `GPU*` constants, …) are declared in a per-package `interop.d.ts` imported via `import "js:./interop.d.ts"`. Do not redeclare predeclared ones (`window`, `document`, `navigator`, `location`, `performance`, `console`, `Math`, `URL`, typed arrays, `WebGL2RenderingContext`) — it only shadows their built-in typing. Guard `window == nil` so packages stay testable headless.
+- **Keep docs current:** changes to package boundaries, the frame loop, rendering passes, scene, or networking → update `docs/architecture.md`. New player-visible features → update `README.md`. File-tree changes → update the Project Structure tree in `README.md`.
+- **Use the in-game console:** log via `systems.GlobalConsole.Log` / `.Warn` / `.Error`, not `console.*`. The only exceptions are `systems` internals and the render backends, which run before the console exists.
+- **Test every package:** new `.go` code gets `*_test.go` next to it; hot paths get a heap-growth test (see `physics/integration_test.go`). Skip DOM-dependent assertions when `document != nil` only if jsdom noise makes them meaningless.
 - **No direct GPU code outside the renderer:** all GPU work branches through the WebGPU / WebGL backend abstraction in `engine/rendering/`.
 - **No entity↔Scene coupling:** pass ambient light, shadow height, etc. as arguments to `render()` / `renderShadow()` rather than importing Scene from within entities.
-- **No committed binary assets:** textures, meshes, and maps are generated by `scripts/` and must be `.gitignore`d.
+- **Generated assets are committed, never hand-edited:** `app/resources/**` (`.bmesh`, `.bin`, `.mesh`, textures, `config.arena`) is produced by the converters in `scripts/`; regenerate from the source asset instead of patching the output. Build output (`public/`, `app/app.js`, `app/vendor.js`) stays `.gitignore`d.
 
