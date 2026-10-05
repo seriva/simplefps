@@ -34,9 +34,18 @@
 
 ---
 
+## Implementation Tasks
+
+[Break work into phases or sequential tasks. Track execution by checking off completed items:
+- [ ] Phase 1 / Task 1: [Description]
+- [ ] Phase 2 / Task 2: [Description]]
+
+---
+
 ## Test Plan
 
 [What tests will verify this works? Be specific:
 - Unit: [what and where]
 - Integration / E2E: [what and where]
 - Negative cases: [error conditions to verify]]
+
