@@ -3,6 +3,7 @@ package game
 import (
 	"../engine"
 	"../engine/assets"
+	"../engine/mathx"
 	"../engine/physics"
 	"../engine/scene"
 	"../engine/systems"
@@ -34,9 +35,9 @@ type Game struct {
 	onJump any
 
 	// Scratch.
-	horizontalForward physics.Vec3
-	strafeDir         physics.Vec3
-	origin            physics.Vec3
+	horizontalForward mathx.Vec3
+	strafeDir         mathx.Vec3
+	origin            mathx.Vec3
 }
 
 // NewGame builds the gameplay systems around a scene and camera.

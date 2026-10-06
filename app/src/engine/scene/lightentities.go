@@ -3,24 +3,24 @@ package scene
 import (
 	"math"
 
-	"../physics"
+	"../mathx"
 	"../rendering"
 )
 
 var (
-	lightTempMatrix   = physics.NewMat4()
-	lightVolumeMatrix = physics.NewMat4()
-	lightPos          = &physics.Vec3{}
-	lightScaleVec     = &physics.Vec3{}
+	lightTempMatrix   = mathx.NewMat4()
+	lightVolumeMatrix = mathx.NewMat4()
+	lightPos          = &mathx.Vec3{}
+	lightScaleVec     = &mathx.Vec3{}
 	lightPosRange     = make([]float32, 4)
 	lightColorInt     = make([]float32, 4)
 	lightDirCutoff    = make([]float32, 4)
-	spotForward       = &physics.Vec3{X: 0, Y: 0, Z: -1}
-	spotRotation      = &physics.Quat{}
+	spotForward       = &mathx.Vec3{X: 0, Y: 0, Z: -1}
+	spotRotation      = &mathx.Quat{}
 	// Local-space bounds of the unit light volumes built by rendering.Shapes
 	// (sphere: ±1; cone: apex at origin, base at z = -1).
-	pointVolumeBounds = physics.NewBoundingBoxFromValues(&physics.Vec3{X: -1, Y: -1, Z: -1}, &physics.Vec3{X: 1, Y: 1, Z: 1})
-	spotVolumeBounds  = physics.NewBoundingBoxFromValues(&physics.Vec3{X: -1, Y: -1, Z: -1}, &physics.Vec3{X: 1, Y: 1, Z: 0})
+	pointVolumeBounds = mathx.NewBoundingBoxFromValues(&mathx.Vec3{X: -1, Y: -1, Z: -1}, &mathx.Vec3{X: 1, Y: 1, Z: 1})
+	spotVolumeBounds  = mathx.NewBoundingBoxFromValues(&mathx.Vec3{X: -1, Y: -1, Z: -1}, &mathx.Vec3{X: 1, Y: 1, Z: 0})
 )
 
 // ---------------------------------------------------------------------------
@@ -60,7 +60,7 @@ func (e *DirectionalLightEntity) Draw(r *rendering.Renderer, sh *rendering.Shade
 func (e *DirectionalLightEntity) DrawShadow(r *rendering.Renderer, sh *rendering.Shader)    {}
 func (e *DirectionalLightEntity) DrawWireframe(r *rendering.Renderer, sh *rendering.Shader) {}
 func (e *DirectionalLightEntity) DrawSkeleton(r *rendering.Renderer, sh *rendering.Shader)  {}
-func (e *DirectionalLightEntity) Bounds() *physics.BoundingBox                             { return e.Base.BoundingBox }
+func (e *DirectionalLightEntity) Bounds() *mathx.BoundingBox                             { return e.Base.BoundingBox }
 func (e *DirectionalLightEntity) TriangleCount() int                                       { return 0 }
 func (e *DirectionalLightEntity) CastsShadow() bool                                        { return false }
 func (e *DirectionalLightEntity) Dispose()                                                 { baseDispose(&e.Base) }
@@ -78,11 +78,11 @@ type PointLightEntity struct {
 }
 
 // NewPointLightEntity creates a point light at position.
-func NewPointLightEntity(position *physics.Vec3, size float32, color []float32, intensity float32, update UpdateCallback) *PointLightEntity {
+func NewPointLightEntity(position *mathx.Vec3, size float32, color []float32, intensity float32, update UpdateCallback) *PointLightEntity {
 	e := &PointLightEntity{Color: color, Size: size, Intensity: intensity}
 	initBase(&e.Base, TypePointLight, update)
 	if position != nil {
-		physics.Mat4Translate(e.Base.BaseMatrix, e.Base.BaseMatrix, position)
+		mathx.Mat4Translate(e.Base.BaseMatrix, e.Base.BaseMatrix, position)
 	}
 	e.UpdateBoundingVolume()
 	return e
@@ -99,16 +99,16 @@ func (e *PointLightEntity) Update(frameTime float32) bool {
 }
 
 // WorldPosition writes the light's world position (base * ani translation).
-func (e *PointLightEntity) WorldPosition(out *physics.Vec3) {
-	physics.Mat4Multiply(lightTempMatrix, e.Base.BaseMatrix, e.Base.AniMatrix)
-	physics.Mat4GetTranslation(out, lightTempMatrix)
+func (e *PointLightEntity) WorldPosition(out *mathx.Vec3) {
+	mathx.Mat4Multiply(lightTempMatrix, e.Base.BaseMatrix, e.Base.AniMatrix)
+	mathx.Mat4GetTranslation(out, lightTempMatrix)
 }
 
-func (e *PointLightEntity) volumeMatrix() physics.Mat4 {
-	physics.Mat4Multiply(lightTempMatrix, e.Base.BaseMatrix, e.Base.AniMatrix)
-	physics.Mat4GetTranslation(lightPos, lightTempMatrix)
+func (e *PointLightEntity) volumeMatrix() mathx.Mat4 {
+	mathx.Mat4Multiply(lightTempMatrix, e.Base.BaseMatrix, e.Base.AniMatrix)
+	mathx.Mat4GetTranslation(lightPos, lightTempMatrix)
 	lightScaleVec.Set(e.Size, e.Size, e.Size)
-	physics.Mat4Scale(lightVolumeMatrix, lightTempMatrix, lightScaleVec)
+	mathx.Mat4Scale(lightVolumeMatrix, lightTempMatrix, lightScaleVec)
 	return lightVolumeMatrix
 }
 
@@ -146,12 +146,12 @@ func (e *PointLightEntity) DrawWireframe(r *rendering.Renderer, sh *rendering.Sh
 	volMesh.RenderWireframe()
 }
 
-func (e *PointLightEntity) Bounds() *physics.BoundingBox { return e.Base.BoundingBox }
+func (e *PointLightEntity) Bounds() *mathx.BoundingBox { return e.Base.BoundingBox }
 func (e *PointLightEntity) TriangleCount() int           { return 0 }
 func (e *PointLightEntity) CastsShadow() bool            { return false }
 
 // LightScore ranks the light by intensity over squared distance to camPos.
-func (e *PointLightEntity) LightScore(camPos *physics.Vec3) float32 {
+func (e *PointLightEntity) LightScore(camPos *mathx.Vec3) float32 {
 	e.WorldPosition(lightPos)
 	return rendering.ContributionScore(lightPos.X, lightPos.Y, lightPos.Z, e.Intensity, camPos)
 }
@@ -165,7 +165,7 @@ func (e *PointLightEntity) AddToLighting(data *rendering.LightingData) bool {
 // UpdateBoundingVolume fits the AABB to the transformed sphere volume.
 func (e *PointLightEntity) UpdateBoundingVolume() {
 	if e.Base.BoundingBox == nil {
-		e.Base.BoundingBox = physics.NewBoundingBox()
+		e.Base.BoundingBox = mathx.NewBoundingBox()
 	}
 	pointVolumeBounds.TransformInto(e.volumeMatrix(), e.Base.BoundingBox)
 }
@@ -180,8 +180,8 @@ func (e *PointLightEntity) Dispose() { baseDispose(&e.Base) }
 // and independent of the entity matrices (which are derived from them).
 type SpotLightEntity struct {
 	Base      EntityBase
-	Position  physics.Vec3
-	Direction physics.Vec3
+	Position  mathx.Vec3
+	Direction mathx.Vec3
 	Color     []float32
 	Intensity float32
 	Range     float32
@@ -190,7 +190,7 @@ type SpotLightEntity struct {
 }
 
 // NewSpotLightEntity creates a spot light; angle is the cone half-angle in degrees.
-func NewSpotLightEntity(position, direction *physics.Vec3, color []float32, intensity, angle, rng float32, update UpdateCallback) *SpotLightEntity {
+func NewSpotLightEntity(position, direction *mathx.Vec3, color []float32, intensity, angle, rng float32, update UpdateCallback) *SpotLightEntity {
 	e := &SpotLightEntity{Color: color, Intensity: intensity, Range: rng, Angle: angle}
 	initBase(&e.Base, TypeSpotLight, update)
 	if position != nil {
@@ -234,14 +234,14 @@ func (e *SpotLightEntity) SetDirection(x, y, z float32) {
 // updateMatrix builds T * R(-Z -> dir) * S(radius, radius, range).
 func (e *SpotLightEntity) updateMatrix() {
 	m := e.Base.BaseMatrix
-	physics.Mat4Identity(m)
-	physics.Mat4Translate(m, m, &e.Position)
+	mathx.Mat4Identity(m)
+	mathx.Mat4Translate(m, m, &e.Position)
 	spotRotation.RotationTo(spotForward, &e.Direction)
-	physics.Mat4FromQuat(lightTempMatrix, spotRotation)
-	physics.Mat4Multiply(m, m, lightTempMatrix)
+	mathx.Mat4FromQuat(lightTempMatrix, spotRotation)
+	mathx.Mat4Multiply(m, m, lightTempMatrix)
 	radius := float32(math.Tan(float64(e.Angle)*math.Pi/180)) * e.Range
 	lightScaleVec.Set(radius, radius, e.Range)
-	physics.Mat4Scale(m, m, lightScaleVec)
+	mathx.Mat4Scale(m, m, lightScaleVec)
 }
 
 // Draw draws the cone volume with the bound spotLight shader.
@@ -250,7 +250,7 @@ func (e *SpotLightEntity) Draw(r *rendering.Renderer, sh *rendering.Shader, mode
 	if sh == nil || volMesh == nil {
 		return
 	}
-	physics.Mat4Multiply(lightVolumeMatrix, e.Base.BaseMatrix, e.Base.AniMatrix)
+	mathx.Mat4Multiply(lightVolumeMatrix, e.Base.BaseMatrix, e.Base.AniMatrix)
 	lightPosRange[0] = e.Position.X
 	lightPosRange[1] = e.Position.Y
 	lightPosRange[2] = e.Position.Z
@@ -279,17 +279,17 @@ func (e *SpotLightEntity) DrawWireframe(r *rendering.Renderer, sh *rendering.Sha
 	if sh == nil || volMesh == nil {
 		return
 	}
-	physics.Mat4Multiply(lightVolumeMatrix, e.Base.BaseMatrix, e.Base.AniMatrix)
+	mathx.Mat4Multiply(lightVolumeMatrix, e.Base.BaseMatrix, e.Base.AniMatrix)
 	sh.SetMat4("matWorld", lightVolumeMatrix)
 	volMesh.RenderWireframe()
 }
 
-func (e *SpotLightEntity) Bounds() *physics.BoundingBox { return e.Base.BoundingBox }
+func (e *SpotLightEntity) Bounds() *mathx.BoundingBox { return e.Base.BoundingBox }
 func (e *SpotLightEntity) TriangleCount() int           { return 0 }
 func (e *SpotLightEntity) CastsShadow() bool            { return false }
 
 // LightScore ranks the light by intensity over squared distance to camPos.
-func (e *SpotLightEntity) LightScore(camPos *physics.Vec3) float32 {
+func (e *SpotLightEntity) LightScore(camPos *mathx.Vec3) float32 {
 	return rendering.ContributionScore(e.Position.X, e.Position.Y, e.Position.Z, e.Intensity, camPos)
 }
 
@@ -303,9 +303,9 @@ func (e *SpotLightEntity) AddToLighting(data *rendering.LightingData) bool {
 // UpdateBoundingVolume fits the AABB to the transformed cone volume.
 func (e *SpotLightEntity) UpdateBoundingVolume() {
 	if e.Base.BoundingBox == nil {
-		e.Base.BoundingBox = physics.NewBoundingBox()
+		e.Base.BoundingBox = mathx.NewBoundingBox()
 	}
-	physics.Mat4Multiply(lightVolumeMatrix, e.Base.BaseMatrix, e.Base.AniMatrix)
+	mathx.Mat4Multiply(lightVolumeMatrix, e.Base.BaseMatrix, e.Base.AniMatrix)
 	spotVolumeBounds.TransformInto(lightVolumeMatrix, e.Base.BoundingBox)
 }
 

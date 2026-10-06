@@ -4,7 +4,7 @@ import (
 	"math"
 	"strconv"
 
-	"../physics"
+	"../mathx"
 	"js:./interop.d.ts"
 )
 
@@ -121,7 +121,7 @@ func (s *StatsOverlay) FPS() int {
 
 // Update counts a frame at time now (ms) and refreshes the overlay text.
 // camPos may be nil.
-func (s *StatsOverlay) Update(now float64, camPos *physics.Vec3) {
+func (s *StatsOverlay) Update(now float64, camPos *mathx.Vec3) {
 	if !s.visible {
 		return
 	}

@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	"../animation"
+	"../collision"
+	"../mathx"
 	"../physics"
 	"../rendering"
 	"../systems"
@@ -219,10 +221,10 @@ func setup() (*testBackend, *rendering.Renderer, *Scene) {
 
 // testView mirrors engine.RenderFrame's CameraView snapshot of the scene camera.
 var testView = &rendering.CameraView{
-	View:                  physics.NewMat4(),
-	Projection:            physics.NewMat4(),
-	ViewProjection:        physics.NewMat4(),
-	InverseViewProjection: physics.NewMat4(),
+	View:                  mathx.NewMat4(),
+	Projection:            mathx.NewMat4(),
+	ViewProjection:        mathx.NewMat4(),
+	InverseViewProjection: mathx.NewMat4(),
 }
 
 // testOpts: no blur passes, no FSR, no dirt — keeps the log to scene draws.
@@ -259,7 +261,7 @@ func unitQuad(material string) *rendering.Mesh {
 }
 
 func meshAt(x, y, z float32) *MeshEntity {
-	return NewMeshEntity(TypeMesh, physics.NewVec3(x, y, z), unitQuad("none"), nil, 1)
+	return NewMeshEntity(TypeMesh, mathx.NewVec3(x, y, z), unitQuad("none"), nil, 1)
 }
 
 func testSkeleton() *animation.Skeleton {
@@ -290,7 +292,7 @@ func TestAddRemoveEntities(t *testing.T) {
 	_, _, s := setup()
 	a := meshAt(0, 0, 0)
 	b := meshAt(5, 0, 0)
-	light := NewPointLightEntity(physics.NewVec3(0, 2, 0), 4, []float32{1, 1, 1}, 1, nil)
+	light := NewPointLightEntity(mathx.NewVec3(0, 2, 0), 4, []float32{1, 1, 1}, 1, nil)
 	s.AddEntities([]Entity{a, b, light, nil})
 
 	if s.EntityCount() != 3 {
@@ -323,11 +325,11 @@ func TestAddRemoveEntities(t *testing.T) {
 func TestUpdateCallbackAndRemoval(t *testing.T) {
 	_, _, s := setup()
 	ticks := 0
-	keep := NewMeshEntity(TypeMesh, physics.NewVec3(0, 0, 0), unitQuad("none"), func(e Entity, dt float32) bool {
+	keep := NewMeshEntity(TypeMesh, mathx.NewVec3(0, 0, 0), unitQuad("none"), func(e Entity, dt float32) bool {
 		ticks++
 		return true
 	}, 1)
-	dieNext := NewMeshEntity(TypeMesh, physics.NewVec3(1, 0, 0), unitQuad("none"), func(e Entity, dt float32) bool {
+	dieNext := NewMeshEntity(TypeMesh, mathx.NewVec3(1, 0, 0), unitQuad("none"), func(e Entity, dt float32) bool {
 		return false
 	}, 1)
 	static := meshAt(2, 0, 0)
@@ -428,7 +430,7 @@ func TestMeshEntitySetRotationWarnsWhenStatic(t *testing.T) {
 
 func TestStaticGeometryRaycast(t *testing.T) {
 	_, _, s := setup()
-	floor := NewMeshEntity(TypeMesh, physics.NewVec3(0, 0, 0), unitQuad("none"), nil, 10)
+	floor := NewMeshEntity(TypeMesh, mathx.NewVec3(0, 0, 0), unitQuad("none"), nil, 10)
 	s.AddEntity(floor)
 	s.AddStaticGeometry(floor)
 	s.FinalizeStaticGeometry()
@@ -463,7 +465,7 @@ func TestStaticGeometryRaycast(t *testing.T) {
 	if below.HasHit {
 		t.Errorf("backface should be skipped by default")
 	}
-	both := s.RaycastStatic(0, -5, 0, 0, 5, 0, &physics.RayOptions{SkipBackfaces: false, Mode: physics.RayModeClosest})
+	both := s.RaycastStatic(0, -5, 0, 0, 5, 0, &collision.RayOptions{SkipBackfaces: false, Mode: collision.RayModeClosest})
 	if !both.HasHit {
 		t.Errorf("SkipBackfaces=false should hit from below")
 	}
@@ -474,7 +476,7 @@ func TestStaticGeometryRaycast(t *testing.T) {
 	if !got.HasHit || !approx(got.HitPointWorld.Y, 0) {
 		t.Errorf("RaycastProvider: %+v", got)
 	}
-	body := physics.NewDynamicBody(physics.NewVec3(0.5, 2, 0.5), &physics.DynamicBodyConfig{Radius: 1, Gravity: 1000})
+	body := physics.NewDynamicBody(mathx.NewVec3(0.5, 2, 0.5), &physics.DynamicBodyConfig{Radius: 1, Gravity: 1000})
 	body.Provider = s
 	for i := 0; i < 20 && !body.IsResting && body.BounceCount == 0; i++ {
 		body.Update(50)
@@ -496,7 +498,7 @@ func TestStaticGeometryDoubleSidedFlags(t *testing.T) {
 	mat := rendering.NewMaterial(testBE, "glass")
 	mat.Translucent = true
 	mesh.MaterialLookup["glass"] = mat
-	e := NewMeshEntity(TypeMesh, physics.NewVec3(0, 0, 0), mesh, nil, 1)
+	e := NewMeshEntity(TypeMesh, mathx.NewVec3(0, 0, 0), mesh, nil, 1)
 	s.AddStaticGeometry(e)
 	s.FinalizeStaticGeometry()
 	tm := s.StaticTrimesh()
@@ -515,7 +517,7 @@ func TestDynamicRaycast(t *testing.T) {
 	e := meshAt(0, 3, 0)
 	verts := []float32{-1, 0, -1, 1, 0, -1, 1, 0, 1, -1, 0, 1}
 	idx := []int32{0, 2, 1, 0, 3, 2}
-	e.Base.Collider = physics.NewTrimesh(verts, idx, nil)
+	e.Base.Collider = collision.NewTrimesh(verts, idx, nil)
 	s.AddEntity(e)
 
 	res := s.RaycastDynamic(0, 10, 0, 0, -10, 0, nil)
@@ -538,14 +540,14 @@ func TestDynamicRaycast(t *testing.T) {
 
 func TestAmbientDefaultsAndLightGrid(t *testing.T) {
 	_, _, s := setup()
-	out := &physics.Vec3{}
+	out := &mathx.Vec3{}
 	s.Ambient(out)
 	if !approx(out.X, 0.5) || !approx(out.Y, 0.5) {
 		t.Errorf("default ambient = %+v", out)
 	}
 	s.SetAmbient(0.1, 0.2, 0.3)
 	buf := make([]float32, 3)
-	s.AmbientAt(physics.NewVec3(0, 0, 0), buf)
+	s.AmbientAt(mathx.NewVec3(0, 0, 0), buf)
 	if !approx(buf[2], 0.3) {
 		t.Errorf("AmbientAt flat = %v", buf)
 	}
@@ -571,16 +573,16 @@ func TestAmbientDefaultsAndLightGrid(t *testing.T) {
 		t.Errorf("ambient with grid should be black: %+v", out)
 	}
 	// Halfway along X: red 0.5; grid Z maps to engine +Y (fz = relY/step).
-	s.AmbientAt(physics.NewVec3(32, 0, 0), buf)
+	s.AmbientAt(mathx.NewVec3(32, 0, 0), buf)
 	if !approx(buf[0], 0.5) || !approx(buf[1], 128.0/255.0) || !approx(buf[2], 0) {
 		t.Errorf("trilinear sample = %v", buf)
 	}
-	s.AmbientAt(physics.NewVec3(0, 64, 0), buf)
+	s.AmbientAt(mathx.NewVec3(0, 64, 0), buf)
 	if !approx(buf[2], 1) {
 		t.Errorf("engine +Y should map to grid Z: %v", buf)
 	}
 	// Outside the grid clamps.
-	s.AmbientAt(physics.NewVec3(-500, -500, 500), buf)
+	s.AmbientAt(mathx.NewVec3(-500, -500, 500), buf)
 	if !approx(buf[0], 0) || !approx(buf[2], 0) {
 		t.Errorf("clamped sample = %v", buf)
 	}
@@ -601,7 +603,7 @@ func TestRenderWorldGeometryOrderAndUniforms(t *testing.T) {
 	mb, r, s := setup()
 	s.AddEntity(NewSkyboxEntity("test", r.Shapes.SkyBox, nil))
 	s.AddEntity(meshAt(0, 0, 0))
-	skinned := NewSkinnedMeshEntity(physics.NewVec3(0, 0, 0), skinnedQuad(), testSkeleton(), nil, 1)
+	skinned := NewSkinnedMeshEntity(mathx.NewVec3(0, 0, 0), skinnedQuad(), testSkeleton(), nil, 1)
 	s.AddEntity(skinned)
 	s.Update(16)
 	mb.Reset()
@@ -653,7 +655,7 @@ func TestRenderWorldGeometryOrderAndUniforms(t *testing.T) {
 
 func TestRenderShadowsBudgetAndHeights(t *testing.T) {
 	mb, r, s := setup()
-	floor := NewMeshEntity(TypeMesh, physics.NewVec3(0, 0, 0), unitQuad("none"), nil, 100)
+	floor := NewMeshEntity(TypeMesh, mathx.NewVec3(0, 0, 0), unitQuad("none"), nil, 100)
 	s.AddEntity(floor)
 	s.AddStaticGeometry(floor)
 	s.FinalizeStaticGeometry()
@@ -726,11 +728,11 @@ func boolToInt(b bool) int {
 
 func TestSkinnedShadowSampling(t *testing.T) {
 	mb, r, s := setup()
-	floor := NewMeshEntity(TypeMesh, physics.NewVec3(0, 0, 0), unitQuad("none"), nil, 100)
+	floor := NewMeshEntity(TypeMesh, mathx.NewVec3(0, 0, 0), unitQuad("none"), nil, 100)
 	s.AddEntity(floor)
 	s.AddStaticGeometry(floor)
 	s.FinalizeStaticGeometry()
-	sk := NewSkinnedMeshEntity(physics.NewVec3(0, 2, 0), skinnedQuad(), testSkeleton(), nil, 1)
+	sk := NewSkinnedMeshEntity(mathx.NewVec3(0, 2, 0), skinnedQuad(), testSkeleton(), nil, 1)
 	sk.Base.CastShadow = true
 	s.AddEntity(sk)
 	s.Update(16)
@@ -750,7 +752,7 @@ func TestSkinnedShadowSampling(t *testing.T) {
 		t.Errorf("re-sampled without movement")
 	}
 	// Move beyond epsilon triggers re-sample.
-	physics.Mat4Translate(sk.Base.BaseMatrix, sk.Base.BaseMatrix, physics.NewVec3(1, 0, 0))
+	mathx.Mat4Translate(sk.Base.BaseMatrix, sk.Base.BaseMatrix, mathx.NewVec3(1, 0, 0))
 	s.Update(16)
 	if sk.Shadow.SampleFrame == frame {
 		t.Errorf("movement should re-sample")
@@ -760,9 +762,9 @@ func TestSkinnedShadowSampling(t *testing.T) {
 func TestRenderLightingSortsByContribution(t *testing.T) {
 	mb, r, s := setup()
 	s.Camera.Position.Set(0, 0, 0)
-	far := NewPointLightEntity(physics.NewVec3(100, 0, 0), 5, []float32{1, 0, 0}, 1, nil)
-	near := NewPointLightEntity(physics.NewVec3(1, 0, 0), 5, []float32{0, 1, 0}, 1, nil)
-	spot := NewSpotLightEntity(physics.NewVec3(0, 5, 0), physics.NewVec3(0, -1, 0), []float32{1, 1, 1}, 2, 30, 20, nil)
+	far := NewPointLightEntity(mathx.NewVec3(100, 0, 0), 5, []float32{1, 0, 0}, 1, nil)
+	near := NewPointLightEntity(mathx.NewVec3(1, 0, 0), 5, []float32{0, 1, 0}, 1, nil)
+	spot := NewSpotLightEntity(mathx.NewVec3(0, 5, 0), mathx.NewVec3(0, -1, 0), []float32{1, 1, 1}, 2, 30, 20, nil)
 	s.AddEntity(far)
 	s.AddEntity(near)
 	s.AddEntity(spot)
@@ -798,7 +800,7 @@ func TestRenderLightingDrawsAllLightsBeyondSorterCapacity(t *testing.T) {
 	mb, r, s := setup()
 	const n = 70 // > renderer's NewLightSorter(64)
 	for i := 0; i < n; i++ {
-		s.AddEntity(NewPointLightEntity(physics.NewVec3(float32(i), 0, 0), 5, []float32{1, 1, 1}, 1, nil))
+		s.AddEntity(NewPointLightEntity(mathx.NewVec3(float32(i), 0, 0), 5, []float32{1, 1, 1}, 1, nil))
 	}
 	s.Update(16)
 	mb.Reset()
@@ -846,10 +848,10 @@ func TestVisibilityFillsTypedBuckets(t *testing.T) {
 	mesh := meshAt(0, 0, 0)
 	hidden := meshAt(1, 0, 0)
 	hidden.Base.Visible = false
-	fps := NewMeshEntity(TypeFPSMesh, physics.NewVec3(0, 0, 0), unitQuad("none"), nil, 1)
-	sk := NewSkinnedMeshEntity(physics.NewVec3(0, 0, 0), skinnedQuad(), testSkeleton(), nil, 1)
-	pl := NewPointLightEntity(physics.NewVec3(0, 2, 0), 4, []float32{1, 1, 1}, 1, nil)
-	sl := NewSpotLightEntity(physics.NewVec3(0, 5, 0), physics.NewVec3(0, -1, 0), []float32{1, 1, 1}, 1, 30, 20, nil)
+	fps := NewMeshEntity(TypeFPSMesh, mathx.NewVec3(0, 0, 0), unitQuad("none"), nil, 1)
+	sk := NewSkinnedMeshEntity(mathx.NewVec3(0, 0, 0), skinnedQuad(), testSkeleton(), nil, 1)
+	pl := NewPointLightEntity(mathx.NewVec3(0, 2, 0), 4, []float32{1, 1, 1}, 1, nil)
+	sl := NewSpotLightEntity(mathx.NewVec3(0, 5, 0), mathx.NewVec3(0, -1, 0), []float32{1, 1, 1}, 1, 30, 20, nil)
 	dl := NewDirectionalLightEntity([]float32{0, -1, 0}, []float32{1, 1, 1}, nil)
 	s.AddEntities([]Entity{mesh, hidden, fps, sk, pl, sl, dl})
 	s.Update(16)
@@ -926,7 +928,7 @@ func TestRenderTransparentSortsAndUploadsLights(t *testing.T) {
 	makeGlass := func(z float32) *MeshEntity {
 		m := unitQuad("glass")
 		m.MaterialLookup["glass"] = glass
-		return NewMeshEntity(TypeMesh, physics.NewVec3(0, 0, z), m, nil, 1)
+		return NewMeshEntity(TypeMesh, mathx.NewVec3(0, 0, z), m, nil, 1)
 	}
 	nearG := makeGlass(5)
 	farG := makeGlass(50)
@@ -934,7 +936,7 @@ func TestRenderTransparentSortsAndUploadsLights(t *testing.T) {
 	s.AddEntity(nearG)
 	s.AddEntity(farG)
 	s.AddEntity(opaque)
-	s.AddEntity(NewPointLightEntity(physics.NewVec3(0, 1, 0), 3, []float32{1, 1, 1}, 1, nil))
+	s.AddEntity(NewPointLightEntity(mathx.NewVec3(0, 1, 0), 3, []float32{1, 1, 1}, 1, nil))
 	s.Update(16)
 	mb.Reset()
 
@@ -976,12 +978,12 @@ func TestRenderTransparentSortsAndUploadsLights(t *testing.T) {
 func TestBillboardAndParticles(t *testing.T) {
 	mb, r, s := setup()
 	tex := rendering.NewTexture(mb, &rendering.TextureDescriptor{Width: 4, Height: 4, Format: "rgba8"})
-	bb := NewAnimatedBillboardEntity(physics.NewVec3(0, 1, 0), &BillboardConfig{
+	bb := NewAnimatedBillboardEntity(mathx.NewVec3(0, 1, 0), &BillboardConfig{
 		Texture: tex, Duration: 100, GridSize: 2, FrameCount: 4, Scale: 2,
 	})
 	pe := NewParticleEmitterEntity(tex, nil, nil)
-	pe.AddParticle(physics.NewVec3(0, 0, 0), physics.NewVec3(0, 1, 0), 50, 1, 0, 0)
-	pe.AddParticle(physics.NewVec3(1, 0, 0), physics.NewVec3(0, 1, 0), 500, 1, 0, 0)
+	pe.AddParticle(mathx.NewVec3(0, 0, 0), mathx.NewVec3(0, 1, 0), 50, 1, 0, 0)
+	pe.AddParticle(mathx.NewVec3(1, 0, 0), mathx.NewVec3(0, 1, 0), 500, 1, 0, 0)
 	s.AddEntity(bb)
 	s.AddEntity(pe)
 
@@ -1021,8 +1023,8 @@ func TestBillboardAndParticles(t *testing.T) {
 func TestRenderDebugTogglesAndColors(t *testing.T) {
 	mb, r, s := setup()
 	s.AddEntity(meshAt(0, 0, 0))
-	s.AddEntity(NewPointLightEntity(physics.NewVec3(0, 2, 0), 4, []float32{1, 1, 1}, 1, nil))
-	sk := NewSkinnedMeshEntity(physics.NewVec3(0, 0, 0), skinnedQuad(), testSkeleton(), nil, 1)
+	s.AddEntity(NewPointLightEntity(mathx.NewVec3(0, 2, 0), 4, []float32{1, 1, 1}, 1, nil))
+	sk := NewSkinnedMeshEntity(mathx.NewVec3(0, 0, 0), skinnedQuad(), testSkeleton(), nil, 1)
 	s.AddEntity(sk)
 	s.Update(16)
 	mb.Reset()
@@ -1063,7 +1065,7 @@ func TestRenderDebugTogglesAndColors(t *testing.T) {
 func TestSkinnedEntityAnimationDrivesBones(t *testing.T) {
 	_, _, s := setup()
 	skel := testSkeleton()
-	sk := NewSkinnedMeshEntity(physics.NewVec3(0, 0, 0), skinnedQuad(), skel, nil, 1)
+	sk := NewSkinnedMeshEntity(mathx.NewVec3(0, 0, 0), skinnedQuad(), skel, nil, 1)
 	s.AddEntity(sk)
 
 	// One-frame clip moving the root up by 2.
@@ -1085,7 +1087,7 @@ func TestSkinnedEntityAnimationDrivesBones(t *testing.T) {
 
 func TestSceneUpdateAndRenderNoGrowth(t *testing.T) {
 	mb, r, s := setup()
-	floor := NewMeshEntity(TypeMesh, physics.NewVec3(0, 0, 0), unitQuad("none"), nil, 100)
+	floor := NewMeshEntity(TypeMesh, mathx.NewVec3(0, 0, 0), unitQuad("none"), nil, 100)
 	s.AddEntity(floor)
 	s.AddStaticGeometry(floor)
 	s.FinalizeStaticGeometry()
@@ -1094,9 +1096,9 @@ func TestSceneUpdateAndRenderNoGrowth(t *testing.T) {
 		m.Base.CastShadow = true
 		s.AddEntity(m)
 	}
-	s.AddEntity(NewPointLightEntity(physics.NewVec3(0, 2, 0), 4, []float32{1, 1, 1}, 1, nil))
-	s.AddEntity(NewSpotLightEntity(physics.NewVec3(0, 5, 0), physics.NewVec3(0, -1, 0), []float32{1, 1, 1}, 1, 30, 20, nil))
-	s.AddEntity(NewSkinnedMeshEntity(physics.NewVec3(2, 2, 0), skinnedQuad(), testSkeleton(), nil, 1))
+	s.AddEntity(NewPointLightEntity(mathx.NewVec3(0, 2, 0), 4, []float32{1, 1, 1}, 1, nil))
+	s.AddEntity(NewSpotLightEntity(mathx.NewVec3(0, 5, 0), mathx.NewVec3(0, -1, 0), []float32{1, 1, 1}, 1, 30, 20, nil))
+	s.AddEntity(NewSkinnedMeshEntity(mathx.NewVec3(2, 2, 0), skinnedQuad(), testSkeleton(), nil, 1))
 	mb.Recording = false
 
 	frame := func() {

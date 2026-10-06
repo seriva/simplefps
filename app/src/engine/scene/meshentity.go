@@ -3,14 +3,14 @@ package scene
 import (
 	"math"
 
-	"../physics"
+	"../mathx"
 	"../rendering"
 	"../systems"
 )
 
 var (
-	meshTempMatrix = physics.NewMat4()
-	meshScaleVec   = &physics.Vec3{}
+	meshTempMatrix = mathx.NewMat4()
+	meshScaleVec   = &mathx.Vec3{}
 )
 
 // MeshEntity renders a static or animated rigid Mesh.
@@ -26,15 +26,15 @@ type MeshEntity struct {
 
 // NewMeshEntity places mesh at position with a uniform scale. entityType is
 // TypeMesh or TypeFPSMesh.
-func NewMeshEntity(entityType int, position *physics.Vec3, mesh *rendering.Mesh, update UpdateCallback, scale float32) *MeshEntity {
+func NewMeshEntity(entityType int, position *mathx.Vec3, mesh *rendering.Mesh, update UpdateCallback, scale float32) *MeshEntity {
 	e := &MeshEntity{Mesh: mesh}
 	initBase(&e.Base, entityType, update)
 	e.Base.CastShadow = false
 	if position != nil {
-		physics.Mat4Translate(e.Base.BaseMatrix, e.Base.BaseMatrix, position)
+		mathx.Mat4Translate(e.Base.BaseMatrix, e.Base.BaseMatrix, position)
 	}
 	meshScaleVec.Set(scale, scale, scale)
-	physics.Mat4Scale(e.Base.BaseMatrix, e.Base.BaseMatrix, meshScaleVec)
+	mathx.Mat4Scale(e.Base.BaseMatrix, e.Base.BaseMatrix, meshScaleVec)
 	return e
 }
 
@@ -47,9 +47,9 @@ func (e *MeshEntity) SetRotation(rx, ry, rz float32) {
 		return
 	}
 	m := e.Base.BaseMatrix
-	physics.Mat4RotateX(m, m, rx*float32(math.Pi)/180)
-	physics.Mat4RotateY(m, m, ry*float32(math.Pi)/180)
-	physics.Mat4RotateZ(m, m, rz*float32(math.Pi)/180)
+	mathx.Mat4RotateX(m, m, rx*float32(math.Pi)/180)
+	mathx.Mat4RotateY(m, m, ry*float32(math.Pi)/180)
+	mathx.Mat4RotateZ(m, m, rz*float32(math.Pi)/180)
 }
 
 func (e *MeshEntity) Update(frameTime float32) bool {
@@ -67,7 +67,7 @@ func (e *MeshEntity) Draw(r *rendering.Renderer, sh *rendering.Shader, mode rend
 	if e.Mesh == nil || sh == nil {
 		return
 	}
-	physics.Mat4Multiply(meshTempMatrix, e.Base.BaseMatrix, e.Base.AniMatrix)
+	mathx.Mat4Multiply(meshTempMatrix, e.Base.BaseMatrix, e.Base.AniMatrix)
 	setProbeUniform(sh, &e.Probe)
 	sh.SetMat4("matWorld", meshTempMatrix)
 	e.Mesh.RenderSingle(true, rendering.TopoTriangles, mode, sh)
@@ -77,7 +77,7 @@ func (e *MeshEntity) DrawWireframe(r *rendering.Renderer, sh *rendering.Shader) 
 	if e.Mesh == nil || sh == nil {
 		return
 	}
-	physics.Mat4Multiply(meshTempMatrix, e.Base.BaseMatrix, e.Base.AniMatrix)
+	mathx.Mat4Multiply(meshTempMatrix, e.Base.BaseMatrix, e.Base.AniMatrix)
 	sh.SetMat4("matWorld", meshTempMatrix)
 	e.Mesh.RenderWireframe()
 }
@@ -93,7 +93,7 @@ func (e *MeshEntity) DrawShadow(r *rendering.Renderer, sh *rendering.Shader) {
 		return
 	}
 	m := meshTempMatrix
-	physics.Mat4Multiply(m, e.Base.BaseMatrix, e.Base.AniMatrix)
+	mathx.Mat4Multiply(m, e.Base.BaseMatrix, e.Base.AniMatrix)
 	m[1] *= 0.1
 	m[5] *= 0.1
 	m[9] *= 0.1
@@ -102,7 +102,7 @@ func (e *MeshEntity) DrawShadow(r *rendering.Renderer, sh *rendering.Shader) {
 	e.Mesh.RenderSingle(false, rendering.TopoTriangles, rendering.ModeAll, sh)
 }
 
-func (e *MeshEntity) Bounds() *physics.BoundingBox { return e.Base.BoundingBox }
+func (e *MeshEntity) Bounds() *mathx.BoundingBox { return e.Base.BoundingBox }
 func (e *MeshEntity) CastsShadow() bool            { return e.Base.CastShadow }
 
 func (e *MeshEntity) TriangleCount() int {
@@ -117,9 +117,9 @@ func (e *MeshEntity) UpdateBoundingVolume() {
 	if e.Mesh == nil || e.Mesh.BoundingBox == nil {
 		return
 	}
-	physics.Mat4Multiply(meshTempMatrix, e.Base.BaseMatrix, e.Base.AniMatrix)
+	mathx.Mat4Multiply(meshTempMatrix, e.Base.BaseMatrix, e.Base.AniMatrix)
 	if e.Base.BoundingBox == nil {
-		e.Base.BoundingBox = physics.NewBoundingBox()
+		e.Base.BoundingBox = mathx.NewBoundingBox()
 	}
 	e.Mesh.BoundingBox.TransformInto(meshTempMatrix, e.Base.BoundingBox)
 }

@@ -1,4 +1,7 @@
-package physics
+//gofront:target wasm
+package collision
+
+import "../mathx"
 
 const (
 	RayModeClosest = 1
@@ -10,31 +13,31 @@ const (
 )
 
 var (
-	_itNormal      Vec3
+	_itNormal      mathx.Vec3
 	_itTriangles   = make([]int, MaxRayQueryResults)
-	_itVector      Vec3
-	_itLocalDir    Vec3
-	_itLocalFrom   Vec3
-	_itLocalTo     Vec3
-	_itWorldPoint  Vec3
-	_itWorldNormal Vec3
-	_itV0          Vec3
-	_itV1          Vec3
-	_itV2          Vec3
-	_itA           Vec3
-	_itB           Vec3
-	_itC           Vec3
-	_itIntersectPt Vec3
-	_itInvMatrix   = NewMat4()
-	_itInvDir      Vec3
+	_itVector      mathx.Vec3
+	_itLocalDir    mathx.Vec3
+	_itLocalFrom   mathx.Vec3
+	_itLocalTo     mathx.Vec3
+	_itWorldPoint  mathx.Vec3
+	_itWorldNormal mathx.Vec3
+	_itV0          mathx.Vec3
+	_itV1          mathx.Vec3
+	_itV2          mathx.Vec3
+	_itA           mathx.Vec3
+	_itB           mathx.Vec3
+	_itC           mathx.Vec3
+	_itIntersectPt mathx.Vec3
+	_itInvMatrix   = mathx.NewMat4()
+	_itInvDir      mathx.Vec3
 )
 
 // RaycastResult stores the outcome of a raycast query.
 type RaycastResult struct {
-	RayFromWorld   Vec3
-	RayToWorld     Vec3
-	HitNormalWorld Vec3
-	HitPointWorld  Vec3
+	RayFromWorld   mathx.Vec3
+	RayToWorld     mathx.Vec3
+	HitNormalWorld mathx.Vec3
+	HitPointWorld  mathx.Vec3
 	HasHit         bool
 	Shape          interface{}
 	Body           interface{}
@@ -66,9 +69,9 @@ type RayOptions struct {
 
 // Ray represents a 3D ray segment with origin and endpoint.
 type Ray struct {
-	From                 Vec3
-	To                   Vec3
-	Direction            Vec3
+	From                 mathx.Vec3
+	To                   mathx.Vec3
+	Direction            mathx.Vec3
 	Precision            float32
 	SkipBackfaces        bool
 	CollisionFilterMask  int
@@ -80,7 +83,7 @@ type Ray struct {
 }
 
 // NewRay creates and initializes a Ray between from and to.
-func NewRay(from, to *Vec3) *Ray {
+func NewRay(from, to *mathx.Vec3) *Ray {
 	r := &Ray{
 		Precision:            0.0001,
 		SkipBackfaces:        false,
@@ -105,7 +108,7 @@ func (ray *Ray) UpdateDirection() {
 }
 
 // IntersectTrimesh tests ray intersection against triangles in a Trimesh.
-func (ray *Ray) IntersectTrimesh(mesh *Trimesh, worldMatrix Mat4) {
+func (ray *Ray) IntersectTrimesh(mesh *Trimesh, worldMatrix mathx.Mat4) {
 	indices := mesh.Indices
 
 	isIdentity := true
@@ -133,7 +136,7 @@ func (ray *Ray) IntersectTrimesh(mesh *Trimesh, worldMatrix Mat4) {
 		_itLocalTo.Copy(&ray.To)
 		_itLocalDir.Copy(&ray.Direction)
 	} else {
-		Mat4Invert(_itInvMatrix, worldMatrix)
+		mathx.Mat4Invert(_itInvMatrix, worldMatrix)
 		_itLocalFrom.TransformMat4(&ray.From, _itInvMatrix)
 		_itLocalTo.TransformMat4(&ray.To, _itInvMatrix)
 
@@ -253,7 +256,7 @@ func (ray *Ray) IntersectTrimesh(mesh *Trimesh, worldMatrix Mat4) {
 }
 
 // RayPointInTriangle tests if point p lies inside triangle defined by a, b, c.
-func RayPointInTriangle(p, a, b, c *Vec3) bool {
+func RayPointInTriangle(p, a, b, c *mathx.Vec3) bool {
 	_itV0.Sub(c, a)
 	_itV1.Sub(b, a)
 	_itV2.Sub(p, a)
@@ -271,7 +274,7 @@ func RayPointInTriangle(p, a, b, c *Vec3) bool {
 }
 
 // GetAABB calculates the bounding box enclosing the ray segment.
-func (ray *Ray) GetAABB(result *BoundingBox) *BoundingBox {
+func (ray *Ray) GetAABB(result *mathx.BoundingBox) *mathx.BoundingBox {
 	result.Min.Min(&ray.From, &ray.To)
 	result.Max.Max(&ray.From, &ray.To)
 	return result

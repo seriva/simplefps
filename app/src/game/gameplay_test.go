@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"../engine/assets"
-	"../engine/physics"
+	"../engine/mathx"
 	"../engine/rendering"
 	"../engine/scene"
 	"../engine/systems"
@@ -356,11 +356,11 @@ func TestPickupCreateCollectRespawn(t *testing.T) {
 	player.Health = 50
 	ps := NewPickupSystem(player)
 
-	if ps.CreatePickup("bogus", physics.NewVec3(0, 0, 0)) != nil {
+	if ps.CreatePickup("bogus", mathx.NewVec3(0, 0, 0)) != nil {
 		t.Error("unknown pickup type should be rejected")
 	}
 
-	health := ps.CreatePickup("health", physics.NewVec3(100, 0, 0))
+	health := ps.CreatePickup("health", mathx.NewVec3(100, 0, 0))
 	if len(health) != 2 {
 		t.Fatalf("health pickup should have mesh + point light, got %d", len(health))
 	}
@@ -375,7 +375,7 @@ func TestPickupCreateCollectRespawn(t *testing.T) {
 	collectedType := ""
 	ps.OnWeaponCollected = func(pt string) { collectedType = pt }
 	ps.IsWeaponUnlocked = func(idx int) bool { return unlocked }
-	weapon := ps.CreatePickup("pulse_cannon", physics.NewVec3(0, 0, 500))
+	weapon := ps.CreatePickup("pulse_cannon", mathx.NewVec3(0, 0, 500))
 	if len(weapon) != 2 {
 		t.Fatalf("weapon pickup entities = %d", len(weapon))
 	}
@@ -399,12 +399,12 @@ func TestPickupCreateCollectRespawn(t *testing.T) {
 
 	now := float64(10000)
 	// Far away: nothing happens.
-	ps.UpdateAt(physics.NewVec3(0, 0, 0), now)
+	ps.UpdateAt(mathx.NewVec3(0, 0, 0), now)
 	if ps.Pickups()[0].Collected || player.Health != 50 {
 		t.Error("out-of-range pickup collected")
 	}
 	// In range: collect, hide, schedule respawn.
-	ps.UpdateAt(physics.NewVec3(100, 10, 0), now)
+	ps.UpdateAt(mathx.NewVec3(100, 10, 0), now)
 	hp := ps.Pickups()[0]
 	if !hp.Collected || player.Health != 75 || health[0].GetBase().Visible || health[1].GetBase().Visible {
 		t.Error("health pickup not collected properly")
@@ -413,34 +413,34 @@ func TestPickupCreateCollectRespawn(t *testing.T) {
 		t.Error("respawn time mismatch")
 	}
 	// Still collected before respawn.
-	ps.UpdateAt(physics.NewVec3(100, 10, 0), now+1000)
+	ps.UpdateAt(mathx.NewVec3(100, 10, 0), now+1000)
 	if !hp.Collected {
 		t.Error("should stay collected before respawn")
 	}
 	// Respawn: visible again, grows in.
 	respawnNow := now + PickupRespawnTime
 	player.Health = PlayerMaxHealth // cannot pick up at full health
-	ps.UpdateAt(physics.NewVec3(100, 10, 0), respawnNow)
+	ps.UpdateAt(mathx.NewVec3(100, 10, 0), respawnNow)
 	if hp.Collected || !health[0].GetBase().Visible || hp.SpawnScale != 0 {
 		t.Error("pickup should respawn at scale 0")
 	}
-	ps.UpdateAt(physics.NewVec3(100, 10, 0), respawnNow+250)
+	ps.UpdateAt(mathx.NewVec3(100, 10, 0), respawnNow+250)
 	if hp.SpawnScale <= 0 || hp.SpawnScale >= 1 {
 		t.Errorf("mid respawn scale = %f", hp.SpawnScale)
 	}
-	ps.UpdateAt(physics.NewVec3(100, 10, 0), respawnNow+600)
+	ps.UpdateAt(mathx.NewVec3(100, 10, 0), respawnNow+600)
 	if hp.SpawnScale != 1 || hp.RespawnAnimationStart != 0 || hp.Collected {
 		t.Error("respawn animation should finish; full-health player must not collect")
 	}
 
 	// Weapon pickup: gated by unlock state.
 	unlocked = true
-	ps.UpdateAt(physics.NewVec3(0, 0, 500), now)
+	ps.UpdateAt(mathx.NewVec3(0, 0, 500), now)
 	if ps.Pickups()[1].Collected {
 		t.Error("unlocked weapon must not be collected")
 	}
 	unlocked = false
-	ps.UpdateAt(physics.NewVec3(0, 0, 500), now)
+	ps.UpdateAt(mathx.NewVec3(0, 0, 500), now)
 	if !ps.Pickups()[1].Collected || collectedType != "pulse_cannon" {
 		t.Error("weapon pickup should fire the callback")
 	}

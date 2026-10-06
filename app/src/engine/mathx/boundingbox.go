@@ -1,4 +1,5 @@
-package physics
+//gofront:target both
+package mathx
 
 import (
 	"math"
@@ -7,18 +8,6 @@ import (
 // FrustumPlaneCount is the number of planes in a view frustum; planes are stored flat as
 // [a, b, c, d] * 6 in a []float32 so producers can alias the buffer without copying.
 const FrustumPlaneCount = 6
-
-var (
-	_bbCornersBuffer             [24]float32
-	_bbTempCorner                Vec3
-	_bbTransformedMin            Vec3
-	_bbTransformedMax            Vec3
-	_bbTempCenter                Vec3
-	_bbTempDimensions            Vec3
-	_bbTempTransformMat          = NewMat4()
-	_bbTransformIntoFrameCorners = make([]Vec3, 8)
-	_bbP                         Vec3
-)
 
 // BoundingBox represents an Axis-Aligned Bounding Box (AABB).
 type BoundingBox struct {
@@ -184,40 +173,74 @@ func (b *BoundingBox) GetCorners(c0, c1, c2, c3, c4, c5, c6, c7 *Vec3) {
 	c7.Copy(u)
 }
 
+// corner writes corner i (bit 0 = max X, bit 1 = max Y, bit 2 = max Z) into out.
+func (b *BoundingBox) corner(i int, out *Vec3) {
+	if i&1 != 0 {
+		out.X = b.Max.X
+	} else {
+		out.X = b.Min.X
+	}
+	if i&2 != 0 {
+		out.Y = b.Max.Y
+	} else {
+		out.Y = b.Min.Y
+	}
+	if i&4 != 0 {
+		out.Z = b.Max.Z
+	} else {
+		out.Z = b.Min.Z
+	}
+}
+
+// frameCorners transforms the 8 corners through frame (local when toLocal, world
+// otherwise) and writes the enclosing box into target.
+func (b *BoundingBox) frameCorners(frame *Transform, target *BoundingBox, toLocal bool) *BoundingBox {
+	var c Vec3
+	var minX, minY, minZ, maxX, maxY, maxZ float32
+	for i := 0; i < 8; i++ {
+		b.corner(i, &c)
+		if toLocal {
+			frame.PointToLocal(&c, &c)
+		} else {
+			frame.PointToWorld(&c, &c)
+		}
+		if i == 0 {
+			minX, minY, minZ = c.X, c.Y, c.Z
+			maxX, maxY, maxZ = c.X, c.Y, c.Z
+			continue
+		}
+		if c.X < minX {
+			minX = c.X
+		}
+		if c.X > maxX {
+			maxX = c.X
+		}
+		if c.Y < minY {
+			minY = c.Y
+		}
+		if c.Y > maxY {
+			maxY = c.Y
+		}
+		if c.Z < minZ {
+			minZ = c.Z
+		}
+		if c.Z > maxZ {
+			maxZ = c.Z
+		}
+	}
+	target.Min.Set(minX, minY, minZ)
+	target.Max.Set(maxX, maxY, maxZ)
+	return target
+}
+
 // ToLocalFrame transforms this bounding box into the local coordinate frame of a Transform.
 func (b *BoundingBox) ToLocalFrame(frame *Transform, target *BoundingBox) *BoundingBox {
-	b.GetCorners(
-		&_bbTransformIntoFrameCorners[0],
-		&_bbTransformIntoFrameCorners[1],
-		&_bbTransformIntoFrameCorners[2],
-		&_bbTransformIntoFrameCorners[3],
-		&_bbTransformIntoFrameCorners[4],
-		&_bbTransformIntoFrameCorners[5],
-		&_bbTransformIntoFrameCorners[6],
-		&_bbTransformIntoFrameCorners[7],
-	)
-	for i := 0; i < 8; i++ {
-		frame.PointToLocal(&_bbTransformIntoFrameCorners[i], &_bbTransformIntoFrameCorners[i])
-	}
-	return target.SetFromPoints(_bbTransformIntoFrameCorners)
+	return b.frameCorners(frame, target, true)
 }
 
 // ToWorldFrame transforms this bounding box from local frame to world space.
 func (b *BoundingBox) ToWorldFrame(frame *Transform, target *BoundingBox) *BoundingBox {
-	b.GetCorners(
-		&_bbTransformIntoFrameCorners[0],
-		&_bbTransformIntoFrameCorners[1],
-		&_bbTransformIntoFrameCorners[2],
-		&_bbTransformIntoFrameCorners[3],
-		&_bbTransformIntoFrameCorners[4],
-		&_bbTransformIntoFrameCorners[5],
-		&_bbTransformIntoFrameCorners[6],
-		&_bbTransformIntoFrameCorners[7],
-	)
-	for i := 0; i < 8; i++ {
-		frame.PointToWorld(&_bbTransformIntoFrameCorners[i], &_bbTransformIntoFrameCorners[i])
-	}
-	return target.SetFromPoints(_bbTransformIntoFrameCorners)
+	return b.frameCorners(frame, target, false)
 }
 
 // Center computes the center point of this bounding box.
@@ -227,35 +250,21 @@ func (b *BoundingBox) Center(out *Vec3) *Vec3 {
 	return out
 }
 
-// GetCenter returns the center point using module scratch space.
-func (b *BoundingBox) GetCenter() *Vec3 {
-	return b.Center(&_bbTempCenter)
-}
-
 // Dimensions computes the width, height, and depth of this bounding box.
 func (b *BoundingBox) Dimensions(out *Vec3) *Vec3 {
 	out.Sub(&b.Max, &b.Min)
 	return out
 }
 
-// GetDimensions returns dimensions using module scratch space.
-func (b *BoundingBox) GetDimensions() *Vec3 {
-	return b.Dimensions(&_bbTempDimensions)
-}
-
 // TransformMatrix calculates the transformation matrix representing this bounding box.
 func (b *BoundingBox) TransformMatrix(out Mat4) Mat4 {
+	var center, dims Vec3
 	Mat4Identity(out)
-	b.Center(&_bbTempCenter)
-	b.Dimensions(&_bbTempDimensions)
-	Mat4Translate(out, out, &_bbTempCenter)
-	Mat4Scale(out, out, &_bbTempDimensions)
+	b.Center(&center)
+	b.Dimensions(&dims)
+	Mat4Translate(out, out, &center)
+	Mat4Scale(out, out, &dims)
 	return out
-}
-
-// GetTransformMatrix returns the transformation matrix using module scratch space.
-func (b *BoundingBox) GetTransformMatrix() Mat4 {
-	return b.TransformMatrix(_bbTempTransformMat)
 }
 
 // Transform transforms this bounding box by matrix and returns a new BoundingBox.
@@ -264,7 +273,10 @@ func (b *BoundingBox) Transform(matrix Mat4) *BoundingBox {
 }
 
 // TransformInto transforms this bounding box by matrix and writes bounds into out.
+// Scalar-only so the per-entity call in the frame loop does not allocate.
 func (b *BoundingBox) TransformInto(matrix Mat4, out *BoundingBox) *BoundingBox {
+	m := matrix
+	var tminX, tminY, tminZ, tmaxX, tmaxY, tmaxZ float32
 	for i := 0; i < 8; i++ {
 		var cx, cy, cz float32
 		if i&1 != 0 {
@@ -282,24 +294,18 @@ func (b *BoundingBox) TransformInto(matrix Mat4, out *BoundingBox) *BoundingBox 
 		} else {
 			cz = b.Min.Z
 		}
-		_bbTempCorner.Set(cx, cy, cz)
-		_bbTempCorner.TransformMat4(&_bbTempCorner, matrix)
-		_bbCornersBuffer[i*3] = _bbTempCorner.X
-		_bbCornersBuffer[i*3+1] = _bbTempCorner.Y
-		_bbCornersBuffer[i*3+2] = _bbTempCorner.Z
-	}
-
-	tminX := _bbCornersBuffer[0]
-	tminY := _bbCornersBuffer[1]
-	tminZ := _bbCornersBuffer[2]
-	tmaxX := tminX
-	tmaxY := tminY
-	tmaxZ := tminZ
-
-	for i := 3; i < 24; i += 3 {
-		x := _bbCornersBuffer[i]
-		y := _bbCornersBuffer[i+1]
-		z := _bbCornersBuffer[i+2]
+		w := m[3]*cx + m[7]*cy + m[11]*cz + m[15]
+		if w == 0 {
+			w = 1
+		}
+		x := (m[0]*cx + m[4]*cy + m[8]*cz + m[12]) / w
+		y := (m[1]*cx + m[5]*cy + m[9]*cz + m[13]) / w
+		z := (m[2]*cx + m[6]*cy + m[10]*cz + m[14]) / w
+		if i == 0 {
+			tminX, tminY, tminZ = x, y, z
+			tmaxX, tmaxY, tmaxZ = x, y, z
+			continue
+		}
 		if x < tminX {
 			tminX = x
 		}

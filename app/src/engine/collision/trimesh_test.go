@@ -1,8 +1,19 @@
-package physics
+//gofront:target wasm
+package collision
 
 import (
 	"testing"
+
+	"../mathx"
 )
+
+func floatApprox(a, b float32) bool {
+	diff := a - b
+	if diff < 0 {
+		diff = -diff
+	}
+	return diff < 0.001
+}
 
 func TestTrimeshNormalsAndAABB(t *testing.T) {
 	// A flat quad in the XZ plane at Y = 0 (CCW winding when viewed from +Y)
@@ -26,7 +37,7 @@ func TestTrimeshNormalsAndAABB(t *testing.T) {
 		t.Errorf("Trimesh AABB max failed: got (%f, %f, %f)", tm.AABB.Max.X, tm.AABB.Max.Y, tm.AABB.Max.Z)
 	}
 
-	var normal Vec3
+	var normal mathx.Vec3
 	tm.GetNormal(0, &normal)
 	// Upward normal (0, 1, 0)
 	if !floatApprox(normal.X, 0) || !floatApprox(normal.Y, 1) || !floatApprox(normal.Z, 0) {

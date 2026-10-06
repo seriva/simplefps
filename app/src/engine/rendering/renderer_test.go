@@ -3,6 +3,7 @@ package rendering
 import (
 	"testing"
 
+	"../mathx"
 	"js:./interop.d.ts"
 )
 
@@ -512,7 +513,7 @@ func TestRenderFrameDoesNotAllocate(t *testing.T) {
 }
 
 func TestLightSorterAndLightingData(t *testing.T) {
-	cam := &physics.Vec3{}
+	cam := &mathx.Vec3{}
 	if ContributionScore(10, 0, 0, 1, cam) != 0.01 || ContributionScore(0, 0, 0, 3, cam) != 3 {
 		t.Errorf("ContributionScore = intensity / d² (d²=0 → 1)")
 	}

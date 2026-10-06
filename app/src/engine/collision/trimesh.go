@@ -1,16 +1,19 @@
-package physics
+//gofront:target wasm
+package collision
 
 import (
 	"math"
+
+	"../mathx"
 )
 
 var (
-	_tmVa Vec3
-	_tmVb Vec3
-	_tmVc Vec3
-	_tmN  Vec3
-	_tmAb Vec3
-	_tmCb Vec3
+	_tmVa mathx.Vec3
+	_tmVb mathx.Vec3
+	_tmVc mathx.Vec3
+	_tmN  mathx.Vec3
+	_tmAb mathx.Vec3
+	_tmCb mathx.Vec3
 )
 
 type pendingIndexData struct {
@@ -20,7 +23,7 @@ type pendingIndexData struct {
 
 // Trimesh represents a collision triangle mesh with octree spatial acceleration.
 type Trimesh struct {
-	AABB             BoundingBox
+	AABB             mathx.BoundingBox
 	Tree             *Octree
 	Vertices         []float32
 	Indices          []int32
@@ -171,7 +174,7 @@ func (tm *Trimesh) UpdateTree() {
 	tree.AABB.Max.Y += epsilon
 	tree.AABB.Max.Z += epsilon
 
-	var triangleAABB BoundingBox
+	var triangleAABB mathx.BoundingBox
 	tmin := &triangleAABB.Min
 	tmax := &triangleAABB.Max
 
@@ -308,7 +311,7 @@ func (tm *Trimesh) UpdateNormals() {
 }
 
 // GetNormal retrieves the surface normal of triangle i into target.
-func (tm *Trimesh) GetNormal(i int, target *Vec3) *Vec3 {
+func (tm *Trimesh) GetNormal(i int, target *mathx.Vec3) *mathx.Vec3 {
 	i3 := i * 3
 	target.X = tm.Normals[i3]
 	target.Y = tm.Normals[i3+1]
@@ -317,7 +320,7 @@ func (tm *Trimesh) GetNormal(i int, target *Vec3) *Vec3 {
 }
 
 // GetVertex retrieves vertex coordinates of vertex index i into out.
-func (tm *Trimesh) GetVertex(i int, out *Vec3) *Vec3 {
+func (tm *Trimesh) GetVertex(i int, out *mathx.Vec3) *mathx.Vec3 {
 	i3 := i * 3
 	out.X = tm.Vertices[i3]
 	out.Y = tm.Vertices[i3+1]
@@ -326,7 +329,7 @@ func (tm *Trimesh) GetVertex(i int, out *Vec3) *Vec3 {
 }
 
 // ComputeLocalAABB calculates the enclosing AABB for all vertices in the mesh.
-func (tm *Trimesh) ComputeLocalAABB(aabb *BoundingBox) {
+func (tm *Trimesh) ComputeLocalAABB(aabb *mathx.BoundingBox) {
 	vertices := tm.Vertices
 	minX := float32(math.Inf(1))
 	minY := float32(math.Inf(1))
@@ -365,7 +368,7 @@ func (tm *Trimesh) ComputeLocalAABB(aabb *BoundingBox) {
 }
 
 // ComputeNormal calculates the normalized surface normal for triangle (va, vb, vc).
-func ComputeNormal(va, vb, vc, target *Vec3) {
+func ComputeNormal(va, vb, vc, target *mathx.Vec3) {
 	_tmAb.Sub(vb, va)
 	_tmCb.Sub(vc, vb)
 	target.Cross(&_tmCb, &_tmAb)

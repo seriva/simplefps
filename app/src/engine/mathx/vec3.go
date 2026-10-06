@@ -1,4 +1,5 @@
-package physics
+//gofront:target both
+package mathx
 
 import (
 	"math"
@@ -251,6 +252,25 @@ func (out *Vec3) TransformQuat(a *Vec3, q *Quat) *Vec3 {
 	return out
 }
 
+// TransformQuatConjugate transforms a by the conjugate (inverse rotation) of unit
+// quaternion q without materialising the conjugate.
+func (out *Vec3) TransformQuatConjugate(a *Vec3, q *Quat) *Vec3 {
+	qx := -q.X
+	qy := -q.Y
+	qz := -q.Z
+	qw := q.W
+	vx := a.X
+	vy := a.Y
+	vz := a.Z
+	tx := 2 * (qy*vz - qz*vy)
+	ty := 2 * (qz*vx - qx*vz)
+	tz := 2 * (qx*vy - qy*vx)
+	out.X = vx + qw*tx + (qy*tz - qz*ty)
+	out.Y = vy + qw*ty + (qz*tx - qx*tz)
+	out.Z = vz + qw*tz + (qx*ty - qy*tx)
+	return out
+}
+
 // RotateX rotates vector a around origin along X-axis.
 func (out *Vec3) RotateX(a, origin *Vec3, rad float32) *Vec3 {
 	px := a.X - origin.X
@@ -296,20 +316,5 @@ func (out *Vec3) RotateZ(a, origin *Vec3, rad float32) *Vec3 {
 	out.X = rx + origin.X
 	out.Y = ry + origin.Y
 	out.Z = rz + origin.Z
-	return out
-}
-
-// TransformMat4 transforms a by 4x4 matrix m.
-func (out *Vec3) TransformMat4(a *Vec3, m Mat4) *Vec3 {
-	x := a.X
-	y := a.Y
-	z := a.Z
-	w := m[3]*x + m[7]*y + m[11]*z + m[15]
-	if w == 0 {
-		w = 1.0
-	}
-	out.X = (m[0]*x + m[4]*y + m[8]*z + m[12]) / w
-	out.Y = (m[1]*x + m[5]*y + m[9]*z + m[13]) / w
-	out.Z = (m[2]*x + m[6]*y + m[10]*z + m[14]) / w
 	return out
 }
