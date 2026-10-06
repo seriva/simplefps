@@ -3,7 +3,7 @@ package scene
 import (
 	"math"
 
-	"../physics"
+	"../mathx"
 	"../rendering"
 )
 
@@ -24,10 +24,10 @@ type BillboardConfig struct {
 }
 
 var (
-	bbTempMatrix  = physics.NewMat4()
-	bbWorldPos    = &physics.Vec3{}
-	bbBoxMin      = &physics.Vec3{}
-	bbBoxMax      = &physics.Vec3{}
+	bbTempMatrix  = mathx.NewMat4()
+	bbWorldPos    = &mathx.Vec3{}
+	bbBoxMin      = &mathx.Vec3{}
+	bbBoxMax      = &mathx.Vec3{}
 	bbFrameOffset = make([]float32, 2)
 	bbFrameScale  = make([]float32, 2)
 )
@@ -36,7 +36,7 @@ var (
 // The camera view matrix is provided by the Scene through CameraView.
 type AnimatedBillboardEntity struct {
 	Base       EntityBase
-	CameraView physics.Mat4
+	CameraView mathx.Mat4
 
 	time       float32
 	duration   float32
@@ -51,7 +51,7 @@ type AnimatedBillboardEntity struct {
 }
 
 // NewAnimatedBillboardEntity creates a billboard at position.
-func NewAnimatedBillboardEntity(position *physics.Vec3, cfg *BillboardConfig) *AnimatedBillboardEntity {
+func NewAnimatedBillboardEntity(position *mathx.Vec3, cfg *BillboardConfig) *AnimatedBillboardEntity {
 	e := &AnimatedBillboardEntity{
 		duration:   1000,
 		gridSize:   1,
@@ -82,7 +82,7 @@ func NewAnimatedBillboardEntity(position *physics.Vec3, cfg *BillboardConfig) *A
 	e.cosR = float32(math.Cos(float64(rotation)))
 	e.sinR = float32(math.Sin(float64(rotation)))
 	if position != nil {
-		physics.Mat4Translate(e.Base.BaseMatrix, e.Base.BaseMatrix, position)
+		mathx.Mat4Translate(e.Base.BaseMatrix, e.Base.BaseMatrix, position)
 	}
 	e.UpdateBoundingVolume()
 	return e
@@ -131,8 +131,8 @@ func (e *AnimatedBillboardEntity) Draw(r *rendering.Renderer, sh *rendering.Shad
 		scale *= e.scaleFn(progress)
 	}
 
-	physics.Mat4Multiply(bbTempMatrix, e.Base.BaseMatrix, e.Base.AniMatrix)
-	physics.Mat4GetTranslation(bbWorldPos, bbTempMatrix)
+	mathx.Mat4Multiply(bbTempMatrix, e.Base.BaseMatrix, e.Base.AniMatrix)
+	mathx.Mat4GetTranslation(bbWorldPos, bbTempMatrix)
 
 	var rx, ry, rz, ux, uy, uz float32
 	if e.CameraView != nil {
@@ -156,7 +156,7 @@ func (e *AnimatedBillboardEntity) Draw(r *rendering.Renderer, sh *rendering.Shad
 	luy := -ry*ss + uy*c
 	luz := -rz*ss + uz*c
 
-	physics.Mat4Set(bbTempMatrix,
+	mathx.Mat4Set(bbTempMatrix,
 		lrx*scale, lry*scale, lrz*scale, 0,
 		lux*scale, luy*scale, luz*scale, 0,
 		0, 0, 0, 0,
@@ -179,17 +179,17 @@ func (e *AnimatedBillboardEntity) Draw(r *rendering.Renderer, sh *rendering.Shad
 func (e *AnimatedBillboardEntity) DrawShadow(r *rendering.Renderer, sh *rendering.Shader)    {}
 func (e *AnimatedBillboardEntity) DrawWireframe(r *rendering.Renderer, sh *rendering.Shader) {}
 func (e *AnimatedBillboardEntity) DrawSkeleton(r *rendering.Renderer, sh *rendering.Shader)  {}
-func (e *AnimatedBillboardEntity) Bounds() *physics.BoundingBox                             { return e.Base.BoundingBox }
+func (e *AnimatedBillboardEntity) Bounds() *mathx.BoundingBox                             { return e.Base.BoundingBox }
 func (e *AnimatedBillboardEntity) TriangleCount() int                                       { return 0 }
 func (e *AnimatedBillboardEntity) CastsShadow() bool                                        { return false }
 
 // UpdateBoundingVolume uses the maximum scale as a bounding radius.
 func (e *AnimatedBillboardEntity) UpdateBoundingVolume() {
 	r := e.scale
-	physics.Mat4Multiply(bbTempMatrix, e.Base.BaseMatrix, e.Base.AniMatrix)
-	physics.Mat4GetTranslation(bbWorldPos, bbTempMatrix)
+	mathx.Mat4Multiply(bbTempMatrix, e.Base.BaseMatrix, e.Base.AniMatrix)
+	mathx.Mat4GetTranslation(bbWorldPos, bbTempMatrix)
 	if e.Base.BoundingBox == nil {
-		e.Base.BoundingBox = physics.NewBoundingBox()
+		e.Base.BoundingBox = mathx.NewBoundingBox()
 	}
 	bbBoxMin.Set(bbWorldPos.X-r, bbWorldPos.Y-r, bbWorldPos.Z-r)
 	bbBoxMax.Set(bbWorldPos.X+r, bbWorldPos.Y+r, bbWorldPos.Z+r)

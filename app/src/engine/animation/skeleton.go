@@ -3,7 +3,8 @@ package animation
 import (
 	"math"
 
-	"../physics"
+	"../mathx"
+
 )
 
 // JointDef is the raw joint description from a mesh file: object-space
@@ -20,20 +21,20 @@ type Joint struct {
 	Name           string
 	Parent         int
 	Index          int
-	BindPoseMatrix physics.Mat4
-	LocalBindPos   physics.Vec3
-	LocalBindRot   physics.Quat
+	BindPoseMatrix mathx.Mat4
+	LocalBindPos   mathx.Vec3
+	LocalBindRot   mathx.Quat
 }
 
 // Skeleton owns joint hierarchy data and scratch matrices for posing.
 type Skeleton struct {
 	Joints              []Joint
 	JointCount          int
-	InverseBindMatrices []physics.Mat4
+	InverseBindMatrices []mathx.Mat4
 
-	worldMatrices []physics.Mat4
-	skinMatrices  []physics.Mat4
-	tempMatrix    physics.Mat4
+	worldMatrices []mathx.Mat4
+	skinMatrices  []mathx.Mat4
+	tempMatrix    mathx.Mat4
 }
 
 // NewSkeleton converts global-space joint definitions into a skeleton with
@@ -43,17 +44,17 @@ func NewSkeleton(defs []JointDef) *Skeleton {
 	s := &Skeleton{
 		Joints:              make([]Joint, n),
 		JointCount:          n,
-		InverseBindMatrices: make([]physics.Mat4, n),
-		worldMatrices:       make([]physics.Mat4, n),
-		skinMatrices:        make([]physics.Mat4, n),
-		tempMatrix:          physics.NewMat4(),
+		InverseBindMatrices: make([]mathx.Mat4, n),
+		worldMatrices:       make([]mathx.Mat4, n),
+		skinMatrices:        make([]mathx.Mat4, n),
+		tempMatrix:          mathx.NewMat4(),
 	}
 
-	globalMatrices := make([]physics.Mat4, n)
-	localMatrix := physics.NewMat4()
-	parentInverse := physics.NewMat4()
-	q := &physics.Quat{}
-	v := &physics.Vec3{}
+	globalMatrices := make([]mathx.Mat4, n)
+	localMatrix := mathx.NewMat4()
+	parentInverse := mathx.NewMat4()
+	q := &mathx.Quat{}
+	v := &mathx.Vec3{}
 
 	for i := 0; i < n; i++ {
 		d := &defs[i]
@@ -64,34 +65,34 @@ func NewSkeleton(defs []JointDef) *Skeleton {
 
 		q.Set(d.Rot[0], d.Rot[1], d.Rot[2], d.Rot[3])
 		v.Set(d.Pos[0], d.Pos[1], d.Pos[2])
-		global := physics.NewMat4()
-		physics.Mat4FromRotationTranslation(global, q, v)
+		global := mathx.NewMat4()
+		mathx.Mat4FromRotationTranslation(global, q, v)
 		globalMatrices[i] = global
 		j.BindPoseMatrix = global
 
 		if d.Parent >= 0 {
-			physics.Mat4Invert(parentInverse, globalMatrices[d.Parent])
-			physics.Mat4Multiply(localMatrix, parentInverse, global)
+			mathx.Mat4Invert(parentInverse, globalMatrices[d.Parent])
+			mathx.Mat4Multiply(localMatrix, parentInverse, global)
 		} else {
-			physics.Mat4Copy(localMatrix, global)
+			mathx.Mat4Copy(localMatrix, global)
 		}
 
-		physics.Mat4GetTranslation(&j.LocalBindPos, localMatrix)
-		physics.Mat4GetRotation(&j.LocalBindRot, localMatrix)
+		mathx.Mat4GetTranslation(&j.LocalBindPos, localMatrix)
+		mathx.Mat4GetRotation(&j.LocalBindRot, localMatrix)
 		j.LocalBindRot.Normalize(&j.LocalBindRot)
 
-		inv := physics.NewMat4()
-		physics.Mat4Invert(inv, global)
+		inv := mathx.NewMat4()
+		mathx.Mat4Invert(inv, global)
 		s.InverseBindMatrices[i] = inv
 
-		s.worldMatrices[i] = physics.NewMat4()
-		s.skinMatrices[i] = physics.NewMat4()
+		s.worldMatrices[i] = mathx.NewMat4()
+		s.skinMatrices[i] = mathx.NewMat4()
 	}
 	return s
 }
 
 // computeWorldMatrices writes each joint's world matrix from a local pose.
-func (s *Skeleton) computeWorldMatrices(pose *Pose) []physics.Mat4 {
+func (s *Skeleton) computeWorldMatrices(pose *Pose) []mathx.Mat4 {
 	local := s.tempMatrix
 	positions := pose.Positions
 	rotations := pose.Rotations
@@ -137,9 +138,9 @@ func (s *Skeleton) computeWorldMatrices(pose *Pose) []physics.Mat4 {
 		world := s.worldMatrices[i]
 		parent := s.Joints[i].Parent
 		if parent >= 0 {
-			physics.Mat4Multiply(world, s.worldMatrices[parent], local)
+			mathx.Mat4Multiply(world, s.worldMatrices[parent], local)
 		} else {
-			physics.Mat4Copy(world, local)
+			mathx.Mat4Copy(world, local)
 		}
 	}
 	return s.worldMatrices
@@ -147,16 +148,16 @@ func (s *Skeleton) computeWorldMatrices(pose *Pose) []physics.Mat4 {
 
 // GetWorldMatrices returns per-joint world matrices for a pose. The returned
 // slice is owned by the skeleton and overwritten on the next call.
-func (s *Skeleton) GetWorldMatrices(pose *Pose) []physics.Mat4 {
+func (s *Skeleton) GetWorldMatrices(pose *Pose) []mathx.Mat4 {
 	return s.computeWorldMatrices(pose)
 }
 
 // ComputeSkinningMatrices returns world * inverseBind per joint. The returned
 // slice is owned by the skeleton and overwritten on the next call.
-func (s *Skeleton) ComputeSkinningMatrices(pose *Pose) []physics.Mat4 {
+func (s *Skeleton) ComputeSkinningMatrices(pose *Pose) []mathx.Mat4 {
 	s.computeWorldMatrices(pose)
 	for i := 0; i < s.JointCount; i++ {
-		physics.Mat4Multiply(s.skinMatrices[i], s.worldMatrices[i], s.InverseBindMatrices[i])
+		mathx.Mat4Multiply(s.skinMatrices[i], s.worldMatrices[i], s.InverseBindMatrices[i])
 	}
 	return s.skinMatrices
 }

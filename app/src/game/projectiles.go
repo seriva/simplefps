@@ -5,6 +5,7 @@ import (
 	"math/rand"
 
 	"../engine/assets"
+	"../engine/mathx"
 	"../engine/physics"
 	"../engine/scene"
 	"../engine/systems"
@@ -37,11 +38,11 @@ type ProjectileSystem struct {
 	count  int
 
 	// Scratch, to keep the per-tick path allocation-free.
-	right    physics.Vec3
-	spawnPos physics.Vec3
-	velocity physics.Vec3
-	scaleVec physics.Vec3
-	worldUp  physics.Vec3
+	right    mathx.Vec3
+	spawnPos mathx.Vec3
+	velocity mathx.Vec3
+	scaleVec mathx.Vec3
+	worldUp  mathx.Vec3
 }
 
 // NewProjectileSystem creates an empty system bound to a scene and camera.
@@ -129,10 +130,10 @@ func (ps *ProjectileSystem) removeAt(i int) {
 
 func (ps *ProjectileSystem) applyTransform(p *Projectile) {
 	pos := &p.Body.Position
-	physics.Mat4FromTranslation(p.Entity.Base.AniMatrix, pos)
+	mathx.Mat4FromTranslation(p.Entity.Base.AniMatrix, pos)
 	ps.scaleVec.Set(p.MeshScale, p.MeshScale, p.MeshScale)
-	physics.Mat4Scale(p.Entity.Base.AniMatrix, p.Entity.Base.AniMatrix, &ps.scaleVec)
-	physics.Mat4FromTranslation(p.Light.Base.AniMatrix, pos)
+	mathx.Mat4Scale(p.Entity.Base.AniMatrix, p.Entity.Base.AniMatrix, &ps.scaleVec)
+	mathx.Mat4FromTranslation(p.Light.Base.AniMatrix, pos)
 }
 
 // Update advances every projectile by fixedDt seconds. Projectiles explode
@@ -169,13 +170,13 @@ func (ps *ProjectileSystem) Reset() {
 }
 
 // SpawnExplosion adds a flash light, a billboard cluster and sparks at position.
-func (ps *ProjectileSystem) SpawnExplosion(position *physics.Vec3) {
+func (ps *ProjectileSystem) SpawnExplosion(position *mathx.Vec3) {
 	if ps.Scene == nil {
 		return
 	}
 
 	// 1. Point light flash, pulled slightly off the surface.
-	flashPos := physics.NewVec3(position.X, position.Y, position.Z+10)
+	flashPos := mathx.NewVec3(position.X, position.Y, position.Z+10)
 	flash := scene.NewPointLightEntity(flashPos, ExplosionScale*4.5, []float32{1.0, 0.5, 0.1}, 8, func(e scene.Entity, frameTime float32) bool {
 		light := e.(*scene.PointLightEntity)
 		light.Intensity -= (frameTime / 180) * 8 // decay over ~180ms
@@ -186,7 +187,7 @@ func (ps *ProjectileSystem) SpawnExplosion(position *physics.Vec3) {
 	// 2. Billboard cluster scattered within a 22-unit radius.
 	explosionTex := assets.GlobalResources.GetTexture(ExplosionTexture)
 	for i := 0; i < 4; i++ {
-		clusterPos := physics.NewVec3(
+		clusterPos := mathx.NewVec3(
 			position.X+(rand.Float32()-0.5)*22,
 			position.Y+(rand.Float32()-0.5)*22,
 			position.Z+(rand.Float32()-0.5)*22,
@@ -207,7 +208,7 @@ func (ps *ProjectileSystem) SpawnExplosion(position *physics.Vec3) {
 	// 3. Flying sparks.
 	emitter := scene.NewParticleEmitterEntity(assets.GlobalResources.GetTexture(SparkTexture), sparkScaleFn, sparkOpacityFn)
 	sparkCount := 15 + rand.Intn(10)
-	sparkVel := &physics.Vec3{}
+	sparkVel := &mathx.Vec3{}
 	for i := 0; i < sparkCount; i++ {
 		sparkVel.Set(
 			(rand.Float32()-0.5)*1000,

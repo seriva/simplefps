@@ -1,7 +1,7 @@
 package rendering
 
 import (
-	"../physics"
+	"../mathx"
 )
 
 const (
@@ -46,7 +46,7 @@ type Mesh struct {
 
 	Buffers          []any
 	WireframeBuffers []WireframeBuffer
-	BoundingBox      *physics.BoundingBox
+	BoundingBox      *mathx.BoundingBox
 
 	// Cached materials mapped by name
 	MaterialLookup map[string]*Material
@@ -162,7 +162,7 @@ func (m *Mesh) InitMeshBuffers() {
 // UpdateBoundingBox recalculates the bounding box enclosing all mesh vertices.
 func (m *Mesh) UpdateBoundingBox() {
 	if len(m.Vertices) > 0 {
-		m.BoundingBox = physics.BoundingBoxFromPoints(m.Vertices)
+		m.BoundingBox = mathx.BoundingBoxFromPoints(m.Vertices)
 	} else {
 		m.BoundingBox = nil
 	}

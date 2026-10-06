@@ -1,4 +1,5 @@
-package physics
+//gofront:target both
+package mathx
 
 import (
 	"testing"

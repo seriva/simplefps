@@ -3,7 +3,7 @@ package systems
 import (
 	"testing"
 
-	"../physics"
+	"../mathx"
 )
 
 func TestStatsHiddenByDefault(t *testing.T) {
@@ -32,7 +32,7 @@ func TestStatsFPSCounting(t *testing.T) {
 		t.Error("SetRenderStats should record metrics while visible")
 	}
 
-	cam := physics.NewVec3(1.4, 2.6, -3.5)
+	cam := mathx.NewVec3(1.4, 2.6, -3.5)
 	// 60 frames over one second, then the flush frame.
 	for i := 0; i < 60; i++ {
 		s.Update(float64(i)*16.0, cam)
@@ -71,7 +71,7 @@ func TestStatsMountDOM(t *testing.T) {
 		t.Errorf("Expected visible class, got %q", s.items[0].className.(string))
 	}
 	s.SetRenderStats(3, 1, 42)
-	cam := physics.NewVec3(1.4, 2.6, -3.5)
+	cam := mathx.NewVec3(1.4, 2.6, -3.5)
 	s.Update(0, cam)
 	s.Update(1000, cam)
 	if s.sceneEl.textContent.(string) != "m:3 - l:1 - t:42" {

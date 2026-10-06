@@ -3,7 +3,8 @@ package systems
 import (
 	"math"
 
-	"../physics"
+	"../mathx"
+
 )
 
 // Frustum plane offsets into Camera.FrustumPlanes (each plane is 4 floats: a, b, c, d).
@@ -34,14 +35,14 @@ func setPlane(planes []float32, off int, a, b, c, d float32) {
 
 // Camera manages viewing transformations, projection matrices, and frustum culling.
 type Camera struct {
-	Position              physics.Vec3
-	Rotation              physics.Vec3 // pitch (X), yaw (Y), roll (Z) in degrees
-	Direction             physics.Vec3
-	UpVector              physics.Vec3
-	View                  physics.Mat4
-	Projection            physics.Mat4
-	ViewProjection        physics.Mat4
-	InverseViewProjection physics.Mat4
+	Position              mathx.Vec3
+	Rotation              mathx.Vec3 // pitch (X), yaw (Y), roll (Z) in degrees
+	Direction             mathx.Vec3
+	UpVector              mathx.Vec3
+	View                  mathx.Mat4
+	Projection            mathx.Mat4
+	ViewProjection        mathx.Mat4
+	InverseViewProjection mathx.Mat4
 
 	Fov       float32
 	NearPlane float32
@@ -53,25 +54,25 @@ type Camera struct {
 	FrustumPlanes []float32
 
 	// Pre-allocated scratch to avoid heap allocations in frame loops
-	target physics.Vec3
+	target mathx.Vec3
 }
 
 // NewCamera creates an initialized Camera.
 func NewCamera() *Camera {
 	c := &Camera{
-		Position:              *physics.NewVec3(0, 0, 0),
-		Rotation:              *physics.NewVec3(0, 0, 0),
-		Direction:             *physics.NewVec3(0, 0, 1),
-		UpVector:              *physics.NewVec3(0, 1, 0),
-		View:                  physics.NewMat4(),
-		Projection:            physics.NewMat4(),
-		ViewProjection:        physics.NewMat4(),
-		InverseViewProjection: physics.NewMat4(),
+		Position:              *mathx.NewVec3(0, 0, 0),
+		Rotation:              *mathx.NewVec3(0, 0, 0),
+		Direction:             *mathx.NewVec3(0, 0, 1),
+		UpVector:              *mathx.NewVec3(0, 1, 0),
+		View:                  mathx.NewMat4(),
+		Projection:            mathx.NewMat4(),
+		ViewProjection:        mathx.NewMat4(),
+		InverseViewProjection: mathx.NewMat4(),
 		Fov:                   45.0,
 		NearPlane:             0.1,
 		FarPlane:              8192.0,
-		FrustumPlanes:         make([]float32, physics.FrustumPlaneCount*4),
-		target:                *physics.NewVec3(0, 0, 0),
+		FrustumPlanes:         make([]float32, mathx.FrustumPlaneCount*4),
+		target:                *mathx.NewVec3(0, 0, 0),
 	}
 	c.UpdateDirection()
 	return c
@@ -93,9 +94,9 @@ func (c *Camera) UpdateProjection(aspect float32) {
 	c.Aspect = aspect
 	fovyRad := c.Fov * float32(math.Pi/180.0)
 	if c.IsWebGPU {
-		physics.Mat4PerspectiveZO(c.Projection, fovyRad, aspect, c.NearPlane, c.FarPlane)
+		mathx.Mat4PerspectiveZO(c.Projection, fovyRad, aspect, c.NearPlane, c.FarPlane)
 	} else {
-		physics.Mat4Perspective(c.Projection, fovyRad, aspect, c.NearPlane, c.FarPlane)
+		mathx.Mat4Perspective(c.Projection, fovyRad, aspect, c.NearPlane, c.FarPlane)
 	}
 }
 
@@ -111,12 +112,12 @@ func (c *Camera) SetRotation(pitch, yaw, roll float32) {
 }
 
 // Translate adds a translation offset to the camera position.
-func (c *Camera) Translate(move *physics.Vec3) {
+func (c *Camera) Translate(move *mathx.Vec3) {
 	c.Position.Add(&c.Position, move)
 }
 
 // Rotate adds angular rotation in degrees.
-func (c *Camera) Rotate(rot *physics.Vec3) {
+func (c *Camera) Rotate(rot *mathx.Vec3) {
 	c.Rotation.Add(&c.Rotation, rot)
 	c.UpdateDirection()
 }
@@ -165,8 +166,8 @@ func (c *Camera) UpdateDirection() {
 // Update generates the view matrix, view-projection matrix, and extracts frustum planes.
 func (c *Camera) Update() {
 	c.target.Add(&c.Position, &c.Direction)
-	physics.Mat4LookAt(c.View, &c.Position, &c.target, &c.UpVector)
-	physics.Mat4Multiply(c.ViewProjection, c.Projection, c.View)
+	mathx.Mat4LookAt(c.View, &c.Position, &c.target, &c.UpVector)
+	mathx.Mat4Multiply(c.ViewProjection, c.Projection, c.View)
 
 	m := c.ViewProjection
 	p := c.FrustumPlanes
@@ -185,10 +186,10 @@ func (c *Camera) Update() {
 
 	setPlane(p, FrustumFar, m[3]-m[2], m[7]-m[6], m[11]-m[10], m[15]-m[14])
 
-	physics.Mat4Invert(c.InverseViewProjection, c.ViewProjection)
+	mathx.Mat4Invert(c.InverseViewProjection, c.ViewProjection)
 }
 
 // IsBoxInFrustum tests if an AABB intersects or lies within the camera frustum.
-func (c *Camera) IsBoxInFrustum(box *physics.BoundingBox) bool {
+func (c *Camera) IsBoxInFrustum(box *mathx.BoundingBox) bool {
 	return box.IsVisibleWithPlanes(c.FrustumPlanes)
 }

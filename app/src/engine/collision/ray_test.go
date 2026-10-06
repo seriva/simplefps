@@ -1,16 +1,19 @@
-package physics
+//gofront:target wasm
+package collision
 
 import (
 	"testing"
+
+	"../mathx"
 )
 
 func TestRayPointInTriangle(t *testing.T) {
-	a := Vec3{X: 0, Y: 0, Z: 0}
-	b := Vec3{X: 10, Y: 0, Z: 0}
-	c := Vec3{X: 0, Y: 0, Z: 10}
+	a := mathx.Vec3{X: 0, Y: 0, Z: 0}
+	b := mathx.Vec3{X: 10, Y: 0, Z: 0}
+	c := mathx.Vec3{X: 0, Y: 0, Z: 10}
 
-	inside := Vec3{X: 2, Y: 0, Z: 2}
-	outside := Vec3{X: 10, Y: 0, Z: 10}
+	inside := mathx.Vec3{X: 2, Y: 0, Z: 2}
+	outside := mathx.Vec3{X: 10, Y: 0, Z: 10}
 
 	if !RayPointInTriangle(&inside, &a, &b, &c) {
 		t.Errorf("Point (2, 0, 2) should be inside triangle")
@@ -31,8 +34,8 @@ func TestRayIntersectTrimesh(t *testing.T) {
 	tm := NewTrimesh(verts, indices, nil)
 
 	// Ray firing downward from Y = 10 to Y = -10 at (2, 2)
-	from := Vec3{X: 2, Y: 10, Z: 2}
-	to := Vec3{X: 2, Y: -10, Z: 2}
+	from := mathx.Vec3{X: 2, Y: 10, Z: 2}
+	to := mathx.Vec3{X: 2, Y: -10, Z: 2}
 	ray := NewRay(&from, &to)
 	ray.Mode = RayModeClosest
 

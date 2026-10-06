@@ -2,14 +2,17 @@ package physics
 
 import (
 	"testing"
+
+	"../collision"
+	"../mathx"
 )
 
 // floorRaycaster is a RaycastProvider that reports a flat floor at Y = 0.
 type floorRaycaster struct {
-	res RaycastResult
+	res collision.RaycastResult
 }
 
-func (f *floorRaycaster) RaycastStatic(fromX, fromY, fromZ, toX, toY, toZ float32, options *RayOptions) *RaycastResult {
+func (f *floorRaycaster) RaycastStatic(fromX, fromY, fromZ, toX, toY, toZ float32, options *collision.RayOptions) *collision.RaycastResult {
 	out := &f.res
 	out.Reset()
 	if toY <= 0 && fromY >= 0 {
@@ -23,7 +26,7 @@ func (f *floorRaycaster) RaycastStatic(fromX, fromY, fromZ, toX, toY, toZ float3
 
 func TestDynamicBodyFreeFall(t *testing.T) {
 	// No provider: no obstacles.
-	pos := Vec3{X: 0, Y: 100, Z: 0}
+	pos := mathx.Vec3{X: 0, Y: 100, Z: 0}
 	body := NewDynamicBody(&pos, &DynamicBodyConfig{
 		Gravity: 100,
 	})
@@ -44,14 +47,14 @@ func TestDynamicBodyBounce(t *testing.T) {
 	bounced := false
 	var bounceSpeed float32
 
-	pos := Vec3{X: 0, Y: 2, Z: 0}
-	vel := Vec3{X: 0, Y: -100, Z: 0}
+	pos := mathx.Vec3{X: 0, Y: 2, Z: 0}
+	vel := mathx.Vec3{X: 0, Y: -100, Z: 0}
 	body := NewDynamicBody(&pos, &DynamicBodyConfig{
 		Velocity:       &vel,
 		Restitution:    0.8,
 		Radius:         1.0,
 		MinBounceSpeed: 20,
-		OnBounce: func(hp, hn *Vec3, newSpeed float32) {
+		OnBounce: func(hp, hn *mathx.Vec3, newSpeed float32) {
 			bounced = true
 			bounceSpeed = newSpeed
 		},

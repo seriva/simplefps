@@ -1,17 +1,17 @@
 package rendering
 
 import (
-	"../physics"
+	"../mathx"
 	"js:./interop.d.ts"
 )
 
 // CameraView provides viewing transforms and position for rendering.
 type CameraView struct {
-	Position              physics.Vec3
-	View                  physics.Mat4
-	Projection            physics.Mat4
-	ViewProjection        physics.Mat4
-	InverseViewProjection physics.Mat4
+	Position              mathx.Vec3
+	View                  mathx.Mat4
+	Projection            mathx.Mat4
+	ViewProjection        mathx.Mat4
+	InverseViewProjection mathx.Mat4
 }
 
 // GBuffer holds the render targets and textures for deferred geometry.
@@ -92,7 +92,7 @@ type Renderer struct {
 	pointSorter *LightSorter
 	spotSorter  *LightSorter
 	lighting    *LightingData
-	identity    physics.Mat4
+	identity    mathx.Mat4
 
 	blurSource   *Texture
 	blurSourceFB any
@@ -111,7 +111,7 @@ func NewRenderer(backend RenderBackend) *Renderer {
 		pointSorter: NewLightSorter(64),
 		spotSorter:  NewLightSorter(64),
 		lighting:    NewLightingData(),
-		identity:    physics.NewMat4(),
+		identity:    mathx.NewMat4(),
 		fsrCon0:     make([]float32, 4),
 	}
 }

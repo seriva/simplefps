@@ -1,7 +1,7 @@
 package game
 
 import (
-	"../engine/physics"
+	"../engine/mathx"
 	"js:./interop.d.ts"
 )
 
@@ -26,14 +26,14 @@ func CopyVec3(dst, src []float64) {
 }
 
 // Vec3FromAny writes a validated (see IsVec3) array-like into dst.
-func Vec3FromAny(dst *physics.Vec3, v any) {
+func Vec3FromAny(dst *mathx.Vec3, v any) {
 	dst.X = float32(v[0].(float64))
 	dst.Y = float32(v[1].(float64))
 	dst.Z = float32(v[2].(float64))
 }
 
 // Vec3ToArray writes v into a plain JS number array for serialisation.
-func Vec3ToArray(dst []float64, v *physics.Vec3) {
+func Vec3ToArray(dst []float64, v *mathx.Vec3) {
 	dst[0] = float64(v.X)
 	dst[1] = float64(v.Y)
 	dst[2] = float64(v.Z)

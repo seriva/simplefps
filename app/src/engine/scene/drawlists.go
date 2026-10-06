@@ -3,7 +3,7 @@ package scene
 import (
 	"math"
 
-	"../physics"
+	"../mathx"
 	"../rendering"
 )
 
@@ -177,7 +177,7 @@ func (s *Scene) addVisible(e Entity, b *EntityBase) {
 // buildTransparent collects visible meshes with translucent materials sorted
 // back-to-front (descending clip-space w).
 func (s *Scene) buildTransparent() {
-	var vp physics.Mat4
+	var vp mathx.Mat4
 	if s.Camera != nil {
 		vp = s.Camera.ViewProjection
 	}
@@ -206,8 +206,8 @@ func (s *Scene) buildTransparent() {
 
 // sampleProbeColor refreshes p with the ambient at the entity (world pos + 32 Y).
 func (s *Scene) sampleProbeColor(b *EntityBase, p *probeCache) {
-	physics.Mat4Multiply(s.probeMatrix, b.BaseMatrix, b.AniMatrix)
-	physics.Mat4GetTranslation(s.probePos, s.probeMatrix)
+	mathx.Mat4Multiply(s.probeMatrix, b.BaseMatrix, b.AniMatrix)
+	mathx.Mat4GetTranslation(s.probePos, s.probeMatrix)
 	s.probePos.Y += 32
 	s.AmbientAt(s.probePos, s.probeColor)
 	p.R = s.probeColor[0]
@@ -217,7 +217,7 @@ func (s *Scene) sampleProbeColor(b *EntityBase, p *probeCache) {
 
 // calculateShadowHeight raycasts downward from the entity to find the ground.
 func (s *Scene) calculateShadowHeight(b *EntityBase, sh *shadowState) {
-	physics.Mat4GetTranslation(s.probePos, b.BaseMatrix)
+	mathx.Mat4GetTranslation(s.probePos, b.BaseMatrix)
 	res := s.RaycastStatic(
 		s.probePos.X, s.probePos.Y+1, s.probePos.Z,
 		s.probePos.X, s.probePos.Y-maxShadowRaycastDistance, s.probePos.Z,
@@ -234,7 +234,7 @@ func (s *Scene) calculateShadowHeight(b *EntityBase, sh *shadowState) {
 // shouldUpdateSkinnedShadowHeight rate-limits skinned shadow raycasts by
 // movement and camera distance.
 func (s *Scene) shouldUpdateSkinnedShadowHeight(b *EntityBase, sh *shadowState) bool {
-	physics.Mat4GetTranslation(s.probePos, b.BaseMatrix)
+	mathx.Mat4GetTranslation(s.probePos, b.BaseMatrix)
 	x := s.probePos.X
 	y := s.probePos.Y
 	z := s.probePos.Z
@@ -282,7 +282,7 @@ func (s *Scene) shouldUpdateSkinnedShadowHeight(b *EntityBase, sh *shadowState) 
 }
 
 // shadowScreenSize scores shadow priority by projected footprint (worldSize / clipW).
-func shadowScreenSize(b *EntityBase, vp physics.Mat4) float32 {
+func shadowScreenSize(b *EntityBase, vp mathx.Mat4) float32 {
 	bb := b.BoundingBox
 	if bb == nil || vp == nil {
 		return 0
@@ -308,7 +308,7 @@ func shadowScreenSize(b *EntityBase, vp physics.Mat4) float32 {
 func (s *Scene) updateShadowHeights() {
 	s.shadowFrame = (s.shadowFrame + 1) % shadowFrameWrap
 
-	var vp physics.Mat4
+	var vp mathx.Mat4
 	if s.Camera != nil {
 		vp = s.Camera.ViewProjection
 	}

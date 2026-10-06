@@ -1,7 +1,7 @@
 package game
 
 import (
-	"../engine/physics"
+	"../engine/mathx"
 	"../engine/scene"
 	"../engine/systems"
 	"js:./interop.d.ts"
@@ -52,7 +52,7 @@ type Multiplayer struct {
 	// Client-only: reused POS packet.
 	clientSelf *peerState
 
-	scratch physics.Vec3
+	scratch mathx.Vec3
 }
 
 // NewMultiplayer creates an idle orchestrator for the given scene and camera.

@@ -5,6 +5,8 @@ node_modules/
 public/
 app/app.js
 app/app.js.map
+app/app.wasm
+app/app.wat
 app/vendor.js
 
 # Environment

@@ -1,7 +1,7 @@
 package scene
 
 import (
-	"../physics"
+	"../mathx"
 	"../rendering"
 )
 
@@ -69,7 +69,7 @@ func (e *ParticleEmitterEntity) GetBase() *EntityBase { return &e.Base }
 func (e *ParticleEmitterEntity) Count() int { return e.count }
 
 // AddParticle spawns a particle; durationMs is its lifetime.
-func (e *ParticleEmitterEntity) AddParticle(position, velocity *physics.Vec3, durationMs, startScale, gravity, rotation float32) {
+func (e *ParticleEmitterEntity) AddParticle(position, velocity *mathx.Vec3, durationMs, startScale, gravity, rotation float32) {
 	if e.count >= e.capacity {
 		newCap := e.capacity * 2
 		grown := make([]float32, newCap*pStride)
@@ -199,7 +199,7 @@ func (e *ParticleEmitterEntity) Draw(r *rendering.Renderer, sh *rendering.Shader
 func (e *ParticleEmitterEntity) DrawShadow(r *rendering.Renderer, sh *rendering.Shader)    {}
 func (e *ParticleEmitterEntity) DrawWireframe(r *rendering.Renderer, sh *rendering.Shader) {}
 func (e *ParticleEmitterEntity) DrawSkeleton(r *rendering.Renderer, sh *rendering.Shader)  {}
-func (e *ParticleEmitterEntity) Bounds() *physics.BoundingBox                             { return e.Base.BoundingBox }
+func (e *ParticleEmitterEntity) Bounds() *mathx.BoundingBox                             { return e.Base.BoundingBox }
 func (e *ParticleEmitterEntity) TriangleCount() int                                       { return 0 }
 func (e *ParticleEmitterEntity) CastsShadow() bool                                        { return false }
 
