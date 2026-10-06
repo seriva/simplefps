@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"./physics"
+	"./mathx"
 	"./rendering"
 	"./systems"
 )
@@ -20,7 +20,7 @@ func newNopScene() *nopScene {
 	return &nopScene{draw: rendering.NewDrawList(1), light: rendering.NewLightList(1)}
 }
 
-func (s *nopScene) Ambient(out *physics.Vec3) {
+func (s *nopScene) Ambient(out *mathx.Vec3) {
 	out.X = 0
 	out.Y = 0
 	out.Z = 0

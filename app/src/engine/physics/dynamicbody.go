@@ -2,22 +2,25 @@ package physics
 
 import (
 	"math"
+
+	"../collision"
+	"../mathx"
 )
 
 // RaycastProvider queries static world collision geometry (implemented by
 // scene.Scene). The returned result is owned by the provider and only valid
 // until the next call.
 type RaycastProvider interface {
-	RaycastStatic(fromX, fromY, fromZ, toX, toY, toZ float32, options *RayOptions) *RaycastResult
+	RaycastStatic(fromX, fromY, fromZ, toX, toY, toZ float32, options *collision.RayOptions) *collision.RaycastResult
 }
 
 var (
-	_dbRaycastResult   RaycastResult
-	_dbBothSidesOption = RayOptions{SkipBackfaces: false, CollisionFilterMask: 1, Mode: RayModeClosest}
+	_dbRaycastResult   collision.RaycastResult
+	_dbBothSidesOption = collision.RayOptions{SkipBackfaces: false, CollisionFilterMask: 1, Mode: collision.RayModeClosest}
 )
 
 // raycastStatic queries p, or returns the reset miss scratch when p is nil.
-func raycastStatic(p RaycastProvider, fromX, fromY, fromZ, toX, toY, toZ float32, options *RayOptions, miss *RaycastResult) *RaycastResult {
+func raycastStatic(p RaycastProvider, fromX, fromY, fromZ, toX, toY, toZ float32, options *collision.RayOptions, miss *collision.RaycastResult) *collision.RaycastResult {
 	if p == nil {
 		miss.Reset()
 		return miss
@@ -27,33 +30,33 @@ func raycastStatic(p RaycastProvider, fromX, fromY, fromZ, toX, toY, toZ float32
 
 // DynamicBodyConfig contains parameters for initializing a DynamicBody.
 type DynamicBodyConfig struct {
-	Velocity       *Vec3
+	Velocity       *mathx.Vec3
 	Gravity        float32
 	Restitution    float32
 	Radius         float32
 	MinBounceSpeed float32
-	OnBounce       func(hp, hn *Vec3, newSpeed float32)
-	OnRest         func(pos *Vec3)
+	OnBounce       func(hp, hn *mathx.Vec3, newSpeed float32)
+	OnRest         func(pos *mathx.Vec3)
 }
 
 // DynamicBody represents a bouncing projectile or physics sphere using raycasts.
 type DynamicBody struct {
 	// Provider supplies static world raycasts; nil means no collision.
 	Provider       RaycastProvider
-	Position       Vec3
-	Velocity       Vec3
+	Position       mathx.Vec3
+	Velocity       mathx.Vec3
 	Gravity        float32
 	Restitution    float32
 	Radius         float32
 	MinBounceSpeed float32
 	BounceCount    int
-	OnBounce       func(hp, hn *Vec3, newSpeed float32)
-	OnRest         func(pos *Vec3)
+	OnBounce       func(hp, hn *mathx.Vec3, newSpeed float32)
+	OnRest         func(pos *mathx.Vec3)
 	IsResting      bool
 }
 
 // NewDynamicBody creates a DynamicBody with initial position and optional configuration.
-func NewDynamicBody(position *Vec3, config *DynamicBodyConfig) *DynamicBody {
+func NewDynamicBody(position *mathx.Vec3, config *DynamicBodyConfig) *DynamicBody {
 	body := &DynamicBody{
 		Gravity:        300,
 		Restitution:    0.6,

@@ -2,16 +2,16 @@ package scene
 
 import (
 	"../animation"
-	"../physics"
+	"../mathx"
 	"../rendering"
 )
 
 var (
-	skinnedTempMatrix = physics.NewMat4()
-	skinnedLocalBB    = physics.NewBoundingBox()
-	skinnedBBMin      = &physics.Vec3{}
-	skinnedBBMax      = &physics.Vec3{}
-	skinnedJointPos   = &physics.Vec3{}
+	skinnedTempMatrix = mathx.NewMat4()
+	skinnedLocalBB    = mathx.NewBoundingBox()
+	skinnedBBMin      = &mathx.Vec3{}
+	skinnedBBMax      = &mathx.Vec3{}
+	skinnedJointPos   = &mathx.Vec3{}
 	skinnedWireColor  = []float32{1, 1, 1, 1}
 	skeletonColor     = []float32{0, 1, 0, 1}
 )
@@ -34,15 +34,15 @@ type SkinnedMeshEntity struct {
 }
 
 // NewSkinnedMeshEntity creates a skinned entity; skeleton may be nil (renders nothing).
-func NewSkinnedMeshEntity(position *physics.Vec3, mesh *rendering.SkinnedMesh, skeleton *animation.Skeleton, update UpdateCallback, scale float32) *SkinnedMeshEntity {
+func NewSkinnedMeshEntity(position *mathx.Vec3, mesh *rendering.SkinnedMesh, skeleton *animation.Skeleton, update UpdateCallback, scale float32) *SkinnedMeshEntity {
 	e := &SkinnedMeshEntity{Mesh: mesh, Skeleton: skeleton, Scale: scale}
 	initBase(&e.Base, TypeSkinnedMesh, update)
 	e.Base.CastShadow = false
 	if position != nil {
-		physics.Mat4Translate(e.Base.BaseMatrix, e.Base.BaseMatrix, position)
+		mathx.Mat4Translate(e.Base.BaseMatrix, e.Base.BaseMatrix, position)
 	}
 	meshScaleVec.Set(scale, scale, scale)
-	physics.Mat4Scale(e.Base.BaseMatrix, e.Base.BaseMatrix, meshScaleVec)
+	mathx.Mat4Scale(e.Base.BaseMatrix, e.Base.BaseMatrix, meshScaleVec)
 
 	if skeleton != nil {
 		e.AnimationPlayer = animation.NewAnimationPlayer(skeleton)
@@ -99,7 +99,7 @@ func (e *SkinnedMeshEntity) Draw(r *rendering.Renderer, sh *rendering.Shader, mo
 	if e.boneMatrices == nil || e.Mesh == nil || sh == nil {
 		return
 	}
-	physics.Mat4Multiply(skinnedTempMatrix, e.Base.BaseMatrix, e.Base.AniMatrix)
+	mathx.Mat4Multiply(skinnedTempMatrix, e.Base.BaseMatrix, e.Base.AniMatrix)
 	setProbeUniform(sh, &e.Probe)
 	sh.SetMat4("matWorld", skinnedTempMatrix)
 	sh.SetMat4Array("boneMatrices", e.boneMatrices)
@@ -113,7 +113,7 @@ func (e *SkinnedMeshEntity) DrawShadow(r *rendering.Renderer, sh *rendering.Shad
 	if e.Shadow.HeightState != ShadowHeightValid {
 		return
 	}
-	physics.Mat4Multiply(skinnedTempMatrix, e.Base.BaseMatrix, e.Base.AniMatrix)
+	mathx.Mat4Multiply(skinnedTempMatrix, e.Base.BaseMatrix, e.Base.AniMatrix)
 	sh.SetMat4("matWorld", skinnedTempMatrix)
 	sh.SetFloat("shadowHeight", e.Shadow.Height)
 	sh.SetMat4Array("boneMatrices", e.boneMatrices)
@@ -126,7 +126,7 @@ func (e *SkinnedMeshEntity) DrawWireframe(r *rendering.Renderer, sh *rendering.S
 	if e.boneMatrices == nil || e.Mesh == nil {
 		return
 	}
-	physics.Mat4Multiply(skinnedTempMatrix, e.Base.BaseMatrix, e.Base.AniMatrix)
+	mathx.Mat4Multiply(skinnedTempMatrix, e.Base.BaseMatrix, e.Base.AniMatrix)
 	sd := r.Shaders.SkinnedDebug
 	if sd == nil {
 		if sh == nil {
@@ -146,7 +146,7 @@ func (e *SkinnedMeshEntity) DrawWireframe(r *rendering.Renderer, sh *rendering.S
 	}
 }
 
-func (e *SkinnedMeshEntity) Bounds() *physics.BoundingBox { return e.Base.BoundingBox }
+func (e *SkinnedMeshEntity) Bounds() *mathx.BoundingBox { return e.Base.BoundingBox }
 func (e *SkinnedMeshEntity) CastsShadow() bool            { return e.Base.CastShadow }
 
 func (e *SkinnedMeshEntity) TriangleCount() int {
@@ -194,14 +194,14 @@ func (e *SkinnedMeshEntity) DrawSkeleton(r *rendering.Renderer, sh *rendering.Sh
 	world := e.Skeleton.GetWorldMatrices(e.AnimationPlayer.GetPose())
 	verts := e.skeletonMesh.Vertices
 	for i := 0; i < e.Skeleton.JointCount; i++ {
-		physics.Mat4GetTranslation(skinnedJointPos, world[i])
+		mathx.Mat4GetTranslation(skinnedJointPos, world[i])
 		verts[i*3] = skinnedJointPos.X
 		verts[i*3+1] = skinnedJointPos.Y
 		verts[i*3+2] = skinnedJointPos.Z
 	}
 	e.skeletonMesh.UpdateVertexBuffer(verts)
 
-	physics.Mat4Multiply(skinnedTempMatrix, e.Base.BaseMatrix, e.Base.AniMatrix)
+	mathx.Mat4Multiply(skinnedTempMatrix, e.Base.BaseMatrix, e.Base.AniMatrix)
 	sh.SetMat4("matWorld", skinnedTempMatrix)
 	sh.SetVec4("debugColor", skeletonColor)
 	e.skeletonMesh.RenderSingle(false, rendering.TopoLines, rendering.ModeAll, sh)
@@ -213,7 +213,7 @@ func (e *SkinnedMeshEntity) UpdateBoundingVolume() {
 	if e.AnimationPlayer == nil {
 		return
 	}
-	physics.Mat4Multiply(skinnedTempMatrix, e.Base.BaseMatrix, e.Base.AniMatrix)
+	mathx.Mat4Multiply(skinnedTempMatrix, e.Base.BaseMatrix, e.Base.AniMatrix)
 	bounds := e.AnimationPlayer.GetCurrentBounds()
 	if bounds != nil {
 		skinnedBBMin.Set(bounds.Min[0], bounds.Min[1], bounds.Min[2])
@@ -226,7 +226,7 @@ func (e *SkinnedMeshEntity) UpdateBoundingVolume() {
 		return
 	}
 	if e.Base.BoundingBox == nil {
-		e.Base.BoundingBox = physics.NewBoundingBox()
+		e.Base.BoundingBox = mathx.NewBoundingBox()
 	}
 	skinnedLocalBB.TransformInto(skinnedTempMatrix, e.Base.BoundingBox)
 }

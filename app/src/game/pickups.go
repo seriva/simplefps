@@ -4,7 +4,7 @@ import (
 	"strconv"
 
 	"../engine/assets"
-	"../engine/physics"
+	"../engine/mathx"
 	"../engine/scene"
 	"../engine/systems"
 )
@@ -21,7 +21,7 @@ const (
 // Pickup is one collectable placed in the arena.
 type Pickup struct {
 	Type     string
-	Position physics.Vec3
+	Position mathx.Vec3
 	Entities []scene.Entity
 
 	Collected             bool
@@ -42,10 +42,10 @@ type PickupSystem struct {
 	active []*Pickup
 
 	// Scratch.
-	upAxis   physics.Vec3
-	bob      physics.Vec3
-	scaleVec physics.Vec3
-	center   physics.Vec3
+	upAxis   mathx.Vec3
+	bob      mathx.Vec3
+	scaleVec mathx.Vec3
+	center   mathx.Vec3
 }
 
 // NewPickupSystem creates an empty pickup system for player.
@@ -72,20 +72,20 @@ func (ps *PickupSystem) Reset() {
 func (ps *PickupSystem) updateEntity(p *Pickup, base *scene.EntityBase, frameTime, amplitude float32, rotate bool) {
 	base.AnimationTime += frameTime
 	m := base.AniMatrix
-	physics.Mat4Identity(m)
+	mathx.Mat4Identity(m)
 	if rotate {
-		physics.Mat4FromRotation(m, base.AnimationTime/PickupRotationSpeed, &ps.upAxis)
+		mathx.Mat4FromRotation(m, base.AnimationTime/PickupRotationSpeed, &ps.upAxis)
 	}
 	ps.bob.Set(0, Oscillate(base.AnimationTime, PickupRotationSpeed, amplitude), 0)
-	physics.Mat4Translate(m, m, &ps.bob)
+	mathx.Mat4Translate(m, m, &ps.bob)
 	ps.scaleVec.Set(p.SpawnScale, p.SpawnScale, p.SpawnScale)
-	physics.Mat4Scale(m, m, &ps.scaleVec)
+	mathx.Mat4Scale(m, m, &ps.scaleVec)
 }
 
 // CreatePickup builds the entities for a pickup of the given type at pos and
 // tracks it for collection. Returns nil for unknown types. The caller adds
 // the returned entities to the scene.
-func (ps *PickupSystem) CreatePickup(pickupType string, pos *physics.Vec3) []scene.Entity {
+func (ps *PickupSystem) CreatePickup(pickupType string, pos *mathx.Vec3) []scene.Entity {
 	def, ok := PickupDefs[pickupType]
 	if !ok {
 		systems.GlobalConsole.Error("[Pickup] Invalid pickup type: " + pickupType)
@@ -102,7 +102,7 @@ func (ps *PickupSystem) CreatePickup(pickupType string, pos *physics.Vec3) []sce
 	p.Position.Copy(pos)
 
 	mesh := assets.GlobalResources.GetMesh(def.MeshName)
-	meshEntity := scene.NewMeshEntity(scene.TypeMesh, physics.NewVec3(pos.X, pos.Y+hoverHeight, pos.Z), mesh,
+	meshEntity := scene.NewMeshEntity(scene.TypeMesh, mathx.NewVec3(pos.X, pos.Y+hoverHeight, pos.Z), mesh,
 		func(e scene.Entity, frameTime float32) bool {
 			ps.updateEntity(p, e.GetBase(), frameTime, PickupBobbingAmplitude/PickupScale, true)
 			return true
@@ -117,8 +117,8 @@ func (ps *PickupSystem) CreatePickup(pickupType string, pos *physics.Vec3) []sce
 		px := pos.X
 		pz := pos.Z
 		spot := scene.NewSpotLightEntity(
-			physics.NewVec3(px, spotBaseY, pz),
-			physics.NewVec3(0, -1, 0),
+			mathx.NewVec3(px, spotBaseY, pz),
+			mathx.NewVec3(0, -1, 0),
 			def.LightColor,
 			PickupSpotlightIntensity,
 			PickupSpotlightAngle,
@@ -141,7 +141,7 @@ func (ps *PickupSystem) CreatePickup(pickupType string, pos *physics.Vec3) []sce
 			systems.GlobalConsole.Warn("[Pickup] Mesh bounding box not available for " + pickupType + ", using default light position")
 		}
 		light := scene.NewPointLightEntity(
-			physics.NewVec3(pos.X+lightOffsetX, pos.Y+hoverHeight, pos.Z+lightOffsetZ),
+			mathx.NewVec3(pos.X+lightOffsetX, pos.Y+hoverHeight, pos.Z+lightOffsetZ),
 			pickupLightRadius,
 			def.LightColor,
 			PickupLightIntensity,
@@ -197,12 +197,12 @@ func (ps *PickupSystem) Apply(pickupType string) {
 
 // Update handles respawns, the grow-in animation and collection against the
 // player position.
-func (ps *PickupSystem) Update(playerPos *physics.Vec3) {
+func (ps *PickupSystem) Update(playerPos *mathx.Vec3) {
 	ps.UpdateAt(playerPos, nowMs())
 }
 
 // UpdateAt is Update with an explicit clock (ms).
-func (ps *PickupSystem) UpdateAt(playerPos *physics.Vec3, now float64) {
+func (ps *PickupSystem) UpdateAt(playerPos *mathx.Vec3, now float64) {
 	for i := 0; i < len(ps.active); i++ {
 		p := ps.active[i]
 

@@ -12,14 +12,14 @@ Simple first person arena shooter written in Go syntax, compiled to JavaScript w
 - **Rendering**: Hybrid WebGL/WebGPU engine with PBR-like lighting, UBOs, detail textures, emissive materials, and post-processing pipeline. See [Architecture — Rendering](docs/architecture.md#rendering).
 - **UI**: Menus, HUD, loading screens and debug console as GoFront `.templ` components with a small game state machine
 - **Performance**: Zero-allocation hot paths (physics step, raycasts, render frame) guarded by heap-growth tests and a benchmark; linear depth buffer; PWA support
-- **Architecture**: Go packages (`engine`, `physics`, `rendering`, `scene`, `game`, …) with an entity system, scene management, and comprehensive input handling. See [Architecture](docs/architecture.md).
+- **Architecture**: Go packages (`engine`, `mathx`, `collision`, `physics`, `rendering`, `scene`, `game`, …) with an entity system, scene management, and comprehensive input handling. Collision runs in WebAssembly, everything else in JavaScript. See [Architecture](docs/architecture.md).
 - **Cross-Platform**: Runs on Desktop, Android, and iOS with touch controls and responsive design
 - **Settings**: In-game settings menu with graphics (including renderer selection) and input configuration
 - **Networking**: Client-authoritative P2P multiplayer via PeerJS (WebRTC) for simple host/join sessions. See [Architecture — Networking](docs/architecture.md#networking).
 
 ## Tech Stack
 
-**Core**: [GoFront](https://github.com/seriva/gofront) (Go syntax compiled to JavaScript), in-engine 3D math (`physics.Vec3`/`Mat4`/`Quat`)
+**Core**: [GoFront](https://github.com/seriva/gofront) (Go syntax compiled to JavaScript and WebAssembly), in-engine 3D math (`mathx.Vec3`/`Mat4`/`Quat`)
 **Rendering**: WebGPU (experimental) & WebGL 2.0 backends
 **Build**: GoFront (dev server, production builds, vendor bundling, type-check, tests)
 **Tools**: Biome (lint/format for the few JS files), Lefthook (git hooks), jsdom (`--dom` tests), Playwright (E2E smoke test)
@@ -35,7 +35,9 @@ app/
 │   ├── engine/           # package engine: backend selection, update callbacks, render loop
 │   │   ├── animation/    # package animation: skeletons, clips, animation player
 │   │   ├── assets/       # package assets: mesh/material/resource-list parsing, ResourceManager
-│   │   ├── physics/      # package physics: vec3/mat4/quat, FPS controller, collision, octree
+│   │   ├── collision/    # package collision: trimesh, octree, raycasts (compiled to WASM)
+│   │   ├── mathx/        # package mathx: vec3/mat4/quat/transform/boundingbox (JS + WASM)
+│   │   ├── physics/      # package physics: FPS controller, dynamic bodies
 │   │   ├── rendering/    # package rendering: RenderBackend interface, renderer, passes, materials
 │   │   │   ├── webgl/    # package webgl: WebGL2 backend + GLSL shaders
 │   │   │   └── webgpu/   # package webgpu: WebGPU backend + WGSL shaders
@@ -49,7 +51,7 @@ app/
 └── index.html            # Main HTML file (loads vendor.js + app.js built by GoFront)
 tests/
 ├── e2e/smoke.spec.js     # Playwright smoke test (boot → menu → start game renders a frame)
-└── perf/zero-alloc.js    # Zero-allocation raycast benchmark against the compiled physics package
+└── perf/zero-alloc.js    # Zero-allocation raycast benchmark against the compiled physics + collision (WASM) packages
 scripts/
 ├── bsp2map.js            # Quake 3 BSP to game format converter
 ├── md5tomesh.js          # Doom 3 MD5 to mesh format converter

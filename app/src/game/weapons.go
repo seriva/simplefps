@@ -5,7 +5,7 @@ import (
 
 	"../engine"
 	"../engine/assets"
-	"../engine/physics"
+	"../engine/mathx"
 	"../engine/scene"
 	"../engine/systems"
 	"js:./interop.d.ts"
@@ -56,12 +56,12 @@ type WeaponSystem struct {
 	switchNextIndex int
 
 	// Scratch, allocation-free per frame.
-	weaponDir   physics.Vec3
-	weaponPos   physics.Vec3
-	weaponUp    physics.Vec3
-	lookTarget  physics.Vec3
-	translation physics.Vec3
-	scaleVec    physics.Vec3
+	weaponDir   mathx.Vec3
+	weaponPos   mathx.Vec3
+	weaponUp    mathx.Vec3
+	lookTarget  mathx.Vec3
+	translation mathx.Vec3
+	scaleVec    mathx.Vec3
 }
 
 var (
@@ -329,10 +329,10 @@ func (w *WeaponSystem) applyTransforms(entity *scene.MeshEntity, cfg *WeaponConf
 	}
 
 	m := entity.Base.AniMatrix
-	physics.Mat4Identity(m)
+	mathx.Mat4Identity(m)
 	w.lookTarget.Add(&w.weaponPos, &w.weaponDir)
-	physics.Mat4LookAt(m, &w.weaponPos, &w.lookTarget, &w.weaponUp)
-	physics.Mat4Invert(m, m)
+	mathx.Mat4LookAt(m, &w.weaponPos, &w.lookTarget, &w.weaponUp)
+	mathx.Mat4Invert(m, m)
 
 	// Pull the weapon toward the centre on wide screens (50% correction).
 	aspect := engine.GetAspectRatio()
@@ -352,8 +352,8 @@ func (w *WeaponSystem) applyTransforms(entity *scene.MeshEntity, cfg *WeaponConf
 		WeaponPositionBaseZ+offZ+fire,
 	)
 
-	physics.Mat4Translate(m, m, &w.translation)
-	physics.Mat4RotateY(m, m, rotY180)
-	physics.Mat4RotateX(m, m, rotXNeg2p5)
-	physics.Mat4Scale(m, m, &w.scaleVec)
+	mathx.Mat4Translate(m, m, &w.translation)
+	mathx.Mat4RotateY(m, m, rotY180)
+	mathx.Mat4RotateX(m, m, rotXNeg2p5)
+	mathx.Mat4Scale(m, m, &w.scaleVec)
 }

@@ -2,10 +2,17 @@ package physics
 
 import (
 	"testing"
+
+	"../mathx"
 )
 
+func floatApprox(a, b float32) bool {
+	d := a - b
+	return d < 0.001 && d > -0.001
+}
+
 func TestFPSControllerInitialization(t *testing.T) {
-	spawn := Vec3{X: 10, Y: 0, Z: 20}
+	spawn := mathx.Vec3{X: 10, Y: 0, Z: 20}
 	ctrl := NewFPSController(&spawn, nil)
 
 	// Half height = 30, so Y should be 30
@@ -15,12 +22,12 @@ func TestFPSControllerInitialization(t *testing.T) {
 }
 
 func TestFPSControllerGroundMovement(t *testing.T) {
-	spawn := Vec3{X: 0, Y: 0, Z: 0}
+	spawn := mathx.Vec3{X: 0, Y: 0, Z: 0}
 	ctrl := NewFPSController(&spawn, nil)
 	ctrl.Grounded = true
 
-	camFwd := Vec3{X: 0, Y: 0, Z: -1}
-	camRight := Vec3{X: 1, Y: 0, Z: 0}
+	camFwd := mathx.Vec3{X: 0, Y: 0, Z: -1}
+	camRight := mathx.Vec3{X: 1, Y: 0, Z: 0}
 
 	// Move forward: move = 1, strafe = 0
 	dt := float32(1.0 / 120.0) // 120 Hz
@@ -33,7 +40,7 @@ func TestFPSControllerGroundMovement(t *testing.T) {
 }
 
 func TestFPSControllerJumpAndCoyote(t *testing.T) {
-	spawn := Vec3{X: 0, Y: 0, Z: 0}
+	spawn := mathx.Vec3{X: 0, Y: 0, Z: 0}
 	jumped := false
 	ctrl := NewFPSController(&spawn, &FPSControllerConfig{
 		OnJump: func() {
@@ -55,12 +62,12 @@ func TestFPSControllerJumpAndCoyote(t *testing.T) {
 }
 
 func TestFPSControllerCameraSync(t *testing.T) {
-	spawn := Vec3{X: 5, Y: 0, Z: 15}
+	spawn := mathx.Vec3{X: 5, Y: 0, Z: 15}
 	ctrl := NewFPSController(&spawn, nil)
 
-	camPos := Vec3{}
-	camDir := Vec3{X: 0, Y: 0, Z: -1}
-	camUp := Vec3{X: 0, Y: 1, Z: 0}
+	camPos := mathx.Vec3{}
+	camDir := mathx.Vec3{X: 0, Y: 0, Z: -1}
+	camUp := mathx.Vec3{X: 0, Y: 1, Z: 0}
 
 	dt := float32(0.016)
 	ctrl.SyncCameraWith(&camPos, &camDir, &camUp, dt)
@@ -72,7 +79,7 @@ func TestFPSControllerCameraSync(t *testing.T) {
 }
 
 func TestFPSControllerNoclip(t *testing.T) {
-	spawn := Vec3{X: 0, Y: 0, Z: 0}
+	spawn := mathx.Vec3{X: 0, Y: 0, Z: 0}
 	ctrl := NewFPSController(&spawn, nil)
 
 	SetNoclip(true)
@@ -80,9 +87,9 @@ func TestFPSControllerNoclip(t *testing.T) {
 		t.Errorf("Expected Noclip to be true")
 	}
 
-	camPos := Vec3{X: 10, Y: 20, Z: 30}
-	camDir := Vec3{X: 0, Y: 0, Z: 1}
-	camRight := Vec3{X: 1, Y: 0, Z: 0}
+	camPos := mathx.Vec3{X: 10, Y: 20, Z: 30}
+	camDir := mathx.Vec3{X: 0, Y: 0, Z: 1}
+	camRight := mathx.Vec3{X: 1, Y: 0, Z: 0}
 	ctrl.Camera = &CameraPose{Position: &camPos, Direction: &camDir}
 
 	ctrl.Move(0, 1, &camDir, &camRight, 0.1)
