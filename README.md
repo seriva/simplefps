@@ -68,10 +68,6 @@ npm install              # Install dependencies (Node.js >= 24.0.0, npm >= 11.0.
 npm run prepare          # Setup Lefthook git hooks + bundle dependencies
 ```
 
-> Until the GoFront fixes made during the rewrite are published, this branch needs the local
-> checkout: `npm link gofront` from a sibling `gofront/` clone. Re-run it after every `npm install`,
-> which replaces the link with the registry package.
-
 ### Commands
 ```bash
 npm run dev          # Start development server (GoFront, live reload)

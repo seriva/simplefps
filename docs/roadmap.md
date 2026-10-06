@@ -24,6 +24,7 @@ summarised in `CHANGELOG.md` under *2026-09 — Legacy JavaScript engine*.
 
 | Feature | Difficulty | Status | Notes |
 |---------|------------|--------|-------|
+| WebAssembly Collision Split | Medium | Completed (2026-10) | Split `mathx` (both) and `collision` (wasm) into WebAssembly via GoFront 1.5.1; Möller–Trumbore raycast benchmark reaches 31,293 rays/s (1.17× JS) with 0.86 B/ray; zero-alloc test passed |
 | [GoFront Rewrite](plans/archive/gofront-rewrite-plan.md) | High | Completed (2026-10) | All engine and game packages ported from ES6 to GoFront `.go`/`.templ`; legacy JS deleted; `main.go` boot; recursive `gofront check/test app/src/...`; zero-alloc perf benchmark and Playwright smoke test |
 | Physics Improvements | Medium | Completed (2026-09) | Iterative wall sliding, Quake-style step-climbing, 8-directional depenetration, raycasting micro-opts, raycastStatic/Dynamic split |
 | Rendering Performance | Medium | Completed (2026-09) | Two-level BVH, light contribution culling, skip shadow blur when idle, priority-queue shadow budget, compact light UBO layout |
