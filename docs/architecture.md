@@ -1,6 +1,6 @@
 # Architecture
 
-SimpleFPS is written in Go syntax and compiled by [GoFront](https://github.com/seriva/gofront) — mostly to JavaScript, with the collision package compiled to WebAssembly. Everything under `app/src` is a Go package or a `.templ` UI component; there is no hand-written JavaScript in the app. This document describes how the packages fit together, what each one owns, and the invariants the code is held to. Design history lives in `docs/plans/`.
+SimpleFPS is written in Go syntax and compiled by [GoFront](https://github.com/seriva/gofront) — to a seamless hybrid of JavaScript (ES modules) and WebAssembly (WasmGC). Collision runs in WebAssembly, mathx compiles to both targets, and the remaining packages run in JavaScript. Everything under `app/src` is a Go package or a `.templ` UI component; there is no hand-written JavaScript in the app. This document describes how the packages fit together, what each one owns, and the invariants the code is held to. Design history lives in `docs/plans/`.
 
 ## Package Layout
 
@@ -63,7 +63,9 @@ Each package declares where it runs with a `//gofront:target` directive on its f
 | `collision` | `wasm` | Octree traversal and ray/triangle tests are the hottest loop in the game; WASM keeps them branch-predictable and allocation-free. |
 | everything else | `js` | Talks to the DOM, WebGL/WebGPU, PeerJS. |
 
-`gofront build` emits `app.js` plus one `app.wasm` that bundles every `wasm`/`both` package; the JS facade for `collision` is generated, so callers see ordinary Go types. Hot calls must still obey the boundary rules in [Performance Invariants](#performance-invariants).
+- **Cross-target determinism:** Code in `both` packages (`mathx`) is emitted by the JS backend in strict numeric mode (`Math.fround` on `float32` arithmetic, integer wrapping, divide-by-zero panics), guaranteeing identical results between the JS copy and the WASM copy.
+- **No package-level mutable state:** `both` packages must not have mutable package-level variables since JS and WASM maintain separate module copies.
+- `gofront build` emits `app.js` plus one `app.wasm` that bundles every `wasm`/`both` package; the JS facade for `collision` is generated, so callers see ordinary Go types. Hot calls must still obey the boundary rules in [Performance Invariants](#performance-invariants).
 
 ## Boot and Frame Loop
 
@@ -289,7 +291,7 @@ The frame path — physics step, raycasts, `Scene.Update`, `Renderer.Render`, HU
 | Command | What runs |
 |---|---|
 | `npm run check` | Biome (JS files) + `gofront check app/src/...` |
-| `npm test` | `gofront test app/src/...` headless, every package; recording `MockBackend` and `mockScene` fixtures stand in for the GPU and the scene |
+| `npm test` | `gofront test app/src/...` headless, every package (dual-target `mathx [js]` and `mathx [wasm]`, `collision [wasm]`); recording `MockBackend` and `mockScene` fixtures stand in for the GPU and the scene |
 | `npm run test:dom` | the same under jsdom (`window`/`document` present) |
 | `npm run test:perf` | `tests/perf/zero-alloc.js`: 100k raycasts under 64 KB of new-space growth |
 | `npm run test:e2e` | `tests/e2e/smoke.spec.js` (Playwright, WebGL2): boot → menu → lit frame |

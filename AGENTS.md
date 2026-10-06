@@ -29,10 +29,10 @@
 # Part 2: Project Context
 
 ## Project Identity
-SimpleFPS is an arena-based first-person shooter with hybrid WebGL 2 / WebGPU rendering, distributed as a PWA for Desktop, Android, and iOS. It is written in [GoFront](https://github.com/seriva/gofront) (Go syntax compiled to JavaScript); the rewrite from ES6 modules is complete — see `docs/plans/archive/gofront-rewrite-plan.md` for the design decisions and phase history.
+SimpleFPS is an arena-based first-person shooter with hybrid WebGL 2 / WebGPU rendering, distributed as a PWA for Desktop, Android, and iOS. It is written in [GoFront](https://github.com/seriva/gofront) (Go syntax compiled to a seamless hybrid of JavaScript and WebAssembly); collision runs in WebAssembly (WasmGC), mathx in both targets, and the rest in JavaScript. The rewrite from ES6 modules is complete — see `docs/plans/archive/gofront-rewrite-plan.md` for the design decisions and phase history.
 
 ## Tech Stack
-- **Language**: GoFront (`.go` packages compiled to ES modules; `.templ` for UI components). No JavaScript under `app/src`; the only JS files are `tests/**` , `playwright.config.js` and the asset converters in `scripts/`.
+- **Language**: GoFront (`.go` packages compiled to ES modules and WebAssembly GC modules; `.templ` for UI components). No JavaScript under `app/src`; the only JS files are `tests/**` , `playwright.config.js` and the asset converters in `scripts/`.
 - **Rendering**: WebGL 2 + WebGPU (feature-detected at runtime)
 - **Math**: in-engine `mathx.Vec3` / `Mat4` / `Quat` (`app/src/engine/mathx/`, compiled for both JS and WASM), no third-party math library
 - **Networking**: PeerJS (WebRTC P2P), bundled via `gofront prep`
@@ -47,11 +47,12 @@ Game code lives in `app/src/game/` (package `game`), the engine in `app/src/engi
 ## Core Rules & Anti-Patterns
 - **Dependency direction:** `game` and `main` may import any engine package; engine packages import only each other (never `game`) and never form cycles. Backend packages (`webgl`, `webgpu`) are only imported by `engine` for selection — everything else talks to `rendering.RenderBackend`.
 - **Zero per-frame allocations:** pre-allocate all scratch vectors/matrices/quaternions at package level (e.g. `var _tmpMat4 Mat4`) and reuse via in-place methods. Queries write into caller-provided slices and return a count. In GoFront, `[N]T` literals, `append`, reslicing, comma-ok type assertions, and assigning struct-typed fields all allocate — keep them out of hot paths.
+- **JS ↔ WASM boundary discipline:** keep boundary calls coarse and per-frame (e.g. raycasting, collision queries). Passing `any` or returning struct values allocates; pass pointers (`*mathx.Vec3`, `*collision.RaycastResult`) using caller-provided buffers. Packages targeting `both` (`mathx`) must not contain mutable package-level state.
 - **Browser interop:** globals GoFront does not predeclare (`Reflect`, `globalThis`, `process`, `Image`, `GPU*` constants, …) are declared in a per-package `interop.d.ts` imported via `import "js:./interop.d.ts"`. Do not redeclare predeclared ones (`window`, `document`, `navigator`, `location`, `performance`, `console`, `Math`, `URL`, typed arrays, `WebGL2RenderingContext`) — it only shadows their built-in typing. Guard `window == nil` so packages stay testable headless.
 - **Keep docs current:** changes to package boundaries, the frame loop, rendering passes, scene, or networking → update `docs/architecture.md`. New player-visible features → update `README.md`. File-tree changes → update the Project Structure tree in `README.md`.
 - **Use the in-game console:** log via `systems.GlobalConsole.Log` / `.Warn` / `.Error`, not `console.*`. The only exceptions are `systems` internals and the render backends, which run before the console exists.
-- **Test every package:** new `.go` code gets `*_test.go` next to it; hot paths get a heap-growth test (see `physics/integration_test.go`). Skip DOM-dependent assertions when `document != nil` only if jsdom noise makes them meaningless.
+- **Test every package:** new `.go` code gets `*_test.go` next to it; hot paths get a heap-growth test (see `physics/integration_test.go` and `collision/integration_test.go`). Skip DOM-dependent assertions when `document != nil` only if jsdom noise makes them meaningless.
 - **No direct GPU code outside the renderer:** all GPU work branches through the WebGPU / WebGL backend abstraction in `engine/rendering/`.
 - **No entity↔Scene coupling:** pass ambient light, shadow height, etc. as arguments to `render()` / `renderShadow()` rather than importing Scene from within entities.
-- **Generated assets are committed, never hand-edited:** `app/resources/**` (`.bmesh`, `.bin`, `.mesh`, textures, `config.arena`) is produced by the converters in `scripts/`; regenerate from the source asset instead of patching the output. Build output (`public/`, `app/app.js`, `app/vendor.js`) stays `.gitignore`d.
+- **Generated assets are committed, never hand-edited:** `app/resources/**` (`.bmesh`, `.bin`, `.mesh`, textures, `config.arena`) is produced by the converters in `scripts/`; regenerate from the source asset instead of patching the output. Build output (`public/`, `app/app.js`, `app/app.wasm`, `app/vendor.js`) stays `.gitignore`d.
 
