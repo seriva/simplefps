@@ -4,7 +4,7 @@ import (
 	"math"
 
 	"../engine/assets"
-	"../engine/physics"
+	"../engine/mathx"
 	"../engine/scene"
 )
 
@@ -15,18 +15,18 @@ type RemotePlayer struct {
 	ID     string
 	Entity *scene.MeshEntity
 
-	Target  physics.Vec3
-	Current physics.Vec3
+	Target  mathx.Vec3
+	Current mathx.Vec3
 
 	scene    *scene.Scene
-	scaleVec physics.Vec3
+	scaleVec mathx.Vec3
 
 	// stamp marks the last STATE packet that listed this player.
 	stamp int
 }
 
 // NewRemotePlayer creates the proxy at position and adds it to s.
-func NewRemotePlayer(s *scene.Scene, id string, position *physics.Vec3) *RemotePlayer {
+func NewRemotePlayer(s *scene.Scene, id string, position *mathx.Vec3) *RemotePlayer {
 	rp := &RemotePlayer{ID: id, scene: s}
 	rp.Target.Copy(position)
 	rp.Current.Copy(position)
@@ -51,8 +51,8 @@ func (rp *RemotePlayer) Update(dt float32) {
 	rp.Current.Lerp(&rp.Current, &rp.Target, alpha)
 
 	m := rp.Entity.Base.BaseMatrix
-	physics.Mat4FromTranslation(m, &rp.Current)
-	physics.Mat4Scale(m, m, &rp.scaleVec)
+	mathx.Mat4FromTranslation(m, &rp.Current)
+	mathx.Mat4Scale(m, m, &rp.scaleVec)
 }
 
 // Destroy removes the proxy from the scene.

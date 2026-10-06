@@ -1,19 +1,38 @@
 // Zero-Allocation Verification Benchmark
-// Compiles the real `engine/physics` package and runs the raycast hot path
-// (the per-frame collision query used by movement and weapons) 100,000 times,
-// asserting the V8 new-space heap does not grow.
+// Compiles the real `engine/physics` package (hybrid: `collision` runs in WASM,
+// `mathx` on both targets) and runs the raycast hot path (the per-frame
+// collision query used by movement and weapons) 100,000 times, asserting the
+// V8 new-space heap does not grow.
 
 import assert from "node:assert";
-import { resolve } from "node:path";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import v8 from "node:v8";
 import { compileDir } from "gofront/src/compiler.js";
 
-const { js } = compileDir(resolve("app/src/engine/physics"));
+const { js, wasm } = compileDir(resolve("app/src/engine/physics"));
 
-const exports = new Function(
-	`${js}\nreturn { NewTrimesh, NewRay, Vec3, RayModeClosest };`,
-)();
-const { NewTrimesh, NewRay, Vec3, RayModeClosest } = exports;
+// The facade awaits WASM instantiation at top level, so it must be imported as
+// an ES module; `__GOFRONT_WASM_BYTES` short-circuits the loader's fetch.
+const dir = mkdtempSync(join(tmpdir(), "simplefps-perf-"));
+const bundle = join(dir, "physics.mjs");
+writeFileSync(
+	bundle,
+	`globalThis.window = null; globalThis.document = null;
+globalThis.__GOFRONT_WASM_BYTES = new Uint8Array(${JSON.stringify([...wasm])});
+${js}
+export { NewTrimesh, NewRay, Vec3, RayModeClosest };`,
+);
+let NewTrimesh, NewRay, Vec3, RayModeClosest;
+try {
+	({ NewTrimesh, NewRay, Vec3, RayModeClosest } = await import(
+		pathToFileURL(bundle)
+	));
+} finally {
+	rmSync(dir, { recursive: true, force: true });
+}
 
 // Build a 32x32 grid floor (2048 triangles) so the octree has real depth.
 const GRID = 32;

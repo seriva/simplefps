@@ -2,6 +2,9 @@ package physics
 
 import (
 	"math"
+
+	"../collision"
+	"../mathx"
 )
 
 const (
@@ -19,11 +22,16 @@ const (
 )
 
 var (
-	_worldUp                 = Vec3{X: 0, Y: 1, Z: 0}
-	_fcRightVector           Vec3
-	_fcWishDir               Vec3
-	_fcNoclipDir             Vec3
-	_fcRaycastResult         RaycastResult
+	_worldUp                 = mathx.Vec3{X: 0, Y: 1, Z: 0}
+	_fcRightVector           mathx.Vec3
+	_fcWishDir               mathx.Vec3
+	_fcNoclipDir             mathx.Vec3
+	_fcRaycastResult         collision.RaycastResult
+	// Outputs of resolveHorizontalCollision / resolveDepenetration. A (float32,
+	// float32) return compiles to a JS array per call, which V8 only elides
+	// while the callee is inlined; writing the pair here keeps the frame loop
+	// allocation-free whether or not the physics code is inlined.
+	_fcOutX, _fcOutZ float32
 	_horizontalCheckHeights  = [3]float32{0, 0.35, -0.35}
 	_radialDirs = [8][2]float32{
 		{1, 0},
@@ -41,9 +49,9 @@ var (
 // CameraPose aliases the camera vectors the controller writes to (SyncCamera)
 // and reads from (noclip).
 type CameraPose struct {
-	Position  *Vec3
-	Direction *Vec3
-	Up        *Vec3
+	Position  *mathx.Vec3
+	Direction *mathx.Vec3
+	Up        *mathx.Vec3
 }
 
 // ToggleNoclip toggles noclip mode and returns the new state.
@@ -100,8 +108,8 @@ type FPSController struct {
 	Camera *CameraPose
 
 	Config      FPSControllerConfig
-	Position    Vec3
-	Velocity    Vec3
+	Position    mathx.Vec3
+	Velocity    mathx.Vec3
 	Grounded    bool
 	WasGrounded bool
 	AirTime     float32
@@ -119,7 +127,7 @@ type FPSController struct {
 }
 
 // NewFPSController creates an FPSController at spawnPos with optional configuration.
-func NewFPSController(spawnPos *Vec3, config *FPSControllerConfig) *FPSController {
+func NewFPSController(spawnPos *mathx.Vec3, config *FPSControllerConfig) *FPSController {
 	cfg := DefaultFPSControllerConfig()
 	if config != nil {
 		if config.Radius != 0 {
@@ -205,7 +213,7 @@ func (c *FPSController) Update(frameTime float32) {
 }
 
 // Move applies player WASD input relative to camera forward and right directions.
-func (c *FPSController) Move(strafe, move float32, cameraForward, cameraRight *Vec3, frameTime float32) {
+func (c *FPSController) Move(strafe, move float32, cameraForward, cameraRight *mathx.Vec3, frameTime float32) {
 	if _noclip {
 		c.noclipMove(strafe, move, cameraForward, cameraRight, frameTime)
 		return
@@ -246,7 +254,7 @@ func (c *FPSController) Jump() {
 	}
 }
 
-func (c *FPSController) applyGroundMovement(wishDir *Vec3, wishSpeed, dt float32) {
+func (c *FPSController) applyGroundMovement(wishDir *mathx.Vec3, wishSpeed, dt float32) {
 	if wishSpeed < 0.1 {
 		decelAlpha := 1.0 - float32(math.Exp(float64(-GroundDecel*dt)))
 		c.Velocity.X *= (1.0 - decelAlpha)
@@ -262,7 +270,7 @@ func (c *FPSController) applyGroundMovement(wishDir *Vec3, wishSpeed, dt float32
 	c.accelerate(wishDir, wishSpeed, c.Config.GroundAcceleration, dt)
 }
 
-func (c *FPSController) accelerate(wishDir *Vec3, wishSpeed, acceleration, dt float32) {
+func (c *FPSController) accelerate(wishDir *mathx.Vec3, wishSpeed, acceleration, dt float32) {
 	currentSpeed := c.Velocity.X*wishDir.X + c.Velocity.Z*wishDir.Z
 	addSpeed := wishSpeed - currentSpeed
 	if addSpeed <= 0 {
@@ -295,7 +303,8 @@ func (c *FPSController) integratePhysics(dt float32) {
 	startZ := c.Position.Z
 
 	// 1. Resolve horizontal collision using iterative wall sliding
-	slideX, slideZ := c.resolveHorizontalCollision(startX, startY, startZ, dx, dz)
+	c.resolveHorizontalCollision(startX, startY, startZ, dx, dz)
+	slideX, slideZ := _fcOutX, _fcOutZ
 
 	// Skip depenetration when stationary on ground to save raycasts
 	absDx := dx
@@ -309,7 +318,8 @@ func (c *FPSController) integratePhysics(dt float32) {
 	isRestingGrounded := c.Grounded && c.WasGrounded && absDx <= 0.001 && absDz <= 0.001
 
 	if !isRestingGrounded {
-		slideX, slideZ = c.resolveDepenetration(slideX, slideZ, startY)
+		c.resolveDepenetration(slideX, slideZ, startY)
+		slideX, slideZ = _fcOutX, _fcOutZ
 	}
 
 	uncollidedDistSq := dx*dx + dz*dz
@@ -329,7 +339,9 @@ func (c *FPSController) integratePhysics(dt float32) {
 	c.resolveCeilingCollision(c.Position.X, startY, c.Position.Z)
 }
 
-func (c *FPSController) resolveHorizontalCollision(startX, startY, startZ, dx, dz float32) (float32, float32) {
+// resolveHorizontalCollision slides the move (dx, dz) along walls and leaves
+// the resolved position in _fcOutX / _fcOutZ.
+func (c *FPSController) resolveHorizontalCollision(startX, startY, startZ, dx, dz float32) {
 	x := startX
 	z := startZ
 	curDx := dx
@@ -409,7 +421,8 @@ func (c *FPSController) resolveHorizontalCollision(startX, startY, startZ, dx, d
 		}
 	}
 
-	return x, z
+	_fcOutX = x
+	_fcOutZ = z
 }
 
 func (c *FPSController) tryStepClimb(startX, startY, startZ, dx, dz, slideX, slideZ float32) bool {
@@ -418,7 +431,8 @@ func (c *FPSController) tryStepClimb(startX, startY, startZ, dx, dz, slideX, sli
 
 	stepUpY := startY + StepHeight
 
-	movedX, movedZ := c.resolveHorizontalCollision(startX, stepUpY, startZ, dx, dz)
+	c.resolveHorizontalCollision(startX, stepUpY, startZ, dx, dz)
+	movedX, movedZ := _fcOutX, _fcOutZ
 
 	landedY := c.resolveGroundCollision(movedX, movedZ, stepUpY, -StepHeight)
 
@@ -446,7 +460,8 @@ func (c *FPSController) tryStepClimb(startX, startY, startZ, dx, dz, slideX, sli
 		return false
 	}
 
-	finalStepX, finalStepZ := c.resolveDepenetration(movedX, movedZ, landedY)
+	c.resolveDepenetration(movedX, movedZ, landedY)
+	finalStepX, finalStepZ := _fcOutX, _fcOutZ
 
 	slideDistSq := (slideX-startX)*(slideX-startX) + (slideZ-startZ)*(slideZ-startZ)
 	stepDistSq := (finalStepX-startX)*(finalStepX-startX) + (finalStepZ-startZ)*(finalStepZ-startZ)
@@ -463,7 +478,9 @@ func (c *FPSController) tryStepClimb(startX, startY, startZ, dx, dz, slideX, sli
 	return false
 }
 
-func (c *FPSController) resolveDepenetration(x, z, y float32) (float32, float32) {
+// resolveDepenetration pushes (x, z) out of nearby walls and leaves the
+// result in _fcOutX / _fcOutZ.
+func (c *FPSController) resolveDepenetration(x, z, y float32) {
 	radius := c.Config.Radius
 	depenRadius := radius + 1.0
 	radiusSq := radius * radius
@@ -496,7 +513,8 @@ func (c *FPSController) resolveDepenetration(x, z, y float32) (float32, float32)
 		}
 	}
 
-	return x, z
+	_fcOutX = x
+	_fcOutZ = z
 }
 
 func (c *FPSController) resolveGroundCollision(finalX, finalZ, startY, dy float32) float32 {
@@ -584,7 +602,7 @@ func (c *FPSController) SyncCamera(frameTime float32) {
 }
 
 // SyncCameraWith updates specific camera position, direction, and up-vectors.
-func (c *FPSController) SyncCameraWith(camPos, camDir, camUp *Vec3, frameTime float32) {
+func (c *FPSController) SyncCameraWith(camPos, camDir, camUp *mathx.Vec3, frameTime float32) {
 	if _noclip {
 		return
 	}
@@ -656,7 +674,7 @@ func (c *FPSController) updateHeadBob(horizontalSpeed, frameTime float32) {
 	}
 }
 
-func (c *FPSController) updateCameraRoll(camDir, camUp *Vec3, horizontalSpeed, frameTime float32) {
+func (c *FPSController) updateCameraRoll(camDir, camUp *mathx.Vec3, horizontalSpeed, frameTime float32) {
 	targetRoll := float32(0.0)
 	if horizontalSpeed > 10 && c.Grounded {
 		speedFactor := horizontalSpeed / c.Config.MaxSpeed
@@ -681,7 +699,7 @@ func (c *FPSController) updateCameraRoll(camDir, camUp *Vec3, horizontalSpeed, f
 	camUp.Normalize(camUp)
 }
 
-func (c *FPSController) noclipMove(inputX, inputZ float32, _cameraForward, cameraRight *Vec3, frameTime float32) {
+func (c *FPSController) noclipMove(inputX, inputZ float32, _cameraForward, cameraRight *mathx.Vec3, frameTime float32) {
 	if c.Camera == nil || c.Camera.Direction == nil || c.Camera.Position == nil {
 		return
 	}

@@ -1,7 +1,7 @@
 package scene
 
 import (
-	"../physics"
+	"../mathx"
 	"../rendering"
 )
 
@@ -15,7 +15,7 @@ var skyboxProbe = []float32{1, 1, 1}
 type SkyboxEntity struct {
 	Base           EntityBase
 	Mesh           *rendering.Mesh
-	CameraPosition *physics.Vec3
+	CameraPosition *mathx.Vec3
 }
 
 // NewSkyboxEntity assigns skybox materials "mat_skybox_<id>_<face>" to sky's
@@ -38,9 +38,9 @@ func (e *SkyboxEntity) Update(frameTime float32) bool {
 
 func (e *SkyboxEntity) updateMatrix() {
 	if e.CameraPosition != nil {
-		physics.Mat4Translate(e.Base.BaseMatrix, e.Base.AniMatrix, e.CameraPosition)
+		mathx.Mat4Translate(e.Base.BaseMatrix, e.Base.AniMatrix, e.CameraPosition)
 	} else {
-		physics.Mat4Copy(e.Base.BaseMatrix, e.Base.AniMatrix)
+		mathx.Mat4Copy(e.Base.BaseMatrix, e.Base.AniMatrix)
 	}
 }
 
@@ -69,7 +69,7 @@ func (e *SkyboxEntity) DrawWireframe(r *rendering.Renderer, sh *rendering.Shader
 	e.Mesh.RenderWireframe()
 }
 
-func (e *SkyboxEntity) Bounds() *physics.BoundingBox { return e.Base.BoundingBox }
+func (e *SkyboxEntity) Bounds() *mathx.BoundingBox { return e.Base.BoundingBox }
 func (e *SkyboxEntity) TriangleCount() int           { return 0 }
 func (e *SkyboxEntity) CastsShadow() bool            { return false }
 

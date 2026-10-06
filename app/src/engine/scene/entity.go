@@ -1,7 +1,8 @@
 package scene
 
 import (
-	"../physics"
+	"../collision"
+	"../mathx"
 	"../rendering"
 )
 
@@ -42,11 +43,11 @@ type EntityBase struct {
 	IsStatic      bool
 	AnimationTime float32
 
-	BaseMatrix physics.Mat4
-	AniMatrix  physics.Mat4
+	BaseMatrix mathx.Mat4
+	AniMatrix  mathx.Mat4
 
-	BoundingBox *physics.BoundingBox
-	Collider    *physics.Trimesh
+	BoundingBox *mathx.BoundingBox
+	Collider    *collision.Trimesh
 
 	// UserData is free-form game state attached by the game layer.
 	UserData any
@@ -107,8 +108,8 @@ func initBase(b *EntityBase, entityType int, update UpdateCallback) {
 	b.Type = entityType
 	b.Visible = true
 	b.CastShadow = true
-	b.BaseMatrix = physics.NewMat4()
-	b.AniMatrix = physics.NewMat4()
+	b.BaseMatrix = mathx.NewMat4()
+	b.AniMatrix = mathx.NewMat4()
 	b.Callback = update
 }
 

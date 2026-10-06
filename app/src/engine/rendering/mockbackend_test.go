@@ -1,7 +1,7 @@
 package rendering
 
 import (
-	"../physics"
+	"../mathx"
 )
 
 // mockCall is one recorded backend invocation (method name + key argument).
@@ -252,17 +252,17 @@ type mockDrawable struct {
 	tris    int
 	score   float32
 	spot    bool
-	bounds  *physics.BoundingBox
+	bounds  *mathx.BoundingBox
 }
 
 func (d *mockDrawable) Draw(r *Renderer, sh *Shader, mode MaterialMode) { d.backend.record("draw", d.name) }
 func (d *mockDrawable) DrawShadow(r *Renderer, sh *Shader)         { d.backend.record("shadow", d.name) }
 func (d *mockDrawable) DrawWireframe(r *Renderer, sh *Shader)      { d.backend.record("wire", d.name) }
 func (d *mockDrawable) DrawSkeleton(r *Renderer, sh *Shader)       { d.backend.record("skel", d.name) }
-func (d *mockDrawable) Bounds() *physics.BoundingBox               { return d.bounds }
+func (d *mockDrawable) Bounds() *mathx.BoundingBox               { return d.bounds }
 func (d *mockDrawable) TriangleCount() int                         { return d.tris }
 func (d *mockDrawable) CastsShadow() bool                          { return d.casts }
-func (d *mockDrawable) LightScore(camPos *physics.Vec3) float32    { return d.score }
+func (d *mockDrawable) LightScore(camPos *mathx.Vec3) float32    { return d.score }
 func (d *mockDrawable) AddToLighting(data *LightingData) bool {
 	if d.spot {
 		return data.AddSpotLight(0, 0, 0, 1, 1, 1, 1, d.score, 0, -1, 0, 0.5)
@@ -295,7 +295,7 @@ func newMockScene(mb *MockBackend, casters bool) *mockScene {
 		spots:       NewLightList(1),
 	}
 	s.skyboxes.Add(&mockDrawable{backend: mb, name: "skybox"})
-	s.meshes.Add(&mockDrawable{backend: mb, name: "mesh", casts: casters, tris: 2, bounds: physics.NewBoundingBox()})
+	s.meshes.Add(&mockDrawable{backend: mb, name: "mesh", casts: casters, tris: 2, bounds: mathx.NewBoundingBox()})
 	s.fps.Add(&mockDrawable{backend: mb, name: "fps", tris: 3})
 	s.skinned.Add(&mockDrawable{backend: mb, name: "skinned", casts: casters, tris: 5})
 	s.directional.Add(&mockDrawable{backend: mb, name: "directional"})
@@ -307,7 +307,7 @@ func newMockScene(mb *MockBackend, casters bool) *mockScene {
 	return s
 }
 
-func (s *mockScene) Ambient(out *physics.Vec3) {
+func (s *mockScene) Ambient(out *mathx.Vec3) {
 	out.X = 0.1
 	out.Y = 0.2
 	out.Z = 0.3
@@ -335,7 +335,7 @@ func newNopScene() *nopScene {
 	return &nopScene{draw: NewDrawList(1), light: NewLightList(1)}
 }
 
-func (s *nopScene) Ambient(out *physics.Vec3) {
+func (s *nopScene) Ambient(out *mathx.Vec3) {
 	out.X = 0
 	out.Y = 0
 	out.Z = 0
@@ -375,6 +375,6 @@ func newTestCamera() *CameraView {
 		cam.ViewProjection[i] = float32(32 + i)
 		cam.InverseViewProjection[i] = float32(48 + i)
 	}
-	cam.Position = physics.Vec3{X: 1, Y: 2, Z: 3}
+	cam.Position = mathx.Vec3{X: 1, Y: 2, Z: 3}
 	return cam
 }

@@ -1,6 +1,5 @@
-package physics
-
-var _transformTmpQuat Quat
+//gofront:target both
+package mathx
 
 // Transform represents a 3D coordinate frame defined by position and orientation quaternion.
 type Transform struct {
@@ -50,8 +49,7 @@ func (t *Transform) VectorToWorld(localVector, result *Vec3) *Vec3 {
 // PointToLocalFrame transforms a point from world space into local frame defined by position and quaternion.
 func PointToLocalFrame(position *Vec3, quaternion *Quat, worldPoint, result *Vec3) *Vec3 {
 	result.Sub(worldPoint, position)
-	_transformTmpQuat.Conjugate(quaternion)
-	result.TransformQuat(result, &_transformTmpQuat)
+	result.TransformQuatConjugate(result, quaternion)
 	return result
 }
 
@@ -70,7 +68,6 @@ func VectorToWorldFrame(quaternion *Quat, localVector, result *Vec3) *Vec3 {
 
 // VectorToLocalFrame transforms a direction vector from world space into local frame.
 func VectorToLocalFrame(quaternion *Quat, worldVector, result *Vec3) *Vec3 {
-	_transformTmpQuat.Conjugate(quaternion)
-	result.TransformQuat(worldVector, &_transformTmpQuat)
+	result.TransformQuatConjugate(worldVector, quaternion)
 	return result
 }

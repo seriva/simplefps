@@ -1,12 +1,15 @@
-package physics
+//gofront:target wasm
+package collision
+
+import "../mathx"
 
 // MaxOctreeStackDepth bounds the explicit traversal stack; 8 children per level, so a
 // depth-first walk of a tree with MaxDepth 8 never exceeds 8*7+1 live entries.
 const MaxOctreeStackDepth = 128
 
 var (
-	_octTmpAABB    BoundingBox
-	_octInvDir     Vec3
+	_octTmpAABB    mathx.BoundingBox
+	_octInvDir     mathx.Vec3
 	_octQueryStack = make([]*OctreeNode, MaxOctreeStackDepth)
 	_childOffsets  = [8][3]float32{
 		{0, 0, 0},
@@ -21,7 +24,7 @@ var (
 )
 
 // IntersectRayAABB tests intersection between a ray and an AABB using the Slab method.
-func IntersectRayAABB(aabb *BoundingBox, origin, invDir *Vec3, maxDist float32) bool {
+func IntersectRayAABB(aabb *mathx.BoundingBox, origin, invDir *mathx.Vec3, maxDist float32) bool {
 	min := &aabb.Min
 	max := &aabb.Max
 
@@ -79,7 +82,7 @@ func IntersectRayAABB(aabb *BoundingBox, origin, invDir *Vec3, maxDist float32) 
 // OctreeNode represents a spatial partitioning node containing elements and child nodes.
 type OctreeNode struct {
 	Root     *OctreeNode
-	AABB     BoundingBox
+	AABB     mathx.BoundingBox
 	Data     []int
 	Children []*OctreeNode
 	MaxDepth int
@@ -89,7 +92,7 @@ type OctreeNode struct {
 type Octree = OctreeNode
 
 // NewOctree creates a new root octree with given bounding box and maximum tree depth.
-func NewOctree(aabb *BoundingBox, maxDepth int) *Octree {
+func NewOctree(aabb *mathx.BoundingBox, maxDepth int) *Octree {
 	if maxDepth <= 0 {
 		maxDepth = 8
 	}
@@ -119,7 +122,7 @@ func (node *OctreeNode) Reset() {
 }
 
 // Insert adds an element index into the octree at the deepest containing node.
-func (node *OctreeNode) Insert(aabb *BoundingBox, elementData int, level int) bool {
+func (node *OctreeNode) Insert(aabb *mathx.BoundingBox, elementData int, level int) bool {
 	if !node.AABB.Contains(aabb) {
 		return false
 	}
@@ -178,9 +181,9 @@ func (node *OctreeNode) Subdivide() {
 			MaxDepth: node.MaxDepth,
 			Data:     make([]int, 0),
 			Children: make([]*OctreeNode, 0),
-			AABB: BoundingBox{
-				Min: Vec3{X: minX, Y: minY, Z: minZ},
-				Max: Vec3{X: minX + halfDiagX, Y: minY + halfDiagY, Z: minZ + halfDiagZ},
+			AABB: mathx.BoundingBox{
+				Min: mathx.Vec3{X: minX, Y: minY, Z: minZ},
+				Max: mathx.Vec3{X: minX + halfDiagX, Y: minY + halfDiagY, Z: minZ + halfDiagZ},
 			},
 		}
 		node.Children[i] = child
@@ -189,7 +192,7 @@ func (node *OctreeNode) Subdivide() {
 
 // AABBQuery writes element data intersecting aabb into out and returns the count.
 // Results beyond len(out) are dropped; out must be pre-sized by the caller.
-func (node *OctreeNode) AABBQuery(aabb *BoundingBox, out []int) int {
+func (node *OctreeNode) AABBQuery(aabb *mathx.BoundingBox, out []int) int {
 	count := 0
 	limit := len(out)
 	top := 0
@@ -220,7 +223,7 @@ func (node *OctreeNode) AABBQuery(aabb *BoundingBox, out []int) int {
 }
 
 // RayQuery writes elements intersecting the ray (transformed into tree-local space) into out.
-func (node *OctreeNode) RayQuery(ray *Ray, treeTransform *Transform, out []int) int {
+func (node *OctreeNode) RayQuery(ray *Ray, treeTransform *mathx.Transform, out []int) int {
 	treeTransform.PointToLocal(&ray.From, &_octTmpAABB.Min)
 	treeTransform.VectorToLocal(&ray.Direction, &_octTmpAABB.Max)
 
@@ -229,7 +232,7 @@ func (node *OctreeNode) RayQuery(ray *Ray, treeTransform *Transform, out []int) 
 }
 
 // RayQueryLocal writes elements intersecting the local-space ray into out and returns the count.
-func (node *OctreeNode) RayQueryLocal(origin, direction *Vec3, maxDist float32, out []int, invDir *Vec3) int {
+func (node *OctreeNode) RayQueryLocal(origin, direction *mathx.Vec3, maxDist float32, out []int, invDir *mathx.Vec3) int {
 	inv := invDir
 	if inv == nil {
 		_octInvDir.X = 1.0 / direction.X

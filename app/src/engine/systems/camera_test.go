@@ -4,7 +4,7 @@ import (
 	"math"
 	"testing"
 
-	"../physics"
+	"../mathx"
 )
 
 func TestCameraInit(t *testing.T) {
@@ -59,7 +59,7 @@ func TestCameraFrustumCulling(t *testing.T) {
 	cam.Update()
 
 	// Box 1: directly in front of the camera (inside frustum)
-	boxIn := physics.NewBoundingBox()
+	boxIn := mathx.NewBoundingBox()
 	boxIn.Min.Set(-1, -1, 5)
 	boxIn.Max.Set(1, 1, 7)
 	if !cam.IsBoxInFrustum(boxIn) {
@@ -67,7 +67,7 @@ func TestCameraFrustumCulling(t *testing.T) {
 	}
 
 	// Box 2: behind the camera (-Z) (outside frustum)
-	boxBehind := physics.NewBoundingBox()
+	boxBehind := mathx.NewBoundingBox()
 	boxBehind.Min.Set(-1, -1, -10)
 	boxBehind.Max.Set(1, 1, -5)
 	if cam.IsBoxInFrustum(boxBehind) {
@@ -75,7 +75,7 @@ func TestCameraFrustumCulling(t *testing.T) {
 	}
 
 	// Box 3: far beyond the far plane (outside frustum)
-	boxFar := physics.NewBoundingBox()
+	boxFar := mathx.NewBoundingBox()
 	boxFar.Min.Set(-1, -1, 200)
 	boxFar.Max.Set(1, 1, 205)
 	if cam.IsBoxInFrustum(boxFar) {

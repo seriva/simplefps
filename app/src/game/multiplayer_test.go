@@ -3,7 +3,7 @@ package game
 import (
 	"testing"
 
-	"../engine/physics"
+	"../engine/mathx"
 	"../engine/scene"
 	"../engine/systems"
 	"js:./interop.d.ts"
@@ -103,7 +103,7 @@ func TestIsVec3(t *testing.T) {
 		t.Error("non-finite or non-number components must be rejected")
 	}
 
-	v := physics.Vec3{}
+	v := mathx.Vec3{}
 	Vec3FromAny(&v, []float64{1.5, -2, 3})
 	if v.X != 1.5 || v.Y != -2 || v.Z != 3 {
 		t.Errorf("Vec3FromAny = %v", v)
@@ -123,7 +123,7 @@ func TestIsVec3(t *testing.T) {
 
 func TestRemotePlayerEasesAndDestroys(t *testing.T) {
 	s, _ := newTestScene()
-	start := physics.Vec3{X: 0, Y: 10, Z: 0}
+	start := mathx.Vec3{X: 0, Y: 10, Z: 0}
 	rp := NewRemotePlayer(s, "p1", &start)
 	if meshCount(s) != 1 || !rp.Entity.Base.CastShadow {
 		t.Fatal("remote player must add a shadow-casting mesh entity")

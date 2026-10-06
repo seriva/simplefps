@@ -34,7 +34,7 @@ SimpleFPS is an arena-based first-person shooter with hybrid WebGL 2 / WebGPU re
 ## Tech Stack
 - **Language**: GoFront (`.go` packages compiled to ES modules; `.templ` for UI components). No JavaScript under `app/src`; the only JS files are `tests/**` , `playwright.config.js` and the asset converters in `scripts/`.
 - **Rendering**: WebGL 2 + WebGPU (feature-detected at runtime)
-- **Math**: in-engine `physics.Vec3` / `Mat4` / `Quat` (`app/src/engine/physics/`), no third-party math library
+- **Math**: in-engine `mathx.Vec3` / `Mat4` / `Quat` (`app/src/engine/mathx/`, compiled for both JS and WASM), no third-party math library
 - **Networking**: PeerJS (WebRTC P2P), bundled via `gofront prep`
 - **Build**: GoFront (`npm run dev` / `npm run build`)
 - **Test**: `npm test` (`gofront test app/src/...`, every package), `npm run test:dom` (same with a jsdom `window`/`document`), `npm run test:perf` (zero-allocation raycast benchmark), `npm run test:e2e` (Playwright smoke test), `npm run test:all`
@@ -42,7 +42,7 @@ SimpleFPS is an arena-based first-person shooter with hybrid WebGL 2 / WebGPU re
 - **Node**: >= 24.0.0, npm >= 11.0.0. While GoFront fixes from the rewrite are unreleased, `npm link gofront` to the sibling checkout (re-run after `npm install`).
 
 ## Architecture
-Game code lives in `app/src/game/` (package `game`), the engine in `app/src/engine/` (package `engine` plus `animation/`, `assets/`, `physics/`, `rendering/`, `rendering/webgl/`, `rendering/webgpu/`, `scene/`, `systems/`), and typings for vendored libs in `app/src/dependencies/`. `app/src/main.go` is the application entry point: it selects the render backend, loads resources, boots the game and registers the update/render callbacks with `engine`. Asset-conversion scripts live in `scripts/` (BSP, MD5, OBJ converters). The architecture is documented in `docs/architecture.md` (package layout, dependency rules, frame loop, rendering passes, scene, networking, performance invariants).
+Game code lives in `app/src/game/` (package `game`), the engine in `app/src/engine/` (package `engine` plus `animation/`, `assets/`, `collision/` (WASM), `mathx/` (JS + WASM), `physics/`, `rendering/`, `rendering/webgl/`, `rendering/webgpu/`, `scene/`, `systems/`), and typings for vendored libs in `app/src/dependencies/`. `app/src/main.go` is the application entry point: it selects the render backend, loads resources, boots the game and registers the update/render callbacks with `engine`. Asset-conversion scripts live in `scripts/` (BSP, MD5, OBJ converters). The architecture is documented in `docs/architecture.md` (package layout, dependency rules, frame loop, rendering passes, scene, networking, performance invariants).
 
 ## Core Rules & Anti-Patterns
 - **Dependency direction:** `game` and `main` may import any engine package; engine packages import only each other (never `game`) and never form cycles. Backend packages (`webgl`, `webgpu`) are only imported by `engine` for selection — everything else talks to `rendering.RenderBackend`.

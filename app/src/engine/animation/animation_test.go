@@ -3,7 +3,7 @@ package animation
 import (
 	"testing"
 
-	"../physics"
+	"../mathx"
 )
 
 func approx(a, b float32) bool {
@@ -52,7 +52,7 @@ func TestSkeletonBindPoseSkinIsIdentity(t *testing.T) {
 	}
 
 	skin := s.ComputeSkinningMatrices(pose)
-	id := physics.NewMat4()
+	id := mathx.NewMat4()
 	for j := 0; j < s.JointCount; j++ {
 		for i := 0; i < 16; i++ {
 			if !approx(skin[j][i], id[i]) {

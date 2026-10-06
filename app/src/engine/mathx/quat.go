@@ -1,4 +1,5 @@
-package physics
+//gofront:target both
+package mathx
 
 import (
 	"math"
@@ -188,20 +189,18 @@ func (out *Quat) Slerp(a, b *Quat, t float32) *Quat {
 	return out
 }
 
-var _rotTmpVec = Vec3{}
-var _xUnitVec = Vec3{X: 1, Y: 0, Z: 0}
-var _yUnitVec = Vec3{X: 0, Y: 1, Z: 0}
-
 // RotationTo sets out to represent shortest rotation from vector a to b.
 func (out *Quat) RotationTo(a, b *Vec3) *Quat {
+	var tmp Vec3
 	dot := a.Dot(b)
 	if dot < -0.999999 {
-		_rotTmpVec.Cross(&_xUnitVec, a)
-		if _rotTmpVec.Length() < 0.000001 {
-			_rotTmpVec.Cross(&_yUnitVec, a)
+		// cross(+X, a); fall back to cross(+Y, a) when a is parallel to X.
+		tmp.Set(0, -a.Z, a.Y)
+		if tmp.Length() < 0.000001 {
+			tmp.Set(a.Z, 0, -a.X)
 		}
-		_rotTmpVec.Normalize(&_rotTmpVec)
-		out.FromAxisAngle(&_rotTmpVec, float32(math.Pi))
+		tmp.Normalize(&tmp)
+		out.FromAxisAngle(&tmp, float32(math.Pi))
 		return out
 	} else if dot > 0.999999 {
 		out.X = 0
@@ -210,10 +209,10 @@ func (out *Quat) RotationTo(a, b *Vec3) *Quat {
 		out.W = 1
 		return out
 	} else {
-		_rotTmpVec.Cross(a, b)
-		out.X = _rotTmpVec.X
-		out.Y = _rotTmpVec.Y
-		out.Z = _rotTmpVec.Z
+		tmp.Cross(a, b)
+		out.X = tmp.X
+		out.Y = tmp.Y
+		out.Z = tmp.Z
 		out.W = 1 + dot
 		out.Normalize(out)
 		return out

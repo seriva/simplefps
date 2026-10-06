@@ -5,7 +5,7 @@ import (
 	"strconv"
 
 	"../engine/assets"
-	"../engine/physics"
+	"../engine/mathx"
 	"../engine/rendering"
 	"../engine/scene"
 	"../engine/systems"
@@ -15,14 +15,14 @@ const arenaMaxRaycastDistance = float32(500)
 
 // SpawnPoint is a player start: position and Euler rotation in radians.
 type SpawnPoint struct {
-	Position physics.Vec3
-	Rotation physics.Vec3
+	Position mathx.Vec3
+	Rotation mathx.Vec3
 }
 
 // PickupSpawn places a pickup of Type at Position.
 type PickupSpawn struct {
 	Type     string
-	Position physics.Vec3
+	Position mathx.Vec3
 }
 
 // ArenaLightGrid is the optional baked ambient probe grid.
@@ -124,7 +124,7 @@ func parseSpawnPoint(v any) *SpawnPoint {
 	return sp
 }
 
-func setVec3(out *physics.Vec3, v any) {
+func setVec3(out *mathx.Vec3, v any) {
 	if v == nil {
 		return
 	}
@@ -331,16 +331,16 @@ func (a *Arena) setupSpawnPointModels(cfg *ArenaConfig) {
 		pos := &sp.Position
 		groundY := a.groundHeight(pos.X, pos.Y, pos.Z)
 
-		character := scene.NewSkinnedMeshEntity(physics.NewVec3(pos.X, groundY, pos.Z), mesh, skeleton, nil, ArenaNPCScale)
+		character := scene.NewSkinnedMeshEntity(mathx.NewVec3(pos.X, groundY, pos.Z), mesh, skeleton, nil, ArenaNPCScale)
 		character.Base.CastShadow = true
 		character.PlayAnimation(anim, true)
 
 		// Yaw first, then stand upright, then scale.
 		m := character.Base.BaseMatrix
-		physics.Mat4RotateY(m, m, sp.Rotation.Y)
-		physics.Mat4RotateX(m, m, ToRadian(-90))
+		mathx.Mat4RotateY(m, m, sp.Rotation.Y)
+		mathx.Mat4RotateX(m, m, ToRadian(-90))
 		s := ArenaNPCMatrixScale
-		physics.Mat4Scale(m, m, physics.NewVec3(s, s, s))
+		mathx.Mat4Scale(m, m, mathx.NewVec3(s, s, s))
 
 		a.Scene.AddEntity(character)
 	}

@@ -1,7 +1,7 @@
 package rendering
 
 import (
-	"../physics"
+	"../mathx"
 )
 
 const (
@@ -71,7 +71,7 @@ var (
 	clearWhite        = &ClearOptions{Color: []float32{1, 1, 1, 1}, ClearColor: true}
 	clearAmbient      = &ClearOptions{Color: []float32{0, 0, 0, 1}, Depth: 1, ClearColor: true, ClearDepth: true}
 	clearAmbientColor = &ClearOptions{Color: []float32{0, 0, 0, 1}, ClearColor: true}
-	ambientScratch    = &physics.Vec3{}
+	ambientScratch    = &mathx.Vec3{}
 	ambientVec        = make([]float32, 3)
 	whiteProbe        = []float32{1, 1, 1}
 	debugWhite        = []float32{1, 1, 1, 1}
@@ -441,6 +441,9 @@ func (r *Renderer) transparentPass(scene SceneSource) {
 	b.BindFramebuffer(nil)
 }
 
+// boundsScratch is the matrix reused by drawBounds/drawLightBounds.
+var boundsScratch = mathx.NewMat4()
+
 // drawBounds draws the AABB of every item in list with the bound debug shader.
 func (r *Renderer) drawBounds(list *DrawList, sh *Shader, color []float32) {
 	box := r.Shapes.BoundingBoxMesh
@@ -453,7 +456,7 @@ func (r *Renderer) drawBounds(list *DrawList, sh *Shader, color []float32) {
 		if bb == nil {
 			continue
 		}
-		sh.SetMat4("matWorld", bb.GetTransformMatrix())
+		sh.SetMat4("matWorld", bb.TransformMatrix(boundsScratch))
 		box.RenderSingle(true, TopoLines, ModeAll, sh)
 	}
 }
@@ -470,7 +473,7 @@ func (r *Renderer) drawLightBounds(list *LightList, sh *Shader, color []float32)
 		if bb == nil {
 			continue
 		}
-		sh.SetMat4("matWorld", bb.GetTransformMatrix())
+		sh.SetMat4("matWorld", bb.TransformMatrix(boundsScratch))
 		box.RenderSingle(true, TopoLines, ModeAll, sh)
 	}
 }
@@ -766,7 +769,7 @@ func (s *LightSorter) Add(index int, score float32) {
 }
 
 // ContributionScore is the default LightScore: intensity / distance² to cam.
-func ContributionScore(x, y, z, intensity float32, cam *physics.Vec3) float32 {
+func ContributionScore(x, y, z, intensity float32, cam *mathx.Vec3) float32 {
 	dx := x - cam.X
 	dy := y - cam.Y
 	dz := z - cam.Z

@@ -1,6 +1,6 @@
 # Architecture
 
-SimpleFPS is written in Go syntax and compiled to JavaScript by [GoFront](https://github.com/seriva/gofront). Everything under `app/src` is a Go package or a `.templ` UI component; there is no hand-written JavaScript in the app. This document describes how the packages fit together, what each one owns, and the invariants the code is held to. Design history lives in `docs/plans/`.
+SimpleFPS is written in Go syntax and compiled by [GoFront](https://github.com/seriva/gofront) — mostly to JavaScript, with the collision package compiled to WebAssembly. Everything under `app/src` is a Go package or a `.templ` UI component; there is no hand-written JavaScript in the app. This document describes how the packages fit together, what each one owns, and the invariants the code is held to. Design history lives in `docs/plans/`.
 
 ## Package Layout
 
@@ -8,7 +8,9 @@ SimpleFPS is written in Go syntax and compiled to JavaScript by [GoFront](https:
 app/src/
 ├── main.go                  # package main: boot sequence
 ├── engine/                  # package engine: composition root, frame loop
-│   ├── physics/             # math, AABB, trimesh + octree, raycasts, FPS controller
+│   ├── mathx/               # Vec3/Mat4/Quat/Transform/BoundingBox (target: both)
+│   ├── collision/           # trimesh + octree, raycasts (target: wasm)
+│   ├── physics/             # FPS controller, dynamic bodies (JS, calls into collision)
 │   ├── systems/             # camera, settings, console, input, stats, sound, network, binary reader
 │   ├── animation/           # skeletons, clips, animation player
 │   ├── rendering/           # RenderBackend interface, Renderer, passes, materials, meshes
@@ -32,21 +34,36 @@ flowchart TD
     scene --> rendering
     scene --> animation
     assets --> rendering & animation
-    rendering --> physics
-    scene --> physics & systems
-    animation --> physics & systems
+    rendering --> mathx
+    scene --> mathx & collision & physics & systems
+    animation --> mathx & systems
+    systems --> mathx
+    physics --> mathx & collision
+    collision --> mathx
     assets --> systems
 ```
 
 Rules the graph encodes:
 
-- `physics` imports nothing; `systems` imports nothing from the engine. Both are leaf packages.
-- `rendering` imports only `physics`. It never sees `scene`, `systems` or settings; the renderer is fed through `SceneSource`, `CameraView` and `RenderOptions`.
+- `mathx` imports nothing; it is the one leaf everything else may use. `collision` imports only `mathx`; `physics` only `mathx` and `collision`.
+- `rendering` imports only `mathx`. It never sees `scene`, `systems` or settings; the renderer is fed through `SceneSource`, `CameraView` and `RenderOptions`.
 - `webgl` and `webgpu` are imported by `engine.go` alone (for backend selection). Every other package talks to `rendering.RenderBackend`.
 - Engine packages never import `game`. `game` and `main` may import anything.
 - Settings (`systems.ActiveSettings`) are read in `engine` and `game` only. `engine.RenderFrame` copies them into `rendering.RenderOptions` once per frame; that is the only path settings take into rendering.
 
-GoFront requires relative import paths (`"../physics"`); that is a toolchain constraint, not a style choice.
+GoFront requires relative import paths (`"../mathx"`); that is a toolchain constraint, not a style choice.
+
+### Compile targets
+
+Each package declares where it runs with a `//gofront:target` directive on its first line (default `js`):
+
+| Package | Target | Why |
+|---|---|---|
+| `mathx` | `both` | Pure float math used on both sides; the JS copy serves JS packages, the WASM copy is linked into `collision`. Struct types cross the boundary as live views, so a `*mathx.Vec3` made in JS can be passed straight into WASM. |
+| `collision` | `wasm` | Octree traversal and ray/triangle tests are the hottest loop in the game; WASM keeps them branch-predictable and allocation-free. |
+| everything else | `js` | Talks to the DOM, WebGL/WebGPU, PeerJS. |
+
+`gofront build` emits `app.js` plus one `app.wasm` that bundles every `wasm`/`both` package; the JS facade for `collision` is generated, so callers see ordinary Go types. Hot calls must still obey the boundary rules in [Performance Invariants](#performance-invariants).
 
 ## Boot and Frame Loop
 
@@ -142,18 +159,18 @@ type Drawable interface {
     DrawShadow(r *Renderer, sh *Shader)
     DrawWireframe(r *Renderer, sh *Shader)
     DrawSkeleton(r *Renderer, sh *Shader)
-    Bounds() *physics.BoundingBox
+    Bounds() *mathx.BoundingBox
     TriangleCount() int
     CastsShadow() bool
 }
 type LightDrawable interface {
     Drawable
-    LightScore(camPos *physics.Vec3) float32
+    LightScore(camPos *mathx.Vec3) float32
     AddToLighting(data *LightingData) bool
 }
 ```
 
-Concrete entity types implement `Entity` plus whichever drawing interface their kind needs; lights implement `LightDrawable`. `EntityBase` holds `Type`, `Visible`, `CastShadow`, `IsStatic`, `AnimationTime`, `BaseMatrix`/`AniMatrix`, `BoundingBox` (nil = always visible), `Collider` (`*physics.Trimesh` for dynamic raycasts), `UserData`, and the optional update `Callback`. Mesh-only per-frame state lives on `MeshEntity`/`SkinnedMeshEntity` as `Shadow shadowState` (resolved ground height, skinned re-sample tracking) and `Probe probeCache` (ambient probe RGB).
+Concrete entity types implement `Entity` plus whichever drawing interface their kind needs; lights implement `LightDrawable`. `EntityBase` holds `Type`, `Visible`, `CastShadow`, `IsStatic`, `AnimationTime`, `BaseMatrix`/`AniMatrix`, `BoundingBox` (nil = always visible), `Collider` (`*collision.Trimesh` for dynamic raycasts), `UserData`, and the optional update `Callback`. Mesh-only per-frame state lives on `MeshEntity`/`SkinnedMeshEntity` as `Shadow shadowState` (resolved ground height, skinned re-sample tracking) and `Probe probeCache` (ambient probe RGB).
 
 GoFront does not promote embedded fields, so every entity has an explicit `Base EntityBase` field and `GetBase()`; struct-typed fields are cloned on assignment, so callers mutate `e.Shadow.Height = …` in place and never copy the struct out.
 
@@ -202,15 +219,15 @@ The lists alias scene-owned storage and are valid until the next `Update`; passe
 
 ### Static geometry and raycasts
 
-`AddStaticGeometry` bakes an entity's mesh into one world-space `physics.Trimesh` (with per-triangle double-sided flags for translucent/double-sided/alpha materials); `FinalizeStaticGeometry` builds its octree. `RaycastStatic` queries that trimesh, `RaycastDynamic` the colliders of non-static entities, `Raycast` both. Results are written into caller-provided `RaycastResult`s.
+`AddStaticGeometry` bakes an entity's mesh into one world-space `collision.Trimesh` (with per-triangle double-sided flags for translucent/double-sided/alpha materials); `FinalizeStaticGeometry` builds its octree. `RaycastStatic` queries that trimesh, `RaycastDynamic` the colliders of non-static entities, `Raycast` both. Results are written into caller-provided `RaycastResult`s.
 
 ## Animation
 
-`animation.Skeleton` holds joints with inverse-bind matrices; a `Pose` is flat per-joint position/rotation arrays. `ParseBinaryAnimation` reads clips (with optional per-frame bounds used for culling), `AnimationPlayer.Update(dtSeconds)` samples them, and `Skeleton.ComputeSkinningMatrices(pose)` writes into a reused `[]physics.Mat4`. `SkinnedMeshEntity.PlayAnimation` drives the player and flattens the matrices into the `boneMatrices` uniform each frame.
+`animation.Skeleton` holds joints with inverse-bind matrices; a `Pose` is flat per-joint position/rotation arrays. `ParseBinaryAnimation` reads clips (with optional per-frame bounds used for culling), `AnimationPlayer.Update(dtSeconds)` samples them, and `Skeleton.ComputeSkinningMatrices(pose)` writes into a reused `[]mathx.Mat4`. `SkinnedMeshEntity.PlayAnimation` drives the player and flattens the matrices into the `boneMatrices` uniform each frame.
 
-## Physics
+## Math, Collision and Physics
 
-`physics` is self-contained: `Vec3`/`Mat4`/`Quat` with out-parameter math, `BoundingBox`, `Trimesh` + `Octree`, `Ray`/`RayOptions`/`RaycastResult`, `FPSController` (capsule movement, stepping, grounding, noclip) and `DynamicBody` (projectiles, pickups). Anything that needs the world passes it in: controllers and bodies hold a `RaycastProvider`, and the controller reads the camera through a `CameraPose` the game wires up.
+`mathx` is pure data and arithmetic: `Vec3`/`Mat4`/`Quat`/`Transform` with out-parameter math and `BoundingBox`. `collision` owns the world geometry queries: `Trimesh` + `Octree`, `Ray`/`RayOptions`/`RaycastResult`. `physics` owns the movers: `FPSController` (capsule movement, stepping, grounding, noclip) and `DynamicBody` (projectiles, pickups). Anything that needs the world passes it in: controllers and bodies hold a `RaycastProvider`, and the controller reads the camera through a `CameraPose` the game wires up.
 
 ## Systems and Assets
 
@@ -255,6 +272,7 @@ The frame path — physics step, raycasts, `Scene.Update`, `Renderer.Render`, HU
 - No `[N]T` literals, `append`, reslicing, comma-ok type assertions or struct-value copies on hot paths (all of them allocate in GoFront). Struct-typed fields (`Shadow`, `Probe`, `Stats`, `Debug`) are mutated field-by-field.
 - Interface-type assertions (`x.(SomeInterface)`) compile to an unconditional success and must not be used for dispatch; concrete pointer assertions and type switches are fine.
 - Method values are emitted unbound, so cross-package hooks are interfaces (`RaycastProvider`, `SceneSource`), never `func` fields assigned from methods.
+- JS→WASM calls are allocation-free only when V8 can inline them: GoFront binds exports to module constants and crosses every reference as `externref`, so keep boundary signatures to numbers, bools and pointers to structs. Returning struct *values* or passing `any` across the boundary allocates. Results come back through caller-provided `*RaycastResult`s for that reason.
 
 ## Console Commands
 

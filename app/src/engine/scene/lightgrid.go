@@ -1,7 +1,7 @@
 package scene
 
 import (
-	"../physics"
+	"../mathx"
 	"../systems"
 )
 
@@ -99,7 +99,7 @@ func clamp01(v float32) float32 {
 const byteToUnit = float32(1.0 / 255.0)
 
 // GetAmbient writes the trilinearly interpolated probe colour at position into out.
-func (g *LightGrid) GetAmbient(position *physics.Vec3, out []float32) {
+func (g *LightGrid) GetAmbient(position *mathx.Vec3, out []float32) {
 	if g.data == nil {
 		out[0] = 1
 		out[1] = 1

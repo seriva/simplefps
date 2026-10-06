@@ -1,6 +1,6 @@
 package rendering
 
-import "../physics"
+import "../mathx"
 
 // Drawable is the only thing a render pass needs from a scene entity. The
 // renderer binds the shader and GPU state for a pass, then calls one of these
@@ -17,7 +17,7 @@ type Drawable interface {
 	// DrawSkeleton draws joint lines for skinned entities; no-op otherwise.
 	DrawSkeleton(r *Renderer, sh *Shader)
 	// Bounds returns the world-space AABB for the debug overlay (nil = none).
-	Bounds() *physics.BoundingBox
+	Bounds() *mathx.BoundingBox
 	TriangleCount() int
 	CastsShadow() bool
 }
@@ -27,7 +27,7 @@ type Drawable interface {
 type LightDrawable interface {
 	Drawable
 	// LightScore ranks the light's contribution at camPos (intensity / d²).
-	LightScore(camPos *physics.Vec3) float32
+	LightScore(camPos *mathx.Vec3) float32
 	// AddToLighting appends the light to data; false when the slot type is full.
 	AddToLighting(data *LightingData) bool
 }
@@ -111,7 +111,7 @@ func (l *LightList) Add(d LightDrawable) {
 // scene-owned list refilled during Scene.Update; contents are valid until the
 // next update. Pass order, shader selection and GPU state live in the renderer.
 type SceneSource interface {
-	Ambient(out *physics.Vec3)
+	Ambient(out *mathx.Vec3)
 	Skyboxes() *DrawList
 	// Meshes is the opaque world geometry (also drawn for drop shadows).
 	Meshes() *DrawList

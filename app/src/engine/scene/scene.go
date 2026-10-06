@@ -3,7 +3,8 @@ package scene
 import (
 	"math"
 
-	"../physics"
+	"../collision"
+	"../mathx"
 	"../rendering"
 	"../systems"
 )
@@ -91,18 +92,18 @@ type Scene struct {
 	lightGrid *LightGrid
 	paused    bool
 
-	staticTrimesh *physics.Trimesh
-	staticMatrix  physics.Mat4
+	staticTrimesh *collision.Trimesh
+	staticMatrix  mathx.Mat4
 
-	ray         *physics.Ray
-	defaultOpts *physics.RayOptions
+	ray         *collision.Ray
+	defaultOpts *collision.RayOptions
 
 	// Per-frame scratch (see drawlists.go).
 	shadowFrame     int
 	shadowSort      *scoreList
 	transparentSort *scoreList
-	probePos        *physics.Vec3
-	probeMatrix     physics.Mat4
+	probePos        *mathx.Vec3
+	probeMatrix     mathx.Mat4
 	probeColor      []float32
 	pendingRemoval  bool
 }
@@ -131,13 +132,13 @@ func NewScene(camera *systems.Camera) *Scene {
 		transparent:       rendering.NewDrawList(16),
 		ambient:           make([]float32, 3),
 		lightGrid:         NewLightGrid(),
-		staticMatrix:      physics.NewMat4(),
-		ray:               physics.NewRay(nil, nil),
-		defaultOpts:       &physics.RayOptions{SkipBackfaces: true, CollisionFilterMask: 1, Mode: physics.RayModeClosest},
+		staticMatrix:      mathx.NewMat4(),
+		ray:               collision.NewRay(nil, nil),
+		defaultOpts:       &collision.RayOptions{SkipBackfaces: true, CollisionFilterMask: 1, Mode: collision.RayModeClosest},
 		shadowSort:        newScoreList(64),
 		transparentSort:   newScoreList(64),
-		probePos:          &physics.Vec3{},
-		probeMatrix:       physics.NewMat4(),
+		probePos:          &mathx.Vec3{},
+		probeMatrix:       mathx.NewMat4(),
 		probeColor:        make([]float32, 3),
 	}
 	for t := 1; t < TypeCount; t++ {
@@ -302,7 +303,7 @@ func (s *Scene) SetAmbient(r, g, b float32) {
 func (s *Scene) LightGrid() *LightGrid { return s.lightGrid }
 
 // Ambient implements rendering.SceneSource: global ambient (black with a light grid).
-func (s *Scene) Ambient(out *physics.Vec3) {
+func (s *Scene) Ambient(out *mathx.Vec3) {
 	if s.lightGrid.HasData() {
 		out.Set(0, 0, 0)
 		return
@@ -311,7 +312,7 @@ func (s *Scene) Ambient(out *physics.Vec3) {
 }
 
 // AmbientAt writes the ambient colour at a world position into out (3 floats).
-func (s *Scene) AmbientAt(position *physics.Vec3, out []float32) {
+func (s *Scene) AmbientAt(position *mathx.Vec3, out []float32) {
 	if s.lightGrid.HasData() {
 		s.lightGrid.GetAmbient(position, out)
 		return
@@ -334,7 +335,7 @@ func (s *Scene) AddStaticGeometry(e *MeshEntity) {
 		return
 	}
 	if s.staticTrimesh == nil {
-		s.staticTrimesh = physics.NewEmptyTrimesh()
+		s.staticTrimesh = collision.NewEmptyTrimesh()
 	}
 
 	total := 0
@@ -387,7 +388,7 @@ func (s *Scene) FinalizeStaticGeometry() {
 }
 
 // StaticTrimesh returns the merged static collision mesh (nil until geometry is added).
-func (s *Scene) StaticTrimesh() *physics.Trimesh { return s.staticTrimesh }
+func (s *Scene) StaticTrimesh() *collision.Trimesh { return s.staticTrimesh }
 
 // ---------------------------------------------------------------------------
 // Update
@@ -496,7 +497,7 @@ func (s *Scene) UpdateVisibility() {
 // Raycasts
 // ---------------------------------------------------------------------------
 
-func (s *Scene) setupRay(fromX, fromY, fromZ, toX, toY, toZ float32, options *physics.RayOptions) {
+func (s *Scene) setupRay(fromX, fromY, fromZ, toX, toY, toZ float32, options *collision.RayOptions) {
 	if options == nil {
 		options = s.defaultOpts
 	}
@@ -509,7 +510,7 @@ func (s *Scene) setupRay(fromX, fromY, fromZ, toX, toY, toZ float32, options *ph
 	r.CollisionFilterMask = options.CollisionFilterMask
 	r.Mode = options.Mode
 	if r.Mode == 0 {
-		r.Mode = physics.RayModeClosest
+		r.Mode = collision.RayModeClosest
 	}
 	r.Result.HasHit = false
 	r.Result.Distance = float32(math.Inf(1))
@@ -519,7 +520,7 @@ func (s *Scene) setupRay(fromX, fromY, fromZ, toX, toY, toZ float32, options *ph
 // Raycast tests the segment against every collidable (dynamic and static).
 // A nil options uses the defaults (skip backfaces, closest hit); an explicit
 // RayOptions is taken literally, so set SkipBackfaces yourself.
-func (s *Scene) Raycast(fromX, fromY, fromZ, toX, toY, toZ float32, options *physics.RayOptions) *physics.RaycastResult {
+func (s *Scene) Raycast(fromX, fromY, fromZ, toX, toY, toZ float32, options *collision.RayOptions) *collision.RaycastResult {
 	s.setupRay(fromX, fromY, fromZ, toX, toY, toZ, options)
 	for i := 0; i < s.collidables.Count; i++ {
 		b := s.collidables.Items[i].GetBase()
@@ -532,7 +533,7 @@ func (s *Scene) Raycast(fromX, fromY, fromZ, toX, toY, toZ float32, options *phy
 }
 
 // RaycastStatic tests only the merged static trimesh (physics.RaycastProvider).
-func (s *Scene) RaycastStatic(fromX, fromY, fromZ, toX, toY, toZ float32, options *physics.RayOptions) *physics.RaycastResult {
+func (s *Scene) RaycastStatic(fromX, fromY, fromZ, toX, toY, toZ float32, options *collision.RayOptions) *collision.RaycastResult {
 	s.setupRay(fromX, fromY, fromZ, toX, toY, toZ, options)
 	if s.staticTrimesh != nil {
 		s.ray.IntersectTrimesh(s.staticTrimesh, s.staticMatrix)
@@ -541,7 +542,7 @@ func (s *Scene) RaycastStatic(fromX, fromY, fromZ, toX, toY, toZ float32, option
 }
 
 // RaycastDynamic tests only entity colliders.
-func (s *Scene) RaycastDynamic(fromX, fromY, fromZ, toX, toY, toZ float32, options *physics.RayOptions) *physics.RaycastResult {
+func (s *Scene) RaycastDynamic(fromX, fromY, fromZ, toX, toY, toZ float32, options *collision.RayOptions) *collision.RaycastResult {
 	s.setupRay(fromX, fromY, fromZ, toX, toY, toZ, options)
 	for i := 0; i < s.collidables.Count; i++ {
 		b := s.collidables.Items[i].GetBase()
