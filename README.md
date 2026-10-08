@@ -1,6 +1,6 @@
 ## About
 
-Simple first person arena shooter written in Go syntax, compiled to a seamless hybrid of JavaScript (ES modules) and WebAssembly (WasmGC) with [GoFront](https://github.com/seriva/gofront), rendering through WebGPU or WebGL 2, with a PWA distribution target for Desktop, Android and iOS.
+Simple first person arena shooter written in Go syntax, compiled to a seamless hybrid of JavaScript (ES modules) and WebAssembly (WasmGC) with [GoFront](https://github.com/seriva/gofront), rendering through WebGPU, with a PWA distribution target for Desktop, Android and iOS.
 
 **Project Evolution** (2017-2026): Started as a basic WebGL experiment, evolved through 500+ commits to include physics simulation, weapon systems, mobile touch controls, PWA capabilities, and finally a full rewrite from ES6 modules to type-checked GoFront packages.
 
@@ -9,7 +9,7 @@ Simple first person arena shooter written in Go syntax, compiled to a seamless h
 ## Features
 
 - **Gameplay**: Arena-based FPS with physics-based projectiles, multiple weapons (Energy Scepter, Plasma Pistol, Pulse Cannon, Laser Gatling), and cross-platform controls
-- **Rendering**: Hybrid WebGL/WebGPU engine with PBR-like lighting, UBOs, detail textures, emissive materials, and post-processing pipeline. See [Architecture — Rendering](docs/architecture.md#rendering).
+- **Rendering**: WebGPU-native deferred engine with pre-baked pipelines, storage-buffer skinning and lights, GPU-simulated particles, compute post-fx, detail textures, emissive materials and FSR upscaling. See [Architecture — Rendering](docs/architecture.md#rendering).
 - **UI**: Menus, HUD, loading screens and debug console as GoFront `.templ` components with a small game state machine
 - **Performance**: Zero-allocation hot paths (physics step, raycasts, render frame) guarded by heap-growth tests and a benchmark; linear depth buffer; PWA support
 - **Architecture**: Go packages (`engine`, `mathx`, `collision`, `physics`, `rendering`, `scene`, `game`, …) with an entity system, scene management, and comprehensive input handling. Collision runs in WebAssembly (WasmGC), `mathx` runs on both targets, and the rest in JavaScript. See [Architecture](docs/architecture.md).
@@ -20,7 +20,7 @@ Simple first person arena shooter written in Go syntax, compiled to a seamless h
 ## Tech Stack
 
 **Core**: [GoFront](https://github.com/seriva/gofront) (Go syntax compiled to JavaScript and WebAssembly), in-engine 3D math (`mathx.Vec3`/`Mat4`/`Quat`)
-**Rendering**: WebGPU (experimental) & WebGL 2.0 backends
+**Rendering**: WebGPU
 **Build**: GoFront (dev server, production builds, vendor bundling, type-check, tests)
 **Tools**: Biome (lint/format for the few JS files), Lefthook (git hooks), jsdom (`--dom` tests), Playwright (E2E smoke test)
 
@@ -29,18 +29,17 @@ Simple first person arena shooter written in Go syntax, compiled to a seamless h
 ```
 app/
 ├── src/
-│   ├── main.go           # package main: backend selection, resource loading, game boot, render loop
+│   ├── main.go           # package main: resource loading, game boot, render loop
 │   ├── interop.d.ts      # Browser globals GoFront does not predeclare
 │   ├── dependencies/     # Typings for vendored 3rd party libs (peerjs.d.ts)
-│   ├── engine/           # package engine: backend selection, update callbacks, render loop
+│   ├── engine/           # package engine: WebGPU init, update callbacks, render loop
 │   │   ├── animation/    # package animation: skeletons, clips, animation player
 │   │   ├── assets/       # package assets: mesh/material/resource-list parsing, ResourceManager
 │   │   ├── collision/    # package collision: trimesh, octree, raycasts (compiled to WASM)
 │   │   ├── mathx/        # package mathx: vec3/mat4/quat/transform/boundingbox (JS + WASM)
 │   │   ├── physics/      # package physics: FPS controller, dynamic bodies
-│   │   ├── rendering/    # package rendering: RenderBackend interface, renderer, passes, materials
-│   │   │   ├── webgl/    # package webgl: WebGL2 backend + GLSL shaders
-│   │   │   └── webgpu/   # package webgpu: WebGPU backend + WGSL shaders
+│   │   ├── rendering/    # package rendering: WebGPU backend, renderer, passes, pipelines, WGSL, materials
+│   │   │   └── fakegpu/  # package fakegpu: in-memory GPUDevice recorder for headless tests
 │   │   ├── scene/        # package scene: entities, culling, light grid, draw lists for the renderer
 │   │   └── systems/      # package systems: camera, settings, input, audio, console, network
 │   └── game/             # package game: state machine, weapons, projectiles, pickups, arena,
@@ -77,7 +76,7 @@ npm run check        # Biome lint + GoFront type-check of every package (gofront
 npm test             # GoFront unit/integration tests for every package (mathx on both JS and WASM, collision in WASM)
 npm run test:dom     # Same, with a jsdom window/document (for .templ / DOM code)
 npm run test:perf    # Zero-allocation raycast benchmark (tests/perf/zero-alloc.js)
-npm run test:e2e     # Playwright smoke test in headless Chromium (WebGL2)
+npm run test:e2e     # Playwright smoke test in headless Chromium (WebGPU)
 npm run test:all     # check + test + test:dom + test:perf + test:e2e
 npm run prep         # Bundle vendor dependencies (peerjs)
 ```

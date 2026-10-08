@@ -1,20 +1,26 @@
 package rendering
 
+import (
+	"js:./interop.d.ts"
+)
+
+// MaxJoints is the per-mesh joint budget of the CPU animation system; the
+// GPU bone ring (BoneRingMats) is the only hard limit on the shader side.
 const MaxJoints = 64
 
-// SkinnedMesh extends Mesh with joint index and weight buffers for skeletal GPU skinning.
+// SkinnedMesh extends Mesh with joint index and weight buffers for skeletal GPU
+// skinning.
 type SkinnedMesh struct {
 	BaseMesh          Mesh
 	GPUJointIndices   []uint8
 	GPUJointWeights   []float32
-	SkinnedVAO        any
-	JointIndexBuffer  any
-	JointWeightBuffer any
+	JointIndexBuffer  GPUBuffer
+	JointWeightBuffer GPUBuffer
 	BoneMatrixBuffer  []float32
 }
 
-// NewSkinnedMesh creates a SkinnedMesh on b with allocated vertex and joint states.
-func NewSkinnedMesh(b RenderBackend, vertices, uvs, normals []float32, indices []IndexGroup, jointIndices []uint8, jointWeights []float32) *SkinnedMesh {
+// NewSkinnedMesh creates a SkinnedMesh on b with allocated vertex and joint buffers.
+func NewSkinnedMesh(b *Backend, vertices, uvs, normals []float32, indices []IndexGroup, jointIndices []uint8, jointWeights []float32) *SkinnedMesh {
 	sm := &SkinnedMesh{
 		BaseMesh: Mesh{
 			backend:          b,
@@ -22,7 +28,6 @@ func NewSkinnedMesh(b RenderBackend, vertices, uvs, normals []float32, indices [
 			UVs:              uvs,
 			Normals:          normals,
 			Indices:          indices,
-			Buffers:          make([]any, 0),
 			WireframeBuffers: make([]WireframeBuffer, 0),
 			MaterialLookup:   make(map[string]*Material),
 		},
@@ -36,92 +41,81 @@ func NewSkinnedMesh(b RenderBackend, vertices, uvs, normals []float32, indices [
 
 // InitMeshBuffers allocates base vertex attributes as well as skinning attributes.
 func (sm *SkinnedMesh) InitMeshBuffers() {
-	b := sm.BaseMesh.backend
-	if b == nil || len(sm.BaseMesh.Vertices) == 0 {
-		return
-	}
-
 	sm.BaseMesh.InitMeshBuffers()
-
+	if !sm.BaseMesh.gpuReady() || len(sm.BaseMesh.Vertices) == 0 {
+		return
+	}
 	if len(sm.GPUJointIndices) > 0 && len(sm.GPUJointWeights) > 0 {
-		sm.JointIndexBuffer = b.CreateBuffer(sm.GPUJointIndices, UsageVertex)
-		sm.BaseMesh.Buffers = append(sm.BaseMesh.Buffers, sm.JointIndexBuffer)
-
-		sm.JointWeightBuffer = b.CreateBuffer(sm.GPUJointWeights, UsageVertex)
-		sm.BaseMesh.Buffers = append(sm.BaseMesh.Buffers, sm.JointWeightBuffer)
-
-		var singleIndexBuffer any
-		if len(sm.BaseMesh.Indices) == 1 {
-			singleIndexBuffer = sm.BaseMesh.Indices[0].IndexBuffer
-		}
-
-		vertexCount := len(sm.BaseMesh.Vertices) / 3
-		uvs := sm.BaseMesh.UVs
-		if len(uvs) == 0 {
-			uvs = make([]float32, vertexCount*2)
-		}
-		normals := sm.BaseMesh.Normals
-		if len(normals) == 0 {
-			normals = make([]float32, vertexCount*3)
-		}
-
-		attrs := []VertexAttribute{
-			{Buffer: sm.BaseMesh.VertexBuffer, Slot: AttrPositions, Size: 3, Type: "float"},
-			{Buffer: sm.BaseMesh.UVBuffer, Slot: AttrUVs, Size: 2, Type: "float"},
-			{Buffer: sm.BaseMesh.NormalBuffer, Slot: AttrNormals, Size: 3, Type: "float"},
-			{Buffer: sm.JointIndexBuffer, Slot: AttrJointIndices, Size: 4, Type: "ubyte", AsInteger: true},
-			{Buffer: sm.JointWeightBuffer, Slot: AttrJointWeights, Size: 4, Type: "float"},
-		}
-
-		sm.SkinnedVAO = b.CreateVertexState(&VertexStateDescriptor{
-			Attributes:  attrs,
-			IndexBuffer: singleIndexBuffer,
-		})
+		b := sm.BaseMesh.backend
+		sm.JointIndexBuffer = b.CreateByteBuffer("mesh-joints", sm.GPUJointIndices, BufferUsageVertex)
+		sm.JointWeightBuffer = b.CreateFloatBuffer("mesh-weights", sm.GPUJointWeights, BufferUsageVertex)
 	}
 }
 
-// Bind activates either the skinned VAO or base unskinned VAO.
-func (sm *SkinnedMesh) Bind(useSkinned bool) {
-	b := sm.BaseMesh.backend
-	if b == nil {
-		return
-	}
-	if useSkinned && sm.SkinnedVAO != nil {
-		b.BindVertexState(sm.SkinnedVAO)
-	} else if sm.BaseMesh.VAO != nil {
-		b.BindVertexState(sm.BaseMesh.VAO)
-	}
+// HasSkinning reports whether joint buffers exist.
+func (sm *SkinnedMesh) HasSkinning() bool {
+	return sm.JointIndexBuffer != nil && sm.JointWeightBuffer != nil
 }
 
-// RenderSingle binds the skinned (or base) VAO, draws all index groups, and unbinds.
-func (sm *SkinnedMesh) RenderSingle(applyMaterial bool, topo Topology, renderMode MaterialMode, shader *Shader, useSkinned bool) {
-	sm.Bind(useSkinned)
-	sm.BaseMesh.RenderIndices(applyMaterial, topo, renderMode, shader)
-	sm.BaseMesh.Unbind()
+// bindVertices binds the skinned vertex layout (slots 0-2 base, 3 joints, 4 weights).
+func (sm *SkinnedMesh) bindVertices(r *Renderer) {
+	m := &sm.BaseMesh
+	r.setVertexBuffer(0, m.VertexBuffer)
+	r.setVertexBuffer(1, m.UVBuffer)
+	r.setVertexBuffer(2, m.NormalBuffer)
+	r.setVertexBuffer(3, sm.JointIndexBuffer)
+	r.setVertexBuffer(4, sm.JointWeightBuffer)
 }
 
-// RenderWireframe draws the debug line buffers; useSkinned selects the skinned VAO so
-// the wireframe follows the animated pose.
-func (sm *SkinnedMesh) RenderWireframe(useSkinned bool) {
-	if !useSkinned || sm.SkinnedVAO == nil {
-		sm.BaseMesh.RenderWireframe()
+// Draw renders all index groups with the pass pipeline. useSkinned selects the
+// skinned vertex layout (the pass pipeline must match); a skinned draw of a
+// mesh without joint buffers is skipped rather than fed the wrong layout.
+func (sm *SkinnedMesh) Draw(r *Renderer, applyMaterial bool, renderMode MaterialMode, useSkinned bool) {
+	m := &sm.BaseMesh
+	if r.Pass == nil || m.VertexBuffer == nil {
 		return
 	}
-	if sm.BaseMesh.backend == nil {
+	if useSkinned {
+		if !sm.HasSkinning() {
+			return
+		}
+		sm.bindVertices(r)
+	} else {
+		m.bindVertices(r)
+	}
+	r.bindObject()
+	m.drawGroups(r, applyMaterial, renderMode)
+}
+
+// DrawWireframe draws the debug line buffers; useSkinned selects the skinned
+// layout so the wireframe follows the animated pose.
+func (sm *SkinnedMesh) DrawWireframe(r *Renderer, useSkinned bool) {
+	m := &sm.BaseMesh
+	if r.Pass == nil || m.VertexBuffer == nil {
 		return
 	}
-	sm.BaseMesh.EnsureWireframeBuffers()
-	sm.Bind(true)
-	sm.BaseMesh.DrawWireframeBuffers()
-	sm.BaseMesh.Unbind()
+	m.EnsureWireframeBuffers()
+	if useSkinned {
+		if !sm.HasSkinning() {
+			return
+		}
+		sm.bindVertices(r)
+	} else {
+		m.bindVertices(r)
+	}
+	r.bindObject()
+	m.drawWireframeBuffers(r)
 }
 
 // Dispose releases GPU resources allocated for skinning and geometry.
 func (sm *SkinnedMesh) Dispose() {
-	if sm.BaseMesh.backend != nil && sm.SkinnedVAO != nil {
-		sm.BaseMesh.backend.DeleteVertexState(sm.SkinnedVAO)
-		sm.SkinnedVAO = nil
+	b := sm.BaseMesh.backend
+	if b != nil {
+		b.DestroyBuffer(sm.JointIndexBuffer)
+		b.DestroyBuffer(sm.JointWeightBuffer)
 	}
+	sm.JointIndexBuffer = nil
+	sm.JointWeightBuffer = nil
 	sm.BaseMesh.Dispose()
 	sm.GPUJointIndices = nil
 	sm.GPUJointWeights = nil

@@ -73,7 +73,7 @@ type shadowState struct {
 }
 
 // probeCache holds the ambient probe colour sampled by Scene.UpdateVisibility
-// for a visible mesh entity (geometry shader uProbeColor). Three scalars
+// for a visible mesh entity (ObjectData.probe.rgb). Three scalars
 // rather than a slice so a cache is allocation-free; mutate in place.
 type probeCache struct {
 	R float32
@@ -81,15 +81,9 @@ type probeCache struct {
 	B float32
 }
 
-// probeScratch is the 3-float view handed to Shader.SetVec3.
-var probeScratch = make([]float32, 3)
-
-// setProbeUniform uploads p as the uProbeColor uniform.
-func setProbeUniform(sh *rendering.Shader, p *probeCache) {
-	probeScratch[0] = p.R
-	probeScratch[1] = p.G
-	probeScratch[2] = p.B
-	sh.SetVec3("uProbeColor", probeScratch)
+// setObjectProbe writes p into the current ObjectData slot (shadow height 0).
+func setObjectProbe(r *rendering.Renderer, p *probeCache) {
+	r.ObjectProbe(p.R, p.G, p.B, 0)
 }
 
 // Entity is the contract the Scene drives each frame. Rendering is a separate

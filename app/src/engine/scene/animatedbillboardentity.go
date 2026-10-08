@@ -24,12 +24,10 @@ type BillboardConfig struct {
 }
 
 var (
-	bbTempMatrix  = mathx.NewMat4()
-	bbWorldPos    = &mathx.Vec3{}
-	bbBoxMin      = &mathx.Vec3{}
-	bbBoxMax      = &mathx.Vec3{}
-	bbFrameOffset = make([]float32, 2)
-	bbFrameScale  = make([]float32, 2)
+	bbTempMatrix = mathx.NewMat4()
+	bbWorldPos   = &mathx.Vec3{}
+	bbBoxMin     = &mathx.Vec3{}
+	bbBoxMax     = &mathx.Vec3{}
 )
 
 // AnimatedBillboardEntity is a camera-facing sprite-sheet quad with a finite lifetime.
@@ -105,10 +103,10 @@ func (e *AnimatedBillboardEntity) Update(frameTime float32) bool {
 // Time returns the elapsed lifetime in ms.
 func (e *AnimatedBillboardEntity) Time() float32 { return e.time }
 
-// Draw draws the billboard with the bound billboard shader.
-func (e *AnimatedBillboardEntity) Draw(r *rendering.Renderer, sh *rendering.Shader, mode rendering.MaterialMode) {
+// Draw draws the billboard with the billboard pipeline.
+func (e *AnimatedBillboardEntity) Draw(r *rendering.Renderer, mode rendering.MaterialMode) {
 	quad := r.Shapes.BillboardQuad
-	if e.texture == nil || e.time <= 0 || sh == nil || quad == nil {
+	if e.texture == nil || e.time <= 0 || quad == nil {
 		return
 	}
 	progress := e.time / e.duration
@@ -162,24 +160,19 @@ func (e *AnimatedBillboardEntity) Draw(r *rendering.Renderer, sh *rendering.Shad
 		0, 0, 0, 0,
 		bbWorldPos.X, bbWorldPos.Y, bbWorldPos.Z, 1)
 
-	sh.SetMat4("matWorld", bbTempMatrix)
-	bbFrameOffset[0] = float32(col) * cellSize
-	bbFrameOffset[1] = float32(row) * cellSize
-	sh.SetVec2("uFrameOffset", bbFrameOffset)
-	bbFrameScale[0] = cellSize
-	bbFrameScale[1] = cellSize
-	sh.SetVec2("uFrameScale", bbFrameScale)
-	sh.SetFloat("uOpacity", opacity)
-
-	e.texture.Bind(0)
-	quad.RenderSingle(false, rendering.TopoTriangles, rendering.ModeAll, sh)
-	rendering.UnbindTextureRange(r.Backend, 0, 1)
+	r.NextObject()
+	r.ObjectWorld(bbTempMatrix)
+	r.ObjectParams(0, float32(col)*cellSize, float32(row)*cellSize, cellSize, cellSize)
+	r.ObjectParams(1, opacity, 0, 0, 0)
+	r.BindGroup1(e.texture.SpriteBindGroup(r))
+	quad.Draw(r, false, rendering.ModeAll)
 }
 
-func (e *AnimatedBillboardEntity) DrawShadow(r *rendering.Renderer, sh *rendering.Shader)    {}
-func (e *AnimatedBillboardEntity) DrawWireframe(r *rendering.Renderer, sh *rendering.Shader) {}
-func (e *AnimatedBillboardEntity) DrawSkeleton(r *rendering.Renderer, sh *rendering.Shader)  {}
-func (e *AnimatedBillboardEntity) Bounds() *mathx.BoundingBox                             { return e.Base.BoundingBox }
+func (e *AnimatedBillboardEntity) DrawShadow(r *rendering.Renderer)                                  {}
+func (e *AnimatedBillboardEntity) DrawWireframe(r *rendering.Renderer)                               {}
+func (e *AnimatedBillboardEntity) DrawSkeleton(r *rendering.Renderer)                                {}
+func (e *AnimatedBillboardEntity) Simulate(r *rendering.Renderer, pass rendering.GPUComputePassEncoder) {}
+func (e *AnimatedBillboardEntity) Bounds() *mathx.BoundingBox                                        { return e.Base.BoundingBox }
 func (e *AnimatedBillboardEntity) TriangleCount() int                                       { return 0 }
 func (e *AnimatedBillboardEntity) CastsShadow() bool                                        { return false }
 

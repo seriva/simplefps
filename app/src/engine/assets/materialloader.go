@@ -31,7 +31,7 @@ func (d *MaterialDef) TexturePaths() []string {
 // translucent, doubleSided, opacity}]}) into materials. A `base` entry merges
 // the base's textures (child wins) and inherits unset scalar properties, as
 // Material.loadLibrary did. Materials are created on backend b.
-func ParseMaterialLibrary(b rendering.RenderBackend, text string) []*MaterialDef {
+func ParseMaterialLibrary(b *rendering.Backend, text string) []*MaterialDef {
 	defs := make([]*MaterialDef, 0)
 	parsed := JSON.parse(text)
 	if parsed == nil || parsed.materials == nil {
