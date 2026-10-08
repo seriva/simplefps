@@ -15,7 +15,7 @@ var coreResources = []string{"resources.list"}
 // initEngine wraps the callback-based engine.Init in a Promise.
 func initEngine() any {
 	return Reflect.construct(Promise, []any{func(resolve any, reject any) {
-		engine.Init(systems.ActiveSettings.UseWebGPU, func() { resolve(nil) })
+		engine.Init(func() { resolve(nil) })
 	}})
 }
 
@@ -34,6 +34,21 @@ async func boot() any {
 	game.GlobalLoading.Toggle(true)
 
 	await initEngine()
+	if engine.GetBackend() == nil {
+		// engine.Init already logged the failure; stop before touching GPU resources.
+		game.GlobalLoading.Toggle(false)
+		game.GlobalUI.ShowDialog(
+			game.Translate("RENDERER"),
+			game.Translate("WEBGPU_REQUIRED"),
+			func() {
+				if window != nil && window.location != nil {
+					window.location.reload()
+				}
+			},
+			nil,
+		)
+		return nil
+	}
 	systems.GlobalInput.Attach()
 
 	assets.GlobalResources.Init(engine.GetBackend())

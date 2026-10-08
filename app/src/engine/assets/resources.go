@@ -53,7 +53,7 @@ type ResourceManager struct {
 	OnLoadStart func()
 	OnLoadEnd   func()
 
-	backend      rendering.RenderBackend
+	backend      *rendering.Backend
 	entries      map[string]*Entry
 	loading      map[string]any // path -> in-flight promise
 	loadingLists map[string]bool
@@ -75,14 +75,14 @@ func NewResourceManager() *ResourceManager {
 
 // Init binds the GPU backend used for every texture/mesh/material this
 // manager creates and registers the built-in "black" and "white" 1x1 textures.
-func (r *ResourceManager) Init(b rendering.RenderBackend) {
+func (r *ResourceManager) Init(b *rendering.Backend) {
 	r.backend = b
 	r.entries["black"] = &Entry{Kind: KindTexture, Texture: rendering.CreateSolidColorTexture(b, 0, 0, 0, 255)}
 	r.entries["white"] = &Entry{Kind: KindTexture, Texture: rendering.CreateSolidColorTexture(b, 255, 255, 255, 255)}
 }
 
 // Backend returns the render backend bound by Init (nil before Init).
-func (r *ResourceManager) Backend() rendering.RenderBackend { return r.backend }
+func (r *ResourceManager) Backend() *rendering.Backend { return r.backend }
 
 // Has reports whether key is loaded.
 func (r *ResourceManager) Has(key string) bool {
@@ -454,8 +454,8 @@ func (r *ResourceManager) trackMesh(m *rendering.Mesh) {
 
 // newImageTexture creates a 1x1 placeholder and streams the Blob into it.
 // Image textures default to repeat wrapping so tiled surfaces work unchanged.
-func newImageTexture(b rendering.RenderBackend, blob any) *rendering.Texture {
-	t := rendering.NewTexture(b, &rendering.TextureDescriptor{Width: 1, Height: 1, Mutable: true})
+func newImageTexture(b *rendering.Backend, blob any) *rendering.Texture {
+	t := rendering.NewTexture(b, &rendering.TextureDescriptor{Width: 1, Height: 1, Data: []uint8{255, 255, 255, 255}})
 	t.SetWrapMode("repeat")
 	t.LoadImageTexture(blob)
 	return t

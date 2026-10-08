@@ -7,8 +7,6 @@ import (
 
 var skyboxFaceNames = []string{"front", "back", "top", "bottom", "right", "left"}
 
-var skyboxProbe = []float32{1, 1, 1}
-
 // SkyboxEntity renders a skybox cube (normally the renderer's shared
 // Shapes.SkyBox) centred on the camera. Camera position is supplied by the
 // Scene (no entity↔scene coupling).
@@ -44,29 +42,33 @@ func (e *SkyboxEntity) updateMatrix() {
 	}
 }
 
-// Draw draws the cube with the bound geometry shader (depth handled by the
+// Draw draws the cube with the skybox pipeline (depth handled by the
 // renderer) centred on CameraPosition.
-func (e *SkyboxEntity) Draw(r *rendering.Renderer, sh *rendering.Shader, mode rendering.MaterialMode) {
+func (e *SkyboxEntity) Draw(r *rendering.Renderer, mode rendering.MaterialMode) {
 	sky := e.Mesh
-	if sh == nil || sky == nil {
+	if sky == nil {
 		return
 	}
 	e.updateMatrix()
-	sh.SetMat4("matWorld", e.Base.BaseMatrix)
-	sh.SetVec3("uProbeColor", skyboxProbe)
-	sky.RenderSingle(true, rendering.TopoTriangles, rendering.ModeAll, sh)
+	r.NextObject()
+	r.ObjectWorld(e.Base.BaseMatrix)
+	r.ObjectProbe(1, 1, 1, 0)
+	sky.Draw(r, true, rendering.ModeAll)
 }
 
-func (e *SkyboxEntity) DrawShadow(r *rendering.Renderer, sh *rendering.Shader)   {}
-func (e *SkyboxEntity) DrawSkeleton(r *rendering.Renderer, sh *rendering.Shader) {}
+func (e *SkyboxEntity) DrawShadow(r *rendering.Renderer)                                  {}
+func (e *SkyboxEntity) DrawSkeleton(r *rendering.Renderer)                                {}
+func (e *SkyboxEntity) Simulate(r *rendering.Renderer, pass rendering.GPUComputePassEncoder) {}
 
-func (e *SkyboxEntity) DrawWireframe(r *rendering.Renderer, sh *rendering.Shader) {
-	if sh == nil || e.Mesh == nil {
+func (e *SkyboxEntity) DrawWireframe(r *rendering.Renderer) {
+	if e.Mesh == nil {
 		return
 	}
 	e.updateMatrix()
-	sh.SetMat4("matWorld", e.Base.BaseMatrix)
-	e.Mesh.RenderWireframe()
+	r.NextObject()
+	r.ObjectWorld(e.Base.BaseMatrix)
+	r.ObjectParamsVec(0, r.DebugColor())
+	e.Mesh.DrawWireframe(r)
 }
 
 func (e *SkyboxEntity) Bounds() *mathx.BoundingBox { return e.Base.BoundingBox }

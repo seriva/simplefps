@@ -6,8 +6,6 @@ import (
 
 	"./physics"
 	"./rendering"
-	"./rendering/webgl"
-	"./rendering/webgpu"
 	"./systems"
 )
 
@@ -25,7 +23,7 @@ var (
 
 	ActiveCamera   *systems.Camera
 	ActiveRenderer *rendering.Renderer
-	CurrentBackend rendering.RenderBackend
+	CurrentBackend *rendering.Backend
 
 	// ActiveScene is the SceneSource rendered each frame. Game code sets it
 	// before Start; the renderer never runs without one.
@@ -43,28 +41,20 @@ var (
 	ErrNoScene = errors.New("engine: Start called without an ActiveScene")
 )
 
-// SelectBackend picks WebGPU when preferred and available, otherwise WebGL2,
-// and reports the initialised backend via onReady (WebGPU init is async).
-func SelectBackend(preferWebGPU bool, onReady func(backend rendering.RenderBackend)) {
-	useWebGL := func() {
-		glBackend := webgl.NewWebGLBackend()
-		glBackend.Init(func(ok bool) {
-			onReady(glBackend)
-		})
-	}
-
-	if preferWebGPU && navigator != nil && navigator.gpu != nil {
-		gpuBackend := webgpu.NewWebGPUBackend()
-		gpuBackend.Init(func(ok bool) {
-			if ok {
-				onReady(gpuBackend)
-				return
-			}
-			useWebGL()
-		})
+// InitBackend initialises the WebGPU backend, reporting whether initialisation succeeded.
+func InitBackend(onReady func(backend *rendering.Backend, ok bool)) {
+	if navigator == nil || navigator.gpu == nil {
+		if onReady != nil {
+			onReady(nil, false)
+		}
 		return
 	}
-	useWebGL()
+	gpuBackend := rendering.NewBackend()
+	gpuBackend.Init(func(ok bool) {
+		if onReady != nil {
+			onReady(gpuBackend, ok)
+		}
+	})
 }
 
 // Resize updates viewport dimensions on backend, camera, and renderer.
@@ -81,43 +71,54 @@ func Resize() {
 	}
 }
 
-// Init selects and initialises the GPU backend, then sets up shaders, geometry
-// primitives, camera, and renderer. onReady fires once the engine is usable.
-func Init(preferWebGPU bool, onReady func()) {
-	SelectBackend(preferWebGPU, func(backend rendering.RenderBackend) {
-		CurrentBackend = backend
-		syncBackendSettings()
-
-		ActiveCamera = systems.NewCamera()
-		ActiveCamera.IsWebGPU = CurrentBackend.IsWebGPU()
-
-		ActiveRenderer = rendering.NewRenderer(CurrentBackend)
-		ActiveRenderer.InitShaders()
-		ActiveRenderer.InitShapes()
-		ActiveRenderer.Init(CurrentBackend.GetWidth(), CurrentBackend.GetHeight(), systems.ActiveSettings.DoFSR)
-		initialized = true
-
-		if window != nil && window.addEventListener != nil && resizeListener == nil {
-			resizeListener = func(evt any) { Resize() }
-			window.addEventListener("resize", resizeListener)
+// Init initialises the GPU backend, then sets up pipelines, geometry
+// primitives, camera, and renderer. onReady fires once initialisation finishes.
+func Init(onReady func()) {
+	InitBackend(func(backend *rendering.Backend, ok bool) {
+		if !ok || backend == nil {
+			if systems.GlobalConsole != nil {
+				systems.GlobalConsole.Error("Failed to initialize WebGPU")
+			}
+			if onReady != nil {
+				onReady()
+			}
+			return
 		}
-		systems.GlobalConsole.RegisterCmd("rscale", rscaleCmd)
-		systems.GlobalConsole.RegisterCmd("stats", statsCmd)
-		systems.GlobalConsole.RegisterCmd("settings", settingsCmd)
-		systems.GlobalConsole.RegisterCmd("sstore", sstoreCmd)
-		systems.GlobalConsole.RegisterCmd("tnc", tncCmd)
-		RegisterDebugCommands()
-		systems.GlobalStats.Mount()
-		systems.GlobalStats.SetBackendName(CurrentBackend.Name())
-		if systems.ActiveSettings.ShowStats {
-			systems.GlobalStats.Toggle(true)
-		}
-
-		Resize()
+		InitWithBackend(backend)
 		if onReady != nil {
 			onReady()
 		}
 	})
+}
+
+// InitWithBackend sets up the engine with a pre-created, ready Backend.
+func InitWithBackend(backend *rendering.Backend) {
+	CurrentBackend = backend
+	syncBackendSettings()
+
+	ActiveCamera = systems.NewCamera()
+
+	ActiveRenderer = rendering.NewRenderer(CurrentBackend)
+	ActiveRenderer.Init(CurrentBackend.GetWidth(), CurrentBackend.GetHeight(), systems.ActiveSettings.DoFSR)
+	initialized = true
+
+	if window != nil && window.addEventListener != nil && resizeListener == nil {
+		resizeListener = func(evt any) { Resize() }
+		window.addEventListener("resize", resizeListener)
+	}
+	systems.GlobalConsole.RegisterCmd("rscale", rscaleCmd)
+	systems.GlobalConsole.RegisterCmd("stats", statsCmd)
+	systems.GlobalConsole.RegisterCmd("settings", settingsCmd)
+	systems.GlobalConsole.RegisterCmd("sstore", sstoreCmd)
+	systems.GlobalConsole.RegisterCmd("tnc", tncCmd)
+	RegisterDebugCommands()
+	systems.GlobalStats.Mount()
+	systems.GlobalStats.SetBackendName(CurrentBackend.Name())
+	if systems.ActiveSettings.ShowStats {
+		systems.GlobalStats.Toggle(true)
+	}
+
+	Resize()
 }
 
 // statsCmd toggles the debug stats overlay.
@@ -213,13 +214,9 @@ func rscaleCmd(args []string) string {
 // syncBackendSettings pushes RenderScale/DoFSR from Settings into the backend.
 func syncBackendSettings() {
 	s := systems.ActiveSettings
-	if gl, ok := CurrentBackend.(*webgl.WebGLBackend); ok {
-		gl.RenderScale = s.RenderScale
-		gl.DoFSR = s.DoFSR
-	}
-	if gpu, ok := CurrentBackend.(*webgpu.WebGPUBackend); ok {
-		gpu.RenderScale = s.RenderScale
-		gpu.DoFSR = s.DoFSR
+	if CurrentBackend != nil {
+		CurrentBackend.RenderScale = s.RenderScale
+		CurrentBackend.DoFSR = s.DoFSR
 	}
 }
 
@@ -269,8 +266,6 @@ func FrameStep(now float64) {
 func syncRenderOptions() {
 	s := systems.ActiveSettings
 	renderOptions.ProceduralDetail = s.ProceduralDetail
-	renderOptions.ShadowBlurIterations = s.ShadowBlurIterations
-	renderOptions.ShadowBlurOffset = s.ShadowBlurOffset
 	renderOptions.LightBlurIterations = s.LightBlurIterations
 	renderOptions.EmissiveIterations = s.EmissiveIteration
 	renderOptions.EmissiveOffset = s.EmissiveOffset
@@ -360,7 +355,7 @@ func GetAspectRatio() float32 {
 }
 
 // GetBackend returns the active GPU render backend.
-func GetBackend() rendering.RenderBackend {
+func GetBackend() *rendering.Backend {
 	return CurrentBackend
 }
 

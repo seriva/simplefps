@@ -61,32 +61,36 @@ func (e *MeshEntity) Update(frameTime float32) bool {
 	return keep
 }
 
-// Draw sets the world matrix and ambient probe on the bound geometry /
-// transparent shader and issues the mesh in the given material mode.
-func (e *MeshEntity) Draw(r *rendering.Renderer, sh *rendering.Shader, mode rendering.MaterialMode) {
-	if e.Mesh == nil || sh == nil {
+// Draw fills an ObjectData slot with the world matrix and ambient probe and
+// issues the mesh in the given material mode.
+func (e *MeshEntity) Draw(r *rendering.Renderer, mode rendering.MaterialMode) {
+	if e.Mesh == nil {
 		return
 	}
 	mathx.Mat4Multiply(meshTempMatrix, e.Base.BaseMatrix, e.Base.AniMatrix)
-	setProbeUniform(sh, &e.Probe)
-	sh.SetMat4("matWorld", meshTempMatrix)
-	e.Mesh.RenderSingle(true, rendering.TopoTriangles, mode, sh)
+	r.NextObject()
+	r.ObjectWorld(meshTempMatrix)
+	setObjectProbe(r, &e.Probe)
+	e.Mesh.Draw(r, true, mode)
 }
 
-func (e *MeshEntity) DrawWireframe(r *rendering.Renderer, sh *rendering.Shader) {
-	if e.Mesh == nil || sh == nil {
+func (e *MeshEntity) DrawWireframe(r *rendering.Renderer) {
+	if e.Mesh == nil {
 		return
 	}
 	mathx.Mat4Multiply(meshTempMatrix, e.Base.BaseMatrix, e.Base.AniMatrix)
-	sh.SetMat4("matWorld", meshTempMatrix)
-	e.Mesh.RenderWireframe()
+	r.NextObject()
+	r.ObjectWorld(meshTempMatrix)
+	r.ObjectParamsVec(0, r.DebugColor())
+	e.Mesh.DrawWireframe(r)
 }
 
-func (e *MeshEntity) DrawSkeleton(r *rendering.Renderer, sh *rendering.Shader) {}
+func (e *MeshEntity) DrawSkeleton(r *rendering.Renderer)                                  {}
+func (e *MeshEntity) Simulate(r *rendering.Renderer, pass rendering.GPUComputePassEncoder) {}
 
 // DrawShadow squashes the world matrix onto the cached ground height.
-func (e *MeshEntity) DrawShadow(r *rendering.Renderer, sh *rendering.Shader) {
-	if !e.Base.CastShadow || e.Mesh == nil || sh == nil {
+func (e *MeshEntity) DrawShadow(r *rendering.Renderer) {
+	if !e.Base.CastShadow || e.Mesh == nil {
 		return
 	}
 	if e.Shadow.HeightState != ShadowHeightValid {
@@ -98,8 +102,11 @@ func (e *MeshEntity) DrawShadow(r *rendering.Renderer, sh *rendering.Shader) {
 	m[5] *= 0.1
 	m[9] *= 0.1
 	m[13] = e.Shadow.Height
-	sh.SetMat4("matWorld", m)
-	e.Mesh.RenderSingle(false, rendering.TopoTriangles, rendering.ModeAll, sh)
+	amb := r.Ambient()
+	r.NextObject()
+	r.ObjectWorld(m)
+	r.ObjectProbe(amb[0], amb[1], amb[2], e.Shadow.Height)
+	e.Mesh.Draw(r, false, rendering.ModeAll)
 }
 
 func (e *MeshEntity) Bounds() *mathx.BoundingBox { return e.Base.BoundingBox }

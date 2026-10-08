@@ -8,187 +8,9 @@ import (
 	"../mathx"
 	"../physics"
 	"../rendering"
+	"../rendering/fakegpu"
 	"../systems"
 )
-
-// ---------------------------------------------------------------------------
-// Compact recording backend (rendering's mock is not importable from tests).
-// ---------------------------------------------------------------------------
-
-type call struct {
-	Name string
-	Arg  any
-}
-
-type testBackend struct {
-	Recording bool
-	Log       []call
-	caps      *rendering.Capabilities
-	state     *rendering.PipelineState
-}
-
-func newTestBackend() *testBackend {
-	return &testBackend{
-		Recording: true,
-		Log:       make([]call, 0, 512),
-		caps:      &rendering.Capabilities{MaxTextureSize: 4096, MaxColorAttachments: 8},
-	}
-}
-
-func (m *testBackend) record(name string, arg any) {
-	if m.Recording {
-		m.Log = append(m.Log, call{Name: name, Arg: arg})
-	}
-}
-
-func (m *testBackend) Count(name string) int {
-	n := 0
-	for i := 0; i < len(m.Log); i++ {
-		if m.Log[i].Name == name {
-			n++
-		}
-	}
-	return n
-}
-
-func (m *testBackend) CountArg(name string, arg any) int {
-	n := 0
-	for i := 0; i < len(m.Log); i++ {
-		if m.Log[i].Name == name && m.Log[i].Arg == arg {
-			n++
-		}
-	}
-	return n
-}
-
-// IndexOf returns the first log index with name/arg, or -1.
-func (m *testBackend) IndexOf(name string, arg any) int {
-	return m.IndexFrom(name, arg, 0)
-}
-
-// IndexFrom returns the first log index >= from with name/arg, or -1.
-func (m *testBackend) IndexFrom(name string, arg any, from int) int {
-	for i := from; i < len(m.Log); i++ {
-		if m.Log[i].Name == name && m.Log[i].Arg == arg {
-			return i
-		}
-	}
-	return -1
-}
-
-// CountBetween counts name/arg entries in [from, to); to < 0 means end of log.
-func (m *testBackend) CountBetween(name string, arg any, from, to int) int {
-	if to < 0 || to > len(m.Log) {
-		to = len(m.Log)
-	}
-	n := 0
-	for i := from; i < to; i++ {
-		if m.Log[i].Name == name && m.Log[i].Arg == arg {
-			n++
-		}
-	}
-	return n
-}
-
-func (m *testBackend) Reset() { m.Log = m.Log[:0] }
-
-func (m *testBackend) Name() string                  { return "mock" }
-func (m *testBackend) Init(onReady func(ok bool))    { onReady(true) }
-func (m *testBackend) Dispose()                      {}
-func (m *testBackend) BeginFrame()                   {}
-func (m *testBackend) EndFrame()                     {}
-func (m *testBackend) InitShaders(catalog *rendering.ShaderCatalog) {
-	catalog.Geometry = rendering.NewShader(m, "geometry", "")
-	catalog.SkinnedGeometry = rendering.NewShader(m, "skinnedGeometry", "")
-	catalog.EntityShadows = rendering.NewShader(m, "entityShadows", "")
-	catalog.SkinnedEntityShadows = rendering.NewShader(m, "skinnedEntityShadows", "")
-	catalog.DirectionalLight = rendering.NewShader(m, "directionalLight", "")
-	catalog.PointLight = rendering.NewShader(m, "pointLight", "")
-	catalog.SpotLight = rendering.NewShader(m, "spotLight", "")
-	catalog.KawaseBlur = rendering.NewShader(m, "kawaseBlur", "")
-	catalog.PostProcessing = rendering.NewShader(m, "postProcessing", "")
-	catalog.FsrEasu = rendering.NewShader(m, "fsrEasu", "")
-	catalog.FsrRcas = rendering.NewShader(m, "fsrRcas", "")
-	catalog.Transparent = rendering.NewShader(m, "transparent", "")
-	catalog.Debug = rendering.NewShader(m, "debug", "")
-	catalog.SkinnedDebug = rendering.NewShader(m, "skinnedDebug", "")
-	catalog.Billboard = rendering.NewShader(m, "billboard", "")
-	catalog.InstancedBillboard = rendering.NewShader(m, "instancedBillboard", "")
-}
-func (m *testBackend) SupportsFormat(format string) bool { return true }
-func (m *testBackend) CreateTexture(desc *rendering.TextureDescriptor) any {
-	return &call{Name: "tex"}
-}
-func (m *testBackend) DisposeTexture(texture any)                                   {}
-func (m *testBackend) UploadTextureFromImage(texture any, image any)                {}
-func (m *testBackend) GenerateMipmaps(texture any)                                  {}
-func (m *testBackend) SetTextureWrapMode(texture any, mode string)                  {}
-func (m *testBackend) SetTextureFilter(texture any, minF, magF, mipF string)        {}
-func (m *testBackend) SetTextureAnisotropy(texture any, level int)                  {}
-func (m *testBackend) BindTexture(texture any, unit int)                            { m.record("BindTexture", unit) }
-func (m *testBackend) UnbindTexture(unit int)                                       { m.record("UnbindTexture", unit) }
-func (m *testBackend) CreateBuffer(data any, usage rendering.BufferUsage) any {
-	m.record("CreateBuffer", string(usage))
-	return &call{Name: string(usage)}
-}
-func (m *testBackend) UpdateBuffer(buffer any, data any, offset int) { m.record("UpdateBuffer", nil) }
-func (m *testBackend) DeleteBuffer(buffer any)                     { m.record("DeleteBuffer", nil) }
-func (m *testBackend) CreateShaderProgram(v string, f string) any  { return v }
-func (m *testBackend) BindShader(shader any)                       { m.record("BindShader", shader) }
-func (m *testBackend) UnbindShader()                               { m.record("UnbindShader", nil) }
-func (m *testBackend) DisposeShader(shader any)                    {}
-func (m *testBackend) CreateUBO(size int, bindingPoint int) any {
-	return &call{Name: "ubo", Arg: size}
-}
-func (m *testBackend) DeleteUBO(ubo any)                       {}
-func (m *testBackend) UpdateUBO(ubo any, data any, offset int) { m.record("UpdateUBO", nil) }
-func (m *testBackend) BindUniformBuffer(ubo any)               { m.record("BindUniformBuffer", nil) }
-func (m *testBackend) CreateFramebuffer(desc *rendering.FramebufferDescriptor) any {
-	return &call{Name: "fb"}
-}
-func (m *testBackend) DeleteFramebuffer(framebuffer any) {}
-func (m *testBackend) BindFramebuffer(framebuffer any)   {}
-func (m *testBackend) SetFramebufferAttachment(fb any, attachment int, texture any, level int, layer int) {
-}
-func (m *testBackend) CreateVertexState(desc *rendering.VertexStateDescriptor) any {
-	m.record("CreateVertexState", len(desc.Attributes))
-	return &call{Name: "vao"}
-}
-func (m *testBackend) BindVertexState(state any)                          { m.record("BindVertexState", nil) }
-func (m *testBackend) DeleteVertexState(state any)                        { m.record("DeleteVertexState", nil) }
-
-// ApplyState records the preset's DepthTest flag so tests can spot the
-// skybox (depth off) and the restore to opaque (depth on).
-func (m *testBackend) ApplyState(state *rendering.PipelineState) {
-	if state == nil {
-		return
-	}
-	m.record("ApplyState", state.DepthTest)
-	m.state = state
-}
-func (m *testBackend) State() *rendering.PipelineState                   { return m.state }
-func (m *testBackend) SetViewport(x, y, width, height int)                {}
-func (m *testBackend) SetDepthRange(near, far float32)                    {}
-func (m *testBackend) Clear(options *rendering.ClearOptions)              {}
-func (m *testBackend) DrawIndexed(indexBuffer any, indexCount int, indexOffset int, mode rendering.Topology) {
-	m.record("DrawIndexed", string(mode))
-}
-func (m *testBackend) DrawInstanced(indexBuffer any, indexCount int, instanceCount int) {
-	m.record("DrawInstanced", instanceCount)
-}
-func (m *testBackend) SetUniform(name string, typeName string, value any) {
-	m.record("SetUniform", name)
-}
-func (m *testBackend) GetCapabilities() *rendering.Capabilities { return m.caps }
-func (m *testBackend) IsWebGPU() bool                          { return false }
-func (m *testBackend) GetCanvas() any                          { return nil }
-func (m *testBackend) GetWidth() int                           { return 320 }
-func (m *testBackend) GetHeight() int                          { return 240 }
-func (m *testBackend) GetNativeWidth() int                     { return 640 }
-func (m *testBackend) GetNativeHeight() int                    { return 480 }
-func (m *testBackend) GetAspectRatio() float32                 { return 4.0 / 3.0 }
-func (m *testBackend) Resize()                                 {}
-func (m *testBackend) ClearBindGroupCaches()                   {}
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -200,23 +22,26 @@ func approx(a, b float32) bool {
 }
 
 // testBE is the backend of the most recent setup(); mesh fixtures build on it.
-var testBE *testBackend
+var testBE *rendering.Backend
 
-// setup wires a mock backend, shaders, shapes, renderer and a fresh scene.
-func setup() (*testBackend, *rendering.Renderer, *Scene) {
-	mb := newTestBackend()
-	testBE = mb
-	r := rendering.NewRenderer(mb)
-	r.InitShaders()
-	r.InitShapes()
+// setup wires a fake GPU device, renderer and a fresh scene.
+func setup() (*fakegpu.Device, *rendering.Renderer, *Scene) {
+	dev := fakegpu.NewDevice()
+	b := rendering.NewBackend()
+	b.Canvas = map[string]any{"clientWidth": 320, "clientHeight": 240, "width": 320, "height": 240}
+	var d any = dev
+	var ctx any = fakegpu.NewContext(dev, 320, 240)
+	b.InitWithDevice(d, ctx)
+	testBE = b
+	r := rendering.NewRenderer(b)
 	r.Init(320, 240, false)
 	cam := systems.NewCamera()
 	for i := 0; i < len(cam.FrustumPlanes); i++ {
 		cam.FrustumPlanes[i] = 0
 	}
 	s := NewScene(cam)
-	mb.Reset()
-	return mb, r, s
+	dev.ResetFrame()
+	return dev, r, s
 }
 
 // testView mirrors engine.RenderFrame's CameraView snapshot of the scene camera.
@@ -227,7 +52,7 @@ var testView = &rendering.CameraView{
 	InverseViewProjection: mathx.NewMat4(),
 }
 
-// testOpts: no blur passes, no FSR, no dirt — keeps the log to scene draws.
+// testOpts: no blur passes, no FSR, no dirt — keeps the recording to scene draws.
 var testOpts = &rendering.RenderOptions{}
 
 // renderFrame runs one full renderer frame pulling from s.
@@ -242,15 +67,16 @@ func renderFrame(r *rendering.Renderer, s *Scene) {
 	r.Render(testView, s, testOpts, 0)
 }
 
-// shaderWindow returns [start, end) log indices of the first bind of shader
-// up to the following UnbindShader (end = -1 when never unbound).
-func shaderWindow(mb *testBackend, shader string) (int, int) {
-	start := mb.IndexOf("BindShader", shader)
-	if start < 0 {
-		return -1, -1
-	}
-	return start, mb.IndexFrom("UnbindShader", nil, start)
-}
+// slotOf returns the ObjectData slot a recorded draw used.
+func slotOf(d fakegpu.DrawRecord) int { return d.ObjectOffset / rendering.ObjectStride }
+
+// offProbe/offParams0 mirror rendering's ObjectData float offsets.
+const (
+	offProbe   = 16
+	offParams0 = 20
+	offParams1 = 24
+	offParams2 = 28
+)
 
 // unitQuad builds a 2-triangle mesh in the XZ plane at y=0 spanning [-1,1].
 func unitQuad(material string) *rendering.Mesh {
@@ -284,6 +110,13 @@ func skinnedQuad() *rendering.SkinnedMesh {
 	return rendering.NewSkinnedMesh(testBE, verts, nil, nil, groups, joints, weights)
 }
 
+func boolToInt(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
+}
+
 // ---------------------------------------------------------------------------
 // Entity management
 // ---------------------------------------------------------------------------
@@ -315,7 +148,6 @@ func TestAddRemoveEntities(t *testing.T) {
 	if a.Mesh != nil {
 		t.Errorf("removed entity should be disposed")
 	}
-	// removing again is a no-op
 	s.RemoveEntity(a)
 	if s.EntityCount() != 2 {
 		t.Errorf("double remove changed count")
@@ -363,7 +195,6 @@ func TestUpdateCallbackAndRemoval(t *testing.T) {
 		t.Errorf("paused scene still updated")
 	}
 
-	// Invisible entities skip their callback.
 	s.Pause(false)
 	keep.Base.Visible = false
 	s.Update(16)
@@ -390,7 +221,6 @@ func TestBoundingVolumeAndVisibility(t *testing.T) {
 		t.Fatalf("all-zero planes should keep everything visible, got %d", vis)
 	}
 
-	// Plane x - 10 >= 0 keeps only boxes reaching x >= 10.
 	s.Camera.FrustumPlanes[0] = 1
 	s.Camera.FrustumPlanes[3] = -10
 	s.UpdateVisibility()
@@ -399,7 +229,6 @@ func TestBoundingVolumeAndVisibility(t *testing.T) {
 		t.Errorf("culling kept %d entities", vis)
 	}
 
-	// No camera: nothing is culled.
 	s.Camera = nil
 	s.UpdateVisibility()
 	_, vis = s.VisibleMeshes()
@@ -413,7 +242,6 @@ func TestMeshEntitySetRotationWarnsWhenStatic(t *testing.T) {
 	e := meshAt(0, 0, 0)
 	e.SetRotation(0, 90, 0)
 	m := e.Base.BaseMatrix
-	// Rotating 90° about Y maps local +X to world -Z.
 	if !approx(m[0], 0) || !approx(m[2], -1) {
 		t.Errorf("rotation not applied: m[0]=%v m[2]=%v", m[0], m[2])
 	}
@@ -442,7 +270,6 @@ func TestStaticGeometryRaycast(t *testing.T) {
 	if tm == nil || len(tm.Indices) != 6 {
 		t.Fatalf("static trimesh indices = %v", tm)
 	}
-	// Vertices baked in world space (scaled by 10).
 	if !approx(tm.Vertices[0], -10) {
 		t.Errorf("world vertex x = %v, want -10", tm.Vertices[0])
 	}
@@ -460,7 +287,6 @@ func TestStaticGeometryRaycast(t *testing.T) {
 		t.Errorf("ray outside floor should miss")
 	}
 
-	// Backface skipped by default; double-sided option hits from below.
 	below := s.RaycastStatic(0, -5, 0, 0, 5, 0, nil)
 	if below.HasHit {
 		t.Errorf("backface should be skipped by default")
@@ -470,7 +296,6 @@ func TestStaticGeometryRaycast(t *testing.T) {
 		t.Errorf("SkipBackfaces=false should hit from below")
 	}
 
-	// Usable as a physics.RaycastProvider (e.g. by DynamicBody).
 	var provider physics.RaycastProvider = s
 	got := provider.RaycastStatic(1, 5, 1, 1, -5, 1, nil)
 	if !got.HasHit || !approx(got.HitPointWorld.Y, 0) {
@@ -485,7 +310,6 @@ func TestStaticGeometryRaycast(t *testing.T) {
 		t.Errorf("DynamicBody never hit the static floor via the scene provider")
 	}
 
-	// Dispose releases the merged trimesh's buffers and drops the reference.
 	s.Dispose()
 	if tm.Vertices != nil || tm.Tree != nil || s.StaticTrimesh() != nil {
 		t.Errorf("Dispose did not release static trimesh")
@@ -505,7 +329,6 @@ func TestStaticGeometryDoubleSidedFlags(t *testing.T) {
 	if len(tm.TriangleFlags) != 2 || tm.TriangleFlags[0] != 1 || tm.TriangleFlags[1] != 1 {
 		t.Errorf("translucent material should flag triangles double-sided: %v", tm.TriangleFlags)
 	}
-	// Ray from below now hits even with backface skipping.
 	below := s.RaycastStatic(0, -5, 0, 0, 5, 0, nil)
 	if !below.HasHit {
 		t.Errorf("double-sided triangle should be hit from below")
@@ -552,7 +375,6 @@ func TestAmbientDefaultsAndLightGrid(t *testing.T) {
 		t.Errorf("AmbientAt flat = %v", buf)
 	}
 
-	// 2x2x2 grid, 64 units apart: x axis goes 0 -> 255 red.
 	cfg := &LightGridConfig{Origin: []float32{0, 0, 0}, Counts: []int{2, 2, 2}, Step: []float32{64, 64, 64}}
 	data := make([]byte, 8*3)
 	for z := 0; z < 2; z++ {
@@ -572,7 +394,6 @@ func TestAmbientDefaultsAndLightGrid(t *testing.T) {
 	if out.X != 0 || out.Y != 0 || out.Z != 0 {
 		t.Errorf("ambient with grid should be black: %+v", out)
 	}
-	// Halfway along X: red 0.5; grid Z maps to engine +Y (fz = relY/step).
 	s.AmbientAt(mathx.NewVec3(32, 0, 0), buf)
 	if !approx(buf[0], 0.5) || !approx(buf[1], 128.0/255.0) || !approx(buf[2], 0) {
 		t.Errorf("trilinear sample = %v", buf)
@@ -581,7 +402,6 @@ func TestAmbientDefaultsAndLightGrid(t *testing.T) {
 	if !approx(buf[2], 1) {
 		t.Errorf("engine +Y should map to grid Z: %v", buf)
 	}
-	// Outside the grid clamps.
 	s.AmbientAt(mathx.NewVec3(-500, -500, 500), buf)
 	if !approx(buf[0], 0) || !approx(buf[2], 0) {
 		t.Errorf("clamped sample = %v", buf)
@@ -599,62 +419,59 @@ func TestAmbientDefaultsAndLightGrid(t *testing.T) {
 // Render passes
 // ---------------------------------------------------------------------------
 
-func TestRenderWorldGeometryOrderAndUniforms(t *testing.T) {
-	mb, r, s := setup()
+func TestRenderWorldGeometryOrderAndObjectData(t *testing.T) {
+	dev, r, s := setup()
+	s.SetAmbient(0.25, 0.5, 0.75)
 	s.AddEntity(NewSkyboxEntity("test", r.Shapes.SkyBox, nil))
-	s.AddEntity(meshAt(0, 0, 0))
+	s.AddEntity(meshAt(3, 0, 0))
 	skinned := NewSkinnedMeshEntity(mathx.NewVec3(0, 0, 0), skinnedQuad(), testSkeleton(), nil, 1)
 	s.AddEntity(skinned)
 	s.Update(16)
-	mb.Reset()
+	dev.ResetFrame()
 
 	renderFrame(r, s)
 
-	geo, geoEnd := shaderWindow(mb, "geometry")
-	sk, skEnd := shaderWindow(mb, "skinnedGeometry")
-	if geo == -1 || sk == -1 || sk < geo {
-		t.Fatalf("shader order wrong: geometry=%d skinned=%d", geo, sk)
+	sky := dev.FirstDraw("skybox")
+	geo := dev.FirstDraw("geometry")
+	sk := dev.FirstDraw("skinned-geometry")
+	if sky < 0 || geo < 0 || sk < 0 {
+		t.Fatalf("expected skybox, geometry and skinned draws: %d %d %d", sky, geo, sk)
 	}
-	if mb.CountArg("SetUniform", "proceduralNoise") < 2 {
-		t.Errorf("proceduralNoise not set for both shaders")
+	if !(sky < geo && geo < sk) {
+		t.Errorf("gbuffer order must be skybox, meshes, skinned: %d %d %d", sky, geo, sk)
 	}
-	if mb.CountBetween("SetUniform", "uProbeColor", geo, skEnd) != 3 {
-		t.Errorf("uProbeColor set %d times in world pass, want 3", mb.CountBetween("SetUniform", "uProbeColor", geo, skEnd))
+	if dev.Draws[geo].Pass != "gbuffer" {
+		t.Errorf("geometry drawn in pass %q", dev.Draws[geo].Pass)
 	}
-	if mb.CountArg("SetUniform", "boneMatrices") != 1 {
-		t.Errorf("boneMatrices set %d times", mb.CountArg("SetUniform", "boneMatrices"))
+	// Skybox probe is white; meshes carry their world matrix and probe colour.
+	if r.ObjectValue(slotOf(dev.Draws[sky]), offProbe) != 1 {
+		t.Error("skybox probe must be white")
 	}
-	// Skybox drawn with depth off inside the geometry window.
-	if mb.CountBetween("ApplyState", false, geo, geoEnd) != 1 {
-		t.Errorf("skybox depth state not toggled")
+	gs := slotOf(dev.Draws[geo])
+	if !approx(r.ObjectValue(gs, 12), 3) {
+		t.Errorf("mesh world translation x = %v", r.ObjectValue(gs, 12))
 	}
-	// skybox 6 groups + mesh in the geometry window, skinned in its own.
-	if mb.CountBetween("DrawIndexed", "triangles", geo, geoEnd) != 7 || mb.CountBetween("DrawIndexed", "triangles", sk, skEnd) != 1 {
-		t.Errorf("draws = %d geometry, %d skinned", mb.CountBetween("DrawIndexed", "triangles", geo, geoEnd), mb.CountBetween("DrawIndexed", "triangles", sk, skEnd))
+	if !approx(r.ObjectValue(gs, offProbe), 0.25) || !approx(r.ObjectValue(gs, offProbe+2), 0.75) {
+		t.Errorf("mesh probe = ambient, got %v %v", r.ObjectValue(gs, offProbe), r.ObjectValue(gs, offProbe+2))
 	}
-	if mb.IndexFrom("ApplyState", true, skEnd) == -1 {
-		t.Errorf("world pass must end restoring the opaque state")
+	// Skinned draw points misc.x at its bone range and uploads bones.
+	if r.Bones.Count != rendering.MaxJoints {
+		t.Errorf("bone ring count = %d, want one full palette (%d)", r.Bones.Count, rendering.MaxJoints)
 	}
-	st := r.Stats
-	if st.MeshCount != 2 || st.TriangleCount != 4 {
-		t.Errorf("stats = %+v", st)
+	if dev.Draws[sk].Group1 == "" {
+		t.Error("skinned draw must bind a material group")
 	}
-
-	// Skybox material names assigned to the shared cube.
-	if r.Shapes.SkyBox.Indices[2].Material != "mat_skybox_test_top" {
-		t.Errorf("skybox material = %q", r.Shapes.SkyBox.Indices[2].Material)
+	if r.Stats.MeshCount != 2 || r.Stats.TriangleCount != 4 {
+		t.Errorf("stats meshes=%d tris=%d", r.Stats.MeshCount, r.Stats.TriangleCount)
 	}
-
-	// Hidden entities leave the draw lists entirely.
-	skinned.Base.Visible = false
-	s.UpdateVisibility()
-	if s.SkinnedMeshes().Count != 0 || s.Meshes().Count != 1 || s.Skyboxes().Count != 1 {
-		t.Errorf("draw lists after hide: skinned=%d meshes=%d sky=%d", s.SkinnedMeshes().Count, s.Meshes().Count, s.Skyboxes().Count)
+	// Everything landed in one submit with the ring uploaded once.
+	if dev.Submits != 1 {
+		t.Errorf("submits = %d", dev.Submits)
 	}
 }
 
 func TestRenderShadowsBudgetAndHeights(t *testing.T) {
-	mb, r, s := setup()
+	dev, r, s := setup()
 	floor := NewMeshEntity(TypeMesh, mathx.NewVec3(0, 0, 0), unitQuad("none"), nil, 100)
 	s.AddEntity(floor)
 	s.AddStaticGeometry(floor)
@@ -670,7 +487,6 @@ func TestRenderShadowsBudgetAndHeights(t *testing.T) {
 	noGround.Base.CastShadow = true
 	s.AddEntity(noGround)
 
-	// First update resolves at most the raycast budget.
 	s.Update(16)
 	resolved := 0
 	for i := 0; i < 20; i++ {
@@ -688,26 +504,29 @@ func TestRenderShadowsBudgetAndHeights(t *testing.T) {
 	if resolved > shadowRaycastBudget || pendingAfterFirst == 0 {
 		t.Errorf("raycast budget not respected: resolved=%d", resolved)
 	}
-	// Non-casting floor never consumes budget.
 	if floor.Base.CastShadow || floor.Shadow.HeightState != ShadowHeightPending {
 		t.Errorf("non-caster should stay pending (CastShadow=%v state=%d)", floor.Base.CastShadow, floor.Shadow.HeightState)
 	}
 
-	mb.Reset()
+	dev.ResetFrame()
 	renderFrame(r, s)
-	start, end := shaderWindow(mb, "entityShadows")
-	if start == -1 {
-		t.Fatalf("entityShadows not bound")
+	shadowDraws := dev.CountDraws("entity-shadows")
+	want := resolved - boolToInt(noGround.Shadow.HeightState == ShadowHeightValid)
+	if shadowDraws != want {
+		t.Errorf("shadow draws %d != resolved casters %d", shadowDraws, want)
 	}
-	if mb.CountBetween("SetUniform", "ambient", start, end) < 1 {
-		t.Errorf("ambient uniform not set")
+	first := dev.FirstDraw("entity-shadows")
+	if first < 0 {
+		t.Fatal("entity-shadows never drew")
 	}
-	firstDraws := mb.CountBetween("DrawIndexed", "triangles", start, end)
-	if firstDraws != resolved-boolToInt(noGround.Shadow.HeightState == ShadowHeightValid) {
-		t.Errorf("draws %d != resolved casters %d", firstDraws, resolved)
+	if dev.Draws[first].Pass != "shadow" {
+		t.Errorf("shadow draws in pass %q", dev.Draws[first].Pass)
+	}
+	fs := slotOf(dev.Draws[first])
+	if !approx(r.ObjectValue(fs, offProbe), 0.5) || !approx(r.ObjectValue(fs, offProbe+3), 0) {
+		t.Errorf("shadow probe = ambient + height, got %v / %v", r.ObjectValue(fs, offProbe), r.ObjectValue(fs, offProbe+3))
 	}
 
-	// Second update resolves the rest.
 	s.Update(16)
 	for i := 0; i < 20; i++ {
 		if casters[i].Shadow.HeightState != ShadowHeightValid {
@@ -719,15 +538,8 @@ func TestRenderShadowsBudgetAndHeights(t *testing.T) {
 	}
 }
 
-func boolToInt(b bool) int {
-	if b {
-		return 1
-	}
-	return 0
-}
-
 func TestSkinnedShadowSampling(t *testing.T) {
-	mb, r, s := setup()
+	dev, r, s := setup()
 	floor := NewMeshEntity(TypeMesh, mathx.NewVec3(0, 0, 0), unitQuad("none"), nil, 100)
 	s.AddEntity(floor)
 	s.AddStaticGeometry(floor)
@@ -740,18 +552,20 @@ func TestSkinnedShadowSampling(t *testing.T) {
 		t.Fatalf("skinned shadow height not sampled: state=%d", sk.Shadow.HeightState)
 	}
 
-	mb.Reset()
+	dev.ResetFrame()
 	renderFrame(r, s)
-	if mb.IndexOf("BindShader", "skinnedEntityShadows") == -1 || mb.CountArg("SetUniform", "shadowHeight") != 1 {
-		t.Errorf("skinned shadow uniforms missing")
+	i := dev.FirstDraw("skinned-entity-shadows")
+	if i < 0 {
+		t.Fatal("skinned shadow pipeline never drew")
 	}
-	// Unmoved entity within interval: no re-sample.
+	if !approx(r.ObjectValue(slotOf(dev.Draws[i]), offProbe+3), 0) {
+		t.Error("skinned shadow height must be written to probe.w")
+	}
 	frame := sk.Shadow.SampleFrame
 	s.Update(16)
 	if sk.Shadow.SampleFrame != frame {
 		t.Errorf("re-sampled without movement")
 	}
-	// Move beyond epsilon triggers re-sample.
 	mathx.Mat4Translate(sk.Base.BaseMatrix, sk.Base.BaseMatrix, mathx.NewVec3(1, 0, 0))
 	s.Update(16)
 	if sk.Shadow.SampleFrame == frame {
@@ -760,7 +574,7 @@ func TestSkinnedShadowSampling(t *testing.T) {
 }
 
 func TestRenderLightingSortsByContribution(t *testing.T) {
-	mb, r, s := setup()
+	dev, r, s := setup()
 	s.Camera.Position.Set(0, 0, 0)
 	far := NewPointLightEntity(mathx.NewVec3(100, 0, 0), 5, []float32{1, 0, 0}, 1, nil)
 	near := NewPointLightEntity(mathx.NewVec3(1, 0, 0), 5, []float32{0, 1, 0}, 1, nil)
@@ -770,20 +584,40 @@ func TestRenderLightingSortsByContribution(t *testing.T) {
 	s.AddEntity(spot)
 	s.AddEntity(NewDirectionalLightEntity([]float32{0, -1, 0}, []float32{1, 1, 1}, nil))
 	s.Update(16)
-	mb.Reset()
+	dev.ResetFrame()
 
 	renderFrame(r, s)
 
-	if mb.IndexOf("BindShader", "directionalLight") == -1 || mb.IndexOf("BindShader", "pointLight") == -1 || mb.IndexOf("BindShader", "spotLight") == -1 {
-		t.Fatalf("light shaders not bound")
+	d := dev.FirstDraw("directional-light")
+	p := dev.FirstDraw("point-light")
+	sp := dev.FirstDraw("spot-light")
+	if d < 0 || p < 0 || sp < 0 {
+		t.Fatalf("light pipelines not drawn: %d %d %d", d, p, sp)
 	}
-	if mb.CountArg("SetUniform", "pointLight.posRange") != 2 || mb.CountArg("SetUniform", "spotLight.dirCutoff") != 1 {
-		t.Errorf("light uniforms not set")
+	if !(d < p && p < sp) {
+		t.Errorf("lighting order must be directional, point, spot")
+	}
+	if dev.Draws[d].VertexCount != 3 {
+		t.Error("directional light is a fullscreen triangle")
+	}
+	if dev.CountDraws("point-light") != 2 || dev.CountDraws("spot-light") != 1 {
+		t.Errorf("point draws %d spot draws %d", dev.CountDraws("point-light"), dev.CountDraws("spot-light"))
 	}
 	if r.Stats.LightCount != 3 {
 		t.Errorf("LightCount = %d", r.Stats.LightCount)
 	}
-	// The renderer orders lights by LightScore: near must outrank far.
+	// Nearest point light first: params0 = position + range.
+	ps := slotOf(dev.Draws[p])
+	if !approx(r.ObjectValue(ps, offParams0), 1) || !approx(r.ObjectValue(ps, offParams0+3), 5) {
+		t.Errorf("first point light params0 = %v,...,%v (want near light x=1 range 5)", r.ObjectValue(ps, offParams0), r.ObjectValue(ps, offParams0+3))
+	}
+	if !approx(r.ObjectValue(ps, offParams1+1), 1) {
+		t.Error("near light colour must be green in params1")
+	}
+	ss := slotOf(dev.Draws[sp])
+	if !approx(r.ObjectValue(ss, offParams2+1), -1) || !approx(r.ObjectValue(ss, offParams2+3), 0.8660254) {
+		t.Errorf("spot params2 = dir + cutoff, got dir.y=%v cutoff=%v", r.ObjectValue(ss, offParams2+1), r.ObjectValue(ss, offParams2+3))
+	}
 	cam := &s.Camera.Position
 	if near.LightScore(cam) <= far.LightScore(cam) {
 		t.Errorf("near score %v should beat far %v", near.LightScore(cam), far.LightScore(cam))
@@ -791,23 +625,20 @@ func TestRenderLightingSortsByContribution(t *testing.T) {
 	if !approx(spot.LightScore(cam), 2.0/25.0) {
 		t.Errorf("spot score = %v", spot.LightScore(cam))
 	}
-	if !approx(spot.Cutoff, 0.8660254) {
-		t.Errorf("spot cutoff = %v", spot.Cutoff)
-	}
 }
 
 func TestRenderLightingDrawsAllLightsBeyondSorterCapacity(t *testing.T) {
-	mb, r, s := setup()
+	dev, r, s := setup()
 	const n = 70 // > renderer's NewLightSorter(64)
 	for i := 0; i < n; i++ {
 		s.AddEntity(NewPointLightEntity(mathx.NewVec3(float32(i), 0, 0), 5, []float32{1, 1, 1}, 1, nil))
 	}
 	s.Update(16)
-	mb.Reset()
+	dev.ResetFrame()
 
 	renderFrame(r, s)
 
-	if got := mb.CountArg("SetUniform", "pointLight.posRange"); got != n {
+	if got := dev.CountDraws("point-light"); got != n {
 		t.Errorf("rendered %d point lights, want %d", got, n)
 	}
 	if r.Stats.LightCount != n {
@@ -819,7 +650,7 @@ func TestRenderLightingDrawsAllLightsBeyondSorterCapacity(t *testing.T) {
 // only satisfies Entity (no Drawable), which is all the Scene may require.
 type foreignMesh struct{ Base EntityBase }
 
-func (f *foreignMesh) GetBase() *EntityBase         { return &f.Base }
+func (f *foreignMesh) GetBase() *EntityBase          { return &f.Base }
 func (f *foreignMesh) Update(frameTime float32) bool { return true }
 func (f *foreignMesh) Dispose()                      {}
 
@@ -831,7 +662,6 @@ func TestAddEntityRejectsMismatchedTypeID(t *testing.T) {
 	if s.EntityCount() != 0 {
 		t.Fatalf("foreign entity with built-in type id was added")
 	}
-	// Unknown type ids are still accepted and ignored by the draw lists.
 	initBase(&f.Base, TypeCount+1, nil)
 	s.AddEntity(f)
 	if s.EntityCount() != 1 {
@@ -865,7 +695,6 @@ func TestVisibilityFillsTypedBuckets(t *testing.T) {
 		t.Fatalf("visible skinned = %d", n)
 	}
 
-	// Draw lists alias the same entities, in culling order, with Count-length contents.
 	var dm rendering.Drawable = mesh
 	var df rendering.Drawable = fps
 	var ds rendering.Drawable = sk
@@ -891,7 +720,6 @@ func TestVisibilityFillsTypedBuckets(t *testing.T) {
 		t.Errorf("SpotLights() wrong")
 	}
 
-	// Probe colours are sampled for every visible mesh kind (flat ambient).
 	if !approx(mesh.Probe.R, 0.5) || !approx(fps.Probe.G, 0.5) || !approx(sk.Probe.B, 0.5) {
 		t.Errorf("probe colours not sampled: %v %v %v", mesh.Probe.R, fps.Probe.G, sk.Probe.B)
 	}
@@ -899,7 +727,6 @@ func TestVisibilityFillsTypedBuckets(t *testing.T) {
 		t.Errorf("hidden mesh should not be probed")
 	}
 
-	// Removing clears the buckets on the next update.
 	s.RemoveEntity(mesh)
 	s.RemoveEntity(sk)
 	s.Update(16)
@@ -912,10 +739,8 @@ func TestVisibilityFillsTypedBuckets(t *testing.T) {
 }
 
 func TestRenderTransparentSortsAndUploadsLights(t *testing.T) {
-	mb, r, s := setup()
+	dev, r, s := setup()
 	s.Camera.Position.Set(0, 0, 0)
-	// Frustum planes stay zero (everything visible); give VP a clip-w row so
-	// depth sorting is exercised: w = z + 1 (camera looks down +Z).
 	vp := s.Camera.ViewProjection
 	for i := 0; i < 16; i++ {
 		vp[i] = 0
@@ -938,7 +763,7 @@ func TestRenderTransparentSortsAndUploadsLights(t *testing.T) {
 	s.AddEntity(opaque)
 	s.AddEntity(NewPointLightEntity(mathx.NewVec3(0, 1, 0), 3, []float32{1, 1, 1}, 1, nil))
 	s.Update(16)
-	mb.Reset()
+	dev.ResetFrame()
 
 	if s.Transparent().Count != 2 {
 		_, visN := s.VisibleMeshes()
@@ -951,33 +776,38 @@ func TestRenderTransparentSortsAndUploadsLights(t *testing.T) {
 
 	renderFrame(r, s)
 
-	start, end := shaderWindow(mb, "transparent")
-	if start == -1 {
-		t.Fatalf("transparent shader not bound")
+	if dev.CountDraws("transparent") != 2 {
+		t.Errorf("translucent draws = %d", dev.CountDraws("transparent"))
 	}
-	// Lighting UBO goes up right after the shader binds, before any entity draw.
-	firstDraw := mb.IndexFrom("SetUniform", "uProbeColor", start)
-	if mb.CountBetween("UpdateUBO", nil, start, firstDraw) != 1 || mb.CountBetween("BindUniformBuffer", nil, start, firstDraw) < 1 {
-		t.Errorf("lighting UBO not uploaded before translucent draws")
+	i := dev.FirstDraw("transparent")
+	if i < 0 || dev.Draws[i].Pass != "transparent" {
+		t.Fatal("transparent draws must happen in the transparent pass")
 	}
-	if mb.CountBetween("DrawIndexed", "triangles", start, end) != 2 {
-		t.Errorf("translucent draws = %d", mb.CountBetween("DrawIndexed", "triangles", start, end))
+	if !approx(r.ObjectValue(slotOf(dev.Draws[i]), 14), 50) {
+		t.Error("far glass must be drawn first (back to front)")
+	}
+	if r.Lighting.PointCount != 1 || r.Lighting.Header[4] != 1 || !approx(r.Lighting.Data[1], 1) {
+		t.Errorf("lighting data must hold the point light: count=%d header=%v", r.Lighting.PointCount, r.Lighting.Header)
+	}
+	// Opaque glass-less mesh is excluded from the translucent draw list but
+	// drawn in the gbuffer.
+	if dev.CountDraws("geometry") != 1 {
+		t.Errorf("opaque geometry draws = %d", dev.CountDraws("geometry"))
 	}
 
-	// No translucent meshes -> transparent shader never bound.
 	s.RemoveEntity(nearG)
 	s.RemoveEntity(farG)
 	s.Update(16)
-	mb.Reset()
+	dev.ResetFrame()
 	renderFrame(r, s)
-	if s.Transparent().Count != 0 || mb.IndexOf("BindShader", "transparent") != -1 {
+	if s.Transparent().Count != 0 || dev.CountDraws("transparent") != 0 || dev.PassIndex("transparent") >= 0 {
 		t.Errorf("expected transparent pass skip")
 	}
 }
 
 func TestBillboardAndParticles(t *testing.T) {
-	mb, r, s := setup()
-	tex := rendering.NewTexture(mb, &rendering.TextureDescriptor{Width: 4, Height: 4, Format: "rgba8"})
+	dev, r, s := setup()
+	tex := rendering.NewTexture(testBE, &rendering.TextureDescriptor{Width: 4, Height: 4})
 	bb := NewAnimatedBillboardEntity(mathx.NewVec3(0, 1, 0), &BillboardConfig{
 		Texture: tex, Duration: 100, GridSize: 2, FrameCount: 4, Scale: 2,
 	})
@@ -992,42 +822,103 @@ func TestBillboardAndParticles(t *testing.T) {
 	}
 
 	s.Update(30)
-	mb.Reset()
+	dev.ResetFrame()
 	renderFrame(r, s)
 
-	if mb.IndexOf("BindShader", "billboard") == -1 || mb.CountArg("SetUniform", "uFrameOffset") != 1 {
-		t.Errorf("billboard shader/uniforms missing")
+	bi := dev.FirstDraw("billboard")
+	if bi < 0 {
+		t.Fatal("billboard pipeline never drew")
 	}
-	if mb.IndexOf("BindShader", "instancedBillboard") == -1 || mb.CountArg("DrawInstanced", 2) != 1 {
-		t.Errorf("particles should draw 2 instances")
+	bs := slotOf(dev.Draws[bi])
+	if !approx(r.ObjectValue(bs, offParams0+2), 0.5) || !approx(r.ObjectValue(bs, offParams1), 1) {
+		t.Errorf("billboard params: frame scale %v opacity %v", r.ObjectValue(bs, offParams0+2), r.ObjectValue(bs, offParams1))
 	}
-	if mb.CountArg("CreateVertexState", 6) != 1 {
-		t.Errorf("particle vertex state should have 6 attributes")
+	if dev.Draws[bi].Group1 == "" {
+		t.Error("billboard must bind its sprite group")
 	}
 
-	// Particle 1 dies at 50ms; billboard dies at 100ms.
+	// Particles: one compute dispatch covering both spawned slots, then one
+	// instanced draw of 2 instances.
+	if dev.CountDispatches("particle-update") != 1 {
+		t.Fatalf("particle dispatches = %d", dev.CountDispatches("particle-update"))
+	}
+	disp := dev.Dispatches[0]
+	ds := disp.ObjectOffset / rendering.ObjectStride
+	if disp.X != 1 || !approx(r.ObjectValue(ds, offParams0+1), 30) || !approx(r.ObjectValue(ds, offParams0+2), 2) {
+		t.Errorf("dispatch groups=%d frameMs=%v count=%v", disp.X, r.ObjectValue(ds, offParams0+1), r.ObjectValue(ds, offParams0+2))
+	}
+	pi := dev.FirstDraw("instanced-billboard")
+	if pi < 0 || dev.Draws[pi].InstanceCount != 2 {
+		t.Errorf("particles should draw 2 instances")
+	}
+	if dev.LastWrittenBuffer == "" {
+		t.Error("particle records must be uploaded")
+	}
+
 	s.Update(30)
-	if pe.Count() != 1 {
-		t.Errorf("particle count = %d, want 1", pe.Count())
+	if pe.Count() != 1 || pe.SpawnedCount() != 2 {
+		t.Errorf("particle count = %d spawned=%d, want 1/2", pe.Count(), pe.SpawnedCount())
+	}
+	// Dead slots are still dispatched/drawn (GPU zero-sizes them); the banked
+	// time carries into the next simulate.
+	dev.ResetFrame()
+	renderFrame(r, s)
+	ds = dev.Dispatches[0].ObjectOffset / rendering.ObjectStride
+	if !approx(r.ObjectValue(ds, offParams0+1), 30) {
+		t.Errorf("banked frame time = %v", r.ObjectValue(ds, offParams0+1))
 	}
 	s.Update(50)
 	if s.EntityCount() != 1 {
 		t.Errorf("billboard should be removed after duration, count=%d", s.EntityCount())
 	}
+	before := dev.LiveBuffers()
 	s.Update(1000)
 	if s.EntityCount() != 0 {
 		t.Errorf("empty emitter should remove itself, count=%d", s.EntityCount())
 	}
+	if dev.LiveBuffers() != before-3 {
+		t.Errorf("emitter dispose must free particle, instance and curve buffers (%d -> %d)", before, dev.LiveBuffers())
+	}
+}
+
+func TestParticleEmitterGrowsGPUBuffers(t *testing.T) {
+	dev, r, s := setup()
+	tex := rendering.NewTexture(testBE, &rendering.TextureDescriptor{Width: 1, Height: 1})
+	pe := NewParticleEmitterEntity(tex, nil, nil)
+	for i := 0; i < particleInitialCapacity; i++ {
+		pe.AddParticle(mathx.NewVec3(0, 0, 0), mathx.NewVec3(0, 1, 0), 5000, 1, 0, 0)
+	}
+	s.AddEntity(pe)
+	s.Update(16)
+	renderFrame(r, s)
+	capBefore := pe.gpuCapacity
+	live := dev.LiveBuffers()
+	for i := 0; i < 4; i++ {
+		pe.AddParticle(mathx.NewVec3(0, 0, 0), mathx.NewVec3(0, 1, 0), 5000, 1, 0, 0)
+	}
+	s.Update(16)
+	renderFrame(r, s)
+	if pe.gpuCapacity <= capBefore || pe.gpuCapacity < pe.SpawnedCount() {
+		t.Errorf("capacity %d -> %d for %d particles", capBefore, pe.gpuCapacity, pe.SpawnedCount())
+	}
+	if dev.LiveBuffers() != live {
+		t.Errorf("growth must release the old buffers: %d -> %d live", live, dev.LiveBuffers())
+	}
+	d := dev.Dispatches[len(dev.Dispatches)-1]
+	wantGroups := (pe.SpawnedCount() + particleWorkgroup - 1) / particleWorkgroup
+	if d.X != wantGroups {
+		t.Errorf("dispatch groups = %d, want %d", d.X, wantGroups)
+	}
 }
 
 func TestRenderDebugTogglesAndColors(t *testing.T) {
-	mb, r, s := setup()
+	dev, r, s := setup()
 	s.AddEntity(meshAt(0, 0, 0))
 	s.AddEntity(NewPointLightEntity(mathx.NewVec3(0, 2, 0), 4, []float32{1, 1, 1}, 1, nil))
 	sk := NewSkinnedMeshEntity(mathx.NewVec3(0, 0, 0), skinnedQuad(), testSkeleton(), nil, 1)
 	s.AddEntity(sk)
 	s.Update(16)
-	mb.Reset()
+	dev.ResetFrame()
 
 	opts := r.Debug
 	opts.ShowBoundingVolumes = false
@@ -1035,30 +926,59 @@ func TestRenderDebugTogglesAndColors(t *testing.T) {
 	opts.ShowLightVolumes = false
 	opts.ShowSkeleton = false
 	renderFrame(r, s)
-	if mb.IndexOf("BindShader", "debug") != -1 || mb.IndexOf("BindShader", "skinnedDebug") != -1 {
+	if dev.PassIndex("debug") >= 0 {
 		t.Fatalf("debug pass should be a no-op when disabled")
 	}
-	mb.Reset()
+	dev.ResetFrame()
 
 	opts.ShowBoundingVolumes = true
 	opts.ShowWireframes = true
 	opts.ShowLightVolumes = true
 	opts.ShowSkeleton = true
 	renderFrame(r, s)
-	if mb.IndexOf("BindShader", "debug") == -1 {
-		t.Errorf("debug shader not bound")
+	if dev.PassIndex("debug") < 0 || dev.CountDraws("debug") == 0 {
+		t.Fatalf("debug pass not drawn")
 	}
-	if mb.CountArg("SetUniform", "debugColor") < 4 {
-		t.Errorf("debugColor set %d times", mb.CountArg("SetUniform", "debugColor"))
+	if dev.CountDraws("skinned-debug") != 1 {
+		t.Errorf("skinned wireframe should use skinned-debug once, got %d", dev.CountDraws("skinned-debug"))
 	}
-	if mb.CountArg("DrawIndexed", "lines") < 5 {
-		t.Errorf("line draws = %d", mb.CountArg("DrawIndexed", "lines"))
+	// 3 bounds (mesh, light, skinned) + mesh wireframe + skinned wireframe + light volume + skeleton.
+	if n := dev.CountDraws("debug") + dev.CountDraws("skinned-debug"); n < 7 {
+		t.Errorf("debug draws = %d", n)
 	}
-	if mb.IndexOf("BindShader", "skinnedDebug") == -1 {
-		t.Errorf("skinned wireframe should use skinnedDebug")
+	// Colours: bounds red for meshes, yellow for lights, magenta for skinned;
+	// wireframes white; light volumes yellow; skeleton green.
+	seen := map[string]bool{}
+	for _, d := range dev.Draws {
+		if d.Pipeline != "debug" && d.Pipeline != "skinned-debug" {
+			continue
+		}
+		sl := slotOf(d)
+		key := ""
+		rr := r.ObjectValue(sl, offParams0)
+		gg := r.ObjectValue(sl, offParams0+1)
+		bb := r.ObjectValue(sl, offParams0+2)
+		switch {
+		case rr == 1 && gg == 1 && bb == 1:
+			key = "white"
+		case rr == 1 && gg == 1 && bb == 0:
+			key = "yellow"
+		case rr == 1 && gg == 0 && bb == 0:
+			key = "red"
+		case rr == 1 && gg == 0 && bb == 1:
+			key = "magenta"
+		case rr == 0 && gg == 1 && bb == 0:
+			key = "green"
+		}
+		seen[key] = true
 	}
-	if mb.Count("UpdateBuffer") != 1 {
-		t.Errorf("skeleton vertices should upload once, got %d", mb.Count("UpdateBuffer"))
+	for _, k := range []string{"white", "yellow", "red", "magenta", "green"} {
+		if !seen[k] {
+			t.Errorf("debug colour %s never used", k)
+		}
+	}
+	if dev.PassIndex("debug") < dev.PassIndex("postprocess") {
+		t.Error("debug overlay must draw after post-processing")
 	}
 }
 
@@ -1068,7 +988,6 @@ func TestSkinnedEntityAnimationDrivesBones(t *testing.T) {
 	sk := NewSkinnedMeshEntity(mathx.NewVec3(0, 0, 0), skinnedQuad(), skel, nil, 1)
 	s.AddEntity(sk)
 
-	// One-frame clip moving the root up by 2.
 	pose := animation.NewPose(2)
 	pose.SetBindPose(skel)
 	pose.SetJointTransform(0, 0, 2, 0, 0, 0, 0, 1)
@@ -1086,7 +1005,7 @@ func TestSkinnedEntityAnimationDrivesBones(t *testing.T) {
 }
 
 func TestSceneUpdateAndRenderNoGrowth(t *testing.T) {
-	mb, r, s := setup()
+	dev, r, s := setup()
 	floor := NewMeshEntity(TypeMesh, mathx.NewVec3(0, 0, 0), unitQuad("none"), nil, 100)
 	s.AddEntity(floor)
 	s.AddStaticGeometry(floor)
@@ -1099,9 +1018,13 @@ func TestSceneUpdateAndRenderNoGrowth(t *testing.T) {
 	s.AddEntity(NewPointLightEntity(mathx.NewVec3(0, 2, 0), 4, []float32{1, 1, 1}, 1, nil))
 	s.AddEntity(NewSpotLightEntity(mathx.NewVec3(0, 5, 0), mathx.NewVec3(0, -1, 0), []float32{1, 1, 1}, 1, 30, 20, nil))
 	s.AddEntity(NewSkinnedMeshEntity(mathx.NewVec3(2, 2, 0), skinnedQuad(), testSkeleton(), nil, 1))
-	mb.Recording = false
+	tex := rendering.NewTexture(testBE, &rendering.TextureDescriptor{Width: 1, Height: 1})
+	pe := NewParticleEmitterEntity(tex, nil, nil)
+	pe.AddParticle(mathx.NewVec3(0, 0, 0), mathx.NewVec3(0, 1, 0), 1e9, 1, 0, 0)
+	s.AddEntity(pe)
 
 	frame := func() {
+		dev.ResetFrame()
 		s.Update(16)
 		renderFrame(r, s)
 	}
@@ -1113,11 +1036,15 @@ func TestSceneUpdateAndRenderNoGrowth(t *testing.T) {
 		frame()
 	}
 	before := size()
+	buffers := len(dev.Buffers)
+	groups := len(dev.BindGroups)
 	for i := 0; i < 50; i++ {
 		frame()
 	}
-	after := size()
-	if before != after {
+	if after := size(); before != after {
 		t.Errorf("per-frame buffers grew: %d -> %d", before, after)
+	}
+	if len(dev.Buffers) != buffers || len(dev.BindGroups) != groups {
+		t.Errorf("steady-state frames must not create GPU resources: buffers %d -> %d, bind groups %d -> %d", buffers, len(dev.Buffers), groups, len(dev.BindGroups))
 	}
 }

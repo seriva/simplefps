@@ -143,25 +143,7 @@ func (ui *UIManager) Mount() {
 			}
 			target := e.target
 			id := target.id
-			if id == "setting-renderer" {
-				val := target.value == "true"
-				if systems.ActiveSettings.UseWebGPU != val {
-					ui.ShowDialog(
-						Translate("RENDERER"),
-						Translate("RELOAD_CONFIRM"),
-						func() {
-							systems.ActiveSettings.UseWebGPU = val
-							systems.ActiveSettings.Save()
-							if location != nil && location.reload != nil {
-								location.reload()
-							}
-						},
-						func() {
-							ui.renderCurrentMenu()
-						},
-					)
-				}
-			} else if id == "setting-fsr" {
+			if id == "setting-fsr" {
 				systems.ActiveSettings.DoFSR = target.checked
 				systems.ActiveSettings.Save()
 			} else if id == "setting-procedural-detail" {
@@ -239,14 +221,8 @@ func (ui *UIManager) renderCurrentMenu() {
 	switch ui.currentMenu {
 	case "SETTINGS_MENU":
 		headerText = Translate("SETTINGS")
-		hasGPU := false
-		if navigator != nil && navigator.gpu != nil {
-			hasGPU = true
-		}
 		gom.Mount("#menu-controls", SettingsMenuContent(
 			ui.activeTab,
-			systems.ActiveSettings.UseWebGPU,
-			hasGPU,
 			systems.ActiveSettings.RenderScale,
 			systems.ActiveSettings.Gamma,
 			systems.ActiveSettings.DoFSR,

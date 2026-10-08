@@ -13,13 +13,7 @@ export default defineConfig({
 		actionTimeout: 10000,
 		viewport: { width: 1280, height: 720 },
 		launchOptions: {
-			// Headless Chromium has no WebGPU; force a software GL context so the
-			// WebGL2 backend can render.
-			args: [
-				"--use-gl=angle",
-				"--use-angle=swiftshader",
-				"--ignore-gpu-blocklist",
-			],
+			args: ["--enable-unsafe-webgpu", "--ignore-gpu-blocklist"],
 		},
 	},
 	webServer: {

@@ -14,41 +14,12 @@ type CameraView struct {
 	InverseViewProjection mathx.Mat4
 }
 
-// GBuffer holds the render targets and textures for deferred geometry.
+// GBuffer holds the deferred geometry targets.
 type GBuffer struct {
-	Framebuffer   any
 	WorldPosition *Texture
 	Normal        *Texture
 	Color         *Texture
 	Emissive      *Texture
-}
-
-// ShadowBuffer stores the shadow mask texture and its blur target.
-type ShadowBuffer struct {
-	Framebuffer any
-	BlurFB      any
-	Shadow      *Texture
-	Width       int
-	Height      int
-}
-
-// LightBuffer stores accumulated scene illumination.
-type LightBuffer struct {
-	Framebuffer any
-	BlurFB      any
-	Light       *Texture
-}
-
-// ScratchBuffer provides the ping-pong render target for post-processing and blur.
-type ScratchBuffer struct {
-	Framebuffer any
-	Color       *Texture
-}
-
-// FSRBuffer holds targets for FidelityFX Super Resolution passes.
-type FSRBuffer struct {
-	Framebuffer any
-	EASU        *Texture
 }
 
 // FrameDataSize is the std140 size of the FrameData UBO in bytes (72 floats).
@@ -57,100 +28,184 @@ const FrameDataSize = 288
 // frameData is the persistent staging buffer for the FrameData UBO.
 var frameData = make([]float32, 72)
 
-// Renderer drives the multi-pass deferred rendering pipeline and owns every
-// GPU-side singleton (shader catalog, primitive shapes, per-frame stats).
+// RenderStats records per-frame geometry and lighting metrics.
+type RenderStats struct {
+	MeshCount     int
+	LightCount    int
+	TriangleCount int
+	DrawCalls     int
+}
+
+// Reset zeroes the metrics; Renderer.Render calls it at the start of a frame.
+func (s *RenderStats) Reset() {
+	s.MeshCount = 0
+	s.LightCount = 0
+	s.TriangleCount = 0
+	s.DrawCalls = 0
+}
+
+// DebugRenderOptions controls overlay visualizations.
+type DebugRenderOptions struct {
+	ShowBoundingVolumes bool
+	ShowWireframes      bool
+	ShowLightVolumes    bool
+	ShowSkeleton        bool
+}
+
+// RenderOptions is the per-frame snapshot of the Settings the passes read.
+// The engine fills it once per frame; it is the only path settings take into
+// the renderer.
+type RenderOptions struct {
+	ProceduralDetail     bool
+	LightBlurIterations  int
+	EmissiveIterations   int
+	EmissiveOffset       float32
+	EmissiveMult         float32
+	Gamma                float32
+	DoDirt               bool
+	DirtIntensity        float32
+	ShadowIntensity      float32
+	DoFSR                bool
+	FsrSharpness         float32
+	// Dirt is the lens-dirt overlay ("system/dirt.webp"); nil binds white.
+	Dirt *Texture
+}
+
+// Renderer drives the deferred pipeline: it owns the pipelines, bind group
+// layouts, render targets, the per-draw ObjectData ring and the pass
+// descriptors. Entities draw through Pass/Object* helpers only.
 type Renderer struct {
-	Backend RenderBackend
-	Shaders *ShaderCatalog
-	Shapes  *Shapes
+	Backend   *Backend
+	Layouts   *Layouts
+	Pipelines *Pipelines
+	Shapes    *Shapes
 	// Stats is reset at the start of every Render call. Pointer rather than
 	// value: GoFront clones struct-typed fields on read.
-	Stats *RenderStats
-	Debug *DebugRenderOptions
-	Width   int
-	Height  int
-	DoFSR   bool
+	Stats  *RenderStats
+	Debug  *DebugRenderOptions
+	Width  int
+	Height int
+	DoFSR  bool
 	// ProceduralDetail mirrors RenderOptions.ProceduralDetail for the current
 	// frame so scene passes never read settings directly.
 	ProceduralDetail bool
 
-	// Depth is shared by the G-buffer, shadow FB and light FB.
-	Depth         *Texture
-	GBuffer       GBuffer
-	EmissiveFB    any
-	ShadowBuffer  ShadowBuffer
-	LightBuffer   LightBuffer
-	ScratchBuffer ScratchBuffer
-	FSRBuffer     FSRBuffer
+	// Depth is shared by the G-buffer, shadow and transparent passes.
+	Depth    *Texture
+	GBuffer  GBuffer
+	Shadow   *Texture
+	Light    *Texture
+	Scratch  *Texture
+	FsrEasu  *Texture
+	FsrWidth int
+	FsrHeight int
 
 	ProceduralNoise *Texture
+	// DefaultMaterial is bound for index groups without a material.
+	DefaultMaterial *Material
 
-	FrameDataUBO any
-	LightingUBO  any
+	FrameDataUBO GPUBuffer
+	frameBG      GPUBindGroup
+	Objects      *ObjectRing
+	Bones        *BoneRing
+	Lighting     *LightingData
 
-	// Per-frame light ordering and the LightingData staging buffer.
+	objectBG        GPUBindGroup
+	skinnedObjectBG GPUBindGroup
+	lightingBG      GPUBindGroup
+	emptyBG         GPUBindGroup
+
+	// Pass is the open render pass encoder (nil between passes).
+	Pass GPURenderPassEncoder
+	// pipeline is the pass's requested pipeline; bound* track encoder state
+	// so redundant set* calls are skipped.
+	pipeline        *Pipeline
+	boundPipeline   GPURenderPipeline
+	boundMaterialBG GPUBindGroup
+	boundIndex      GPUBuffer
+	boundVertex     []GPUBuffer
+
+	passes *passResources
+
+	// Per-frame light ordering.
 	pointSorter *LightSorter
 	spotSorter  *LightSorter
-	lighting    *LightingData
 	identity    mathx.Mat4
-
-	blurSource   *Texture
-	blurSourceFB any
-	fsrCon0      []float32
+	// debugColor is the params0 colour wireframe/skeleton draws use.
+	debugColor []float32
 }
 
 // NewRenderer creates an uninitialized Renderer tied to the specified backend.
-// Call InitShaders and InitShapes before Init.
-func NewRenderer(backend RenderBackend) *Renderer {
+// Call Init before rendering.
+func NewRenderer(backend *Backend) *Renderer {
 	return &Renderer{
 		Backend:     backend,
-		Shaders:     NewShaderCatalog(),
 		Shapes:      &Shapes{},
 		Stats:       &RenderStats{},
 		Debug:       &DebugRenderOptions{},
+		Objects:     newObjectRing(),
+		Bones:       newBoneRing(),
+		Lighting:    NewLightingData(),
 		pointSorter: NewLightSorter(64),
 		spotSorter:  NewLightSorter(64),
-		lighting:    NewLightingData(),
 		identity:    mathx.NewMat4(),
-		fsrCon0:     make([]float32, 4),
+		debugColor:  debugWhite,
+		boundVertex: make([]GPUBuffer, 8),
 	}
 }
 
-// InitShaders compiles the shader catalog on the backend.
-func (r *Renderer) InitShaders() {
-	if r.Backend != nil {
-		r.Backend.InitShaders(r.Shaders)
-	}
+// Ready reports whether Init completed against a live device.
+func (r *Renderer) Ready() bool {
+	return r.Pipelines != nil
 }
 
-// InitShapes builds the shared primitive meshes on the backend.
-func (r *Renderer) InitShapes() {
-	r.Shapes.Init(r.Backend)
-}
-
-// Init sets up render buffers and UBOs according to viewport dimensions.
+// Init creates layouts, pipelines, persistent buffers, shapes and the
+// render targets for the given viewport.
 func (r *Renderer) Init(width, height int, doFSR bool) {
-	if r.Backend == nil {
+	if r.Backend == nil || !r.Backend.ready {
 		return
 	}
+	b := r.Backend
 	r.Width = width
 	r.Height = height
 	r.DoFSR = doFSR
-	r.AllocateBuffers(doFSR)
 
-	if r.FrameDataUBO == nil {
-		r.FrameDataUBO = r.Backend.CreateUBO(FrameDataSize, 0)
-		r.Backend.BindUniformBuffer(r.FrameDataUBO)
-	}
-	if r.LightingUBO == nil {
-		r.LightingUBO = r.Backend.CreateUBO(LightingDataSize*4, 2)
-	}
+	r.createLayouts()
+
+	r.FrameDataUBO = b.CreateBuffer("frame-data", FrameDataSize, BufferUsageUniform, nil)
+	r.frameBG = b.CreateBindGroup("frame", r.Layouts.Frame, []any{
+		bindingEntry(0, bufferBinding(r.FrameDataUBO, FrameDataSize)),
+	})
+
+	r.Objects.Buffer = b.CreateBuffer("object-ring", ObjectRingSlots*ObjectStride, BufferUsageUniform, nil)
+	r.Bones.Buffer = b.CreateBuffer("bone-ring", BoneRingFloats*4, BufferUsageStorage, nil)
+	r.objectBG = b.CreateBindGroup("object", r.Layouts.Object, []any{
+		bindingEntry(0, bufferBinding(r.Objects.Buffer, ObjectStride)),
+	})
+	r.skinnedObjectBG = b.CreateBindGroup("skinned-object", r.Layouts.SkinnedObject, []any{
+		bindingEntry(0, bufferBinding(r.Objects.Buffer, ObjectStride)),
+		bindingEntry(1, bufferBinding(r.Bones.Buffer, BoneRingFloats*4)),
+	})
+
+	r.Lighting.HeaderBuf = b.CreateBuffer("lighting-header", LightingDataFloats*4, BufferUsageUniform, nil)
+	r.Lighting.LightsBuf = b.CreateBuffer("lights", MaxSceneLights*LightFloats*4, BufferUsageStorage, nil)
+	r.lightingBG = b.CreateBindGroup("lighting", r.Layouts.Lighting, []any{
+		bindingEntry(0, bufferBinding(r.Lighting.HeaderBuf, LightingDataFloats*4)),
+		bindingEntry(1, bufferBinding(r.Lighting.LightsBuf, MaxSceneLights*LightFloats*4)),
+	})
+	r.emptyBG = b.CreateBindGroup("empty", r.Layouts.Empty, []any{})
+
+	r.createPipelines()
+	r.ProceduralNoise = NewProceduralNoiseTexture(b, DefaultAnisotropy)
+	r.DefaultMaterial = NewMaterial(b, "default")
+	r.Shapes.Init(b)
+	r.AllocateBuffers(doFSR)
 }
 
-// AllocateBuffers allocates the G-buffer, shadow, light, scratch and (optionally) FSR
-// targets at the current Width/Height; called from Init and Resize.
+// AllocateBuffers (re)creates the render targets and pass descriptors at
+// the current Width/Height; called from Init and Resize.
 func (r *Renderer) AllocateBuffers(doFSR bool) {
-	if r.Backend == nil || r.Width <= 0 || r.Height <= 0 {
+	if !r.Ready() || r.Width <= 0 || r.Height <= 0 {
 		return
 	}
 	r.DisposeBuffers()
@@ -159,85 +214,30 @@ func (r *Renderer) AllocateBuffers(doFSR bool) {
 	h := r.Height
 	b := r.Backend
 
-	r.Depth = NewTexture(b, &TextureDescriptor{Width: w, Height: h, Format: "depth24"})
+	r.Depth = NewRenderTarget(b, "depth", w, h, FormatDepth, false)
+	r.GBuffer.WorldPosition = NewRenderTarget(b, "gbuffer-position", w, h, FormatRGBA16F, false)
+	r.GBuffer.Normal = NewRenderTarget(b, "gbuffer-normal", w, h, FormatRGBA8, false)
+	r.GBuffer.Color = NewRenderTarget(b, "gbuffer-color", w, h, FormatRGBA8, false)
+	r.GBuffer.Emissive = NewRenderTarget(b, "gbuffer-emissive", w, h, FormatRGBA8, true)
+	r.Shadow = NewRenderTarget(b, "shadow", w, h, FormatR8, false)
+	r.Light = NewRenderTarget(b, "light", w, h, FormatRGBA8, true)
+	r.Scratch = NewRenderTarget(b, "scratch", w, h, FormatRGBA8, true)
 
-	r.GBuffer.WorldPosition = NewTexture(b, &TextureDescriptor{Width: w, Height: h, Format: "rgba16f"})
-	r.GBuffer.Normal = NewTexture(b, &TextureDescriptor{Width: w, Height: h, Format: "rgba8"})
-	r.GBuffer.Color = NewTexture(b, &TextureDescriptor{Width: w, Height: h, Format: "rgba8"})
-	r.GBuffer.Emissive = NewTexture(b, &TextureDescriptor{Width: w, Height: h, Format: "rgba8"})
-
-	r.GBuffer.Framebuffer = r.Backend.CreateFramebuffer(&FramebufferDescriptor{
-		ColorAttachments: []any{
-			r.GBuffer.WorldPosition.GetHandle(),
-			r.GBuffer.Normal.GetHandle(),
-			r.GBuffer.Color.GetHandle(),
-			r.GBuffer.Emissive.GetHandle(),
-		},
-		DepthAttachment: r.Depth.GetHandle(),
-		Width:           w,
-		Height:          h,
-	})
-	r.EmissiveFB = r.Backend.CreateFramebuffer(&FramebufferDescriptor{
-		ColorAttachments: []any{r.GBuffer.Emissive.GetHandle()},
-		Width:            w,
-		Height:           h,
-	})
-
-	r.ShadowBuffer.Width = w
-	r.ShadowBuffer.Height = h
-	r.ShadowBuffer.Shadow = NewTexture(b, &TextureDescriptor{Width: w, Height: h, Format: "r8"})
-	r.ShadowBuffer.Framebuffer = r.Backend.CreateFramebuffer(&FramebufferDescriptor{
-		ColorAttachments: []any{r.ShadowBuffer.Shadow.GetHandle()},
-		DepthAttachment:  r.Depth.GetHandle(),
-		Width:            w,
-		Height:           h,
-	})
-	r.ShadowBuffer.BlurFB = r.Backend.CreateFramebuffer(&FramebufferDescriptor{
-		ColorAttachments: []any{r.ShadowBuffer.Shadow.GetHandle()},
-		Width:            w,
-		Height:           h,
-	})
-
-	r.LightBuffer.Light = NewTexture(b, &TextureDescriptor{Width: w, Height: h, Format: "rgba8"})
-	r.LightBuffer.Framebuffer = r.Backend.CreateFramebuffer(&FramebufferDescriptor{
-		ColorAttachments: []any{r.LightBuffer.Light.GetHandle()},
-		DepthAttachment:  r.Depth.GetHandle(),
-		Width:            w,
-		Height:           h,
-	})
-	r.LightBuffer.BlurFB = r.Backend.CreateFramebuffer(&FramebufferDescriptor{
-		ColorAttachments: []any{r.LightBuffer.Light.GetHandle()},
-		Width:            w,
-		Height:           h,
-	})
-
-	r.ScratchBuffer.Color = NewTexture(b, &TextureDescriptor{Width: w, Height: h, Format: "rgba8"})
-	r.ScratchBuffer.Framebuffer = r.Backend.CreateFramebuffer(&FramebufferDescriptor{
-		ColorAttachments: []any{r.ScratchBuffer.Color.GetHandle()},
-		Width:            w,
-		Height:           h,
-	})
-
-	if r.ProceduralNoise == nil {
-		r.ProceduralNoise = NewProceduralNoiseTexture(b, DefaultAnisotropy)
-	}
-
+	r.FsrEasu = nil
 	if doFSR {
-		nw := r.Backend.GetNativeWidth()
-		nh := r.Backend.GetNativeHeight()
+		nw := b.GetNativeWidth()
+		nh := b.GetNativeHeight()
 		if nw < 1 {
 			nw = 1
 		}
 		if nh < 1 {
 			nh = 1
 		}
-		r.FSRBuffer.EASU = NewTexture(b, &TextureDescriptor{Width: nw, Height: nh, Format: "rgba8"})
-		r.FSRBuffer.Framebuffer = r.Backend.CreateFramebuffer(&FramebufferDescriptor{
-			ColorAttachments: []any{r.FSRBuffer.EASU.GetHandle()},
-			Width:            nw,
-			Height:           nh,
-		})
+		r.FsrWidth = nw
+		r.FsrHeight = nh
+		r.FsrEasu = NewRenderTarget(b, "fsr-easu", nw, nh, FormatRGBA8, false)
 	}
+	r.buildPassResources()
 }
 
 // Resize handles window or render scale changes.
@@ -253,13 +253,6 @@ func (r *Renderer) Resize(width, height int, doFSR bool) {
 	r.AllocateBuffers(doFSR)
 }
 
-func (r *Renderer) deleteFB(fb any) any {
-	if fb != nil {
-		r.Backend.DeleteFramebuffer(fb)
-	}
-	return nil
-}
-
 func disposeTex(t *Texture) *Texture {
 	if t != nil {
 		t.Dispose()
@@ -267,29 +260,18 @@ func disposeTex(t *Texture) *Texture {
 	return nil
 }
 
-// DisposeBuffers frees allocated textures and framebuffers.
+// DisposeBuffers frees the render targets.
 func (r *Renderer) DisposeBuffers() {
-	if r.Backend == nil {
-		return
-	}
-	r.GBuffer.Framebuffer = r.deleteFB(r.GBuffer.Framebuffer)
-	r.EmissiveFB = r.deleteFB(r.EmissiveFB)
-	r.ShadowBuffer.Framebuffer = r.deleteFB(r.ShadowBuffer.Framebuffer)
-	r.ShadowBuffer.BlurFB = r.deleteFB(r.ShadowBuffer.BlurFB)
-	r.LightBuffer.Framebuffer = r.deleteFB(r.LightBuffer.Framebuffer)
-	r.LightBuffer.BlurFB = r.deleteFB(r.LightBuffer.BlurFB)
-	r.ScratchBuffer.Framebuffer = r.deleteFB(r.ScratchBuffer.Framebuffer)
-	r.FSRBuffer.Framebuffer = r.deleteFB(r.FSRBuffer.Framebuffer)
-
 	r.Depth = disposeTex(r.Depth)
 	r.GBuffer.WorldPosition = disposeTex(r.GBuffer.WorldPosition)
 	r.GBuffer.Normal = disposeTex(r.GBuffer.Normal)
 	r.GBuffer.Color = disposeTex(r.GBuffer.Color)
 	r.GBuffer.Emissive = disposeTex(r.GBuffer.Emissive)
-	r.ShadowBuffer.Shadow = disposeTex(r.ShadowBuffer.Shadow)
-	r.LightBuffer.Light = disposeTex(r.LightBuffer.Light)
-	r.ScratchBuffer.Color = disposeTex(r.ScratchBuffer.Color)
-	r.FSRBuffer.EASU = disposeTex(r.FSRBuffer.EASU)
+	r.Shadow = disposeTex(r.Shadow)
+	r.Light = disposeTex(r.Light)
+	r.Scratch = disposeTex(r.Scratch)
+	r.FsrEasu = disposeTex(r.FsrEasu)
+	r.passes = nil
 }
 
 // Dispose shuts down the renderer and deletes all GPU allocations, including
@@ -297,28 +279,35 @@ func (r *Renderer) DisposeBuffers() {
 func (r *Renderer) Dispose() {
 	r.DisposeBuffers()
 	r.Shapes.Dispose()
-	if r.Backend != nil {
-		r.ProceduralNoise = disposeTex(r.ProceduralNoise)
-		if r.FrameDataUBO != nil {
-			r.Backend.DeleteUBO(r.FrameDataUBO)
-			r.FrameDataUBO = nil
-		}
-		if r.LightingUBO != nil {
-			r.Backend.DeleteUBO(r.LightingUBO)
-			r.LightingUBO = nil
-		}
+	if r.Backend == nil {
+		return
 	}
+	b := r.Backend
+	r.ProceduralNoise = disposeTex(r.ProceduralNoise)
+	if r.DefaultMaterial != nil {
+		r.DefaultMaterial.Dispose()
+	}
+	b.DestroyBuffer(r.FrameDataUBO)
+	r.FrameDataUBO = nil
+	b.DestroyBuffer(r.Objects.Buffer)
+	r.Objects.Buffer = nil
+	b.DestroyBuffer(r.Bones.Buffer)
+	r.Bones.Buffer = nil
+	b.DestroyBuffer(r.Lighting.HeaderBuf)
+	b.DestroyBuffer(r.Lighting.LightsBuf)
+	r.Lighting.HeaderBuf = nil
+	r.Lighting.LightsBuf = nil
+	r.Pipelines = nil
 }
 
 // UpdateFrameDataUBO uploads view/projection matrices, camera position + time,
 // and the viewport vec4 (width, height, proceduralDetail flag, 0).
 func (r *Renderer) UpdateFrameDataUBO(camera *CameraView, time float32, proceduralDetail bool) {
-	if r.FrameDataUBO == nil || r.Backend == nil || camera == nil {
+	if r.FrameDataUBO == nil || camera == nil {
 		return
 	}
-	PackFrameData(frameData, camera, time, float32(r.Backend.GetWidth()), float32(r.Backend.GetHeight()), proceduralDetail)
-	r.Backend.UpdateUBO(r.FrameDataUBO, frameData, 0)
-	r.Backend.BindUniformBuffer(r.FrameDataUBO)
+	PackFrameData(frameData, camera, time, float32(r.Width), float32(r.Height), proceduralDetail)
+	r.Backend.WriteBuffer(r.FrameDataUBO, 0, frameData)
 }
 
 // PackFrameData writes the FrameData std140 layout into out (len >= 72).
@@ -342,6 +331,100 @@ func PackFrameData(out []float32, camera *CameraView, time float32, width, heigh
 		out[70] = 0.0
 	}
 	out[71] = 0.0
+}
+
+// ---------------------------------------------------------------------------
+// Encoder state helpers used by Mesh/SkinnedMesh and the passes.
+// ---------------------------------------------------------------------------
+
+// SetPipeline selects the pipeline subsequent draws use.
+func (r *Renderer) SetPipeline(p *Pipeline) {
+	r.pipeline = p
+}
+
+func (r *Renderer) usePipeline(p *Pipeline) {
+	if p == nil || p.GPU == r.boundPipeline {
+		return
+	}
+	r.Pass.setPipeline(p.GPU)
+	r.boundPipeline = p.GPU
+}
+
+// BindMaterial sets group 1 to mat's bind group when it differs from the
+// bound one.
+func (r *Renderer) BindMaterial(mat *Material) {
+	bg := mat.BindGroup(r)
+	if bg == nil || bg == r.boundMaterialBG {
+		return
+	}
+	r.Pass.setBindGroup(GroupMaterial, bg, noOffsets)
+	r.boundMaterialBG = bg
+}
+
+// BindGroup1 sets an arbitrary group-1 bind group (pass inputs).
+func (r *Renderer) BindGroup1(bg GPUBindGroup) {
+	if bg == r.boundMaterialBG {
+		return
+	}
+	r.Pass.setBindGroup(GroupMaterial, bg, noOffsets)
+	r.boundMaterialBG = bg
+}
+
+// bindObject points group 2 at the current ObjectData slot.
+func (r *Renderer) bindObject() {
+	o := r.Objects
+	o.offsets[0] = o.cur * ObjectStride
+	r.Pass.setBindGroup(GroupObject, r.pipeline.ObjectBG, o.offsets)
+}
+
+func (r *Renderer) setVertexBuffer(slot int, buf GPUBuffer) {
+	if buf == nil || r.boundVertex[slot] == buf {
+		return
+	}
+	r.Pass.setVertexBuffer(slot, buf)
+	r.boundVertex[slot] = buf
+}
+
+func (r *Renderer) setIndexBuffer(buf GPUBuffer) {
+	if buf == r.boundIndex {
+		return
+	}
+	r.Pass.setIndexBuffer(buf, "uint32")
+	r.boundIndex = buf
+}
+
+// beginPass opens a render pass, binds the frame data and resets the
+// redundancy trackers.
+func (r *Renderer) beginPass(desc map[string]any) {
+	r.Pass = r.Backend.Encoder.beginRenderPass(desc)
+	r.Pass.setBindGroup(GroupFrame, r.frameBG, noOffsets)
+	r.boundPipeline = nil
+	r.boundMaterialBG = nil
+	r.boundIndex = nil
+	for i := 0; i < len(r.boundVertex); i++ {
+		r.boundVertex[i] = nil
+	}
+}
+
+func (r *Renderer) endPass() {
+	if r.Pass != nil {
+		r.Pass.end()
+		r.Pass = nil
+	}
+}
+
+// viewport sets the full w×h viewport with the given depth range.
+func (r *Renderer) viewport(w, h int, minDepth, maxDepth float64) {
+	r.Pass.setViewport(0, 0, float64(w), float64(h), minDepth, maxDepth)
+}
+
+// DrawFullscreen draws a 3-vertex fullscreen triangle with the pass
+// pipeline and the current ObjectData slot.
+func (r *Renderer) DrawFullscreen() {
+	r.usePipeline(r.pipeline)
+	r.bindObject()
+	r.Pass.draw(3, 1, 0, 0)
+	r.Stats.DrawCalls++
 }
 
 // CaptureSnapshot renders one frame and returns the canvas as a JPEG data URL

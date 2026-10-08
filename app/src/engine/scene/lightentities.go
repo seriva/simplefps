@@ -12,9 +12,6 @@ var (
 	lightVolumeMatrix = mathx.NewMat4()
 	lightPos          = &mathx.Vec3{}
 	lightScaleVec     = &mathx.Vec3{}
-	lightPosRange     = make([]float32, 4)
-	lightColorInt     = make([]float32, 4)
-	lightDirCutoff    = make([]float32, 4)
 	spotForward       = &mathx.Vec3{X: 0, Y: 0, Z: -1}
 	spotRotation      = &mathx.Quat{}
 	// Local-space bounds of the unit light volumes built by rendering.Shapes
@@ -46,21 +43,19 @@ func (e *DirectionalLightEntity) Update(frameTime float32) bool {
 	return baseUpdate(e, frameTime)
 }
 
-// Draw sets the light uniforms on the bound directionalLight shader and
-// draws the screen quad.
-func (e *DirectionalLightEntity) Draw(r *rendering.Renderer, sh *rendering.Shader, mode rendering.MaterialMode) {
-	quad := r.Shapes.ScreenQuad
-	if sh == nil || quad == nil {
-		return
-	}
-	sh.SetVec3("directionalLight.direction", e.Direction)
-	sh.SetVec3("directionalLight.color", e.Color)
-	quad.RenderSingle(false, rendering.TopoTriangles, rendering.ModeAll, sh)
+// Draw writes direction/colour into params0/params1 and draws the
+// fullscreen triangle with the directional-light pipeline.
+func (e *DirectionalLightEntity) Draw(r *rendering.Renderer, mode rendering.MaterialMode) {
+	r.NextObject()
+	r.ObjectParams(0, e.Direction[0], e.Direction[1], e.Direction[2], 0)
+	r.ObjectParams(1, e.Color[0], e.Color[1], e.Color[2], 1)
+	r.DrawFullscreen()
 }
-func (e *DirectionalLightEntity) DrawShadow(r *rendering.Renderer, sh *rendering.Shader)    {}
-func (e *DirectionalLightEntity) DrawWireframe(r *rendering.Renderer, sh *rendering.Shader) {}
-func (e *DirectionalLightEntity) DrawSkeleton(r *rendering.Renderer, sh *rendering.Shader)  {}
-func (e *DirectionalLightEntity) Bounds() *mathx.BoundingBox                             { return e.Base.BoundingBox }
+func (e *DirectionalLightEntity) DrawShadow(r *rendering.Renderer)                                  {}
+func (e *DirectionalLightEntity) DrawWireframe(r *rendering.Renderer)                               {}
+func (e *DirectionalLightEntity) DrawSkeleton(r *rendering.Renderer)                                {}
+func (e *DirectionalLightEntity) Simulate(r *rendering.Renderer, pass rendering.GPUComputePassEncoder) {}
+func (e *DirectionalLightEntity) Bounds() *mathx.BoundingBox                                        { return e.Base.BoundingBox }
 func (e *DirectionalLightEntity) TriangleCount() int                                       { return 0 }
 func (e *DirectionalLightEntity) CastsShadow() bool                                        { return false }
 func (e *DirectionalLightEntity) Dispose()                                                 { baseDispose(&e.Base) }
@@ -112,38 +107,34 @@ func (e *PointLightEntity) volumeMatrix() mathx.Mat4 {
 	return lightVolumeMatrix
 }
 
-// Draw draws the point light volume with the bound pointLight shader.
-func (e *PointLightEntity) Draw(r *rendering.Renderer, sh *rendering.Shader, mode rendering.MaterialMode) {
+// Draw draws the point light volume with the point-light pipeline.
+func (e *PointLightEntity) Draw(r *rendering.Renderer, mode rendering.MaterialMode) {
 	volMesh := r.Shapes.PointLightVolume
-	if sh == nil || volMesh == nil {
+	if volMesh == nil {
 		return
 	}
 	vol := e.volumeMatrix()
-	lightPosRange[0] = lightPos.X
-	lightPosRange[1] = lightPos.Y
-	lightPosRange[2] = lightPos.Z
-	lightPosRange[3] = e.Size
-	lightColorInt[0] = e.Color[0]
-	lightColorInt[1] = e.Color[1]
-	lightColorInt[2] = e.Color[2]
-	lightColorInt[3] = e.Intensity
-	sh.SetMat4("matWorld", vol)
-	sh.SetVec4("pointLight.posRange", lightPosRange)
-	sh.SetVec4("pointLight.colorIntensity", lightColorInt)
-	volMesh.RenderSingle(false, rendering.TopoTriangles, rendering.ModeAll, sh)
+	r.NextObject()
+	r.ObjectWorld(vol)
+	r.ObjectParams(0, lightPos.X, lightPos.Y, lightPos.Z, e.Size)
+	r.ObjectParams(1, e.Color[0], e.Color[1], e.Color[2], e.Intensity)
+	volMesh.Draw(r, false, rendering.ModeAll)
 }
 
-func (e *PointLightEntity) DrawShadow(r *rendering.Renderer, sh *rendering.Shader)   {}
-func (e *PointLightEntity) DrawSkeleton(r *rendering.Renderer, sh *rendering.Shader) {}
+func (e *PointLightEntity) DrawShadow(r *rendering.Renderer)                                  {}
+func (e *PointLightEntity) DrawSkeleton(r *rendering.Renderer)                                {}
+func (e *PointLightEntity) Simulate(r *rendering.Renderer, pass rendering.GPUComputePassEncoder) {}
 
-// DrawWireframe draws the sphere volume outline with the bound debug shader.
-func (e *PointLightEntity) DrawWireframe(r *rendering.Renderer, sh *rendering.Shader) {
+// DrawWireframe draws the sphere volume outline with the debug pipeline.
+func (e *PointLightEntity) DrawWireframe(r *rendering.Renderer) {
 	volMesh := r.Shapes.PointLightVolume
-	if sh == nil || volMesh == nil {
+	if volMesh == nil {
 		return
 	}
-	sh.SetMat4("matWorld", e.volumeMatrix())
-	volMesh.RenderWireframe()
+	r.NextObject()
+	r.ObjectWorld(e.volumeMatrix())
+	r.ObjectParamsVec(0, r.DebugColor())
+	volMesh.DrawWireframe(r)
 }
 
 func (e *PointLightEntity) Bounds() *mathx.BoundingBox { return e.Base.BoundingBox }
@@ -244,44 +235,36 @@ func (e *SpotLightEntity) updateMatrix() {
 	mathx.Mat4Scale(m, m, lightScaleVec)
 }
 
-// Draw draws the cone volume with the bound spotLight shader.
-func (e *SpotLightEntity) Draw(r *rendering.Renderer, sh *rendering.Shader, mode rendering.MaterialMode) {
+// Draw draws the cone volume with the spot-light pipeline.
+func (e *SpotLightEntity) Draw(r *rendering.Renderer, mode rendering.MaterialMode) {
 	volMesh := r.Shapes.SpotlightVolume
-	if sh == nil || volMesh == nil {
+	if volMesh == nil {
 		return
 	}
 	mathx.Mat4Multiply(lightVolumeMatrix, e.Base.BaseMatrix, e.Base.AniMatrix)
-	lightPosRange[0] = e.Position.X
-	lightPosRange[1] = e.Position.Y
-	lightPosRange[2] = e.Position.Z
-	lightPosRange[3] = e.Range
-	lightColorInt[0] = e.Color[0]
-	lightColorInt[1] = e.Color[1]
-	lightColorInt[2] = e.Color[2]
-	lightColorInt[3] = e.Intensity
-	lightDirCutoff[0] = e.Direction.X
-	lightDirCutoff[1] = e.Direction.Y
-	lightDirCutoff[2] = e.Direction.Z
-	lightDirCutoff[3] = e.Cutoff
-	sh.SetMat4("matWorld", lightVolumeMatrix)
-	sh.SetVec4("spotLight.posRange", lightPosRange)
-	sh.SetVec4("spotLight.colorIntensity", lightColorInt)
-	sh.SetVec4("spotLight.dirCutoff", lightDirCutoff)
-	volMesh.RenderSingle(false, rendering.TopoTriangles, rendering.ModeAll, sh)
+	r.NextObject()
+	r.ObjectWorld(lightVolumeMatrix)
+	r.ObjectParams(0, e.Position.X, e.Position.Y, e.Position.Z, e.Range)
+	r.ObjectParams(1, e.Color[0], e.Color[1], e.Color[2], e.Intensity)
+	r.ObjectParams(2, e.Direction.X, e.Direction.Y, e.Direction.Z, e.Cutoff)
+	volMesh.Draw(r, false, rendering.ModeAll)
 }
 
-func (e *SpotLightEntity) DrawShadow(r *rendering.Renderer, sh *rendering.Shader)   {}
-func (e *SpotLightEntity) DrawSkeleton(r *rendering.Renderer, sh *rendering.Shader) {}
+func (e *SpotLightEntity) DrawShadow(r *rendering.Renderer)                                  {}
+func (e *SpotLightEntity) DrawSkeleton(r *rendering.Renderer)                                {}
+func (e *SpotLightEntity) Simulate(r *rendering.Renderer, pass rendering.GPUComputePassEncoder) {}
 
-// DrawWireframe draws the cone volume outline with the bound debug shader.
-func (e *SpotLightEntity) DrawWireframe(r *rendering.Renderer, sh *rendering.Shader) {
+// DrawWireframe draws the cone volume outline with the debug pipeline.
+func (e *SpotLightEntity) DrawWireframe(r *rendering.Renderer) {
 	volMesh := r.Shapes.SpotlightVolume
-	if sh == nil || volMesh == nil {
+	if volMesh == nil {
 		return
 	}
 	mathx.Mat4Multiply(lightVolumeMatrix, e.Base.BaseMatrix, e.Base.AniMatrix)
-	sh.SetMat4("matWorld", lightVolumeMatrix)
-	volMesh.RenderWireframe()
+	r.NextObject()
+	r.ObjectWorld(lightVolumeMatrix)
+	r.ObjectParamsVec(0, r.DebugColor())
+	volMesh.DrawWireframe(r)
 }
 
 func (e *SpotLightEntity) Bounds() *mathx.BoundingBox { return e.Base.BoundingBox }

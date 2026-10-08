@@ -62,8 +62,8 @@ func TestStatsMountDOM(t *testing.T) {
 	}
 	s := NewStatsOverlay()
 	s.Mount()
-	s.SetBackendName("WebGL2")
-	if s.rendererEl.textContent.(string) != "Renderer: WebGL2" {
+	s.SetBackendName("webgpu")
+	if s.rendererEl.textContent.(string) != "Renderer: webgpu" {
 		t.Errorf("Unexpected renderer text %q", s.rendererEl.textContent.(string))
 	}
 	s.Toggle(true)

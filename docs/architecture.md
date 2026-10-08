@@ -13,9 +13,8 @@ app/src/
 │   ├── physics/             # FPS controller, dynamic bodies (JS, calls into collision)
 │   ├── systems/             # camera, settings, console, input, stats, sound, network, binary reader
 │   ├── animation/           # skeletons, clips, animation player
-│   ├── rendering/           # RenderBackend interface, Renderer, passes, materials, meshes
-│   │   ├── webgl/           # WebGL2 backend + GLSL
-│   │   └── webgpu/          # WebGPU backend + WGSL
+│   ├── rendering/           # WebGPU backend, Renderer, passes, pipelines, WGSL, materials, meshes
+│   │   └── fakegpu/         # in-memory GPUDevice recorder for headless tests
 │   ├── scene/               # entities, culling, light grid, draw-list provider
 │   └── assets/              # binary mesh/material/resource-list parsing, ResourceManager
 └── game/                    # gameplay, UI (.templ), state machine, multiplayer
@@ -29,8 +28,6 @@ flowchart TD
     game --> scene
     game --> assets
     engine --> rendering
-    engine --> webgl & webgpu
-    webgl & webgpu --> rendering
     scene --> rendering
     scene --> animation
     assets --> rendering & animation
@@ -46,8 +43,7 @@ flowchart TD
 Rules the graph encodes:
 
 - `mathx` imports nothing; it is the one leaf everything else may use. `collision` imports only `mathx`; `physics` only `mathx` and `collision`.
-- `rendering` imports only `mathx`. It never sees `scene`, `systems` or settings; the renderer is fed through `SceneSource`, `CameraView` and `RenderOptions`.
-- `webgl` and `webgpu` are imported by `engine.go` alone (for backend selection). Every other package talks to `rendering.RenderBackend`.
+- `rendering` imports only `mathx`. It never sees `scene`, `systems` or settings; the renderer is fed through `SceneSource`, `CameraView` and `RenderOptions`. It is the only package that touches WebGPU; `rendering/fakegpu` is test-only and imported by `_test.go` files alone.
 - Engine packages never import `game`. `game` and `main` may import anything.
 - Settings (`systems.ActiveSettings`) are read in `engine` and `game` only. `engine.RenderFrame` copies them into `rendering.RenderOptions` once per frame; that is the only path settings take into rendering.
 
@@ -61,7 +57,7 @@ Each package declares where it runs with a `//gofront:target` directive on its f
 |---|---|---|
 | `mathx` | `both` | Pure float math used on both sides; the JS copy serves JS packages, the WASM copy is linked into `collision`. Struct types cross the boundary as live views, so a `*mathx.Vec3` made in JS can be passed straight into WASM. |
 | `collision` | `wasm` | Octree traversal and ray/triangle tests are the hottest loop in the game; WASM keeps them branch-predictable and allocation-free. |
-| everything else | `js` | Talks to the DOM, WebGL/WebGPU, PeerJS. |
+| everything else | `js` | Talks to the DOM, WebGPU, PeerJS. |
 
 - **Cross-target determinism:** Code in `both` packages (`mathx`) is emitted by the JS backend in strict numeric mode (`Math.fround` on `float32` arithmetic, integer wrapping, divide-by-zero panics), guaranteeing identical results between the JS copy and the WASM copy.
 - **No package-level mutable state:** `both` packages must not have mutable package-level variables since JS and WASM maintain separate module copies.
@@ -72,7 +68,7 @@ Each package declares where it runs with a `//gofront:target` directive on its f
 `main.boot()` runs once:
 
 1. `systems.ActiveSettings.Load()`; mount console, menus, HUD, loading screen.
-2. `engine.Init(preferWebGPU, onReady)` → `SelectBackend` tries WebGPU when the setting prefers it and `navigator.gpu` exists, otherwise (or on async init failure) WebGL2. `Init` then creates `ActiveCamera`, `ActiveRenderer` (shaders, shapes, render targets), registers console commands (`rscale`, `stats`, `settings`, `sstore`, `tnc`, `tbv/twf/tlv/tsk`) and the resize listener.
+2. `engine.Init(onReady)` → `InitBackend` requires `navigator.gpu`; without it the engine stays unready and `onReady` still fires so the UI can report the failure. On success `InitWithBackend` creates `ActiveCamera` and `ActiveRenderer` (`Renderer.Init`: bind-group layouts, every pipeline, render targets, rings), registers console commands (`rscale`, `stats`, `settings`, `sstore`, `tnc`, `tbv/twf/tlv/tsk`) and the resize listener.
 3. `systems.GlobalInput.Attach()`; `assets.GlobalResources.Init(backend)` and `Load(coreResources)`.
 4. `game.NewDefaultGame()`, `g.Load("demo")` (arena, scene contents), `engine.SetCallbacks(g.Update, g.Multiplayer.Update)`, `g.Init()` (sets `engine.ActiveScene = g.Scene`).
 5. `engine.Start()` — returns `ErrNoScene` (also logged to the console) if no scene is installed; otherwise schedules `requestAnimationFrame`.
@@ -94,51 +90,59 @@ GlobalStats.Update
 
 ### Backend abstraction
 
-`rendering.RenderBackend` is implemented by `webgl.WebGLBackend` and `webgpu.WebGPUBackend`. It covers lifecycle (`Init`, `BeginFrame`/`EndFrame`, `Resize`), resources (textures, buffers, shader programs, UBOs, framebuffers, vertex state), draws (`DrawIndexed`, `DrawInstanced`, `Clear`, `ReadPixels`) and one state entry point, `ApplyState(*PipelineState)`. Handles are `any`; the backends own their resource models.
+### Backend
 
-| Aspect | WebGL2 | WebGPU |
+`rendering.Backend` (`rendering/backend.go`) is the only code that talks to WebGPU. It is a thin, typed wrapper over `GPUDevice`/`GPUQueue`/`GPUCanvasContext` (declared in `rendering/interop.d.ts`): lifecycle (`Init` → `requestAdapter`/`requestDevice`/`configure`, `InitWithDevice` for tests, `BeginFrame`/`EndFrame` around one `GPUCommandEncoder` and one `queue.submit` per frame, `Resize`, `Dispose`), resource creation (`CreateBuffer`/`CreateFloatBuffer`/`CreateIndexBuffer`, `WriteBuffer*`, `CreateGPUTexture`/`WriteTexture`/`CopyImageToTexture`/`GenerateMipmaps`, `CreateSampler`, `CreateShaderModule`, `CreateBindGroupLayout`/`CreatePipelineLayout`/`CreateBindGroup`) and canvas geometry (`RenderScale`, `DoFSR`, swapchain vs. render size). There is no generic `RenderBackend` interface and no `any` handles: everything above the backend holds real `GPUBuffer`/`GPUTexture`/`GPURenderPipeline` values. Usage flags, formats and bind-group slots are Go constants in `rendering/gpu.go` so headless tests never need the WebGPU globals.
+
+`rendering/fakegpu` is an in-memory `GPUDevice` written in Go. It implements the subset of the WebGPU API the backend uses and records what happens (buffers, textures, pipelines, bind groups, passes, draws, dispatches, writes, submits). `Backend.InitWithDevice(fakeDevice, fakeContext)` wires it in; the `rendering`, `scene`, `engine` and `assets` test suites render real frames against it and assert on pass order, pipeline selection, `ObjectData` contents and resource counts.
+
+### Pipelines and bind groups
+
+Every `GPURenderPipeline` and `GPUComputePipeline` is baked once in `Renderer.Init` (`rendering/pipelines.go`): `geometry`, `skybox`, `skinned-geometry`, `entity-shadows`, `skinned-entity-shadows`, `directional-light`, `point-light`, `spot-light`, `transparent`, `billboard`, `instanced-billboard`, `postprocess-swapchain`/`postprocess-scratch`, `fsr-easu`, `fsr-rcas`, `debug`, `skinned-debug`, plus the `kawase-blur` and `particle-update` compute pipelines and one `mipmap-<format>` blit per texture format. Blend, depth, cull and topology live in the pipeline descriptor; there is no runtime state cache. Double-sided materials use a pipeline's cull-disabled twin (`Pipeline.CullOff`).
+
+All WGSL (`rendering/wgsl.go`) shares one four-slot bind-group contract (`GroupFrame`..`GroupLighting` in `gpu.go`):
+
+| Group | Contents | Lifetime |
 |---|---|---|
-| Shaders | GLSL (`webgl/glsl.go`) | WGSL (`webgpu/wgsl.go`) |
-| Uniforms | `SetUniform` per value plus UBOs | UBOs with dynamic offsets, pooled uniform buffers |
-| State | GL state machine; `ApplyState` diffs against the cached state | Pipeline objects keyed by `PipelineState` + shader + vertex layout, cached |
-| Bind groups | n/a | persistent and per-frame bind-group caches |
+| 0 `frame` | `FrameData` uniform: view/projection matrices, camera position + time, viewport size + procedural-detail flag | one buffer, written once per frame |
+| 1 `material` / pass inputs | `MaterialData` uniform + sampler + albedo/emissive/lightmap/noise/reflection textures; for lighting, blur, post-process, FSR and billboards the pass's input textures | cached on the `Material` (rebuilt when a texture changes) or built once per pass in `buildPassResources` |
+| 2 `object` | `ObjectData` uniform with a dynamic offset into the 256-byte-slot `ObjectRing` (world matrix, probe, three `params` vec4s, `misc`) + the `BoneRing` storage buffer (`var<storage>` of `mat4x4`) indexed by `misc.x` | one bind group; `Renderer.NextObject()` hands out a slot per draw, `flushRings` uploads both rings in one `writeBuffer` each at the end of the frame |
+| 3 `lighting` | `LightingData` uniform (ambient + counts) + `lights` storage buffer (3 `vec4` per light, up to `MaxSceneLights`) | written when the transparent pass has lights to forward-shade |
 
-### Pipeline state
-
-GPU state is described by typed enums (`MaterialMode`, `BlendFactor`, `DepthFunc`, `CullFace`, `Topology`, `BufferUsage`) and a `PipelineState` struct (blend, depth test/write/func, cull, polygon offset, `ColorMask` bitmask). `rendering/renderpasses.go` holds one preset per pass (`stateOpaque`, `stateSkybox`, `stateShadow`, `stateLightingAdditive`, `stateTransparent`, `stateBillboardAdditive`, `statePostProcess`, `stateDebug`); each pass applies its preset on entry and `stateOpaque` on exit. Double-sided materials swap in the preset's `CullOff` twin inside `Mesh.RenderIndices`. `SetDepthRange`, `SetViewport`, `Clear` and `BindFramebuffer` are separate calls because they are not pipeline state in WebGPU.
+Skinning matrices and dynamic lights are storage buffers, so there is no per-draw bone upload and no fixed light slot count in the shader. Particle emitters own `particles`/`particle-instances`/`particle-curve` storage buffers that the `particle-update` compute shader advances inside the frame's compute pass; the `instanced-billboard` pipeline then draws the instance buffer directly.
 
 ### Frame
 
-`Renderer.Render(cam, scene, opts, time)` is the only code that knows pass order, shader selection and GPU state. The scene hands it culled draw lists; the renderer binds and draws.
+`Renderer.Render(cam, scene, opts, time)` is the only code that knows pass order, pipeline selection and GPU state. The scene hands it culled draw lists; each `Drawable` fills an `ObjectData` slot and issues its draw. Every pass is an explicit `GPURenderPassDescriptor` with its own load/store ops; nothing is lazily bound.
 
-| Pass | Target | State | Shader(s) | Scene lists | Notes |
-|---|---|---|---|---|---|
-| `worldGeomPass` | G-buffer, depth 0.1–1.0 | skybox → opaque | `Geometry`, `SkinnedGeometry` | `Skyboxes`, `Meshes`, `FPSMeshes`, `SkinnedMeshes` | Clears to ambient. FPS meshes drawn opaque here so they occlude like world geometry. Counts meshes/triangles. |
-| `shadowPass` | shadow buffer | `stateShadow` (polygon offset, no cull) | `EntityShadows`, `SkinnedEntityShadows` | `Meshes`, `SkinnedMeshes` | Flattened drop shadows at each caster's resolved ground height. |
-| `shadowBlurPass` | shadow buffer | post-process | `KawaseBlur` | — | Kawase blur, skipped on WebGPU and when nothing casts. |
-| `fpsGeomPass` | G-buffer, depth 0.0–0.1 | opaque | `Geometry` | `FPSMeshes` | Redraws view models in the near range so they layer over the world. |
-| `lightingPass` | light buffer | additive | `DirectionalLight`, `PointLight`, `SpotLight` | `DirectionalLights`, `PointLights`, `SpotLights` | Sorts point/spot lights by `LightScore` (intensity / distance²) once per frame; counts lights. Then blurs the light buffer. |
-| `transparentPass` | light buffer | alpha blend → additive | `Transparent`, `Billboard`, `InstancedBillboard` | `Transparent`, `Billboards`, `ParticleEmitters` | Top 8 point / 4 spot lights from the sort are packed into the `LightingData` UBO. |
-| emissive blur | emissive buffer | post-process | `KawaseBlur` | — | |
-| `postProcessingPass` | backbuffer or scratch | post-process | `PostProcessing` | — | albedo × (lighting + emissive) + shadows + bloom + gamma + lens dirt + FXAA. |
-| `fsrPass` | backbuffer | post-process | `FsrEasu`, `FsrRcas` | — | Only when `DoFSR`: upscale then sharpen. |
-| `debugPass` | backbuffer | `stateDebug` | `Debug`, `SkinnedDebug` | all | Bounding boxes (colour per list), wireframes, light volumes, skeletons, per `Renderer.Debug`. |
+| Pass (label) | Target | Pipelines | Scene lists | Notes |
+|---|---|---|---|---|
+| `gbuffer` | G-buffer + depth, viewport depth 0.1–1.0 | `skybox`, `geometry`, `skinned-geometry` | `Skyboxes`, `Meshes`, `FPSMeshes`, `SkinnedMeshes` | Clears to ambient. FPS meshes drawn opaque here so they occlude like world geometry. Counts meshes/triangles. |
+| `shadow` | shadow buffer (R8) | `entity-shadows`, `skinned-entity-shadows` | `Meshes`, `SkinnedMeshes` | Flattened drop shadows at each caster's resolved ground height; skipped when nothing casts. |
+| `fps-geometry` | G-buffer, viewport depth 0.0–0.1 | `geometry` | `FPSMeshes` | Redraws view models in the near range so they layer over the world. |
+| `lighting` | light buffer, additive | `directional-light`, `point-light`, `spot-light` | `DirectionalLights`, `PointLights`, `SpotLights` | Sorts point/spot lights by `LightScore` (intensity / distance²) once per frame; counts lights. Then Kawase-blurs the light buffer in a compute pass. |
+| compute | storage buffers | `particle-update` | `ParticleEmitters` | `Drawable.Simulate` per emitter; one `dispatchWorkgroups` per emitter (64 particles per workgroup). |
+| `transparent` | light buffer, alpha blend / additive | `transparent`, `billboard`, `instanced-billboard` | `Transparent`, `Billboards`, `ParticleEmitters` | Sorted lights are packed into the `lights` storage buffer for forward shading; skipped when all three lists are empty. |
+| compute | emissive ↔ scratch | `kawase-blur` | — | `EmissiveIterations` ping-pong dispatches (odd counts add a copy-back). |
+| `postprocess` / `postprocess-scratch` | swapchain, or scratch when FSR is on | `postprocess-*` | — | albedo × (lighting + emissive) + shadows + bloom + gamma + lens dirt + FXAA. |
+| `fsr-easu`, `fsr-rcas` | FSR target → swapchain | `fsr-easu`, `fsr-rcas` | — | Only when `DoFSR`: upscale then sharpen. |
+| `debug` | swapchain | `debug`, `skinned-debug` | all | Bounding boxes (colour per list), wireframes, light volumes, skeletons, per `Renderer.Debug`; pass is skipped when every toggle is off. |
 
 G-buffer layout:
 
 | Attachment | Format | Content |
 |---|---|---|
 | 0 | RGBA16F | World-space position |
-| 1 | RG8 | Octahedral-encoded world normal |
+| 1 | RGBA8 | Octahedral-encoded world normal |
 | 2 | RGBA8 | Albedo; `a` = lightmap flag (1 = lightmapped/skybox, dynamic lights skip it) |
 | 3 | RGBA8 | Emissive |
 
-UBOs: `FrameData` (binding 0: view/projection matrices, camera position + time, viewport size + procedural-detail flag), per-object data (world matrix, colour/params; dynamic offsets on WebGPU) and `LightingData` (binding 2: 8 point + 4 spot lights plus counts). `RenderStats` (`MeshCount`, `LightCount`, `TriangleCount`) is reset in `Render` and read field-by-field by the stats overlay.
+`RenderStats` (`MeshCount`, `LightCount`, `TriangleCount`) is reset in `Render` and read field-by-field by the stats overlay. `CaptureSnapshot` renders one frame and returns the canvas as a JPEG data URL.
 
 ### Baked lighting
 
 - **Lightmaps** on static arena geometry: an RGB atlas multiplied into albedo in the geometry pass; such surfaces are flagged in `color.a` so dynamic lights do not double-light them.
-- **LightGrid** (`scene/lightgrid.go`): a 3-D grid of RGB probes sampled on the CPU with trilinear interpolation and precomputed strides. `Scene.Update` samples it at every visible mesh's position into the entity's `Probe` cache; `Draw` uploads it as `uProbeColor`. When a grid is loaded `Scene.Ambient` is black and the probe carries the ambient term.
+- **LightGrid** (`scene/lightgrid.go`): a 3-D grid of RGB probes sampled on the CPU with trilinear interpolation and precomputed strides. `Scene.Update` samples it at every visible mesh's position into the entity's `Probe` cache; `Draw` writes it into the `ObjectData` probe slot. When a grid is loaded `Scene.Ambient` is black and the probe carries the ambient term.
 - **Procedural detail**: static geometry layers parallax detail from a procedural noise texture (`rendering/noise.go`), toggled through `RenderOptions.ProceduralDetail`.
 
 ## Scene
@@ -157,10 +161,11 @@ type Entity interface {
 
 // package rendering — what a pass needs from something it draws
 type Drawable interface {
-    Draw(r *Renderer, sh *Shader, mode MaterialMode)
-    DrawShadow(r *Renderer, sh *Shader)
-    DrawWireframe(r *Renderer, sh *Shader)
-    DrawSkeleton(r *Renderer, sh *Shader)
+    Draw(r *Renderer, mode MaterialMode)
+    DrawShadow(r *Renderer)
+    DrawWireframe(r *Renderer)
+    DrawSkeleton(r *Renderer)
+    Simulate(r *Renderer, pass GPUComputePassEncoder)   // GPU-side updates (particles)
     Bounds() *mathx.BoundingBox
     TriangleCount() int
     CastsShadow() bool
@@ -187,7 +192,7 @@ Entity types and constructors:
 | `TypeSkybox` | `NewSkyboxEntity` | world geometry (depth off) |
 | `TypeSkinnedMesh` | `NewSkinnedMeshEntity` | world geometry, shadows |
 | `TypeAnimatedBillboard` | `NewAnimatedBillboardEntity(position, *BillboardConfig)` | transparent (additive) |
-| `TypeParticleEmitter` | `NewParticleEmitterEntity` | transparent (one `DrawInstanced`) |
+| `TypeParticleEmitter` | `NewParticleEmitterEntity` | compute (`Simulate`), transparent (one instanced draw) |
 
 Entities never reach back into the scene; camera- and scene-dependent values are written onto them before drawing (`SkyboxEntity.CameraPosition`, `AnimatedBillboardEntity.CameraView`, probe colour, shadow height).
 
@@ -225,7 +230,7 @@ The lists alias scene-owned storage and are valid until the next `Update`; passe
 
 ## Animation
 
-`animation.Skeleton` holds joints with inverse-bind matrices; a `Pose` is flat per-joint position/rotation arrays. `ParseBinaryAnimation` reads clips (with optional per-frame bounds used for culling), `AnimationPlayer.Update(dtSeconds)` samples them, and `Skeleton.ComputeSkinningMatrices(pose)` writes into a reused `[]mathx.Mat4`. `SkinnedMeshEntity.PlayAnimation` drives the player and flattens the matrices into the `boneMatrices` uniform each frame.
+`animation.Skeleton` holds joints with inverse-bind matrices; a `Pose` is flat per-joint position/rotation arrays. `ParseBinaryAnimation` reads clips (with optional per-frame bounds used for culling), `AnimationPlayer.Update(dtSeconds)` samples them, and `Skeleton.ComputeSkinningMatrices(pose)` writes into a reused `[]mathx.Mat4`. `SkinnedMeshEntity.PlayAnimation` drives the player and `Draw` appends the matrices to the renderer's `BoneRing` storage buffer, recording the base index in `ObjectData.misc.x`.
 
 ## Math, Collision and Physics
 
@@ -291,10 +296,10 @@ The frame path — physics step, raycasts, `Scene.Update`, `Renderer.Render`, HU
 | Command | What runs |
 |---|---|
 | `npm run check` | Biome (JS files) + `gofront check app/src/...` |
-| `npm test` | `gofront test app/src/...` headless, every package (dual-target `mathx [js]` and `mathx [wasm]`, `collision [wasm]`); recording `MockBackend` and `mockScene` fixtures stand in for the GPU and the scene |
+| `npm test` | `gofront test app/src/...` headless, every package (dual-target `mathx [js]` and `mathx [wasm]`, `collision [wasm]`); `rendering/fakegpu` stands in for the GPU device so rendering, scene, engine and assets tests render real frames and assert on the recorded commands |
 | `npm run test:dom` | the same under jsdom (`window`/`document` present) |
 | `npm run test:perf` | `tests/perf/zero-alloc.js`: 100k raycasts under 64 KB of new-space growth |
-| `npm run test:e2e` | `tests/e2e/smoke.spec.js` (Playwright, WebGL2): boot → menu → lit frame |
+| `npm run test:e2e` | `tests/e2e/smoke.spec.js` (Playwright, WebGPU; a Proxy mock device in headless runs): boot → menu → rendered frame |
 | `npm run test:all` | all of the above |
 
 New `.go` code gets a `_test.go` beside it; hot paths get a heap-growth test.
