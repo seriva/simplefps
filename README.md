@@ -12,7 +12,7 @@ Simple first person arena shooter written in Go syntax, compiled to a seamless h
 - **Rendering**: WebGPU-native deferred engine with pre-baked pipelines, storage-buffer skinning and lights, GPU-simulated particles, compute post-fx, detail textures, emissive materials and FSR upscaling. See [Architecture — Rendering](docs/architecture.md#rendering).
 - **UI**: Menus, HUD, loading screens and debug console as GoFront `.templ` components with a small game state machine
 - **Performance**: Zero-allocation hot paths (physics step, raycasts, render frame) guarded by heap-growth tests and a benchmark; linear depth buffer; PWA support
-- **Architecture**: Go packages (`engine`, `mathx`, `collision`, `physics`, `rendering`, `scene`, `game`, …) with an entity system, scene management, and comprehensive input handling. Collision runs in WebAssembly (WasmGC), `mathx` runs on both targets, and the rest in JavaScript. See [Architecture](docs/architecture.md).
+- **Architecture**: Go packages (`engine`, `mathx`, `collision`, `physics`, `rendering`, `scene`, `game`, …) with an entity system, scene management, and comprehensive input handling. Collision and physics run in WebAssembly (WasmGC), `mathx` runs on both targets, and the rest in JavaScript. See [Architecture](docs/architecture.md).
 - **Cross-Platform**: Runs on Desktop, Android, and iOS with touch controls and responsive design
 - **Settings**: In-game settings menu with graphics (including renderer selection) and input configuration
 - **Networking**: Client-authoritative P2P multiplayer via PeerJS (WebRTC) for simple host/join sessions. See [Architecture — Networking](docs/architecture.md#networking).
@@ -37,7 +37,7 @@ app/
 │   │   ├── assets/       # package assets: mesh/material/resource-list parsing, ResourceManager
 │   │   ├── collision/    # package collision: trimesh, octree, raycasts (compiled to WASM)
 │   │   ├── mathx/        # package mathx: vec3/mat4/quat/transform/boundingbox (JS + WASM)
-│   │   ├── physics/      # package physics: FPS controller, dynamic bodies
+│   │   ├── physics/      # package physics (WASM): FPS controller, dynamic bodies
 │   │   ├── rendering/    # package rendering: WebGPU backend, renderer, passes, pipelines, WGSL, materials
 │   │   │   └── fakegpu/  # package fakegpu: in-memory GPUDevice recorder for headless tests
 │   │   ├── scene/        # package scene: entities, culling, light grid, draw lists for the renderer
@@ -50,7 +50,7 @@ app/
 └── index.html            # Main HTML file (loads vendor.js + app.js and linked app.wasm)
 tests/
 ├── e2e/smoke.spec.js     # Playwright smoke test (boot → menu → start game renders a frame)
-└── perf/zero-alloc.js    # Zero-allocation raycast benchmark against the compiled physics + collision (WASM) packages
+└── perf/zero-alloc.js    # Zero-allocation raycast + controller-loop benchmark against the compiled physics + collision (WASM) packages
 scripts/
 ├── bsp2map.js            # Quake 3 BSP to game format converter
 ├── md5tomesh.js          # Doom 3 MD5 to mesh format converter

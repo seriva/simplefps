@@ -596,9 +596,6 @@ func TestGameSpawnAndUpdate(t *testing.T) {
 	if g.Controller == nil || g.Controller.Position.X != 100 {
 		t.Fatal("controller not spawned")
 	}
-	if g.Controller.Camera == nil || g.Controller.Camera.Position != &cam.Position {
-		t.Error("controller camera binding not set")
-	}
 	if g.Controller.Provider == nil {
 		t.Error("controller raycast provider not set")
 	}
@@ -629,6 +626,10 @@ func TestGameSpawnAndUpdate(t *testing.T) {
 	}
 	if g.Controller.Position.Y >= startY {
 		t.Error("controller should fall without ground")
+	}
+	// The controller (WASM) pose is copied back to the camera after SyncCamera.
+	if !approx(cam.Position.X, 100, 1e-3) || !approx(cam.Position.Z, 200, 1e-3) {
+		t.Errorf("camera not synced from controller: %+v", cam.Position)
 	}
 	// Frame time above the cap is clamped.
 	g.Update(1000)

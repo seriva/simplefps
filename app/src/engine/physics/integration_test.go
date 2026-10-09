@@ -1,3 +1,4 @@
+//gofront:target wasm
 package physics
 
 import (
@@ -5,7 +6,6 @@ import (
 
 	"../collision"
 	"../mathx"
-	"js:./interop.d.ts"
 )
 
 // gridFloor builds an n×n quad grid at height y spanning [0, size] on X and Z,
@@ -128,7 +128,7 @@ func TestFPSControllerClimbsStep(t *testing.T) {
 	// The lowest horizontal wall probe sits at radius - 0.35*height/2 = 24.5
 	// above the feet, so a 20-unit riser is not treated as a wall and the
 	// grounded snap (up to StepHeight) lifts the controller onto the platform.
-	const stepY = float32(20)
+	stepY := float32(20)
 	tm := collision.NewEmptyTrimesh()
 	low := gridFloor(4, 800, 0)
 	tm.AddMesh(low.Vertices, low.Indices, nil)
@@ -165,66 +165,5 @@ func TestFPSControllerClimbsStep(t *testing.T) {
 	}
 	if !ctrl.IsGrounded() {
 		t.Error("Controller should be grounded on the platform")
-	}
-}
-
-// heapUsed returns the V8 heap size, or -1 when unavailable.
-func heapUsed() int {
-	if process == nil || process.memoryUsage == nil {
-		return -1
-	}
-	return process.memoryUsage().heapUsed.(int)
-}
-
-func TestPhysicsStepDoesNotAllocate(t *testing.T) {
-	if heapUsed() < 0 {
-		t.Skip("process.memoryUsage unavailable")
-	}
-	// jsdom adds ~2 KB/step of unrelated churn to the heap counter; the budget
-	// is only meaningful in the headless harness.
-	if document != nil {
-		t.Skip("heap measurement is only stable without --dom")
-	}
-	tm := gridFloor(16, 1600, 0)
-
-	spawn := mathx.Vec3{X: 800, Y: 0, Z: 800}
-	ctrl := NewFPSController(&spawn, nil)
-	ctrl.Provider = newTrimeshRaycaster(tm)
-	camFwd := mathx.Vec3{X: 0.7071, Y: 0, Z: 0.7071}
-	camRight := mathx.Vec3{X: 0.7071, Y: 0, Z: -0.7071}
-	dt := float32(1.0 / 120.0)
-
-	step := func(n int) {
-		for i := 0; i < n; i++ {
-			ctrl.Move(0.3, 1, &camFwd, &camRight, dt)
-			ctrl.Update(dt)
-			if ctrl.Position.X > 1400 || ctrl.Position.Z > 1400 {
-				ctrl.Position.X = 200
-				ctrl.Position.Z = 200
-			}
-		}
-	}
-	step(600) // warm up JIT and settle onto the floor
-
-	const trials = 7
-	const stepsPerTrial = 2000
-	deltas := make([]int, trials)
-	for tr := 0; tr < trials; tr++ {
-		before := heapUsed()
-		step(stepsPerTrial)
-		deltas[tr] = heapUsed() - before
-	}
-	// Median is robust to a GC landing inside one trial.
-	for i := 1; i < trials; i++ {
-		for j := i; j > 0 && deltas[j] < deltas[j-1]; j-- {
-			deltas[j], deltas[j-1] = deltas[j-1], deltas[j]
-		}
-	}
-	median := deltas[trials/2]
-	// The whole step path (controller, raycasts, octree traversal, triangle
-	// tests) must be allocation-free; allow slack for V8 bookkeeping only.
-	const budget = 256 * 1024
-	if median > budget {
-		t.Errorf("Physics steps allocate: median heap delta %d bytes over %d steps (budget %d)", median, stepsPerTrial, budget)
 	}
 }

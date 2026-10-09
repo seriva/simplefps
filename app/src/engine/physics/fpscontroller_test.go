@@ -1,3 +1,4 @@
+//gofront:target wasm
 package physics
 
 import (
@@ -87,16 +88,48 @@ func TestFPSControllerNoclip(t *testing.T) {
 		t.Errorf("Expected Noclip to be true")
 	}
 
-	camPos := mathx.Vec3{X: 10, Y: 20, Z: 30}
 	camDir := mathx.Vec3{X: 0, Y: 0, Z: 1}
 	camRight := mathx.Vec3{X: 1, Y: 0, Z: 0}
-	ctrl.Camera = &CameraPose{Position: &camPos, Direction: &camDir}
+	ctrl.Camera.Position.Set(10, 20, 30)
+	ctrl.Camera.Direction.Copy(&camDir)
 
 	ctrl.Move(0, 1, &camDir, &camRight, 0.1)
 
-	if camPos.Z <= 30 {
-		t.Errorf("Expected Noclip move to advance camera in Z, got %f", camPos.Z)
+	if ctrl.Camera.Position.Z <= 30 {
+		t.Errorf("Expected Noclip move to advance camera in Z, got %f", ctrl.Camera.Position.Z)
 	}
 
 	SetNoclip(false)
+}
+
+func TestFPSControllerMoveWithCamera(t *testing.T) {
+	ctrl := NewFPSController(&mathx.Vec3{}, nil)
+	ctrl.Grounded = true
+	// Looking down -Z and slightly up: only the XZ heading counts.
+	ctrl.Camera.Direction.Set(0, 0.5, -1)
+
+	ctrl.MoveWithCamera(0, 1, float32(1.0/120.0))
+	if ctrl.Velocity.Z >= 0 || !floatApprox(ctrl.Velocity.X, 0) || ctrl.Velocity.Y != 0 {
+		t.Errorf("forward should move along -Z only, got (%f, %f, %f)", ctrl.Velocity.X, ctrl.Velocity.Y, ctrl.Velocity.Z)
+	}
+
+	ctrl.Velocity.Zero()
+	ctrl.MoveWithCamera(1, 0, float32(1.0/120.0))
+	// Right of a -Z heading is +X.
+	if ctrl.Velocity.X <= 0 || !floatApprox(ctrl.Velocity.Z, 0) {
+		t.Errorf("strafe right should move along +X, got (%f, %f, %f)", ctrl.Velocity.X, ctrl.Velocity.Y, ctrl.Velocity.Z)
+	}
+}
+
+func TestFPSControllerSyncCameraPose(t *testing.T) {
+	ctrl := NewFPSController(&mathx.Vec3{X: 5, Y: 0, Z: 15}, nil)
+	ctrl.Camera.Direction.Set(0, 0, -1)
+	ctrl.SyncCamera(0.016)
+	p := &ctrl.Camera.Position
+	if !floatApprox(p.X, 5) || !floatApprox(p.Y, 56) || !floatApprox(p.Z, 15) {
+		t.Errorf("SyncCamera pose = (%f, %f, %f), expected (5, 56, 15)", p.X, p.Y, p.Z)
+	}
+	if !floatApprox(ctrl.Camera.Up.Y, 1) {
+		t.Errorf("SyncCamera up.Y = %f, expected 1 without roll", ctrl.Camera.Up.Y)
+	}
 }
