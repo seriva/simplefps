@@ -1,7 +1,11 @@
 //gofront:target wasm
 package collision
 
-import "../mathx"
+import (
+	"math"
+
+	"../mathx"
+)
 
 const (
 	RayModeClosest = 1
@@ -105,6 +109,25 @@ func NewRay(from, to *mathx.Vec3) *Ray {
 func (ray *Ray) UpdateDirection() {
 	ray.Direction.Sub(&ray.To, &ray.From)
 	ray.Direction.Normalize(&ray.Direction)
+}
+
+// Setup re-arms the ray for a new segment query with the given options
+// (options must be non-nil; a zero Mode means RayModeClosest) and clears the
+// previous Result.
+func (ray *Ray) Setup(fromX, fromY, fromZ, toX, toY, toZ float32, options *RayOptions) {
+	ray.From.Set(fromX, fromY, fromZ)
+	ray.To.Set(toX, toY, toZ)
+	ray.UpdateDirection()
+	ray.HasHit = false
+	ray.SkipBackfaces = options.SkipBackfaces
+	ray.CollisionFilterMask = options.CollisionFilterMask
+	ray.Mode = options.Mode
+	if ray.Mode == 0 {
+		ray.Mode = RayModeClosest
+	}
+	ray.Result.HasHit = false
+	ray.Result.Distance = float32(math.Inf(1))
+	ray.Result.ShouldStop = false
 }
 
 // IntersectTrimesh tests ray intersection against triangles in a Trimesh.

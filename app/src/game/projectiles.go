@@ -92,7 +92,7 @@ func (ps *ProjectileSystem) Fire() *Projectile {
 		MinBounceSpeed: 50,
 	})
 	if ps.Scene != nil {
-		proj.Body.Provider = ps.Scene
+		proj.Body.Provider = ps.Scene.StaticWorld()
 	}
 
 	proj.Light = scene.NewPointLightEntity(nil, ProjectileLightRadius, ProjectileLightColor, ProjectileLightIntensity, nil)

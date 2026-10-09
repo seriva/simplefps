@@ -1,6 +1,6 @@
 # Architecture
 
-SimpleFPS is written in Go syntax and compiled by [GoFront](https://github.com/seriva/gofront) — to a seamless hybrid of JavaScript (ES modules) and WebAssembly (WasmGC). Collision runs in WebAssembly, mathx compiles to both targets, and the remaining packages run in JavaScript. Everything under `app/src` is a Go package or a `.templ` UI component; there is no hand-written JavaScript in the app. This document describes how the packages fit together, what each one owns, and the invariants the code is held to. Design history lives in `docs/plans/`.
+SimpleFPS is written in Go syntax and compiled by [GoFront](https://github.com/seriva/gofront) — to a seamless hybrid of JavaScript (ES modules) and WebAssembly (WasmGC). Collision and physics run in WebAssembly, mathx compiles to both targets, and the remaining packages run in JavaScript. Everything under `app/src` is a Go package or a `.templ` UI component; there is no hand-written JavaScript in the app. This document describes how the packages fit together, what each one owns, and the invariants the code is held to. Design history lives in `docs/plans/`.
 
 ## Package Layout
 
@@ -10,7 +10,7 @@ app/src/
 ├── engine/                  # package engine: composition root, frame loop
 │   ├── mathx/               # Vec3/Mat4/Quat/Transform/BoundingBox (target: both)
 │   ├── collision/           # trimesh + octree, raycasts (target: wasm)
-│   ├── physics/             # FPS controller, dynamic bodies (JS, calls into collision)
+│   ├── physics/             # FPS controller, dynamic bodies (target: wasm)
 │   ├── systems/             # camera, settings, console, input, stats, sound, network, binary reader
 │   ├── animation/           # skeletons, clips, animation player
 │   ├── rendering/           # WebGPU backend, Renderer, passes, pipelines, WGSL, materials, meshes
@@ -212,7 +212,7 @@ s.Raycast / RaycastStatic / RaycastDynamic(fx, fy, fz, tx, ty, tz, opts)
 s.SetAmbient(r, g, b); s.Ambient(out); s.AmbientAt(pos, out); s.LightGrid()
 ```
 
-Lists return `(items, count)` over fixed-capacity backing arrays — iterate to `count`, never `len(items)`. `Scene` implements `physics.RaycastProvider`; the game hands it to the `FPSController` and `DynamicBody` instances it creates. Nothing is registered through globals.
+Lists return `(items, count)` over fixed-capacity backing arrays — iterate to `count`, never `len(items)`. `Scene.StaticWorld()` (a `*collision.StaticWorld` over the merged static trimesh) implements `physics.RaycastProvider`; the game hands it to the `FPSController` and `DynamicBody` instances it creates. Nothing is registered through globals.
 
 ### Per-frame visibility
 
@@ -234,7 +234,7 @@ The lists alias scene-owned storage and are valid until the next `Update`; passe
 
 ## Math, Collision and Physics
 
-`mathx` is pure data and arithmetic: `Vec3`/`Mat4`/`Quat`/`Transform` with out-parameter math and `BoundingBox`. `collision` owns the world geometry queries: `Trimesh` + `Octree`, `Ray`/`RayOptions`/`RaycastResult`. `physics` owns the movers: `FPSController` (capsule movement, stepping, grounding, noclip) and `DynamicBody` (projectiles, pickups). Anything that needs the world passes it in: controllers and bodies hold a `RaycastProvider`, and the controller reads the camera through a `CameraPose` the game wires up.
+`mathx` is pure data and arithmetic: `Vec3`/`Mat4`/`Quat`/`Transform` with out-parameter math and `BoundingBox`. `collision` owns the world geometry queries: `Trimesh` + `Octree`, `Ray`/`RayOptions`/`RaycastResult`. `physics` owns the movers: `FPSController` (capsule movement, stepping, grounding, noclip) and `DynamicBody` (projectiles, pickups). Anything that needs the world passes it in: controllers and bodies hold a `RaycastProvider`. Because `physics` runs in WASM, the provider must be implemented in WASM too (`collision.StaticWorld`; GoFront rejects JS types implementing a wasm interface), so per-step raycasts never cross the boundary. The controller owns its `CameraPose` (position, direction, up) by value: the game copies the camera in before the fixed steps (`syncCameraIn`), calls `MoveWithCamera`, which derives the XZ forward/right axes from the pose, and copies position/up back out after `SyncCamera` (`syncCameraOut`). Projectile bodies call back into JS through `OnBounce`/`OnRest`.
 
 ## Systems and Assets
 
@@ -272,14 +272,14 @@ Gameplay sync (pickups, hits, scores) is not implemented; the intended shape is 
 
 ## Performance Invariants
 
-The frame path — physics step, raycasts, `Scene.Update`, `Renderer.Render`, HUD writes — allocates nothing. Heap-growth guards in the `physics`, `scene` and `rendering` test suites and the `tests/perf/zero-alloc.js` benchmark enforce it. The rules that keep it true under GoFront:
+The frame path — physics step, raycasts, `Scene.Update`, `Renderer.Render`, HUD writes — allocates nothing on the Go side. The one exception is the JS→WASM camera-pose handoff in `game.Update`: reading `float32` fields back out of the WASM controller boxes them as V8 HeapNumbers (~48 bytes per frame, short-lived new-space garbage). Heap-growth guards in the `scene` and `rendering` test suites and the `tests/perf/zero-alloc.js` benchmark (raycasts and the controller loop across the JS→WASM boundary, with a 128 B/frame budget) enforce it. The rules that keep it true under GoFront:
 
 - Out-parameter math and caller-provided result buffers; package-level scratch vectors/matrices/slices.
 - Fixed-capacity lists with a `Count` and swap-remove; growth only when capacity is exceeded.
 - No `[N]T` literals, `append`, reslicing, comma-ok type assertions or struct-value copies on hot paths (all of them allocate in GoFront). Struct-typed fields (`Shadow`, `Probe`, `Stats`, `Debug`) are mutated field-by-field.
 - Interface-type assertions (`x.(SomeInterface)`) compile to an unconditional success and must not be used for dispatch; concrete pointer assertions and type switches are fine.
 - Method values are emitted unbound, so cross-package hooks are interfaces (`RaycastProvider`, `SceneSource`), never `func` fields assigned from methods.
-- JS→WASM calls are allocation-free only when V8 can inline them: GoFront binds exports to module constants and crosses every reference as `externref`, so keep boundary signatures to numbers, bools and pointers to structs. Returning struct *values* or passing `any` across the boundary allocates. Results come back through caller-provided `*RaycastResult`s for that reason.
+- JS→WASM calls are allocation-free only when V8 can inline them: GoFront binds exports to module constants and crosses every reference as `externref`, so keep boundary signatures to numbers, bools and pointers to structs. Returning struct *values*, passing `any`, or passing `*mathx.Vec3` from JS (copied in and written back per call) across the boundary allocates. Results come back through caller-provided `*RaycastResult`s for that reason, and the controller takes the camera through its WASM-owned `CameraPose` instead of vector parameters.
 
 ## Console Commands
 
@@ -296,9 +296,9 @@ The frame path — physics step, raycasts, `Scene.Update`, `Renderer.Render`, HU
 | Command | What runs |
 |---|---|
 | `npm run check` | Biome (JS files) + `gofront check app/src/...` |
-| `npm test` | `gofront test app/src/...` headless, every package (dual-target `mathx [js]` and `mathx [wasm]`, `collision [wasm]`); `rendering/fakegpu` stands in for the GPU device so rendering, scene, engine and assets tests render real frames and assert on the recorded commands |
+| `npm test` | `gofront test app/src/...` headless, every package (dual-target `mathx [js]` and `mathx [wasm]`, `collision [wasm]`, `physics [wasm]`); `rendering/fakegpu` stands in for the GPU device so rendering, scene, engine and assets tests render real frames and assert on the recorded commands |
 | `npm run test:dom` | the same under jsdom (`window`/`document` present) |
-| `npm run test:perf` | `tests/perf/zero-alloc.js`: 100k raycasts under 64 KB of new-space growth |
+| `npm run test:perf` | `tests/perf/zero-alloc.js`: 100k raycasts under 64 KB of new-space growth; 20k controller frames driven from JS exactly like `game.Update`, under 128 B/frame |
 | `npm run test:e2e` | `tests/e2e/smoke.spec.js` (Playwright, WebGPU; a Proxy mock device in headless runs): boot → menu → rendered frame |
 | `npm run test:all` | all of the above |
 

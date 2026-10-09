@@ -1,8 +1,6 @@
 package scene
 
 import (
-	"math"
-
 	"../collision"
 	"../mathx"
 	"../rendering"
@@ -94,6 +92,7 @@ type Scene struct {
 
 	staticTrimesh *collision.Trimesh
 	staticMatrix  mathx.Mat4
+	staticWorld   *collision.StaticWorld
 
 	ray         *collision.Ray
 	defaultOpts *collision.RayOptions
@@ -110,8 +109,9 @@ type Scene struct {
 
 var defaultAmbient = []float32{0.5, 0.5, 0.5}
 
-// NewScene creates an empty scene. It satisfies physics.RaycastProvider and
-// rendering.SceneSource; the game wires it into controllers/bodies explicitly.
+// NewScene creates an empty scene. It implements rendering.SceneSource; its
+// StaticWorld is the physics.RaycastProvider the game wires into controllers
+// and bodies.
 func NewScene(camera *systems.Camera) *Scene {
 	s := &Scene{
 		Camera:            camera,
@@ -133,6 +133,7 @@ func NewScene(camera *systems.Camera) *Scene {
 		ambient:           make([]float32, 3),
 		lightGrid:         NewLightGrid(),
 		staticMatrix:      mathx.NewMat4(),
+		staticWorld:       collision.NewStaticWorld(),
 		ray:               collision.NewRay(nil, nil),
 		defaultOpts:       &collision.RayOptions{SkipBackfaces: true, CollisionFilterMask: 1, Mode: collision.RayModeClosest},
 		shadowSort:        newScoreList(64),
@@ -272,6 +273,7 @@ func (s *Scene) Init() {
 	s.clearVisible()
 	s.resetDrawLists()
 	s.staticTrimesh = nil
+	s.staticWorld.Trimesh = nil
 }
 
 // Dispose disposes all entities and resets scene state.
@@ -336,6 +338,7 @@ func (s *Scene) AddStaticGeometry(e *MeshEntity) {
 	}
 	if s.staticTrimesh == nil {
 		s.staticTrimesh = collision.NewEmptyTrimesh()
+		s.staticWorld.Trimesh = s.staticTrimesh
 	}
 
 	total := 0
@@ -389,6 +392,10 @@ func (s *Scene) FinalizeStaticGeometry() {
 
 // StaticTrimesh returns the merged static collision mesh (nil until geometry is added).
 func (s *Scene) StaticTrimesh() *collision.Trimesh { return s.staticTrimesh }
+
+// StaticWorld returns the static-geometry raycaster (physics.RaycastProvider).
+// It stays valid across Init/Dispose, so controllers can keep it.
+func (s *Scene) StaticWorld() *collision.StaticWorld { return s.staticWorld }
 
 // ---------------------------------------------------------------------------
 // Update
@@ -501,20 +508,7 @@ func (s *Scene) setupRay(fromX, fromY, fromZ, toX, toY, toZ float32, options *co
 	if options == nil {
 		options = s.defaultOpts
 	}
-	r := s.ray
-	r.From.Set(fromX, fromY, fromZ)
-	r.To.Set(toX, toY, toZ)
-	r.UpdateDirection()
-	r.HasHit = false
-	r.SkipBackfaces = options.SkipBackfaces
-	r.CollisionFilterMask = options.CollisionFilterMask
-	r.Mode = options.Mode
-	if r.Mode == 0 {
-		r.Mode = collision.RayModeClosest
-	}
-	r.Result.HasHit = false
-	r.Result.Distance = float32(math.Inf(1))
-	r.Result.ShouldStop = false
+	s.ray.Setup(fromX, fromY, fromZ, toX, toY, toZ, options)
 }
 
 // Raycast tests the segment against every collidable (dynamic and static).
@@ -532,13 +526,9 @@ func (s *Scene) Raycast(fromX, fromY, fromZ, toX, toY, toZ float32, options *col
 	return &s.ray.Result
 }
 
-// RaycastStatic tests only the merged static trimesh (physics.RaycastProvider).
+// RaycastStatic tests only the merged static trimesh (see StaticWorld).
 func (s *Scene) RaycastStatic(fromX, fromY, fromZ, toX, toY, toZ float32, options *collision.RayOptions) *collision.RaycastResult {
-	s.setupRay(fromX, fromY, fromZ, toX, toY, toZ, options)
-	if s.staticTrimesh != nil {
-		s.ray.IntersectTrimesh(s.staticTrimesh, s.staticMatrix)
-	}
-	return &s.ray.Result
+	return s.staticWorld.RaycastStatic(fromX, fromY, fromZ, toX, toY, toZ, options)
 }
 
 // RaycastDynamic tests only entity colliders.

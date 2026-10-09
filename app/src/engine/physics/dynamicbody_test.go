@@ -1,3 +1,4 @@
+//gofront:target wasm
 package physics
 
 import (

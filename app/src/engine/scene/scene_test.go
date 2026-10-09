@@ -296,13 +296,13 @@ func TestStaticGeometryRaycast(t *testing.T) {
 		t.Errorf("SkipBackfaces=false should hit from below")
 	}
 
-	var provider physics.RaycastProvider = s
+	var provider physics.RaycastProvider = s.StaticWorld()
 	got := provider.RaycastStatic(1, 5, 1, 1, -5, 1, nil)
 	if !got.HasHit || !approx(got.HitPointWorld.Y, 0) {
 		t.Errorf("RaycastProvider: %+v", got)
 	}
 	body := physics.NewDynamicBody(mathx.NewVec3(0.5, 2, 0.5), &physics.DynamicBodyConfig{Radius: 1, Gravity: 1000})
-	body.Provider = s
+	body.Provider = s.StaticWorld()
 	for i := 0; i < 20 && !body.IsResting && body.BounceCount == 0; i++ {
 		body.Update(50)
 	}
