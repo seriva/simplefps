@@ -32,11 +32,11 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.15",
-    "@playwright/test": "^1.63.0",
-    "gofront": "^1.5.1",
+    "@playwright/test": "^1.64.0",
+    "gofront": "^1.6.0",
     "jsdom": "^30.1.2",
-    "lefthook": "^2.1.17",
-    "rolldown": "^1.2.12"
+    "lefthook": "^2.2.1",
+    "rolldown": "^1.2.13"
   },
   "gofront": {
     "vendor": {
