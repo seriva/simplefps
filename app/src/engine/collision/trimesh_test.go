@@ -38,7 +38,7 @@ func TestTrimeshNormalsAndAABB(t *testing.T) {
 	}
 
 	var normal mathx.Vec3
-	tm.GetNormal(0, &normal)
+	tm.getNormal(0, &normal)
 	// Upward normal (0, 1, 0)
 	if !floatApprox(normal.X, 0) || !floatApprox(normal.Y, 1) || !floatApprox(normal.Z, 0) {
 		t.Errorf("Trimesh normal failed: got (%f, %f, %f), expected (0, 1, 0)", normal.X, normal.Y, normal.Z)

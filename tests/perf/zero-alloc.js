@@ -83,9 +83,9 @@ for (let z = 0; z < GRID; z++) {
 }
 const mesh = NewTrimesh(new Float32Array(verts), new Int32Array(indices), null);
 
-const from = new Vec3(0, 10, 0);
-const to = new Vec3(0, -10, 0);
-const ray = NewRay(from, to);
+// Field-wise writes through the live view: each is a small JS→WASM call V8
+// inlines. One Setup(...) call with six non-integer floats boxes its args.
+const ray = NewRay(new Vec3(0, 10, 0), new Vec3(0, -10, 0));
 ray.Mode = RayModeClosest;
 
 function raycastSweep(iterations) {
@@ -97,7 +97,6 @@ function raycastSweep(iterations) {
 		ray.From.Z = z;
 		ray.To.X = x;
 		ray.To.Z = z;
-		ray.UpdateDirection();
 		ray.Result.Reset();
 		ray.HasHit = false;
 		ray.IntersectTrimesh(mesh, null);

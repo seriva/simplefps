@@ -15,10 +15,10 @@ func TestRayPointInTriangle(t *testing.T) {
 	inside := mathx.Vec3{X: 2, Y: 0, Z: 2}
 	outside := mathx.Vec3{X: 10, Y: 0, Z: 10}
 
-	if !RayPointInTriangle(&inside, &a, &b, &c) {
+	if !rayPointInTriangle(&inside, &a, &b, &c) {
 		t.Errorf("Point (2, 0, 2) should be inside triangle")
 	}
-	if RayPointInTriangle(&outside, &a, &b, &c) {
+	if rayPointInTriangle(&outside, &a, &b, &c) {
 		t.Errorf("Point (10, 0, 10) should be outside triangle")
 	}
 }

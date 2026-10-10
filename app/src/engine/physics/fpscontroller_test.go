@@ -32,7 +32,7 @@ func TestFPSControllerGroundMovement(t *testing.T) {
 
 	// Move forward: move = 1, strafe = 0
 	dt := float32(1.0 / 120.0) // 120 Hz
-	ctrl.Move(0, 1, &camFwd, &camRight, dt)
+	ctrl.move(0, 1, &camFwd, &camRight, dt)
 
 	// Velocity.Z should be negative (forward in -Z)
 	if ctrl.Velocity.Z >= 0 {
@@ -71,7 +71,7 @@ func TestFPSControllerCameraSync(t *testing.T) {
 	camUp := mathx.Vec3{X: 0, Y: 1, Z: 0}
 
 	dt := float32(0.016)
-	ctrl.SyncCameraWith(&camPos, &camDir, &camUp, dt)
+	ctrl.syncCameraWith(&camPos, &camDir, &camUp, dt)
 
 	// Eye offset = 56 - 30 = 26. Position.Y = 30. Total expected camPos.Y = 56
 	if !floatApprox(camPos.X, 5) || !floatApprox(camPos.Y, 56) || !floatApprox(camPos.Z, 15) {
@@ -83,8 +83,8 @@ func TestFPSControllerNoclip(t *testing.T) {
 	spawn := mathx.Vec3{X: 0, Y: 0, Z: 0}
 	ctrl := NewFPSController(&spawn, nil)
 
-	SetNoclip(true)
-	if !IsNoclip() {
+	setNoclip(true)
+	if !isNoclip() {
 		t.Errorf("Expected Noclip to be true")
 	}
 
@@ -93,13 +93,13 @@ func TestFPSControllerNoclip(t *testing.T) {
 	ctrl.Camera.Position.Set(10, 20, 30)
 	ctrl.Camera.Direction.Copy(&camDir)
 
-	ctrl.Move(0, 1, &camDir, &camRight, 0.1)
+	ctrl.move(0, 1, &camDir, &camRight, 0.1)
 
 	if ctrl.Camera.Position.Z <= 30 {
 		t.Errorf("Expected Noclip move to advance camera in Z, got %f", ctrl.Camera.Position.Z)
 	}
 
-	SetNoclip(false)
+	setNoclip(false)
 }
 
 func TestFPSControllerMoveWithCamera(t *testing.T) {

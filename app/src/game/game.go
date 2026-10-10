@@ -32,6 +32,9 @@ type Game struct {
 
 	accum float32
 
+	// JS-side copy of the WASM controller position for this frame.
+	playerPos mathx.Vec3
+
 	onJump any
 }
 
@@ -93,6 +96,8 @@ func (g *Game) bindController() {
 }
 
 // syncCameraIn copies the camera pose into the (WASM-owned) controller pose.
+// Field-wise live-view writes stay allocation-free; a single multi-float call
+// into WASM makes V8 box each non-integer argument.
 func (g *Game) syncCameraIn() {
 	pose := &g.Controller.Camera
 	pose.Position.Copy(&g.Camera.Position)
@@ -163,7 +168,8 @@ func (g *Game) SpawnPlayer() {
 }
 
 // Update is the per-frame gameplay tick (frameTime in ms): look, movement
-// input, fixed-step physics, camera sync, pickups and scene update.
+// input, fixed-step physics, camera sync, pickups and scene update. It owns
+// the per-frame Camera.Update (the engine skips its own while the tick runs).
 // Multiplayer is ticked separately via engine.SetCallbacks' always-update so
 // networking continues while the engine is paused.
 func (g *Game) Update(frameTime float32) {
@@ -173,6 +179,9 @@ func (g *Game) Update(frameTime float32) {
 
 	if !CanUseGameplayInput() {
 		g.accum = 0
+		if g.Camera != nil {
+			g.Camera.Update()
+		}
 		if g.Multiplayer != nil && g.Multiplayer.IsConnected() {
 			if g.Scene != nil {
 				g.Scene.Update(frameTime)
@@ -230,11 +239,12 @@ func (g *Game) Update(frameTime float32) {
 		if g.Camera != nil {
 			g.syncCameraOut()
 		}
-		g.Pickups.Update(&g.Controller.Position)
+		g.playerPos.Copy(&g.Controller.Position)
+		g.Pickups.Update(&g.playerPos)
 	}
 
 	// Refresh view/frustum now so scene culling sees this frame's camera pose
-	// instead of last frame's (the engine's own Camera.Update runs after us).
+	// instead of last frame's.
 	if g.Camera != nil {
 		g.Camera.Update()
 	}

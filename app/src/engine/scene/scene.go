@@ -281,9 +281,6 @@ func (s *Scene) Dispose() {
 	for i := 0; i < s.entities.Count; i++ {
 		s.entities.Items[i].Dispose()
 	}
-	if s.staticTrimesh != nil {
-		s.staticTrimesh.Dispose()
-	}
 	s.Init()
 	s.SetAmbient(defaultAmbient[0], defaultAmbient[1], defaultAmbient[2])
 	s.paused = false

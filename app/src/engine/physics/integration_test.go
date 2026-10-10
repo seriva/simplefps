@@ -47,24 +47,19 @@ func wallX(tm *collision.Trimesh, x, z0, z1, y0, y1 float32) {
 // trimeshRaycaster is a RaycastProvider over a single mesh using one reused
 // collision.Ray so the provider itself does not allocate.
 type trimeshRaycaster struct {
-	tm  *collision.Trimesh
-	ray *collision.Ray
+	tm   *collision.Trimesh
+	ray  *collision.Ray
+	opts collision.RayOptions
 }
 
 func newTrimeshRaycaster(tm *collision.Trimesh) *trimeshRaycaster {
-	ray := collision.NewRay(nil, nil)
-	ray.Mode = collision.RayModeClosest
-	return &trimeshRaycaster{tm: tm, ray: ray}
+	return &trimeshRaycaster{tm: tm, ray: collision.NewRay(nil, nil), opts: collision.RayOptions{Mode: collision.RayModeClosest}}
 }
 
 func (p *trimeshRaycaster) RaycastStatic(fromX, fromY, fromZ, toX, toY, toZ float32, options *collision.RayOptions) *collision.RaycastResult {
 	ray := p.ray
-	ray.From.Set(fromX, fromY, fromZ)
-	ray.To.Set(toX, toY, toZ)
-	ray.UpdateDirection()
-	ray.HasHit = false
-	ray.Result.Reset()
-	ray.SkipBackfaces = options != nil && options.SkipBackfaces
+	p.opts.SkipBackfaces = options != nil && options.SkipBackfaces
+	ray.Setup(fromX, fromY, fromZ, toX, toY, toZ, &p.opts)
 	ray.IntersectTrimesh(p.tm, nil)
 	return &ray.Result
 }
@@ -109,7 +104,7 @@ func TestFPSControllerBlockedByWall(t *testing.T) {
 	camRight := mathx.Vec3{X: 0, Y: 0, Z: -1}
 	dt := float32(1.0 / 120.0)
 	for i := 0; i < 240; i++ {
-		ctrl.Move(0, 1, &camFwd, &camRight, dt)
+		ctrl.move(0, 1, &camFwd, &camRight, dt)
 		ctrl.Update(dt)
 	}
 	// Two seconds at MaxSpeed would travel ~720 units; the wall must stop us.
@@ -154,7 +149,7 @@ func TestFPSControllerClimbsStep(t *testing.T) {
 	// ~1.5 s at MaxSpeed covers ~540 units: well past the riser at x = 800 but
 	// short of the platform's far edge at x = 1600.
 	for i := 0; i < 180; i++ {
-		ctrl.Move(0, 1, &camFwd, &camRight, dt)
+		ctrl.move(0, 1, &camFwd, &camRight, dt)
 		ctrl.Update(dt)
 	}
 	if ctrl.Position.X < 900 {

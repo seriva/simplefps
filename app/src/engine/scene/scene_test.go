@@ -311,7 +311,7 @@ func TestStaticGeometryRaycast(t *testing.T) {
 	}
 
 	s.Dispose()
-	if tm.Vertices != nil || tm.Tree != nil || s.StaticTrimesh() != nil {
+	if s.StaticTrimesh() != nil || s.RaycastStatic(1, 5, 1, 1, -5, 1, nil).HasHit {
 		t.Errorf("Dispose did not release static trimesh")
 	}
 }

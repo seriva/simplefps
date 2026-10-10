@@ -34,8 +34,8 @@ func gridFloor(n int, size, y float32) *Trimesh {
 func TestOctreeSubdividedRayAndAABBQuery(t *testing.T) {
 	// 16×16 grid = 512 triangles forces the octree to subdivide (max 8 per leaf).
 	tm := gridFloor(16, 1600, 0)
-	tree := tm.Tree
-	if len(tree.Children) == 0 {
+	tree := tm.tree
+	if len(tree.children) == 0 {
 		t.Fatal("Expected octree to subdivide for 512 triangles")
 	}
 
@@ -44,7 +44,7 @@ func TestOctreeSubdividedRayAndAABBQuery(t *testing.T) {
 	origin := mathx.Vec3{X: 550, Y: 100, Z: 750}
 	dir := mathx.Vec3{X: 0, Y: -1, Z: 0}
 	out := make([]int, MaxRayQueryResults)
-	n := tree.RayQueryLocal(&origin, &dir, 200, out, nil)
+	n := tree.rayQueryLocal(&origin, &dir, 200, out, nil)
 	if n == 0 || n > 64 {
 		t.Fatalf("Expected a small non-empty candidate set, got %d", n)
 	}
@@ -61,7 +61,7 @@ func TestOctreeSubdividedRayAndAABBQuery(t *testing.T) {
 
 	// Bounded output: a 1-slot buffer must never overflow and reports 1.
 	small := make([]int, 1)
-	if got := tree.RayQueryLocal(&origin, &dir, 200, small, nil); got != 1 {
+	if got := tree.rayQueryLocal(&origin, &dir, 200, small, nil); got != 1 {
 		t.Errorf("Expected count clamped to len(out)=1, got %d", got)
 	}
 
@@ -69,7 +69,7 @@ func TestOctreeSubdividedRayAndAABBQuery(t *testing.T) {
 	// 8 triangles. Octree candidates also include straddling triangles stored in
 	// ancestor nodes, but the set must stay far below the full 512.
 	region := mathx.NewBoundingBoxFromValues(mathx.NewVec3(410, -1, 410), mathx.NewVec3(590, 1, 590))
-	n = tree.AABBQuery(region, out)
+	n = tree.aabbQuery(region, out)
 	if n < 8 || n > 128 {
 		t.Errorf("Expected a bounded candidate set (8..128) for region, got %d", n)
 	}
@@ -83,7 +83,7 @@ func TestOctreeSubdividedRayAndAABBQuery(t *testing.T) {
 				}
 			}
 			if seen != 2 {
-				t.Errorf("AABBQuery missing triangles of cell %d,%d (found %d of 2)", cx, cz, seen)
+				t.Errorf("aabbQuery missing triangles of cell %d,%d (found %d of 2)", cx, cz, seen)
 			}
 		}
 	}
@@ -91,7 +91,7 @@ func TestOctreeSubdividedRayAndAABBQuery(t *testing.T) {
 	// Ray missing the mesh entirely (parallel above it) returns 0.
 	sideOrigin := mathx.Vec3{X: -100, Y: 50, Z: 800}
 	sideDir := mathx.Vec3{X: 0, Y: 0, Z: 1}
-	if got := tree.RayQueryLocal(&sideOrigin, &sideDir, 100, out, nil); got != 0 {
+	if got := tree.rayQueryLocal(&sideOrigin, &sideDir, 100, out, nil); got != 0 {
 		t.Errorf("Expected 0 candidates for a ray outside the tree, got %d", got)
 	}
 }

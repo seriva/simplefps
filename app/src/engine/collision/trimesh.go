@@ -17,18 +17,18 @@ var (
 )
 
 type pendingIndexData struct {
-	Data   []int32
-	Offset int
+	data   []int32
+	offset int
 }
 
 // Trimesh represents a collision triangle mesh with octree spatial acceleration.
 type Trimesh struct {
 	AABB             mathx.BoundingBox
-	Tree             *Octree
 	Vertices         []float32
 	Indices          []int32
-	Normals          []float32
 	TriangleFlags    []byte
+	tree             *octreeNode
+	normals          []float32
 	pendingVertices  [][]float32
 	pendingIndices   []pendingIndexData
 	pendingFlags     [][]byte
@@ -39,7 +39,7 @@ type Trimesh struct {
 // NewTrimesh creates a Trimesh populated with vertices, indices, and optional per-triangle flags.
 func NewTrimesh(vertices []float32, indices []int32, triangleFlags []byte) *Trimesh {
 	tm := &Trimesh{
-		Tree: NewOctree(nil, 8),
+		tree: newOctree(nil, 8),
 	}
 
 	if len(vertices) > 0 && len(indices) > 0 {
@@ -47,18 +47,18 @@ func NewTrimesh(vertices []float32, indices []int32, triangleFlags []byte) *Trim
 		copy(tm.Vertices, vertices)
 		tm.Indices = make([]int32, len(indices))
 		copy(tm.Indices, indices)
-		tm.Normals = make([]float32, len(indices))
+		tm.normals = make([]float32, len(indices))
 		if len(triangleFlags) > 0 {
 			tm.TriangleFlags = make([]byte, len(triangleFlags))
 			copy(tm.TriangleFlags, triangleFlags)
 		}
-		tm.UpdateNormals()
-		tm.ComputeLocalAABB(&tm.AABB)
-		tm.UpdateTree()
+		tm.updateNormals()
+		tm.computeLocalAABB(&tm.AABB)
+		tm.updateTree()
 	} else {
 		tm.Vertices = make([]float32, 0)
 		tm.Indices = make([]int32, 0)
-		tm.Normals = make([]float32, 0)
+		tm.normals = make([]float32, 0)
 	}
 
 	return tm
@@ -67,10 +67,10 @@ func NewTrimesh(vertices []float32, indices []int32, triangleFlags []byte) *Trim
 // NewEmptyTrimesh creates an empty Trimesh ready to receive multiple meshes via AddMesh and Finalize.
 func NewEmptyTrimesh() *Trimesh {
 	return &Trimesh{
-		Tree:     NewOctree(nil, 8),
+		tree:     newOctree(nil, 8),
 		Vertices: make([]float32, 0),
 		Indices:  make([]int32, 0),
-		Normals:  make([]float32, 0),
+		normals:  make([]float32, 0),
 	}
 }
 
@@ -78,7 +78,7 @@ func NewEmptyTrimesh() *Trimesh {
 func (tm *Trimesh) AddMesh(vertices []float32, indices []int32, triangleFlags []byte) {
 	vertexOffset := tm.totalVertexCount
 	tm.pendingVertices = append(tm.pendingVertices, vertices)
-	tm.pendingIndices = append(tm.pendingIndices, pendingIndexData{Data: indices, Offset: vertexOffset})
+	tm.pendingIndices = append(tm.pendingIndices, pendingIndexData{data: indices, offset: vertexOffset})
 	tm.pendingFlags = append(tm.pendingFlags, triangleFlags)
 	tm.totalVertexCount += len(vertices) / 3
 	tm.dirty = true
@@ -96,7 +96,7 @@ func (tm *Trimesh) Finalize() {
 		totalVertLen += len(v)
 	}
 	for _, idx := range tm.pendingIndices {
-		totalIdxLen += len(idx.Data)
+		totalIdxLen += len(idx.data)
 	}
 
 	tm.Vertices = make([]float32, totalVertLen)
@@ -125,8 +125,8 @@ func (tm *Trimesh) Finalize() {
 	for idxIdx := 0; idxIdx < len(tm.pendingIndices); idxIdx++ {
 		p := tm.pendingIndices[idxIdx]
 		flags := tm.pendingFlags[idxIdx]
-		data := p.Data
-		offset := int32(p.Offset)
+		data := p.data
+		offset := int32(p.offset)
 		for i := 0; i < len(data); i++ {
 			tm.Indices[iOffset+i] = data[i] + offset
 		}
@@ -145,34 +145,26 @@ func (tm *Trimesh) Finalize() {
 	tm.pendingIndices = nil
 	tm.pendingFlags = nil
 
-	tm.Normals = make([]float32, len(tm.Indices))
-	tm.UpdateNormals()
-	tm.ComputeLocalAABB(&tm.AABB)
-	tm.UpdateTree()
+	tm.normals = make([]float32, len(tm.Indices))
+	tm.updateNormals()
+	tm.computeLocalAABB(&tm.AABB)
+	tm.updateTree()
 	tm.dirty = false
 }
 
-// Dispose frees geometry buffers.
-func (tm *Trimesh) Dispose() {
-	tm.Vertices = nil
-	tm.Indices = nil
-	tm.Normals = nil
-	tm.Tree = nil
-}
-
-// UpdateTree constructs the octree partitioning from current triangles.
-func (tm *Trimesh) UpdateTree() {
-	tree := tm.Tree
-	tree.Reset()
-	tree.AABB.Copy(&tm.AABB)
+// updateTree constructs the octree partitioning from current triangles.
+func (tm *Trimesh) updateTree() {
+	tree := tm.tree
+	tree.reset()
+	tree.aabb.Copy(&tm.AABB)
 
 	epsilon := float32(0.001)
-	tree.AABB.Min.X -= epsilon
-	tree.AABB.Min.Y -= epsilon
-	tree.AABB.Min.Z -= epsilon
-	tree.AABB.Max.X += epsilon
-	tree.AABB.Max.Y += epsilon
-	tree.AABB.Max.Z += epsilon
+	tree.aabb.Min.X -= epsilon
+	tree.aabb.Min.Y -= epsilon
+	tree.aabb.Min.Z -= epsilon
+	tree.aabb.Max.X += epsilon
+	tree.aabb.Max.Y += epsilon
+	tree.aabb.Max.Z += epsilon
 
 	var triangleAABB mathx.BoundingBox
 	tmin := &triangleAABB.Min
@@ -282,16 +274,16 @@ func (tm *Trimesh) UpdateTree() {
 			}
 		}
 
-		tree.Insert(&triangleAABB, i/3, 0)
+		tree.insert(&triangleAABB, i/3, 0)
 	}
-	tree.RemoveEmptyNodes()
+	tree.removeEmptyNodes()
 }
 
-// UpdateNormals computes surface normals for all triangles in the mesh.
-func (tm *Trimesh) UpdateNormals() {
+// updateNormals computes surface normals for all triangles in the mesh.
+func (tm *Trimesh) updateNormals() {
 	indices := tm.Indices
 	vertices := tm.Vertices
-	normals := tm.Normals
+	normals := tm.normals
 
 	for i := 0; i < len(indices); i += 3 {
 		i0 := indices[i] * 3
@@ -302,7 +294,7 @@ func (tm *Trimesh) UpdateNormals() {
 		_tmVb.Set(vertices[i1], vertices[i1+1], vertices[i1+2])
 		_tmVc.Set(vertices[i2], vertices[i2+1], vertices[i2+2])
 
-		ComputeNormal(&_tmVb, &_tmVa, &_tmVc, &_tmN)
+		computeNormal(&_tmVb, &_tmVa, &_tmVc, &_tmN)
 
 		normals[i] = _tmN.X
 		normals[i+1] = _tmN.Y
@@ -310,26 +302,24 @@ func (tm *Trimesh) UpdateNormals() {
 	}
 }
 
-// GetNormal retrieves the surface normal of triangle i into target.
-func (tm *Trimesh) GetNormal(i int, target *mathx.Vec3) *mathx.Vec3 {
+// getNormal retrieves the surface normal of triangle i into target.
+func (tm *Trimesh) getNormal(i int, target *mathx.Vec3) {
 	i3 := i * 3
-	target.X = tm.Normals[i3]
-	target.Y = tm.Normals[i3+1]
-	target.Z = tm.Normals[i3+2]
-	return target
+	target.X = tm.normals[i3]
+	target.Y = tm.normals[i3+1]
+	target.Z = tm.normals[i3+2]
 }
 
-// GetVertex retrieves vertex coordinates of vertex index i into out.
-func (tm *Trimesh) GetVertex(i int, out *mathx.Vec3) *mathx.Vec3 {
+// getVertex retrieves vertex coordinates of vertex index i into out.
+func (tm *Trimesh) getVertex(i int, out *mathx.Vec3) {
 	i3 := i * 3
 	out.X = tm.Vertices[i3]
 	out.Y = tm.Vertices[i3+1]
 	out.Z = tm.Vertices[i3+2]
-	return out
 }
 
-// ComputeLocalAABB calculates the enclosing AABB for all vertices in the mesh.
-func (tm *Trimesh) ComputeLocalAABB(aabb *mathx.BoundingBox) {
+// computeLocalAABB calculates the enclosing AABB for all vertices in the mesh.
+func (tm *Trimesh) computeLocalAABB(aabb *mathx.BoundingBox) {
 	vertices := tm.Vertices
 	minX := float32(math.Inf(1))
 	minY := float32(math.Inf(1))
@@ -367,8 +357,8 @@ func (tm *Trimesh) ComputeLocalAABB(aabb *mathx.BoundingBox) {
 	aabb.Max.Set(maxX, maxY, maxZ)
 }
 
-// ComputeNormal calculates the normalized surface normal for triangle (va, vb, vc).
-func ComputeNormal(va, vb, vc, target *mathx.Vec3) {
+// computeNormal calculates the normalized surface normal for triangle (va, vb, vc).
+func computeNormal(va, vb, vc, target *mathx.Vec3) {
 	_tmAb.Sub(vb, va)
 	_tmCb.Sub(vc, vb)
 	target.Cross(&_tmCb, &_tmAb)

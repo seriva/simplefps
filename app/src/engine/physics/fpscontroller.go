@@ -65,13 +65,11 @@ func ToggleNoclip() bool {
 	return _noclip
 }
 
-// SetNoclip sets noclip mode.
-func SetNoclip(enabled bool) {
+func setNoclip(enabled bool) {
 	_noclip = enabled
 }
 
-// IsNoclip returns whether noclip mode is enabled.
-func IsNoclip() bool {
+func isNoclip() bool {
 	return _noclip
 }
 
@@ -90,8 +88,8 @@ type FPSControllerConfig struct {
 	WobbleIntensity    float32
 }
 
-// DefaultFPSControllerConfig returns default tuning for character physics.
-func DefaultFPSControllerConfig() FPSControllerConfig {
+// defaultFPSControllerConfig returns default tuning for character physics.
+func defaultFPSControllerConfig() FPSControllerConfig {
 	return FPSControllerConfig{
 		Radius:             35,
 		Height:             60,
@@ -133,7 +131,7 @@ type FPSController struct {
 
 // NewFPSController creates an FPSController at spawnPos with optional configuration.
 func NewFPSController(spawnPos *mathx.Vec3, config *FPSControllerConfig) *FPSController {
-	cfg := DefaultFPSControllerConfig()
+	cfg := defaultFPSControllerConfig()
 	if config != nil {
 		if config.Radius != 0 {
 			cfg.Radius = config.Radius
@@ -217,8 +215,8 @@ func (c *FPSController) Update(frameTime float32) {
 	c.Velocity.Y *= float32(math.Exp(float64(DampYK * frameTime)))
 }
 
-// Move applies player WASD input relative to camera forward and right directions.
-func (c *FPSController) Move(strafe, move float32, cameraForward, cameraRight *mathx.Vec3, frameTime float32) {
+// move applies player WASD input relative to camera forward and right directions.
+func (c *FPSController) move(strafe, move float32, cameraForward, cameraRight *mathx.Vec3, frameTime float32) {
 	if _noclip {
 		c.noclipMove(strafe, move, cameraForward, cameraRight, frameTime)
 		return
@@ -247,14 +245,14 @@ func (c *FPSController) Move(strafe, move float32, cameraForward, cameraRight *m
 	}
 }
 
-// MoveWithCamera is Move with forward/right taken from Camera.Direction
+// MoveWithCamera is move with forward/right taken from Camera.Direction
 // projected onto the XZ plane, so the per-step call crosses no vectors.
 func (c *FPSController) MoveWithCamera(strafe, move, frameTime float32) {
 	_fcCamForward.Copy(&c.Camera.Direction)
 	_fcCamForward.Y = 0
 	_fcCamForward.Normalize(&_fcCamForward)
 	_fcCamRight.RotateY(&_fcCamForward, &_fcOrigin, float32(-math.Pi/2))
-	c.Move(strafe, move, &_fcCamForward, &_fcCamRight, frameTime)
+	c.move(strafe, move, &_fcCamForward, &_fcCamRight, frameTime)
 }
 
 // Jump triggers a vertical jump impulse if grounded or within coyote time.
@@ -611,11 +609,10 @@ func (c *FPSController) resolveCeilingCollision(finalX, startY, finalZ float32) 
 // SyncCamera updates camera smoothing, head bob, and roll on c.Camera.
 func (c *FPSController) SyncCamera(frameTime float32) {
 	cam := &c.Camera
-	c.SyncCameraWith(&cam.Position, &cam.Direction, &cam.Up, frameTime)
+	c.syncCameraWith(&cam.Position, &cam.Direction, &cam.Up, frameTime)
 }
 
-// SyncCameraWith updates specific camera position, direction, and up-vectors.
-func (c *FPSController) SyncCameraWith(camPos, camDir, camUp *mathx.Vec3, frameTime float32) {
+func (c *FPSController) syncCameraWith(camPos, camDir, camUp *mathx.Vec3, frameTime float32) {
 	if _noclip {
 		return
 	}
