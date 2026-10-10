@@ -76,17 +76,12 @@ func (e *SkinnedMeshEntity) Update(frameTime float32) bool {
 	}
 	if e.AnimationPlayer != nil && e.Skeleton != nil {
 		pose := e.AnimationPlayer.Update(frameTime / 1000)
-		skin := e.Skeleton.ComputeSkinningMatrices(pose)
-		n := len(skin)
-		if n > rendering.MaxJoints {
-			n = rendering.MaxJoints
+		n := e.Skeleton.ComputeSkinningMatrices(pose) * 16
+		if n > len(e.boneMatrices) {
+			n = len(e.boneMatrices)
 		}
-		for j := 0; j < n; j++ {
-			m := skin[j]
-			base := j * 16
-			for k := 0; k < 16; k++ {
-				e.boneMatrices[base+k] = m[k]
-			}
+		for k := 0; k < n; k++ {
+			e.boneMatrices[k] = animation.SkinMatrices[k]
 		}
 	}
 	keep := baseUpdate(e, frameTime)

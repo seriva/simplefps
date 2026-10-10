@@ -113,7 +113,6 @@ func InitWithBackend(backend *rendering.Backend) {
 	systems.GlobalConsole.RegisterCmd("tnc", tncCmd)
 	RegisterDebugCommands()
 	systems.GlobalStats.Mount()
-	systems.GlobalStats.SetBackendName(CurrentBackend.Name())
 	if systems.ActiveSettings.ShowStats {
 		systems.GlobalStats.Toggle(true)
 	}

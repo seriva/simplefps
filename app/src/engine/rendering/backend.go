@@ -54,9 +54,6 @@ func NewBackend() *Backend {
 	}
 }
 
-// Name identifies the graphics API.
-func (b *Backend) Name() string { return "webgpu" }
-
 // Ready reports whether a device is attached.
 func (b *Backend) Ready() bool { return b.ready }
 

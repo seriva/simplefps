@@ -8,8 +8,8 @@ import (
 	"js:./interop.d.ts"
 )
 
-// StatsOverlay renders the debug FPS / renderer / scene overlay using cached
-// DOM references; text is written every frame, with fps and memory sampled
+// StatsOverlay renders the debug FPS / scene overlay using cached DOM
+// references; text is written every frame, with fps and memory sampled
 // once per second.
 type StatsOverlay struct {
 	visible    bool
@@ -22,21 +22,19 @@ type StatsOverlay struct {
 	frameTime  float64
 	memMB      int
 
-	backendName string
-	meshCount   int
-	lightCount  int
-	triCount    int
+	meshCount  int
+	lightCount int
+	triCount   int
 
-	items      []any
-	rendererEl any
-	basicEl    any
-	sceneEl    any
-	posEl      any
+	items   []any
+	basicEl any
+	sceneEl any
+	posEl   any
 }
 
 // NewStatsOverlay creates a hidden stats overlay.
 func NewStatsOverlay() *StatsOverlay {
-	return &StatsOverlay{backendName: "Unknown", items: make([]any, 0)}
+	return &StatsOverlay{items: make([]any, 0)}
 }
 
 // Mount attaches the overlay markup and styles to the document once.
@@ -46,16 +44,13 @@ func (s *StatsOverlay) Mount() {
 	}
 	refs := map[string]any{}
 	gom.MountTo("body", StatsView(), refs)
-	s.items = append(s.items, refs["rendererItem"])
 	s.items = append(s.items, refs["basicItem"])
 	s.items = append(s.items, refs["sceneItem"])
 	s.items = append(s.items, refs["posItem"])
-	s.rendererEl = refs["renderer"]
-	s.basicEl    = refs["basic"]
-	s.sceneEl    = refs["scene"]
-	s.posEl      = refs["pos"]
+	s.basicEl = refs["basic"]
+	s.sceneEl = refs["scene"]
+	s.posEl = refs["pos"]
 	s.mounted = true
-	s.writeRenderer()
 	s.applyVisibility()
 }
 
@@ -86,21 +81,6 @@ func (s *StatsOverlay) applyVisibility() {
 		} else {
 			el.classList.remove("visible")
 		}
-	}
-}
-
-// SetBackendName records the active renderer name.
-func (s *StatsOverlay) SetBackendName(name string) {
-	if name == "" {
-		name = "Unknown"
-	}
-	s.backendName = name
-	s.writeRenderer()
-}
-
-func (s *StatsOverlay) writeRenderer() {
-	if s.rendererEl != nil {
-		s.rendererEl.textContent = "Renderer: " + s.backendName
 	}
 }
 

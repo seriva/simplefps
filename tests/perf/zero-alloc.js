@@ -24,10 +24,8 @@ const gofrontRoot = gofrontDir ? resolve(gofrontDir) : null;
 if (!gofrontRoot) {
 	const { version } = createRequire(import.meta.url)("gofront/package.json");
 	const parts = version.split(".").map(Number);
-	const tooOld = MIN_GOFRONT.some((min, i) => {
-		if (parts[i] === min) return false;
-		return parts[i] < min;
-	});
+	const firstDiff = MIN_GOFRONT.findIndex((min, i) => parts[i] !== min);
+	const tooOld = firstDiff !== -1 && parts[firstDiff] < MIN_GOFRONT[firstDiff];
 	if (tooOld) {
 		console.log(
 			`skipping: zero-alloc benchmark needs gofront >= ${MIN_GOFRONT.join(".")} (found ${version}); set GOFRONT_DIR to a local checkout`,
@@ -202,9 +200,8 @@ console.log(
 	`Controller benchmark: ${FRAMES} frames, new-space deltas=[${frameDeltas.join(", ")}] bytes (${perFrame.toFixed(1)} B/frame)`,
 );
 // Same budget as the former in-package heap test (256 KB per 2000 steps). The
-// WASM step itself is allocation-free; the steady ~48 B/frame is the f64 pose
-// reads in syncCameraOut (Position/Up components) boxed as HeapNumbers on the
-// way out of WASM.
+// WASM step is allocation-free and every boundary signature is numbers and
+// externrefs, so V8 inlines the calls; steady state is ~0.2 B/frame.
 const FRAME_BUDGET = 128;
 assert(
 	perFrame < FRAME_BUDGET,

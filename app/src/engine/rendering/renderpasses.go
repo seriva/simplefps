@@ -458,7 +458,8 @@ func (r *Renderer) drawBounds(list *DrawList, color []float32) {
 		r.NextObject()
 		r.ObjectWorld(bb.TransformMatrix(boundsScratch))
 		r.ObjectParamsVec(0, color)
-		box.DrawWireframe(r)
+		// BoundingBoxMesh indices are already a line list; DrawWireframe would re-pair them as triangle edges.
+		box.Draw(r, false, ModeAll)
 	}
 }
 
@@ -476,7 +477,7 @@ func (r *Renderer) drawLightBounds(list *LightList, color []float32) {
 		r.NextObject()
 		r.ObjectWorld(bb.TransformMatrix(boundsScratch))
 		r.ObjectParamsVec(0, color)
-		box.DrawWireframe(r)
+		box.Draw(r, false, ModeAll)
 	}
 }
 

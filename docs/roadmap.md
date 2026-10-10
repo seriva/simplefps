@@ -13,7 +13,6 @@ Design documents for planned features live in `docs/plans/`
 | Feature | Difficulty | Status | Notes |
 |---|---|---|---|
 | [Engine Architecture Cleanup](plans/archive/engine-architecture-cleanup-plan.md) | Medium | Draft | Move the `rendering.SceneSource` seam so `scene` owns pass orchestration instead of `rendering` reaching back into the scene |
-| WebAssembly Physics Migration | Medium | Planned | Move `FPSController` and `DynamicBody` into WebAssembly once GoFront v1.6 adds WASM closures/trampolines (e.g. `OnBounce` callbacks) |
 | [G-Buffer Depth Reconstruction](plans/gbuffer-depth-reconstruction-plan.md) | Medium | Planned | Reconstruct world/view position from depth buffer; eliminates 16-byte worldPosition render target to cut mobile memory bandwidth |
 
 ---
@@ -25,6 +24,7 @@ summarised in `CHANGELOG.md` under *2026-09 — Legacy JavaScript engine*.
 
 | Feature | Difficulty | Status | Notes |
 |---------|------------|--------|-------|
+| WebAssembly Physics Migration | Medium | Completed (2026-10) | `physics` (`FPSController`, `DynamicBody`) and `animation` (skinning via a `gofront/shared` bone buffer) run in WASM next to `collision`; `BinaryReader` and `ParseBinaryAnimation` moved to `assets`; `npm run bench` compares `--js-only` vs hybrid: raycasts ≈1.15×, controller step ≈2.4×, skinning ≈1.2×, `app.wasm` ≈100 → ≈80 kB with `--release` |
 | [WebGPU Migration & Architecture Restructuring](plans/archive/remove-webgl-plan.md) | High | Completed (2026-11) | WebGL2 backend removed; `rendering` is WebGPU-native: typed `Backend`, explicit render passes, pre-baked pipelines, 4-slot bind groups with `ObjectData`/bone rings, storage-buffer lights and skinning, compute particles and Kawase blur; `rendering/fakegpu` test device |
 | WebAssembly Collision Split | Medium | Completed (2026-10) | Split `mathx` (both) and `collision` (wasm) into WebAssembly via GoFront 1.5.1; Möller–Trumbore raycast benchmark reaches 31,293 rays/s (1.17× JS) with 0.86 B/ray; zero-alloc test passed |
 | [GoFront Rewrite](plans/archive/gofront-rewrite-plan.md) | High | Completed (2026-10) | All engine and game packages ported from ES6 to GoFront `.go`/`.templ`; legacy JS deleted; `main.go` boot; recursive `gofront check/test app/src/...`; zero-alloc perf benchmark and Playwright smoke test |
