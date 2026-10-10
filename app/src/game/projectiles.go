@@ -43,6 +43,7 @@ type ProjectileSystem struct {
 	velocity mathx.Vec3
 	scaleVec mathx.Vec3
 	worldUp  mathx.Vec3
+	bodyPos  mathx.Vec3 // JS-side copy of the WASM body position for this tick
 }
 
 // NewProjectileSystem creates an empty system bound to a scene and camera.
@@ -129,7 +130,8 @@ func (ps *ProjectileSystem) removeAt(i int) {
 }
 
 func (ps *ProjectileSystem) applyTransform(p *Projectile) {
-	pos := &p.Body.Position
+	pos := &ps.bodyPos
+	pos.Copy(&p.Body.Position)
 	mathx.Mat4FromTranslation(p.Entity.Base.AniMatrix, pos)
 	ps.scaleVec.Set(p.MeshScale, p.MeshScale, p.MeshScale)
 	mathx.Mat4Scale(p.Entity.Base.AniMatrix, p.Entity.Base.AniMatrix, &ps.scaleVec)
@@ -145,15 +147,15 @@ func (ps *ProjectileSystem) Update(fixedDt float32) {
 		p.Elapsed += fixedDtMs
 
 		if p.Elapsed > ProjectileLifetime {
-			ps.SpawnExplosion(&p.Body.Position)
+			ps.bodyPos.Copy(&p.Body.Position)
+			ps.SpawnExplosion(&ps.bodyPos)
 			ps.removeAt(i)
 			continue
 		}
 
-		p.Body.Update(fixedDtMs)
-
-		if p.Body.IsResting {
-			ps.SpawnExplosion(&p.Body.Position)
+		if !p.Body.Update(fixedDtMs) {
+			ps.bodyPos.Copy(&p.Body.Position)
+			ps.SpawnExplosion(&ps.bodyPos)
 			ps.removeAt(i)
 			continue
 		}

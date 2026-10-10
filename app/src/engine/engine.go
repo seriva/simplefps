@@ -254,10 +254,9 @@ func FrameStep(now float64) {
 		alwaysUpdate(dt)
 	}
 	if !paused && gameUpdate != nil {
+		// The game tick refreshes the camera itself before culling.
 		gameUpdate(dt)
-	}
-
-	if ActiveCamera != nil {
+	} else if ActiveCamera != nil {
 		ActiveCamera.Update()
 	}
 }

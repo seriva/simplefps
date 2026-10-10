@@ -101,12 +101,12 @@ func NewRay(from, to *mathx.Vec3) *Ray {
 	if to != nil {
 		r.To.Copy(to)
 	}
-	r.UpdateDirection()
+	r.updateDirection()
 	return r
 }
 
-// UpdateDirection recalculates the normalized ray direction from From and To.
-func (ray *Ray) UpdateDirection() {
+// updateDirection recalculates the normalized ray direction from From and To.
+func (ray *Ray) updateDirection() {
 	ray.Direction.Sub(&ray.To, &ray.From)
 	ray.Direction.Normalize(&ray.Direction)
 }
@@ -117,7 +117,7 @@ func (ray *Ray) UpdateDirection() {
 func (ray *Ray) Setup(fromX, fromY, fromZ, toX, toY, toZ float32, options *RayOptions) {
 	ray.From.Set(fromX, fromY, fromZ)
 	ray.To.Set(toX, toY, toZ)
-	ray.UpdateDirection()
+	ray.updateDirection()
 	ray.HasHit = false
 	ray.SkipBackfaces = options.SkipBackfaces
 	ray.CollisionFilterMask = options.CollisionFilterMask
@@ -169,22 +169,22 @@ func (ray *Ray) IntersectTrimesh(mesh *Trimesh, worldMatrix mathx.Mat4) {
 
 	maxDist := _itLocalFrom.Distance(&_itLocalTo)
 
-	// Float division by a zero component yields ±Inf, which IntersectRayAABB
+	// Float division by a zero component yields ±Inf, which intersectRayAABB
 	// handles; branching on a math.Inf constant made V8 box a heap number per cast.
 	_itInvDir.X = 1.0 / _itLocalDir.X
 	_itInvDir.Y = 1.0 / _itLocalDir.Y
 	_itInvDir.Z = 1.0 / _itLocalDir.Z
 
 	// Early rejection: Check if ray intersects the mesh's root bounding box
-	if !IntersectRayAABB(&mesh.AABB, &_itLocalFrom, &_itInvDir, maxDist) {
+	if !intersectRayAABB(&mesh.AABB, &_itLocalFrom, &_itInvDir, maxDist) {
 		return
 	}
 
-	count := mesh.Tree.RayQueryLocal(&_itLocalFrom, &_itLocalDir, maxDist, _itTriangles, &_itInvDir)
+	count := mesh.tree.rayQueryLocal(&_itLocalFrom, &_itLocalDir, maxDist, _itTriangles, &_itInvDir)
 
 	for i := 0; i < count && !ray.Result.ShouldStop; i++ {
 		trianglesIndex := _itTriangles[i]
-		mesh.GetNormal(trianglesIndex, &_itNormal)
+		mesh.getNormal(trianglesIndex, &_itNormal)
 
 		dot := _itLocalDir.Dot(&_itNormal)
 		if dot > -0.000001 && dot < 0.000001 {
@@ -199,7 +199,7 @@ func (ray *Ray) IntersectTrimesh(mesh *Trimesh, worldMatrix mathx.Mat4) {
 			continue
 		}
 
-		mesh.GetVertex(int(indices[trianglesIndex*3]), &_itA)
+		mesh.getVertex(int(indices[trianglesIndex*3]), &_itA)
 
 		_itVector.Sub(&_itA, &_itLocalFrom)
 		scalar := _itNormal.Dot(&_itVector) / dot
@@ -213,14 +213,14 @@ func (ray *Ray) IntersectTrimesh(mesh *Trimesh, worldMatrix mathx.Mat4) {
 
 		_itIntersectPt.ScaleAndAdd(&_itLocalFrom, &_itLocalDir, scalar)
 
-		mesh.GetVertex(int(indices[trianglesIndex*3+1]), &_itB)
-		mesh.GetVertex(int(indices[trianglesIndex*3+2]), &_itC)
+		mesh.getVertex(int(indices[trianglesIndex*3+1]), &_itB)
+		mesh.getVertex(int(indices[trianglesIndex*3+2]), &_itC)
 
 		var inTriangle bool
 		if dot < 0 {
-			inTriangle = RayPointInTriangle(&_itIntersectPt, &_itB, &_itA, &_itC)
+			inTriangle = rayPointInTriangle(&_itIntersectPt, &_itB, &_itA, &_itC)
 		} else {
-			inTriangle = RayPointInTriangle(&_itIntersectPt, &_itA, &_itB, &_itC)
+			inTriangle = rayPointInTriangle(&_itIntersectPt, &_itA, &_itB, &_itC)
 		}
 
 		if !inTriangle {
@@ -278,8 +278,8 @@ func (ray *Ray) IntersectTrimesh(mesh *Trimesh, worldMatrix mathx.Mat4) {
 	}
 }
 
-// RayPointInTriangle tests if point p lies inside triangle defined by a, b, c.
-func RayPointInTriangle(p, a, b, c *mathx.Vec3) bool {
+// rayPointInTriangle tests if point p lies inside triangle defined by a, b, c.
+func rayPointInTriangle(p, a, b, c *mathx.Vec3) bool {
 	_itV0.Sub(c, a)
 	_itV1.Sub(b, a)
 	_itV2.Sub(p, a)
@@ -294,11 +294,4 @@ func RayPointInTriangle(p, a, b, c *mathx.Vec3) bool {
 	v := dot00*dot12 - dot01*dot02
 	denom := dot00*dot11 - dot01*dot01
 	return u >= 0 && v >= 0 && (u+v) <= denom
-}
-
-// GetAABB calculates the bounding box enclosing the ray segment.
-func (ray *Ray) GetAABB(result *mathx.BoundingBox) *mathx.BoundingBox {
-	result.Min.Min(&ray.From, &ray.To)
-	result.Max.Max(&ray.From, &ray.To)
-	return result
 }
