@@ -311,7 +311,7 @@ func (r *ResourceManager) Decode(path string, ext string, data any) *Entry {
 		sm, sk := BuildSkinnedMesh(r.backend, ParseBinaryMesh(data.([]byte)))
 		e = &Entry{Kind: KindSkinnedMesh, SkinnedMesh: sm, Skeleton: sk}
 	case "banim":
-		e = &Entry{Kind: KindAnimation, Animation: animation.ParseBinaryAnimation(path, data.([]byte))}
+		e = &Entry{Kind: KindAnimation, Animation: ParseBinaryAnimation(path, data.([]byte))}
 	case "sfx":
 		e = &Entry{Kind: KindSound, Sound: parseSound(data.(string))}
 	case "bin":

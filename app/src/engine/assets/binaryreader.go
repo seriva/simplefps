@@ -1,4 +1,4 @@
-package systems
+package assets
 
 import "js:./interop.d.ts"
 

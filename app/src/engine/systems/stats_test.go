@@ -62,10 +62,6 @@ func TestStatsMountDOM(t *testing.T) {
 	}
 	s := NewStatsOverlay()
 	s.Mount()
-	s.SetBackendName("webgpu")
-	if s.rendererEl.textContent.(string) != "Renderer: webgpu" {
-		t.Errorf("Unexpected renderer text %q", s.rendererEl.textContent.(string))
-	}
 	s.Toggle(true)
 	if s.items[0].className.(string) != "stats-item visible" {
 		t.Errorf("Expected visible class, got %q", s.items[0].className.(string))

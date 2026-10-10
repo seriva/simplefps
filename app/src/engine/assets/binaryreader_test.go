@@ -1,4 +1,4 @@
-package systems
+package assets
 
 import (
 	"math"

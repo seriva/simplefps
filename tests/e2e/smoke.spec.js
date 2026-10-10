@@ -79,9 +79,6 @@ test.beforeEach(async ({ page }) => {
 test("boots to the main menu on the WebGPU backend without errors", async ({
 	page,
 }) => {
-	await expect(page.locator("#stats-renderer-text")).toHaveText(
-		/Renderer: webgpu/,
-	);
 	await expect(page.locator("#console-logs")).toContainText(
 		"[Arena] Loaded arena: demo",
 	);

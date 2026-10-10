@@ -11,12 +11,12 @@ app/src/
 │   ├── mathx/               # Vec3/Mat4/Quat/Transform/BoundingBox (target: both)
 │   ├── collision/           # trimesh + octree, raycasts (target: wasm)
 │   ├── physics/             # FPS controller, dynamic bodies (target: wasm)
-│   ├── systems/             # camera, settings, console, input, stats, sound, network, binary reader
-│   ├── animation/           # skeletons, clips, animation player
+│   ├── systems/             # camera, settings, console, input, stats, sound, network
+│   ├── animation/           # skeletons, clips, animation player (target: wasm)
 │   ├── rendering/           # WebGPU backend, Renderer, passes, pipelines, WGSL, materials, meshes
 │   │   └── fakegpu/         # in-memory GPUDevice recorder for headless tests
 │   ├── scene/               # entities, culling, light grid, draw-list provider
-│   └── assets/              # binary mesh/material/resource-list parsing, ResourceManager
+│   └── assets/              # binary reader, mesh/animation/material/resource-list parsing, ResourceManager
 └── game/                    # gameplay, UI (.templ), state machine, multiplayer
 ```
 
@@ -33,7 +33,7 @@ flowchart TD
     assets --> rendering & animation
     rendering --> mathx
     scene --> mathx & collision & physics & systems
-    animation --> mathx & systems
+    animation --> mathx
     systems --> mathx
     physics --> mathx & collision
     collision --> mathx
@@ -42,7 +42,8 @@ flowchart TD
 
 Rules the graph encodes:
 
-- `mathx` imports nothing; it is the one leaf everything else may use. `collision` imports only `mathx`; `physics` only `mathx` and `collision`.
+- `mathx` imports nothing; it is the one leaf everything else may use. `collision` imports only `mathx`; `physics` only `mathx` and `collision`; `animation` only `mathx` and `gofront/shared`. Those four packages contain no browser code and are the WebAssembly side of the build.
+- `assets` owns every binary decoder (`BinaryReader`, `ParseBinaryMesh`, `ParseBinaryAnimation`); engine leaf packages only define the data types the decoders fill.
 - `rendering` imports only `mathx`. It never sees `scene`, `systems` or settings; the renderer is fed through `SceneSource`, `CameraView` and `RenderOptions`. It is the only package that touches WebGPU; `rendering/fakegpu` is test-only and imported by `_test.go` files alone.
 - Engine packages never import `game`. `game` and `main` may import anything.
 - Settings (`systems.ActiveSettings`) are read in `engine` and `game` only. `engine.RenderFrame` copies them into `rendering.RenderOptions` once per frame; that is the only path settings take into rendering.
@@ -55,13 +56,16 @@ Each package declares where it runs with a `//gofront:target` directive on its f
 
 | Package | Target | Why |
 |---|---|---|
-| `mathx` | `both` | Pure float math used on both sides; the JS copy serves JS packages, the WASM copy is linked into `collision`. Struct types cross the boundary as live views, so a `*mathx.Vec3` made in JS can be passed straight into WASM. |
+| `mathx` | `both` | Pure float math used on both sides; the JS copy serves JS packages, the WASM copy is linked into `collision` and `physics`. Struct types cross the boundary as live views, so a `*mathx.Vec3` made in JS can be passed straight into WASM. |
 | `collision` | `wasm` | Octree traversal and ray/triangle tests are the hottest loop in the game; WASM keeps them branch-predictable and allocation-free. |
+| `physics` | `wasm` | The controller and body steps raycast many times per fixed step; keeping them next to `collision` means those raycasts never cross the boundary. Only the per-frame camera-pose handoff and the `OnBounce`/`OnLand` callbacks do. |
+| `animation` | `wasm` | Pose sampling and the per-joint world/skin matrix chain are pure float loops. The 64-joint palette is published through a `gofront/shared` buffer (`animation.SkinMatrices`) that JS reads without a copy; `SkinnedMeshEntity.Update` copies it into its own bone slice (a plain float loop, 1.1–1.3× the all-JS path). |
 | everything else | `js` | Talks to the DOM, WebGPU, PeerJS. |
 
 - **Cross-target determinism:** Code in `both` packages (`mathx`) is emitted by the JS backend in strict numeric mode (`Math.fround` on `float32` arithmetic, integer wrapping, divide-by-zero panics), guaranteeing identical results between the JS copy and the WASM copy.
 - **No package-level mutable state:** `both` packages must not have mutable package-level variables since JS and WASM maintain separate module copies.
-- `gofront build` emits `app.js` plus one `app.wasm` that bundles every `wasm`/`both` package; the JS facade for `collision` is generated, so callers see ordinary Go types. Hot calls must still obey the boundary rules in [Performance Invariants](#performance-invariants).
+- `gofront build` emits `app.js` plus one `app.wasm` that bundles every `wasm`/`both` package; the JS facades for `collision`, `physics` and `animation` are generated, so callers see ordinary Go types. Hot calls must still obey the boundary rules in [Performance Invariants](#performance-invariants).
+- **Measured (Node 25, `npm run bench`, same code compiled `--js-only` vs hybrid):** closest-hit raycasts against a 2048-triangle octree floor run at 1.1–1.15× JS throughput; the full FPS-controller fixed step (pose in, `Update` + `MoveWithCamera` + `SyncCamera`, pose out) at 2.3–2.4× (≈105k vs 45k frames/s); one 64-joint skinned-character frame (player update + skinning + palette copy-out) at 1.1–1.3×. `app.wasm` (`mathx` + `collision` + `physics` + `animation`) is ≈100 kB unoptimised and ≈80 kB after `--release` (`wasm-opt -O3 --gufa`, −20%).
 
 ## Boot and Frame Loop
 
@@ -230,7 +234,7 @@ The lists alias scene-owned storage and are valid until the next `Update`; passe
 
 ## Animation
 
-`animation.Skeleton` holds joints with inverse-bind matrices; a `Pose` is flat per-joint position/rotation arrays. `ParseBinaryAnimation` reads clips (with optional per-frame bounds used for culling), `AnimationPlayer.Update(dtSeconds)` samples them, and `Skeleton.ComputeSkinningMatrices(pose)` writes into a reused `[]mathx.Mat4`. `SkinnedMeshEntity.PlayAnimation` drives the player and `Draw` appends the matrices to the renderer's `BoneRing` storage buffer, recording the base index in `ObjectData.misc.x`.
+`animation.Skeleton` holds joints with inverse-bind matrices; a `Pose` is flat per-joint local position/rotation arrays. `assets.ParseBinaryAnimation` reads clips (with optional per-frame bounds used for culling), `AnimationPlayer.Update(dtSeconds)` samples them, and `Skeleton.ComputeSkinningMatrices(pose)` writes world × inverse-bind per joint into the shared `animation.SkinMatrices` buffer (at most `MaxSkinJoints` = `rendering.MaxJoints` = 64) and returns the joint count. `SkinnedMeshEntity.PlayAnimation` drives the player and `Draw` appends the matrices to the renderer's `BoneRing` storage buffer, recording the base index in `ObjectData.misc.x`.
 
 ## Math, Collision and Physics
 
@@ -238,7 +242,7 @@ The lists alias scene-owned storage and are valid until the next `Update`; passe
 
 ## Systems and Assets
 
-`systems` groups the engine-level services: `Camera` (projection/view/frustum planes), `EngineSettings` (`ActiveSettings`, persisted to `localStorage`), `ConsoleManager` (`GlobalConsole`: logging and the command registry — always log through it, never `console.*`), `InputManager` (`GlobalInput`, including the `.templ` virtual controls on mobile), `StatsOverlay` (`GlobalStats`), `Sound`, `Network` (see below) and `BinaryReader`.
+`systems` groups the engine-level services: `Camera` (projection/view/frustum planes), `EngineSettings` (`ActiveSettings`, persisted to `localStorage`), `ConsoleManager` (`GlobalConsole`: logging and the command registry — always log through it, never `console.*`), `InputManager` (`GlobalInput`, including the `.templ` virtual controls on mobile), `StatsOverlay` (`GlobalStats`), `Sound` and `Network` (see below).
 
 `assets.ResourceManager` (`GlobalResources`) fetches, decodes and caches assets by path, choosing the decoder by extension (`.webp` textures, `.mesh`/`.bmesh` meshes, `.smesh`/`.sbmesh` skinned meshes, `.banim` clips, `.mat` material libraries, `.sfx` sounds, `.list` resource lists loaded recursively, raw `.bin`). `ParseBinaryMesh` decodes the binary mesh format including the skinning section. Generated assets under `app/resources/` come from the converters in `scripts/` and are never hand-edited.
 
@@ -272,7 +276,7 @@ Gameplay sync (pickups, hits, scores) is not implemented; the intended shape is 
 
 ## Performance Invariants
 
-The frame path — physics step, raycasts, `Scene.Update`, `Renderer.Render`, HUD writes — allocates nothing on the Go side. The one exception is the JS→WASM camera-pose handoff in `game.Update`: reading `float32` fields back out of the WASM controller boxes them as V8 HeapNumbers (~48 bytes per frame, short-lived new-space garbage). Heap-growth guards in the `scene` and `rendering` test suites and the `tests/perf/zero-alloc.js` benchmark (raycasts and the controller loop across the JS→WASM boundary, with a 128 B/frame budget) enforce it. The rules that keep it true under GoFront:
+The frame path — physics step, raycasts, `Scene.Update`, `Renderer.Render`, HUD writes — allocates nothing on the Go side, including the JS→WASM camera-pose handoff in `game.Update` (every boundary signature is numbers and `externref`s, so V8 inlines the calls; `tests/perf/zero-alloc.js` measures ~0.2 B/frame). Heap-growth guards in the `scene` and `rendering` test suites and the `tests/perf/zero-alloc.js` benchmark (raycasts and the controller loop across the JS→WASM boundary, with a 128 B/frame budget) enforce it. The rules that keep it true under GoFront:
 
 - Out-parameter math and caller-provided result buffers; package-level scratch vectors/matrices/slices.
 - Fixed-capacity lists with a `Count` and swap-remove; growth only when capacity is exceeded.

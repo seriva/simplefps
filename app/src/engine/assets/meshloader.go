@@ -3,7 +3,6 @@ package assets
 import (
 	"../animation"
 	"../rendering"
-	"../systems"
 	"js:./interop.d.ts"
 )
 
@@ -39,7 +38,7 @@ func (md *MeshData) HasSkeleton() bool { return len(md.Joints) > 0 }
 // names, legacy per-vertex weights (skipped) and for v>=5 GPU skinning data:
 // u8[nVerts*4] joint indices and f32[nVerts*4] weights.
 func ParseBinaryMesh(data []byte) *MeshData {
-	r := systems.NewBinaryReader(data)
+	r := NewBinaryReader(data)
 	version := int(r.ReadUint32())
 	vertexCount := int(r.ReadUint32())
 	uvCount := int(r.ReadUint32())
