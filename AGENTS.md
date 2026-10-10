@@ -39,7 +39,7 @@ SimpleFPS is an arena-based first-person shooter with WebGPU rendering, distribu
 - **Build**: GoFront (`npm run dev` / `npm run build`)
 - **Test**: `npm test` (`gofront test app/src/...`, every package), `npm run test:dom` (same with a jsdom `window`/`document`), `npm run test:perf` (zero-allocation raycast benchmark), `npm run test:e2e` (Playwright smoke test), `npm run test:all`
 - **Lint / Format / Type-check**: `npm run check` = Biome lint (JS files only) + `gofront check app/src/...`; `npm run format` = Biome format
-- **Node**: >= 24.0.0, npm >= 11.0.0; uses GoFront >= 1.5.1.
+- **Node**: >= 24.0.0, npm >= 11.0.0; uses GoFront >= 1.6.0.
 
 ## Architecture
 Game code lives in `app/src/game/` (package `game`), the engine in `app/src/engine/` (package `engine` plus `animation/`, `assets/`, `collision/` (WASM), `mathx/` (JS + WASM), `physics/` (WASM), `rendering/`, `rendering/fakegpu/` (test-only fake `GPUDevice`), `scene/`, `systems/`), and typings for vendored libs in `app/src/dependencies/`. `app/src/main.go` is the application entry point: it initialises the WebGPU backend, loads resources, boots the game and registers the update/render callbacks with `engine`. Asset-conversion scripts live in `scripts/` (BSP, MD5, OBJ converters). The architecture is documented in `docs/architecture.md` (package layout, dependency rules, frame loop, rendering passes, scene, networking, performance invariants).
