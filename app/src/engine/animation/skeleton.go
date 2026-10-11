@@ -1,11 +1,20 @@
+//gofront:target wasm
 package animation
 
 import (
 	"math"
 
 	"../mathx"
-
+	"gofront/shared"
 )
+
+// MaxSkinJoints is the largest palette ComputeSkinningMatrices publishes; it must
+// match the renderer's bone-ring slot (rendering.MaxJoints).
+const MaxSkinJoints = 64
+
+// SkinMatrices receives the result of the last ComputeSkinningMatrices call,
+// 16 floats per joint, and is read from JS without copying.
+var SkinMatrices = shared.NewFloat32(MaxSkinJoints * 16)
 
 // JointDef is the raw joint description from a mesh file: object-space
 // (global) bind pose position and rotation plus a parent index (-1 = root).
@@ -33,7 +42,6 @@ type Skeleton struct {
 	InverseBindMatrices []mathx.Mat4
 
 	worldMatrices []mathx.Mat4
-	skinMatrices  []mathx.Mat4
 	tempMatrix    mathx.Mat4
 }
 
@@ -46,7 +54,6 @@ func NewSkeleton(defs []JointDef) *Skeleton {
 		JointCount:          n,
 		InverseBindMatrices: make([]mathx.Mat4, n),
 		worldMatrices:       make([]mathx.Mat4, n),
-		skinMatrices:        make([]mathx.Mat4, n),
 		tempMatrix:          mathx.NewMat4(),
 	}
 
@@ -86,7 +93,6 @@ func NewSkeleton(defs []JointDef) *Skeleton {
 		s.InverseBindMatrices[i] = inv
 
 		s.worldMatrices[i] = mathx.NewMat4()
-		s.skinMatrices[i] = mathx.NewMat4()
 	}
 	return s
 }
@@ -152,14 +158,24 @@ func (s *Skeleton) GetWorldMatrices(pose *Pose) []mathx.Mat4 {
 	return s.computeWorldMatrices(pose)
 }
 
-// ComputeSkinningMatrices returns world * inverseBind per joint. The returned
-// slice is owned by the skeleton and overwritten on the next call.
-func (s *Skeleton) ComputeSkinningMatrices(pose *Pose) []mathx.Mat4 {
+// ComputeSkinningMatrices writes world * inverseBind per joint into
+// SkinMatrices (overwritten on the next call, by any skeleton) and returns the
+// number of joints written (at most MaxSkinJoints).
+func (s *Skeleton) ComputeSkinningMatrices(pose *Pose) int {
 	s.computeWorldMatrices(pose)
-	for i := 0; i < s.JointCount; i++ {
-		mathx.Mat4Multiply(s.skinMatrices[i], s.worldMatrices[i], s.InverseBindMatrices[i])
+	n := s.JointCount
+	if n > MaxSkinJoints {
+		n = MaxSkinJoints
 	}
-	return s.skinMatrices
+	skin := s.tempMatrix
+	for i := 0; i < n; i++ {
+		mathx.Mat4Multiply(skin, s.worldMatrices[i], s.InverseBindMatrices[i])
+		base := i * 16
+		for k := 0; k < 16; k++ {
+			SkinMatrices[base+k] = skin[k]
+		}
+	}
+	return n
 }
 
 // Pose stores flat per-joint local positions (3 floats) and rotations (4 floats).
@@ -180,6 +196,26 @@ func NewPose(jointCount int) *Pose {
 		p.Rotations[i*4+3] = 1
 	}
 	return p
+}
+
+// NewPosesFromFrames builds numFrames poses from a flat per-frame, per-joint
+// stream of pos(3) rot(4) floats, as stored in the .anim format.
+func NewPosesFromFrames(frames []float32, numFrames, numJoints int) []*Pose {
+	poses := make([]*Pose, numFrames)
+	off := 0
+	for f := 0; f < numFrames; f++ {
+		p := NewPose(numJoints)
+		for j := 0; j < numJoints; j++ {
+			if off+7 > len(frames) {
+				break
+			}
+			p.SetJointTransform(j, frames[off], frames[off+1], frames[off+2],
+				frames[off+3], frames[off+4], frames[off+5], frames[off+6])
+			off += 7
+		}
+		poses[f] = p
+	}
+	return poses
 }
 
 // SetJointTransform writes one joint's local position and rotation.

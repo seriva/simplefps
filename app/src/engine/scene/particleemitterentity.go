@@ -5,49 +5,59 @@ import (
 	"../rendering"
 )
 
-// Instance layout (6 floats = 24 bytes per particle):
-//   slot 2: aInstancePos      (vec3, offset  0)
-//   slot 3: aInstanceScale    (float, offset 12)
-//   slot 4: aInstanceRotation (float, offset 16)
-//   slot 5: aInstanceOpacity  (float, offset 20)
+// GPU particle record (12 floats = 48 bytes, matches WgslParticleUpdate):
+//   pos(3) duration | vel(3) life | scale gravity rotation pad
 const (
-	particleFloatsPerInstance = 6
-	particleInstanceStride    = particleFloatsPerInstance * 4
-
-	// Internal flat particle layout (11 floats per particle).
 	pX        = 0
 	pY        = 1
 	pZ        = 2
-	pVX       = 3
-	pVY       = 4
-	pVZ       = 5
-	pDuration = 6
+	pDuration = 3
+	pVX       = 4
+	pVY       = 5
+	pVZ       = 6
 	pLife     = 7
 	pScale    = 8
 	pGravity  = 9
 	pRotation = 10
-	pStride   = 11
+	pStride   = 12
+
+	// Instance record (6 floats = 24 bytes, rendering.ParticleInstanceStride).
+	particleFloatsPerInstance = 6
 
 	particleInitialCapacity = 128
+	// particleLUTSize is the number of (scale, opacity) curve samples.
+	particleLUTSize = 32
+	// particleWorkgroup matches @workgroup_size(64) in WgslParticleUpdate.
+	particleWorkgroup = 64
 )
 
-// ParticleEmitterEntity simulates a burst of textured billboard particles
-// drawn with a single instanced draw call. It removes itself once empty.
+// ParticleEmitterEntity simulates a burst of textured billboard particles on
+// the GPU: spawned records are uploaded once, a compute dispatch integrates
+// them and writes the instance buffer, and one instanced draw renders them.
+// Lifetimes are also tracked on the CPU so the emitter removes itself once
+// every particle is dead. Slots are never reused (burst semantics): dead
+// particles get zero-size instances until the emitter is removed.
 type ParticleEmitterEntity struct {
 	Base EntityBase
 
 	particleData []float32
-	count        int
+	count        int // spawned (high-water)
+	live         int // life > 0
 	capacity     int
 	texture      *rendering.Texture
 	scaleFn      ProgressFunc
 	opacityFn    ProgressFunc
+	// pendingMs accumulates frame time until the next GPU simulate.
+	pendingMs float32
 
-	instanceBuffer any
-	vertexState    any
-	instanceData   []float32
-	// backend that owns instanceBuffer/vertexState (set on first Render).
-	backend rendering.RenderBackend
+	backend        *rendering.Backend
+	particleBuffer rendering.GPUBuffer
+	instanceBuffer rendering.GPUBuffer
+	curveBuffer    rendering.GPUBuffer
+	bindGroup      rendering.GPUBindGroup
+	gpuCapacity    int
+	uploaded       int
+	curve          []float32
 }
 
 // NewParticleEmitterEntity creates an empty emitter for texture.
@@ -60,13 +70,35 @@ func NewParticleEmitterEntity(texture *rendering.Texture, scaleFn, opacityFn Pro
 		particleData: make([]float32, particleInitialCapacity*pStride),
 	}
 	initBase(&e.Base, TypeParticleEmitter, nil)
+	e.buildCurve()
 	return e
+}
+
+// buildCurve samples the scale/opacity progress functions into the LUT.
+func (e *ParticleEmitterEntity) buildCurve() {
+	e.curve = make([]float32, particleLUTSize*2)
+	for i := 0; i < particleLUTSize; i++ {
+		progress := float32(i) / float32(particleLUTSize-1)
+		s := float32(1)
+		if e.scaleFn != nil {
+			s = e.scaleFn(progress)
+		}
+		o := float32(1)
+		if e.opacityFn != nil {
+			o = e.opacityFn(progress)
+		}
+		e.curve[i*2] = s
+		e.curve[i*2+1] = o
+	}
 }
 
 func (e *ParticleEmitterEntity) GetBase() *EntityBase { return &e.Base }
 
 // Count returns the number of live particles.
-func (e *ParticleEmitterEntity) Count() int { return e.count }
+func (e *ParticleEmitterEntity) Count() int { return e.live }
+
+// SpawnedCount returns the number of particle slots in use (live or dead).
+func (e *ParticleEmitterEntity) SpawnedCount() int { return e.count }
 
 // AddParticle spawns a particle; durationMs is its lifetime.
 func (e *ParticleEmitterEntity) AddParticle(position, velocity *mathx.Vec3, durationMs, startScale, gravity, rotation float32) {
@@ -84,141 +116,128 @@ func (e *ParticleEmitterEntity) AddParticle(position, velocity *mathx.Vec3, dura
 	p[base+pX] = position.X
 	p[base+pY] = position.Y
 	p[base+pZ] = position.Z
+	p[base+pDuration] = durationMs
 	p[base+pVX] = velocity.X
 	p[base+pVY] = velocity.Y
 	p[base+pVZ] = velocity.Z
-	p[base+pDuration] = durationMs
 	p[base+pLife] = durationMs
 	p[base+pScale] = startScale
 	p[base+pGravity] = gravity
 	p[base+pRotation] = rotation
+	p[base+11] = 0
 	e.count++
+	e.live++
 }
 
-// Update integrates particles and swap-removes dead ones; false when empty.
+// Update ages particles on the CPU (for removal) and banks the frame time
+// for the GPU integration; false when every particle is dead.
 func (e *ParticleEmitterEntity) Update(frameTime float32) bool {
-	dtSec := frameTime / 1000
 	p := e.particleData
-	for i := e.count - 1; i >= 0; i-- {
+	live := 0
+	for i := 0; i < e.count; i++ {
 		base := i * pStride
-		p[base+pLife] -= frameTime
 		if p[base+pLife] > 0 {
-			p[base+pVY] -= p[base+pGravity] * dtSec
-			p[base+pX] += p[base+pVX] * dtSec
-			p[base+pY] += p[base+pVY] * dtSec
-			p[base+pZ] += p[base+pVZ] * dtSec
-		} else {
-			e.count--
-			if i < e.count {
-				lastBase := e.count * pStride
-				for k := 0; k < pStride; k++ {
-					p[base+k] = p[lastBase+k]
-				}
+			p[base+pLife] -= frameTime
+			if p[base+pLife] > 0 {
+				live++
 			}
 		}
 	}
+	e.live = live
+	e.pendingMs += frameTime
 	baseUpdate(e, frameTime)
-	return e.count > 0
+	return e.live > 0
 }
 
-func (e *ParticleEmitterEntity) ensureGPUState(b rendering.RenderBackend, quad *rendering.Mesh, requiredSize int) {
-	if e.instanceBuffer != nil && len(e.instanceData) >= requiredSize {
+// ensureGPUState (re)creates the storage buffers and bind group when the
+// spawned count outgrows them. Growth re-uploads every record from the CPU
+// copy (positions of already-integrated particles restart from spawn), so
+// bursts should spawn before their first frame.
+func (e *ParticleEmitterEntity) ensureGPUState(r *rendering.Renderer) {
+	if e.particleBuffer != nil && e.gpuCapacity >= e.count {
 		return
 	}
-	e.backend = b
-	newSize := requiredSize * 2
-	if newSize < 100*particleFloatsPerInstance {
-		newSize = 100 * particleFloatsPerInstance
-	}
-	e.instanceData = make([]float32, newSize)
-	if e.instanceBuffer != nil {
-		b.DeleteBuffer(e.instanceBuffer)
-	}
-	if e.vertexState != nil {
-		b.DeleteVertexState(e.vertexState)
-	}
-	e.instanceBuffer = b.CreateBuffer(e.instanceData, rendering.UsageVertex)
-	e.vertexState = b.CreateVertexState(&rendering.VertexStateDescriptor{
-		Attributes: []rendering.VertexAttribute{
-			{Buffer: quad.VertexBuffer, Slot: 0, Size: 3, Type: "float", Offset: 0, Stride: 12},
-			{Buffer: quad.UVBuffer, Slot: 1, Size: 2, Type: "float", Offset: 0, Stride: 8},
-			{Buffer: e.instanceBuffer, Slot: 2, Size: 3, Type: "float", Divisor: 1, Stride: particleInstanceStride, Offset: 0},
-			{Buffer: e.instanceBuffer, Slot: 3, Size: 1, Type: "float", Divisor: 1, Stride: particleInstanceStride, Offset: 12},
-			{Buffer: e.instanceBuffer, Slot: 4, Size: 1, Type: "float", Divisor: 1, Stride: particleInstanceStride, Offset: 16},
-			{Buffer: e.instanceBuffer, Slot: 5, Size: 1, Type: "float", Divisor: 1, Stride: particleInstanceStride, Offset: 20},
-		},
-		IndexBuffer: quad.Indices[0].IndexBuffer,
-	})
-}
-
-// Draw uploads per-instance data and issues one instanced draw with the
-// bound instancedBillboard shader.
-func (e *ParticleEmitterEntity) Draw(r *rendering.Renderer, sh *rendering.Shader, mode rendering.MaterialMode) {
-	n := e.count
 	b := r.Backend
-	quad := r.Shapes.BillboardQuad
-	if e.texture == nil || n == 0 || b == nil || sh == nil || quad == nil || len(quad.Indices) == 0 {
-		return
+	e.releaseGPU()
+	e.backend = b
+	newCap := e.gpuCapacity * 2
+	if newCap < e.count {
+		newCap = e.count
 	}
-	requiredSize := n * particleFloatsPerInstance
-	e.ensureGPUState(b, quad, requiredSize)
-
-	offset := 0
-	p := e.particleData
-	out := e.instanceData
-	for i := 0; i < n; i++ {
-		base := i * pStride
-		progress := float32(1) - p[base+pLife]/p[base+pDuration]
-		scaleMod := float32(1)
-		if e.scaleFn != nil {
-			scaleMod = e.scaleFn(progress)
-		}
-		opacityMod := float32(1)
-		if e.opacityFn != nil {
-			opacityMod = e.opacityFn(progress)
-		}
-		out[offset] = p[base+pX]
-		out[offset+1] = p[base+pY]
-		out[offset+2] = p[base+pZ]
-		out[offset+3] = p[base+pScale] * scaleMod
-		out[offset+4] = p[base+pRotation]
-		out[offset+5] = opacityMod
-		offset += particleFloatsPerInstance
+	if newCap < particleInitialCapacity {
+		newCap = particleInitialCapacity
 	}
-
-	// Whole buffer (<= 2x live data) rather than a per-frame subarray view.
-	b.UpdateBuffer(e.instanceBuffer, e.instanceData, 0)
-
-	e.texture.Bind(0)
-	b.BindVertexState(e.vertexState)
-	b.DrawInstanced(quad.Indices[0].IndexBuffer, len(quad.Indices[0].Array), n)
-	b.BindVertexState(nil)
-	rendering.UnbindTextureRange(b, 0, 1)
+	e.gpuCapacity = newCap
+	e.particleBuffer = b.CreateBuffer("particles", newCap*pStride*4, rendering.BufferUsageStorage, nil)
+	e.instanceBuffer = b.CreateBuffer("particle-instances", newCap*rendering.ParticleInstanceStride, rendering.BufferUsageStorage|rendering.BufferUsageVertex, nil)
+	e.curveBuffer = b.CreateFloatBuffer("particle-curve", e.curve, rendering.BufferUsageStorage)
+	e.bindGroup = b.CreateBindGroup("particles", r.Layouts.Particle, []any{
+		rendering.BindingEntry(0, rendering.BufferBinding(e.particleBuffer, newCap*pStride*4)),
+		rendering.BindingEntry(1, rendering.BufferBinding(e.instanceBuffer, newCap*rendering.ParticleInstanceStride)),
+		rendering.BindingEntry(2, rendering.BufferBinding(e.curveBuffer, len(e.curve)*4)),
+	})
+	e.uploaded = 0
 }
 
-func (e *ParticleEmitterEntity) DrawShadow(r *rendering.Renderer, sh *rendering.Shader)    {}
-func (e *ParticleEmitterEntity) DrawWireframe(r *rendering.Renderer, sh *rendering.Shader) {}
-func (e *ParticleEmitterEntity) DrawSkeleton(r *rendering.Renderer, sh *rendering.Shader)  {}
-func (e *ParticleEmitterEntity) Bounds() *mathx.BoundingBox                             { return e.Base.BoundingBox }
-func (e *ParticleEmitterEntity) TriangleCount() int                                       { return 0 }
-func (e *ParticleEmitterEntity) CastsShadow() bool                                        { return false }
+// Simulate uploads newly spawned records and dispatches the compute update
+// for every spawned slot with the banked frame time.
+func (e *ParticleEmitterEntity) Simulate(r *rendering.Renderer, pass rendering.GPUComputePassEncoder) {
+	if e.count == 0 || e.texture == nil || r.Backend == nil {
+		return
+	}
+	e.ensureGPUState(r)
+	if e.uploaded < e.count {
+		r.Backend.WriteBufferSlice(e.particleBuffer, e.uploaded*pStride*4, e.particleData, e.uploaded*pStride, (e.count-e.uploaded)*pStride)
+		e.uploaded = e.count
+	}
+	ms := e.pendingMs
+	e.pendingMs = 0
+	r.NextObject()
+	r.ObjectParams(0, ms/1000, ms, float32(e.count), particleLUTSize)
+	r.ComputeBindGroup1(pass, e.bindGroup)
+	r.ComputeObjectOffset(pass)
+	pass.dispatchWorkgroups((e.count+particleWorkgroup-1)/particleWorkgroup, 1, 1)
+}
+
+// Draw issues one instanced draw of the billboard quad over every spawned
+// slot with the instanced-billboard pipeline.
+func (e *ParticleEmitterEntity) Draw(r *rendering.Renderer, mode rendering.MaterialMode) {
+	quad := r.Shapes.BillboardQuad
+	if e.texture == nil || e.count == 0 || e.instanceBuffer == nil || quad == nil {
+		return
+	}
+	r.NextObject()
+	r.BindGroup1(e.texture.SpriteBindGroup(r))
+	quad.DrawInstanced(r, e.instanceBuffer, e.count)
+}
+
+func (e *ParticleEmitterEntity) DrawShadow(r *rendering.Renderer)    {}
+func (e *ParticleEmitterEntity) DrawWireframe(r *rendering.Renderer) {}
+func (e *ParticleEmitterEntity) DrawSkeleton(r *rendering.Renderer)  {}
+func (e *ParticleEmitterEntity) Bounds() *mathx.BoundingBox          { return e.Base.BoundingBox }
+func (e *ParticleEmitterEntity) TriangleCount() int                    { return 0 }
+func (e *ParticleEmitterEntity) CastsShadow() bool                     { return false }
+
+func (e *ParticleEmitterEntity) releaseGPU() {
+	if e.backend != nil {
+		e.backend.DestroyBuffer(e.particleBuffer)
+		e.backend.DestroyBuffer(e.instanceBuffer)
+		e.backend.DestroyBuffer(e.curveBuffer)
+	}
+	e.particleBuffer = nil
+	e.instanceBuffer = nil
+	e.curveBuffer = nil
+	e.bindGroup = nil
+	e.gpuCapacity = 0
+	e.uploaded = 0
+}
 
 func (e *ParticleEmitterEntity) Dispose() {
 	baseDispose(&e.Base)
-	b := e.backend
-	if b != nil {
-		if e.instanceBuffer != nil {
-			b.DeleteBuffer(e.instanceBuffer)
-		}
-		if e.vertexState != nil {
-			b.DeleteVertexState(e.vertexState)
-		}
-	}
-	e.instanceBuffer = nil
-	e.vertexState = nil
+	e.releaseGPU()
 	e.backend = nil
 	e.count = 0
+	e.live = 0
 	e.particleData = nil
-	e.instanceData = nil
 	e.texture = nil
 }

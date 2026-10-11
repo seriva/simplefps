@@ -546,7 +546,7 @@ templ UpdateMenuContent() {
 	<div class="menu-button" data-action="update-no">{ Translate("NO") }</div>
 }
 
-templ SettingsMenuContent(activeTab int, useWebGPU bool, hasWebGPU bool, renderScale float32, gamma float32, doFSR bool, fsrSharpness float32, proceduralDetail bool, doDirt bool, showStats bool, lookSensitivity float32) {
+templ SettingsMenuContent(activeTab int, renderScale float32, gamma float32, doFSR bool, fsrSharpness float32, proceduralDetail bool, doDirt bool, showStats bool, lookSensitivity float32) {
 	<div class="menu-tabs">
 		<div class={ tabClass(activeTab == 0) } data-tab="0">{ Translate("GRAPHICS") }</div>
 		<div class={ tabClass(activeTab == 1) } data-tab="1">{ Translate("INPUT") }</div>
@@ -555,15 +555,6 @@ templ SettingsMenuContent(activeTab int, useWebGPU bool, hasWebGPU bool, renderS
 	if activeTab == 0 {
 		<div class="menu-tab-content active">
 			<div class="menu-panel">
-				<div class="menu-row">
-					<span>{ Translate("RENDERER") }</span>
-					<select class="menu-select" id="setting-renderer">
-						if hasWebGPU {
-							<option value="true" selected?={ useWebGPU }>{ Translate("WEBGPU") } (Experimental)</option>
-						}
-						<option value="false" selected?={ !useWebGPU }>{ Translate("WEBGL") }</option>
-					</select>
-				</div>
 				<div class="menu-row">
 					<span>{ Translate("RENDER_SCALE") }</span>
 					<input type="range" class="menu-slider" id="setting-render-scale" min="0.5" max="1.0" step="0.05" value={ fmt.Sprintf("%0.2f", renderScale) }/>

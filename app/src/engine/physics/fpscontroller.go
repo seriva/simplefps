@@ -1,3 +1,4 @@
+//gofront:target wasm
 package physics
 
 import (
@@ -8,17 +9,17 @@ import (
 )
 
 const (
-	JumpThreshold     = float32(50.0)
-	LandTimeThreshold = float32(0.15)
-	MaxVelocityChange = float32(100.0)
-	CoyoteTime        = float32(0.2)
-	Gravity           = float32(9.82 * 80.0)
-	StepHeight        = float32(50.0)
-	GroundDecel       = float32(25.0)
-	DampXZK           = float32(-3.912023) // math.Log(0.02)
-	DampYK            = float32(-0.010050) // math.Log(0.99)
-	DampRollK         = float32(-6.907755) // math.Log(0.001)
-	NoclipSpeed       = float32(500.0)
+	JumpThreshold     float32 = 50.0
+	LandTimeThreshold float32 = 0.15
+	MaxVelocityChange float32 = 100.0
+	CoyoteTime        float32 = 0.2
+	Gravity           float32 = 785.6 // 9.82 * 80
+	StepHeight        float32 = 50.0
+	GroundDecel       float32 = 25.0
+	DampXZK           float32 = -3.912023 // math.Log(0.02)
+	DampYK            float32 = -0.010050 // math.Log(0.99)
+	DampRollK         float32 = -6.907755 // math.Log(0.001)
+	NoclipSpeed       float32 = 500.0
 )
 
 var (
@@ -26,6 +27,9 @@ var (
 	_fcRightVector           mathx.Vec3
 	_fcWishDir               mathx.Vec3
 	_fcNoclipDir             mathx.Vec3
+	_fcCamForward            mathx.Vec3
+	_fcCamRight              mathx.Vec3
+	_fcOrigin                mathx.Vec3
 	_fcRaycastResult         collision.RaycastResult
 	// Outputs of resolveHorizontalCollision / resolveDepenetration. A (float32,
 	// float32) return compiles to a JS array per call, which V8 only elides
@@ -46,12 +50,13 @@ var (
 	_noclip bool
 )
 
-// CameraPose aliases the camera vectors the controller writes to (SyncCamera)
-// and reads from (noclip).
+// CameraPose is the camera state the controller reads (Direction; Position in
+// noclip) and writes (SyncCamera: Position, Up). It lives in WASM, so the JS
+// side copies the camera in before stepping and back out after SyncCamera.
 type CameraPose struct {
-	Position  *mathx.Vec3
-	Direction *mathx.Vec3
-	Up        *mathx.Vec3
+	Position  mathx.Vec3
+	Direction mathx.Vec3
+	Up        mathx.Vec3
 }
 
 // ToggleNoclip toggles noclip mode and returns the new state.
@@ -60,13 +65,11 @@ func ToggleNoclip() bool {
 	return _noclip
 }
 
-// SetNoclip sets noclip mode.
-func SetNoclip(enabled bool) {
+func setNoclip(enabled bool) {
 	_noclip = enabled
 }
 
-// IsNoclip returns whether noclip mode is enabled.
-func IsNoclip() bool {
+func isNoclip() bool {
 	return _noclip
 }
 
@@ -85,8 +88,8 @@ type FPSControllerConfig struct {
 	WobbleIntensity    float32
 }
 
-// DefaultFPSControllerConfig returns default tuning for character physics.
-func DefaultFPSControllerConfig() FPSControllerConfig {
+// defaultFPSControllerConfig returns default tuning for character physics.
+func defaultFPSControllerConfig() FPSControllerConfig {
 	return FPSControllerConfig{
 		Radius:             35,
 		Height:             60,
@@ -104,8 +107,8 @@ func DefaultFPSControllerConfig() FPSControllerConfig {
 type FPSController struct {
 	// Provider supplies static world raycasts; nil means no collision.
 	Provider RaycastProvider
-	// Camera is the pose SyncCamera drives; nil disables SyncCamera and noclip movement.
-	Camera *CameraPose
+	// Camera is the pose SyncCamera drives and noclip moves.
+	Camera CameraPose
 
 	Config      FPSControllerConfig
 	Position    mathx.Vec3
@@ -128,7 +131,7 @@ type FPSController struct {
 
 // NewFPSController creates an FPSController at spawnPos with optional configuration.
 func NewFPSController(spawnPos *mathx.Vec3, config *FPSControllerConfig) *FPSController {
-	cfg := DefaultFPSControllerConfig()
+	cfg := defaultFPSControllerConfig()
 	if config != nil {
 		if config.Radius != 0 {
 			cfg.Radius = config.Radius
@@ -212,8 +215,8 @@ func (c *FPSController) Update(frameTime float32) {
 	c.Velocity.Y *= float32(math.Exp(float64(DampYK * frameTime)))
 }
 
-// Move applies player WASD input relative to camera forward and right directions.
-func (c *FPSController) Move(strafe, move float32, cameraForward, cameraRight *mathx.Vec3, frameTime float32) {
+// move applies player WASD input relative to camera forward and right directions.
+func (c *FPSController) move(strafe, move float32, cameraForward, cameraRight *mathx.Vec3, frameTime float32) {
 	if _noclip {
 		c.noclipMove(strafe, move, cameraForward, cameraRight, frameTime)
 		return
@@ -240,6 +243,16 @@ func (c *FPSController) Move(strafe, move float32, cameraForward, cameraRight *m
 	} else {
 		c.accelerate(&_fcWishDir, wishSpeed, c.Config.AirAcceleration, frameTime)
 	}
+}
+
+// MoveWithCamera is move with forward/right taken from Camera.Direction
+// projected onto the XZ plane, so the per-step call crosses no vectors.
+func (c *FPSController) MoveWithCamera(strafe, move, frameTime float32) {
+	_fcCamForward.Copy(&c.Camera.Direction)
+	_fcCamForward.Y = 0
+	_fcCamForward.Normalize(&_fcCamForward)
+	_fcCamRight.RotateY(&_fcCamForward, &_fcOrigin, float32(-math.Pi/2))
+	c.move(strafe, move, &_fcCamForward, &_fcCamRight, frameTime)
 }
 
 // Jump triggers a vertical jump impulse if grounded or within coyote time.
@@ -595,14 +608,11 @@ func (c *FPSController) resolveCeilingCollision(finalX, startY, finalZ float32) 
 
 // SyncCamera updates camera smoothing, head bob, and roll on c.Camera.
 func (c *FPSController) SyncCamera(frameTime float32) {
-	cam := c.Camera
-	if cam != nil && cam.Position != nil && cam.Direction != nil && cam.Up != nil {
-		c.SyncCameraWith(cam.Position, cam.Direction, cam.Up, frameTime)
-	}
+	cam := &c.Camera
+	c.syncCameraWith(&cam.Position, &cam.Direction, &cam.Up, frameTime)
 }
 
-// SyncCameraWith updates specific camera position, direction, and up-vectors.
-func (c *FPSController) SyncCameraWith(camPos, camDir, camUp *mathx.Vec3, frameTime float32) {
+func (c *FPSController) syncCameraWith(camPos, camDir, camUp *mathx.Vec3, frameTime float32) {
 	if _noclip {
 		return
 	}
@@ -700,13 +710,10 @@ func (c *FPSController) updateCameraRoll(camDir, camUp *mathx.Vec3, horizontalSp
 }
 
 func (c *FPSController) noclipMove(inputX, inputZ float32, _cameraForward, cameraRight *mathx.Vec3, frameTime float32) {
-	if c.Camera == nil || c.Camera.Direction == nil || c.Camera.Position == nil {
-		return
-	}
-	camPos := c.Camera.Position
+	camPos := &c.Camera.Position
 
 	_fcNoclipDir.Zero()
-	_fcNoclipDir.ScaleAndAdd(&_fcNoclipDir, c.Camera.Direction, inputZ)
+	_fcNoclipDir.ScaleAndAdd(&_fcNoclipDir, &c.Camera.Direction, inputZ)
 	_fcNoclipDir.ScaleAndAdd(&_fcNoclipDir, cameraRight, inputX)
 
 	noclipLen := _fcNoclipDir.Length()

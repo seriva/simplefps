@@ -6,78 +6,86 @@ import (
 
 	"./mathx"
 	"./rendering"
+	"./rendering/fakegpu"
 	"./systems"
 )
 
-// nopScene is an empty SceneSource standing in for the game scene (twin of
-// rendering's nopScene; test files cannot be shared across packages).
-type nopScene struct {
+// engineNopScene is an empty SceneSource standing in for the game scene.
+type engineNopScene struct {
 	draw  *rendering.DrawList
 	light *rendering.LightList
 }
 
-func newNopScene() *nopScene {
-	return &nopScene{draw: rendering.NewDrawList(1), light: rendering.NewLightList(1)}
+func newEngineNopScene() *engineNopScene {
+	return &engineNopScene{draw: rendering.NewDrawList(1), light: rendering.NewLightList(1)}
 }
 
-func (s *nopScene) Ambient(out *mathx.Vec3) {
+func (s *engineNopScene) Ambient(out *mathx.Vec3) {
 	out.X = 0
 	out.Y = 0
 	out.Z = 0
 }
-func (s *nopScene) Skyboxes() *rendering.DrawList          { return s.draw }
-func (s *nopScene) Meshes() *rendering.DrawList            { return s.draw }
-func (s *nopScene) FPSMeshes() *rendering.DrawList         { return s.draw }
-func (s *nopScene) SkinnedMeshes() *rendering.DrawList     { return s.draw }
-func (s *nopScene) DirectionalLights() *rendering.DrawList { return s.draw }
-func (s *nopScene) PointLights() *rendering.LightList      { return s.light }
-func (s *nopScene) SpotLights() *rendering.LightList       { return s.light }
-func (s *nopScene) Billboards() *rendering.DrawList        { return s.draw }
-func (s *nopScene) ParticleEmitters() *rendering.DrawList  { return s.draw }
-func (s *nopScene) Transparent() *rendering.DrawList       { return s.draw }
+func (s *engineNopScene) Skyboxes() *rendering.DrawList          { return s.draw }
+func (s *engineNopScene) Meshes() *rendering.DrawList            { return s.draw }
+func (s *engineNopScene) FPSMeshes() *rendering.DrawList         { return s.draw }
+func (s *engineNopScene) SkinnedMeshes() *rendering.DrawList     { return s.draw }
+func (s *engineNopScene) DirectionalLights() *rendering.DrawList { return s.draw }
+func (s *engineNopScene) PointLights() *rendering.LightList      { return s.light }
+func (s *engineNopScene) SpotLights() *rendering.LightList       { return s.light }
+func (s *engineNopScene) Billboards() *rendering.DrawList        { return s.draw }
+func (s *engineNopScene) ParticleEmitters() *rendering.DrawList  { return s.draw }
+func (s *engineNopScene) Transparent() *rendering.DrawList       { return s.draw }
 
-func TestBackendSelection(t *testing.T) {
-	// Headless Node has no WebGPU, so selection must land on WebGL2.
-	var backend rendering.RenderBackend
-	SelectBackend(false, func(b rendering.RenderBackend) { backend = b })
-	if backend == nil {
-		t.Fatal("Expected backend instance")
-	}
-	if backend.Name() != "webgl2" {
-		t.Errorf("Expected 'webgl2', got '%s'", backend.Name())
+// newEngineBackend builds a rendering.Backend driven by the fake GPU device.
+func newEngineBackend() (*fakegpu.Device, *rendering.Backend) {
+	dev := fakegpu.NewDevice()
+	b := rendering.NewBackend()
+	b.Canvas = map[string]any{"clientWidth": 320, "clientHeight": 240, "width": 320, "height": 240}
+	var d any = dev
+	var ctx any = fakegpu.NewContext(dev, 320, 240)
+	b.InitWithDevice(d, ctx)
+	return dev, b
+}
+
+func TestBackendInitFailsWithoutWebGPU(t *testing.T) {
+	// Headless Node has no WebGPU, so InitBackend must report ok=false.
+	called := false
+	InitBackend(func(b *rendering.Backend, ok bool) {
+		called = true
+		if ok {
+			t.Error("Expected InitBackend to fail in headless environment without WebGPU")
+		}
+		if b != nil {
+			t.Error("Expected nil backend on failure")
+		}
+	})
+	if !called {
+		t.Fatal("Expected onReady callback to be called")
 	}
 }
 
-func TestBackendSelectionFallsBackFromWebGPU(t *testing.T) {
-	// preferWebGPU=true in headless must fall back to WebGL2 and still call back.
-	var backend rendering.RenderBackend
-	called := false
-	SelectBackend(true, func(b rendering.RenderBackend) {
-		called = true
-		backend = b
-	})
-	if !called {
-		t.Fatal("Expected onReady to be called")
-	}
-	if backend == nil || backend.Name() != "webgl2" {
-		t.Fatal("Expected WebGL2 fallback backend")
+func TestEngineInitGracefulWithoutWebGPU(t *testing.T) {
+	ready := false
+	Init(func() { ready = true })
+	if !ready {
+		t.Fatal("Expected Init onReady to be called even when WebGPU is unavailable")
 	}
 }
 
 func TestEngineLifecycle(t *testing.T) {
-	ready := false
-	Init(false, func() { ready = true })
-	if !ready {
-		t.Fatal("Expected Init onReady to be called")
-	}
-	if CurrentBackend == nil {
+	dev, b := newEngineBackend()
+	InitWithBackend(b)
+	if CurrentBackend != b || GetBackend() != b {
 		t.Fatal("Expected CurrentBackend to be set")
 	}
-	if ActiveRenderer == nil {
-		t.Fatal("Expected ActiveRenderer to be initialized")
+	if ActiveRenderer == nil || !ActiveRenderer.Ready() {
+		t.Fatal("Expected ActiveRenderer to be initialized and ready")
 	}
 	if ActiveCamera == nil {
 		t.Fatal("Expected ActiveCamera to be initialized")
+	}
+	if len(dev.Pipelines) == 0 {
+		t.Error("renderer init must create pipelines on the device")
 	}
 
 	Pause(true)
@@ -89,7 +97,6 @@ func TestEngineLifecycle(t *testing.T) {
 		t.Error("Expected engine to be unpaused")
 	}
 
-	// Test Callbacks & FrameStep
 	gameUpdated := false
 	alwaysUpdated := false
 	SetCallbacks(
@@ -99,9 +106,13 @@ func TestEngineLifecycle(t *testing.T) {
 
 	FrameStep(1000.0)
 	FrameStep(1016.0)
-	ActiveScene = newNopScene()
+	ActiveScene = newEngineNopScene()
+	dev.ResetFrame()
 	RenderFrame(1.016)
 	ActiveScene = nil
+	if dev.Submits != 1 {
+		t.Errorf("RenderFrame must submit one command buffer, got %d", dev.Submits)
+	}
 
 	if !gameUpdated {
 		t.Error("Expected gameUpdate callback to be called")
@@ -110,7 +121,6 @@ func TestEngineLifecycle(t *testing.T) {
 		t.Error("Expected alwaysUpdate callback to be called")
 	}
 
-	// When paused, gameUpdate shouldn't run, but alwaysUpdate should
 	Pause(true)
 	gameUpdated = false
 	alwaysUpdated = false
@@ -131,8 +141,23 @@ func TestEngineLifecycle(t *testing.T) {
 	}
 }
 
+func TestSettingsSyncToBackend(t *testing.T) {
+	_, b := newEngineBackend()
+	InitWithBackend(b)
+	defer Dispose()
+
+	s := systems.ActiveSettings
+	s.RenderScale = 0.5
+	s.DoFSR = true
+	syncBackendSettings()
+	if b.RenderScale != 0.5 || !b.DoFSR {
+		t.Errorf("backend settings not synced: scale=%v fsr=%v", b.RenderScale, b.DoFSR)
+	}
+}
+
 func TestEngineConsoleCommands(t *testing.T) {
-	Init(false, nil)
+	_, b := newEngineBackend()
+	InitWithBackend(b)
 	defer Dispose()
 	c := systems.GlobalConsole
 
@@ -164,7 +189,8 @@ func TestEngineConsoleCommands(t *testing.T) {
 }
 
 func TestStartRequiresScene(t *testing.T) {
-	Init(false, nil)
+	_, b := newEngineBackend()
+	InitWithBackend(b)
 	defer Dispose()
 
 	ActiveScene = nil
@@ -175,7 +201,7 @@ func TestStartRequiresScene(t *testing.T) {
 		t.Error("Start must not schedule a frame without a scene")
 	}
 
-	ActiveScene = newNopScene()
+	ActiveScene = newEngineNopScene()
 	defer func() { ActiveScene = nil }()
 	if err := Start(); err != nil {
 		t.Fatalf("Start with a scene must succeed, got %v", err)

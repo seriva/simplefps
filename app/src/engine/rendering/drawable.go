@@ -1,21 +1,28 @@
 package rendering
 
-import "../mathx"
+import (
+	"../mathx"
+	"js:./interop.d.ts"
+)
 
 // Drawable is the only thing a render pass needs from a scene entity. The
-// renderer binds the shader and GPU state for a pass, then calls one of these
-// per visible entity. Implementations live in package scene.
+// renderer opens the pass and selects the pipeline, then calls one of these
+// per visible entity; entities allocate an ObjectData slot (r.NextObject),
+// fill it and draw their mesh. Implementations live in package scene.
 type Drawable interface {
-	// Draw issues the entity's geometry with the pass's bound shader; mode
-	// filters index groups by material translucency.
-	Draw(r *Renderer, sh *Shader, mode MaterialMode)
-	// DrawShadow draws the flattened drop shadow with the bound shadow shader.
-	DrawShadow(r *Renderer, sh *Shader)
-	// DrawWireframe draws the debug wireframe (or light volume) with the bound
-	// debug shader.
-	DrawWireframe(r *Renderer, sh *Shader)
+	// Draw issues the entity's geometry with the pass pipeline; mode filters
+	// index groups by material translucency.
+	Draw(r *Renderer, mode MaterialMode)
+	// DrawShadow draws the flattened drop shadow (shadow pipeline bound).
+	DrawShadow(r *Renderer)
+	// DrawWireframe draws the debug wireframe (or light volume) with the
+	// debug pipeline; colour comes from r.DebugColor().
+	DrawWireframe(r *Renderer)
 	// DrawSkeleton draws joint lines for skinned entities; no-op otherwise.
-	DrawSkeleton(r *Renderer, sh *Shader)
+	DrawSkeleton(r *Renderer)
+	// Simulate runs GPU-side state updates (particles) inside the frame's
+	// compute pass; no-op for most entities.
+	Simulate(r *Renderer, pass GPUComputePassEncoder)
 	// Bounds returns the world-space AABB for the debug overlay (nil = none).
 	Bounds() *mathx.BoundingBox
 	TriangleCount() int
@@ -126,9 +133,9 @@ type SceneSource interface {
 	Transparent() *DrawList
 }
 
-// hasShadowCasters reports whether any visible mesh or skinned mesh casts a
-// drop shadow (gates the shadow blur).
-func hasShadowCasters(scene SceneSource) bool {
+// HasShadowCasters reports whether any visible mesh or skinned mesh casts a
+// drop shadow.
+func HasShadowCasters(scene SceneSource) bool {
 	meshes := scene.Meshes()
 	for i := 0; i < meshes.Count; i++ {
 		if meshes.Items[i].CastsShadow() {
