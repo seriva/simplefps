@@ -10,7 +10,6 @@ const settingsStorageKey = "settings"
 // Field names are the localStorage JSON keys; keep them stable.
 type EngineSettings struct {
 	IsMobile             bool
-	UseWebGPU            bool
 	ZNear                float32
 	ZFar                 float32
 	RenderScale          float32
@@ -23,8 +22,6 @@ type EngineSettings struct {
 	EmissiveMult         float32
 	EmissiveIteration    int
 	ShowStats            bool
-	ShadowBlurIterations int
-	ShadowBlurOffset     float32
 	ShadowIntensity      float32
 	LightBlurIterations  int
 	DoDirt               bool
@@ -47,7 +44,6 @@ func NewDefaultSettings(isMobile bool) *EngineSettings {
 	}
 	return &EngineSettings{
 		IsMobile:             isMobile,
-		UseWebGPU:            true,
 		ZNear:                0.1,
 		ZFar:                 8192.0,
 		RenderScale:          renderScale,
@@ -60,8 +56,6 @@ func NewDefaultSettings(isMobile bool) *EngineSettings {
 		EmissiveMult:         1.75,
 		EmissiveIteration:    6,
 		ShowStats:            false,
-		ShadowBlurIterations: 1,
-		ShadowBlurOffset:     0.3,
 		ShadowIntensity:      0.5,
 		LightBlurIterations:  4,
 		DoDirt:               true,

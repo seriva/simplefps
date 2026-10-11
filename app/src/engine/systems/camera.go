@@ -48,7 +48,6 @@ type Camera struct {
 	NearPlane float32
 	FarPlane  float32
 	Aspect    float32
-	IsWebGPU  bool
 
 	// Six normalized planes, 4 floats each; see Frustum* offsets.
 	FrustumPlanes []float32
@@ -93,11 +92,7 @@ func (c *Camera) SetProjection(fov, nearPlane, farPlane float32) {
 func (c *Camera) UpdateProjection(aspect float32) {
 	c.Aspect = aspect
 	fovyRad := c.Fov * float32(math.Pi/180.0)
-	if c.IsWebGPU {
-		mathx.Mat4PerspectiveZO(c.Projection, fovyRad, aspect, c.NearPlane, c.FarPlane)
-	} else {
-		mathx.Mat4Perspective(c.Projection, fovyRad, aspect, c.NearPlane, c.FarPlane)
-	}
+	mathx.Mat4PerspectiveZO(c.Projection, fovyRad, aspect, c.NearPlane, c.FarPlane)
 }
 
 // SetPosition sets world-space camera coordinates.
@@ -177,12 +172,8 @@ func (c *Camera) Update() {
 	setPlane(p, FrustumBottom, m[3]+m[1], m[7]+m[5], m[11]+m[9], m[15]+m[13])
 	setPlane(p, FrustumTop, m[3]-m[1], m[7]-m[5], m[11]-m[9], m[15]-m[13])
 
-	// Near plane: WebGPU (0 <= z <= w) uses row2; WebGL (-w <= z <= w) uses row3 + row2
-	if c.IsWebGPU {
-		setPlane(p, FrustumNear, m[2], m[6], m[10], m[14])
-	} else {
-		setPlane(p, FrustumNear, m[3]+m[2], m[7]+m[6], m[11]+m[10], m[15]+m[14])
-	}
+	// Near plane: WebGPU (0 <= z <= w) uses row2
+	setPlane(p, FrustumNear, m[2], m[6], m[10], m[14])
 
 	setPlane(p, FrustumFar, m[3]-m[2], m[7]-m[6], m[11]-m[10], m[15]-m[14])
 

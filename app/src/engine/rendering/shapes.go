@@ -3,9 +3,9 @@ package rendering
 import "math"
 
 // Shapes contains shared geometric primitives used across passes. The
-// Renderer owns one instance; see Renderer.InitShapes.
+// Renderer owns one instance (fullscreen passes use a vertex-index triangle
+// and need no quad mesh).
 type Shapes struct {
-	ScreenQuad       *Mesh
 	SkyBox           *Mesh
 	SpotlightVolume  *Mesh
 	PointLightVolume *Mesh
@@ -14,19 +14,7 @@ type Shapes struct {
 }
 
 // Init builds the shared primitive meshes on b.
-func (s *Shapes) Init(b RenderBackend) {
-	// Screen Quad
-	s.ScreenQuad = NewMesh(
-		b,
-		[]float32{-1, -1, 0, 1, -1, 0, -1, 1, 0, 1, 1, 0},
-		nil,
-		nil,
-		nil,
-		[]IndexGroup{
-			{Material: "none", Array: []uint32{0, 1, 2, 2, 1, 3}},
-		},
-	)
-
+func (s *Shapes) Init(b *Backend) {
 	// Billboard Quad
 	s.BillboardQuad = NewMesh(
 		b,
@@ -102,7 +90,7 @@ func (s *Shapes) Init(b RenderBackend) {
 
 // buildSpotlightVolume builds a unit cone: apex at origin, 32-segment base
 // circle of radius 1 at z = -1. Scaled per light by radius/range.
-func buildSpotlightVolume(b RenderBackend) *Mesh {
+func buildSpotlightVolume(b *Backend) *Mesh {
 	const segments = 32
 	verts := make([]float32, (segments+1)*3)
 	for i := 0; i < segments; i++ {
@@ -134,7 +122,7 @@ func buildSpotlightVolume(b RenderBackend) *Mesh {
 
 // buildPointLightVolume builds a unit UV sphere with 9 latitude rings of 8
 // segments plus two poles (74 vertices). Scaled per light by size.
-func buildPointLightVolume(b RenderBackend) *Mesh {
+func buildPointLightVolume(b *Backend) *Mesh {
 	const rings = 9
 	const segments = 8
 	verts := make([]float32, 0, (rings*segments+2)*3)
@@ -173,10 +161,6 @@ func buildPointLightVolume(b RenderBackend) *Mesh {
 
 // Dispose frees allocated primitive meshes.
 func (s *Shapes) Dispose() {
-	if s.ScreenQuad != nil {
-		s.ScreenQuad.Dispose()
-		s.ScreenQuad = nil
-	}
 	if s.BillboardQuad != nil {
 		s.BillboardQuad.Dispose()
 		s.BillboardQuad = nil

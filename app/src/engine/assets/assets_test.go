@@ -4,8 +4,20 @@ import (
 	"testing"
 
 	"../rendering"
+	"../rendering/fakegpu"
 	"js:./interop.d.ts"
 )
+
+// newAssetsBackend builds a rendering.Backend driven by the fake GPU device.
+func newAssetsBackend() (*fakegpu.Device, *rendering.Backend) {
+	dev := fakegpu.NewDevice()
+	b := rendering.NewBackend()
+	b.Canvas = map[string]any{"clientWidth": 64, "clientHeight": 64, "width": 64, "height": 64}
+	var d any = dev
+	var ctx any = fakegpu.NewContext(dev, 64, 64)
+	b.InitWithDevice(d, ctx)
+	return dev, b
+}
 
 // binWriter builds little-endian test fixtures.
 type binWriter struct {
@@ -300,8 +312,15 @@ func TestParseResourceList(t *testing.T) {
 }
 
 func TestResourceManagerRegistryAndLinks(t *testing.T) {
+	dev, be := newAssetsBackend()
 	r := NewResourceManager()
-	r.Init(nil)
+	r.Init(be)
+	if r.Backend() != be {
+		t.Fatal("Init must keep the backend")
+	}
+	if len(dev.Textures) < 2 {
+		t.Errorf("black/white textures must be created on the device, got %d", len(dev.Textures))
+	}
 	if !r.Has("black") || !r.Has("white") || r.Count() != 2 {
 		t.Fatal("Init should register black/white textures")
 	}
@@ -321,7 +340,7 @@ func TestResourceManagerRegistryAndLinks(t *testing.T) {
 		t.Error("no materials loaded yet")
 	}
 
-	texPaths := r.RegisterMaterialLibrary("meshes/materials.mat", ParseMaterialLibrary(nil, `{"materials":[
+	texPaths := r.RegisterMaterialLibrary("meshes/materials.mat", ParseMaterialLibrary(be, `{"materials":[
 		{"name":"lightmapped","textures":{"lightmap":"lm.webp"}},
 		{"name":"wall","base":"lightmapped","textures":{"albedo":"wall.webp","emissive":"glow.webp"}}
 	]}`))
@@ -334,8 +353,8 @@ func TestResourceManagerRegistryAndLinks(t *testing.T) {
 	}
 
 	// Textures arrive last.
-	r.Register("wall.webp", &Entry{Kind: KindTexture, Texture: rendering.CreateSolidColorTexture(nil, 255, 0, 0, 255)})
-	r.Register("lm.webp", &Entry{Kind: KindTexture, Texture: rendering.CreateSolidColorTexture(nil, 0, 255, 0, 255)})
+	r.Register("wall.webp", &Entry{Kind: KindTexture, Texture: rendering.CreateSolidColorTexture(be, 255, 0, 0, 255)})
+	r.Register("lm.webp", &Entry{Kind: KindTexture, Texture: rendering.CreateSolidColorTexture(be, 0, 255, 0, 255)})
 	r.ResolveLinks()
 
 	wall := r.GetMaterial("wall")

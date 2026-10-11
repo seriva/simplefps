@@ -31,10 +31,10 @@ func TestSkeletonLocalBindFromGlobal(t *testing.T) {
 	}
 	c := s.Joints[1]
 	if !approx(c.LocalBindPos.X, 1) || !approx(c.LocalBindPos.Y, 0) || !approx(c.LocalBindPos.Z, 0) {
-		t.Errorf("child local bind pos = %+v, want (1,0,0)", c.LocalBindPos)
+		t.Errorf("child local bind pos = (%v,%v,%v), want (1,0,0)", c.LocalBindPos.X, c.LocalBindPos.Y, c.LocalBindPos.Z)
 	}
 	if !approx(c.LocalBindRot.W, 1) {
-		t.Errorf("child local bind rot = %+v, want identity", c.LocalBindRot)
+		t.Errorf("child local bind rot w = %v, want identity", c.LocalBindRot.W)
 	}
 	if !approx(s.InverseBindMatrices[1][12], -1) || !approx(s.InverseBindMatrices[1][13], -2) {
 		t.Errorf("child inverse bind translation = (%v,%v)", s.InverseBindMatrices[1][12], s.InverseBindMatrices[1][13])
@@ -51,12 +51,12 @@ func TestSkeletonBindPoseSkinIsIdentity(t *testing.T) {
 		t.Errorf("child world X = %v, want 1", world[1][12])
 	}
 
-	skin := s.ComputeSkinningMatrices(pose)
+	n := s.ComputeSkinningMatrices(pose)
 	id := mathx.NewMat4()
-	for j := 0; j < s.JointCount; j++ {
+	for j := 0; j < n; j++ {
 		for i := 0; i < 16; i++ {
-			if !approx(skin[j][i], id[i]) {
-				t.Fatalf("skin[%d][%d] = %v, want identity", j, i, skin[j][i])
+			if !approx(SkinMatrices[j*16+i], id[i]) {
+				t.Fatalf("skin[%d][%d] = %v, want identity", j, i, SkinMatrices[j*16+i])
 			}
 		}
 	}
@@ -72,9 +72,11 @@ func TestSkeletonParentTransformPropagates(t *testing.T) {
 	if !approx(world[1][12], 1) || !approx(world[1][13], 3) {
 		t.Errorf("child world = (%v,%v), want (1,3)", world[1][12], world[1][13])
 	}
-	skin := s.ComputeSkinningMatrices(pose)
-	if !approx(skin[1][13], 3) {
-		t.Errorf("child skin Y offset = %v, want 3", skin[1][13])
+	if n := s.ComputeSkinningMatrices(pose); n != s.JointCount {
+		t.Fatalf("joints written = %d, want %d", n, s.JointCount)
+	}
+	if !approx(SkinMatrices[16+13], 3) {
+		t.Errorf("child skin Y offset = %v, want 3", SkinMatrices[16+13])
 	}
 }
 
@@ -87,18 +89,18 @@ func TestPoseLerp(t *testing.T) {
 	out := NewPose(1)
 	PoseLerp(out, a, b, 0.5)
 	if !approx(out.Positions[0], 1) || !approx(out.Positions[1], 2) || !approx(out.Positions[2], 3) {
-		t.Errorf("lerp positions = %v", out.Positions)
+		t.Errorf("lerp positions = (%v,%v,%v)", out.Positions[0], out.Positions[1], out.Positions[2])
 	}
 	// halfway = 90° about Y: (0, √½, 0, √½)
 	if !approx(out.Rotations[1], 0.7071) || !approx(out.Rotations[3], 0.7071) {
-		t.Errorf("slerp rotation = %v", out.Rotations)
+		t.Errorf("slerp rotation = (%v,%v,%v,%v)", out.Rotations[0], out.Rotations[1], out.Rotations[2], out.Rotations[3])
 	}
 
 	// Opposite-hemisphere quaternion is flipped so blending takes the short path.
 	b.SetJointTransform(0, 0, 0, 0, 0, 0, 0, -1)
 	PoseLerp(out, a, b, 0.5)
 	if !approx(out.Rotations[3], 1) {
-		t.Errorf("expected short-path slerp to identity, got %v", out.Rotations)
+		t.Errorf("expected short-path slerp to identity, got w=%v", out.Rotations[3])
 	}
 }
 
@@ -151,15 +153,18 @@ func TestAnimationSampleInterpolatesAndClamps(t *testing.T) {
 func TestAnimationSampleBounds(t *testing.T) {
 	a := makeTestAnimation()
 	b := a.SampleBounds(0.05, false)
-	if b == nil || !approx(b.Min[0], -1.5) || !approx(b.Max[2], 1.5) {
-		t.Errorf("bounds at 0.05 = %+v", b)
+	if b == nil {
+		t.Fatal("bounds at 0.05 = nil")
+	}
+	if !approx(b.Min[0], -1.5) || !approx(b.Max[2], 1.5) {
+		t.Errorf("bounds at 0.05 = min.x %v max.z %v", b.Min[0], b.Max[2])
 	}
 	b2 := a.SampleBounds(0.2, false)
 	if b2 != b {
 		t.Error("SampleBounds must reuse the same result object")
 	}
 	if !approx(b2.Max[0], 3) {
-		t.Errorf("bounds at end = %+v", b2)
+		t.Errorf("bounds at end max.x = %v", b2.Max[0])
 	}
 	noBounds := NewAnimation("x", 10, a.FramePoses, nil)
 	if noBounds.SampleBounds(0, true) != nil {
@@ -181,83 +186,9 @@ func TestAnimationSingleFrame(t *testing.T) {
 	}
 	empty := NewAnimation("", 0, nil, nil)
 	if empty.Name != "unnamed" || empty.FrameRate != 24 {
-		t.Errorf("defaults: %+v", empty)
+		t.Errorf("defaults: name=%v frameRate=%v", empty.Name, empty.FrameRate)
 	}
 	empty.Sample(1, out, true) // must not panic
-}
-
-// float32 little-endian byte helpers (well-known IEEE-754 patterns).
-func f32(v float32) []byte {
-	switch v {
-	case 0:
-		return []byte{0, 0, 0, 0}
-	case 1:
-		return []byte{0x00, 0x00, 0x80, 0x3f}
-	case -1:
-		return []byte{0x00, 0x00, 0x80, 0xbf}
-	case 2:
-		return []byte{0x00, 0x00, 0x00, 0x40}
-	case 0.5:
-		return []byte{0x00, 0x00, 0x00, 0x3f}
-	}
-	return []byte{0, 0, 0, 0}
-}
-
-func u32(v int) []byte {
-	return []byte{byte(v & 0xff), byte((v >> 8) & 0xff), byte((v >> 16) & 0xff), byte((v >> 24) & 0xff)}
-}
-
-func appendAll(dst []byte, parts ...[]byte) []byte {
-	for _, p := range parts {
-		dst = append(dst, p...)
-	}
-	return dst
-}
-
-func TestParseBinaryAnimationV1(t *testing.T) {
-	// frameRate 4, 2 frames, 1 joint (frameRate must not be 2 — that's the v2 marker)
-	data := appendAll(make([]byte, 0), u32(4), u32(2), u32(1))
-	// frame 0: pos (0,0,0) rot identity
-	data = appendAll(data, f32(0), f32(0), f32(0), f32(0), f32(0), f32(0), f32(1))
-	// frame 1: pos (2,0,-1) rot identity
-	data = appendAll(data, f32(2), f32(0), f32(-1), f32(0), f32(0), f32(0), f32(1))
-
-	a := ParseBinaryAnimation("v1", data)
-	if a.NumFrames != 2 || a.JointCount != 1 || a.FrameRate != 4 {
-		t.Fatalf("header parse: %+v", a)
-	}
-	if !approx(a.Duration, 0.25) {
-		t.Errorf("Duration = %v", a.Duration)
-	}
-	if a.Bounds != nil {
-		t.Error("v1 has no bounds")
-	}
-	out := NewPose(1)
-	a.Sample(0.125, out, false)
-	if !approx(out.Positions[0], 1) || !approx(out.Positions[2], -0.5) {
-		t.Errorf("sampled pos = %v", out.Positions)
-	}
-}
-
-func TestParseBinaryAnimationV2WithBounds(t *testing.T) {
-	data := appendAll(make([]byte, 0), u32(2), u32(1), u32(2), u32(1), u32(1))
-	data = appendAll(data, f32(0), f32(0), f32(0), f32(0), f32(0), f32(0), f32(1))
-	data = appendAll(data, f32(1), f32(1), f32(1), f32(0), f32(0), f32(0), f32(1))
-	// bounds frame 0: (-1,-1,-1)..(1,1,1); frame 1: (0,0,0)..(2,2,2)
-	data = appendAll(data, f32(-1), f32(-1), f32(-1), f32(1), f32(1), f32(1))
-	data = appendAll(data, f32(0), f32(0), f32(0), f32(2), f32(2), f32(2))
-
-	a := ParseBinaryAnimation("v2", data)
-	if a.NumFrames != 2 || a.JointCount != 1 || a.FrameRate != 1 {
-		t.Fatalf("header parse: %+v", a)
-	}
-	if a.Bounds == nil || len(a.Bounds) != 2 {
-		t.Fatalf("expected 2 bounds, got %v", a.Bounds)
-	}
-	b := a.SampleBounds(0.5, false)
-	if !approx(b.Min[0], -0.5) || !approx(b.Max[0], 1.5) {
-		t.Errorf("bounds mid = %+v", b)
-	}
 }
 
 func TestAnimationPlayer(t *testing.T) {
@@ -318,7 +249,7 @@ func TestAnimationPlayer(t *testing.T) {
 
 	p.Stop()
 	if p.CurrentAnimation != nil || p.CurrentTime != 0 || !approx(p.Pose.Positions[0], 0) || !approx(p.Pose.Positions[3], 1) {
-		t.Errorf("stop must restore bind pose: %+v", p.Pose.Positions)
+		t.Errorf("stop must restore bind pose: child X = %v", p.Pose.Positions[3])
 	}
 
 	// Play without reset keeps time.

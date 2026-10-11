@@ -6,6 +6,7 @@ public/
 app/app.js
 app/app.js.map
 app/app.wasm
+app/app.wasm.map
 app/app.wat
 app/vendor.js
 
