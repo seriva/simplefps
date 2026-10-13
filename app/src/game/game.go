@@ -63,6 +63,7 @@ func NewGame(s *scene.Scene, camera *systems.Camera) *Game {
 	g.Player.OnChange = func(health, armor, ammo int) {
 		GlobalHUD.Update(health, armor, ammo)
 	}
+	GlobalHUD.Update(g.Player.Health, g.Player.Armor, g.Player.Ammo)
 	g.Arena.OnLoadStart = func() { GlobalLoading.Toggle(true) }
 	g.Arena.OnLoadEnd = func() { GlobalLoading.Toggle(false) }
 	GlobalState.CanPause = func() bool {
