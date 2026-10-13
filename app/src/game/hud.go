@@ -50,6 +50,17 @@ func (h *HUD) Mount(isMobile bool) {
 	h.armorIcon  = refs["armorIcon"]
 	h.ammoIcon   = refs["ammoIcon"]
 
+	setupAnimEnd := func(iconEl any) {
+		if iconEl != nil && iconEl.addEventListener != nil {
+			iconEl.addEventListener("animationend", func() {
+				iconEl.classList.remove("icon-animate")
+			}, false)
+		}
+	}
+	setupAnimEnd(h.healthIcon)
+	setupAnimEnd(h.armorIcon)
+	setupAnimEnd(h.ammoIcon)
+
 	if isMobile {
 		h.menuBtn = refs["menuBtn"]
 		if h.menuBtn != nil {
@@ -97,7 +108,11 @@ func (h *HUD) animateIcon(iconEl any) {
 		return
 	}
 	iconEl.classList.remove("icon-animate")
-	_ = iconEl.offsetWidth
+	if iconEl.getBoundingClientRect != nil {
+		iconEl.getBoundingClientRect()
+	} else {
+		_ = iconEl.offsetWidth
+	}
 	iconEl.classList.add("icon-animate")
 }
 

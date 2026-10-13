@@ -14,6 +14,7 @@ Design documents for planned features live in `docs/plans/`
 |---|---|---|---|
 | [Engine Architecture Cleanup](plans/archive/engine-architecture-cleanup-plan.md) | Medium | Draft | Move the `rendering.SceneSource` seam so `scene` owns pass orchestration instead of `rendering` reaching back into the scene |
 | [G-Buffer Depth Reconstruction](plans/gbuffer-depth-reconstruction-plan.md) | Medium | Planned | Reconstruct world/view position from depth buffer; eliminates 16-byte worldPosition render target to cut mobile memory bandwidth |
+| [WASM v1.6.1 Gap Adoption](plans/wasm-v1.6.1-adoption-plan.md) | Medium | Draft | Adopt GoFront v1.6.1 WASM features: const folding, `math/rand` in projectile physics, `slices` stdlib, boundary `error` handling, array map keys |
 
 ---
 
