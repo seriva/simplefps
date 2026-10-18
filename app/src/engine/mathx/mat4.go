@@ -5,6 +5,9 @@ import (
 	"math"
 )
 
+// DegToRad converts degrees to radians in 32-bit floating point precision.
+const DegToRad float32 = math.Pi / 180.0
+
 // Mat4 represents a 4x4 matrix in column-major order backed by []float32.
 type Mat4 = []float32
 

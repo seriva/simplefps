@@ -29,7 +29,11 @@ func gridFloor(n int, size, y float32) *collision.Trimesh {
 			idx = append(idx, a, c, d, a, d, b)
 		}
 	}
-	return collision.NewTrimesh(verts, idx, nil)
+	tm, err := collision.NewTrimesh(verts, idx, nil)
+	if err != nil {
+		panic("gridFloor: " + err.Error())
+	}
+	return tm
 }
 
 // wallX appends a vertical wall at x spanning z∈[z0,z1], y∈[y0,y1], facing -X.
@@ -41,7 +45,9 @@ func wallX(tm *collision.Trimesh, x, z0, z1, y0, y1 float32) {
 		x, y0, z1,
 	}
 	idx := []int32{0, 2, 1, 0, 3, 2}
-	tm.AddMesh(verts, idx, nil)
+	if err := tm.AddMesh(verts, idx, nil); err != nil {
+		panic("wallX: " + err.Error())
+	}
 }
 
 // trimeshRaycaster is a RaycastProvider over a single mesh using one reused
@@ -89,10 +95,14 @@ func TestFPSControllerLandsOnTrimesh(t *testing.T) {
 func TestFPSControllerBlockedByWall(t *testing.T) {
 	tm := collision.NewEmptyTrimesh()
 	floor := gridFloor(4, 1600, 0)
-	tm.AddMesh(floor.Vertices, floor.Indices, nil)
+	if err := tm.AddMesh(floor.Vertices, floor.Indices, nil); err != nil {
+		t.Fatalf("AddMesh failed: %v", err)
+	}
 	// Tall wall at x = 1000 across the whole floor.
 	wallX(tm, 1000, -100, 1700, -10, 400)
-	tm.Finalize()
+	if err := tm.Finalize(); err != nil {
+		t.Fatalf("Finalize failed: %v", err)
+	}
 
 	spawn := mathx.Vec3{X: 800, Y: 0, Z: 800}
 	ctrl := NewFPSController(&spawn, nil)
@@ -126,16 +136,22 @@ func TestFPSControllerClimbsStep(t *testing.T) {
 	stepY := float32(20)
 	tm := collision.NewEmptyTrimesh()
 	low := gridFloor(4, 800, 0)
-	tm.AddMesh(low.Vertices, low.Indices, nil)
+	if err := tm.AddMesh(low.Vertices, low.Indices, nil); err != nil {
+		t.Fatalf("AddMesh low failed: %v", err)
+	}
 	// Raised platform from x = 800 onward.
 	high := gridFloor(4, 800, stepY)
 	for i := 0; i < len(high.Vertices); i += 3 {
 		high.Vertices[i] += 800
 	}
-	tm.AddMesh(high.Vertices, high.Indices, nil)
+	if err := tm.AddMesh(high.Vertices, high.Indices, nil); err != nil {
+		t.Fatalf("AddMesh high failed: %v", err)
+	}
 	// Riser between the two levels.
 	wallX(tm, 800, -100, 900, 0, stepY)
-	tm.Finalize()
+	if err := tm.Finalize(); err != nil {
+		t.Fatalf("Finalize failed: %v", err)
+	}
 
 	spawn := mathx.Vec3{X: 600, Y: 0, Z: 400}
 	ctrl := NewFPSController(&spawn, nil)

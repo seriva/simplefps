@@ -14,6 +14,9 @@ const (
 
 	// MaxRayQueryResults caps candidate triangles per raycast; excess candidates are dropped.
 	MaxRayQueryResults = 4096
+
+	defaultRayPrecision float32 = 0.0001
+	parallelRayEpsilon  float32 = 0.000001
 )
 
 var (
@@ -89,7 +92,7 @@ type Ray struct {
 // NewRay creates and initializes a Ray between from and to.
 func NewRay(from, to *mathx.Vec3) *Ray {
 	r := &Ray{
-		Precision:            0.0001,
+		Precision:            defaultRayPrecision,
 		SkipBackfaces:        false,
 		CollisionFilterMask:  -1,
 		CollisionFilterGroup: -1,
@@ -187,7 +190,7 @@ func (ray *Ray) IntersectTrimesh(mesh *Trimesh, worldMatrix mathx.Mat4) {
 		mesh.getNormal(trianglesIndex, &_itNormal)
 
 		dot := _itLocalDir.Dot(&_itNormal)
-		if dot > -0.000001 && dot < 0.000001 {
+		if dot > -parallelRayEpsilon && dot < parallelRayEpsilon {
 			continue // Parallel ray
 		}
 

@@ -98,11 +98,12 @@ function bench(label, fn, iterations) {
 }
 
 function setup(m) {
-	const mesh = m.NewTrimesh(
+	const [mesh, meshErr] = m.NewTrimesh(
 		new Float32Array(verts),
 		new Int32Array(indices),
 		null,
 	);
+	if (meshErr) throw meshErr;
 	const ray = m.NewRay(new m.Vec3(0, 10, 0), new m.Vec3(0, -10, 0));
 	ray.Mode = m.RayModeClosest;
 	let hits = 0;
@@ -121,11 +122,12 @@ function setup(m) {
 		}
 	};
 
-	const bigFloor = m.NewTrimesh(
+	const [bigFloor, floorErr] = m.NewTrimesh(
 		new Float32Array(verts.map((v) => v * 50)),
 		new Int32Array(indices),
 		null,
 	);
+	if (floorErr) throw floorErr;
 	const world = m.NewStaticWorld();
 	world.Trimesh = bigFloor;
 	const ctrl = m.NewFPSController(new m.Vec3(800, 0, 800), null);

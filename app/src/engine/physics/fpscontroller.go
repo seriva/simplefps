@@ -13,7 +13,7 @@ const (
 	LandTimeThreshold float32 = 0.15
 	MaxVelocityChange float32 = 100.0
 	CoyoteTime        float32 = 0.2
-	Gravity           float32 = 785.6 // 9.82 * 80
+	Gravity           float32 = 9.82 * 80
 	StepHeight        float32 = 50.0
 	GroundDecel       float32 = 25.0
 	DampXZK           float32 = -3.912023 // math.Log(0.02)
@@ -47,7 +47,8 @@ var (
 		{0.70710678, -0.70710678},
 		{-0.70710678, -0.70710678},
 	}
-	_noclip bool
+	ActiveFPSController *FPSController
+	_noclip             bool
 )
 
 // CameraPose is the camera state the controller reads (Direction; Position in
@@ -59,17 +60,26 @@ type CameraPose struct {
 	Up        mathx.Vec3
 }
 
-// ToggleNoclip toggles noclip mode and returns the new state.
+// ToggleNoclip toggles noclip mode on the active controller and returns the new state.
 func ToggleNoclip() bool {
+	if ActiveFPSController != nil {
+		return ActiveFPSController.ToggleNoclip()
+	}
 	_noclip = !_noclip
 	return _noclip
 }
 
 func setNoclip(enabled bool) {
+	if ActiveFPSController != nil {
+		ActiveFPSController.Noclip = enabled
+	}
 	_noclip = enabled
 }
 
 func isNoclip() bool {
+	if ActiveFPSController != nil {
+		return ActiveFPSController.Noclip
+	}
 	return _noclip
 }
 
@@ -109,6 +119,7 @@ type FPSController struct {
 	Provider RaycastProvider
 	// Camera is the pose SyncCamera drives and noclip moves.
 	Camera CameraPose
+	Noclip bool
 
 	Config      FPSControllerConfig
 	Position    mathx.Vec3
@@ -175,7 +186,15 @@ func NewFPSController(spawnPos *mathx.Vec3, config *FPSControllerConfig) *FPSCon
 		c.Position.Set(0, cfg.Height*0.5, 0)
 	}
 
+	ActiveFPSController = c
 	return c
+}
+
+// ToggleNoclip toggles noclip mode on this controller and returns the new state.
+func (c *FPSController) ToggleNoclip() bool {
+	c.Noclip = !c.Noclip
+	_noclip = c.Noclip
+	return c.Noclip
 }
 
 // IsGrounded returns true if the controller is standing on a solid surface.
@@ -185,7 +204,7 @@ func (c *FPSController) IsGrounded() bool {
 
 // Update simulates fixed-timestep character physics and vertical integration.
 func (c *FPSController) Update(frameTime float32) {
-	if _noclip {
+	if c.Noclip {
 		return
 	}
 
@@ -217,7 +236,7 @@ func (c *FPSController) Update(frameTime float32) {
 
 // move applies player WASD input relative to camera forward and right directions.
 func (c *FPSController) move(strafe, move float32, cameraForward, cameraRight *mathx.Vec3, frameTime float32) {
-	if _noclip {
+	if c.Noclip {
 		c.noclipMove(strafe, move, cameraForward, cameraRight, frameTime)
 		return
 	}
@@ -613,7 +632,7 @@ func (c *FPSController) SyncCamera(frameTime float32) {
 }
 
 func (c *FPSController) syncCameraWith(camPos, camDir, camUp *mathx.Vec3, frameTime float32) {
-	if _noclip {
+	if c.Noclip {
 		return
 	}
 
@@ -691,7 +710,7 @@ func (c *FPSController) updateCameraRoll(camDir, camUp *mathx.Vec3, horizontalSp
 		if speedFactor > 1.0 {
 			speedFactor = 1.0
 		}
-		targetRoll = float32(math.Sin(float64(c.BobPhase))) * (c.Config.WobbleIntensity * float32(math.Pi) / 180.0) * speedFactor
+		targetRoll = float32(math.Sin(float64(c.BobPhase))) * (c.Config.WobbleIntensity * mathx.DegToRad) * speedFactor
 	}
 
 	smoothing := 1.0 - float32(math.Exp(float64(DampRollK*frameTime)))
