@@ -53,3 +53,46 @@ func TestOctreeInsertAndQuery(t *testing.T) {
 		t.Errorf("aabbQuery failed: expected 1 result [42], got %d results (first %d)", n, results[0])
 	}
 }
+
+func TestOctreeStraddlingElementChildrenPreserved(t *testing.T) {
+	rootAABB := mathx.NewBoundingBoxFromValues(mathx.NewVec3(-100, -100, -100), mathx.NewVec3(100, 100, 100))
+	oct := newOctree(rootAABB, 4)
+
+	// Straddling box across center (0, 0, 0)
+	straddleBox := mathx.NewBoundingBoxFromValues(mathx.NewVec3(-5, -5, -5), mathx.NewVec3(5, 5, 5))
+	if !oct.insert(straddleBox, 100, 0) {
+		t.Fatalf("Failed to insert straddling box")
+	}
+
+	// Root should have subdivided to test children, and children should be preserved (not discarded)
+	if len(oct.children) != 8 {
+		t.Fatalf("Expected 8 children preserved after straddling insert, got %d", len(oct.children))
+	}
+	if len(oct.data) != 1 || oct.data[0] != 100 {
+		t.Fatalf("Expected straddling element in root data, got count %d", len(oct.data))
+	}
+
+	// Subsequent child box should insert into existing child without re-subdividing
+	childBox := mathx.NewBoundingBoxFromValues(mathx.NewVec3(10, 10, 10), mathx.NewVec3(20, 20, 20))
+	if !oct.insert(childBox, 200, 0) {
+		t.Fatalf("Failed to insert child box")
+	}
+
+	// Clean up empty leaves
+	oct.removeEmptyNodes()
+
+	// Query around childBox should find both or appropriate element
+	queryChild := mathx.NewBoundingBoxFromValues(mathx.NewVec3(5, 5, 5), mathx.NewVec3(25, 25, 25))
+	res := make([]int, 16)
+	count := oct.aabbQuery(queryChild, res)
+	foundChild := false
+	for i := 0; i < count; i++ {
+		if res[i] == 200 {
+			foundChild = true
+		}
+	}
+	if !foundChild {
+		t.Errorf("Expected to find element 200, count=%d", count)
+	}
+}
+

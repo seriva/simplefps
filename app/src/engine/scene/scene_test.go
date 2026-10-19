@@ -142,7 +142,7 @@ func TestAddRemoveEntities(t *testing.T) {
 		t.Fatalf("after remove EntityCount = %d", s.EntityCount())
 	}
 	items, meshCount := s.GetEntities(TypeMesh)
-	if meshCount != 1 || items[0] != Entity(b) {
+	if meshCount != 1 || items[0] != b {
 		t.Fatalf("mesh list after remove wrong")
 	}
 	if a.Mesh != nil {
@@ -261,7 +261,9 @@ func TestStaticGeometryRaycast(t *testing.T) {
 	floor := NewMeshEntity(TypeMesh, mathx.NewVec3(0, 0, 0), unitQuad("none"), nil, 10)
 	s.AddEntity(floor)
 	s.AddStaticGeometry(floor)
-	s.FinalizeStaticGeometry()
+	if err := s.FinalizeStaticGeometry(); err != nil {
+		t.Fatalf("FinalizeStaticGeometry failed: %v", err)
+	}
 
 	if !floor.Base.IsStatic {
 		t.Fatalf("entity not flagged static")
@@ -324,7 +326,9 @@ func TestStaticGeometryDoubleSidedFlags(t *testing.T) {
 	mesh.MaterialLookup["glass"] = mat
 	e := NewMeshEntity(TypeMesh, mathx.NewVec3(0, 0, 0), mesh, nil, 1)
 	s.AddStaticGeometry(e)
-	s.FinalizeStaticGeometry()
+	if err := s.FinalizeStaticGeometry(); err != nil {
+		t.Fatalf("FinalizeStaticGeometry failed: %v", err)
+	}
 	tm := s.StaticTrimesh()
 	if len(tm.TriangleFlags) != 2 || tm.TriangleFlags[0] != 1 || tm.TriangleFlags[1] != 1 {
 		t.Errorf("translucent material should flag triangles double-sided: %v", tm.TriangleFlags)
@@ -340,7 +344,11 @@ func TestDynamicRaycast(t *testing.T) {
 	e := meshAt(0, 3, 0)
 	verts := []float32{-1, 0, -1, 1, 0, -1, 1, 0, 1, -1, 0, 1}
 	idx := []int32{0, 2, 1, 0, 3, 2}
-	e.Base.Collider = collision.NewTrimesh(verts, idx, nil)
+	collider, err := collision.NewTrimesh(verts, idx, nil)
+	if err != nil {
+		t.Fatalf("NewTrimesh failed: %v", err)
+	}
+	e.Base.Collider = collider
 	s.AddEntity(e)
 
 	res := s.RaycastDynamic(0, 10, 0, 0, -10, 0, nil)
@@ -475,7 +483,9 @@ func TestRenderShadowsBudgetAndHeights(t *testing.T) {
 	floor := NewMeshEntity(TypeMesh, mathx.NewVec3(0, 0, 0), unitQuad("none"), nil, 100)
 	s.AddEntity(floor)
 	s.AddStaticGeometry(floor)
-	s.FinalizeStaticGeometry()
+	if err := s.FinalizeStaticGeometry(); err != nil {
+		t.Fatalf("FinalizeStaticGeometry failed: %v", err)
+	}
 
 	casters := make([]*MeshEntity, 20)
 	for i := 0; i < 20; i++ {
@@ -543,7 +553,9 @@ func TestSkinnedShadowSampling(t *testing.T) {
 	floor := NewMeshEntity(TypeMesh, mathx.NewVec3(0, 0, 0), unitQuad("none"), nil, 100)
 	s.AddEntity(floor)
 	s.AddStaticGeometry(floor)
-	s.FinalizeStaticGeometry()
+	if err := s.FinalizeStaticGeometry(); err != nil {
+		t.Fatalf("FinalizeStaticGeometry failed: %v", err)
+	}
 	sk := NewSkinnedMeshEntity(mathx.NewVec3(0, 2, 0), skinnedQuad(), testSkeleton(), nil, 1)
 	sk.Base.CastShadow = true
 	s.AddEntity(sk)
@@ -1009,7 +1021,9 @@ func TestSceneUpdateAndRenderNoGrowth(t *testing.T) {
 	floor := NewMeshEntity(TypeMesh, mathx.NewVec3(0, 0, 0), unitQuad("none"), nil, 100)
 	s.AddEntity(floor)
 	s.AddStaticGeometry(floor)
-	s.FinalizeStaticGeometry()
+	if err := s.FinalizeStaticGeometry(); err != nil {
+		t.Fatalf("FinalizeStaticGeometry failed: %v", err)
+	}
 	for i := 0; i < 4; i++ {
 		m := meshAt(float32(i*3), 2, 0)
 		m.Base.CastShadow = true
@@ -1048,3 +1062,52 @@ func TestSceneUpdateAndRenderNoGrowth(t *testing.T) {
 		t.Errorf("steady-state frames must not create GPU resources: buffers %d -> %d, bind groups %d -> %d", buffers, len(dev.Buffers), groups, len(dev.BindGroups))
 	}
 }
+
+func TestAddStaticGeometryMalformedMeshSkipped(t *testing.T) {
+	_, _, s := setup()
+	floor := NewMeshEntity(TypeMesh, mathx.NewVec3(0, 0, 0), unitQuad("none"), nil, 10)
+	s.AddEntity(floor)
+	if err := s.AddStaticGeometry(floor); err != nil {
+		t.Fatalf("unexpected error adding valid floor: %v", err)
+	}
+
+	// Create a malformed mesh (index 99 out of bounds for 3 vertices)
+	badMesh := &rendering.Mesh{
+		Vertices: []float32{0, 0, 0, 1, 0, 0, 0, 1, 0},
+		Indices: []rendering.IndexGroup{
+			{Array: []uint32{0, 1, 99}, Material: "none"},
+		},
+		MaterialLookup: map[string]*rendering.Material{},
+	}
+	badEntity := NewMeshEntity(TypeMesh, mathx.NewVec3(0, 0, 0), badMesh, nil, 1)
+	s.AddEntity(badEntity)
+	if err := s.AddStaticGeometry(badEntity); err == nil {
+		t.Errorf("expected error adding malformed mesh, got nil")
+	}
+
+	// Empty mesh should also return ErrInvalidStaticMesh
+	emptyEntity := NewMeshEntity(TypeMesh, mathx.NewVec3(0, 0, 0), &rendering.Mesh{}, nil, 1)
+	if err := s.AddStaticGeometry(emptyEntity); err != ErrInvalidStaticMesh {
+		t.Errorf("expected ErrInvalidStaticMesh for empty mesh, got %v", err)
+	}
+
+	if badEntity.Base.IsStatic {
+		t.Errorf("malformed entity should not be marked static")
+	}
+
+	if err := s.FinalizeStaticGeometry(); err != nil {
+		t.Fatalf("FinalizeStaticGeometry should succeed for valid floor even if a bad mesh was skipped: %v", err)
+	}
+
+	tm := s.StaticTrimesh()
+	if tm == nil || len(tm.Vertices) == 0 {
+		t.Fatalf("StaticTrimesh should contain valid floor vertices, got empty")
+	}
+
+	// Verify floor collision still works
+	hit := s.RaycastStatic(2, 5, 2, 2, -5, 2, nil)
+	if hit == nil || !hit.HasHit {
+		t.Errorf("raycast should hit floor")
+	}
+}
+

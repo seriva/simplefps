@@ -79,7 +79,12 @@ for (let z = 0; z < GRID; z++) {
 		indices.push(i, i + GRID + 1, i + 1, i + 1, i + GRID + 1, i + GRID + 2);
 	}
 }
-const mesh = NewTrimesh(new Float32Array(verts), new Int32Array(indices), null);
+const [mesh, meshErr] = NewTrimesh(
+	new Float32Array(verts),
+	new Int32Array(indices),
+	null,
+);
+if (meshErr) throw meshErr;
 
 // Field-wise writes through the live view: each is a small JS→WASM call V8
 // inlines. One Setup(...) call with six non-integer floats boxes its args.
@@ -135,11 +140,12 @@ assert(
 console.log("✓ Zero-allocation raycast benchmark passed");
 
 // Controller loop on a 1600×1600 floor (the controller is 35 units wide).
-const bigFloor = NewTrimesh(
+const [bigFloor, floorErr] = NewTrimesh(
 	new Float32Array(verts.map((v) => v * 50)),
 	new Int32Array(indices),
 	null,
 );
+if (floorErr) throw floorErr;
 const world = NewStaticWorld();
 world.Trimesh = bigFloor;
 const ctrl = NewFPSController(new Vec3(800, 0, 800), null);

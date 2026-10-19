@@ -2,9 +2,17 @@
 package collision
 
 import (
+	"errors"
 	"math"
 
 	"../mathx"
+)
+
+var (
+	ErrInvalidVertices  = errors.New("collision: vertices length must be a multiple of 3")
+	ErrInvalidIndices   = errors.New("collision: indices length must be a multiple of 3")
+	ErrInvalidFlags     = errors.New("collision: triangleFlags length does not match triangle count")
+	ErrIndexOutOfBounds = errors.New("collision: index out of vertex bounds")
 )
 
 var (
@@ -37,7 +45,24 @@ type Trimesh struct {
 }
 
 // NewTrimesh creates a Trimesh populated with vertices, indices, and optional per-triangle flags.
-func NewTrimesh(vertices []float32, indices []int32, triangleFlags []byte) *Trimesh {
+func NewTrimesh(vertices []float32, indices []int32, triangleFlags []byte) (*Trimesh, error) {
+	if len(vertices)%3 != 0 {
+		return nil, ErrInvalidVertices
+	}
+	if len(indices)%3 != 0 {
+		return nil, ErrInvalidIndices
+	}
+	if len(triangleFlags) > 0 && len(triangleFlags) != len(indices)/3 {
+		return nil, ErrInvalidFlags
+	}
+
+	numVerts := int32(len(vertices) / 3)
+	for _, idx := range indices {
+		if idx < 0 || idx >= numVerts {
+			return nil, ErrIndexOutOfBounds
+		}
+	}
+
 	tm := &Trimesh{
 		tree: newOctree(nil, 8),
 	}
@@ -61,7 +86,7 @@ func NewTrimesh(vertices []float32, indices []int32, triangleFlags []byte) *Trim
 		tm.normals = make([]float32, 0)
 	}
 
-	return tm
+	return tm, nil
 }
 
 // NewEmptyTrimesh creates an empty Trimesh ready to receive multiple meshes via AddMesh and Finalize.
@@ -75,28 +100,65 @@ func NewEmptyTrimesh() *Trimesh {
 }
 
 // AddMesh queues mesh geometry to be merged when Finalize is called.
-func (tm *Trimesh) AddMesh(vertices []float32, indices []int32, triangleFlags []byte) {
+func (tm *Trimesh) AddMesh(vertices []float32, indices []int32, triangleFlags []byte) error {
+	if len(vertices)%3 != 0 {
+		return ErrInvalidVertices
+	}
+	if len(indices)%3 != 0 {
+		return ErrInvalidIndices
+	}
+	if len(triangleFlags) > 0 && len(triangleFlags) != len(indices)/3 {
+		return ErrInvalidFlags
+	}
+
+	numVerts := int32(len(vertices) / 3)
+	for _, idx := range indices {
+		if idx < 0 || idx >= numVerts {
+			return ErrIndexOutOfBounds
+		}
+	}
+
 	vertexOffset := tm.totalVertexCount
 	tm.pendingVertices = append(tm.pendingVertices, vertices)
 	tm.pendingIndices = append(tm.pendingIndices, pendingIndexData{data: indices, offset: vertexOffset})
 	tm.pendingFlags = append(tm.pendingFlags, triangleFlags)
 	tm.totalVertexCount += len(vertices) / 3
 	tm.dirty = true
+	return nil
 }
 
 // Finalize builds consolidated geometry, calculates normals, and generates the octree.
-func (tm *Trimesh) Finalize() {
+func (tm *Trimesh) Finalize() error {
 	if !tm.dirty {
-		return
+		return nil
 	}
 
 	totalVertLen := 0
 	totalIdxLen := 0
 	for _, v := range tm.pendingVertices {
+		if len(v)%3 != 0 {
+			return ErrInvalidVertices
+		}
 		totalVertLen += len(v)
 	}
-	for _, idx := range tm.pendingIndices {
+	for idxIdx, idx := range tm.pendingIndices {
+		if len(idx.data)%3 != 0 {
+			return ErrInvalidIndices
+		}
+		flags := tm.pendingFlags[idxIdx]
+		if len(flags) > 0 && len(flags) != len(idx.data)/3 {
+			return ErrInvalidFlags
+		}
 		totalIdxLen += len(idx.data)
+	}
+
+	for i, p := range tm.pendingIndices {
+		meshVerts := int32(len(tm.pendingVertices[i]) / 3)
+		for _, idx := range p.data {
+			if idx < 0 || idx >= meshVerts {
+				return ErrIndexOutOfBounds
+			}
+		}
 	}
 
 	tm.Vertices = make([]float32, totalVertLen)
@@ -150,6 +212,7 @@ func (tm *Trimesh) Finalize() {
 	tm.computeLocalAABB(&tm.AABB)
 	tm.updateTree()
 	tm.dirty = false
+	return nil
 }
 
 // updateTree constructs the octree partitioning from current triangles.
