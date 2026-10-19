@@ -1,9 +1,10 @@
 package assets
 
 import (
+	"encoding/json"
+
 	"../animation"
 	"../rendering"
-	"js:./interop.d.ts"
 )
 
 const materialNameSize = 64
@@ -128,59 +129,103 @@ func ParseBinaryMesh(data []byte) *MeshData {
 	return md
 }
 
+type rawJSONIndexGroup struct {
+	Material string   `json:"material"`
+	Array    []uint32 `json:"array"`
+}
+
+type rawJSONJoint struct {
+	Name   string    `json:"name"`
+	Parent *int      `json:"parent"`
+	Pos    []float32 `json:"pos"`
+	Rot    []float32 `json:"rot"`
+}
+
+type rawJSONSkeleton struct {
+	Joints []rawJSONJoint `json:"joints"`
+}
+
+type rawJSONMesh struct {
+	Vertices        []float32           `json:"vertices"`
+	UVs             []float32           `json:"uvs"`
+	Normals         []float32           `json:"normals"`
+	LightmapUVs     []float32           `json:"lightmapUVs"`
+	Indices         []rawJSONIndexGroup `json:"indices"`
+	Skeleton        *rawJSONSkeleton    `json:"skeleton"`
+	GPUJointIndices []uint8             `json:"gpuJointIndices"`
+	GPUJointWeights []float32           `json:"gpuJointWeights"`
+}
+
 // ParseJSONMesh decodes the legacy JSON mesh format:
 // {vertices, uvs, normals, lightmapUVs, indices:[{material, array}],
 // skeleton:{joints:[{name,parent,pos,rot}]}, gpuJointIndices, gpuJointWeights}.
 func ParseJSONMesh(text string) *MeshData {
-	parsed := JSON.parse(text)
-	md := &MeshData{}
-	if parsed == nil {
-		md.Vertices = make([]float32, 0)
-		md.UVs = make([]float32, 0)
-		md.Normals = make([]float32, 0)
-		md.LightmapUVs = make([]float32, 0)
-		md.Indices = make([]rendering.IndexGroup, 0)
+	md := &MeshData{
+		Vertices:    make([]float32, 0),
+		UVs:         make([]float32, 0),
+		Normals:     make([]float32, 0),
+		LightmapUVs: make([]float32, 0),
+		Indices:     make([]rendering.IndexGroup, 0),
+	}
+	var raw rawJSONMesh
+	if err := json.Unmarshal([]byte(text), &raw); err != nil {
 		return md
 	}
-	md.Vertices = toFloat32Slice(parsed.vertices)
-	md.UVs = toFloat32Slice(parsed.uvs)
-	md.Normals = toFloat32Slice(parsed.normals)
-	md.LightmapUVs = toFloat32Slice(parsed.lightmapUVs)
+	if raw.Vertices != nil {
+		md.Vertices = raw.Vertices
+	}
+	if raw.UVs != nil {
+		md.UVs = raw.UVs
+	}
+	if raw.Normals != nil {
+		md.Normals = raw.Normals
+	}
+	if raw.LightmapUVs != nil {
+		md.LightmapUVs = raw.LightmapUVs
+	}
 
-	md.Indices = make([]rendering.IndexGroup, 0)
-	if parsed.indices != nil {
-		groups := parsed.indices.([]any)
-		for i := 0; i < len(groups); i++ {
-			g := groups[i]
-			name := "none"
-			if g.material != nil {
-				name = g.material.(string)
+	if raw.Indices != nil {
+		for i := 0; i < len(raw.Indices); i++ {
+			g := raw.Indices[i]
+			name := g.Material
+			if name == "" {
+				name = "none"
 			}
-			md.Indices = append(md.Indices, rendering.IndexGroup{Material: name, Array: toUint32Slice(g.array)})
+			arr := g.Array
+			if arr == nil {
+				arr = make([]uint32, 0)
+			}
+			md.Indices = append(md.Indices, rendering.IndexGroup{Material: name, Array: arr})
 		}
 	}
 
-	if parsed.skeleton != nil && parsed.skeleton.joints != nil {
-		joints := parsed.skeleton.joints.([]any)
+	if raw.Skeleton != nil && raw.Skeleton.Joints != nil {
+		joints := raw.Skeleton.Joints
 		md.Joints = make([]animation.JointDef, len(joints))
 		for i := 0; i < len(joints); i++ {
 			src := joints[i]
 			j := &md.Joints[i]
-			if src.name != nil {
-				j.Name = src.name.(string)
-			}
+			j.Name = src.Name
 			j.Parent = -1
-			if src.parent != nil {
-				j.Parent = int(src.parent.(float64))
+			if src.Parent != nil {
+				j.Parent = *src.Parent
 			}
-			j.Pos = toFloat32Slice(src.pos)
-			j.Rot = toFloat32Slice(src.rot)
+			if src.Pos != nil {
+				j.Pos = src.Pos
+			} else {
+				j.Pos = make([]float32, 0)
+			}
+			if src.Rot != nil {
+				j.Rot = src.Rot
+			} else {
+				j.Rot = make([]float32, 0)
+			}
 		}
 	}
 
-	if parsed.gpuJointIndices != nil && parsed.gpuJointWeights != nil {
-		md.JointIndices = toUint8Slice(parsed.gpuJointIndices)
-		md.JointWeights = toFloat32Slice(parsed.gpuJointWeights)
+	if raw.GPUJointIndices != nil && raw.GPUJointWeights != nil {
+		md.JointIndices = raw.GPUJointIndices
+		md.JointWeights = raw.GPUJointWeights
 	}
 	return md
 }
@@ -201,23 +246,3 @@ func BuildSkinnedMesh(b *rendering.Backend, md *MeshData) (*rendering.SkinnedMes
 	return sm, skeleton
 }
 
-func toFloat32Slice(v any) []float32 {
-	if v == nil {
-		return make([]float32, 0)
-	}
-	return Reflect.construct(globalThis.Float32Array, []any{v}).([]float32)
-}
-
-func toUint32Slice(v any) []uint32 {
-	if v == nil {
-		return make([]uint32, 0)
-	}
-	return Reflect.construct(globalThis.Uint32Array, []any{v}).([]uint32)
-}
-
-func toUint8Slice(v any) []uint8 {
-	if v == nil {
-		return make([]uint8, 0)
-	}
-	return Reflect.construct(globalThis.Uint8Array, []any{v}).([]uint8)
-}

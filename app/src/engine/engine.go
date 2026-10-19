@@ -62,6 +62,7 @@ func Resize() {
 	if !initialized || CurrentBackend == nil {
 		return
 	}
+	syncBackendSettings()
 	CurrentBackend.Resize()
 	if ActiveCamera != nil {
 		ActiveCamera.UpdateProjection(CurrentBackend.GetAspectRatio())
@@ -69,6 +70,17 @@ func Resize() {
 	if ActiveRenderer != nil {
 		ActiveRenderer.Resize(CurrentBackend.GetWidth(), CurrentBackend.GetHeight(), systems.ActiveSettings.DoFSR)
 	}
+}
+
+// ApplySettings synchronizes live settings across engine systems, backend, and renderer.
+func ApplySettings() {
+	if !initialized {
+		return
+	}
+	if systems.GlobalStats != nil && systems.GlobalStats.IsVisible() != systems.ActiveSettings.ShowStats {
+		systems.GlobalStats.Toggle(systems.ActiveSettings.ShowStats)
+	}
+	Resize()
 }
 
 // Init initialises the GPU backend, then sets up pipelines, geometry
@@ -122,7 +134,10 @@ func InitWithBackend(backend *rendering.Backend) {
 
 // statsCmd toggles the debug stats overlay.
 func statsCmd(args []string) string {
-	if systems.GlobalStats.Toggle(!systems.GlobalStats.IsVisible()) {
+	show := !systems.GlobalStats.IsVisible()
+	systems.ActiveSettings.ShowStats = show
+	systems.ActiveSettings.Save()
+	if systems.GlobalStats.Toggle(show) {
 		return "stats on"
 	}
 	return "stats off"
@@ -205,8 +220,8 @@ func rscaleCmd(args []string) string {
 		v = 1.0
 	}
 	systems.ActiveSettings.RenderScale = float32(v)
-	syncBackendSettings()
-	Resize()
+	systems.ActiveSettings.Save()
+	ApplySettings()
 	return "rscale set to " + strconv.FormatFloat(v, 'f', 2, 32)
 }
 

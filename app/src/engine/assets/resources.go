@@ -1,6 +1,7 @@
 package assets
 
 import (
+	"encoding/json"
 	"strings"
 
 	"../animation"
@@ -362,16 +363,19 @@ async func (r *ResourceManager) loadList(path string, text string) any {
 	return nil
 }
 
+type resourceListDoc struct {
+	Resources []any `json:"resources"`
+}
+
 // ParseResourceList decodes a .list document ({resources:[...]}) into paths.
 func ParseResourceList(text string) []string {
 	paths := make([]string, 0)
-	parsed := JSON.parse(text)
-	if parsed == nil || parsed.resources == nil {
+	var doc resourceListDoc
+	if err := json.Unmarshal([]byte(text), &doc); err != nil || len(doc.Resources) == 0 {
 		return paths
 	}
-	items := parsed.resources.([]any)
-	for i := 0; i < len(items); i++ {
-		item := items[i]
+	for i := 0; i < len(doc.Resources); i++ {
+		item := doc.Resources[i]
 		if item == nil {
 			continue
 		}
@@ -464,17 +468,14 @@ func newImageTexture(b *rendering.Backend, blob any) *rendering.Texture {
 // parseSound decodes a .sfx document
 // ({file, cached, speed, volume, loop}) into a Sound.
 func parseSound(text string) *systems.Sound {
-	parsed := JSON.parse(text)
-	if parsed == nil {
+	cfg := systems.SoundConfig{
+		Volume: 1.0,
+		Speed:  1.0,
+	}
+	if err := json.Unmarshal([]byte(text), &cfg); err != nil {
 		return nil
 	}
-	return systems.NewSound(
-		jsonString(parsed.file, ""),
-		jsonFloat(parsed.volume, 1.0),
-		jsonFloat(parsed.speed, 1.0),
-		jsonBool(parsed.loop, false),
-		jsonBool(parsed.cached, false),
-	)
+	return systems.NewSoundFromConfig(&cfg)
 }
 
 // GlobalResources is the shared resource manager.

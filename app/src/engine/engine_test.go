@@ -155,6 +155,41 @@ func TestSettingsSyncToBackend(t *testing.T) {
 	}
 }
 
+func TestApplySettings(t *testing.T) {
+	_, b := newEngineBackend()
+	InitWithBackend(b)
+	defer Dispose()
+
+	s := systems.ActiveSettings
+	origScale := s.RenderScale
+	origFSR := s.DoFSR
+	origStats := s.ShowStats
+	defer func() {
+		s.RenderScale = origScale
+		s.DoFSR = origFSR
+		s.ShowStats = origStats
+		ApplySettings()
+	}()
+
+	s.RenderScale = 0.5
+	s.DoFSR = false
+	s.ShowStats = true
+	ApplySettings()
+
+	if b.RenderScale != 0.5 || b.DoFSR != false {
+		t.Errorf("ApplySettings did not sync backend: scale=%v fsr=%v", b.RenderScale, b.DoFSR)
+	}
+	if !systems.GlobalStats.IsVisible() {
+		t.Error("ApplySettings did not toggle GlobalStats on")
+	}
+
+	s.ShowStats = false
+	ApplySettings()
+	if systems.GlobalStats.IsVisible() {
+		t.Error("ApplySettings did not toggle GlobalStats off")
+	}
+}
+
 func TestEngineConsoleCommands(t *testing.T) {
 	_, b := newEngineBackend()
 	InitWithBackend(b)

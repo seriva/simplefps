@@ -3,6 +3,7 @@ package game
 import (
 	"strconv"
 
+	"../engine"
 	"../engine/systems"
 	"js:./interop.d.ts"
 )
@@ -146,6 +147,7 @@ func (ui *UIManager) Mount() {
 			if id == "setting-fsr" {
 				systems.ActiveSettings.DoFSR = target.checked
 				systems.ActiveSettings.Save()
+				engine.ApplySettings()
 			} else if id == "setting-procedural-detail" {
 				systems.ActiveSettings.ProceduralDetail = target.checked
 				systems.ActiveSettings.Save()
@@ -155,6 +157,13 @@ func (ui *UIManager) Mount() {
 			} else if id == "setting-show-stats" {
 				systems.ActiveSettings.ShowStats = target.checked
 				systems.ActiveSettings.Save()
+				engine.ApplySettings()
+			} else if id == "setting-render-scale" {
+				if f, err := strconv.ParseFloat(target.value.(string), 32); err == nil {
+					systems.ActiveSettings.RenderScale = float32(f)
+					systems.ActiveSettings.Save()
+					engine.ApplySettings()
+				}
 			}
 		}, false)
 
@@ -168,6 +177,7 @@ func (ui *UIManager) Mount() {
 				if f, err := strconv.ParseFloat(target.value.(string), 32); err == nil {
 					systems.ActiveSettings.RenderScale = float32(f)
 					systems.ActiveSettings.Save()
+					engine.ApplySettings()
 				}
 			} else if id == "setting-gamma" {
 				if f, err := strconv.ParseFloat(target.value.(string), 32); err == nil {
