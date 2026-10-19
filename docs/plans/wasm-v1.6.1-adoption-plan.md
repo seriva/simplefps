@@ -1,7 +1,7 @@
 # WASM v1.6.1 Gap Adoption — Design Plan
 
 **Version:** continuous  
-**Status:** Draft  
+**Status:** In Progress  
 
 ---
 
@@ -70,46 +70,43 @@ Currently, [`binaryreader.go`](file:///home/coder/workspace/simplefps/app/src/en
 - **No Dynamic Map Mutations in Hot Paths:** `map[[3]int32]T` must never be populated during the frame loop.
 - **Randomness Host Call Hazard:** Avoid moving particle random generation to WASM until the pure inline PRNG is confirmed in the GoFront build.
 - **Boundary Marshalling:** Avoid passing maps or structs by value across the frame boundary. Large data must continue to use out-parameters or `gofront/shared` buffers.
-- **Float Precision in Constant Folding:** Ensure compile-time folded constants in WASM match 32-bit floating point precision identically to previous manual literals.
+- **Float Precision and Constant Expressions:** Standard Go `const` declarations require compile-time constant expressions. Functions like `math.Log` cannot be used in `const` declarations (which GoFront previously accepted by emitting host `Math.log` imports at module startup, bloating WASM). Damping factors (`DampXZK`, `DampYK`, `DampRollK`) in `fpscontroller.go` remain explicit 32-bit float literals with their derivation documented in comments. `DegToRad` is exported in `engine/mathx` (`math.Pi / 180.0`). Slight float32 rounding differences between `(W*π)/180` and `W*(π/180)` are negligible but documented.
 
 ---
 
 ## Implementation Tasks
 
-- [ ] **Phase 1: Const Expression Cleanup**
-  - [ ] Replace precomputed literals in [`fpscontroller.go`](file:///home/coder/workspace/simplefps/app/src/engine/physics/fpscontroller.go) with constant expressions (`Gravity`, damping factors).
-  - [ ] Replace magic numeric literals in [`ray.go`](file:///home/coder/workspace/simplefps/app/src/engine/collision/ray.go).
-  - [ ] Verify `mathx [wasm]`, `collision [wasm]`, and `physics [wasm]` unit tests pass.
+- [x] **Phase 1: Const Expression Cleanup**
+  - [x] Replace precomputed literal for `Gravity` in [`fpscontroller.go`](file:///home/coder/workspace/simplefps/app/src/engine/physics/fpscontroller.go) with a constant expression (`9.82 * 80`), export `DegToRad` in `engine/mathx`, and preserve damping factor literals with comments to prevent WASM host imports.
+  - [x] Replace magic numeric literals in [`ray.go`](file:///home/coder/workspace/simplefps/app/src/engine/collision/ray.go) with unexported package constants (`defaultRayPrecision`, `parallelRayEpsilon`).
+  - [x] Verify `mathx [wasm]`, `collision [wasm]`, and `physics [wasm]` unit tests pass.
 
-- [ ] **Phase 2: Projectile Simulation & Randomness in WASM**
-  - [ ] Prerequisite: Verify GoFront provides inline pure PRNG with working `rand.Seed` (no host `Math.random` imports).
-  - [ ] Implement projectile burst/dispersion calculation in `engine/physics/dynamicbody.go` using `math/rand`.
-  - [ ] Wire [`projectiles.go`](file:///home/coder/workspace/simplefps/app/src/game/projectiles.go) to use WASM projectile helpers without boundary hops per particle.
-  - [ ] Verify deterministic particle emission and benchmark performance.
+- [ ] **Phase 2: Projectile Simulation & Randomness in WASM** *(Deferred)*
+  - [ ] Retain particle dispersion calculation in JS game layer to avoid per-particle WASM getter boundary hops and layering violations.
+  - [ ] If ported to WASM in a future phase, batch simulation into a shared linear memory buffer.
 
-- [ ] **Phase 3: `slices` Standard Library Adoption**
-  - [ ] Adopt `slices.Contains`, `slices.Index`, and `slices.Min`/`Max` in `engine/collision` queries.
-  - [ ] Replace custom sorting loops in non-allocating candidate lists where applicable.
+- [x] **Phase 3: `slices` Standard Library Adoption**
+  - [x] Adopt `slices.Contains` in `engine/collision` integration tests (retained zero-allocation fixed buffers in production query paths without `slices` to maintain 0 B/op).
 
-- [ ] **Phase 4: Boundary Error Handling**
-  - [ ] Update `collision.NewTrimesh` / validation routines to return `error` across the boundary.
-  - [ ] Verify JS callers in `engine/scene` handle returned errors gracefully.
+- [x] **Phase 4: Boundary Error Handling**
+  - [x] Update `collision.NewTrimesh` and `AddMesh` validation routines to return descriptive `error` values across the boundary.
+  - [x] Validate vertex and index divisibility, per-triangle flag length alignment, and vertex index bounds.
+  - [x] Check per-mesh index bounds in `Trimesh.Finalize` to prevent cross-mesh index aliasing.
+  - [x] Update `Scene.AddStaticGeometry` to skip malformed meshes and `Scene.FinalizeStaticGeometry` to return errors so arena loading can handle failures visibly.
+  - [x] Verify JS callers and performance benchmarks handle returned errors gracefully.
 
-- [ ] **Phase 5: Static Spatial Hashing Prototype**
-  - [ ] Prototype `map[[3]int32][]int` voxel broadphase for static triangle/body lookups at load time.
-  - [ ] Ensure zero map allocations during the runtime tick loop.
-  - [ ] Benchmark against existing Octree traversal.
+- [ ] **Phase 5: Static Spatial Hashing Prototype** *(Deferred)*
+  - [ ] Broadphase voxel hashing deferred pending load-time benchmarks against Octree traversal.
 
-- [ ] **Phase 6: Port Asset Loading (`BinaryReader`) to Pure WASM**
-  - [ ] Prerequisite: GoFront `encoding/binary` support.
-  - [ ] Rewrite `engine/assets/binaryreader.go` using pure `binary.LittleEndian`, removing `DataView` and `js:./interop.d.ts`.
-  - [ ] Mark binary mesh (`.bmesh`, `.sbmesh`) and skeletal animation (`.banim`) loaders as `wasm`.
-  - [ ] Measure load-time speedup on character and map assets.
+- [ ] **Phase 6: Port Asset Loading (`BinaryReader`) to Pure WASM** *(Deferred)*
+  - [ ] Retain high-performance TypedArray/DataView interop in JS asset loaders; scalar bit-casting loops in JS cause significant allocation and runtime overhead.
+  - [ ] Revisit once the entire asset decoding pipeline (`meshloader`, `animloader`) can be targeted to WASM together.
 
-- [ ] **Phase 7: Optimization Pipeline Verification & Benchmarking**
-  - [ ] Run full test suites (`npm test`, `npm run test:dom`, `npm run test:e2e`).
-  - [ ] Run `npm run test:perf` (`zero-alloc.js`) and `npm run bench` (`js-vs-wasm.js`) to verify zero degradation.
-  - [ ] Measure release bundle size with `--release` and verify Binaryen `--closed-world` optimization.
+- [x] **Phase 7: Optimization Pipeline Verification & Benchmarking**
+  - [x] Run test suites (`npm test`, `npm run check`, `npm run test:dom`).
+  - [x] Run `npm run test:perf` (`zero-alloc.js`) and `npm run bench` (`js-vs-wasm.js`) to verify zero degradation (0.1 B/frame).
+  - [x] Measure release bundle size with `gofront build --pwa --release` (produces 80.1 kB `app.wasm`, -21.1% `wasm-opt` via Binaryen).
+  - [x] Run Playwright suite (`npm run test:e2e`) and full suite (`npm run test:all`) verifying boot, main menu, and scene rendering.
 
 ---
 

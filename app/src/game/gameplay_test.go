@@ -518,7 +518,9 @@ func TestArenaBuild(t *testing.T) {
 		t.Errorf("required resources = %d: %v", len(paths), paths)
 	}
 
-	a.Build(cfg)
+	if err := a.Build(cfg); err != nil {
+		t.Fatalf("Build failed: %v", err)
+	}
 	if a.SpawnPoint == nil || (a.SpawnPoint != cfg.SpawnPoints[0] && a.SpawnPoint != cfg.SpawnPoints[1]) {
 		t.Fatal("spawn point should be one of the config spawn points")
 	}
@@ -556,7 +558,9 @@ func TestArenaBuild(t *testing.T) {
 	}
 
 	// Rebuilding resets the scene rather than accumulating entities.
-	a.Build(cfg)
+	if err := a.Build(cfg); err != nil {
+		t.Fatalf("Build rebuild failed: %v", err)
+	}
 	_, skyboxes = s.GetEntities(scene.TypeSkybox)
 	if skyboxes != 1 {
 		t.Error("rebuild should reset the scene")

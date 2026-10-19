@@ -31,7 +31,10 @@ func TestRayIntersectTrimesh(t *testing.T) {
 		10, 0, 0,
 	}
 	indices := []int32{0, 1, 2}
-	tm := NewTrimesh(verts, indices, nil)
+	tm, err := NewTrimesh(verts, indices, nil)
+	if err != nil {
+		t.Fatalf("NewTrimesh failed: %v", err)
+	}
 
 	// Ray firing downward from Y = 10 to Y = -10 at (2, 2)
 	from := mathx.Vec3{X: 2, Y: 10, Z: 2}

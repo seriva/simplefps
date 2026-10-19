@@ -2,6 +2,7 @@
 package collision
 
 import (
+	"slices"
 	"testing"
 
 	"../mathx"
@@ -28,7 +29,11 @@ func gridFloor(n int, size, y float32) *Trimesh {
 			idx = append(idx, a, c, d, a, d, b)
 		}
 	}
-	return NewTrimesh(verts, idx, nil)
+	tm, err := NewTrimesh(verts, idx, nil)
+	if err != nil {
+		panic("gridFloor: " + err.Error())
+	}
+	return tm
 }
 
 func TestOctreeSubdividedRayAndAABBQuery(t *testing.T) {
@@ -50,10 +55,11 @@ func TestOctreeSubdividedRayAndAABBQuery(t *testing.T) {
 	}
 	want0 := 2 * (7*16 + 5)
 	found := 0
-	for i := 0; i < n; i++ {
-		if out[i] == want0 || out[i] == want0+1 {
-			found++
-		}
+	if slices.Contains(out[:n], want0) {
+		found++
+	}
+	if slices.Contains(out[:n], want0+1) {
+		found++
 	}
 	if found != 2 {
 		t.Errorf("Ray candidates missing cell triangles %d/%d (found %d of 2)", want0, want0+1, found)
@@ -77,10 +83,11 @@ func TestOctreeSubdividedRayAndAABBQuery(t *testing.T) {
 		for cx := 4; cx <= 5; cx++ {
 			base := 2 * (cz*16 + cx)
 			seen := 0
-			for i := 0; i < n; i++ {
-				if out[i] == base || out[i] == base+1 {
-					seen++
-				}
+			if slices.Contains(out[:n], base) {
+				seen++
+			}
+			if slices.Contains(out[:n], base+1) {
+				seen++
 			}
 			if seen != 2 {
 				t.Errorf("aabbQuery missing triangles of cell %d,%d (found %d of 2)", cx, cz, seen)

@@ -1,11 +1,15 @@
 package scene
 
 import (
+	"errors"
+
 	"../collision"
 	"../mathx"
 	"../rendering"
 	"../systems"
 )
+
+var ErrInvalidStaticMesh = errors.New("cannot make static: mesh has no vertex/index data")
 
 // entityList is a growable slice with an explicit Count so per-frame clears
 // and swap-removes never allocate.
@@ -327,12 +331,12 @@ func (s *Scene) AmbientAt(position *mathx.Vec3, out []float32) {
 
 // AddStaticGeometry bakes a mesh entity's world-space triangles into the merged
 // static trimesh and marks the entity static (no further updates/transforms).
-func (s *Scene) AddStaticGeometry(e *MeshEntity) {
-	mesh := e.Mesh
-	if mesh == nil || len(mesh.Vertices) == 0 || len(mesh.Indices) == 0 {
+func (s *Scene) AddStaticGeometry(e *MeshEntity) error {
+	if e == nil || e.Mesh == nil || len(e.Mesh.Vertices) == 0 || len(e.Mesh.Indices) == 0 {
 		systems.GlobalConsole.Warn("Cannot make static: mesh has no vertex/index data")
-		return
+		return ErrInvalidStaticMesh
 	}
+	mesh := e.Mesh
 	if s.staticTrimesh == nil {
 		s.staticTrimesh = collision.NewEmptyTrimesh()
 		s.staticWorld.Trimesh = s.staticTrimesh
@@ -374,17 +378,25 @@ func (s *Scene) AddStaticGeometry(e *MeshEntity) {
 		world[i+2] = m[2]*x + m[6]*y + m[10]*z + m[14]
 	}
 
-	s.staticTrimesh.AddMesh(world, flat, flags)
+	if err := s.staticTrimesh.AddMesh(world, flat, flags); err != nil {
+		systems.GlobalConsole.Warn("Cannot make static: " + err.Error())
+		return err
+	}
 	e.Base.IsStatic = true
+	return nil
 }
 
 // FinalizeStaticGeometry builds the merged trimesh's octree.
-func (s *Scene) FinalizeStaticGeometry() {
+func (s *Scene) FinalizeStaticGeometry() error {
 	if s.staticTrimesh == nil {
-		return
+		return nil
 	}
-	s.staticTrimesh.Finalize()
+	if err := s.staticTrimesh.Finalize(); err != nil {
+		systems.GlobalConsole.Warn("[Scene] Finalize static trimesh error: " + err.Error())
+		return err
+	}
 	systems.GlobalConsole.Log("[Scene] Static trimesh finalized")
+	return nil
 }
 
 // StaticTrimesh returns the merged static collision mesh (nil until geometry is added).

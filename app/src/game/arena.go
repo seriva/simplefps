@@ -205,7 +205,11 @@ async func (a *Arena) load(name string) bool {
 
 	a.Name = name
 	a.Config = cfg
-	a.Build(cfg)
+	if err := a.Build(cfg); err != nil {
+		systems.GlobalConsole.Warn("[Arena] Failed to load arena " + name + ": " + err.Error())
+		a.Config = nil
+		return false
+	}
 	systems.GlobalConsole.Log("[Arena] Loaded arena: " + name)
 	return true
 }
@@ -232,7 +236,7 @@ func (a *Arena) requiredResources(cfg *ArenaConfig) []string {
 
 // Build populates the scene from an already-loaded config (synchronous part
 // of Load; assets must be resident).
-func (a *Arena) Build(cfg *ArenaConfig) {
+func (a *Arena) Build(cfg *ArenaConfig) error {
 	a.Config = cfg
 	a.Scene.Init()
 
@@ -252,7 +256,9 @@ func (a *Arena) Build(cfg *ArenaConfig) {
 	}
 
 	a.setupLighting(cfg)
-	a.setupEnvironment(cfg)
+	if err := a.setupEnvironment(cfg); err != nil {
+		return err
+	}
 
 	if a.Pickups != nil {
 		a.Pickups.Reset()
@@ -266,6 +272,7 @@ func (a *Arena) Build(cfg *ArenaConfig) {
 	}
 
 	a.setupSpawnPointModels(cfg)
+	return nil
 }
 
 func (a *Arena) setupLighting(cfg *ArenaConfig) {
@@ -284,7 +291,7 @@ func (a *Arena) setupLighting(cfg *ArenaConfig) {
 	}
 }
 
-func (a *Arena) setupEnvironment(cfg *ArenaConfig) {
+func (a *Arena) setupEnvironment(cfg *ArenaConfig) error {
 	if cfg.Skybox != "" {
 		a.Scene.AddEntity(scene.NewSkyboxEntity(cfg.Skybox, a.SkyboxMesh, nil))
 		// The shared skybox cube was just renamed to this arena's materials.
@@ -293,13 +300,20 @@ func (a *Arena) setupEnvironment(cfg *ArenaConfig) {
 	for i := 0; i < len(cfg.Chunks); i++ {
 		mesh := assets.GlobalResources.GetMesh(cfg.Chunks[i])
 		if mesh == nil {
+			systems.GlobalConsole.Warn("[Arena] Missing chunk mesh: " + cfg.Chunks[i])
 			continue
 		}
 		entity := scene.NewMeshEntity(scene.TypeMesh, nil, mesh, nil, 1)
-		a.Scene.AddStaticGeometry(entity)
+		if err := a.Scene.AddStaticGeometry(entity); err != nil {
+			systems.GlobalConsole.Warn("[Arena] Failed to add static geometry chunk " + cfg.Chunks[i] + ": " + err.Error())
+		}
 		a.Scene.AddEntity(entity)
 	}
-	a.Scene.FinalizeStaticGeometry()
+	if err := a.Scene.FinalizeStaticGeometry(); err != nil {
+		systems.GlobalConsole.Warn("[Arena] Failed to finalize static collision: " + err.Error())
+		return err
+	}
+	return nil
 }
 
 // groundHeight raycasts down from just above (x,y,z) to snap NPCs to the floor.

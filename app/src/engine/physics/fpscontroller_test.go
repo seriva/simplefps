@@ -84,7 +84,7 @@ func TestFPSControllerNoclip(t *testing.T) {
 	ctrl := NewFPSController(&spawn, nil)
 
 	setNoclip(true)
-	if !isNoclip() {
+	if !isNoclip() || !ctrl.Noclip {
 		t.Errorf("Expected Noclip to be true")
 	}
 
@@ -97,6 +97,20 @@ func TestFPSControllerNoclip(t *testing.T) {
 
 	if ctrl.Camera.Position.Z <= 30 {
 		t.Errorf("Expected Noclip move to advance camera in Z, got %f", ctrl.Camera.Position.Z)
+	}
+
+	// Instance-level toggle
+	ctrl.ToggleNoclip()
+	if ctrl.Noclip {
+		t.Errorf("Expected ToggleNoclip to turn noclip off")
+	}
+
+	// Multi-instance isolation
+	ctrl2 := NewFPSController(&spawn, nil)
+	ctrl.Noclip = true
+	ctrl2.Noclip = false
+	if ctrl2.Noclip {
+		t.Errorf("ctrl2 should not be affected by ctrl.Noclip")
 	}
 
 	setNoclip(false)

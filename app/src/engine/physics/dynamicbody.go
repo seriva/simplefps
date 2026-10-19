@@ -16,7 +16,6 @@ type RaycastProvider interface {
 }
 
 var (
-	_dbRaycastResult   collision.RaycastResult
 	_dbBothSidesOption = collision.RayOptions{SkipBackfaces: false, CollisionFilterMask: 1, Mode: collision.RayModeClosest}
 )
 
@@ -54,6 +53,8 @@ type DynamicBody struct {
 	OnBounce       func(hp, hn *mathx.Vec3, newSpeed float32)
 	OnRest         func(pos *mathx.Vec3)
 	IsResting      bool
+
+	raycastResult collision.RaycastResult
 }
 
 // NewDynamicBody creates a DynamicBody with initial position and optional configuration.
@@ -134,7 +135,7 @@ func (body *DynamicBody) Update(frameTime float32) bool {
 		body.Position.Y+dirY*lookahead,
 		body.Position.Z+dirZ*lookahead,
 		&_dbBothSidesOption,
-		&_dbRaycastResult,
+		&body.raycastResult,
 	)
 
 	if result.HasHit && result.Distance <= (dist+body.Radius) {

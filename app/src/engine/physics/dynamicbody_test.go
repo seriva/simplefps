@@ -75,3 +75,23 @@ func TestDynamicBodyBounce(t *testing.T) {
 		t.Errorf("Expected upward velocity after bounce, got %f", body.Velocity.Y)
 	}
 }
+
+func TestDynamicBodyInstanceIsolation(t *testing.T) {
+	// Verify that body1 and body2 get their own independent miss results without sharing a global
+	body1 := NewDynamicBody(nil, nil)
+	body2 := NewDynamicBody(nil, nil)
+
+	r1 := raycastStatic(body1.Provider, 0, 0, 0, 0, -10, 0, &_dbBothSidesOption, &body1.raycastResult)
+	r2 := raycastStatic(body2.Provider, 0, 0, 0, 0, -10, 0, &_dbBothSidesOption, &body2.raycastResult)
+
+	if r1 != &body1.raycastResult {
+		t.Errorf("r1 should point to body1.raycastResult")
+	}
+	if r2 != &body2.raycastResult {
+		t.Errorf("r2 should point to body2.raycastResult")
+	}
+	if r1 == r2 {
+		t.Errorf("r1 and r2 should be distinct instances")
+	}
+}
+

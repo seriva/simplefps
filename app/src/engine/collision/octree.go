@@ -132,8 +132,7 @@ func (node *octreeNode) insert(aabb *mathx.BoundingBox, elementData int, level i
 	}
 
 	if level < maxDepth {
-		freshSubdivision := len(node.children) == 0
-		if freshSubdivision {
+		if len(node.children) == 0 {
 			node.subdivide()
 		}
 
@@ -141,10 +140,6 @@ func (node *octreeNode) insert(aabb *mathx.BoundingBox, elementData int, level i
 			if node.children[i].insert(aabb, elementData, level+1) {
 				return true
 			}
-		}
-
-		if freshSubdivision {
-			node.children = node.children[:0]
 		}
 	}
 
