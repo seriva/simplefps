@@ -28,6 +28,9 @@ func sleep(ms int) any {
 async func boot() any {
 	systems.ActiveSettings.Load()
 	systems.GlobalConsole.Mount()
+	game.GlobalUI.OnSettingsChanged = func() {
+		engine.ApplySettings()
+	}
 	game.GlobalUI.Mount()
 	game.GlobalHUD.Mount(systems.ActiveSettings.IsMobile)
 	game.GlobalLoading.Mount()

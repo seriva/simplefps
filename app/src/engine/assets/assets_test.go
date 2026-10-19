@@ -341,7 +341,7 @@ func TestResourceManagerRegistryAndLinks(t *testing.T) {
 	}
 
 	texPaths := r.RegisterMaterialLibrary("meshes/materials.mat", ParseMaterialLibrary(be, `{"materials":[
-		{"name":"lightmapped","textures":{"lightmap":"lm.webp"}},
+		{"name":"lightmapped","textures":{"lightmap":"lm.webp"},"doubleSided":true},
 		{"name":"wall","base":"lightmapped","textures":{"albedo":"wall.webp","emissive":"glow.webp"}}
 	]}`))
 	// lightmapped: lm; wall: albedo + emissive + inherited lm (Load dedupes).
@@ -370,6 +370,9 @@ func TestResourceManagerRegistryAndLinks(t *testing.T) {
 	if mesh.Mesh.MaterialLookup["wall"] != wall {
 		t.Error("mesh material lookup not bound")
 	}
+	if !wall.DoubleSided {
+		t.Error("wall should inherit doubleSided from base material")
+	}
 	if _, ok := mesh.Mesh.MaterialLookup["none"]; ok {
 		t.Error("none must never be bound")
 	}
@@ -382,7 +385,7 @@ func TestResourceManagerRegistryAndLinks(t *testing.T) {
 		t.Error("bin decode failed")
 	}
 	snd := r.Decode("sounds/shoot.sfx", "sfx", `{"file":"resources/sounds/shoot.ogg","cached":true,"speed":1,"volume":0.3,"loop":false}`)
-	if snd == nil || snd.Sound == nil || snd.Sound.File != "resources/sounds/shoot.ogg" || (snd.Sound.Volume != 0.3 && snd.Sound.Volume != float32(0.3)) || !snd.Sound.Cached {
+	if snd == nil || snd.Sound == nil || snd.Sound.File != "resources/sounds/shoot.ogg" || snd.Sound.Volume != float32(0.3) || !snd.Sound.Cached {
 		t.Error("sfx decode failed")
 	}
 	r.Play("sounds/shoot.sfx") // no audio context headless: must not panic

@@ -39,6 +39,11 @@ var (
 
 	// ErrNoScene is returned by Start when ActiveScene is unset.
 	ErrNoScene = errors.New("engine: Start called without an ActiveScene")
+
+	lastAppliedRenderScale float32
+	lastAppliedDoFSR       bool
+	lastAppliedCanvasW     int
+	lastAppliedCanvasH     int
 )
 
 // InitBackend initialises the WebGPU backend, reporting whether initialisation succeeded.
@@ -63,6 +68,10 @@ func Resize() {
 		return
 	}
 	syncBackendSettings()
+	lastAppliedRenderScale = systems.ActiveSettings.RenderScale
+	lastAppliedDoFSR = systems.ActiveSettings.DoFSR
+	lastAppliedCanvasW = CurrentBackend.GetNativeWidth()
+	lastAppliedCanvasH = CurrentBackend.GetNativeHeight()
 	CurrentBackend.Resize()
 	if ActiveCamera != nil {
 		ActiveCamera.UpdateProjection(CurrentBackend.GetAspectRatio())
@@ -80,7 +89,14 @@ func ApplySettings() {
 	if systems.GlobalStats != nil && systems.GlobalStats.IsVisible() != systems.ActiveSettings.ShowStats {
 		systems.GlobalStats.Toggle(systems.ActiveSettings.ShowStats)
 	}
-	Resize()
+	if CurrentBackend != nil {
+		w := CurrentBackend.GetNativeWidth()
+		h := CurrentBackend.GetNativeHeight()
+		s := systems.ActiveSettings
+		if s.RenderScale != lastAppliedRenderScale || s.DoFSR != lastAppliedDoFSR || w != lastAppliedCanvasW || h != lastAppliedCanvasH {
+			Resize()
+		}
+	}
 }
 
 // Init initialises the GPU backend, then sets up pipelines, geometry
@@ -389,4 +405,8 @@ func Dispose() {
 		CurrentBackend = nil
 	}
 	initialized = false
+	lastAppliedRenderScale = 0
+	lastAppliedDoFSR = false
+	lastAppliedCanvasW = 0
+	lastAppliedCanvasH = 0
 }

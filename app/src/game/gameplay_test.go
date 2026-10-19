@@ -478,7 +478,7 @@ func TestParseArenaConfig(t *testing.T) {
 	if cfg.Skybox != "1" || len(cfg.Chunks) != 1 || cfg.Chunks[0] != "arenas/test/geometry.bmesh" {
 		t.Error("skybox/chunks mismatch")
 	}
-	if !cfg.HasDirectional || (cfg.LightColor[2] != 0.15 && cfg.LightColor[2] != float32(0.15)) || cfg.Direction[0] != 0.5 {
+	if !cfg.HasDirectional || cfg.LightColor[2] != float32(0.15) || cfg.Direction[0] != 0.5 {
 		t.Error("directional mismatch")
 	}
 	if cfg.LightGrid == nil || cfg.LightGrid.Src != "arenas/test/lightgrid.bin" || cfg.LightGrid.Counts[1] != 27 || cfg.LightGrid.Step[2] != 128 || cfg.LightGrid.Origin[0] != 512 {

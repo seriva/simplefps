@@ -9,7 +9,6 @@ type SoundConfig struct {
 	Speed     float32 `json:"speed"`
 	Volume    float32 `json:"volume"`
 	Loop      bool    `json:"loop"`
-	CacheSize int     `json:"cacheSize"`
 }
 
 var (

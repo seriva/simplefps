@@ -24,7 +24,7 @@ type rawMaterialEntry struct {
 	GeomType           *int              `json:"geomType"`
 	ReflectionStrength *float32          `json:"reflectionStrength"`
 	Translucent        *bool             `json:"translucent"`
-	DoubleSided        bool              `json:"doubleSided"`
+	DoubleSided        *bool             `json:"doubleSided"`
 	Opacity            *float32          `json:"opacity"`
 }
 
@@ -85,11 +85,13 @@ func ParseMaterialLibrary(b *rendering.Backend, text string) []*MaterialDef {
 		var baseGeom *int
 		var baseRefl *float32
 		var baseTrans *bool
+		var baseDoubleSided *bool
 		var baseOpacity *float32
 		if base != nil {
 			baseGeom = base.GeomType
 			baseRefl = base.ReflectionStrength
 			baseTrans = base.Translucent
+			baseDoubleSided = base.DoubleSided
 			baseOpacity = base.Opacity
 		}
 
@@ -97,7 +99,7 @@ func ParseMaterialLibrary(b *rendering.Backend, text string) []*MaterialDef {
 		mat.GeomType = inherit(m.GeomType, baseGeom, 1)
 		mat.ReflectionStrength = inherit(m.ReflectionStrength, baseRefl, float32(1.0))
 		mat.Translucent = inherit(m.Translucent, baseTrans, false)
-		mat.DoubleSided = m.DoubleSided
+		mat.DoubleSided = inherit(m.DoubleSided, baseDoubleSided, false)
 		mat.Opacity = inherit(m.Opacity, baseOpacity, float32(1.0))
 		def.Material = mat
 
