@@ -120,9 +120,20 @@ func BuildMesh(b *rendering.Backend, md *MeshData) *rendering.Mesh {
 	}
 	indices := make([]rendering.IndexGroup, len(md.Indices))
 	for i := 0; i < len(md.Indices); i++ {
-		indices[i] = rendering.IndexGroup{Material: md.Indices[i].Material, Array: md.Indices[i].Array}
+		arr := make([]uint32, len(md.Indices[i].Array))
+		copy(arr, md.Indices[i].Array)
+		indices[i] = rendering.IndexGroup{Material: md.Indices[i].Material, Array: arr}
 	}
-	return rendering.NewMesh(b, md.Vertices, md.UVs, md.Normals, md.LightmapUVs, indices)
+	verts := make([]float32, len(md.Vertices))
+	copy(verts, md.Vertices)
+	uvs := make([]float32, len(md.UVs))
+	copy(uvs, md.UVs)
+	normals := make([]float32, len(md.Normals))
+	copy(normals, md.Normals)
+	lmUVs := make([]float32, len(md.LightmapUVs))
+	copy(lmUVs, md.LightmapUVs)
+
+	return rendering.NewMesh(b, verts, uvs, normals, lmUVs, indices)
 }
 
 // BuildSkinnedMesh uploads decoded skinned mesh data and builds its skeleton
@@ -133,9 +144,22 @@ func BuildSkinnedMesh(b *rendering.Backend, md *MeshData) (*rendering.SkinnedMes
 	}
 	indices := make([]rendering.IndexGroup, len(md.Indices))
 	for i := 0; i < len(md.Indices); i++ {
-		indices[i] = rendering.IndexGroup{Material: md.Indices[i].Material, Array: md.Indices[i].Array}
+		arr := make([]uint32, len(md.Indices[i].Array))
+		copy(arr, md.Indices[i].Array)
+		indices[i] = rendering.IndexGroup{Material: md.Indices[i].Material, Array: arr}
 	}
-	sm := rendering.NewSkinnedMesh(b, md.Vertices, md.UVs, md.Normals, indices, md.JointIndices, md.JointWeights)
+	verts := make([]float32, len(md.Vertices))
+	copy(verts, md.Vertices)
+	uvs := make([]float32, len(md.UVs))
+	copy(uvs, md.UVs)
+	normals := make([]float32, len(md.Normals))
+	copy(normals, md.Normals)
+	jointIndices := make([]uint8, len(md.JointIndices))
+	copy(jointIndices, md.JointIndices)
+	jointWeights := make([]float32, len(md.JointWeights))
+	copy(jointWeights, md.JointWeights)
+
+	sm := rendering.NewSkinnedMesh(b, verts, uvs, normals, indices, jointIndices, jointWeights)
 	var skeleton *animation.Skeleton
 	if md.HasSkeleton() {
 		skeleton = animation.NewSkeleton(md.Joints)
