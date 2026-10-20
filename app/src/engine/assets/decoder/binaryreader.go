@@ -1,26 +1,20 @@
-package assets
+//gofront:target wasm
+package decoder
 
-import "js:./interop.d.ts"
-
-// Shared decoder; constructing one per string was the old hot-path cost.
-var _brDecoder = Reflect.construct(globalThis.TextDecoder, []any{})
+import (
+	"encoding/binary"
+	"math"
+)
 
 // BinaryReader provides sequential little-endian decoding over a byte slice.
 type BinaryReader struct {
 	Data   []byte
 	Offset int
-
-	view DataView
-	buf  any // underlying ArrayBuffer of Data
-	base int // byteOffset of Data within buf
 }
 
 // NewBinaryReader creates a new BinaryReader wrapping the provided byte slice.
 func NewBinaryReader(data []byte) *BinaryReader {
-	var u8 any = data
-	br := &BinaryReader{Data: data, buf: u8.buffer, base: u8.byteOffset.(int)}
-	br.view = Reflect.construct(globalThis.DataView, []any{u8.buffer, u8.byteOffset, u8.byteLength}).(DataView)
-	return br
+	return &BinaryReader{Data: data, Offset: 0}
 }
 
 // ReadUint8 reads a single unsigned 8-bit byte.
@@ -38,7 +32,7 @@ func (br *BinaryReader) ReadInt8() int8 {
 	if br.Offset >= len(br.Data) {
 		return 0
 	}
-	v := br.view.getInt8(br.Offset)
+	v := int8(br.Data[br.Offset])
 	br.Offset++
 	return v
 }
@@ -48,7 +42,7 @@ func (br *BinaryReader) ReadUint16() uint16 {
 	if br.Offset+2 > len(br.Data) {
 		return 0
 	}
-	v := br.view.getUint16(br.Offset, true)
+	v := binary.LittleEndian.Uint16(br.Data[br.Offset:])
 	br.Offset += 2
 	return v
 }
@@ -58,7 +52,7 @@ func (br *BinaryReader) ReadInt16() int16 {
 	if br.Offset+2 > len(br.Data) {
 		return 0
 	}
-	v := br.view.getInt16(br.Offset, true)
+	v := int16(binary.LittleEndian.Uint16(br.Data[br.Offset:]))
 	br.Offset += 2
 	return v
 }
@@ -68,7 +62,7 @@ func (br *BinaryReader) ReadUint32() uint32 {
 	if br.Offset+4 > len(br.Data) {
 		return 0
 	}
-	v := br.view.getUint32(br.Offset, true)
+	v := binary.LittleEndian.Uint32(br.Data[br.Offset:])
 	br.Offset += 4
 	return v
 }
@@ -78,7 +72,7 @@ func (br *BinaryReader) ReadInt32() int32 {
 	if br.Offset+4 > len(br.Data) {
 		return 0
 	}
-	v := br.view.getInt32(br.Offset, true)
+	v := int32(binary.LittleEndian.Uint32(br.Data[br.Offset:]))
 	br.Offset += 4
 	return v
 }
@@ -88,9 +82,9 @@ func (br *BinaryReader) ReadFloat32() float32 {
 	if br.Offset+4 > len(br.Data) {
 		return 0
 	}
-	v := br.view.getFloat32(br.Offset, true)
+	bits := binary.LittleEndian.Uint32(br.Data[br.Offset:])
 	br.Offset += 4
-	return v
+	return math.Float32frombits(bits)
 }
 
 // ReadFloat32Array reads count float32 elements into a new, independent slice.
@@ -98,20 +92,19 @@ func (br *BinaryReader) ReadFloat32Array(count int) []float32 {
 	if count <= 0 {
 		return make([]float32, 0)
 	}
-	if br.Offset+count*4 > len(br.Data) {
-		count = (len(br.Data) - br.Offset) / 4
+	maxCount := (len(br.Data) - br.Offset) / 4
+	if count > maxCount {
+		count = maxCount
 	}
-	var res []float32
-	if (br.base+br.Offset)%4 == 0 {
-		view := Reflect.construct(globalThis.Float32Array, []any{br.buf, br.base + br.Offset, count})
-		res = Reflect.construct(globalThis.Float32Array, []any{view}).([]float32)
-	} else {
-		// Typed-array views require 4-byte alignment; copy bytes to a fresh buffer.
-		var bytes any = br.ReadUint8Array(count * 4)
-		br.Offset -= count * 4
-		res = Reflect.construct(globalThis.Float32Array, []any{bytes.buffer, bytes.byteOffset, count}).([]float32)
+	if count <= 0 {
+		return make([]float32, 0)
 	}
-	br.Offset += count * 4
+	res := make([]float32, count)
+	for i := 0; i < count; i++ {
+		bits := binary.LittleEndian.Uint32(br.Data[br.Offset : br.Offset+4])
+		res[i] = math.Float32frombits(bits)
+		br.Offset += 4
+	}
 	return res
 }
 
@@ -120,19 +113,18 @@ func (br *BinaryReader) ReadUint32Array(count int) []uint32 {
 	if count <= 0 {
 		return make([]uint32, 0)
 	}
-	if br.Offset+count*4 > len(br.Data) {
-		count = (len(br.Data) - br.Offset) / 4
+	maxCount := (len(br.Data) - br.Offset) / 4
+	if count > maxCount {
+		count = maxCount
 	}
-	var res []uint32
-	if (br.base+br.Offset)%4 == 0 {
-		view := Reflect.construct(globalThis.Uint32Array, []any{br.buf, br.base + br.Offset, count})
-		res = Reflect.construct(globalThis.Uint32Array, []any{view}).([]uint32)
-	} else {
-		var bytes any = br.ReadUint8Array(count * 4)
-		br.Offset -= count * 4
-		res = Reflect.construct(globalThis.Uint32Array, []any{bytes.buffer, bytes.byteOffset, count}).([]uint32)
+	if count <= 0 {
+		return make([]uint32, 0)
 	}
-	br.Offset += count * 4
+	res := make([]uint32, count)
+	for i := 0; i < count; i++ {
+		res[i] = binary.LittleEndian.Uint32(br.Data[br.Offset : br.Offset+4])
+		br.Offset += 4
+	}
 	return res
 }
 
@@ -141,22 +133,32 @@ func (br *BinaryReader) ReadUint8Array(count int) []byte {
 	if count <= 0 {
 		return make([]byte, 0)
 	}
-	end := br.Offset + count
-	if end > len(br.Data) {
-		end = len(br.Data)
+	maxCount := len(br.Data) - br.Offset
+	if count > maxCount {
+		count = maxCount
 	}
-	res := make([]byte, end-br.Offset)
-	copy(res, br.Data[br.Offset:end])
-	br.Offset = end
+	if count <= 0 {
+		return make([]byte, 0)
+	}
+	res := make([]byte, count)
+	copy(res, br.Data[br.Offset:br.Offset+count])
+	br.Offset += count
 	return res
 }
 
 // ReadString reads a fixed-length string, trimming at the first null byte.
 func (br *BinaryReader) ReadString(length int) string {
-	end := br.Offset + length
-	if end > len(br.Data) {
-		end = len(br.Data)
+	if length <= 0 {
+		return ""
 	}
+	maxLen := len(br.Data) - br.Offset
+	if length > maxLen {
+		length = maxLen
+	}
+	if length <= 0 {
+		return ""
+	}
+	end := br.Offset + length
 	nullIdx := end
 	for i := br.Offset; i < end; i++ {
 		if br.Data[i] == 0 {
@@ -164,7 +166,7 @@ func (br *BinaryReader) ReadString(length int) string {
 			break
 		}
 	}
-	str := _brDecoder.decode(br.Data[br.Offset:nullIdx]).(string)
+	str := string(br.Data[br.Offset:nullIdx])
 	br.Offset = end
 	return str
 }
@@ -175,7 +177,7 @@ func (br *BinaryReader) ReadStringNullTerminated() string {
 	for br.Offset < len(br.Data) && br.Data[br.Offset] != 0 {
 		br.Offset++
 	}
-	str := _brDecoder.decode(br.Data[start:br.Offset]).(string)
+	str := string(br.Data[start:br.Offset])
 	if br.Offset < len(br.Data) {
 		br.Offset++ // Skip null byte
 	}

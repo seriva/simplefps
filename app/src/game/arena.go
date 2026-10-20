@@ -1,6 +1,7 @@
 package game
 
 import (
+	"encoding/json"
 	"math/rand"
 	"strconv"
 
@@ -45,10 +46,45 @@ type ArenaConfig struct {
 	Pickups        []PickupSpawn
 }
 
+type rawDirectional struct {
+	Direction []float32 `json:"direction"`
+	Color     []float32 `json:"color"`
+}
+
+type rawLightGrid struct {
+	Src    string    `json:"src"`
+	Origin []float32 `json:"origin"`
+	Step   []float32 `json:"step"`
+	Counts []int     `json:"counts"`
+}
+
+type rawSpawnPoint struct {
+	Position []float32 `json:"position"`
+	Rotation []float32 `json:"rotation"`
+}
+
+type rawPickupSpawn struct {
+	Type     string    `json:"type"`
+	Position []float32 `json:"position"`
+}
+
+type rawArenaConfig struct {
+	Skybox      any               `json:"skybox"`
+	Chunks      []string          `json:"chunks"`
+	Directional *rawDirectional   `json:"directional"`
+	LightGrid   *rawLightGrid     `json:"lightGrid"`
+	SpawnPoints []*rawSpawnPoint  `json:"spawnpoints"`
+	SpawnPoint  *rawSpawnPoint    `json:"spawnpoint"`
+	Pickups     []*rawPickupSpawn `json:"pickups"`
+}
+
 // ParseArenaConfig decodes a config.arena JSON document; nil when invalid.
 func ParseArenaConfig(text string) *ArenaConfig {
-	parsed := JSON.parse(text)
-	if parsed == nil {
+	if text == "" || text == "null" {
+		return nil
+	}
+	var raw rawArenaConfig
+	if err := json.Unmarshal([]byte(text), &raw); err != nil {
 		return nil
 	}
 	cfg := &ArenaConfig{
@@ -56,94 +92,76 @@ func ParseArenaConfig(text string) *ArenaConfig {
 		SpawnPoints: make([]*SpawnPoint, 0),
 		Pickups:     make([]PickupSpawn, 0),
 	}
-	if parsed.skybox != nil {
-		if s, ok := parsed.skybox.(string); ok {
+	if raw.Skybox != nil {
+		if s, ok := raw.Skybox.(string); ok {
 			cfg.Skybox = s
 		} else {
-			cfg.Skybox = strconv.Itoa(int(parsed.skybox.(float64)))
+			cfg.Skybox = strconv.Itoa(int(raw.Skybox.(float64)))
 		}
 	}
-	if parsed.chunks != nil {
-		chunks := parsed.chunks.([]any)
-		for i := 0; i < len(chunks); i++ {
-			cfg.Chunks = append(cfg.Chunks, chunks[i].(string))
-		}
+	if len(raw.Chunks) > 0 {
+		cfg.Chunks = raw.Chunks
 	}
-	if parsed.directional != nil {
+	if raw.Directional != nil {
 		cfg.HasDirectional = true
-		cfg.Direction = floatsOr(parsed.directional.direction, []float32{0.5, 1.0, 0.3})
-		cfg.LightColor = floatsOr(parsed.directional.color, []float32{1, 1, 1})
+		dir := raw.Directional.Direction
+		if len(dir) == 0 {
+			dir = []float32{0.5, 1.0, 0.3}
+		}
+		col := raw.Directional.Color
+		if len(col) == 0 {
+			col = []float32{1, 1, 1}
+		}
+		cfg.Direction = dir
+		cfg.LightColor = col
 	}
-	if parsed.lightGrid != nil && parsed.lightGrid.origin != nil {
-		lg := parsed.lightGrid
+	if raw.LightGrid != nil && len(raw.LightGrid.Origin) > 0 {
+		lg := raw.LightGrid
 		grid := &ArenaLightGrid{
-			Origin: floatsOr(lg.origin, nil),
-			Step:   floatsOr(lg.step, nil),
-			Counts: make([]int, 0),
+			Src:    lg.Src,
+			Origin: lg.Origin,
+			Step:   lg.Step,
+			Counts: lg.Counts,
 		}
-		if lg.src != nil {
-			grid.Src = lg.src.(string)
-		}
-		if lg.counts != nil {
-			counts := lg.counts.([]any)
-			for i := 0; i < len(counts); i++ {
-				grid.Counts = append(grid.Counts, int(counts[i].(float64)))
-			}
+		if grid.Counts == nil {
+			grid.Counts = make([]int, 0)
 		}
 		cfg.LightGrid = grid
 	}
-	if parsed.spawnpoints != nil {
-		sps := parsed.spawnpoints.([]any)
-		for i := 0; i < len(sps); i++ {
-			cfg.SpawnPoints = append(cfg.SpawnPoints, parseSpawnPoint(sps[i]))
+	if len(raw.SpawnPoints) > 0 {
+		for i := 0; i < len(raw.SpawnPoints); i++ {
+			cfg.SpawnPoints = append(cfg.SpawnPoints, parseSpawnPoint(raw.SpawnPoints[i]))
 		}
-	} else if parsed.spawnpoint != nil {
-		cfg.SpawnPoints = append(cfg.SpawnPoints, parseSpawnPoint(parsed.spawnpoint))
+	} else if raw.SpawnPoint != nil {
+		cfg.SpawnPoints = append(cfg.SpawnPoints, parseSpawnPoint(raw.SpawnPoint))
 	}
-	if parsed.pickups != nil {
-		items := parsed.pickups.([]any)
-		for i := 0; i < len(items); i++ {
-			item := items[i]
-			if item == nil || item["type"] == nil {
+	if len(raw.Pickups) > 0 {
+		for i := 0; i < len(raw.Pickups); i++ {
+			item := raw.Pickups[i]
+			if item == nil || item.Type == "" {
 				continue
 			}
-			spawn := PickupSpawn{Type: item["type"].(string)}
-			setVec3(&spawn.Position, item.position)
+			spawn := PickupSpawn{Type: item.Type}
+			setVec3(&spawn.Position, item.Position)
 			cfg.Pickups = append(cfg.Pickups, spawn)
 		}
 	}
 	return cfg
 }
 
-func parseSpawnPoint(v any) *SpawnPoint {
-	sp := &SpawnPoint{}
-	if v != nil {
-		setVec3(&sp.Position, v.position)
-		setVec3(&sp.Rotation, v.rotation)
-	}
-	return sp
-}
-
-func setVec3(out *mathx.Vec3, v any) {
-	if v == nil {
-		return
-	}
-	arr := v.([]any)
-	if len(arr) >= 3 {
-		out.Set(float32(arr[0].(float64)), float32(arr[1].(float64)), float32(arr[2].(float64)))
-	}
-}
-
-func floatsOr(v any, def []float32) []float32 {
-	if v == nil {
-		return def
-	}
-	arr := v.([]any)
-	out := make([]float32, len(arr))
-	for i := 0; i < len(arr); i++ {
-		out[i] = float32(arr[i].(float64))
+func parseSpawnPoint(sp *rawSpawnPoint) *SpawnPoint {
+	out := &SpawnPoint{}
+	if sp != nil {
+		setVec3(&out.Position, sp.Position)
+		setVec3(&out.Rotation, sp.Rotation)
 	}
 	return out
+}
+
+func setVec3(out *mathx.Vec3, coords []float32) {
+	if len(coords) >= 3 {
+		out.Set(coords[0], coords[1], coords[2])
+	}
 }
 
 // Arena loads a map into the scene (arena.js): camera start, light grid,

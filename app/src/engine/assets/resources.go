@@ -1,12 +1,13 @@
 package assets
 
 import (
+	"encoding/json"
 	"strings"
 
 	"../animation"
 	"../rendering"
 	"../systems"
-	"js:./interop.d.ts"
+	"./decoder"
 )
 
 // Resource kinds stored in an Entry.
@@ -252,7 +253,7 @@ async func (r *ResourceManager) Fetch(path string) any {
 	}
 	if IsBinaryExt(ext) {
 		buf := await response.arrayBuffer()
-		return Reflect.construct(globalThis.Uint8Array, []any{buf}).([]byte)
+		return []byte(buf)
 	}
 	return await response.text()
 }
@@ -303,15 +304,15 @@ func (r *ResourceManager) Decode(path string, ext string, data any) *Entry {
 	case "mesh":
 		e = &Entry{Kind: KindMesh, Mesh: BuildMesh(r.backend, ParseJSONMesh(data.(string)))}
 	case "bmesh":
-		e = &Entry{Kind: KindMesh, Mesh: BuildMesh(r.backend, ParseBinaryMesh(data.([]byte)))}
+		e = &Entry{Kind: KindMesh, Mesh: BuildMesh(r.backend, decoder.ParseBinaryMesh(data.([]byte)))}
 	case "smesh":
 		sm, sk := BuildSkinnedMesh(r.backend, ParseJSONMesh(data.(string)))
 		e = &Entry{Kind: KindSkinnedMesh, SkinnedMesh: sm, Skeleton: sk}
 	case "sbmesh":
-		sm, sk := BuildSkinnedMesh(r.backend, ParseBinaryMesh(data.([]byte)))
+		sm, sk := BuildSkinnedMesh(r.backend, decoder.ParseBinaryMesh(data.([]byte)))
 		e = &Entry{Kind: KindSkinnedMesh, SkinnedMesh: sm, Skeleton: sk}
 	case "banim":
-		e = &Entry{Kind: KindAnimation, Animation: ParseBinaryAnimation(path, data.([]byte))}
+		e = &Entry{Kind: KindAnimation, Animation: decoder.ParseBinaryAnimation(path, data.([]byte))}
 	case "sfx":
 		e = &Entry{Kind: KindSound, Sound: parseSound(data.(string))}
 	case "bin":
@@ -362,16 +363,19 @@ async func (r *ResourceManager) loadList(path string, text string) any {
 	return nil
 }
 
+type resourceListDoc struct {
+	Resources []any `json:"resources"`
+}
+
 // ParseResourceList decodes a .list document ({resources:[...]}) into paths.
 func ParseResourceList(text string) []string {
 	paths := make([]string, 0)
-	parsed := JSON.parse(text)
-	if parsed == nil || parsed.resources == nil {
+	var doc resourceListDoc
+	if err := json.Unmarshal([]byte(text), &doc); err != nil || len(doc.Resources) == 0 {
 		return paths
 	}
-	items := parsed.resources.([]any)
-	for i := 0; i < len(items); i++ {
-		item := items[i]
+	for i := 0; i < len(doc.Resources); i++ {
+		item := doc.Resources[i]
 		if item == nil {
 			continue
 		}
@@ -464,17 +468,14 @@ func newImageTexture(b *rendering.Backend, blob any) *rendering.Texture {
 // parseSound decodes a .sfx document
 // ({file, cached, speed, volume, loop}) into a Sound.
 func parseSound(text string) *systems.Sound {
-	parsed := JSON.parse(text)
-	if parsed == nil {
+	cfg := systems.SoundConfig{
+		Volume: 1.0,
+		Speed:  1.0,
+	}
+	if err := json.Unmarshal([]byte(text), &cfg); err != nil {
 		return nil
 	}
-	return systems.NewSound(
-		jsonString(parsed.file, ""),
-		jsonFloat(parsed.volume, 1.0),
-		jsonFloat(parsed.speed, 1.0),
-		jsonBool(parsed.loop, false),
-		jsonBool(parsed.cached, false),
-	)
+	return systems.NewSoundFromConfig(&cfg)
 }
 
 // GlobalResources is the shared resource manager.

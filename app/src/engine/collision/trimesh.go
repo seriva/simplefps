@@ -24,18 +24,24 @@ var (
 	_tmCb mathx.Vec3
 )
 
+const (
+	BroadphaseSpatialHashMap  = 0
+	BroadphaseSpatialHashFlat = 1
+)
+
 type pendingIndexData struct {
 	data   []int32
 	offset int
 }
 
-// Trimesh represents a collision triangle mesh with octree spatial acceleration.
+// Trimesh represents a collision triangle mesh with spatial hash acceleration.
 type Trimesh struct {
 	AABB             mathx.BoundingBox
 	Vertices         []float32
 	Indices          []int32
 	TriangleFlags    []byte
-	tree             *octreeNode
+	spatialHash      *spatialHash
+	broadphase       int
 	normals          []float32
 	pendingVertices  [][]float32
 	pendingIndices   []pendingIndexData
@@ -64,7 +70,7 @@ func NewTrimesh(vertices []float32, indices []int32, triangleFlags []byte) (*Tri
 	}
 
 	tm := &Trimesh{
-		tree: newOctree(nil, 8),
+		broadphase: BroadphaseSpatialHashMap,
 	}
 
 	if len(vertices) > 0 && len(indices) > 0 {
@@ -79,7 +85,7 @@ func NewTrimesh(vertices []float32, indices []int32, triangleFlags []byte) (*Tri
 		}
 		tm.updateNormals()
 		tm.computeLocalAABB(&tm.AABB)
-		tm.updateTree()
+		tm.BuildSpatialHash(0)
 	} else {
 		tm.Vertices = make([]float32, 0)
 		tm.Indices = make([]int32, 0)
@@ -92,10 +98,10 @@ func NewTrimesh(vertices []float32, indices []int32, triangleFlags []byte) (*Tri
 // NewEmptyTrimesh creates an empty Trimesh ready to receive multiple meshes via AddMesh and Finalize.
 func NewEmptyTrimesh() *Trimesh {
 	return &Trimesh{
-		tree:     newOctree(nil, 8),
-		Vertices: make([]float32, 0),
-		Indices:  make([]int32, 0),
-		normals:  make([]float32, 0),
+		broadphase: BroadphaseSpatialHashMap,
+		Vertices:   make([]float32, 0),
+		Indices:    make([]int32, 0),
+		normals:    make([]float32, 0),
 	}
 }
 
@@ -210,136 +216,64 @@ func (tm *Trimesh) Finalize() error {
 	tm.normals = make([]float32, len(tm.Indices))
 	tm.updateNormals()
 	tm.computeLocalAABB(&tm.AABB)
-	tm.updateTree()
+	tm.BuildSpatialHash(0)
 	tm.dirty = false
 	return nil
 }
 
-// updateTree constructs the octree partitioning from current triangles.
-func (tm *Trimesh) updateTree() {
-	tree := tm.tree
-	tree.reset()
-	tree.aabb.Copy(&tm.AABB)
-
-	epsilon := float32(0.001)
-	tree.aabb.Min.X -= epsilon
-	tree.aabb.Min.Y -= epsilon
-	tree.aabb.Min.Z -= epsilon
-	tree.aabb.Max.X += epsilon
-	tree.aabb.Max.Y += epsilon
-	tree.aabb.Max.Z += epsilon
-
-	var triangleAABB mathx.BoundingBox
-	tmin := &triangleAABB.Min
-	tmax := &triangleAABB.Max
-
-	indices := tm.Indices
-	vertices := tm.Vertices
-
-	for i := 0; i < len(indices); i += 3 {
-		i0 := indices[i] * 3
-		i1 := indices[i+1] * 3
-		i2 := indices[i+2] * 3
-
-		ax := vertices[i0]
-		ay := vertices[i0+1]
-		az := vertices[i0+2]
-		bx := vertices[i1]
-		by := vertices[i1+1]
-		bz := vertices[i1+2]
-		cx := vertices[i2]
-		cy := vertices[i2+1]
-		cz := vertices[i2+2]
-
-		// Min
-		if ax < bx {
-			if ax < cx {
-				tmin.X = ax
-			} else {
-				tmin.X = cx
-			}
-		} else {
-			if bx < cx {
-				tmin.X = bx
-			} else {
-				tmin.X = cx
-			}
-		}
-
-		if ay < by {
-			if ay < cy {
-				tmin.Y = ay
-			} else {
-				tmin.Y = cy
-			}
-		} else {
-			if by < cy {
-				tmin.Y = by
-			} else {
-				tmin.Y = cy
-			}
-		}
-
-		if az < bz {
-			if az < cz {
-				tmin.Z = az
-			} else {
-				tmin.Z = cz
-			}
-		} else {
-			if bz < cz {
-				tmin.Z = bz
-			} else {
-				tmin.Z = cz
-			}
-		}
-
-		// Max
-		if ax > bx {
-			if ax > cx {
-				tmax.X = ax
-			} else {
-				tmax.X = cx
-			}
-		} else {
-			if bx > cx {
-				tmax.X = bx
-			} else {
-				tmax.X = cx
-			}
-		}
-
-		if ay > by {
-			if ay > cy {
-				tmax.Y = ay
-			} else {
-				tmax.Y = cy
-			}
-		} else {
-			if by > cy {
-				tmax.Y = by
-			} else {
-				tmax.Y = cy
-			}
-		}
-
-		if az > bz {
-			if az > cz {
-				tmax.Z = az
-			} else {
-				tmax.Z = cz
-			}
-		} else {
-			if bz > cz {
-				tmax.Z = bz
-			} else {
-				tmax.Z = cz
-			}
-		}
-
-		tree.insert(&triangleAABB, i/3, 0)
+// AABBQuery gathers candidate triangles overlapping the query bounding box and writes them into out.
+// Returns the number of candidate triangle indices written.
+func (tm *Trimesh) AABBQuery(aabb *mathx.BoundingBox, out []int) int {
+	if tm.spatialHash == nil || aabb == nil {
+		return 0
 	}
-	tree.removeEmptyNodes()
+	return tm.spatialHash.aabbQuery(aabb, out)
+}
+
+// SetBroadphase selects the broadphase spatial acceleration structure:
+// 0: BroadphaseSpatialHashMap (discrete [3]int32 voxel grid via map, default)
+// 1: BroadphaseSpatialHashFlat (discrete [3]int32 voxel grid via flat array)
+func (tm *Trimesh) SetBroadphase(bp int) {
+	tm.broadphase = bp
+	sh := tm.spatialHash
+	if sh != nil {
+		if bp == BroadphaseSpatialHashFlat {
+			sh.mode = spatialHashModeFlat
+		} else {
+			sh.mode = spatialHashModeMap
+		}
+	}
+}
+
+// Broadphase returns the currently selected broadphase structure.
+func (tm *Trimesh) Broadphase() int {
+	return tm.broadphase
+}
+
+// BuildSpatialHash constructs or rebuilds the spatial hash from current geometry.
+// Pass cellSize <= 0 to automatically size voxels based on average triangle bounds.
+func (tm *Trimesh) BuildSpatialHash(cellSize float32) {
+	if len(tm.Indices) == 0 {
+		tm.spatialHash = nil
+		return
+	}
+	sh := newSpatialHash(tm.Vertices, tm.Indices, &tm.AABB, cellSize)
+	if tm.broadphase == BroadphaseSpatialHashFlat {
+		sh.mode = spatialHashModeFlat
+	} else {
+		sh.mode = spatialHashModeMap
+	}
+	tm.spatialHash = sh
+}
+
+// SpatialHashStats returns voxel count, triangle reference count, and flat cell count.
+func (tm *Trimesh) SpatialHashStats() (int, int, int) {
+	sh := tm.spatialHash
+	if sh == nil {
+		return 0, 0, 0
+	}
+	voxels, refs, flatCells := sh.stats()
+	return voxels, refs, flatCells
 }
 
 // updateNormals computes surface normals for all triangles in the mesh.

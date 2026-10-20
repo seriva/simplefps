@@ -1,6 +1,7 @@
 package systems
 
 import (
+	"encoding/json"
 	"regexp"
 )
 
@@ -9,31 +10,31 @@ const settingsStorageKey = "settings"
 // EngineSettings configures graphics, audio, display, and key bindings.
 // Field names are the localStorage JSON keys; keep them stable.
 type EngineSettings struct {
-	IsMobile             bool
-	ZNear                float32
-	ZFar                 float32
-	RenderScale          float32
-	AnisotropicFiltering int
-	Gamma                float32
-	DoFSR                bool
-	FsrSharpness         float32
-	ProceduralDetail     bool
-	EmissiveOffset       float32
-	EmissiveMult         float32
-	EmissiveIteration    int
-	ShowStats            bool
-	ShadowIntensity      float32
-	LightBlurIterations  int
-	DoDirt               bool
-	DirtIntensity        float32
+	IsMobile             bool    `json:"IsMobile"`
+	ZNear                float32 `json:"ZNear"`
+	ZFar                 float32 `json:"ZFar"`
+	RenderScale          float32 `json:"RenderScale"`
+	AnisotropicFiltering int     `json:"AnisotropicFiltering"`
+	Gamma                float32 `json:"Gamma"`
+	DoFSR                bool    `json:"DoFSR"`
+	FsrSharpness         float32 `json:"FsrSharpness"`
+	ProceduralDetail     bool    `json:"ProceduralDetail"`
+	EmissiveOffset       float32 `json:"EmissiveOffset"`
+	EmissiveMult         float32 `json:"EmissiveMult"`
+	EmissiveIteration    int     `json:"EmissiveIteration"`
+	ShowStats            bool    `json:"ShowStats"`
+	ShadowIntensity      float32 `json:"ShadowIntensity"`
+	LightBlurIterations  int     `json:"LightBlurIterations"`
+	DoDirt               bool    `json:"DoDirt"`
+	DirtIntensity        float32 `json:"DirtIntensity"`
 
 	// Controls (keyCodes)
-	Forward         int
-	Backwards       int
-	Left            int
-	Right           int
-	Jump            int
-	LookSensitivity float32
+	Forward         int     `json:"Forward"`
+	Backwards       int     `json:"Backwards"`
+	Left            int     `json:"Left"`
+	Right           int     `json:"Right"`
+	Jump            int     `json:"Jump"`
+	LookSensitivity float32 `json:"LookSensitivity"`
 }
 
 // NewDefaultSettings creates an EngineSettings configured with default values.
@@ -105,16 +106,17 @@ func storage() any {
 // taken from storage.
 func (s *EngineSettings) ApplyJSON(stored string) {
 	isMobile := s.IsMobile
-	parsed := JSON.parse(stored)
-	if parsed != nil {
-		Object.assign(s, parsed)
-	}
+	json.Unmarshal([]byte(stored), s)
 	s.IsMobile = isMobile
 }
 
 // ToJSON serialises the settings for storage.
 func (s *EngineSettings) ToJSON() string {
-	return JSON.stringify(s).(string)
+	b, err := json.Marshal(s)
+	if err != nil {
+		return "{}"
+	}
+	return string(b)
 }
 
 // Load merges stored settings over the defaults, or persists the defaults if

@@ -1,7 +1,7 @@
 # WASM v1.6.1 Gap Adoption — Design Plan
 
 **Version:** continuous  
-**Status:** Completed (2026-10) — Implemented on branch `release/1.6.1` (merged to `master` in PR #49); deferred items moved to [`docs/plans/wasm-deferred-features-plan.md`](../wasm-deferred-features-plan.md)
+**Status:** Completed (2026-10) — Implemented on branch `release/1.6.1` (merged to `master` in PR #49); deferred items moved to [`wasm-deferred-features-plan.md`](wasm-deferred-features-plan.md)
 
 ---
 

@@ -2,7 +2,6 @@
 package collision
 
 import (
-	"slices"
 	"testing"
 
 	"../mathx"
@@ -34,73 +33,6 @@ func gridFloor(n int, size, y float32) *Trimesh {
 		panic("gridFloor: " + err.Error())
 	}
 	return tm
-}
-
-func TestOctreeSubdividedRayAndAABBQuery(t *testing.T) {
-	// 16×16 grid = 512 triangles forces the octree to subdivide (max 8 per leaf).
-	tm := gridFloor(16, 1600, 0)
-	tree := tm.tree
-	if len(tree.children) == 0 {
-		t.Fatal("Expected octree to subdivide for 512 triangles")
-	}
-
-	// Ray query straight down over one cell must return a small candidate set
-	// containing the two triangles of that cell (cell 5,7 → tris 2*(7*16+5), +1).
-	origin := mathx.Vec3{X: 550, Y: 100, Z: 750}
-	dir := mathx.Vec3{X: 0, Y: -1, Z: 0}
-	out := make([]int, MaxRayQueryResults)
-	n := tree.rayQueryLocal(&origin, &dir, 200, out, nil)
-	if n == 0 || n > 64 {
-		t.Fatalf("Expected a small non-empty candidate set, got %d", n)
-	}
-	want0 := 2 * (7*16 + 5)
-	found := 0
-	if slices.Contains(out[:n], want0) {
-		found++
-	}
-	if slices.Contains(out[:n], want0+1) {
-		found++
-	}
-	if found != 2 {
-		t.Errorf("Ray candidates missing cell triangles %d/%d (found %d of 2)", want0, want0+1, found)
-	}
-
-	// Bounded output: a 1-slot buffer must never overflow and reports 1.
-	small := make([]int, 1)
-	if got := tree.rayQueryLocal(&origin, &dir, 200, small, nil); got != 1 {
-		t.Errorf("Expected count clamped to len(out)=1, got %d", got)
-	}
-
-	// AABB query over a 2×2 cell region (cells 4..5 × 4..5) must contain those
-	// 8 triangles. Octree candidates also include straddling triangles stored in
-	// ancestor nodes, but the set must stay far below the full 512.
-	region := mathx.NewBoundingBoxFromValues(mathx.NewVec3(410, -1, 410), mathx.NewVec3(590, 1, 590))
-	n = tree.aabbQuery(region, out)
-	if n < 8 || n > 128 {
-		t.Errorf("Expected a bounded candidate set (8..128) for region, got %d", n)
-	}
-	for cz := 4; cz <= 5; cz++ {
-		for cx := 4; cx <= 5; cx++ {
-			base := 2 * (cz*16 + cx)
-			seen := 0
-			if slices.Contains(out[:n], base) {
-				seen++
-			}
-			if slices.Contains(out[:n], base+1) {
-				seen++
-			}
-			if seen != 2 {
-				t.Errorf("aabbQuery missing triangles of cell %d,%d (found %d of 2)", cx, cz, seen)
-			}
-		}
-	}
-
-	// Ray missing the mesh entirely (parallel above it) returns 0.
-	sideOrigin := mathx.Vec3{X: -100, Y: 50, Z: 800}
-	sideDir := mathx.Vec3{X: 0, Y: 0, Z: 1}
-	if got := tree.rayQueryLocal(&sideOrigin, &sideDir, 100, out, nil); got != 0 {
-		t.Errorf("Expected 0 candidates for a ray outside the tree, got %d", got)
-	}
 }
 
 func TestRayIntersectSubdividedTrimesh(t *testing.T) {

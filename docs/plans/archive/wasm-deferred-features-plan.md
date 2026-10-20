@@ -1,8 +1,8 @@
 # WASM Deferred Features & Optimizations — Design Plan
 
 **Version:** continuous  
-**Status:** Planned  
-**Depends on:** `archive/wasm-v1.6.1-adoption-plan.md`
+**Status:** Completed (2026-10) — Adopted spatial hashing (14.8× speedup) and pure WASM asset decoding (14–17× speedup) in PR #50; projectile/spark batching dropped (already GPU compute-native).  
+**Depends on:** `wasm-v1.6.1-adoption-plan.md`
 
 ---
 
@@ -26,7 +26,14 @@ Address the performance and architecture features deferred during the initial Go
 
 ## Approach
 
-### 1. Projectile Simulation & Dispersion Batching in WASM (`engine/physics`, `game`)
+### 1. Projectile Simulation & Dispersion Batching in WASM (`engine/physics`, `game`) *(Dropped)*
+
+> [!NOTE]
+> **Decision: Dropped**  
+> Following runtime profiling and architectural review, this feature has been dropped:  
+> 1. **Sparks are already GPU-native:** Spark particles are integrated directly on the GPU via compute dispatch (`WgslParticleUpdate` in `ParticleEmitterEntity.Simulate`). Routing visual spark generation through WASM linear memory into intermediate JS CPU buffers introduces an extra bounce-buffer copy and cross-boundary transitions rather than true zero-copy.  
+> 2. **Projectiles already execute collision in WASM:** Active grenades (`game.Projectile`) are bouncing rigid bodies with static raycast collision (`DynamicBody`). Because `DynamicBody` and `collision` already run inside WASM, raycasts are already host-hop-free WASM-to-WASM calls. With only 0–3 active grenades in flight at any given time, batching dynamic bodies provides negligible gain while risking layering violations between physics and game VFX.  
+> 3. **Non-deterministic PRNG:** Visual spark bursts and explosion billboard scatters in `game` use JS `Math.random()`, ensuring natural non-deterministic explosion patterns across game sessions without WASM PRNG seeding requirements.
 
 **Problem:**  
 In the initial v1.6.1 adoption, moving spark bursts and projectile scattering (`game/projectiles.go`) to WASM was deferred. Calling a WASM function per particle or fetching individual particle properties across the JS/WASM boundary generates ~100 boundary hops per explosion, wiping out any compute advantage. Furthermore, delegating `rand.Float32()` across the host boundary via JS `Math.random` introduces additional per-call overhead.
@@ -48,6 +55,17 @@ GoFront v1.6.1 added support for array-typed map keys in WASM (e.g. `map[[3]int3
 - **Load-time only:** Construct voxel grid index arrays strictly at scene initialization.
 - **Runtime query discipline:** Frame queries must be read-only or utilize a pre-allocated flat grid array if map lookup overhead is measurable.
 - Benchmark raycast throughput and cache behavior against the current static Octree in [`tests/perf/js-vs-wasm.js`](file:///home/coder/workspace/simplefps/tests/perf/js-vs-wasm.js). If voxel hashing does not beat Octree traversal by $\ge 1.15\times$, retain the Octree.
+- **Results & Decision:**
+  - **Query throughput (hybrid WASM, 200,000 casts):**
+    - Octree: 94,988 casts/s (10,528 ns/cast)
+    - SpatialHash (Map `[3]int32`): 1,363,270 casts/s (734 ns/cast) — **14.35× speedup**
+    - SpatialHash (Flat Array): 1,405,388 casts/s (712 ns/cast) — **14.80× speedup**
+  - **Construction throughput (500 builds):**
+    - Octree: 1,392 builds/s (718 µs)
+    - SpatialHash: 2,064 builds/s (484 µs) — **1.48× faster to build**
+  - **Zero-allocation verification:**
+    - Verified via `tests/perf/zero-alloc.js` (0 B/op in steady-state across 100,000 casts for both Map and Flat modes).
+  - **Decision:** **ADOPTED**. Spatial hashing exceeds the $\ge 1.15\times$ threshold by more than $10\times$ while building faster and meeting all zero-allocation invariants. The legacy Octree has been completely removed in favor of Spatial Hashing, eliminating duplicate tree construction overhead on arena load and shrinking WASM binary size.
 
 ### 3. Pure WASM Asset Decoding (`BinaryReader`, `engine/assets`)
 
@@ -59,6 +77,11 @@ GoFront v1.6.1 added support for array-typed map keys in WASM (e.g. `map[[3]int3
 - Use `encoding/binary` (`binary.LittleEndian`) for decoding `.bmesh`, `.sbmesh`, and `.banim` formats.
 - Decode directly from fetched `ArrayBuffer` payloads (passed via a single shared memory view) into preallocated flat geometry slices.
 - Eliminates `interop.d.ts` and `DataView` bindings in `engine/assets`.
+- **Results & Decision:**
+  - **Asset parsing throughput (`tests/perf/js-vs-wasm.js`):**
+    - Mesh decoding (`geometry.bmesh`, 125 KB): 56 loads/s (17.76 ms) JS-only vs 833 loads/s (1.20 ms) WASM — **14.79× speedup**
+    - Animation decoding (`robot.banim`, 195 KB): 29 loads/s (34.57 ms) JS-only vs 487 loads/s (2.05 ms) WASM — **16.84× speedup**
+  - **Decision:** **ADOPTED**. Migrated pure Go `BinaryReader` with `encoding/binary` and binary asset decoding to WASM subsystem `engine/assets/decoder`, completely removing `interop.d.ts` and `DataView` from `engine/assets`.
 
 ---
 
@@ -73,28 +96,26 @@ GoFront v1.6.1 added support for array-typed map keys in WASM (e.g. `map[[3]int3
 
 ## Implementation Tasks
 
-- [ ] **Phase 1: Projectile & Dispersion Batching**
-  - [ ] Define shared buffer layout for active projectile and spark states (`pos`, `vel`, `life`).
-  - [ ] Implement batch simulation loop in `engine/physics`.
-  - [ ] Hook `game/projectiles.go` to the batched WASM simulation routine.
-  - [ ] Verify zero per-particle JS/WASM boundary hops.
+- [x] **Phase 1: Projectile & Dispersion Batching** *(Dropped)*
+  - [x] Evaluate shared buffer layout and dispersion in WASM.
+  - [x] Conclude architectural evaluation: sparks are GPU compute-native and dynamic bodies already execute raycasts in WASM; dropped to avoid unnecessary memory hops and layering violations.
 
-- [ ] **Phase 2: Spatial Hashing Benchmark & Prototype**
-  - [ ] Prototype `[3]int32` spatial hashing for static trimesh triangles.
-  - [ ] Measure construction time and memory overhead against `Octree`.
-  - [ ] Run benchmark in `tests/perf/js-vs-wasm.js` comparing query throughput.
-  - [ ] Decide on adoption or rejection based on performance threshold.
+- [x] **Phase 2: Spatial Hashing Benchmark & Prototype**
+  - [x] Prototype `[3]int32` spatial hashing for static trimesh triangles.
+  - [x] Measure construction time and memory overhead against `Octree`.
+  - [x] Run benchmark in `tests/perf/js-vs-wasm.js` comparing query throughput.
+  - [x] Decide on adoption or rejection based on performance threshold (Adopted: 14.80× speedup vs 1.15× target).
 
-- [ ] **Phase 3: Pure WASM Asset Decoding**
-  - [ ] Implement pure Go `BinaryReader` using `encoding/binary`.
-  - [ ] Target `.bmesh`, `.sbmesh`, and `.banim` loaders to WASM.
-  - [ ] Remove `app/src/engine/assets/interop.d.ts` DataView shims.
-  - [ ] Benchmark asset parse time during arena load.
+- [x] **Phase 3: Pure WASM Asset Decoding**
+  - [x] Implement pure Go `BinaryReader` using `encoding/binary`.
+  - [x] Target `.bmesh`, `.sbmesh`, and `.banim` loaders to WASM.
+  - [x] Remove `app/src/engine/assets/interop.d.ts` DataView shims.
+  - [x] Benchmark asset parse time during arena load.
 
-- [ ] **Phase 4: Optimization & Verification**
-  - [ ] Run full test suites (`npm test`, `npm run test:dom`, `npm run check`).
-  - [ ] Verify zero-alloc performance test (`npm run test:perf`).
-  - [ ] Run end-to-end smoke tests (`npm run test:e2e`).
+- [x] **Phase 4: Optimization & Verification**
+  - [x] Run full test suites (`npm test`, `npm run test:dom`, `npm run check`).
+  - [x] Verify zero-alloc performance test (`npm run test:perf`).
+  - [x] Run end-to-end smoke tests (`npm run test:e2e`).
 
 ---
 

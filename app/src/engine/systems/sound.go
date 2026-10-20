@@ -4,12 +4,11 @@ import "js:./interop.d.ts"
 
 // SoundConfig mirrors the .sfx resource file schema.
 type SoundConfig struct {
-	File      string
-	Cached    bool
-	Speed     float32
-	Volume    float32
-	Loop      bool
-	CacheSize int
+	File      string  `json:"file"`
+	Cached    bool    `json:"cached"`
+	Speed     float32 `json:"speed"`
+	Volume    float32 `json:"volume"`
+	Loop      bool    `json:"loop"`
 }
 
 var (
