@@ -6,6 +6,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+### Fixed
+- **WebGPU buffer upload type safety (`rendering.Backend`, `assets.BuildMesh`):** `BuildMesh` and `BuildSkinnedMesh` now convert decoded mesh slices (`Vertices`, `UVs`, `Normals`, `LightmapUVs`, index `Array`, `JointIndices`, `JointWeights`) from WASM-boundary proxy slices into native JavaScript `Float32Array`, `Uint32Array`, and `Uint8Array` before creating mesh buffers. `Backend.CreateBuffer`, `WriteBuffer`, and `WriteBufferSlice` now guard data uploads with `toBufferSource` to prevent WebGPU IDL overload resolution failures on `GPUQueue.writeBuffer`.
+
 ### Added
 - **Pure WASM Asset Decoding (`BinaryReader`, `engine/assets/decoder`)**: Migrated binary asset decoding (`.bmesh`, `.sbmesh`, `.banim`) to WebAssembly in a dedicated subsystem (`engine/assets/decoder`, `//gofront:target wasm`). Implemented pure Go `BinaryReader` using `encoding/binary.LittleEndian` without `DataView`, `Reflect`, or `globalThis`. Completely removed `app/src/engine/assets/interop.d.ts` DataView shims. Achieved a **14.79× speedup for `.bmesh` loading** (17.76 ms → 1.20 ms) and a **16.84× speedup for `.banim` loading** (34.57 ms → 2.05 ms).
 
