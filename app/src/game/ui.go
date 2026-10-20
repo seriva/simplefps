@@ -35,10 +35,11 @@ type UIManager struct {
 	dialogBtnNo     any
 
 	// Callbacks
-	OnVersionCheck func()
-	OnUpdateYes    func()
-	dialogOnYes    func()
-	dialogOnNo     func()
+	OnVersionCheck    func()
+	OnUpdateYes       func()
+	OnSettingsChanged func()
+	dialogOnYes       func()
+	dialogOnNo        func()
 }
 
 // NewUIManager creates an unmounted UIManager.
@@ -146,6 +147,9 @@ func (ui *UIManager) Mount() {
 			if id == "setting-fsr" {
 				systems.ActiveSettings.DoFSR = target.checked
 				systems.ActiveSettings.Save()
+				if ui.OnSettingsChanged != nil {
+					ui.OnSettingsChanged()
+				}
 			} else if id == "setting-procedural-detail" {
 				systems.ActiveSettings.ProceduralDetail = target.checked
 				systems.ActiveSettings.Save()
@@ -155,6 +159,17 @@ func (ui *UIManager) Mount() {
 			} else if id == "setting-show-stats" {
 				systems.ActiveSettings.ShowStats = target.checked
 				systems.ActiveSettings.Save()
+				if ui.OnSettingsChanged != nil {
+					ui.OnSettingsChanged()
+				}
+			} else if id == "setting-render-scale" {
+				if f, err := strconv.ParseFloat(target.value.(string), 32); err == nil {
+					systems.ActiveSettings.RenderScale = float32(f)
+					systems.ActiveSettings.Save()
+					if ui.OnSettingsChanged != nil {
+						ui.OnSettingsChanged()
+					}
+				}
 			}
 		}, false)
 
@@ -164,12 +179,7 @@ func (ui *UIManager) Mount() {
 			}
 			target := e.target
 			id := target.id
-			if id == "setting-render-scale" {
-				if f, err := strconv.ParseFloat(target.value.(string), 32); err == nil {
-					systems.ActiveSettings.RenderScale = float32(f)
-					systems.ActiveSettings.Save()
-				}
-			} else if id == "setting-gamma" {
+			if id == "setting-gamma" {
 				if f, err := strconv.ParseFloat(target.value.(string), 32); err == nil {
 					systems.ActiveSettings.Gamma = float32(f)
 					systems.ActiveSettings.Save()

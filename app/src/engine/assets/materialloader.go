@@ -1,6 +1,8 @@
 package assets
 
 import (
+	"encoding/json"
+
 	"../rendering"
 )
 
@@ -13,6 +15,21 @@ type MaterialDef struct {
 	Name     string
 	Textures map[string]string // slot -> resource path
 	Material *rendering.Material
+}
+
+type rawMaterialEntry struct {
+	Name               string            `json:"name"`
+	Base               string            `json:"base"`
+	Textures           map[string]string `json:"textures"`
+	GeomType           *int              `json:"geomType"`
+	ReflectionStrength *float32          `json:"reflectionStrength"`
+	Translucent        *bool             `json:"translucent"`
+	DoubleSided        *bool             `json:"doubleSided"`
+	Opacity            *float32          `json:"opacity"`
+}
+
+type materialLibraryDoc struct {
+	Materials []rawMaterialEntry `json:"materials"`
 }
 
 // TexturePaths returns every texture path referenced by the definition.
@@ -33,47 +50,57 @@ func (d *MaterialDef) TexturePaths() []string {
 // Material.loadLibrary did. Materials are created on backend b.
 func ParseMaterialLibrary(b *rendering.Backend, text string) []*MaterialDef {
 	defs := make([]*MaterialDef, 0)
-	parsed := JSON.parse(text)
-	if parsed == nil || parsed.materials == nil {
+	var doc materialLibraryDoc
+	if err := json.Unmarshal([]byte(text), &doc); err != nil || len(doc.Materials) == 0 {
 		return defs
 	}
-	list := parsed.materials.([]any)
 
-	byName := map[string]any{}
-	for i := 0; i < len(list); i++ {
-		m := list[i]
-		if m != nil && m.name != nil {
-			byName[m.name.(string)] = m
+	byName := map[string]*rawMaterialEntry{}
+	for i := 0; i < len(doc.Materials); i++ {
+		m := &doc.Materials[i]
+		if m.Name != "" {
+			byName[m.Name] = m
 		}
 	}
 
-	for i := 0; i < len(list); i++ {
-		m := list[i]
-		if m == nil || m.name == nil {
+	for i := 0; i < len(doc.Materials); i++ {
+		m := &doc.Materials[i]
+		if m.Name == "" {
 			continue
 		}
-		var base any
-		if m.base != nil {
-			if b, ok := byName[m.base.(string)]; ok {
-				base = b
-			}
+		var base *rawMaterialEntry
+		if m.Base != "" {
+			base = byName[m.Base]
 		}
 
 		def := &MaterialDef{
-			Name:     m.name.(string),
+			Name:     m.Name,
 			Textures: map[string]string{},
 		}
 		if base != nil {
-			copyTextureSlots(def.Textures, base.textures)
+			copyTextureSlots(def.Textures, base.Textures)
 		}
-		copyTextureSlots(def.Textures, m.textures)
+		copyTextureSlots(def.Textures, m.Textures)
+
+		var baseGeom *int
+		var baseRefl *float32
+		var baseTrans *bool
+		var baseDoubleSided *bool
+		var baseOpacity *float32
+		if base != nil {
+			baseGeom = base.GeomType
+			baseRefl = base.ReflectionStrength
+			baseTrans = base.Translucent
+			baseDoubleSided = base.DoubleSided
+			baseOpacity = base.Opacity
+		}
 
 		mat := rendering.NewMaterial(b, def.Name)
-		mat.GeomType = jsonInt(inherit(m.geomType, base, "geomType"), 1)
-		mat.ReflectionStrength = jsonFloat(inherit(m.reflectionStrength, base, "reflectionStrength"), 1.0)
-		mat.Translucent = jsonBool(inherit(m.translucent, base, "translucent"), false)
-		mat.DoubleSided = jsonBool(m.doubleSided, false)
-		mat.Opacity = jsonFloat(inherit(m.opacity, base, "opacity"), 1.0)
+		mat.GeomType = inherit(m.GeomType, baseGeom, 1)
+		mat.ReflectionStrength = inherit(m.ReflectionStrength, baseRefl, float32(1.0))
+		mat.Translucent = inherit(m.Translucent, baseTrans, false)
+		mat.DoubleSided = inherit(m.DoubleSided, baseDoubleSided, false)
+		mat.Opacity = inherit(m.Opacity, baseOpacity, float32(1.0))
 		def.Material = mat
 
 		defs = append(defs, def)
@@ -81,51 +108,24 @@ func ParseMaterialLibrary(b *rendering.Backend, text string) []*MaterialDef {
 	return defs
 }
 
-// inherit returns own when set, otherwise the base object's field.
-func inherit(own any, base any, field string) any {
-	if own != nil || base == nil {
-		return own
+func inherit[T any](own *T, baseVal *T, def T) T {
+	if own != nil {
+		return *own
 	}
-	return base[field]
+	if baseVal != nil {
+		return *baseVal
+	}
+	return def
 }
 
-func copyTextureSlots(dst map[string]string, src any) {
+func copyTextureSlots(dst map[string]string, src map[string]string) {
 	if src == nil {
 		return
 	}
 	for i := 0; i < len(textureSlots); i++ {
 		slot := textureSlots[i]
-		v := src[slot]
-		if v != nil {
-			dst[slot] = v.(string)
+		if v, ok := src[slot]; ok && v != "" {
+			dst[slot] = v
 		}
 	}
-}
-
-func jsonInt(v any, def int) int {
-	if v == nil {
-		return def
-	}
-	return int(v.(float64))
-}
-
-func jsonFloat(v any, def float32) float32 {
-	if v == nil {
-		return def
-	}
-	return float32(v.(float64))
-}
-
-func jsonBool(v any, def bool) bool {
-	if v == nil {
-		return def
-	}
-	return v.(bool)
-}
-
-func jsonString(v any, def string) string {
-	if v == nil {
-		return def
-	}
-	return v.(string)
 }

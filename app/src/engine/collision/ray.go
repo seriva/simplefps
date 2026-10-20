@@ -133,6 +133,93 @@ func (ray *Ray) Setup(fromX, fromY, fromZ, toX, toY, toZ float32, options *RayOp
 	ray.Result.ShouldStop = false
 }
 
+// intersectRayAABB tests intersection between a ray and an AABB using the Slab method.
+// Correctly guards against zero direction components to prevent 0.0 * Inf = NaN.
+func intersectRayAABB(aabb *mathx.BoundingBox, origin, direction, invDir *mathx.Vec3, maxDist float32) bool {
+	min := &aabb.Min
+	max := &aabb.Max
+
+	tmin := float32(0.0)
+	tmax := maxDist
+
+	// X slab
+	if direction.X == 0 {
+		if origin.X < min.X || origin.X > max.X {
+			return false
+		}
+	} else {
+		var t0, t1 float32
+		if invDir.X >= 0 {
+			t0 = (min.X - origin.X) * invDir.X
+			t1 = (max.X - origin.X) * invDir.X
+		} else {
+			t0 = (max.X - origin.X) * invDir.X
+			t1 = (min.X - origin.X) * invDir.X
+		}
+		if t0 > tmin {
+			tmin = t0
+		}
+		if t1 < tmax {
+			tmax = t1
+		}
+		if tmin > tmax {
+			return false
+		}
+	}
+
+	// Y slab
+	if direction.Y == 0 {
+		if origin.Y < min.Y || origin.Y > max.Y {
+			return false
+		}
+	} else {
+		var t0, t1 float32
+		if invDir.Y >= 0 {
+			t0 = (min.Y - origin.Y) * invDir.Y
+			t1 = (max.Y - origin.Y) * invDir.Y
+		} else {
+			t0 = (max.Y - origin.Y) * invDir.Y
+			t1 = (min.Y - origin.Y) * invDir.Y
+		}
+		if t0 > tmin {
+			tmin = t0
+		}
+		if t1 < tmax {
+			tmax = t1
+		}
+		if tmin > tmax {
+			return false
+		}
+	}
+
+	// Z slab
+	if direction.Z == 0 {
+		if origin.Z < min.Z || origin.Z > max.Z {
+			return false
+		}
+	} else {
+		var t0, t1 float32
+		if invDir.Z >= 0 {
+			t0 = (min.Z - origin.Z) * invDir.Z
+			t1 = (max.Z - origin.Z) * invDir.Z
+		} else {
+			t0 = (max.Z - origin.Z) * invDir.Z
+			t1 = (min.Z - origin.Z) * invDir.Z
+		}
+		if t0 > tmin {
+			tmin = t0
+		}
+		if t1 < tmax {
+			tmax = t1
+		}
+		if tmin > tmax {
+			return false
+		}
+	}
+
+	return tmax >= 0 && tmin <= maxDist
+}
+
 // IntersectTrimesh tests ray intersection against triangles in a Trimesh.
 func (ray *Ray) IntersectTrimesh(mesh *Trimesh, worldMatrix mathx.Mat4) {
 	indices := mesh.Indices
@@ -179,11 +266,15 @@ func (ray *Ray) IntersectTrimesh(mesh *Trimesh, worldMatrix mathx.Mat4) {
 	_itInvDir.Z = 1.0 / _itLocalDir.Z
 
 	// Early rejection: Check if ray intersects the mesh's root bounding box
-	if !intersectRayAABB(&mesh.AABB, &_itLocalFrom, &_itInvDir, maxDist) {
+	if !intersectRayAABB(&mesh.AABB, &_itLocalFrom, &_itLocalDir, &_itInvDir, maxDist) {
 		return
 	}
 
-	count := mesh.tree.rayQueryLocal(&_itLocalFrom, &_itLocalDir, maxDist, _itTriangles, &_itInvDir)
+	var count int
+	sh := mesh.spatialHash
+	if sh != nil {
+		count = sh.rayQueryLocal(&_itLocalFrom, &_itLocalDir, maxDist, _itTriangles, &_itInvDir)
+	}
 
 	for i := 0; i < count && !ray.Result.ShouldStop; i++ {
 		trianglesIndex := _itTriangles[i]

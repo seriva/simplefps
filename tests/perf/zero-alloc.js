@@ -119,25 +119,35 @@ const newSpaceUsed = () =>
 // scavenge landing mid-sweep cannot fail the run.
 const ITERATIONS = 100_000;
 const SWEEPS = 5;
-const deltas = [];
-let hits = 0;
-for (let s = 0; s < SWEEPS; s++) {
-	const before = newSpaceUsed();
-	hits = raycastSweep(ITERATIONS);
-	deltas.push(newSpaceUsed() - before);
-}
-const delta = Math.min(...deltas.filter((d) => d >= 0));
 
-console.log(
-	`Raycast benchmark: ${ITERATIONS} casts, ${hits} hits, new-space deltas=[${deltas.join(", ")}] bytes`,
-);
-assert.strictEqual(hits, ITERATIONS, "every downward ray must hit the floor");
-// A delta under 64KB across 100,000 casts means no per-iteration heap allocation.
-assert(
-	delta < 65536,
-	`Expected near-zero allocation (<64KB) in steady state, got ${delta} bytes`,
-);
-console.log("✓ Zero-allocation raycast benchmark passed");
+for (const [modeName, mode] of [
+	["spatial-hash-map", 0],
+	["spatial-hash-flat", 1],
+]) {
+	mesh.SetBroadphase(mode);
+	raycastSweep(20_000); // warm up
+	const deltas = [];
+	let hits = 0;
+	for (let s = 0; s < SWEEPS; s++) {
+		const before = newSpaceUsed();
+		hits = raycastSweep(ITERATIONS);
+		deltas.push(newSpaceUsed() - before);
+	}
+	const delta = Math.min(...deltas.filter((d) => d >= 0));
+	console.log(
+		`Raycast benchmark [${modeName}]: ${ITERATIONS} casts, ${hits} hits, new-space deltas=[${deltas.join(", ")}] bytes`,
+	);
+	assert.strictEqual(
+		hits,
+		ITERATIONS,
+		`every downward ray must hit the floor in ${modeName}`,
+	);
+	assert(
+		delta < 65536,
+		`Expected near-zero allocation (<64KB) in ${modeName}, got ${delta} bytes`,
+	);
+}
+console.log("✓ Zero-allocation raycast benchmarks passed (SH-Map, SH-Flat)");
 
 // Controller loop on a 1600×1600 floor (the controller is 35 units wide).
 const [bigFloor, floorErr] = NewTrimesh(

@@ -38,6 +38,15 @@ test.beforeEach(async ({ page }) => {
 		}
 
 		const mockDevice = createMock();
+		const mockQueue = createMock();
+		mockQueue.writeBuffer = (_buffer, _bufferOffset, data) => {
+			if (!ArrayBuffer.isView(data) && !(data instanceof ArrayBuffer)) {
+				throw new TypeError(
+					"Failed to execute 'writeBuffer' on 'GPUQueue': Overload resolution failed.",
+				);
+			}
+		};
+		mockDevice.queue = mockQueue;
 		const mockGpu = {
 			getPreferredCanvasFormat: () => "rgba8unorm",
 			requestAdapter: async () => ({
@@ -69,6 +78,14 @@ test.beforeEach(async ({ page }) => {
 	page.on("pageerror", (e) => {
 		// Pointer lock is unavailable in automation and is handled by the game.
 		if (!/pointer lock/i.test(e.message)) errors.push(e.message);
+	});
+	page.on("console", (msg) => {
+		if (
+			msg.type() === "error" &&
+			msg.text().includes("[Resources] load failed")
+		) {
+			errors.push(msg.text());
+		}
 	});
 	page.errors = errors;
 

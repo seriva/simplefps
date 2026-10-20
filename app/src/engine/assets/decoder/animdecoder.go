@@ -1,10 +1,8 @@
-package assets
+//gofront:target wasm
+package decoder
 
 import (
-	"strconv"
-
-	"../animation"
-	"../systems"
+	"../../animation"
 )
 
 // ParseBinaryAnimation decodes the .anim binary format.
@@ -30,16 +28,25 @@ func ParseBinaryAnimation(name string, data []byte) *animation.Animation {
 		numJoints = int(r.ReadUint32())
 	}
 
-	// One bulk read + one WASM call instead of 8 boundary crossings per joint.
-	frames := r.ReadFloat32Array(numFrames * numJoints * 7)
-	if len(frames) < numFrames*numJoints*7 {
-		systems.GlobalConsole.Error("[Animation] Truncated clip " + name + ": expected " + strconv.Itoa(numFrames*numJoints*7) + " floats, got " + strconv.Itoa(len(frames)))
+	if numFrames <= 0 || numJoints <= 0 {
+		return animation.NewAnimation(name, float32(frameRate), nil, nil)
+	}
+	remFloats := r.Remaining() / 4
+	if numJoints > remFloats/7 || numFrames > (remFloats/7)/numJoints {
+		return animation.NewAnimation(name, float32(frameRate), nil, nil)
+	}
+	expectedFloats := numFrames * numJoints * 7
+	frames := r.ReadFloat32Array(expectedFloats)
+	if len(frames) < expectedFloats {
 		return animation.NewAnimation(name, float32(frameRate), nil, nil)
 	}
 	poses := animation.NewPosesFromFrames(frames, numFrames, numJoints)
 
 	var bounds []animation.Bounds
 	if hasBounds {
+		if numFrames > r.Remaining()/24 {
+			return animation.NewAnimation(name, float32(frameRate), nil, nil)
+		}
 		bounds = make([]animation.Bounds, numFrames)
 		for f := 0; f < numFrames; f++ {
 			b := &bounds[f]

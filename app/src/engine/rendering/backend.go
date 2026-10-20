@@ -227,6 +227,28 @@ func (b *Backend) EndFrame() {
 // Buffers
 // ---------------------------------------------------------------------------
 
+func toBufferSource(data any) any {
+	if data == nil || ArrayBuffer.isView(data) {
+		return data
+	}
+	switch d := data.(type) {
+	case []float32:
+		out := make([]float32, len(d))
+		copy(out, d)
+		return out
+	case []uint32:
+		out := make([]uint32, len(d))
+		copy(out, d)
+		return out
+	case []uint8:
+		out := make([]uint8, len(d))
+		copy(out, d)
+		return out
+	default:
+		return data
+	}
+}
+
 // CreateBuffer allocates byteLength bytes (4-byte aligned) with usage and
 // optionally uploads data (a typed array) at offset 0.
 func (b *Backend) CreateBuffer(label string, byteLength int, usage int, data any) GPUBuffer {
@@ -239,7 +261,7 @@ func (b *Backend) CreateBuffer(label string, byteLength int, usage int, data any
 		"usage": usage | BufferUsageCopyDst,
 	})
 	if data != nil {
-		b.Device.queue.writeBuffer(buf, 0, data)
+		b.Device.queue.writeBuffer(buf, 0, toBufferSource(data))
 	}
 	return buf
 }
@@ -264,7 +286,7 @@ func (b *Backend) WriteBuffer(buf GPUBuffer, offset int, data any) {
 	if buf == nil || data == nil {
 		return
 	}
-	b.Device.queue.writeBuffer(buf, offset, data)
+	b.Device.queue.writeBuffer(buf, offset, toBufferSource(data))
 }
 
 // WriteBufferRange uploads count elements of data starting at element 0.
@@ -280,7 +302,7 @@ func (b *Backend) WriteBufferSlice(buf GPUBuffer, offset int, data any, dataOffs
 		return
 	}
 	var queue any = b.Device.queue
-	queue.writeBuffer(buf, offset, data, dataOffset, count)
+	queue.writeBuffer(buf, offset, toBufferSource(data), dataOffset, count)
 }
 
 // DestroyBuffer releases buf (nil-safe).
