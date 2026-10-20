@@ -1,8 +1,8 @@
 # WASM Deferred Features & Optimizations — Design Plan
 
 **Version:** continuous  
-**Status:** Planned  
-**Depends on:** `archive/wasm-v1.6.1-adoption-plan.md`
+**Status:** Completed (2026-10) — Adopted spatial hashing (14.8× speedup) and pure WASM asset decoding (14–17× speedup) in PR #50; projectile/spark batching dropped (already GPU compute-native).  
+**Depends on:** `wasm-v1.6.1-adoption-plan.md`
 
 ---
 
@@ -112,10 +112,10 @@ GoFront v1.6.1 added support for array-typed map keys in WASM (e.g. `map[[3]int3
   - [x] Remove `app/src/engine/assets/interop.d.ts` DataView shims.
   - [x] Benchmark asset parse time during arena load.
 
-- [ ] **Phase 4: Optimization & Verification**
-  - [ ] Run full test suites (`npm test`, `npm run test:dom`, `npm run check`).
-  - [ ] Verify zero-alloc performance test (`npm run test:perf`).
-  - [ ] Run end-to-end smoke tests (`npm run test:e2e`).
+- [x] **Phase 4: Optimization & Verification**
+  - [x] Run full test suites (`npm test`, `npm run test:dom`, `npm run check`).
+  - [x] Verify zero-alloc performance test (`npm run test:perf`).
+  - [x] Run end-to-end smoke tests (`npm run test:e2e`).
 
 ---
 
