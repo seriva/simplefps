@@ -5,6 +5,7 @@ declare namespace Reflect {
 declare var Image: any;
 declare var process: any;
 declare var globalThis: any;
+declare var ArrayBuffer: any;
 
 // Typed WebGPU handles. Optional WebIDL parameters are declared as fixed
 // parameters because GoFront enforces arity; callers pass nil for dictionaries

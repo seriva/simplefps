@@ -14,7 +14,6 @@ Design documents for planned features live in `docs/plans/`
 |---|---|---|---|
 | [Engine Architecture Cleanup](plans/archive/engine-architecture-cleanup-plan.md) | Medium | Draft | Move the `rendering.SceneSource` seam so `scene` owns pass orchestration instead of `rendering` reaching back into the scene |
 | [G-Buffer Depth Reconstruction](plans/gbuffer-depth-reconstruction-plan.md) | Medium | Planned | Reconstruct world/view position from depth buffer; eliminates 16-byte worldPosition render target to cut mobile memory bandwidth |
-| [WASM Deferred Features](plans/wasm-deferred-features-plan.md) | Medium | In Progress | Adopted static voxel broadphase (14.8× raycast speedup); pure WASM asset decoders (`BinaryReader`) planned; spark/projectile batching dropped (already WebGPU compute-native) |
 
 ---
 
@@ -25,6 +24,7 @@ summarised in `CHANGELOG.md` under *2026-09 — Legacy JavaScript engine*.
 
 | Feature | Difficulty | Status | Notes |
 |---------|------------|--------|-------|
+| [WASM Deferred Features](plans/archive/wasm-deferred-features-plan.md) | Medium | Completed (2026-10) | Adopted static voxel broadphase (14.8× raycast speedup, Octree removed) and pure WASM asset decoders (`assets/decoder`, 14–17× speedup); spark/projectile batching dropped (already WebGPU compute-native) |
 | [WASM v1.6.1 Gap Adoption](plans/archive/wasm-v1.6.1-adoption-plan.md) | Medium | Completed (2026-10) | Adopted GoFront v1.6.1 WASM capabilities: const expressions (`fpscontroller.go`, `ray.go`, `mathx.DegToRad`), boundary `error` handling in `collision` & `scene`, `slices.Contains`, Binaryen release optimizations (80.1 kB wasm, 0.1 B/frame zero-alloc verified). Deferred items moved to follow-up plan. |
 | WebAssembly Physics Migration | Medium | Completed (2026-10) | `physics` (`FPSController`, `DynamicBody`) and `animation` (skinning via a `gofront/shared` bone buffer) run in WASM next to `collision`; `BinaryReader` and `ParseBinaryAnimation` moved to `assets`; `npm run bench` compares `--js-only` vs hybrid: raycasts ≈1.15×, controller step ≈2.4×, skinning ≈1.2×, `app.wasm` ≈100 → ≈80 kB with `--release` |
 | [WebGPU Migration & Architecture Restructuring](plans/archive/remove-webgl-plan.md) | High | Completed (2026-11) | WebGL2 backend removed; `rendering` is WebGPU-native: typed `Backend`, explicit render passes, pre-baked pipelines, 4-slot bind groups with `ObjectData`/bone rings, storage-buffer lights and skinning, compute particles and Kawase blur; `rendering/fakegpu` test device |

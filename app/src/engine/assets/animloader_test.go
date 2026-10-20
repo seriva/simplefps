@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"../animation"
+	"./decoder"
 )
 
 func approxF(a, b float32) bool {
@@ -47,7 +48,7 @@ func TestParseBinaryAnimationV1(t *testing.T) {
 	// frame 1: pos (2,0,-1) rot identity
 	data = appendAll(data, f32(2), f32(0), f32(-1), f32(0), f32(0), f32(0), f32(1))
 
-	a := ParseBinaryAnimation("v1", data)
+	a := decoder.ParseBinaryAnimation("v1", data)
 	if a.NumFrames != 2 || a.JointCount != 1 || a.FrameRate != 4 {
 		t.Fatalf("header parse: %+v", a)
 	}
@@ -72,7 +73,7 @@ func TestParseBinaryAnimationV2WithBounds(t *testing.T) {
 	data = appendAll(data, f32(-1), f32(-1), f32(-1), f32(1), f32(1), f32(1))
 	data = appendAll(data, f32(0), f32(0), f32(0), f32(2), f32(2), f32(2))
 
-	a := ParseBinaryAnimation("v2", data)
+	a := decoder.ParseBinaryAnimation("v2", data)
 	if a.NumFrames != 2 || a.JointCount != 1 || a.FrameRate != 1 {
 		t.Fatalf("header parse: %+v", a)
 	}
@@ -90,7 +91,7 @@ func TestParseBinaryAnimationTruncated(t *testing.T) {
 	data := appendAll(make([]byte, 0), u32(4), u32(2), u32(1))
 	data = appendAll(data, f32(0), f32(0), f32(0), f32(0), f32(0), f32(0), f32(1))
 
-	a := ParseBinaryAnimation("short", data)
+	a := decoder.ParseBinaryAnimation("short", data)
 	if a.NumFrames != 0 || a.Bounds != nil {
 		t.Fatalf("truncated clip must decode as empty, got %d frames", a.NumFrames)
 	}
