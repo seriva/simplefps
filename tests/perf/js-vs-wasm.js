@@ -121,6 +121,26 @@ function setup(m) {
 			if (ray.HasHit) hits++;
 		}
 	};
+	const raycastSpatialHashFlat = (n) => {
+		mesh.SetBroadphase(1);
+		for (let i = 0; i < n; i++) {
+			const x = (i % GRID) + 0.5;
+			const z = (((i / GRID) | 0) % GRID) + 0.5;
+			ray.From.X = x;
+			ray.From.Z = z;
+			ray.To.X = x;
+			ray.To.Z = z;
+			ray.Result.Reset();
+			ray.HasHit = false;
+			ray.IntersectTrimesh(mesh, null);
+			if (ray.HasHit) hits++;
+		}
+	};
+
+	const buildSpatialHash = (n) => {
+		for (let i = 0; i < n; i++) mesh.BuildSpatialHash(0);
+	};
+	const [hashVoxels, hashRefs, flatCells] = mesh.SpatialHashStats();
 
 	const [bigFloor, floorErr] = m.NewTrimesh(
 		new Float32Array(verts.map((v) => v * 50)),
@@ -158,7 +178,16 @@ function setup(m) {
 			camUp.Copy(pose.Up);
 		}
 	};
-	return { raycastSweep, controllerFrames, hits: () => hits };
+	return {
+		raycastSweep,
+		raycastSpatialHashFlat,
+		buildSpatialHash,
+		controllerFrames,
+		hits: () => hits,
+		stats: () => ({
+			sh: [hashVoxels, hashRefs, flatCells],
+		}),
+	};
 }
 
 // A 64-joint chain with a 10-frame looping clip, driven the way
@@ -231,9 +260,12 @@ for (const [label, forceJs] of [
 	results[label] = {
 		wasmBytes,
 		animWasmBytes: anim.wasmBytes,
-		raycast: bench("raycast", s.raycastSweep, CASTS),
+		raycast: bench("raycast-map", s.raycastSweep, CASTS),
+		raycastShFlat: bench("raycast-flat", s.raycastSpatialHashFlat, CASTS),
+		buildSpatialHash: bench("build-sh", s.buildSpatialHash, 500),
 		controller: bench("controller", s.controllerFrames, FRAMES),
 		skinning: bench("skinning", skinFrames, SKIN_FRAMES),
+		stats: s.stats(),
 	};
 }
 
@@ -253,4 +285,20 @@ console.log(
 );
 console.log(
 	`physics+collision+mathx wasm (unoptimised): ${fmt(hy.wasmBytes)} bytes; animation+mathx wasm: ${fmt(hy.animWasmBytes)} bytes`,
+);
+
+console.log("\n--- Spatial Hash Broadphase Performance ---");
+const sh = hy.stats.sh;
+console.log(
+	`Structure:    SpatialHash [voxels=${sh[0]}, refs=${sh[1]}, flatCells=${sh[2]}]`,
+);
+console.log(
+	`Construction (500 builds): SpatialHash ${fmt(hy.buildSpatialHash.perSec)} builds/s (${hy.buildSpatialHash.nsPer.toFixed(0)} ns)`,
+);
+console.log(`Query Throughput (hybrid WASM, 200,000 casts):`);
+console.log(
+	`  SH (Map):     ${fmt(hy.raycast.perSec)} casts/s (${hy.raycast.nsPer.toFixed(0)} ns)`,
+);
+console.log(
+	`  SH (Flat):    ${fmt(hy.raycastShFlat.perSec)} casts/s (${hy.raycastShFlat.nsPer.toFixed(0)} ns)`,
 );

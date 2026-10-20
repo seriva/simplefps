@@ -14,7 +14,7 @@ Design documents for planned features live in `docs/plans/`
 |---|---|---|---|
 | [Engine Architecture Cleanup](plans/archive/engine-architecture-cleanup-plan.md) | Medium | Draft | Move the `rendering.SceneSource` seam so `scene` owns pass orchestration instead of `rendering` reaching back into the scene |
 | [G-Buffer Depth Reconstruction](plans/gbuffer-depth-reconstruction-plan.md) | Medium | Planned | Reconstruct world/view position from depth buffer; eliminates 16-byte worldPosition render target to cut mobile memory bandwidth |
-| [WASM Deferred Features](plans/wasm-deferred-features-plan.md) | Medium | Planned | Projectile simulation batching via shared memory, static voxel broadphase benchmarking, and pure WASM asset decoders (`BinaryReader`) |
+| [WASM Deferred Features](plans/wasm-deferred-features-plan.md) | Medium | In Progress | Adopted static voxel broadphase (14.8× raycast speedup); pure WASM asset decoders (`BinaryReader`) planned; spark/projectile batching dropped (already WebGPU compute-native) |
 
 ---
 

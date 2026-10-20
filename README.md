@@ -35,7 +35,7 @@ app/
 │   ├── engine/           # package engine: WebGPU init, update callbacks, render loop
 │   │   ├── animation/    # package animation: skeletons, clips, animation player
 │   │   ├── assets/       # package assets: mesh/material/resource-list parsing, ResourceManager
-│   │   ├── collision/    # package collision: trimesh, octree, raycasts (compiled to WASM)
+│   │   ├── collision/    # package collision: trimesh, spatial hash, raycasts (compiled to WASM)
 │   │   ├── mathx/        # package mathx: vec3/mat4/quat/transform/boundingbox (JS + WASM)
 │   │   ├── physics/      # package physics (WASM): FPS controller, dynamic bodies
 │   │   ├── rendering/    # package rendering: WebGPU backend, renderer, passes, pipelines, WGSL, materials
