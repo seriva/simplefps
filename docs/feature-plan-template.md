@@ -80,6 +80,15 @@
 
 [Break work into phased sequential tasks. Track execution progress by checking off tasks (`- [x]`) as they land.]
 
+> **Phase Sizing & Dev-Loop Bounds (1 Phase = 1 Dev-Loop)**:
+> - **Phase Budget**: Keep each phase to **3–5 tasks** (hard max 6). Never bundle separate subsystems into one mega-phase.
+> - **Diff Budget**: Aim for ~150–500 net LOC across 3–6 files per phase to keep AI code review probes focused and fast.
+> - **Atomic Task Contract**: Every task must specify:
+>   - `Files:` 1–3 files to touch (prevents unbounded refactoring)
+>   - `Test:` failing test to write first (TDD)
+>   - `Done when:` clear, falsifiable completion criteria
+> - **Execution Convention**: Each task is an atomic git commit (`feat(<scope>): <summary> (Task N.M)`). In automated workflows (`/execute-plan`), the orchestrator loops continuously through all tasks in a phase, committing each task individually, running quality gates, and opening a phase PR upon completion without halting mid-phase.
+
 ### Phase 1: Baseline Audit & Test Fixtures
 - [ ] Task 1.1: Add failing conformance fixtures reproducing all items in the Verified Gaps table.
 - [ ] Task 1.2: Establish baseline benchmark numbers (if performance-sensitive).
