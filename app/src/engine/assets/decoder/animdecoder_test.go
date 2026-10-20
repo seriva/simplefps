@@ -153,3 +153,15 @@ func TestParseBinaryAnimationMalformedBounds(t *testing.T) {
 		t.Errorf("expected empty animation, got %d frames", a.NumFrames)
 	}
 }
+
+func TestParseBinaryAnimationOverflow(t *testing.T) {
+	w := newTestBinWriter(64)
+	w.u32(4)          // frameRate
+	w.u32(0x80000000) // numFrames
+	w.u32(0x80000000) // numJoints
+
+	a := ParseBinaryAnimation("overflow", w.bytes())
+	if a.NumFrames != 0 || a.FramePoses != nil {
+		t.Errorf("expected empty animation on overflow, got %d frames", a.NumFrames)
+	}
+}

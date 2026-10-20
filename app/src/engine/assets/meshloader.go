@@ -8,8 +8,6 @@ import (
 	"./decoder"
 )
 
-const materialNameSize = 64
-
 // MeshData is the decoded payload of a .mesh/.bmesh/.smesh/.sbmesh file
 // before GPU buffers are created.
 type MeshData = decoder.MeshData

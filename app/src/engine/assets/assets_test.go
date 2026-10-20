@@ -21,6 +21,8 @@ func newAssetsBackend() (*fakegpu.Device, *rendering.Backend) {
 	return dev, b
 }
 
+const materialNameSize = 64
+
 // binWriter builds little-endian test fixtures.
 type binWriter struct {
 	buf []byte
