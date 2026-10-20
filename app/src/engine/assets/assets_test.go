@@ -1,11 +1,13 @@
 package assets
 
 import (
+	"encoding/binary"
+	"math"
 	"testing"
 
 	"../rendering"
 	"../rendering/fakegpu"
-	"js:./interop.d.ts"
+	"./decoder"
 )
 
 // newAssetsBackend builds a rendering.Backend driven by the fake GPU device.
@@ -21,35 +23,31 @@ func newAssetsBackend() (*fakegpu.Device, *rendering.Backend) {
 
 // binWriter builds little-endian test fixtures.
 type binWriter struct {
-	buf  []byte
-	view any
-	off  int
+	buf []byte
+	off int
 }
 
 func newBinWriter(size int) *binWriter {
-	buf := make([]byte, size)
-	var u8 any = buf
-	view := Reflect.construct(globalThis.DataView, []any{u8.buffer, u8.byteOffset, u8.byteLength})
-	return &binWriter{buf: buf, view: view}
+	return &binWriter{buf: make([]byte, size), off: 0}
 }
 
 func (w *binWriter) u32(v int) {
-	w.view.setUint32(w.off, v, true)
+	binary.LittleEndian.PutUint32(w.buf[w.off:], uint32(v))
 	w.off += 4
 }
 
 func (w *binWriter) i32(v int) {
-	w.view.setInt32(w.off, v, true)
+	binary.LittleEndian.PutUint32(w.buf[w.off:], uint32(v))
 	w.off += 4
 }
 
 func (w *binWriter) f32(v float32) {
-	w.view.setFloat32(w.off, v, true)
+	binary.LittleEndian.PutUint32(w.buf[w.off:], math.Float32bits(v))
 	w.off += 4
 }
 
 func (w *binWriter) u8(v int) {
-	w.view.setUint8(w.off, v)
+	w.buf[w.off] = byte(v)
 	w.off++
 }
 
@@ -113,7 +111,7 @@ func TestParseBinaryMeshVersion2(t *testing.T) {
 	w.str("empty", materialNameSize)
 	w.u32(0)
 
-	md := ParseBinaryMesh(w.bytes())
+	md := decoder.ParseBinaryMesh(w.bytes())
 	if len(md.Vertices) != 9 || md.Vertices[8] != 8 {
 		t.Fatalf("vertices not decoded: %d", len(md.Vertices))
 	}
@@ -154,7 +152,7 @@ func TestParseBinaryMeshVersion1SkipsReservedWord(t *testing.T) {
 	w.u32(1)
 	w.u32(0)
 
-	md := ParseBinaryMesh(w.bytes())
+	md := decoder.ParseBinaryMesh(w.bytes())
 	if len(md.Vertices) != 3 || len(md.LightmapUVs) != 0 {
 		t.Error("v1 decode mismatch")
 	}
@@ -223,7 +221,7 @@ func TestParseBinaryMeshSkinnedVersion5(t *testing.T) {
 		w.f32(0.25)
 	}
 
-	md := ParseBinaryMesh(w.bytes())
+	md := decoder.ParseBinaryMesh(w.bytes())
 	if len(md.Joints) != 2 {
 		t.Fatalf("expected 2 joints, got %d", len(md.Joints))
 	}

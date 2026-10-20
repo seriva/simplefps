@@ -6,6 +6,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+### Added
+- **Pure WASM Asset Decoding (`BinaryReader`, `engine/assets/decoder`)**: Migrated binary asset decoding (`.bmesh`, `.sbmesh`, `.banim`) to WebAssembly in a dedicated subsystem (`engine/assets/decoder`, `//gofront:target wasm`). Implemented pure Go `BinaryReader` using `encoding/binary.LittleEndian` without `DataView`, `Reflect`, or `globalThis`. Completely removed `app/src/engine/assets/interop.d.ts` DataView shims. Achieved a **14.79× speedup for `.bmesh` loading** (17.76 ms → 1.20 ms) and a **16.84× speedup for `.banim` loading** (34.57 ms → 2.05 ms).
+
 ### Changed
 - **Breaking boundary API: `collision.NewTrimesh`, `AddMesh`, `Finalize`, and `Scene.AddStaticGeometry` return errors.** `collision.NewTrimesh` now validates vertex/index divisibility, per-triangle flag length alignment, and vertex index bounds, returning `(*Trimesh, error)`. Across the JavaScript/WebAssembly boundary, `NewTrimesh` now returns a `[mesh, err]` tuple instead of a bare `mesh` instance. `Trimesh.AddMesh` validates mesh bounds upon queueing and returns `error`, and `Trimesh.Finalize` validates per-mesh index bounds to prevent cross-mesh index aliasing. `Scene.AddStaticGeometry` returns `error` (including `ErrInvalidStaticMesh`) and `Scene.FinalizeStaticGeometry` returns `error` so callers and arena loading can fail visibly instead of silently dropping static collision.
 - **Octree build-time allocation efficiency:** `octreeNode.insert` preserves subdivided child nodes when elements straddle octant boundaries, eliminating repeated throwaway allocations during map loading before `removeEmptyNodes` cleans up leaves.

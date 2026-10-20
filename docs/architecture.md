@@ -16,7 +16,8 @@ app/src/
 │   ├── rendering/           # WebGPU backend, Renderer, passes, pipelines, WGSL, materials, meshes
 │   │   └── fakegpu/         # in-memory GPUDevice recorder for headless tests
 │   ├── scene/               # entities, culling, light grid, draw-list provider
-│   └── assets/              # binary reader, mesh/animation/material/resource-list parsing, ResourceManager
+│   └── assets/              # mesh/animation/material/resource-list parsing, ResourceManager
+│       └── decoder/         # binary reader, .bmesh/.sbmesh/.banim parsing (target: wasm)
 └── game/                    # gameplay, UI (.templ), state machine, multiplayer
 ```
 
@@ -60,6 +61,7 @@ Each package declares where it runs with a `//gofront:target` directive on its f
 | `collision` | `wasm` | Octree traversal and ray/triangle tests are the hottest loop in the game; WASM keeps them branch-predictable and allocation-free. |
 | `physics` | `wasm` | The controller and body steps raycast many times per fixed step; keeping them next to `collision` means those raycasts never cross the boundary. Only the per-frame camera-pose handoff and the `OnBounce`/`OnLand` callbacks do. |
 | `animation` | `wasm` | Pose sampling and the per-joint world/skin matrix chain are pure float loops. The 64-joint palette is published through a `gofront/shared` buffer (`animation.SkinMatrices`) that JS reads without a copy; `SkinnedMeshEntity.Update` copies it into its own bone slice (a plain float loop, 1.1–1.3× the all-JS path). |
+| `assets/decoder` | `wasm` | Binary asset parsing (`.bmesh`, `.sbmesh`, `.banim`) using pure Go `encoding/binary` without DataView marshalling overhead (14–17× speedup). |
 | everything else | `js` | Talks to the DOM, WebGPU, PeerJS. |
 
 - **Cross-target determinism:** Code in `both` packages (`mathx`) is emitted by the JS backend in strict numeric mode (`Math.fround` on `float32` arithmetic, integer wrapping, divide-by-zero panics), guaranteeing identical results between the JS copy and the WASM copy.

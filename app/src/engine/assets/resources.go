@@ -7,7 +7,7 @@ import (
 	"../animation"
 	"../rendering"
 	"../systems"
-	"js:./interop.d.ts"
+	"./decoder"
 )
 
 // Resource kinds stored in an Entry.
@@ -253,7 +253,7 @@ async func (r *ResourceManager) Fetch(path string) any {
 	}
 	if IsBinaryExt(ext) {
 		buf := await response.arrayBuffer()
-		return Reflect.construct(globalThis.Uint8Array, []any{buf}).([]byte)
+		return []byte(buf)
 	}
 	return await response.text()
 }
@@ -304,15 +304,15 @@ func (r *ResourceManager) Decode(path string, ext string, data any) *Entry {
 	case "mesh":
 		e = &Entry{Kind: KindMesh, Mesh: BuildMesh(r.backend, ParseJSONMesh(data.(string)))}
 	case "bmesh":
-		e = &Entry{Kind: KindMesh, Mesh: BuildMesh(r.backend, ParseBinaryMesh(data.([]byte)))}
+		e = &Entry{Kind: KindMesh, Mesh: BuildMesh(r.backend, decoder.ParseBinaryMesh(data.([]byte)))}
 	case "smesh":
 		sm, sk := BuildSkinnedMesh(r.backend, ParseJSONMesh(data.(string)))
 		e = &Entry{Kind: KindSkinnedMesh, SkinnedMesh: sm, Skeleton: sk}
 	case "sbmesh":
-		sm, sk := BuildSkinnedMesh(r.backend, ParseBinaryMesh(data.([]byte)))
+		sm, sk := BuildSkinnedMesh(r.backend, decoder.ParseBinaryMesh(data.([]byte)))
 		e = &Entry{Kind: KindSkinnedMesh, SkinnedMesh: sm, Skeleton: sk}
 	case "banim":
-		e = &Entry{Kind: KindAnimation, Animation: ParseBinaryAnimation(path, data.([]byte))}
+		e = &Entry{Kind: KindAnimation, Animation: decoder.ParseBinaryAnimation(path, data.([]byte))}
 	case "sfx":
 		e = &Entry{Kind: KindSound, Sound: parseSound(data.(string))}
 	case "bin":

@@ -1,4 +1,5 @@
-package assets
+//gofront:target wasm
+package decoder
 
 import (
 	"math"
@@ -143,3 +144,4 @@ func TestBinaryReaderSeekAndSkip(t *testing.T) {
 		t.Errorf("Expected offset 2, got %d", reader.GetOffset())
 	}
 }
+

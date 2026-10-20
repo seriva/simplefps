@@ -13,7 +13,7 @@
 // Prints per-second rates for both builds plus the hybrid/JS ratio. This is a
 // report, not a gate: it never fails on a slowdown.
 
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -45,7 +45,7 @@ async function loadPackage(pkg, exportNames, forceJs) {
 	if (forceJs) opts.forceTarget = "js";
 	const { js, wasm } = compileDir(resolve(`app/src/engine/${pkg}`), opts);
 	const dir = mkdtempSync(join(tmpdir(), "simplefps-bench-"));
-	const bundle = join(dir, `${pkg}.mjs`);
+	const bundle = join(dir, `${pkg.replace(/\//g, "_")}.mjs`);
 	writeFileSync(
 		bundle,
 		`globalThis.window = null; globalThis.document = null;
@@ -80,10 +80,18 @@ for (let z = 0; z < GRID; z++) {
 const CASTS = 200_000;
 const FRAMES = 50_000;
 const SKIN_FRAMES = 50_000;
+const ASSET_OPS = 500;
 const JOINTS = 64;
 const REPEATS = 5;
 const DT = 1 / 120;
 const TURN = 600;
+
+const demoMeshBytes = new Uint8Array(
+	readFileSync(resolve("app/resources/arenas/demo/geometry.bmesh")),
+);
+const demoAnimBytes = new Uint8Array(
+	readFileSync(resolve("app/resources/models/robot/robot.banim")),
+);
 
 function bench(label, fn, iterations) {
 	let best = Infinity;
@@ -257,14 +265,31 @@ for (const [label, forceJs] of [
 	);
 	const skinFrames = setupSkinning(anim.mod);
 	skinFrames(5_000);
+	const dec = await loadPackage(
+		"assets/decoder",
+		["ParseBinaryMesh", "ParseBinaryAnimation"],
+		forceJs,
+	);
+	const parseMesh = (n) => {
+		for (let i = 0; i < n; i++) dec.mod.ParseBinaryMesh(demoMeshBytes);
+	};
+	const parseAnim = (n) => {
+		for (let i = 0; i < n; i++)
+			dec.mod.ParseBinaryAnimation("robot", demoAnimBytes);
+	};
+	parseMesh(10);
+	parseAnim(10);
 	results[label] = {
 		wasmBytes,
 		animWasmBytes: anim.wasmBytes,
+		decWasmBytes: dec.wasmBytes,
 		raycast: bench("raycast-map", s.raycastSweep, CASTS),
 		raycastShFlat: bench("raycast-flat", s.raycastSpatialHashFlat, CASTS),
 		buildSpatialHash: bench("build-sh", s.buildSpatialHash, 500),
 		controller: bench("controller", s.controllerFrames, FRAMES),
 		skinning: bench("skinning", skinFrames, SKIN_FRAMES),
+		parseMesh: bench("parse-mesh", parseMesh, ASSET_OPS),
+		parseAnim: bench("parse-anim", parseAnim, ASSET_OPS),
 		stats: s.stats(),
 	};
 }
@@ -284,7 +309,13 @@ console.log(
 	`skinning   js-only ${fmt(js.skinning.perSec)} frames/s (${js.skinning.nsPer.toFixed(0)} ns)  hybrid ${fmt(hy.skinning.perSec)} frames/s (${hy.skinning.nsPer.toFixed(0)} ns)  hybrid/js ${ratio(hy.skinning.perSec, js.skinning.perSec)}`,
 );
 console.log(
-	`physics+collision+mathx wasm (unoptimised): ${fmt(hy.wasmBytes)} bytes; animation+mathx wasm: ${fmt(hy.animWasmBytes)} bytes`,
+	`mesh-parse js-only ${fmt(js.parseMesh.perSec)} loads/s (${(js.parseMesh.nsPer / 1e6).toFixed(2)} ms)  hybrid ${fmt(hy.parseMesh.perSec)} loads/s (${(hy.parseMesh.nsPer / 1e6).toFixed(2)} ms)  hybrid/js ${ratio(hy.parseMesh.perSec, js.parseMesh.perSec)}`,
+);
+console.log(
+	`anim-parse js-only ${fmt(js.parseAnim.perSec)} loads/s (${(js.parseAnim.nsPer / 1e6).toFixed(2)} ms)  hybrid ${fmt(hy.parseAnim.perSec)} loads/s (${(hy.parseAnim.nsPer / 1e6).toFixed(2)} ms)  hybrid/js ${ratio(hy.parseAnim.perSec, js.parseAnim.perSec)}`,
+);
+console.log(
+	`physics+collision+mathx wasm (unoptimised): ${fmt(hy.wasmBytes)} bytes; animation+mathx wasm: ${fmt(hy.animWasmBytes)} bytes; decoder wasm: ${fmt(hy.decWasmBytes)} bytes`,
 );
 
 console.log("\n--- Spatial Hash Broadphase Performance ---");

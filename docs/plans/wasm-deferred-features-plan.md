@@ -77,6 +77,11 @@ GoFront v1.6.1 added support for array-typed map keys in WASM (e.g. `map[[3]int3
 - Use `encoding/binary` (`binary.LittleEndian`) for decoding `.bmesh`, `.sbmesh`, and `.banim` formats.
 - Decode directly from fetched `ArrayBuffer` payloads (passed via a single shared memory view) into preallocated flat geometry slices.
 - Eliminates `interop.d.ts` and `DataView` bindings in `engine/assets`.
+- **Results & Decision:**
+  - **Asset parsing throughput (`tests/perf/js-vs-wasm.js`):**
+    - Mesh decoding (`geometry.bmesh`, 125 KB): 56 loads/s (17.76 ms) JS-only vs 833 loads/s (1.20 ms) WASM — **14.79× speedup**
+    - Animation decoding (`robot.banim`, 195 KB): 29 loads/s (34.57 ms) JS-only vs 487 loads/s (2.05 ms) WASM — **16.84× speedup**
+  - **Decision:** **ADOPTED**. Migrated pure Go `BinaryReader` with `encoding/binary` and binary asset decoding to WASM subsystem `engine/assets/decoder`, completely removing `interop.d.ts` and `DataView` from `engine/assets`.
 
 ---
 
@@ -101,11 +106,11 @@ GoFront v1.6.1 added support for array-typed map keys in WASM (e.g. `map[[3]int3
   - [x] Run benchmark in `tests/perf/js-vs-wasm.js` comparing query throughput.
   - [x] Decide on adoption or rejection based on performance threshold (Adopted: 14.80× speedup vs 1.15× target).
 
-- [ ] **Phase 3: Pure WASM Asset Decoding**
-  - [ ] Implement pure Go `BinaryReader` using `encoding/binary`.
-  - [ ] Target `.bmesh`, `.sbmesh`, and `.banim` loaders to WASM.
-  - [ ] Remove `app/src/engine/assets/interop.d.ts` DataView shims.
-  - [ ] Benchmark asset parse time during arena load.
+- [x] **Phase 3: Pure WASM Asset Decoding**
+  - [x] Implement pure Go `BinaryReader` using `encoding/binary`.
+  - [x] Target `.bmesh`, `.sbmesh`, and `.banim` loaders to WASM.
+  - [x] Remove `app/src/engine/assets/interop.d.ts` DataView shims.
+  - [x] Benchmark asset parse time during arena load.
 
 - [ ] **Phase 4: Optimization & Verification**
   - [ ] Run full test suites (`npm test`, `npm run test:dom`, `npm run check`).
