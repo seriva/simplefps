@@ -1,6 +1,6 @@
 # Architecture
 
-SimpleFPS is written in Go syntax and compiled by [GoFront](https://github.com/seriva/gofront) — to a seamless hybrid of JavaScript (ES modules) and WebAssembly (WasmGC). Collision and physics run in WebAssembly, mathx compiles to both targets, and the remaining packages run in JavaScript. Everything under `app/src` is a Go package or a `.templ` UI component; there is no hand-written JavaScript in the app. This document describes how the packages fit together, what each one owns, and the invariants the code is held to. Design history lives in `docs/plans/`.
+SimpleFPS is written in Go syntax and compiled by [GoFront](https://github.com/seriva/gofront) — to a seamless hybrid of JavaScript (ES modules) and WebAssembly (WasmGC). Collision, physics, animation, and asset decoding (`assets/decoder`) run in WebAssembly, mathx compiles to both targets, and the remaining packages run in JavaScript. Everything under `app/src` is a Go package or a `.templ` UI component; there is no hand-written JavaScript in the app. This document describes how the packages fit together, what each one owns, and the invariants the code is held to. Design history lives in `docs/plans/`.
 
 ## Package Layout
 
@@ -43,8 +43,8 @@ flowchart TD
 
 Rules the graph encodes:
 
-- `mathx` imports nothing; it is the one leaf everything else may use. `collision` imports only `mathx`; `physics` only `mathx` and `collision`; `animation` only `mathx` and `gofront/shared`. Those four packages contain no browser code and are the WebAssembly side of the build.
-- `assets` owns every binary decoder (`BinaryReader`, `ParseBinaryMesh`, `ParseBinaryAnimation`); engine leaf packages only define the data types the decoders fill.
+- `mathx` imports nothing; it is the one leaf everything else may use. `collision` imports only `mathx`; `physics` only `mathx` and `collision`; `animation` only `mathx` and `gofront/shared`; `assets/decoder` imports only `animation`. Those five packages contain no browser code and are the WebAssembly side of the build.
+- `assets/decoder` owns every binary decoder (`BinaryReader`, `ParseBinaryMesh`, `ParseBinaryAnimation`); engine leaf packages only define the data types the decoders fill (`assets` wraps them for high-level resource management).
 - `rendering` imports only `mathx`. It never sees `scene`, `systems` or settings; the renderer is fed through `SceneSource`, `CameraView` and `RenderOptions`. It is the only package that touches WebGPU; `rendering/fakegpu` is test-only and imported by `_test.go` files alone.
 - Engine packages never import `game`. `game` and `main` may import anything.
 - Settings (`systems.ActiveSettings`) are read in `engine` and `game` only. `engine.RenderFrame` copies them into `rendering.RenderOptions` once per frame; that is the only path settings take into rendering.
@@ -66,8 +66,8 @@ Each package declares where it runs with a `//gofront:target` directive on its f
 
 - **Cross-target determinism:** Code in `both` packages (`mathx`) is emitted by the JS backend in strict numeric mode (`Math.fround` on `float32` arithmetic, integer wrapping, divide-by-zero panics), guaranteeing identical results between the JS copy and the WASM copy.
 - **No package-level mutable state:** `both` packages must not have mutable package-level variables since JS and WASM maintain separate module copies.
-- `gofront build` emits `app.js` plus one `app.wasm` that bundles every `wasm`/`both` package; the JS facades for `collision`, `physics` and `animation` are generated, so callers see ordinary Go types. Hot calls must still obey the boundary rules in [Performance Invariants](#performance-invariants).
-- **Measured (Node 25, `npm run bench`, same code compiled `--js-only` vs hybrid):** closest-hit raycasts against a 2048-triangle octree floor run at 1.1–1.15× JS throughput; the full FPS-controller fixed step (pose in, `Update` + `MoveWithCamera` + `SyncCamera`, pose out) at 2.3–2.4× (≈105k vs 45k frames/s); one 64-joint skinned-character frame (player update + skinning + palette copy-out) at 1.1–1.3×. `app.wasm` (`mathx` + `collision` + `physics` + `animation`) is ≈100 kB unoptimised and ≈80 kB after `--release` (`wasm-opt -O3 --gufa`, −20%).
+- `gofront build` emits `app.js` plus one `app.wasm` that bundles every `wasm`/`both` package; the JS facades for `collision`, `physics`, `animation` and `assets/decoder` are generated, so callers see ordinary Go types. Hot calls must still obey the boundary rules in [Performance Invariants](#performance-invariants).
+- **Measured (Node 25, `npm run bench`, same code compiled `--js-only` vs hybrid):** closest-hit raycasts against a 2048-triangle octree floor run at 1.1–1.15× JS throughput; the full FPS-controller fixed step (pose in, `Update` + `MoveWithCamera` + `SyncCamera`, pose out) at 2.3–2.4× (≈105k vs 45k frames/s); one 64-joint skinned-character frame (player update + skinning + palette copy-out) at 1.1–1.3×; binary asset decoding (`.bmesh`, `.banim`) at 14–17×. `app.wasm` (`mathx` + `collision` + `physics` + `animation` + `assets/decoder`) is ≈100 kB unoptimised and ≈80 kB after `--release` (`wasm-opt -O3 --gufa`, −20%).
 
 ## Boot and Frame Loop
 
@@ -302,7 +302,7 @@ The frame path — physics step, raycasts, `Scene.Update`, `Renderer.Render`, HU
 | Command | What runs |
 |---|---|
 | `npm run check` | Biome (JS files) + `gofront check app/src/...` |
-| `npm test` | `gofront test app/src/...` headless, every package (dual-target `mathx [js]` and `mathx [wasm]`, `collision [wasm]`, `physics [wasm]`); `rendering/fakegpu` stands in for the GPU device so rendering, scene, engine and assets tests render real frames and assert on the recorded commands |
+| `npm test` | `gofront test app/src/...` headless, every package (dual-target `mathx [js]` and `mathx [wasm]`, `collision [wasm]`, `physics [wasm]`, `animation [wasm]`, `assets/decoder [wasm]`); `rendering/fakegpu` stands in for the GPU device so rendering, scene, engine and assets tests render real frames and assert on the recorded commands |
 | `npm run test:dom` | the same under jsdom (`window`/`document` present) |
 | `npm run test:perf` | `tests/perf/zero-alloc.js`: 100k raycasts under 64 KB of new-space growth; 20k controller frames driven from JS exactly like `game.Update`, under 128 B/frame |
 | `npm run test:e2e` | `tests/e2e/smoke.spec.js` (Playwright, WebGPU; a Proxy mock device in headless runs): boot → menu → rendered frame |

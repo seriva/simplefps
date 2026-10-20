@@ -145,3 +145,43 @@ func TestBinaryReaderSeekAndSkip(t *testing.T) {
 	}
 }
 
+func TestBinaryReaderBoundsAndNegative(t *testing.T) {
+	data := []byte{1, 2, 3, 4, 5, 6, 7, 8}
+	reader := NewBinaryReader(data)
+
+	// Negative and zero length ReadString
+	if s := reader.ReadString(-5); s != "" {
+		t.Errorf("ReadString(-5) expected empty, got %q", s)
+	}
+	if s := reader.ReadString(0); s != "" {
+		t.Errorf("ReadString(0) expected empty, got %q", s)
+	}
+
+	// Negative counts
+	if arr := reader.ReadFloat32Array(-1); len(arr) != 0 {
+		t.Errorf("ReadFloat32Array(-1) expected len 0, got %d", len(arr))
+	}
+	if arr := reader.ReadUint32Array(-1); len(arr) != 0 {
+		t.Errorf("ReadUint32Array(-1) expected len 0, got %d", len(arr))
+	}
+	if arr := reader.ReadUint8Array(-1); len(arr) != 0 {
+		t.Errorf("ReadUint8Array(-1) expected len 0, got %d", len(arr))
+	}
+
+	// Huge counts (testing overflow resistance)
+	huge := math.MaxInt32
+	if arr := reader.ReadFloat32Array(huge); len(arr) != 2 {
+		t.Errorf("ReadFloat32Array(huge) expected len 2 (8 bytes / 4), got %d", len(arr))
+	}
+	// At end of buffer:
+	if arr := reader.ReadUint32Array(huge); len(arr) != 0 {
+		t.Errorf("ReadUint32Array at end expected len 0, got %d", len(arr))
+	}
+	if arr := reader.ReadUint8Array(huge); len(arr) != 0 {
+		t.Errorf("ReadUint8Array at end expected len 0, got %d", len(arr))
+	}
+	if s := reader.ReadString(huge); s != "" {
+		t.Errorf("ReadString at end expected empty, got %q", s)
+	}
+}
+

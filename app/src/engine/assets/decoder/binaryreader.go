@@ -92,8 +92,12 @@ func (br *BinaryReader) ReadFloat32Array(count int) []float32 {
 	if count <= 0 {
 		return make([]float32, 0)
 	}
-	if br.Offset+count*4 > len(br.Data) {
-		count = (len(br.Data) - br.Offset) / 4
+	maxCount := (len(br.Data) - br.Offset) / 4
+	if count > maxCount {
+		count = maxCount
+	}
+	if count <= 0 {
+		return make([]float32, 0)
 	}
 	res := make([]float32, count)
 	for i := 0; i < count; i++ {
@@ -109,8 +113,12 @@ func (br *BinaryReader) ReadUint32Array(count int) []uint32 {
 	if count <= 0 {
 		return make([]uint32, 0)
 	}
-	if br.Offset+count*4 > len(br.Data) {
-		count = (len(br.Data) - br.Offset) / 4
+	maxCount := (len(br.Data) - br.Offset) / 4
+	if count > maxCount {
+		count = maxCount
+	}
+	if count <= 0 {
+		return make([]uint32, 0)
 	}
 	res := make([]uint32, count)
 	for i := 0; i < count; i++ {
@@ -125,22 +133,32 @@ func (br *BinaryReader) ReadUint8Array(count int) []byte {
 	if count <= 0 {
 		return make([]byte, 0)
 	}
-	end := br.Offset + count
-	if end > len(br.Data) {
-		end = len(br.Data)
+	maxCount := len(br.Data) - br.Offset
+	if count > maxCount {
+		count = maxCount
 	}
-	res := make([]byte, end-br.Offset)
-	copy(res, br.Data[br.Offset:end])
-	br.Offset = end
+	if count <= 0 {
+		return make([]byte, 0)
+	}
+	res := make([]byte, count)
+	copy(res, br.Data[br.Offset:br.Offset+count])
+	br.Offset += count
 	return res
 }
 
 // ReadString reads a fixed-length string, trimming at the first null byte.
 func (br *BinaryReader) ReadString(length int) string {
-	end := br.Offset + length
-	if end > len(br.Data) {
-		end = len(br.Data)
+	if length <= 0 {
+		return ""
 	}
+	maxLen := len(br.Data) - br.Offset
+	if length > maxLen {
+		length = maxLen
+	}
+	if length <= 0 {
+		return ""
+	}
+	end := br.Offset + length
 	nullIdx := end
 	for i := br.Offset; i < end; i++ {
 		if br.Data[i] == 0 {
