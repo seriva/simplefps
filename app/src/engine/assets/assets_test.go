@@ -137,6 +137,16 @@ func TestParseBinaryMeshVersion2(t *testing.T) {
 	}
 }
 
+func TestBuildMeshNil(t *testing.T) {
+	if BuildMesh(nil, nil) != nil {
+		t.Error("expected nil mesh for nil MeshData")
+	}
+	m, s := BuildSkinnedMesh(nil, nil)
+	if m != nil || s != nil {
+		t.Error("expected nil mesh and nil skeleton for nil MeshData")
+	}
+}
+
 func TestParseBinaryMeshVersion1SkipsReservedWord(t *testing.T) {
 	w := newBinWriter(256)
 	w.u32(1)

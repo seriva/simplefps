@@ -80,6 +80,9 @@ func ParseBinaryMesh(data []byte) *MeshData {
 
 	md.Indices = make([]MeshIndexGroup, 0)
 	for i := 0; i < indexGroupCount; i++ {
+		if r.Remaining() == 0 {
+			break
+		}
 		name := r.ReadString(materialNameSize)
 		indexCount := int(r.ReadUint32())
 		if indexCount == 0 {
@@ -90,6 +93,16 @@ func ParseBinaryMesh(data []byte) *MeshData {
 			name = "none"
 		}
 		md.Indices = append(md.Indices, MeshIndexGroup{Material: name, Array: arr})
+	}
+
+	if hasSkeletal && jointCount > 0 {
+		maxJoints := r.Remaining() / 33
+		if jointCount > maxJoints {
+			jointCount = maxJoints
+		}
+		if jointCount == 0 {
+			hasSkeletal = false
+		}
 	}
 
 	if hasSkeletal && jointCount > 0 {
@@ -118,8 +131,15 @@ func ParseBinaryMesh(data []byte) *MeshData {
 			perWeight += 3 * 4
 		}
 		for i := 0; i < weightCount; i++ {
+			if r.Remaining() == 0 {
+				break
+			}
 			r.ReadUint32()
 			count := int(r.ReadUint32())
+			if count < 0 || count > r.Remaining()/perWeight {
+				r.Seek(len(r.Data))
+				break
+			}
 			r.Skip(count * perWeight)
 		}
 

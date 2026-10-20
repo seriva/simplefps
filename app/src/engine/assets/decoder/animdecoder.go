@@ -28,6 +28,13 @@ func ParseBinaryAnimation(name string, data []byte) *animation.Animation {
 		numJoints = int(r.ReadUint32())
 	}
 
+	if numFrames <= 0 || numJoints <= 0 {
+		return animation.NewAnimation(name, float32(frameRate), nil, nil)
+	}
+	if hasBounds && numFrames > r.Remaining()/24 {
+		return animation.NewAnimation(name, float32(frameRate), nil, nil)
+	}
+
 	expectedFloats := numFrames * numJoints * 7
 	frames := r.ReadFloat32Array(expectedFloats)
 	if len(frames) < expectedFloats {
@@ -37,6 +44,9 @@ func ParseBinaryAnimation(name string, data []byte) *animation.Animation {
 
 	var bounds []animation.Bounds
 	if hasBounds {
+		if numFrames > r.Remaining()/24 {
+			return animation.NewAnimation(name, float32(frameRate), nil, nil)
+		}
 		bounds = make([]animation.Bounds, numFrames)
 		for f := 0; f < numFrames; f++ {
 			b := &bounds[f]

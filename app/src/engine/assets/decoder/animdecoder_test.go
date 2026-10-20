@@ -127,3 +127,29 @@ func TestParseBinaryAnimationTruncated(t *testing.T) {
 	}
 	a.Sample(0.1, animation.NewPose(1), true) // must not panic
 }
+
+func TestParseBinaryAnimationZeroOrNegative(t *testing.T) {
+	w := newTestBinWriter(64)
+	w.u32(1) // frameRate
+	w.u32(0) // numFrames = 0
+	w.u32(5) // numJoints = 5
+
+	a := ParseBinaryAnimation("zero", w.bytes())
+	if a.NumFrames != 0 || a.FramePoses != nil {
+		t.Errorf("expected empty animation, got %d frames", a.NumFrames)
+	}
+}
+
+func TestParseBinaryAnimationMalformedBounds(t *testing.T) {
+	w := newTestBinWriter(64)
+	w.u32(2)       // v2
+	w.u32(1)       // frameRate
+	w.u32(1000000) // numFrames = 1,000,000 (malformed)
+	w.u32(1)       // numJoints = 1
+	w.u32(1)       // hasBounds = 1
+
+	a := ParseBinaryAnimation("badbounds", w.bytes())
+	if a.NumFrames != 0 || a.Bounds != nil {
+		t.Errorf("expected empty animation, got %d frames", a.NumFrames)
+	}
+}

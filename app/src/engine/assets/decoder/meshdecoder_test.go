@@ -153,3 +153,73 @@ func TestParseBinaryMeshSkinnedVersion5(t *testing.T) {
 		t.Errorf("skinning data mismatch: %d indices, %d weights", len(md.JointIndices), len(md.JointWeights))
 	}
 }
+
+func TestParseBinaryMeshMalformedJointCount(t *testing.T) {
+	w := newTestBinWriter(64)
+	w.u32(3)        // version 3: skeletal
+	w.u32(0)        // vertexCount
+	w.u32(0)        // uvCount
+	w.u32(0)        // reserved
+	w.u32(0)        // normalCount
+	w.u32(0)        // indexGroupCount
+	w.u32(1000000)  // jointCount (malformed: buffer has 0 bytes left)
+	w.u32(0)        // weightCount
+
+	md := ParseBinaryMesh(w.bytes())
+	if md == nil {
+		t.Fatal("expected non-nil MeshData")
+	}
+	if md.HasSkeleton() || len(md.Joints) != 0 {
+		t.Errorf("expected no joints, got %d", len(md.Joints))
+	}
+}
+
+func TestParseBinaryMeshLegacyWeightOverflow(t *testing.T) {
+	w := newTestBinWriter(128)
+	w.u32(3) // version 3
+	w.u32(0) // vertexCount
+	w.u32(0) // uvCount
+	w.u32(0) // reserved
+	w.u32(0) // normalCount
+	w.u32(0) // indexGroupCount
+	w.u32(1) // jointCount = 1
+	w.u32(1) // weightCount = 1
+
+	// Joint 0: 32 bytes + null-terminated name
+	w.i32(-1)
+	w.f32(0)
+	w.f32(0)
+	w.f32(0)
+	w.f32(0)
+	w.f32(0)
+	w.f32(0)
+	w.f32(1)
+	w.strNull("j0")
+
+	// Weight 0: vertexIndex=0, count=0x7fffffff (overflow attempt)
+	w.u32(0)
+	w.u32(0x7fffffff)
+
+	md := ParseBinaryMesh(w.bytes())
+	if md == nil {
+		t.Fatal("expected non-nil MeshData")
+	}
+}
+
+func TestParseBinaryMeshTruncatedIndexGroups(t *testing.T) {
+	w := newTestBinWriter(64)
+	w.u32(1) // version 1
+	w.u32(0) // vertexCount
+	w.u32(0) // uvCount
+	w.u32(0) // reserved
+	w.u32(0) // normalCount
+	w.u32(5) // promised 5 index groups, but 0 bytes follow
+
+	md := ParseBinaryMesh(w.bytes())
+	if md == nil {
+		t.Fatal("expected non-nil MeshData")
+	}
+	if len(md.Indices) != 0 {
+		t.Errorf("expected 0 indices, got %d", len(md.Indices))
+	}
+}

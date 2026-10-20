@@ -117,6 +117,9 @@ func ParseJSONMesh(text string) *MeshData {
 
 // BuildMesh uploads decoded rigid mesh data to the GPU.
 func BuildMesh(b *rendering.Backend, md *MeshData) *rendering.Mesh {
+	if md == nil {
+		return nil
+	}
 	indices := make([]rendering.IndexGroup, len(md.Indices))
 	for i := 0; i < len(md.Indices); i++ {
 		indices[i] = rendering.IndexGroup{Material: md.Indices[i].Material, Array: md.Indices[i].Array}
@@ -127,6 +130,9 @@ func BuildMesh(b *rendering.Backend, md *MeshData) *rendering.Mesh {
 // BuildSkinnedMesh uploads decoded skinned mesh data and builds its skeleton
 // (nil when the file has no joints).
 func BuildSkinnedMesh(b *rendering.Backend, md *MeshData) (*rendering.SkinnedMesh, *animation.Skeleton) {
+	if md == nil {
+		return nil, nil
+	}
 	indices := make([]rendering.IndexGroup, len(md.Indices))
 	for i := 0; i < len(md.Indices); i++ {
 		indices[i] = rendering.IndexGroup{Material: md.Indices[i].Material, Array: md.Indices[i].Array}
