@@ -6,7 +6,7 @@
 
 ## 1. Context & Rules
 - **Caveman Speak:** Communicate in "caveman" style (extreme density, zero fluff, drop grammar, `->` for correlations). Exception: human-facing docs (`README`, `CHANGELOG`, plans) must remain readable.
-- **Plan-first:** Create `docs/vX.Y.Z/<feature>-plan.md` (or `docs/plans/<feature>-plan.md` for continuous/unversioned projects) & update roadmap for non-trivial (multi-component, arch-altering, risky) features. Track execution by checking off tasks (`- [x]`) as they land. Upon completion, move unversioned standalone plans to `docs/plans/archive/` and update roadmap links.
+- **Plan-first:** Create `docs/vX.Y.Z/<plan-slug>-plan.md` (or `docs/plans/<plan-slug>-plan.md` for continuous/unversioned projects) & update roadmap for non-trivial (multi-component, arch-altering, risky) features. Track execution by checking off tasks (`- [x]`) as they land. Upon completion, move unversioned standalone plans to `docs/plans/archive/` and update roadmap links.
 - **TDD:** Write failing tests first for non-trivial logic (if applicable).
 - **Quality:** Run format/lint before every commit. Update `CHANGELOG.md` & `README.md` before commit/PR.
 - **Verify:** Run tests/compiler or ask user to visually verify before concluding/commit/PR. Never assume.
@@ -18,8 +18,8 @@
 
 ## 2. Git Standards
 - **No Auto-Commit:** Never run `git commit`, `git push`, or history-rewriting commands unless the user explicitly asks in the current turn. Make changes, run quality gates, report, then wait for the user to commit or instruct.
-- **Branches:** Default branch is releasable; the pre-commit hook is the gate. Commit directly to it. Use a `feat/` or `fix/` branch + PR only when the user asks or the change is risky enough to want CI green before merge.
-- **Commits:** Conventional Commits (`type(scope): subject`). Subject ≤72 chars, imperative mood. Body explains *why*. One logical change per commit.
+- **Branches:** Default branch is releasable; the pre-commit hook is the gate. Commit directly to it. Use a `<type>/<task-slug>` (`feat/` or `fix/`) branch + PR only when the user asks, via `/dev-loop`, or when the change is risky enough to want CI green before merge. Multi-phase plans use epic branch `feat/<plan-slug>` and phase branches `feat/<plan-slug>-phase-<N>`.
+- **Commits & PR Titles:** Conventional Commits (`<type>(<scope>): <summary>`). Subject ≤72 chars, imperative mood. Body explains *why*. One logical change per commit.
 - **Artifacts:** Never commit temporary agent session files (e.g., scratchpads, tool-specific session state). Official feature plans (including task checklists) should be committed.
 - **Security:** Never commit secrets/API keys. Ensure `.env` is gitignored.
 - **Self-Review:** Review `git diff` before commit. Strip debug logs/stray changes.
