@@ -87,7 +87,7 @@
 >   - `Files:` 1–3 files to touch (prevents unbounded refactoring)
 >   - `Test:` failing test to write first (TDD)
 >   - `Done when:` clear, falsifiable completion criteria
-> - **Execution Convention**: Each task is an atomic git commit (`feat(<scope>): <summary> (Task N.M)`). In automated workflows (`/execute-plan`), the orchestrator loops continuously through all tasks in a phase, committing each task individually, running quality gates, and opening a phase PR upon completion without halting mid-phase.
+> - **Execution Convention**: Each task is an atomic git commit (`feat(<plan-slug>): <summary> (Task N.M)`). In automated workflows (`/execute-plan`), the orchestrator loops continuously through all tasks in a phase, committing each task individually, running quality gates, and opening a phase PR (`feat(<plan-slug>): phase <N> - <phase-name>`) upon completion without halting mid-phase.
 
 ### Phase 1: Baseline Audit & Test Fixtures
 - [ ] Task 1.1: Add failing conformance fixtures reproducing all items in the Verified Gaps table.
