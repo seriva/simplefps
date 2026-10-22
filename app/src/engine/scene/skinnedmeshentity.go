@@ -29,6 +29,7 @@ type SkinnedMeshEntity struct {
 	Probe  probeCache
 
 	boneMatrices []float32
+	skinFloats   int // Skeleton.SkinJointCount() * 16, cached at construction
 	skeletonMesh *rendering.Mesh
 }
 
@@ -46,6 +47,10 @@ func NewSkinnedMeshEntity(position *mathx.Vec3, mesh *rendering.SkinnedMesh, ske
 	if skeleton != nil {
 		e.AnimationPlayer = animation.NewAnimationPlayer(skeleton)
 		e.boneMatrices = make([]float32, rendering.MaxJoints*16)
+		e.skinFloats = skeleton.SkinJointCount() * 16
+		if e.skinFloats > len(e.boneMatrices) {
+			e.skinFloats = len(e.boneMatrices)
+		}
 	}
 	return e
 }
@@ -76,10 +81,8 @@ func (e *SkinnedMeshEntity) Update(frameTime float32) bool {
 	}
 	if e.AnimationPlayer != nil && e.Skeleton != nil {
 		pose := e.AnimationPlayer.Update(frameTime / 1000)
-		n := e.Skeleton.ComputeSkinningMatrices(pose) * 16
-		if n > len(e.boneMatrices) {
-			n = len(e.boneMatrices)
-		}
+		e.Skeleton.ComputeSkinningMatrices(pose)
+		n := e.skinFloats
 		for k := 0; k < n; k++ {
 			e.boneMatrices[k] = animation.SkinMatrices[k]
 		}

@@ -20,7 +20,7 @@ This plan bumps SimpleFPS to v1.8.0 without regressing the zero-allocation or th
 **Done means:**
 - `package.json` depends on `gofront@^1.8.0`, and `npm run test:all` passes with no test changes other than those listed in this plan.
 - `npm run test:perf` passes on v1.8.0 (raycast ≤ 3,000 B new-space delta per 100k casts, controller ≤ 0.5 B/frame), and the new `tests/perf/mathx-js.js` A/B benchmark (v1.7.0 vs v1.8.0 compiler, same source) shows a B/A time ratio of **≤ 1.10** on every entry (`Mat4Multiply`, `Mat4Invert`, `Vec3` ops, `BoundingBox.TransformMat4`), as the median of 5 process runs.
-- `node tests/perf/js-vs-wasm.js --ab --repeat 5` (v1.7.0 vs v1.8.0 compiler) shows ≤ 1.10 on every hybrid entry (mesh-parse ≤ 1.25, with an upstream issue). A 10% gate is the tightest that measured noise allows (A/A spread up to 6.4% per run). It catches the 2–4× strict-mode risk, but not a 3–9% drift.
+- `node tests/perf/js-vs-wasm.js --ab --repeat 5 --max Infinity --gate 'mesh-parse>=0.80'` (v1.7.0 vs v1.8.0 compiler) shows no hybrid entry more than 10% slower (mesh-parse 25%, with an upstream issue). The harness reports A time / B time, so > 1 means v1.8.0 is faster: the default 0.90 floor is the 10% slowdown gate, and `--max Infinity` keeps a speedup from failing the default 1.10 ceiling. A 10% gate is the tightest that measured noise allows (A/A spread up to 6.4% per run). It catches the 2–4× strict-mode risk, but not a 3–9% drift.
 - `collision` has no hand-written `min*`/`max*` helpers, and `engine.toggleDebug` no longer uses the callback workaround.
 - `AGENTS.md`, `CHANGELOG.md` and `docs/architecture.md` are updated.
 
@@ -57,7 +57,7 @@ Probes ran on 2026-10-21 against GoFront v1.7.0 (worktree at tag `1.7.0`) and Go
 | Map field zero value (JS) | **Not fixed in v1.8.0.** A zero `map` struct field is `{}`, not `nil`, on v1.7.0 and HEAD. The workaround at [`pipelines.go:225-227`](../../app/src/engine/rendering/pipelines.go#L225-L227) (`hasDepth`) must stay. The v1.8.0 plan has no task for this. | Probe `p1` `TestMapNil` fails on both versions |
 | Reslice allocation (JS) | Not addressed by v1.8.0 (boundary slice borrowing was dropped from it). The `DrawList` design at [`drawable.go:43`](../../app/src/engine/rendering/drawable.go#L43) and the index loops at [`renderer.go:314`](../../app/src/engine/rendering/renderer.go#L314) stay. | `portable-go-plan.md` Out of Scope |
 | `encoding/json` in WASM | Rejected on HEAD (`'json.Unmarshal' is not yet available in wasm packages`); planned in GoFront Phase 5. All five SimpleFPS JSON call sites (`assets/resources.go`, `materialloader.go`, `meshloader.go`, `systems/settings.go`, `game/arena.go`) are in JS packages and run at load time only. | Probe `p3`; grep `json\.` |
-| `gofront/simd` in exported structs | An exported struct with an `F32x4` field still fails the build on HEAD (`cannot cross the JS↔WASM boundary in 1.7.0`). Unexported SIMD structs work; see [`simd-skinning-plan.md`](simd-skinning-plan.md) and [`simd-collision-plan.md`](simd-collision-plan.md) for the SIMD probes. | Probe `p4` |
+| `gofront/simd` in exported structs | An exported struct with an `F32x4` field still fails the build on HEAD (`cannot cross the JS↔WASM boundary in 1.7.0`). Unexported SIMD structs work, with two limits found in the skinning plan: an unexported `F32x4` field inside an *exported* struct is also rejected, and a package-level `var x <simd struct>` fails WebAssembly validation (use `make([]T, 1)`). See [`simd-skinning-plan.md`](simd-skinning-plan.md) and [`simd-collision-plan.md`](simd-collision-plan.md) for the SIMD probes. | Probe `p4` |
 | Breaking: `maps.Keys`/`Values` → `iter.Seq` | No impact. SimpleFPS does not import `maps`. | grep `maps\.` → none |
 | Shadowed builtins | `rayAABBInterval` and `intersectRayAABB` declare locals named `min`/`max` (`min := &aabb.Min`). This is legal Go, but it blocks the builtin inside those functions. | [`spatialhash.go:71-72`](../../app/src/engine/collision/spatialhash.go#L71-L72), [`ray.go:139-140`](../../app/src/engine/collision/ray.go#L139-L140) |
 
@@ -122,12 +122,12 @@ Probes ran on 2026-10-21 against GoFront v1.7.0 (worktree at tag `1.7.0`) and Go
   - Done when: both pass on 1.7.0, and each comments on the workaround it guards.
 - [ ] Task 1.2: Bump the dependency
   - Files: `package.json`, `package-lock.json`
-  - Test: `npm ci && npm run test:all`, then `GOFRONT_BASELINE_DIR=<1.7.0 checkout> node tests/perf/js-vs-wasm.js --ab --repeat 5`.
-  - Done when: `"gofront": "^1.8.0"`; `test:all` is green, including Task 1.1's guards and the zero-alloc thresholds; every hybrid A/B entry is ≤ 1.10 (mesh-parse ≤ 1.25); the ratios are recorded under *Verified Gaps*.
+  - Test: `npm ci && npm run test:all`, then `GOFRONT_BASELINE_DIR=<1.7.0 checkout> node tests/perf/js-vs-wasm.js --ab --repeat 5 --max Infinity --gate 'mesh-parse>=0.80'`.
+  - Done when: `"gofront": "^1.8.0"`; `test:all` is green, including Task 1.1's guards and the zero-alloc thresholds; every hybrid A/B entry passes the gate above (no more than 10% slower; mesh-parse 25%); the ratios are recorded under *Verified Gaps*.
 - [ ] Task 1.3: `mathx` JS A/B benchmark
   - Files: `tests/perf/mathx-js.js` (new), `package.json` (`test:perf` runs it)
   - Test: A/A (`GOFRONT_BASELINE_DIR` = the current compiler) gives every entry 0.90–1.10; the real A/B against 1.7.0 is expected to **fail** before Task 1.4 if strict-mode checks are not elided.
-  - Done when: the script reports the median ratio for the 7 entries over 5 process runs, gates at 1.10, and skips without a baseline compiler.
+  - Done when: the script reports the median ratio for the 7 entries over 5 process runs, gates at a B/A time ratio of 1.10 (A/B ≥ 0.91 in `ab.js`'s convention, so a speedup passes), and skips without a baseline compiler.
 - [ ] Task 1.4: BCE hints in `mathx`
   - Files: `app/src/engine/mathx/mat4.go`, `app/src/engine/mathx/boundingbox.go`, `app/src/engine/mathx/mat4_test.go`
   - Test: `mat4_test.go` checks that a 15-element `Mat4` passed to `Mat4Multiply` panics with `index out of range [15] with length 15` on `[js]` and `[wasm]`. Run `npm test`, then `node tests/perf/mathx-js.js --repeat 5` against 1.7.0.
@@ -144,8 +144,8 @@ Probes ran on 2026-10-21 against GoFront v1.7.0 (worktree at tag `1.7.0`) and Go
   - Done when: no local in `collision` is named `min` or `max` (`grep -nE '\b(min|max) :?=' app/src/engine/collision` is empty).
 - [ ] Task 2.2: Builtin `min`/`max` in `collision`
   - Files: `app/src/engine/collision/spatialhash.go`, `app/src/engine/collision/spatialhash_test.go`
-  - Test (*characterization*): a NaN-direction degenerate ray returns 0 hits and does not panic, both before and after the change. Run `npm test && npm run test:perf`, then `BASELINE_SRC=<worktree of the epic branch before this task> node tests/perf/js-vs-wasm.js --ab --repeat 5`.
-  - Done when: `minFloat32`, `maxFloat32`, `min3`, `max3`, `min4` and `max4` are deleted, and SH-Map/SH-Flat are ≤ 1.10. If they are slower (f32.min NaN handling can cost more than a select), stop and report.
+  - Test (*characterization*): a NaN-direction degenerate ray returns 0 hits and does not panic, both before and after the change. Run `npm test && npm run test:perf`, then `BASELINE_SRC=<worktree of the epic branch before this task> node tests/perf/js-vs-wasm.js --ab --repeat 5 --max Infinity`.
+  - Done when: `minFloat32`, `maxFloat32`, `min3`, `max3`, `min4` and `max4` are deleted, and SH-Map/SH-Flat are no more than 10% slower (A/B ratio ≥ 0.90). If they are slower (f32.min NaN handling can cost more than a select), stop and report.
 - [ ] Task 2.3: JS clean-ups
   - Files: `app/src/engine/scene/lightgrid.go`, `app/src/game/weapons.go`, `app/src/engine/engine.go`
   - Test: Task 1.1's `TestToggleDebugFieldPointer` and the existing `lightgrid` tests. Run `npm test && npm run test:dom`.
@@ -160,5 +160,5 @@ Probes ran on 2026-10-21 against GoFront v1.7.0 (worktree at tag `1.7.0`) and Go
 - **Negative cases:** `Mat4Multiply` on a 15-element slice panics with Go's message on both backends; `TestZeroMapFieldIsNotNil` flips when upstream fixes the map zero value.
 - **Benchmarks:**
   - `node tests/perf/mathx-js.js --repeat 5` (A = 1.7.0 compiler via `GOFRONT_BASELINE_DIR`): ≤ 1.10 per entry.
-  - `node tests/perf/js-vs-wasm.js --ab --repeat 5`: ≤ 1.10 per hybrid entry (mesh-parse ≤ 1.25 with an upstream issue).
+  - `node tests/perf/js-vs-wasm.js --ab --repeat 5 --max Infinity --gate 'mesh-parse>=0.80'`: no hybrid entry more than 10% slower (mesh-parse 25%, with an upstream issue).
   - `node tests/perf/zero-alloc.js`: raycast ≤ 3,000 B per 100k casts, controller ≤ 0.5 B/frame.

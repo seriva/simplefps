@@ -12,7 +12,7 @@ Design documents for planned features live in `docs/plans/`
 
 | Feature | Difficulty | Status | Notes |
 |---|---|---|---|
-| [SIMD Skinning & Perf Harness](plans/simd-skinning-plan.md) | Medium | Draft | Runs now on GoFront 1.7.0: in-process A/B perf harness, SIMD-only-in-WASM check, skinning palette as `F32x4` column packets (3.8–3.9× kernel speedup); gate ≥ 1.30× skinning |
+| [SIMD Skinning & Perf Harness](plans/simd-skinning-plan.md) | Medium | In Progress | Phases 1–2 implemented on `feat/simd-skinning`: in-process A/B perf harness with per-entry gates, SIMD-only-in-WASM check, skinning palette as `F32x4` column packets (skinning-total 2.08×, 0.15 B/frame); final audit pending |
 | [GoFront v1.8.0 Adoption](plans/gofront-v1.8.0-adoption-plan.md) | Medium | Draft | After SIMD Skinning (needs its A/B harness) and the v1.8.0 tag: bump to v1.8.0 behind JS/WASM perf gates (strict-mode checks in `mathx` measured at 4.3× on `Mat4Multiply` without upstream elision); builtin `min`/`max` in `collision`; drop stale field-pointer workaround |
 | [SIMD Collision](plans/simd-collision-plan.md) | High | Draft | After the v1.8.0 adoption: per-voxel SoA triangle packets with front-to-back early-out (2.28× kernel, triangle tests ≈ 45% of a cast); gate ≥ 1.15× raycast |
 | [G-Buffer Depth Reconstruction](plans/gbuffer-depth-reconstruction-plan.md) | Medium | Planned | Reconstruct world/view position from depth buffer; eliminates 16-byte worldPosition render target to cut mobile memory bandwidth |
