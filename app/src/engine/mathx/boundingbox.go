@@ -117,66 +117,6 @@ func (b *BoundingBox) Contains(aabb *BoundingBox) bool {
 		b.Max.Z >= aabb.Max.Z
 }
 
-// corner writes corner i (bit 0 = max X, bit 1 = max Y, bit 2 = max Z) into out.
-func (b *BoundingBox) corner(i int, out *Vec3) {
-	if i&1 != 0 {
-		out.X = b.Max.X
-	} else {
-		out.X = b.Min.X
-	}
-	if i&2 != 0 {
-		out.Y = b.Max.Y
-	} else {
-		out.Y = b.Min.Y
-	}
-	if i&4 != 0 {
-		out.Z = b.Max.Z
-	} else {
-		out.Z = b.Min.Z
-	}
-}
-
-// frameCorners transforms the 8 corners through frame (local when toLocal, world
-// otherwise) and writes the enclosing box into target.
-func (b *BoundingBox) frameCorners(frame *Transform, target *BoundingBox, toLocal bool) *BoundingBox {
-	var c Vec3
-	var minX, minY, minZ, maxX, maxY, maxZ float32
-	for i := 0; i < 8; i++ {
-		b.corner(i, &c)
-		if toLocal {
-			frame.PointToLocal(&c, &c)
-		} else {
-			frame.PointToWorld(&c, &c)
-		}
-		if i == 0 {
-			minX, minY, minZ = c.X, c.Y, c.Z
-			maxX, maxY, maxZ = c.X, c.Y, c.Z
-			continue
-		}
-		if c.X < minX {
-			minX = c.X
-		}
-		if c.X > maxX {
-			maxX = c.X
-		}
-		if c.Y < minY {
-			minY = c.Y
-		}
-		if c.Y > maxY {
-			maxY = c.Y
-		}
-		if c.Z < minZ {
-			minZ = c.Z
-		}
-		if c.Z > maxZ {
-			maxZ = c.Z
-		}
-	}
-	target.Min.Set(minX, minY, minZ)
-	target.Max.Set(maxX, maxY, maxZ)
-	return target
-}
-
 // Center computes the center point of this bounding box.
 func (b *BoundingBox) Center(out *Vec3) *Vec3 {
 	out.Add(&b.Min, &b.Max)

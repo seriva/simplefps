@@ -54,6 +54,8 @@ Probes ran on 2026-10-22 against `master` `b70d968` (GoFront 1.7.0). The dead-co
 | Stale line reference | `simd-collision-plan.md` cites [`ray.go:281-283`](../../app/src/engine/collision/ray.go#L281-L283) for the `rayQueryLocal` call, which is now at line 276. Phase 2 shifts it by about 85 lines. | Source |
 | Baseline (Task 1.1) | Base `feat/sloc-reduction` `09b70cc`: `npm run test:all` green. Non-test `app/src` lines: **20,862**. `public/app.js` **659,152 B**, `public/app.wasm` **103,648 B** (`npm run build`). | `git ls-files 'app/src/*.go' 'app/src/*.templ' \| grep -v _test \| xargs cat \| wc -l`; `wc -c public/app.js public/app.wasm` |
 | Open branches (Task 1.1) | All local `feat/` branches (`feat/simd-skinning*`, `feat/wasm-asset-decoding`) are merged PRs; none uses a Phase 1 candidate. Nothing kept for this reason. | `git branch -a` |
+| Fixed-point scan (Task 1.5) | Re-running the scan after Tasks 1.2–1.4 found two newly orphaned private helpers, `BoundingBox.frameCorners` and `BoundingBox.corner` (only callers were `ToLocalFrame`/`ToWorldFrame`/`GetCorners`); both deleted. Newly orphaned but called from tests, so kept: `AnimationPlayer.GetProgress`, `AnimationPlayer.Stop`, `NewTransform`, `Transform.PointToLocal`/`PointToWorld`. A second run finds nothing new; the remaining hits are the base audit's test-only or *Out of Scope* entries. Non-test `app/src` lines after Phase 1: **20,214** (−648); `public/app.js` **645,821 B** (−13,331), `public/app.wasm` **94,886 B** (−8,762). | `dead.sh` diffed against a scan of the base worktree; every identifier in the removed lines re-checked for remaining non-test references |
+| Pre-existing scan hits, not in this plan (Task 1.5) | `BoundingBox.Clone`, `Quat.Clone` (the scan's `test=2` comes from `Vec3.Clone` in `vec3_test.go`; neither is called anywhere), and `FakeShaderModule.Code` / `FakePipeline.Desc` in the test-only `rendering/fakegpu` package. These were dead before Phase 1 and are not in any task list, so they stay; they need a decision before a later cleanup. | `grep -rn 'Clone()' app/src`; `grep -rn '\.Code()\|\.Desc()' app/src tests` |
 
 ---
 
@@ -125,7 +127,7 @@ Probes ran on 2026-10-22 against `master` `b70d968` (GoFront 1.7.0). The dead-co
   - Files: `rendering/drawable.go`, `scene/{animatedbillboardentity,lightentities,skinnedmeshentity}.go`, `systems/{camera,input}.go`, `game/ui.go`
   - Test: `npm run check`, `npm test`, `npm run test:dom`.
   - Done when: the methods are gone and all three commands pass. Fields used only by deleted methods are removed too; fields with other readers stay.
-- [ ] Task 1.5: Re-run the dead-code scan to a fixed point.
+- [x] Task 1.5: Re-run the dead-code scan to a fixed point.
   - Files: whatever the scan finds (within the scope rule), `docs/plans/sloc-reduction-plan.md`
   - Test: run the scan; every new candidate (code orphaned by Tasks 1.2–1.4) is checked against `tests/`, `scripts/`, interfaces and the *Out of Scope* list, then deleted or recorded as kept.
   - Done when: the scan reports nothing outside the *Out of Scope* list; `npm run test:all` is green.

@@ -6,6 +6,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+### Removed
+- **Unused code (SLOC reduction, Phase 1).** Functions and methods with no callers in app code, tests or tooling, along with their doc comments: 13 `Mat4` helpers (`Mat4Determinant`, `Mat4Transpose`, `Mat4Rotate`, `Mat4FromX/Y/ZRotation`, `Mat4Perspective`, `Mat4Ortho`, `Mat4OrthoZO`, `Mat4TargetTo`, `Mat4FromValues`, `Mat4Mul`, `Mat4FromRotationTranslationScaleOrigin`), `NewQuat`, `Quat.Conjugate`/`Invert`, `Vec3.Subtract`/`RotateX`/`RotateZ`, `BoundingBox.SetFromPoints`/`GetCorners`/`ToLocalFrame`/`ToWorldFrame` (and the private `corner`/`frameCorners` helpers only they used), `NewTransformFromValues`, `rendering.HasShadowCasters`, `AnimatedBillboardEntity.Time`, `SpotLightEntity.SetDirection`, `SkinnedMeshEntity.StopAnimation`/`GetAnimationProgress`/`SetAnimationSpeed`/`SetAnimationLoop`, `Camera.Rotate`, `InputManager.SetCursorVisible` and `UIManager.HasStarted`/`SetStarted`. Non-test `app/src` goes from 20,862 to 20,214 lines. No behaviour change.
+
 ### Changed
 - **Breaking boundary API: `Skeleton.ComputeSkinningMatrices(pose)` no longer returns the joint count.** On GoFront 1.7.0 an `int` return across the JS↔WASM boundary allocates ≈ 24 B per call, which made the per-frame skinning call allocate. The palette size comes from the new `Skeleton.SkinJointCount()` (`JointCount` clamped to `MaxSkinJoints`), which `SkinnedMeshEntity` reads once at construction; the per-call probe went from 24.15 to 0.15 B. The perf drivers (`tests/perf/workloads.js`, `js-vs-wasm.js`) compute the palette size once and ignore any return value, so a pre-change baseline runs the same driver.
 
