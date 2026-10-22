@@ -13,11 +13,6 @@ type Quat struct {
 	W float32
 }
 
-// NewQuat allocates and initializes a new quaternion.
-func NewQuat(x, y, z, w float32) *Quat {
-	return &Quat{X: x, Y: y, Z: z, W: w}
-}
-
 // Set sets quaternion components.
 func (out *Quat) Set(x, y, z, w float32) *Quat {
 	out.X = x
@@ -43,11 +38,6 @@ func (out *Quat) Copy(src *Quat) *Quat {
 	out.Z = src.Z
 	out.W = src.W
 	return out
-}
-
-// Clone creates a clone of this quaternion.
-func (out *Quat) Clone() *Quat {
-	return &Quat{X: out.X, Y: out.Y, Z: out.Z, W: out.W}
 }
 
 // Multiply multiplies quaternions a and b.
@@ -105,37 +95,6 @@ func (out *Quat) Normalize(a *Quat) *Quat {
 		out.Y = 0
 		out.Z = 0
 		out.W = 1
-	}
-	return out
-}
-
-// Conjugate computes the conjugate of a.
-func (out *Quat) Conjugate(a *Quat) *Quat {
-	out.X = -a.X
-	out.Y = -a.Y
-	out.Z = -a.Z
-	out.W = a.W
-	return out
-}
-
-// Invert computes the inverse of quaternion a.
-func (out *Quat) Invert(a *Quat) *Quat {
-	a0 := a.X
-	a1 := a.Y
-	a2 := a.Z
-	a3 := a.W
-	dot := a0*a0 + a1*a1 + a2*a2 + a3*a3
-	if dot != 0 {
-		invDot := 1.0 / dot
-		out.X = -a0 * invDot
-		out.Y = -a1 * invDot
-		out.Z = -a2 * invDot
-		out.W = a3 * invDot
-	} else {
-		out.X = 0
-		out.Y = 0
-		out.Z = 0
-		out.W = 0
 	}
 	return out
 }

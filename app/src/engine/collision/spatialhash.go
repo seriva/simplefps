@@ -29,7 +29,20 @@ func voxelKey(vx, vy, vz int32) uint64 {
 
 var (
 	_shInvDir mathx.Vec3
+	// Composite literal on purpose: GoFront 1.7.0 leaves the array fields of a
+	// zero-value package-level struct nil in WASM.
+	_shTri = shTri{}
 )
+
+// shTri is newSpatialHash's scratch for the triangle being inserted, indexed
+// by axis (0 = X, 1 = Y, 2 = Z) so sweepDominantAxis can solve any axis from
+// the plane equation.
+type shTri struct {
+	a, b, c, n [3]float32 // vertices and (unnormalised) normal
+	tmin, tmax [3]float32 // triangle bounds
+	vmin, vmax [3]int32   // voxel bounds
+	cell       [3]int32   // voxel being tested
+}
 
 // spatialHash partitions triangles into discrete voxel cells.
 type spatialHash struct {
@@ -64,8 +77,9 @@ type spatialHash struct {
 	totalRefs  int
 }
 
-// rayAABBInterval computes the entry and exit ray parameters (tStart, tEnd)
-// along the ray segment [0, maxDist] through the AABB using the Slab method.
+// rayAABBInterval tests intersection between a ray and an AABB using the Slab
+// method and computes the entry and exit ray parameters (tStart, tEnd) along the
+// ray segment [0, maxDist]. The bool result is false when the segment misses the box.
 // Correctly guards against zero direction components to prevent 0.0 * Inf = NaN.
 func rayAABBInterval(aabb *mathx.BoundingBox, origin, direction, invDir *mathx.Vec3, maxDist float32) (float32, float32, bool) {
 	min := &aabb.Min
@@ -367,6 +381,18 @@ func max4(a, b, c, d float32) float32 {
 	return m
 }
 
+// triBounds returns the axis-aligned bounds of triangle i as
+// (minX, minY, minZ, maxX, maxY, maxZ).
+func triBounds(vertices []float32, indices []int32, i int) (float32, float32, float32, float32, float32, float32) {
+	i0 := indices[i*3] * 3
+	i1 := indices[i*3+1] * 3
+	i2 := indices[i*3+2] * 3
+	ax, ay, az := vertices[i0], vertices[i0+1], vertices[i0+2]
+	bx, by, bz := vertices[i1], vertices[i1+1], vertices[i1+2]
+	cx, cy, cz := vertices[i2], vertices[i2+1], vertices[i2+2]
+	return min3(ax, bx, cx), min3(ay, by, cy), min3(az, bz, cz), max3(ax, bx, cx), max3(ay, by, cy), max3(az, bz, cz)
+}
+
 // newSpatialHash constructs a spatial voxel hash partitioning the given triangles.
 func newSpatialHash(vertices []float32, indices []int32, aabb *mathx.BoundingBox, cellSize float32) *spatialHash {
 	numTriangles := len(indices) / 3
@@ -375,71 +401,8 @@ func newSpatialHash(vertices []float32, indices []int32, aabb *mathx.BoundingBox
 		if numTriangles > 0 {
 			var sumDim float32
 			for i := 0; i < numTriangles; i++ {
-				i0 := indices[i*3] * 3
-				i1 := indices[i*3+1] * 3
-				i2 := indices[i*3+2] * 3
-
-				ax, ay, az := vertices[i0], vertices[i0+1], vertices[i0+2]
-				bx, by, bz := vertices[i1], vertices[i1+1], vertices[i1+2]
-				cx, cy, cz := vertices[i2], vertices[i2+1], vertices[i2+2]
-
-				tminX := ax
-				if bx < tminX {
-					tminX = bx
-				}
-				if cx < tminX {
-					tminX = cx
-				}
-				tmaxX := ax
-				if bx > tmaxX {
-					tmaxX = bx
-				}
-				if cx > tmaxX {
-					tmaxX = cx
-				}
-
-				tminY := ay
-				if by < tminY {
-					tminY = by
-				}
-				if cy < tminY {
-					tminY = cy
-				}
-				tmaxY := ay
-				if by > tmaxY {
-					tmaxY = by
-				}
-				if cy > tmaxY {
-					tmaxY = cy
-				}
-
-				tminZ := az
-				if bz < tminZ {
-					tminZ = bz
-				}
-				if cz < tminZ {
-					tminZ = cz
-				}
-				tmaxZ := az
-				if bz > tmaxZ {
-					tmaxZ = bz
-				}
-				if cz > tmaxZ {
-					tmaxZ = cz
-				}
-
-				dx := tmaxX - tminX
-				dy := tmaxY - tminY
-				dz := tmaxZ - tminZ
-
-				maxD := dx
-				if dy > maxD {
-					maxD = dy
-				}
-				if dz > maxD {
-					maxD = dz
-				}
-				sumDim += maxD
+				tminX, tminY, tminZ, tmaxX, tmaxY, tmaxZ := triBounds(vertices, indices, i)
+				sumDim += max3(tmaxX-tminX, tmaxY-tminY, tmaxZ-tminZ)
 			}
 			cellSize = sumDim / float32(numTriangles)
 		}
@@ -483,50 +446,7 @@ func newSpatialHash(vertices []float32, indices []int32, aabb *mathx.BoundingBox
 		bx, by, bz := vertices[i1], vertices[i1+1], vertices[i1+2]
 		cx, cy, cz := vertices[i2], vertices[i2+1], vertices[i2+2]
 
-		tminX := ax
-		if bx < tminX {
-			tminX = bx
-		}
-		if cx < tminX {
-			tminX = cx
-		}
-		tmaxX := ax
-		if bx > tmaxX {
-			tmaxX = bx
-		}
-		if cx > tmaxX {
-			tmaxX = cx
-		}
-
-		tminY := ay
-		if by < tminY {
-			tminY = by
-		}
-		if cy < tminY {
-			tminY = cy
-		}
-		tmaxY := ay
-		if by > tmaxY {
-			tmaxY = by
-		}
-		if cy > tmaxY {
-			tmaxY = cy
-		}
-
-		tminZ := az
-		if bz < tminZ {
-			tminZ = bz
-		}
-		if cz < tminZ {
-			tminZ = cz
-		}
-		tmaxZ := az
-		if bz > tmaxZ {
-			tmaxZ = bz
-		}
-		if cz > tmaxZ {
-			tmaxZ = cz
-		}
+		tminX, tminY, tminZ, tmaxX, tmaxY, tmaxZ := triBounds(vertices, indices, i)
 
 		minVx := int32(math.Floor(float64(tminX * sh.invCellSize)))
 		maxVx := int32(math.Floor(float64(tmaxX * sh.invCellSize)))
@@ -577,158 +497,28 @@ func newSpatialHash(vertices []float32, indices []int32, aabb *mathx.BoundingBox
 		any := float32(math.Abs(float64(ny)))
 		anz := float32(math.Abs(float64(nz)))
 
-		halfSize := sh.cellSize * 0.5
-		triRefs := 0
+		t := &_shTri
+		t.a[0], t.a[1], t.a[2] = ax, ay, az
+		t.b[0], t.b[1], t.b[2] = bx, by, bz
+		t.c[0], t.c[1], t.c[2] = cx, cy, cz
+		t.n[0], t.n[1], t.n[2] = nx, ny, nz
+		t.tmin[0], t.tmin[1], t.tmin[2] = tminX, tminY, tminZ
+		t.tmax[0], t.tmax[1], t.tmax[2] = tmaxX, tmaxY, tmaxZ
+		t.vmin[0], t.vmin[1], t.vmin[2] = minVx, minVy, minVz
+		t.vmax[0], t.vmax[1], t.vmax[2] = maxVx, maxVy, maxVz
 
 		if any >= anx && any >= anz && any > 1e-7 {
 			// Dominant axis: Y (mostly horizontal)
-			for vz := minVz; vz <= maxVz && triRefs < maxVoxelsPerTri; vz++ {
-				for vx := minVx; vx <= maxVx && triRefs < maxVoxelsPerTri; vx++ {
-					x0 := float32(vx) * sh.cellSize
-					x1 := x0 + sh.cellSize
-					z0 := float32(vz) * sh.cellSize
-					z1 := z0 + sh.cellSize
-
-					y00 := ay - (nx*(x0-ax)+nz*(z0-az))/ny
-					y10 := ay - (nx*(x1-ax)+nz*(z0-az))/ny
-					y01 := ay - (nx*(x0-ax)+nz*(z1-az))/ny
-					y11 := ay - (nx*(x1-ax)+nz*(z1-az))/ny
-
-					cyMin := min4(y00, y10, y01, y11)
-					cyMax := max4(y00, y10, y01, y11)
-					if cyMin > tmaxY || cyMax < tminY {
-						continue
-					}
-					if cyMin < tminY {
-						cyMin = tminY
-					}
-					if cyMax > tmaxY {
-						cyMax = tmaxY
-					}
-
-					subMinVy := int32(math.Floor(float64(cyMin * sh.invCellSize)))
-					subMaxVy := int32(math.Floor(float64(cyMax * sh.invCellSize)))
-					if subMinVy < minVy {
-						subMinVy = minVy
-					}
-					if subMaxVy > maxVy {
-						subMaxVy = maxVy
-					}
-
-					for vy := subMinVy; vy <= subMaxVy && triRefs < maxVoxelsPerTri; vy++ {
-						boxCenterX := (float32(vx) + 0.5) * sh.cellSize
-						boxCenterY := (float32(vy) + 0.5) * sh.cellSize
-						boxCenterZ := (float32(vz) + 0.5) * sh.cellSize
-
-						if triBoxOverlap(ax, ay, az, bx, by, bz, cx, cy, cz, boxCenterX, boxCenterY, boxCenterZ, halfSize) {
-							k := voxelKey(vx, vy, vz)
-							sh.grid[k] = append(sh.grid[k], int32(i))
-							totalRefs++
-							triRefs++
-						}
-					}
-				}
-			}
+			totalRefs += sh.sweepDominantAxis(i, 0, 2, 1)
 		} else if anx >= any && anx >= anz && anx > 1e-7 {
 			// Dominant axis: X (mostly vertical along YZ)
-			for vz := minVz; vz <= maxVz && triRefs < maxVoxelsPerTri; vz++ {
-				for vy := minVy; vy <= maxVy && triRefs < maxVoxelsPerTri; vy++ {
-					y0 := float32(vy) * sh.cellSize
-					y1 := y0 + sh.cellSize
-					z0 := float32(vz) * sh.cellSize
-					z1 := z0 + sh.cellSize
-
-					x00 := ax - (ny*(y0-ay)+nz*(z0-az))/nx
-					x10 := ax - (ny*(y1-ay)+nz*(z0-az))/nx
-					x01 := ax - (ny*(y0-ay)+nz*(z1-az))/nx
-					x11 := ax - (ny*(y1-ay)+nz*(z1-az))/nx
-
-					cxMin := min4(x00, x10, x01, x11)
-					cxMax := max4(x00, x10, x01, x11)
-					if cxMin > tmaxX || cxMax < tminX {
-						continue
-					}
-					if cxMin < tminX {
-						cxMin = tminX
-					}
-					if cxMax > tmaxX {
-						cxMax = tmaxX
-					}
-
-					subMinVx := int32(math.Floor(float64(cxMin * sh.invCellSize)))
-					subMaxVx := int32(math.Floor(float64(cxMax * sh.invCellSize)))
-					if subMinVx < minVx {
-						subMinVx = minVx
-					}
-					if subMaxVx > maxVx {
-						subMaxVx = maxVx
-					}
-
-					for vx := subMinVx; vx <= subMaxVx && triRefs < maxVoxelsPerTri; vx++ {
-						boxCenterX := (float32(vx) + 0.5) * sh.cellSize
-						boxCenterY := (float32(vy) + 0.5) * sh.cellSize
-						boxCenterZ := (float32(vz) + 0.5) * sh.cellSize
-
-						if triBoxOverlap(ax, ay, az, bx, by, bz, cx, cy, cz, boxCenterX, boxCenterY, boxCenterZ, halfSize) {
-							k := voxelKey(vx, vy, vz)
-							sh.grid[k] = append(sh.grid[k], int32(i))
-							totalRefs++
-							triRefs++
-						}
-					}
-				}
-			}
+			totalRefs += sh.sweepDominantAxis(i, 1, 2, 0)
 		} else if anz >= anx && anz >= any && anz > 1e-7 {
 			// Dominant axis: Z (mostly vertical along XY)
-			for vy := minVy; vy <= maxVy && triRefs < maxVoxelsPerTri; vy++ {
-				for vx := minVx; vx <= maxVx && triRefs < maxVoxelsPerTri; vx++ {
-					x0 := float32(vx) * sh.cellSize
-					x1 := x0 + sh.cellSize
-					y0 := float32(vy) * sh.cellSize
-					y1 := y0 + sh.cellSize
-
-					z00 := az - (nx*(x0-ax)+ny*(y0-ay))/nz
-					z10 := az - (nx*(x1-ax)+ny*(y0-ay))/nz
-					z01 := az - (nx*(x0-ax)+ny*(y1-ay))/nz
-					z11 := az - (nx*(x1-ax)+ny*(y1-ay))/nz
-
-					czMin := min4(z00, z10, z01, z11)
-					czMax := max4(z00, z10, z01, z11)
-					if czMin > tmaxZ || czMax < tminZ {
-						continue
-					}
-					if czMin < tminZ {
-						czMin = tminZ
-					}
-					if czMax > tmaxZ {
-						czMax = tmaxZ
-					}
-
-					subMinVz := int32(math.Floor(float64(czMin * sh.invCellSize)))
-					subMaxVz := int32(math.Floor(float64(czMax * sh.invCellSize)))
-					if subMinVz < minVz {
-						subMinVz = minVz
-					}
-					if subMaxVz > maxVz {
-						subMaxVz = maxVz
-					}
-
-					for vz := subMinVz; vz <= subMaxVz && triRefs < maxVoxelsPerTri; vz++ {
-						boxCenterX := (float32(vx) + 0.5) * sh.cellSize
-						boxCenterY := (float32(vy) + 0.5) * sh.cellSize
-						boxCenterZ := (float32(vz) + 0.5) * sh.cellSize
-
-						if triBoxOverlap(ax, ay, az, bx, by, bz, cx, cy, cz, boxCenterX, boxCenterY, boxCenterZ, halfSize) {
-							k := voxelKey(vx, vy, vz)
-							sh.grid[k] = append(sh.grid[k], int32(i))
-							totalRefs++
-							triRefs++
-						}
-					}
-				}
-			}
+			totalRefs += sh.sweepDominantAxis(i, 0, 1, 2)
 		} else {
 			// Degenerate triangle fallback
+			triRefs := 0
 			for vz := minVz; vz <= maxVz && triRefs < maxVoxelsPerTri; vz++ {
 				for vy := minVy; vy <= maxVy && triRefs < maxVoxelsPerTri; vy++ {
 					for vx := minVx; vx <= maxVx && triRefs < maxVoxelsPerTri; vx++ {
@@ -777,6 +567,79 @@ func newSpatialHash(vertices []float32, indices []int32, aabb *mathx.BoundingBox
 	}
 
 	return sh
+}
+
+// sweepDominantAxis inserts triangle i (loaded into _shTri) into every voxel it
+// overlaps. For each (u, v) cell column it solves the dominant axis w from the
+// plane equation at the four column corners, clamps that range to the triangle
+// bounds, and tests each voxel along w with triBoxOverlap. v is the outer loop
+// and u the inner one, which is the original nesting of every branch:
+// Y dominant (u = X, v = Z, w = Y), X dominant (u = Y, v = Z, w = X) and
+// Z dominant (u = X, v = Y, w = Z). Returns the number of references added,
+// at most maxVoxelsPerTri.
+func (sh *spatialHash) sweepDominantAxis(i int, u, v, w int) int {
+	t := &_shTri
+	ax, ay, az := t.a[0], t.a[1], t.a[2]
+	bx, by, bz := t.b[0], t.b[1], t.b[2]
+	cx, cy, cz := t.c[0], t.c[1], t.c[2]
+	au, av, aw := t.a[u], t.a[v], t.a[w]
+	nu, nv, nw := t.n[u], t.n[v], t.n[w]
+	tminW, tmaxW := t.tmin[w], t.tmax[w]
+	minVw, maxVw := t.vmin[w], t.vmax[w]
+	halfSize := sh.cellSize * 0.5
+	triRefs := 0
+
+	for cv := t.vmin[v]; cv <= t.vmax[v] && triRefs < maxVoxelsPerTri; cv++ {
+		for cu := t.vmin[u]; cu <= t.vmax[u] && triRefs < maxVoxelsPerTri; cu++ {
+			u0 := float32(cu) * sh.cellSize
+			u1 := u0 + sh.cellSize
+			v0 := float32(cv) * sh.cellSize
+			v1 := v0 + sh.cellSize
+
+			w00 := aw - (nu*(u0-au)+nv*(v0-av))/nw
+			w10 := aw - (nu*(u1-au)+nv*(v0-av))/nw
+			w01 := aw - (nu*(u0-au)+nv*(v1-av))/nw
+			w11 := aw - (nu*(u1-au)+nv*(v1-av))/nw
+
+			cwMin := min4(w00, w10, w01, w11)
+			cwMax := max4(w00, w10, w01, w11)
+			if cwMin > tmaxW || cwMax < tminW {
+				continue
+			}
+			if cwMin < tminW {
+				cwMin = tminW
+			}
+			if cwMax > tmaxW {
+				cwMax = tmaxW
+			}
+
+			subMinVw := int32(math.Floor(float64(cwMin * sh.invCellSize)))
+			subMaxVw := int32(math.Floor(float64(cwMax * sh.invCellSize)))
+			if subMinVw < minVw {
+				subMinVw = minVw
+			}
+			if subMaxVw > maxVw {
+				subMaxVw = maxVw
+			}
+
+			t.cell[u] = cu
+			t.cell[v] = cv
+			for cw := subMinVw; cw <= subMaxVw && triRefs < maxVoxelsPerTri; cw++ {
+				t.cell[w] = cw
+				vx, vy, vz := t.cell[0], t.cell[1], t.cell[2]
+				boxCenterX := (float32(vx) + 0.5) * sh.cellSize
+				boxCenterY := (float32(vy) + 0.5) * sh.cellSize
+				boxCenterZ := (float32(vz) + 0.5) * sh.cellSize
+
+				if triBoxOverlap(ax, ay, az, bx, by, bz, cx, cy, cz, boxCenterX, boxCenterY, boxCenterZ, halfSize) {
+					k := voxelKey(vx, vy, vz)
+					sh.grid[k] = append(sh.grid[k], int32(i))
+					triRefs++
+				}
+			}
+		}
+	}
+	return triRefs
 }
 
 // getVoxelTrisMap retrieves triangle indices for a voxel from the map.

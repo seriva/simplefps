@@ -111,12 +111,6 @@ func (c *Camera) Translate(move *mathx.Vec3) {
 	c.Position.Add(&c.Position, move)
 }
 
-// Rotate adds angular rotation in degrees.
-func (c *Camera) Rotate(rot *mathx.Vec3) {
-	c.Rotation.Add(&c.Rotation, rot)
-	c.UpdateDirection()
-}
-
 // AddRotation accumulates mouse look deltas, clamping pitch and wrapping yaw.
 func (c *Camera) AddRotation(dx, dy float32) {
 	c.Rotation.X += dx
