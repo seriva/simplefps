@@ -18,6 +18,7 @@ var (
 // SkinnedMeshEntity renders a GPU-skinned mesh driven by an AnimationPlayer.
 type SkinnedMeshEntity struct {
 	Base            EntityBase
+	drawDefaults
 	Mesh            *rendering.SkinnedMesh
 	Skeleton        *animation.Skeleton
 	AnimationPlayer *animation.AnimationPlayer
@@ -129,7 +130,6 @@ func (e *SkinnedMeshEntity) DrawWireframe(r *rendering.Renderer) {
 	r.SetPipeline(r.Pipelines.Debug)
 }
 
-func (e *SkinnedMeshEntity) Simulate(r *rendering.Renderer, pass rendering.GPUComputePassEncoder) {}
 
 func (e *SkinnedMeshEntity) Bounds() *mathx.BoundingBox { return e.Base.BoundingBox }
 func (e *SkinnedMeshEntity) CastsShadow() bool            { return e.Base.CastShadow }
@@ -211,10 +211,7 @@ func (e *SkinnedMeshEntity) UpdateBoundingVolume() {
 		e.Base.BoundingBox = nil
 		return
 	}
-	if e.Base.BoundingBox == nil {
-		e.Base.BoundingBox = mathx.NewBoundingBox()
-	}
-	skinnedLocalBB.TransformInto(skinnedTempMatrix, e.Base.BoundingBox)
+	skinnedLocalBB.TransformInto(skinnedTempMatrix, e.Base.ensureBounds())
 }
 
 // IsPlaying reports whether an animation is running.

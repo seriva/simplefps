@@ -1,8 +1,10 @@
 package game
 
 import (
+	"fmt"
 	"testing"
 
+	"../engine/systems"
 	"js:./interop.d.ts"
 )
 
@@ -82,5 +84,63 @@ func TestUIMountAndDom(t *testing.T) {
 		if dialog == nil {
 			t.Error("Expected #dialog-overlay in DOM after Mount")
 		}
+	}
+}
+
+func TestUISettingHandlers(t *testing.T) {
+	ui := NewUIManager()
+	s := systems.ActiveSettings
+	saved := *s
+	defer func() { *s = saved }()
+	notified := 0
+	ui.OnSettingsChanged = func() { notified++ }
+
+	ui.onSettingChange(map[string]any{"id": "setting-fsr", "checked": !s.DoFSR})
+	if s.DoFSR == saved.DoFSR || notified != 1 {
+		t.Errorf("fsr: DoFSR=%v notified=%d", s.DoFSR, notified)
+	}
+	ui.onSettingChange(map[string]any{"id": "setting-dirt", "checked": !s.DoDirt})
+	if s.DoDirt == saved.DoDirt || notified != 1 {
+		t.Errorf("dirt should not notify: DoDirt=%v notified=%d", s.DoDirt, notified)
+	}
+	ui.onSettingChange(map[string]any{"id": "setting-render-scale", "value": "0.75"})
+	if s.RenderScale != 0.75 || notified != 2 {
+		t.Errorf("render scale: %v notified=%d", s.RenderScale, notified)
+	}
+	ui.onSettingChange(map[string]any{"id": "setting-render-scale", "value": "abc"})
+	if s.RenderScale != 0.75 || notified != 2 {
+		t.Errorf("bad render scale applied: %v notified=%d", s.RenderScale, notified)
+	}
+
+	ui.onSettingInput(map[string]any{"id": "setting-gamma", "value": "1.5"})
+	ui.onSettingInput(map[string]any{"id": "setting-look-sensitivity", "value": "x"})
+	ui.onSettingInput(map[string]any{"id": "other"})
+	if s.Gamma != 1.5 || s.LookSensitivity != saved.LookSensitivity || notified != 2 {
+		t.Errorf("input: gamma=%v look=%v notified=%d", s.Gamma, s.LookSensitivity, notified)
+	}
+}
+
+func TestUISettingsAndCreditsRows(t *testing.T) {
+	if document == nil {
+		return
+	}
+	ui := NewUIManager()
+	ui.Mount()
+	ui.Show("SETTINGS_MENU")
+	gamma := document.getElementById("setting-gamma")
+	if gamma == nil || gamma.getAttribute("min") != "0.5" || gamma.getAttribute("max") != "2.5" || gamma.getAttribute("step") != "0.1" {
+		t.Fatalf("gamma slider attributes wrong")
+	}
+	if gamma.value != fmt.Sprintf("%0.1f", systems.ActiveSettings.Gamma) {
+		t.Errorf("gamma value %v", gamma.value)
+	}
+	fsr := document.getElementById("setting-fsr")
+	if fsr == nil || fsr.checked != systems.ActiveSettings.DoFSR {
+		t.Errorf("fsr checkbox not rendered with current setting")
+	}
+	ui.Show("CREDITS_MENU")
+	link := document.querySelector("#menu-controls a[href='https://lvlworld.com/review/id:2562']")
+	if link == nil || link.textContent != "Focal Point by Lunaran" {
+		t.Errorf("credit link not rendered")
 	}
 }

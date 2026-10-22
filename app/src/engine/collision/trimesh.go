@@ -3,7 +3,6 @@ package collision
 
 import (
 	"errors"
-	"math"
 
 	"../mathx"
 )
@@ -84,7 +83,7 @@ func NewTrimesh(vertices []float32, indices []int32, triangleFlags []byte) (*Tri
 			copy(tm.TriangleFlags, triangleFlags)
 		}
 		tm.updateNormals()
-		tm.computeLocalAABB(&tm.AABB)
+		tm.AABB.SetFromPoints(tm.Vertices)
 		tm.BuildSpatialHash(0)
 	} else {
 		tm.Vertices = make([]float32, 0)
@@ -215,7 +214,7 @@ func (tm *Trimesh) Finalize() error {
 
 	tm.normals = make([]float32, len(tm.Indices))
 	tm.updateNormals()
-	tm.computeLocalAABB(&tm.AABB)
+	tm.AABB.SetFromPoints(tm.Vertices)
 	tm.BuildSpatialHash(0)
 	tm.dirty = false
 	return nil
@@ -313,45 +312,6 @@ func (tm *Trimesh) getVertex(i int, out *mathx.Vec3) {
 	out.X = tm.Vertices[i3]
 	out.Y = tm.Vertices[i3+1]
 	out.Z = tm.Vertices[i3+2]
-}
-
-// computeLocalAABB calculates the enclosing AABB for all vertices in the mesh.
-func (tm *Trimesh) computeLocalAABB(aabb *mathx.BoundingBox) {
-	vertices := tm.Vertices
-	minX := float32(math.Inf(1))
-	minY := float32(math.Inf(1))
-	minZ := float32(math.Inf(1))
-	maxX := float32(math.Inf(-1))
-	maxY := float32(math.Inf(-1))
-	maxZ := float32(math.Inf(-1))
-
-	for i := 0; i < len(vertices); i += 3 {
-		x := vertices[i]
-		y := vertices[i+1]
-		z := vertices[i+2]
-
-		if x < minX {
-			minX = x
-		}
-		if x > maxX {
-			maxX = x
-		}
-		if y < minY {
-			minY = y
-		}
-		if y > maxY {
-			maxY = y
-		}
-		if z < minZ {
-			minZ = z
-		}
-		if z > maxZ {
-			maxZ = z
-		}
-	}
-
-	aabb.Min.Set(minX, minY, minZ)
-	aabb.Max.Set(maxX, maxY, maxZ)
 }
 
 // computeNormal calculates the normalized surface normal for triangle (va, vb, vc).

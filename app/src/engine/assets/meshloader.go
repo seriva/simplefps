@@ -113,11 +113,9 @@ func ParseJSONMesh(text string) *MeshData {
 	return md
 }
 
-// BuildMesh uploads decoded rigid mesh data to the GPU.
-func BuildMesh(b *rendering.Backend, md *MeshData) *rendering.Mesh {
-	if md == nil {
-		return nil
-	}
+// copyMeshArrays copies the index groups and vertex streams shared by rigid
+// and skinned meshes, so the GPU mesh does not alias the decoded data.
+func copyMeshArrays(md *MeshData) ([]rendering.IndexGroup, []float32, []float32, []float32) {
 	indices := make([]rendering.IndexGroup, len(md.Indices))
 	for i := 0; i < len(md.Indices); i++ {
 		arr := make([]uint32, len(md.Indices[i].Array))
@@ -130,6 +128,15 @@ func BuildMesh(b *rendering.Backend, md *MeshData) *rendering.Mesh {
 	copy(uvs, md.UVs)
 	normals := make([]float32, len(md.Normals))
 	copy(normals, md.Normals)
+	return indices, verts, uvs, normals
+}
+
+// BuildMesh uploads decoded rigid mesh data to the GPU.
+func BuildMesh(b *rendering.Backend, md *MeshData) *rendering.Mesh {
+	if md == nil {
+		return nil
+	}
+	indices, verts, uvs, normals := copyMeshArrays(md)
 	lmUVs := make([]float32, len(md.LightmapUVs))
 	copy(lmUVs, md.LightmapUVs)
 
@@ -142,18 +149,7 @@ func BuildSkinnedMesh(b *rendering.Backend, md *MeshData) (*rendering.SkinnedMes
 	if md == nil {
 		return nil, nil
 	}
-	indices := make([]rendering.IndexGroup, len(md.Indices))
-	for i := 0; i < len(md.Indices); i++ {
-		arr := make([]uint32, len(md.Indices[i].Array))
-		copy(arr, md.Indices[i].Array)
-		indices[i] = rendering.IndexGroup{Material: md.Indices[i].Material, Array: arr}
-	}
-	verts := make([]float32, len(md.Vertices))
-	copy(verts, md.Vertices)
-	uvs := make([]float32, len(md.UVs))
-	copy(uvs, md.UVs)
-	normals := make([]float32, len(md.Normals))
-	copy(normals, md.Normals)
+	indices, verts, uvs, normals := copyMeshArrays(md)
 	jointIndices := make([]uint8, len(md.JointIndices))
 	copy(jointIndices, md.JointIndices)
 	jointWeights := make([]float32, len(md.JointWeights))

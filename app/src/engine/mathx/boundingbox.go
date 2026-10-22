@@ -34,6 +34,11 @@ func NewBoundingBoxFromValues(min, max *Vec3) *BoundingBox {
 
 // BoundingBoxFromPoints creates a BoundingBox enclosing a flat slice of 3D coordinates (XYZ).
 func BoundingBoxFromPoints(points []float32) *BoundingBox {
+	return (&BoundingBox{}).SetFromPoints(points)
+}
+
+// SetFromPoints fits this BoundingBox to a flat slice of 3D coordinates (XYZ).
+func (b *BoundingBox) SetFromPoints(points []float32) *BoundingBox {
 	minX := float32(math.Inf(1))
 	minY := float32(math.Inf(1))
 	minZ := float32(math.Inf(1))
@@ -65,7 +70,6 @@ func BoundingBoxFromPoints(points []float32) *BoundingBox {
 		}
 	}
 
-	b := &BoundingBox{}
 	b.Min.Set(minX, minY, minZ)
 	b.Max.Set(maxX, maxY, maxZ)
 	return b

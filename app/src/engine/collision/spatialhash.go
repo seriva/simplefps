@@ -780,14 +780,7 @@ func (h *spatialHash) rayQueryLocal(origin, direction *mathx.Vec3, maxDist float
 		tDeltaZ = float32(math.Inf(1))
 	}
 
-	h.queryStamp++
-	if h.queryStamp == 0 {
-		h.queryStamp = 1
-		for i := range h.lastQuery {
-			h.lastQuery[i] = 0
-		}
-	}
-	currentStamp := h.queryStamp
+	currentStamp := h.nextStamp()
 
 	count := 0
 	limit := len(out)
@@ -859,6 +852,19 @@ func (h *spatialHash) rayQueryLocal(origin, direction *mathx.Vec3, maxDist float
 	return count
 }
 
+// nextStamp starts a new query for per-triangle dedup, clearing lastQuery
+// when the stamp wraps.
+func (h *spatialHash) nextStamp() uint32 {
+	h.queryStamp++
+	if h.queryStamp == 0 {
+		h.queryStamp = 1
+		for i := range h.lastQuery {
+			h.lastQuery[i] = 0
+		}
+	}
+	return h.queryStamp
+}
+
 // stats returns total voxel count in map, total triangle references, and total flat cells.
 func (h *spatialHash) stats() (voxels int, totalRefs int, flatCells int) {
 	voxels = len(h.grid)
@@ -878,14 +884,7 @@ func (h *spatialHash) aabbQuery(queryAABB *mathx.BoundingBox, out []int) int {
 	minVz := int32(math.Floor(float64(queryAABB.Min.Z * h.invCellSize)))
 	maxVz := int32(math.Floor(float64(queryAABB.Max.Z * h.invCellSize)))
 
-	h.queryStamp++
-	if h.queryStamp == 0 {
-		h.queryStamp = 1
-		for i := range h.lastQuery {
-			h.lastQuery[i] = 0
-		}
-	}
-	currentStamp := h.queryStamp
+	currentStamp := h.nextStamp()
 	count := 0
 	limit := len(out)
 

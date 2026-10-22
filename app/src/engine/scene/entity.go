@@ -97,6 +97,17 @@ type Entity interface {
 	Dispose()
 }
 
+// drawDefaults supplies no-op rendering.Drawable hooks. Entities embed it and
+// override only the passes they take part in.
+type drawDefaults struct{}
+
+func (drawDefaults) DrawShadow(r *rendering.Renderer)                                  {}
+func (drawDefaults) DrawWireframe(r *rendering.Renderer)                               {}
+func (drawDefaults) DrawSkeleton(r *rendering.Renderer)                                {}
+func (drawDefaults) Simulate(r *rendering.Renderer, pass rendering.GPUComputePassEncoder) {}
+func (drawDefaults) TriangleCount() int                                                { return 0 }
+func (drawDefaults) CastsShadow() bool                                                 { return false }
+
 // initBase fills the defaults shared by all entities.
 func initBase(b *EntityBase, entityType int, update UpdateCallback) {
 	b.Type = entityType
@@ -116,6 +127,14 @@ func baseUpdate(e Entity, frameTime float32) bool {
 		return true
 	}
 	return b.Callback(e, frameTime)
+}
+
+// ensureBounds returns the world AABB, allocating it on first use.
+func (b *EntityBase) ensureBounds() *mathx.BoundingBox {
+	if b.BoundingBox == nil {
+		b.BoundingBox = mathx.NewBoundingBox()
+	}
+	return b.BoundingBox
 }
 
 // baseDispose clears references held by the base.
