@@ -14,18 +14,6 @@ func NewTransform() *Transform {
 	return t
 }
 
-// NewTransformFromValues creates a new Transform with initial position and quaternion.
-func NewTransformFromValues(pos *Vec3, q *Quat) *Transform {
-	t := NewTransform()
-	if pos != nil {
-		t.Position.Copy(pos)
-	}
-	if q != nil {
-		t.Quaternion.Copy(q)
-	}
-	return t
-}
-
 // PointToLocal transforms a world point into local frame coordinates.
 func (t *Transform) PointToLocal(worldPoint, result *Vec3) *Vec3 {
 	return PointToLocalFrame(&t.Position, &t.Quaternion, worldPoint, result)

@@ -117,7 +117,7 @@ Probes ran on 2026-10-22 against `master` `b70d968` (GoFront 1.7.0). The dead-co
   - Files: `app/src/engine/mathx/mat4.go`
   - Test: `npm run check`, `npm test`.
   - Done when: the functions are gone and both commands pass.
-- [ ] Task 1.3: Delete other unused `mathx` code: `Quat.Conjugate`, `Quat.Invert`, `NewQuat`, `Vec3.RotateX`, `Vec3.RotateZ`, `Vec3.Subtract`, `BoundingBox.GetCorners`, `SetFromPoints`, `ToLocalFrame`, `ToWorldFrame`, `NewTransformFromValues`.
+- [x] Task 1.3: Delete other unused `mathx` code: `Quat.Conjugate`, `Quat.Invert`, `NewQuat`, `Vec3.RotateX`, `Vec3.RotateZ`, `Vec3.Subtract`, `BoundingBox.GetCorners`, `SetFromPoints`, `ToLocalFrame`, `ToWorldFrame`, `NewTransformFromValues`.
   - Files: `app/src/engine/mathx/quat.go`, `vec3.go`, `boundingbox.go` (+ `transform.go`)
   - Test: `npm run check`, `npm test`, `node tests/perf/zero-alloc.js` (`mathx` compiles into WASM).
   - Done when: the functions are gone and all three commands pass.

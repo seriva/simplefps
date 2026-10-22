@@ -62,11 +62,6 @@ func (out *Vec3) Sub(a, b *Vec3) *Vec3 {
 	return out
 }
 
-// Subtract is an alias for Sub.
-func (out *Vec3) Subtract(a, b *Vec3) *Vec3 {
-	return out.Sub(a, b)
-}
-
 // Multiply multiplies components of a and b.
 func (out *Vec3) Multiply(a, b *Vec3) *Vec3 {
 	out.X = a.X * b.X
@@ -271,22 +266,6 @@ func (out *Vec3) TransformQuatConjugate(a *Vec3, q *Quat) *Vec3 {
 	return out
 }
 
-// RotateX rotates vector a around origin along X-axis.
-func (out *Vec3) RotateX(a, origin *Vec3, rad float32) *Vec3 {
-	px := a.X - origin.X
-	py := a.Y - origin.Y
-	pz := a.Z - origin.Z
-	c := float32(math.Cos(float64(rad)))
-	s := float32(math.Sin(float64(rad)))
-	rx := px
-	ry := py*c - pz*s
-	rz := py*s + pz*c
-	out.X = rx + origin.X
-	out.Y = ry + origin.Y
-	out.Z = rz + origin.Z
-	return out
-}
-
 // RotateY rotates vector a around origin along Y-axis.
 func (out *Vec3) RotateY(a, origin *Vec3, rad float32) *Vec3 {
 	px := a.X - origin.X
@@ -297,22 +276,6 @@ func (out *Vec3) RotateY(a, origin *Vec3, rad float32) *Vec3 {
 	rx := pz*s + px*c
 	ry := py
 	rz := pz*c - px*s
-	out.X = rx + origin.X
-	out.Y = ry + origin.Y
-	out.Z = rz + origin.Z
-	return out
-}
-
-// RotateZ rotates vector a around origin along Z-axis.
-func (out *Vec3) RotateZ(a, origin *Vec3, rad float32) *Vec3 {
-	px := a.X - origin.X
-	py := a.Y - origin.Y
-	pz := a.Z - origin.Z
-	c := float32(math.Cos(float64(rad)))
-	s := float32(math.Sin(float64(rad)))
-	rx := px*c - py*s
-	ry := px*s + py*c
-	rz := pz
 	out.X = rx + origin.X
 	out.Y = ry + origin.Y
 	out.Z = rz + origin.Z

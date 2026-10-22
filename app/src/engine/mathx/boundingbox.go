@@ -93,48 +93,6 @@ func (b *BoundingBox) Clone() *BoundingBox {
 	return clone
 }
 
-// SetFromPoints sets this BoundingBox to enclose an array of points.
-func (b *BoundingBox) SetFromPoints(points []Vec3) *BoundingBox {
-	if len(points) == 0 {
-		b.Min.Set(0, 0, 0)
-		b.Max.Set(0, 0, 0)
-		return b
-	}
-
-	minX := points[0].X
-	minY := points[0].Y
-	minZ := points[0].Z
-	maxX := minX
-	maxY := minY
-	maxZ := minZ
-
-	for i := 1; i < len(points); i++ {
-		p := &points[i]
-		if p.X < minX {
-			minX = p.X
-		}
-		if p.X > maxX {
-			maxX = p.X
-		}
-		if p.Y < minY {
-			minY = p.Y
-		}
-		if p.Y > maxY {
-			maxY = p.Y
-		}
-		if p.Z < minZ {
-			minZ = p.Z
-		}
-		if p.Z > maxZ {
-			maxZ = p.Z
-		}
-	}
-
-	b.Min.Set(minX, minY, minZ)
-	b.Max.Set(maxX, maxY, maxZ)
-	return b
-}
-
 // Overlaps checks if this BoundingBox intersects another.
 func (b *BoundingBox) Overlaps(aabb *BoundingBox) bool {
 	l1 := &b.Min
@@ -157,20 +115,6 @@ func (b *BoundingBox) Contains(aabb *BoundingBox) bool {
 		b.Max.Y >= aabb.Max.Y &&
 		b.Min.Z <= aabb.Min.Z &&
 		b.Max.Z >= aabb.Max.Z
-}
-
-// GetCorners computes the 8 bounding box corners in-place.
-func (b *BoundingBox) GetCorners(c0, c1, c2, c3, c4, c5, c6, c7 *Vec3) {
-	l := &b.Min
-	u := &b.Max
-	c0.Copy(l)
-	c1.Set(u.X, l.Y, l.Z)
-	c2.Set(u.X, u.Y, l.Z)
-	c3.Set(l.X, u.Y, u.Z)
-	c4.Set(u.X, l.Y, u.Z)
-	c5.Set(l.X, u.Y, l.Z)
-	c6.Set(l.X, l.Y, u.Z)
-	c7.Copy(u)
 }
 
 // corner writes corner i (bit 0 = max X, bit 1 = max Y, bit 2 = max Z) into out.
@@ -231,16 +175,6 @@ func (b *BoundingBox) frameCorners(frame *Transform, target *BoundingBox, toLoca
 	target.Min.Set(minX, minY, minZ)
 	target.Max.Set(maxX, maxY, maxZ)
 	return target
-}
-
-// ToLocalFrame transforms this bounding box into the local coordinate frame of a Transform.
-func (b *BoundingBox) ToLocalFrame(frame *Transform, target *BoundingBox) *BoundingBox {
-	return b.frameCorners(frame, target, true)
-}
-
-// ToWorldFrame transforms this bounding box from local frame to world space.
-func (b *BoundingBox) ToWorldFrame(frame *Transform, target *BoundingBox) *BoundingBox {
-	return b.frameCorners(frame, target, false)
 }
 
 // Center computes the center point of this bounding box.
