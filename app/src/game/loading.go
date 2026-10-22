@@ -6,7 +6,7 @@ import (
 
 // LoadingManager manages loading screen visibility and counter.
 type LoadingManager struct {
-	loadingEl        any
+	loadingEl        UIElement
 	loadingCount     int
 	forceUntilReload bool
 	mounted          bool

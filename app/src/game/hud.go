@@ -8,14 +8,14 @@ import (
 
 // HUD represents the cached direct DOM in-game heads-up display.
 type HUD struct {
-	hudEl      any
-	healthEl   any
-	armorEl    any
-	ammoEl     any
-	healthIcon any
-	armorIcon  any
-	ammoIcon   any
-	menuBtn    any
+	hudEl      UIElement
+	healthEl   UIElement
+	armorEl    UIElement
+	ammoEl     UIElement
+	healthIcon UIElement
+	armorIcon  UIElement
+	ammoIcon   UIElement
+	menuBtn    UIElement
 
 	lastHP    int
 	lastArmor int
@@ -50,7 +50,7 @@ func (h *HUD) Mount(isMobile bool) {
 	h.armorIcon  = refs["armorIcon"]
 	h.ammoIcon   = refs["ammoIcon"]
 
-	setupAnimEnd := func(iconEl any) {
+	setupAnimEnd := func(iconEl UIElement) {
 		if iconEl != nil && iconEl.addEventListener != nil {
 			iconEl.addEventListener("animationend", func() {
 				iconEl.classList.remove("icon-animate")
@@ -103,7 +103,7 @@ func (h *HUD) Update(hp, armor, ammo int) {
 	}
 }
 
-func (h *HUD) animateIcon(iconEl any) {
+func (h *HUD) animateIcon(iconEl UIElement) {
 	if iconEl == nil {
 		return
 	}

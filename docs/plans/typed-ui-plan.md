@@ -161,7 +161,7 @@ Probes ran on 2026-10-22 against `master` `9630720` plus the uncommitted SLOC fo
   - Files: `app/src/game/ui.go`, `ui_test.go`
   - Test: existing UI tests and the Phase 1 drift tests pass; `TestUISettingHandlers` uses `fakeTarget`. Negative check: `ui.backdropEl.classList.ad("visible")` fails `npm run check` (reverted).
   - Done when: the 10 element fields, the click/change/input handlers, `onSettingChange`, `onSettingInput` and `sliderValue` use `UIElement`/`UIEvent`, and `sliderValue` has no `.(string)`.
-- [ ] Task 2.3: Type `HUD`, `LoadingManager` and the state manager's canvas and event.
+- [x] Task 2.3: Type `HUD`, `LoadingManager` and the state manager's canvas and event.
   - Files: `app/src/game/hud.go`, `loading.go`, `state.go`
   - Test: `hud_test`, `loading_test`, `state_test` and the drift tests pass. `TestHUDMountAndUpdate`'s zero-allocation assertion is unchanged. Negative check per file (member typo fails `npm run check`, reverted).
   - Done when: no `any`-typed DOM field remains in the three files, and `state.go`'s two `.(string)` assertions are gone (`e.detail.state`/`e.detail.menu` read through `UIStateDetail`).

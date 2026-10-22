@@ -2,6 +2,8 @@ package game
 
 import (
 	"testing"
+
+	"js:./interop.d.ts"
 )
 
 func TestStateTransitionsAndListeners(t *testing.T) {
@@ -103,5 +105,40 @@ func TestMenuFromName(t *testing.T) {
 		if got, ok := menuFromName(name); ok || got != MenuMain {
 			t.Errorf("menuFromName(%q) = %v, %v; want MenuMain, false", name, got, ok)
 		}
+	}
+}
+
+// dispatchChangeState fires the window "changestate" CustomEvent with detail.
+func dispatchChangeState(detail map[string]any) {
+	window.dispatchEvent(Reflect.construct(window.CustomEvent, []any{"changestate", map[string]any{"detail": detail}}))
+}
+
+func TestChangeStateEvent(t *testing.T) {
+	if window == nil || document == nil {
+		return
+	}
+	ui, restore := useTestUI()
+	defer restore()
+	GlobalState.Init()
+	defer GlobalState.Dispose()
+
+	dispatchChangeState(map[string]any{"state": "menu", "menu": "SETTINGS_MENU"})
+	if GlobalState.Current != StateMenu || ui.currentMenu != MenuSettings {
+		t.Errorf("menu/SETTINGS_MENU: state=%v menu=%v", GlobalState.Current, ui.currentMenu)
+	}
+	dispatchChangeState(map[string]any{"state": "game"})
+	if GlobalState.Current != StateGame {
+		t.Errorf("game: state=%v", GlobalState.Current)
+	}
+	// No detail.menu -> main menu.
+	dispatchChangeState(map[string]any{"state": "MENU"})
+	if GlobalState.Current != StateMenu || ui.currentMenu != MenuMain {
+		t.Errorf("menu without name: state=%v menu=%v", GlobalState.Current, ui.currentMenu)
+	}
+	// Unknown name -> main menu (with a console warning).
+	ui.Show(MenuCredits)
+	dispatchChangeState(map[string]any{"state": "menu", "menu": "SETINGS_MENU"})
+	if ui.currentMenu != MenuMain {
+		t.Errorf("unknown menu name: menu=%v", ui.currentMenu)
 	}
 }
