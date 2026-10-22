@@ -130,7 +130,7 @@ Probes ran on 2026-10-21: GoFront 1.7.0 (worktree at tag `1.7.0`) and HEAD `f69c
   - Done when: `npm run check` runs the script on `app/src`, and the AGENTS rule is in place.
 
 ### Phase 2: SIMD skinning
-- [ ] Task 2.1: `mat4c` and `mulMat4c`
+- [x] Task 2.1: `mat4c` and `mulMat4c`
   - Files: `app/src/engine/animation/mat4c.go` (new), `app/src/engine/animation/mat4c_test.go` (new)
   - Test (failing first): for 1,000 seeded random matrix pairs, `mulMat4c` equals `mathx.Mat4Multiply` bit for bit (`math.Float32bits` per element), and `fromMat4`/`toMat4` round-trip. Run `npm test`.
   - Done when: the tests pass on `[wasm]`.
