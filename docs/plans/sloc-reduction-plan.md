@@ -143,7 +143,7 @@ Probes ran on 2026-10-22 against `master` `b70d968` (GoFront 1.7.0). The dead-co
   - Files: `app/src/engine/collision/ray.go`, `spatialhash.go`
   - Test: `npm test` (`TestRayMeshBoundarySlabNaN`, `TestRayIntersectTrimesh*`), `node tests/perf/zero-alloc.js`.
   - Done when: `intersectRayAABB` is gone, comments that referred to it are updated, and both commands pass.
-- [ ] Task 2.3: Triangle-bounds helper.
+- [x] Task 2.3: Triangle-bounds helper.
   - Files: `app/src/engine/collision/spatialhash.go`
   - Test: Task 2.1's test, `npm test`.
   - Done when: both loops in `newSpatialHash` call `triBounds`, and the digest is unchanged.

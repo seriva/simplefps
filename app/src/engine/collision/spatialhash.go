@@ -368,6 +368,18 @@ func max4(a, b, c, d float32) float32 {
 	return m
 }
 
+// triBounds returns the axis-aligned bounds of triangle i as
+// (minX, minY, minZ, maxX, maxY, maxZ).
+func triBounds(vertices []float32, indices []int32, i int) (float32, float32, float32, float32, float32, float32) {
+	i0 := indices[i*3] * 3
+	i1 := indices[i*3+1] * 3
+	i2 := indices[i*3+2] * 3
+	ax, ay, az := vertices[i0], vertices[i0+1], vertices[i0+2]
+	bx, by, bz := vertices[i1], vertices[i1+1], vertices[i1+2]
+	cx, cy, cz := vertices[i2], vertices[i2+1], vertices[i2+2]
+	return min3(ax, bx, cx), min3(ay, by, cy), min3(az, bz, cz), max3(ax, bx, cx), max3(ay, by, cy), max3(az, bz, cz)
+}
+
 // newSpatialHash constructs a spatial voxel hash partitioning the given triangles.
 func newSpatialHash(vertices []float32, indices []int32, aabb *mathx.BoundingBox, cellSize float32) *spatialHash {
 	numTriangles := len(indices) / 3
@@ -376,71 +388,8 @@ func newSpatialHash(vertices []float32, indices []int32, aabb *mathx.BoundingBox
 		if numTriangles > 0 {
 			var sumDim float32
 			for i := 0; i < numTriangles; i++ {
-				i0 := indices[i*3] * 3
-				i1 := indices[i*3+1] * 3
-				i2 := indices[i*3+2] * 3
-
-				ax, ay, az := vertices[i0], vertices[i0+1], vertices[i0+2]
-				bx, by, bz := vertices[i1], vertices[i1+1], vertices[i1+2]
-				cx, cy, cz := vertices[i2], vertices[i2+1], vertices[i2+2]
-
-				tminX := ax
-				if bx < tminX {
-					tminX = bx
-				}
-				if cx < tminX {
-					tminX = cx
-				}
-				tmaxX := ax
-				if bx > tmaxX {
-					tmaxX = bx
-				}
-				if cx > tmaxX {
-					tmaxX = cx
-				}
-
-				tminY := ay
-				if by < tminY {
-					tminY = by
-				}
-				if cy < tminY {
-					tminY = cy
-				}
-				tmaxY := ay
-				if by > tmaxY {
-					tmaxY = by
-				}
-				if cy > tmaxY {
-					tmaxY = cy
-				}
-
-				tminZ := az
-				if bz < tminZ {
-					tminZ = bz
-				}
-				if cz < tminZ {
-					tminZ = cz
-				}
-				tmaxZ := az
-				if bz > tmaxZ {
-					tmaxZ = bz
-				}
-				if cz > tmaxZ {
-					tmaxZ = cz
-				}
-
-				dx := tmaxX - tminX
-				dy := tmaxY - tminY
-				dz := tmaxZ - tminZ
-
-				maxD := dx
-				if dy > maxD {
-					maxD = dy
-				}
-				if dz > maxD {
-					maxD = dz
-				}
-				sumDim += maxD
+				tminX, tminY, tminZ, tmaxX, tmaxY, tmaxZ := triBounds(vertices, indices, i)
+				sumDim += max3(tmaxX-tminX, tmaxY-tminY, tmaxZ-tminZ)
 			}
 			cellSize = sumDim / float32(numTriangles)
 		}
@@ -484,50 +433,7 @@ func newSpatialHash(vertices []float32, indices []int32, aabb *mathx.BoundingBox
 		bx, by, bz := vertices[i1], vertices[i1+1], vertices[i1+2]
 		cx, cy, cz := vertices[i2], vertices[i2+1], vertices[i2+2]
 
-		tminX := ax
-		if bx < tminX {
-			tminX = bx
-		}
-		if cx < tminX {
-			tminX = cx
-		}
-		tmaxX := ax
-		if bx > tmaxX {
-			tmaxX = bx
-		}
-		if cx > tmaxX {
-			tmaxX = cx
-		}
-
-		tminY := ay
-		if by < tminY {
-			tminY = by
-		}
-		if cy < tminY {
-			tminY = cy
-		}
-		tmaxY := ay
-		if by > tmaxY {
-			tmaxY = by
-		}
-		if cy > tmaxY {
-			tmaxY = cy
-		}
-
-		tminZ := az
-		if bz < tminZ {
-			tminZ = bz
-		}
-		if cz < tminZ {
-			tminZ = cz
-		}
-		tmaxZ := az
-		if bz > tmaxZ {
-			tmaxZ = bz
-		}
-		if cz > tmaxZ {
-			tmaxZ = cz
-		}
+		tminX, tminY, tminZ, tmaxX, tmaxY, tmaxZ := triBounds(vertices, indices, i)
 
 		minVx := int32(math.Floor(float64(tminX * sh.invCellSize)))
 		maxVx := int32(math.Floor(float64(tmaxX * sh.invCellSize)))
