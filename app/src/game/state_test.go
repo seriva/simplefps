@@ -75,7 +75,7 @@ func TestStateEnterMenuAndGame(t *testing.T) {
 		t.Errorf("Expected StateGame, got %v", sm.Current)
 	}
 
-	sm.EnterMenu("MAIN_MENU")
+	sm.EnterMenu(MenuMain)
 	if sm.Current != StateMenu {
 		t.Errorf("Expected StateMenu, got %v", sm.Current)
 	}
@@ -85,4 +85,23 @@ func TestStateInitAndDispose(t *testing.T) {
 	sm := NewStateManager()
 	sm.Init()
 	sm.Dispose()
+}
+
+func TestMenuFromName(t *testing.T) {
+	names := map[string]MenuID{
+		"MAIN_MENU":     MenuMain,
+		"SETTINGS_MENU": MenuSettings,
+		"CREDITS_MENU":  MenuCredits,
+		"UPDATE_MENU":   MenuUpdate,
+	}
+	for name, want := range names {
+		if got, ok := menuFromName(name); !ok || got != want {
+			t.Errorf("menuFromName(%q) = %v, %v; want %v, true", name, got, ok, want)
+		}
+	}
+	for _, name := range []string{"", "SETINGS_MENU", "settings_menu"} {
+		if got, ok := menuFromName(name); ok || got != MenuMain {
+			t.Errorf("menuFromName(%q) = %v, %v; want MenuMain, false", name, got, ok)
+		}
+	}
 }

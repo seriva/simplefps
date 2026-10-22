@@ -31,6 +31,34 @@ func StateToString(s GameState) string {
 	}
 }
 
+// MenuID names a menu overlay. It is an int so that a string literal cannot
+// be passed where a menu is expected.
+type MenuID int
+
+const (
+	MenuMain MenuID = iota
+	MenuSettings
+	MenuCredits
+	MenuUpdate
+)
+
+// menuFromName maps an external menu name (the changestate event's
+// detail.menu) to a MenuID. Unknown names, including "", return MenuMain and
+// false.
+func menuFromName(name string) (MenuID, bool) {
+	switch name {
+	case "MAIN_MENU":
+		return MenuMain, true
+	case "SETTINGS_MENU":
+		return MenuSettings, true
+	case "CREDITS_MENU":
+		return MenuCredits, true
+	case "UPDATE_MENU":
+		return MenuUpdate, true
+	}
+	return MenuMain, false
+}
+
 // StateListener is a callback function invoked on state transitions.
 type StateListener func(GameState)
 
@@ -88,7 +116,7 @@ func (s *StateManager) Transition(next GameState) {
 }
 
 // EnterMenu transitions to StateMenu and requests the menu overlay to show.
-func (s *StateManager) EnterMenu(menu string) {
+func (s *StateManager) EnterMenu(menu MenuID) {
 	s.Transition(StateMenu)
 	if GlobalUI != nil {
 		GlobalUI.Show(menu)
@@ -157,9 +185,13 @@ func (s *StateManager) Init() {
 		}
 		stateStr := strings.ToUpper(e.detail.state.(string))
 		if stateStr == "MENU" {
-			menu := "MAIN_MENU"
+			name := ""
 			if e.detail.menu != nil {
-				menu = e.detail.menu.(string)
+				name = e.detail.menu.(string)
+			}
+			menu, ok := menuFromName(name)
+			if !ok && name != "" {
+				systems.GlobalConsole.Warn("[State] Unknown menu " + name + ", showing the main menu")
 			}
 			s.EnterMenu(menu)
 		} else if stateStr == "GAME" {

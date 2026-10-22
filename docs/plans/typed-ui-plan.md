@@ -60,6 +60,9 @@ Probes ran on 2026-10-22 against `master` `9630720` plus the uncommitted SLOC fo
 | Translation keys | Consistent today: 26 keys defined in `en-US`, 26 used (`Translate("…")` literals plus the `@sliderRow`/`@checkRow`/`@creditRow` label arguments), none missing or unused. Nothing enforces this. A missing key renders `*UNKNOWN KEY*` at runtime. | Static cross-check script (scratchpad); `TestProbeTypos`: `missing key: "*UNKNOWN KEY*"` |
 | Template refs | Consistent today: `menus.templ` ↔ `ui.go` 10/10, `hud.templ` ↔ `hud.go` 8/8, `loading.templ` ↔ `loading.go` 1/1. A ref typo leaves a nil field and the matching handler silently not attached. No test asserts that the refs are bound. | Static cross-check script (scratchpad) |
 | `changestate` hook | [`state.go:154-169`](../../app/src/game/state.go#L154-L169) listens for a `window` `changestate` CustomEvent with string `detail.state`/`detail.menu`. Nothing in `app/`, `tests/` or `scripts/` dispatches it. It was added in `5359004` ("changing of game state by event") as an external hook. | `grep -rn changestate app tests scripts`; `git log -S changestate` |
+| `app.js` baseline (Task 1.1) | `npm run build` on `feat/typed-ui` `35915fb` (GoFront 1.7.0): `wc -c public/app.js` → **642,547 B**. Phase 2 must not exceed it. | `npm run build && wc -c public/app.js` |
+| Drift tests (Task 1.1) | `TestUIRefsBound` (`ui_test.go`), `TestHUDRefsBound` (`hud_test.go`, desktop and mobile) and `TestLoadingRefsBound` (`loading_test.go`) cover the ref check; `TestRenderedScreensHaveNoUnknownKeys` and `TestEveryMenuActionHandled` are in `ui_test.go`. All pass on unchanged code. Negative checks, each reverted: `ref="armorEl"` → `"armorElX"` in `hud.templ` fails `TestHUDRefsBound` (`ref "armorEl" not bound`); `Translate("VERSION_CHECK")` → `"VERSION_CHEK"` in `menus.templ` fails `TestRenderedScreensHaveNoUnknownKeys` (`main menu renders *UNKNOWN KEY*`); `data-action="credits"` → `"credit"` fails `TestEveryMenuActionHandled` (`unhandled data-action "credit"`, `"credits" is not rendered by any menu`). | `gofront test --dom -v -run 'RefsBound\|UnknownKeys\|MenuAction' app/src/game` |
+| Phase 1 results (Tasks 1.2–1.5) | Task 1.3 negative check: `GlobalState.EnterMenu("MAIN_MENU")` put back in `hud.go` fails `npm run check` (`Type error in hud.go at line 68:27: Cannot assign untyped string to MenuID`), reverted. The *Done means* menu `grep` now matches only `translations.go`, the two `Translate("MAIN_MENU")` header lines in `ui.go` and `menuFromName` in `state.go`. Deviation: Task 1.2 kept `EnterMenu(name string)` as a shim over `menuFromName` so that commit still compiled; Task 1.3 switched it to `MenuID` with its 8 callers and `state_test.go`. The ref drift test is split into `TestUIRefsBound`/`TestHUDRefsBound`/`TestLoadingRefsBound` (one per file, unique names in one package). The click handler's `switch action` compares the `any` from `getAttribute` with `uiAction` constants (a plain `===` in JS); Phase 2 types `getAttribute` as `string`. After Phase 1, `app.js` is **642,891 B** (+344 B over the baseline, from `menuFromName` and its warning); Phase 2 must bring it to ≤ 642,547 B. `npm run test:all`: `check`, `test`, `test:dom` and `test:e2e` (2/2) pass; `test:perf` fails only in the `simd-kernels.js` `jsfb` fallback gate (0.43 MB vs > 1.00 MB per 1M ops), which fails identically on `feat/typed-ui` with no Phase 1 changes, on Node 22.23.4 (the repo requires ≥ 24), so it is environmental, not caused by this phase. | `npm run check`; `npm run build && wc -c public/app.js`; `node tests/perf/simd-kernels.js` on a `feat/typed-ui` worktree |
 
 ---
 
@@ -127,23 +130,23 @@ Probes ran on 2026-10-22 against `master` `9630720` plus the uncommitted SLOC fo
 
 ### Phase 1: Typed Identifiers & Drift Tests
 
-- [ ] Task 1.1: Drift tests and baseline.
+- [x] Task 1.1: Drift tests and baseline.
   - Files: `app/src/game/ui_test.go`, `hud_test.go`, `loading_test.go`
   - Test: write `TestUIRefsBound`, `TestRenderedScreensHaveNoUnknownKeys`, `TestEveryMenuActionHandled` (see *Approach*) against unchanged code; they must pass. Negative checks, one at a time and reverted: rename one `ref=` in `hud.templ`, change one `Translate` key in `menus.templ`, change one `data-action` value; each must fail its test. Record `wc -c public/app.js` after `npm run build`.
   - Done when: the three tests pass on unchanged code, each negative check failed, and the baseline size is recorded under *Verified Gaps*.
-- [ ] Task 1.2: `MenuID` enum in the UI and state manager.
+- [x] Task 1.2: `MenuID` enum in the UI and state manager.
   - Files: `app/src/game/state.go`, `ui.go`, `ui_test.go`
   - Test (first): `TestMenuFromName` (the four names map; `""` and `"SETINGS_MENU"` do not), and `TestShowMenuID` (`Show(MenuSettings)` renders `#setting-gamma`; `Show(MenuID(99))` renders the main menu). Update `TestUIModalAndMenus` and `state_test.go`'s `EnterMenu` call to `MenuID`s.
   - Done when: `EnterMenu`, `Show` and `currentMenu` use `MenuID`; `changestate` goes through `menuFromName` and warns on an unknown non-empty name; the tests pass.
-- [ ] Task 1.3: Convert the remaining menu call sites.
+- [x] Task 1.3: Convert the remaining menu call sites.
   - Files: `app/src/game/controls.go`, `hud.go`, `update.go`, `app/src/main.go` (one-line changes at 8 sites)
   - Test: `npm run check` (string literals no longer compile); the existing `hud_test`, `gameplay_test` and e2e smoke test pass. Negative check: put `GlobalState.EnterMenu("MAIN_MENU")` back once and confirm `npm run check` fails, then revert.
   - Done when: the *Done means* `grep` matches only the translation keys and `menuFromName`.
-- [ ] Task 1.4: Action and setting-id constants.
+- [x] Task 1.4: Action and setting-id constants.
   - Files: `app/src/game/ui.go`, `menus.templ`, `ui_test.go`
   - Test (first): `TestUISettingHandlers` and `TestEveryMenuActionHandled` use the constants instead of literals; they keep passing through the change.
   - Done when: no `data-action="…"` or `"setting-…"` string literal remains in `menus.templ` or `ui.go` outside the constant block; the tests pass.
-- [ ] Task 1.5: Phase 1 docs.
+- [x] Task 1.5: Phase 1 docs.
   - Files: `CHANGELOG.md`, this plan
   - Test: `npm run test:all`.
   - Done when: the CHANGELOG has a `### Changed` entry under `## [Unreleased]`, and Tasks 1.1–1.4 are checked off with any findings recorded.

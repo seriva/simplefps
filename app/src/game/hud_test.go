@@ -87,3 +87,31 @@ func TestHUDMountMobile(t *testing.T) {
 	}
 }
 
+
+func TestHUDRefsBound(t *testing.T) {
+	if document == nil {
+		return
+	}
+	for _, mobile := range []bool{false, true} {
+		resetDOM()
+		hud := NewHUD()
+		hud.Mount(mobile)
+		refs := map[string]any{
+			"hud":        hud.hudEl,
+			"healthEl":   hud.healthEl,
+			"armorEl":    hud.armorEl,
+			"ammoEl":     hud.ammoEl,
+			"healthIcon": hud.healthIcon,
+			"armorIcon":  hud.armorIcon,
+			"ammoIcon":   hud.ammoIcon,
+		}
+		if mobile {
+			refs["menuBtn"] = hud.menuBtn
+		}
+		for name, el := range refs {
+			if el == nil {
+				t.Errorf("HUD (mobile=%v) ref %q not bound after Mount", mobile, name)
+			}
+		}
+	}
+}

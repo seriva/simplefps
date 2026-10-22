@@ -65,7 +65,7 @@ func (h *HUD) Mount(isMobile bool) {
 		h.menuBtn = refs["menuBtn"]
 		if h.menuBtn != nil {
 			h.menuBtn.addEventListener("touchend", func() {
-				GlobalState.EnterMenu("MAIN_MENU")
+				GlobalState.EnterMenu(MenuMain)
 			}, false)
 		}
 	}

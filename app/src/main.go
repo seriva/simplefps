@@ -83,7 +83,7 @@ async func boot() any {
 	}
 	await sleep(100)
 	game.GlobalLoading.Toggle(false)
-	game.GlobalState.EnterMenu("MAIN_MENU")
+	game.GlobalState.EnterMenu(game.MenuMain)
 	return nil
 }
 
