@@ -64,8 +64,9 @@ type spatialHash struct {
 	totalRefs  int
 }
 
-// rayAABBInterval computes the entry and exit ray parameters (tStart, tEnd)
-// along the ray segment [0, maxDist] through the AABB using the Slab method.
+// rayAABBInterval tests intersection between a ray and an AABB using the Slab
+// method and computes the entry and exit ray parameters (tStart, tEnd) along the
+// ray segment [0, maxDist]. The bool result is false when the segment misses the box.
 // Correctly guards against zero direction components to prevent 0.0 * Inf = NaN.
 func rayAABBInterval(aabb *mathx.BoundingBox, origin, direction, invDir *mathx.Vec3, maxDist float32) (float32, float32, bool) {
 	min := &aabb.Min

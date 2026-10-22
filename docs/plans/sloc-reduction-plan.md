@@ -139,7 +139,7 @@ Probes ran on 2026-10-22 against `master` `b70d968` (GoFront 1.7.0). The dead-co
   - Files: `app/src/engine/collision/spatialhash_test.go`
   - Test (written first, against unchanged code): build `newSpatialHash` for a fixed set of meshes (`gridFloor`, a wall facing X, a wall facing Z, a 45° ramp, a triangle large enough to hit `maxVoxelsPerTri`, a degenerate triangle, and the demo arena if test fixtures can load it). For each, fold the grid into a deterministic digest (keys sorted, each list in stored order) plus `voxelCount`, `totalRefs`, `hasFlat` and the bounds, and assert them against constants recorded from `master`.
   - Done when: the test passes on unchanged code and fails if any single triangle id is moved between voxels (checked once by hand, then reverted).
-- [ ] Task 2.2: Merge `intersectRayAABB` into `rayAABBInterval`.
+- [x] Task 2.2: Merge `intersectRayAABB` into `rayAABBInterval`.
   - Files: `app/src/engine/collision/ray.go`, `spatialhash.go`
   - Test: `npm test` (`TestRayMeshBoundarySlabNaN`, `TestRayIntersectTrimesh*`), `node tests/perf/zero-alloc.js`.
   - Done when: `intersectRayAABB` is gone, comments that referred to it are updated, and both commands pass.
