@@ -12,6 +12,7 @@ Design documents for planned features live in `docs/plans/`
 
 | Feature | Difficulty | Status | Notes |
 |---|---|---|---|
+| [SLOC Reduction](plans/sloc-reduction-plan.md) | Low | Draft | Before the v1.8.0 adoption: delete code with no callers (≈ 550 lines, mostly unused `mathx`), merge the duplicated ray/AABB slab test, and collapse the three `newSpatialHash` axis sweeps into one helper behind a grid-identity test; A/B gate 0.90–1.10. Flat grid and `min3`/`max3` kept for the follow-up plans |
 | [GoFront v1.8.0 Adoption](plans/gofront-v1.8.0-adoption-plan.md) | Medium | Draft | After SIMD Skinning (needs its A/B harness) and the v1.8.0 tag: bump to v1.8.0 behind JS/WASM perf gates (strict-mode checks in `mathx` measured at 4.3× on `Mat4Multiply` without upstream elision); builtin `min`/`max` in `collision`; drop stale field-pointer workaround |
 | [SIMD Collision](plans/simd-collision-plan.md) | High | Draft | After the v1.8.0 adoption: per-voxel SoA triangle packets with front-to-back early-out (2.28× kernel, triangle tests ≈ 45% of a cast); gate ≥ 1.15× raycast |
 | [G-Buffer Depth Reconstruction](plans/gbuffer-depth-reconstruction-plan.md) | Medium | Planned | Reconstruct world/view position from depth buffer; eliminates 16-byte worldPosition render target to cut mobile memory bandwidth |
