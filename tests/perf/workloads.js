@@ -121,6 +121,8 @@ export function skinningWorkloads(m) {
 	const player = m.NewAnimationPlayer(skeleton);
 	player.Play(m.NewAnimation("walk", 24, poses, null), true);
 	const fixed = poses[3];
+	// `m` is ab.js's export object, whose members are live getters: read
+	// SkinMatrices once per frame, not once per float.
 	const bones = new Float32Array(JOINTS * 16);
 	const world = (n) => {
 		for (let i = 0; i < n; i++) skeleton.GetWorldMatrices(fixed);
@@ -128,14 +130,16 @@ export function skinningWorkloads(m) {
 	const palette = (n) => {
 		for (let i = 0; i < n; i++) {
 			const floats = skeleton.ComputeSkinningMatrices(fixed) * 16;
-			for (let k = 0; k < floats; k++) bones[k] = m.SkinMatrices[k];
+			const skin = m.SkinMatrices;
+			for (let k = 0; k < floats; k++) bones[k] = skin[k];
 		}
 	};
 	const total = (n) => {
 		for (let i = 0; i < n; i++) {
 			const pose = player.Update(1 / 60);
 			const floats = skeleton.ComputeSkinningMatrices(pose) * 16;
-			for (let k = 0; k < floats; k++) bones[k] = m.SkinMatrices[k];
+			const skin = m.SkinMatrices;
+			for (let k = 0; k < floats; k++) bones[k] = skin[k];
 		}
 	};
 	return { world, palette, total };

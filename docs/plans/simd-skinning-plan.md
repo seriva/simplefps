@@ -116,7 +116,7 @@ Probes ran on 2026-10-21: GoFront 1.7.0 (worktree at tag `1.7.0`) and HEAD `f69c
   - Files: `tests/perf/ab.js` (new), `package.json` (`test:perf` runs `ab.js --self-test`)
   - Test: `GOFRONT_BASELINE_DIR=$(npm root)/gofront BASELINE_SRC=. node tests/perf/ab.js --self-test --repeat 5` (A/A) gives every entry a median ratio within 0.90–1.10. An injected 1.5× slowdown on side B (`--inject-slowdown 1.5`, test-only flag) fails the gate. With no env set, it exits 0 with the skip message.
   - Done when: all three behaviours hold, and `npm run test:perf` is green on a bare checkout.
-- [ ] Task 1.2: A/B mode for `js-vs-wasm.js`, with a skinning split
+- [x] Task 1.2: A/B mode for `js-vs-wasm.js`, with a skinning split
   - Files: `tests/perf/js-vs-wasm.js`, `tests/perf/ab.js`
   - Test: `node tests/perf/js-vs-wasm.js --ab --repeat 5` in A/A mode gives every hybrid entry (controller, skinning-world, skinning-palette, skinning-total, mesh-parse, anim-parse, SH-Map, SH-Flat) within 0.90–1.10.
   - Done when: the A/B table prints per-entry ratios, the skinning row is split into world (`GetWorldMatrices`), palette and total, and plain mode (no `--ab`) is unchanged.
