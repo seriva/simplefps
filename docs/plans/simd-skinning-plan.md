@@ -112,7 +112,7 @@ Probes ran on 2026-10-21: GoFront 1.7.0 (worktree at tag `1.7.0`) and HEAD `f69c
 > - Refactor tasks marked *characterization* write a test that is green before and after the change. That is the TDD step for behaviour-preserving work.
 
 ### Phase 1: Perf harness & SIMD rule
-- [ ] Task 1.1: A/B runner with self-test
+- [x] Task 1.1: A/B runner with self-test
   - Files: `tests/perf/ab.js` (new), `package.json` (`test:perf` runs `ab.js --self-test`)
   - Test: `GOFRONT_BASELINE_DIR=$(npm root)/gofront BASELINE_SRC=. node tests/perf/ab.js --self-test --repeat 5` (A/A) gives every entry a median ratio within 0.90–1.10. An injected 1.5× slowdown on side B (`--inject-slowdown 1.5`, test-only flag) fails the gate. With no env set, it exits 0 with the skip message.
   - Done when: all three behaviours hold, and `npm run test:perf` is green on a bare checkout.

@@ -6,6 +6,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+### Added
+- **In-process A/B perf harness (`tests/perf/ab.js`).** Compiles a package with a baseline compiler (`GOFRONT_BASELINE_DIR`) and/or baseline source tree (`BASELINE_SRC`, e.g. a worktree of the base branch) as side A and the current compiler and tree as side B, loads both into one process and times them interleaved over 9 rounds, reporting `median(A)/median(B)` per entry. `--repeat 5` re-spawns the run and gates on the median of five process ratios (default band 0.90–1.10), because separate process runs of one build drift by up to ±7%. `--self-test` covers the raycast, controller and skinning paths; `--inject-slowdown 1.5` (test only) proves the gate trips. Each side drives its build through its own instance of the new `tests/perf/workloads.js`, and data is built after a full GC: a shared driver or heap-layout drift biased the second-loaded raycast side by 13–18% in A/A runs. `npm run test:perf` runs the self-test, which skips with exit 0 when neither knob is set. A/A on GoFront 1.7.0, median of 5: raycast 0.995–1.015×, controller 1.000–1.012×, skinning 1.010–1.016×.
+
 ### Fixed
 - **WebGPU buffer upload type safety (`rendering.Backend`, `assets.BuildMesh`):** `BuildMesh` and `BuildSkinnedMesh` now convert decoded mesh slices (`Vertices`, `UVs`, `Normals`, `LightmapUVs`, index `Array`, `JointIndices`, `JointWeights`) from WASM-boundary proxy slices into native JavaScript `Float32Array`, `Uint32Array`, and `Uint8Array` before creating mesh buffers. `Backend.CreateBuffer`, `WriteBuffer`, and `WriteBufferSlice` now guard data uploads with `toBufferSource` to prevent WebGPU IDL overload resolution failures on `GPUQueue.writeBuffer`.
 

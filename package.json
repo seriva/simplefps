@@ -21,7 +21,7 @@
     "check": "biome check . && gofront check app/src/...",
     "test": "gofront test app/src/...",
     "test:dom": "gofront test --dom app/src/...",
-    "test:perf": "node tests/perf/zero-alloc.js",
+    "test:perf": "node tests/perf/zero-alloc.js && node tests/perf/ab.js --self-test",
     "bench": "node tests/perf/js-vs-wasm.js",
     "test:e2e": "playwright test",
     "test:all": "npm run check && npm test && npm run test:dom && npm run test:perf && npm run test:e2e",

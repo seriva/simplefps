@@ -304,8 +304,12 @@ The frame path — physics step, raycasts, `Scene.Update`, `Renderer.Render`, HU
 | `npm run check` | Biome (JS files) + `gofront check app/src/...` |
 | `npm test` | `gofront test app/src/...` headless, every package (dual-target `mathx [js]` and `mathx [wasm]`, `collision [wasm]`, `physics [wasm]`, `animation [wasm]`, `assets/decoder [wasm]`); `rendering/fakegpu` stands in for the GPU device so rendering, scene, engine and assets tests render real frames and assert on the recorded commands |
 | `npm run test:dom` | the same under jsdom (`window`/`document` present) |
-| `npm run test:perf` | `tests/perf/zero-alloc.js`: 100k raycasts under 64 KB of new-space growth; 20k controller frames driven from JS exactly like `game.Update`, under 128 B/frame |
+| `npm run test:perf` | `tests/perf/zero-alloc.js`: 100k raycasts under 64 KB of new-space growth; 20k controller frames driven from JS exactly like `game.Update`, under 128 B/frame. Then `tests/perf/ab.js --self-test` (A/B harness, see below; skips without `GOFRONT_BASELINE_DIR`/`BASELINE_SRC`) |
 | `npm run test:e2e` | `tests/e2e/smoke.spec.js` (Playwright, WebGPU; a Proxy mock device in headless runs): boot → menu → rendered frame |
 | `npm run test:all` | all of the above |
 
 New `.go` code gets a `_test.go` beside it; hot paths get a heap-growth test.
+
+### Perf harness
+
+Absolute timings vary by up to ±7% between process runs of one build, so performance gates compare two builds **in one process** instead of against checked-in numbers. `tests/perf/ab.js` compiles a package twice — side A with `GOFRONT_BASELINE_DIR` (compiler) and/or `BASELINE_SRC` (a worktree of the base branch; its `app/src` is compiled), side B with the current compiler (`GOFRONT_DIR` or the installed one) and tree — then times the sides interleaved over 9 rounds and reports `median(A)/median(B)` per entry (> 1 means B is faster). `--repeat 5` re-spawns the run five times and gates on the median of the five ratios; the default gate is 0.90–1.10 (`--min`/`--max`). Each side drives its build through its own instance of `tests/perf/workloads.js` (separate V8 type feedback) and both sides' data is built after a full GC, because heap layout alone can bias a raycast side by 10–15%. `node tests/perf/ab.js --self-test` is the A/A check on the raycast, controller and skinning paths; `--inject-slowdown X` (test only) stretches side B to prove the gate trips.

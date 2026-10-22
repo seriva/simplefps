@@ -37,7 +37,7 @@ SimpleFPS is an arena-based first-person shooter with WebGPU rendering, distribu
 - **Math**: in-engine `mathx.Vec3` / `Mat4` / `Quat` (`app/src/engine/mathx/`, compiled for both JS and WASM), no third-party math library
 - **Networking**: PeerJS (WebRTC P2P), bundled via `gofront prep`
 - **Build**: GoFront (`npm run dev` / `npm run build`)
-- **Test**: `npm test` (`gofront test app/src/...`, every package), `npm run test:dom` (same with a jsdom `window`/`document`), `npm run test:perf` (zero-allocation raycast benchmark), `npm run test:e2e` (Playwright smoke test), `npm run test:all`
+- **Test**: `npm test` (`gofront test app/src/...`, every package), `npm run test:dom` (same with a jsdom `window`/`document`), `npm run test:perf` (zero-allocation raycast benchmark + `tests/perf/ab.js` A/B self-test, which skips unless `GOFRONT_BASELINE_DIR`/`BASELINE_SRC` is set), `npm run test:e2e` (Playwright smoke test), `npm run test:all`
 - **Lint / Format / Type-check**: `npm run check` = Biome lint (JS files only) + `gofront check app/src/...`; `npm run format` = Biome format
 - **Node**: >= 24.0.0, npm >= 11.0.0; uses GoFront >= 1.6.0.
 
