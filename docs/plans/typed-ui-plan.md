@@ -137,7 +137,7 @@ Probes ran on 2026-10-22 against `master` `9630720` plus the uncommitted SLOC fo
   - Files: `app/src/game/state.go`, `ui.go`, `ui_test.go`
   - Test (first): `TestMenuFromName` (the four names map; `""` and `"SETINGS_MENU"` do not), and `TestShowMenuID` (`Show(MenuSettings)` renders `#setting-gamma`; `Show(MenuID(99))` renders the main menu). Update `TestUIModalAndMenus` and `state_test.go`'s `EnterMenu` call to `MenuID`s.
   - Done when: `EnterMenu`, `Show` and `currentMenu` use `MenuID`; `changestate` goes through `menuFromName` and warns on an unknown non-empty name; the tests pass.
-- [ ] Task 1.3: Convert the remaining menu call sites.
+- [x] Task 1.3: Convert the remaining menu call sites.
   - Files: `app/src/game/controls.go`, `hud.go`, `update.go`, `app/src/main.go` (one-line changes at 8 sites)
   - Test: `npm run check` (string literals no longer compile); the existing `hud_test`, `gameplay_test` and e2e smoke test pass. Negative check: put `GlobalState.EnterMenu("MAIN_MENU")` back once and confirm `npm run check` fails, then revert.
   - Done when: the *Done means* `grep` matches only the translation keys and `menuFromName`.

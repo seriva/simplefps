@@ -39,7 +39,7 @@ func (c *Controls) HandleEscape() {
 		return
 	}
 	if GlobalState.Current == StateGame {
-		GlobalState.EnterMenu("MAIN_MENU")
+		GlobalState.EnterMenu(MenuMain)
 	} else if GlobalState.Current == StateMenu {
 		GlobalState.EnterGame()
 	}
@@ -72,7 +72,7 @@ func (c *Controls) Init() {
 	}
 	c.onPointerLockChange = func(e any) {
 		if document.pointerLockElement == nil && GlobalState.Current != StateMenu {
-			GlobalState.EnterMenu("MAIN_MENU")
+			GlobalState.EnterMenu(MenuMain)
 		}
 	}
 	c.onPointerLockError = func(e any) {
@@ -80,7 +80,7 @@ func (c *Controls) Init() {
 	}
 	c.onWindowFocus = func(e any) {
 		if GlobalState.Current != StateMenu {
-			GlobalState.EnterMenu("MAIN_MENU")
+			GlobalState.EnterMenu(MenuMain)
 		}
 	}
 	c.onClick = func(e any) {

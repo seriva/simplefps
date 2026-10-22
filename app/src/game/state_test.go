@@ -75,7 +75,7 @@ func TestStateEnterMenuAndGame(t *testing.T) {
 		t.Errorf("Expected StateGame, got %v", sm.Current)
 	}
 
-	sm.EnterMenu("MAIN_MENU")
+	sm.EnterMenu(MenuMain)
 	if sm.Current != StateMenu {
 		t.Errorf("Expected StateMenu, got %v", sm.Current)
 	}

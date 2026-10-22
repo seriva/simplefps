@@ -116,12 +116,9 @@ func (s *StateManager) Transition(next GameState) {
 }
 
 // EnterMenu transitions to StateMenu and requests the menu overlay to show.
-// It still takes the menu's name until Task 1.3 converts its callers; unknown
-// names show the main menu.
-func (s *StateManager) EnterMenu(name string) {
+func (s *StateManager) EnterMenu(menu MenuID) {
 	s.Transition(StateMenu)
 	if GlobalUI != nil {
-		menu, _ := menuFromName(name)
 		GlobalUI.Show(menu)
 	}
 }
@@ -192,10 +189,11 @@ func (s *StateManager) Init() {
 			if e.detail.menu != nil {
 				name = e.detail.menu.(string)
 			}
-			if _, ok := menuFromName(name); !ok && name != "" {
+			menu, ok := menuFromName(name)
+			if !ok && name != "" {
 				systems.GlobalConsole.Warn("[State] Unknown menu " + name + ", showing the main menu")
 			}
-			s.EnterMenu(name)
+			s.EnterMenu(menu)
 		} else if stateStr == "GAME" {
 			s.EnterGame()
 		}
