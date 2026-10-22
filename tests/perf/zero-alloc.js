@@ -5,6 +5,10 @@
 //   1. the raycast query used by movement and weapons, 100,000 times;
 //   2. the fixed-step FPS controller loop exactly as `game.Update` drives it
 //      across the JS→WASM boundary (pose in, Update + MoveWithCamera, pose out).
+// Then compiles `engine/animation` and checks a third:
+//   3. one skinned-character frame as scene.SkinnedMeshEntity drives it
+//      (AnimationPlayer.Update + the SIMD ComputeSkinningMatrices + copying
+//      the palette out of the shared buffer), 64 joints, 20,000 frames.
 
 import assert from "node:assert";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
@@ -13,6 +17,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import v8 from "node:v8";
+import { skinningWorkloads } from "./workloads.js";
 
 // `physics` is a wasm package with interface fields on its boundary, which
 // needs gofront >= 1.6.0. `GOFRONT_DIR` points at a local checkout (the same
@@ -39,32 +44,42 @@ const { compileDir } = await import(
 		: "gofront/src/compiler.js"
 );
 
-const { js, wasm } = compileDir(resolve("app/src/engine/physics"));
-
-// The facade awaits WASM instantiation at top level, so it must be imported as
-// an ES module; `__GOFRONT_WASM_BYTES` short-circuits the loader's fetch.
-const dir = mkdtempSync(join(tmpdir(), "simplefps-perf-"));
-const bundle = join(dir, "physics.mjs");
-writeFileSync(
-	bundle,
-	`globalThis.window = null; globalThis.document = null;
+// loadPackage compiles one package hybrid and imports `names` from it. The
+// facade awaits WASM instantiation at top level, so it must be imported as an
+// ES module; `__GOFRONT_WASM_BYTES` short-circuits the loader's fetch.
+async function loadPackage(pkg, names) {
+	const { js, wasm } = compileDir(resolve(`app/src/engine/${pkg}`));
+	const dir = mkdtempSync(join(tmpdir(), "simplefps-perf-"));
+	const bundle = join(dir, `${pkg}.mjs`);
+	writeFileSync(
+		bundle,
+		`globalThis.window = null; globalThis.document = null;
 globalThis.__GOFRONT_WASM_BYTES = new Uint8Array(${JSON.stringify([...wasm])});
 ${js}
-export { NewTrimesh, NewRay, Vec3, RayModeClosest, NewStaticWorld, NewFPSController };`,
-);
-let NewTrimesh, NewRay, Vec3, RayModeClosest, NewStaticWorld, NewFPSController;
-try {
-	({
-		NewTrimesh,
-		NewRay,
-		Vec3,
-		RayModeClosest,
-		NewStaticWorld,
-		NewFPSController,
-	} = await import(pathToFileURL(bundle)));
-} finally {
-	rmSync(dir, { recursive: true, force: true });
+export { ${names.join(", ")} };`,
+	);
+	try {
+		return await import(pathToFileURL(bundle));
+	} finally {
+		rmSync(dir, { recursive: true, force: true });
+	}
 }
+
+const {
+	NewTrimesh,
+	NewRay,
+	Vec3,
+	RayModeClosest,
+	NewStaticWorld,
+	NewFPSController,
+} = await loadPackage("physics", [
+	"NewTrimesh",
+	"NewRay",
+	"Vec3",
+	"RayModeClosest",
+	"NewStaticWorld",
+	"NewFPSController",
+]);
 
 // Build a 32x32 grid floor (2048 triangles) so the octree has real depth.
 const GRID = 32;
@@ -224,3 +239,35 @@ assert(
 	`Controller loop allocates ${perFrame.toFixed(1)} B/frame (budget ${FRAME_BUDGET})`,
 );
 console.log("✓ Controller loop allocation benchmark passed");
+
+// Skinning: a 64-joint chain on a looping 10-frame clip, driven through the
+// shared `total` workload (player update + palette + copy-out). The module
+// namespace's `SkinMatrices` binding is live, like ab.js's export object.
+const anim = await loadPackage("animation", [
+	"JointDef",
+	"NewSkeleton",
+	"NewPose",
+	"NewAnimationPlayer",
+	"NewAnimation",
+	"SkinMatrices",
+]);
+const skinFrames = skinningWorkloads(anim).total;
+assert(skinFrames, "animation build must export the skinning frame workload");
+skinFrames(5_000); // warm up
+const skinDeltas = [];
+for (let s = 0; s < SWEEPS; s++) {
+	const before = newSpaceUsed();
+	skinFrames(FRAMES);
+	skinDeltas.push(newSpaceUsed() - before);
+}
+const skinDelta = Math.min(...skinDeltas.filter((d) => d >= 0));
+const skinPerFrame = skinDelta / FRAMES;
+console.log(
+	`Skinning benchmark: ${FRAMES} frames, 64 joints, new-space deltas=[${skinDeltas.join(", ")}] bytes (${skinPerFrame.toFixed(2)} B/frame)`,
+);
+const SKIN_BUDGET = 0.5;
+assert(
+	skinPerFrame <= SKIN_BUDGET,
+	`Skinning frame allocates ${skinPerFrame.toFixed(2)} B/frame (budget ${SKIN_BUDGET})`,
+);
+console.log("✓ Skinning frame allocation benchmark passed");
