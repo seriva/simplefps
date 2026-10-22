@@ -9,6 +9,14 @@ import (
 	"js:./interop.d.ts"
 )
 
+// fakeTarget builds a stand-in DOM element for handler tests. A
+// map[string]any literal does not assign to UIElement directly; it has to go
+// through an any first.
+func fakeTarget(fields map[string]any) UIElement {
+	var v any = fields
+	return v
+}
+
 func TestUIModalAndMenus(t *testing.T) {
 	ui := NewUIManager()
 	if ui.IsVisible() {

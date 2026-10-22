@@ -153,7 +153,7 @@ Probes ran on 2026-10-22 against `master` `9630720` plus the uncommitted SLOC fo
 
 ### Phase 2: Typed DOM in `game`
 
-- [ ] Task 2.1: Declare the DOM interfaces.
+- [x] Task 2.1: Declare the DOM interfaces.
   - Files: `app/src/game/interop.d.ts`, `ui_test.go`
   - Test: `npm run check` passes with the declarations unused. Add the `fakeTarget` test helper.
   - Done when: `UIElement`, `UIClassList`, `UIStyle`, `UIEvent` and `UIStateDetail` are declared with the members listed in *Approach*, including the `getAttribute` nullability comment.
