@@ -11,7 +11,7 @@ Simple first person arena shooter written in Go syntax, compiled to a seamless h
 - **Gameplay**: Arena-based FPS with physics-based projectiles, multiple weapons (Energy Scepter, Plasma Pistol, Pulse Cannon, Laser Gatling), and cross-platform controls
 - **Rendering**: WebGPU-native deferred engine with pre-baked pipelines, storage-buffer skinning and lights, GPU-simulated particles, compute post-fx, detail textures, emissive materials and FSR upscaling. See [Architecture — Rendering](docs/architecture.md#rendering).
 - **UI**: Menus, HUD, loading screens and debug console as GoFront `.templ` components with a small game state machine
-- **Performance**: Zero-allocation hot paths (physics step, raycasts, render frame) guarded by heap-growth tests and a benchmark; linear depth buffer; PWA support
+- **Performance**: Zero-allocation hot paths (physics step, raycasts, SIMD skinning palette, render frame) guarded by heap-growth tests and a benchmark; linear depth buffer; PWA support
 - **Architecture**: Go packages (`engine`, `mathx`, `collision`, `physics`, `rendering`, `scene`, `game`, …) with an entity system, scene management, and comprehensive input handling. Collision and physics run in WebAssembly (WasmGC), `mathx` runs on both targets, and the rest in JavaScript. See [Architecture](docs/architecture.md).
 - **Cross-Platform**: Runs on Desktop, Android, and iOS with touch controls and responsive design
 - **Settings**: In-game settings menu with graphics (including renderer selection) and input configuration
@@ -53,7 +53,7 @@ tests/
 ├── e2e/smoke.spec.js     # Playwright smoke test (boot → menu → start game renders a frame)
 ├── fixtures/check-simd/  # good/bad packages for scripts/check-simd.js
 └── perf/
-    ├── zero-alloc.js     # Zero-allocation raycast + controller-loop benchmark against the compiled physics + collision (WASM) packages
+    ├── zero-alloc.js     # Zero-allocation raycast, controller-loop and skinning-palette benchmark against the compiled WASM packages
     ├── ab.js             # In-process A/B harness (baseline compiler/source vs current), self-test gates A/A at 0.90–1.10
     ├── simd-kernels.js   # SIMD canary: palette SIMD ≥ 3.0× scalar, JS fallback still allocates
     ├── fixtures/simd/    # kern / jsfb / tri probe packages compiled by simd-kernels.js

@@ -112,6 +112,7 @@ Probes ran on 2026-10-21 against GoFront HEAD `f69c67a` and 1.7.0, release build
 - [ ] Task 2.2: Benchmark and zero-alloc rows
   - Files: `tests/perf/js-vs-wasm.js` (`SH (Flat+SIMD)` entry, A/B against `SH-Flat` in the same build), `tests/perf/zero-alloc.js` (SIMD variant)
   - Test: `npm run test:perf` (SIMD raycast ≤ 3,000 B per 100k casts); `node tests/perf/js-vs-wasm.js --ab --repeat 5`.
+  - Note: `ab.js` compares two *builds* (A/B by compiler or source) and gates each entry on 0.90–1.10 unless overridden with `--gate`. A same-build SH (Flat+SIMD) vs SH-Flat ratio is not something it does yet, so this task either adds a paired-entry ratio to the harness or measures SIMD against a pre-change `BASELINE_SRC` with `--gate 'SH-Flat>=1.15'` and the SIMD path forced on in side B. Without a `--gate`, a passing ≥ 1.15× result would fail the default 1.10 ceiling.
   - Done when: both rows report on every run, and the SIMD/flat ratio is recorded under *Verified Gaps*.
 - [ ] Task 2.3: Gate and default-on
   - Files: `app/src/engine/scene/scene.go` (`FinalizeStaticGeometry` calls `SetSIMD(true)`), `docs/architecture.md` (collision data layout)
