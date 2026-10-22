@@ -2,6 +2,7 @@ package game
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	"../engine/systems"
@@ -142,5 +143,161 @@ func TestUISettingsAndCreditsRows(t *testing.T) {
 	link := document.querySelector("#menu-controls a[href='https://lvlworld.com/review/id:2562']")
 	if link == nil || link.textContent != "Focal Point by Lunaran" {
 		t.Errorf("credit link not rendered")
+	}
+}
+
+// resetDOM empties document.body so a test's mount is the only one in the
+// document: gom.Mount("#menu-controls", …) targets the first match.
+func resetDOM() {
+	document.body.innerHTML = ""
+}
+
+// useTestUI mounts a fresh UIManager into an empty body and installs it and a
+// fresh StateManager as the globals the menu actions reach. The returned
+// func restores the previous globals.
+func useTestUI() (*UIManager, func()) {
+	savedUI, savedState := GlobalUI, GlobalState
+	resetDOM()
+	ui := NewUIManager()
+	ui.Mount()
+	GlobalUI = ui
+	GlobalState = NewStateManager()
+	return ui, func() {
+		GlobalUI, GlobalState = savedUI, savedState
+	}
+}
+
+func TestUIRefsBound(t *testing.T) {
+	if document == nil {
+		return
+	}
+	ui, restore := useTestUI()
+	defer restore()
+	refs := map[string]any{
+		"ui":            ui.uiEl,
+		"backdrop":      ui.backdropEl,
+		"menuBase":      ui.menuBaseEl,
+		"header":        ui.headerEl,
+		"controls":      ui.controlsEl,
+		"dialogOverlay": ui.dialogOverlayEl,
+		"dialogHeader":  ui.dialogHeaderEl,
+		"dialogBody":    ui.dialogBodyEl,
+		"dialogBtnYes":  ui.dialogBtnYes,
+		"dialogBtnNo":   ui.dialogBtnNo,
+	}
+	for name, el := range refs {
+		if el == nil {
+			t.Errorf("UIManager ref %q not bound after Mount", name)
+		}
+	}
+}
+
+// assertNoUnknownKey fails when the rendered body shows a missing translation.
+func assertNoUnknownKey(t *testing.T, screen string) {
+	if strings.Contains(document.body.textContent, "*UNKNOWN KEY*") {
+		t.Errorf("%s renders *UNKNOWN KEY*", screen)
+	}
+}
+
+func TestRenderedScreensHaveNoUnknownKeys(t *testing.T) {
+	// Keys used only from Go (main.go's WebGPU dialog).
+	for _, key := range []string{"RENDERER", "WEBGPU_REQUIRED"} {
+		if Translate(key) == "*UNKNOWN KEY*" {
+			t.Errorf("translation key %q missing", key)
+		}
+	}
+	if document == nil {
+		return
+	}
+	ui, restore := useTestUI()
+	defer restore()
+
+	ui.Show("MAIN_MENU")
+	assertNoUnknownKey(t, "main menu")
+	ui.hasStarted = true
+	ui.Show("MAIN_MENU")
+	assertNoUnknownKey(t, "main menu (started)")
+	ui.activeTab = 0
+	ui.Show("SETTINGS_MENU")
+	assertNoUnknownKey(t, "settings graphics tab")
+	ui.activeTab = 1
+	ui.Show("SETTINGS_MENU")
+	assertNoUnknownKey(t, "settings input tab")
+	ui.Show("CREDITS_MENU")
+	assertNoUnknownKey(t, "credits menu")
+	ui.Show("UPDATE_MENU")
+	assertNoUnknownKey(t, "update menu")
+	ui.ShowDialog(Translate("RENDERER"), Translate("WEBGPU_REQUIRED"), nil, nil)
+	assertNoUnknownKey(t, "dialog")
+
+	hud := NewHUD()
+	hud.Mount(true)
+	assertNoUnknownKey(t, "HUD")
+	lm := NewLoadingManager()
+	lm.Mount()
+	assertNoUnknownKey(t, "loading screen")
+}
+
+func TestEveryMenuActionHandled(t *testing.T) {
+	if document == nil {
+		return
+	}
+	ui, restore := useTestUI()
+	defer restore()
+	versionChecks, updateYes := 0, 0
+	ui.OnVersionCheck = func() { versionChecks++ }
+	ui.OnUpdateYes = func() { updateYes++ }
+
+	// Expected effect of each action, checked after clicking it.
+	effects := map[string]func() bool{
+		"start":         func() bool { return GlobalState.Current == StateGame && ui.hasStarted },
+		"settings":      func() bool { return ui.currentMenu == "SETTINGS_MENU" },
+		"credits":       func() bool { return ui.currentMenu == "CREDITS_MENU" },
+		"version-check": func() bool { return versionChecks == 1 },
+		"back":          func() bool { return ui.currentMenu == "MAIN_MENU" },
+		"update-yes":    func() bool { return updateYes == 1 },
+		"update-no":     func() bool { return GlobalState.Current == StateGame },
+	}
+	type screen struct {
+		menu string
+		tab  int
+	}
+	screens := []screen{
+		{"MAIN_MENU", 0}, {"SETTINGS_MENU", 0}, {"SETTINGS_MENU", 1},
+		{"CREDITS_MENU", 0}, {"UPDATE_MENU", 0},
+	}
+	seen := map[string]bool{}
+	for _, sc := range screens {
+		ui.activeTab = sc.tab
+		ui.Show(sc.menu)
+		n := int(ui.controlsEl.querySelectorAll("[data-action]").length.(float64))
+		if n == 0 {
+			t.Errorf("%s tab %d renders no actions", sc.menu, sc.tab)
+		}
+		// Clicking re-renders the menu, so re-show and re-query per action.
+		for i := 0; i < n; i++ {
+			GlobalState.Current = StateMenu
+			ui.hasStarted = false
+			versionChecks, updateYes = 0, 0
+			ui.activeTab = sc.tab
+			ui.Show(sc.menu)
+			btn := ui.controlsEl.querySelectorAll("[data-action]").item(i)
+			action := btn.getAttribute("data-action").(string)
+			seen[action] = true
+			check, ok := effects[action]
+			if !ok {
+				t.Errorf("%s: unhandled data-action %q", sc.menu, action)
+				continue
+			}
+			btn.click()
+			if !check() {
+				t.Errorf("%s: data-action %q had no effect", sc.menu, action)
+			}
+		}
+	}
+	for action := range effects {
+		if !seen[action] {
+			t.Errorf("data-action %q is not rendered by any menu", action)
+		}
 	}
 }

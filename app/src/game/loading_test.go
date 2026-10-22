@@ -58,3 +58,15 @@ func TestLoadingMountAndForce(t *testing.T) {
 		t.Error("Loading should remain visible after Force even with Toggle(false)")
 	}
 }
+
+func TestLoadingRefsBound(t *testing.T) {
+	if document == nil {
+		return
+	}
+	resetDOM()
+	lm := NewLoadingManager()
+	lm.Mount()
+	if lm.loadingEl == nil {
+		t.Error("LoadingManager ref \"loading\" not bound after Mount")
+	}
+}

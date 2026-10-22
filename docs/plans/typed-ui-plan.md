@@ -60,6 +60,8 @@ Probes ran on 2026-10-22 against `master` `9630720` plus the uncommitted SLOC fo
 | Translation keys | Consistent today: 26 keys defined in `en-US`, 26 used (`Translate("…")` literals plus the `@sliderRow`/`@checkRow`/`@creditRow` label arguments), none missing or unused. Nothing enforces this. A missing key renders `*UNKNOWN KEY*` at runtime. | Static cross-check script (scratchpad); `TestProbeTypos`: `missing key: "*UNKNOWN KEY*"` |
 | Template refs | Consistent today: `menus.templ` ↔ `ui.go` 10/10, `hud.templ` ↔ `hud.go` 8/8, `loading.templ` ↔ `loading.go` 1/1. A ref typo leaves a nil field and the matching handler silently not attached. No test asserts that the refs are bound. | Static cross-check script (scratchpad) |
 | `changestate` hook | [`state.go:154-169`](../../app/src/game/state.go#L154-L169) listens for a `window` `changestate` CustomEvent with string `detail.state`/`detail.menu`. Nothing in `app/`, `tests/` or `scripts/` dispatches it. It was added in `5359004` ("changing of game state by event") as an external hook. | `grep -rn changestate app tests scripts`; `git log -S changestate` |
+| `app.js` baseline (Task 1.1) | `npm run build` on `feat/typed-ui` `35915fb` (GoFront 1.7.0): `wc -c public/app.js` → **642,547 B**. Phase 2 must not exceed it. | `npm run build && wc -c public/app.js` |
+| Drift tests (Task 1.1) | `TestUIRefsBound` (`ui_test.go`), `TestHUDRefsBound` (`hud_test.go`, desktop and mobile) and `TestLoadingRefsBound` (`loading_test.go`) cover the ref check; `TestRenderedScreensHaveNoUnknownKeys` and `TestEveryMenuActionHandled` are in `ui_test.go`. All pass on unchanged code. Negative checks, each reverted: `ref="armorEl"` → `"armorElX"` in `hud.templ` fails `TestHUDRefsBound` (`ref "armorEl" not bound`); `Translate("VERSION_CHECK")` → `"VERSION_CHEK"` in `menus.templ` fails `TestRenderedScreensHaveNoUnknownKeys` (`main menu renders *UNKNOWN KEY*`); `data-action="credits"` → `"credit"` fails `TestEveryMenuActionHandled` (`unhandled data-action "credit"`, `"credits" is not rendered by any menu`). | `gofront test --dom -v -run 'RefsBound\|UnknownKeys\|MenuAction' app/src/game` |
 
 ---
 
@@ -127,7 +129,7 @@ Probes ran on 2026-10-22 against `master` `9630720` plus the uncommitted SLOC fo
 
 ### Phase 1: Typed Identifiers & Drift Tests
 
-- [ ] Task 1.1: Drift tests and baseline.
+- [x] Task 1.1: Drift tests and baseline.
   - Files: `app/src/game/ui_test.go`, `hud_test.go`, `loading_test.go`
   - Test: write `TestUIRefsBound`, `TestRenderedScreensHaveNoUnknownKeys`, `TestEveryMenuActionHandled` (see *Approach*) against unchanged code; they must pass. Negative checks, one at a time and reverted: rename one `ref=` in `hud.templ`, change one `Translate` key in `menus.templ`, change one `data-action` value; each must fail its test. Record `wc -c public/app.js` after `npm run build`.
   - Done when: the three tests pass on unchanged code, each negative check failed, and the baseline size is recorded under *Verified Gaps*.
