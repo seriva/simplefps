@@ -14,6 +14,7 @@ Design documents for planned features live in `docs/plans/`
 |---|---|---|---|
 | [GoFront v1.8.0 Adoption](plans/gofront-v1.8.0-adoption-plan.md) | Medium | Draft | After SIMD Skinning (needs its A/B harness) and the v1.8.0 tag: bump to v1.8.0 behind JS/WASM perf gates (strict-mode checks in `mathx` measured at 4.3× on `Mat4Multiply` without upstream elision); builtin `min`/`max` in `collision`; drop stale field-pointer workaround |
 | [SIMD Collision](plans/simd-collision-plan.md) | High | Draft | After the v1.8.0 adoption: per-voxel SoA triangle packets with front-to-back early-out (2.28× kernel, triangle tests ≈ 45% of a cast); gate ≥ 1.15× raycast |
+| [Typed UI Layer](plans/typed-ui-plan.md) | Low | Draft | `MenuID` int enum instead of menu-name strings (a typo now silently shows the main menu); shared action and setting-id constants for `.templ` and `.go`; `.d.ts` `UI*` interfaces for the DOM values in `game` (probe: `any` accepts any member typo, typed access is checked and emits the same JS minus the assertion wrappers); ref, translation-key and action drift tests. `engine/systems` DOM deferred |
 | [G-Buffer Depth Reconstruction](plans/gbuffer-depth-reconstruction-plan.md) | Medium | Planned | Reconstruct world/view position from depth buffer; eliminates 16-byte worldPosition render target to cut mobile memory bandwidth |
 
 ---
