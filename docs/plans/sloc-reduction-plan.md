@@ -56,6 +56,9 @@ Probes ran on 2026-10-22 against `master` `b70d968` (GoFront 1.7.0). The dead-co
 | Open branches (Task 1.1) | All local `feat/` branches (`feat/simd-skinning*`, `feat/wasm-asset-decoding`) are merged PRs; none uses a Phase 1 candidate. Nothing kept for this reason. | `git branch -a` |
 | Fixed-point scan (Task 1.5) | Re-running the scan after Tasks 1.2–1.4 found two newly orphaned private helpers, `BoundingBox.frameCorners` and `BoundingBox.corner` (only callers were `ToLocalFrame`/`ToWorldFrame`/`GetCorners`); both deleted. Newly orphaned but called from tests, so kept: `AnimationPlayer.GetProgress`, `AnimationPlayer.Stop`, `NewTransform`, `Transform.PointToLocal`/`PointToWorld`. A second run finds nothing new; the remaining hits are the base audit's test-only or *Out of Scope* entries. Non-test `app/src` lines after Phase 1: **20,214** (−648); `public/app.js` **645,821 B** (−13,331), `public/app.wasm` **94,886 B** (−8,762). | `dead.sh` diffed against a scan of the base worktree; every identifier in the removed lines re-checked for remaining non-test references |
 | Pre-existing scan hits, not in this plan (Task 1.5) | `BoundingBox.Clone`, `Quat.Clone` (the scan's `test=2` comes from `Vec3.Clone` in `vec3_test.go`; neither is called anywhere), and `FakeShaderModule.Code` / `FakePipeline.Desc` in the test-only `rendering/fakegpu` package. These were dead before Phase 1 and not in any task list; deleted on user decision (2026-10-22) in the Phase 1 PR, together with the `code`/`desc` fields only `Code`/`Desc` read. Non-test `app/src` lines after that: **20,193** (−669). | `grep -rn 'Clone()' app/src`; `grep -rn '\.Code()\|\.Desc()' app/src tests` |
+| Grid characterization (Task 2.1) | `TestSpatialHashGridCharacterization` pins digests for 10 fixtures: `floor16` (explicit and auto cell size), tilted walls facing X and Z, a tilted floor, `ramp45` (every dominant-axis tie: y=z, x=y, x=z, x+y+z=c), `huge` (one triangle per dominant axis plus a collinear one, each hitting `maxVoxelsPerTri`; refs = 5 × 4096), `degenerate` (collinear, single point, area under the `1e-7` guard), and 300 pseudo-random triangles (cell 2 and auto). The demo arena is **not** included: `collision` tests run as WASM, where there is no file-system access (`process` is unavailable, GoFront has no `embed`), so the `.bmesh` cannot be loaded from a Go test; procedural meshes only. Digests recorded from `feat/sloc-reduction` `9d5fd6b`. Negative check: re-keying triangle 3's first voxel to `vx+1` in the Y branch failed `floor16`, `floor16-auto`, `floorY` and `degenerate` (reverted, not committed). | `npx gofront test -run Characterization -v app/src/engine/collision` |
+| Perf gate (Task 2.5) | `BASELINE_SRC=<feat/sloc-reduction 9d5fd6b worktree> node tests/perf/js-vs-wasm.js --ab --repeat 5`, median of 5, gate 0.90–1.10, passed: controller 0.998×, skinning-world 1.018×, skinning-palette 1.013×, skinning-total 1.009×, mesh-parse 1.053×, anim-parse 1.066×, SH-Map 0.964×, SH-Flat 1.007×. `npm run test:perf` green; zero-alloc raycast deltas 2,960 B per 100k casts on both trees (threshold 3,000 B). Construction (report only): demo arena (1,394 triangles) `NewTrimesh`, interleaved, median of 15 × 20 builds, three runs: base 0.566–0.577 ms, Phase 2 0.645–0.682 ms (A/B 0.84–0.88×, ≈ +0.1 ms per arena load). Demo-arena `SpatialHashStats` identical on both trees: 212 voxels, 3,486 refs, 350 flat cells. Non-test `app/src` lines after Phase 2: **19,969** (−224 from 20,193). | Scratchpad `buildtime.mjs` (`loadSide` from `tests/perf/ab.js` on both trees); `git ls-files 'app/src/*.go' 'app/src/*.templ' \| grep -v _test \| xargs cat \| wc -l` |
+| GoFront quirk (Task 2.4) | On GoFront 1.7.0 a zero-value package-level array (`var x [3]float32`), or a zero-value struct with array fields, is nil in WASM and panics on first index. `_shTri` is therefore declared as `shTri{}` (one-time literal at package init). | Probe package in the scratchpad: `var _arr [3]float32` panics, `var _arr = [3]float32{}` and `var _t = tri{}` work |
 
 ---
 
@@ -134,23 +137,23 @@ Probes ran on 2026-10-22 against `master` `b70d968` (GoFront 1.7.0). The dead-co
 
 ### Phase 2: Collision Dedup
 
-- [ ] Task 2.1: Characterization test for the voxel grid.
+- [x] Task 2.1: Characterization test for the voxel grid.
   - Files: `app/src/engine/collision/spatialhash_test.go`
   - Test (written first, against unchanged code): build `newSpatialHash` for a fixed set of meshes (`gridFloor`, a wall facing X, a wall facing Z, a 45° ramp, a triangle large enough to hit `maxVoxelsPerTri`, a degenerate triangle, and the demo arena if test fixtures can load it). For each, fold the grid into a deterministic digest (keys sorted, each list in stored order) plus `voxelCount`, `totalRefs`, `hasFlat` and the bounds, and assert them against constants recorded from `master`.
   - Done when: the test passes on unchanged code and fails if any single triangle id is moved between voxels (checked once by hand, then reverted).
-- [ ] Task 2.2: Merge `intersectRayAABB` into `rayAABBInterval`.
+- [x] Task 2.2: Merge `intersectRayAABB` into `rayAABBInterval`.
   - Files: `app/src/engine/collision/ray.go`, `spatialhash.go`
   - Test: `npm test` (`TestRayMeshBoundarySlabNaN`, `TestRayIntersectTrimesh*`), `node tests/perf/zero-alloc.js`.
   - Done when: `intersectRayAABB` is gone, comments that referred to it are updated, and both commands pass.
-- [ ] Task 2.3: Triangle-bounds helper.
+- [x] Task 2.3: Triangle-bounds helper.
   - Files: `app/src/engine/collision/spatialhash.go`
   - Test: Task 2.1's test, `npm test`.
   - Done when: both loops in `newSpatialHash` call `triBounds`, and the digest is unchanged.
-- [ ] Task 2.4: Single axis-parameterised sweep.
+- [x] Task 2.4: Single axis-parameterised sweep.
   - Files: `app/src/engine/collision/spatialhash.go`
   - Test: Task 2.1's test, `npm test`.
   - Done when: the Y/X/Z branches call one helper with each branch's original loop nesting, and the digest is unchanged.
-- [ ] Task 2.5: Perf gate.
+- [x] Task 2.5: Perf gate.
   - Files: `docs/plans/sloc-reduction-plan.md` (*Verified Gaps*)
   - Test: `BASELINE_SRC=<master worktree> node tests/perf/js-vs-wasm.js --ab --repeat 5`, then `npm run test:perf`. Also time `NewTrimesh` + `Finalize` on the demo arena before and after (report only, load time).
   - Done when: every A/B entry is within 0.90–1.10 and zero-alloc passes; the ratios and the construction time are recorded. If an entry falls below 0.90, stop and report.
