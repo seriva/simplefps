@@ -134,7 +134,7 @@ Probes ran on 2026-10-21: GoFront 1.7.0 (worktree at tag `1.7.0`) and HEAD `f69c
   - Files: `app/src/engine/animation/mat4c.go` (new), `app/src/engine/animation/mat4c_test.go` (new)
   - Test (failing first): for 1,000 seeded random matrix pairs, `mulMat4c` equals `mathx.Mat4Multiply` bit for bit (`math.Float32bits` per element), and `fromMat4`/`toMat4` round-trip. Run `npm test`.
   - Done when: the tests pass on `[wasm]`.
-- [ ] Task 2.2: Packed inverse-bind and world chain
+- [x] Task 2.2: Packed inverse-bind and world chain
   - Files: `app/src/engine/animation/skeleton.go`, `app/src/engine/animation/skeleton_test.go`
   - Test (*characterization*): for the test skeleton across 3 poses, `GetWorldMatrices` output is bit-identical to a fixture captured from the scalar path before the change. Run `npm test`.
   - Done when: `NewSkeleton` builds `invBindC`, `computeWorldMatrices` writes `worldC`, and `GetWorldMatrices` copies lazily.
