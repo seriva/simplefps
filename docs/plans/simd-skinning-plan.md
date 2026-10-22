@@ -138,7 +138,7 @@ Probes ran on 2026-10-21: GoFront 1.7.0 (worktree at tag `1.7.0`) and HEAD `f69c
   - Files: `app/src/engine/animation/skeleton.go`, `app/src/engine/animation/skeleton_test.go`
   - Test (*characterization*): for the test skeleton across 3 poses, `GetWorldMatrices` output is bit-identical to a fixture captured from the scalar path before the change. Run `npm test`.
   - Done when: `NewSkeleton` builds `invBindC`, `computeWorldMatrices` writes `worldC`, and `GetWorldMatrices` copies lazily.
-- [ ] Task 2.3: SIMD palette store
+- [x] Task 2.3: SIMD palette store
   - Files: `app/src/engine/animation/skeleton.go`, `app/src/engine/animation/skeleton_test.go`
   - Test (*characterization*): `SkinMatrices` after `ComputeSkinningMatrices` is bit-identical to the scalar fixture for 3 poses, and `n` is clamped at 64. Run `npm test && npm run test:dom`.
   - Done when: the copy loop is replaced by `simd.StoreF32x4`.
