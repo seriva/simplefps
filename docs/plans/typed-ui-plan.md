@@ -157,7 +157,7 @@ Probes ran on 2026-10-22 against `master` `9630720` plus the uncommitted SLOC fo
   - Files: `app/src/game/interop.d.ts`, `ui_test.go`
   - Test: `npm run check` passes with the declarations unused. Add the `fakeTarget` test helper.
   - Done when: `UIElement`, `UIClassList`, `UIStyle`, `UIEvent` and `UIStateDetail` are declared with the members listed in *Approach*, including the `getAttribute` nullability comment.
-- [ ] Task 2.2: Type `UIManager`.
+- [x] Task 2.2: Type `UIManager`.
   - Files: `app/src/game/ui.go`, `ui_test.go`
   - Test: existing UI tests and the Phase 1 drift tests pass; `TestUISettingHandlers` uses `fakeTarget`. Negative check: `ui.backdropEl.classList.ad("visible")` fails `npm run check` (reverted).
   - Done when: the 10 element fields, the click/change/input handlers, `onSettingChange`, `onSettingInput` and `sliderValue` use `UIElement`/`UIEvent`, and `sliderValue` has no `.(string)`.

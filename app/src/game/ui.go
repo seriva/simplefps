@@ -50,16 +50,16 @@ type UIManager struct {
 	mounted     bool
 
 	// Cached DOM elements
-	uiEl            any
-	backdropEl      any
-	menuBaseEl      any
-	headerEl        any
-	controlsEl      any
-	dialogOverlayEl any
-	dialogHeaderEl  any
-	dialogBodyEl    any
-	dialogBtnYes    any
-	dialogBtnNo     any
+	uiEl            UIElement
+	backdropEl      UIElement
+	menuBaseEl      UIElement
+	headerEl        UIElement
+	controlsEl      UIElement
+	dialogOverlayEl UIElement
+	dialogHeaderEl  UIElement
+	dialogBodyEl    UIElement
+	dialogBtnYes    UIElement
+	dialogBtnNo     UIElement
 
 	// Callbacks
 	OnVersionCheck    func()
@@ -99,7 +99,7 @@ func (ui *UIManager) Mount() {
 	ui.dialogBtnNo     = refs["dialogBtnNo"]
 
 	if ui.uiEl != nil {
-		ui.uiEl.addEventListener("click", func(e any) {
+		ui.uiEl.addEventListener("click", func(e UIEvent) {
 			if e == nil || e.target == nil {
 				return
 			}
@@ -157,13 +157,13 @@ func (ui *UIManager) Mount() {
 		}, false)
 
 		// Settings input & change listener
-		ui.uiEl.addEventListener("change", func(e any) {
+		ui.uiEl.addEventListener("change", func(e UIEvent) {
 			if e != nil && e.target != nil {
 				ui.onSettingChange(e.target)
 			}
 		}, false)
 
-		ui.uiEl.addEventListener("input", func(e any) {
+		ui.uiEl.addEventListener("input", func(e UIEvent) {
 			if e != nil && e.target != nil {
 				ui.onSettingInput(e.target)
 			}
@@ -175,7 +175,7 @@ func (ui *UIManager) Mount() {
 
 // onSettingChange applies a checkbox or render-scale change from the
 // settings menu.
-func (ui *UIManager) onSettingChange(target any) {
+func (ui *UIManager) onSettingChange(target UIElement) {
 	s := systems.ActiveSettings
 	switch target.id {
 	case settingFSR:
@@ -199,7 +199,7 @@ func (ui *UIManager) onSettingChange(target any) {
 }
 
 // onSettingInput applies a live slider change from the settings menu.
-func (ui *UIManager) onSettingInput(target any) {
+func (ui *UIManager) onSettingInput(target UIElement) {
 	s := systems.ActiveSettings
 	switch target.id {
 	case settingGamma:
@@ -221,8 +221,8 @@ func (ui *UIManager) onSettingInput(target any) {
 }
 
 // sliderValue parses an input element's value; false when it is not a number.
-func sliderValue(target any) (float32, bool) {
-	f, err := strconv.ParseFloat(target.value.(string), 32)
+func sliderValue(target UIElement) (float32, bool) {
+	f, err := strconv.ParseFloat(target.value, 32)
 	return float32(f), err == nil
 }
 
