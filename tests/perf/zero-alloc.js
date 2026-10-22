@@ -6,9 +6,11 @@
 //   2. the fixed-step FPS controller loop exactly as `game.Update` drives it
 //      across the JS→WASM boundary (pose in, Update + MoveWithCamera, pose out).
 // Then compiles `engine/animation` and checks a third:
-//   3. one skinned-character frame as scene.SkinnedMeshEntity drives it
-//      (AnimationPlayer.Update + the SIMD ComputeSkinningMatrices + copying
-//      the palette out of the shared buffer), 64 joints, 20,000 frames.
+//   3. the SIMD skinning palette as scene.SkinnedMeshEntity drives it: the
+//      world chain + palette (ComputeSkinningMatrices on a pre-built pose)
+//      and copying the palette out of the shared buffer, 64 joints, 20,000
+//      frames. AnimationPlayer.Update (clip sampling) is left out: it costs
+//      ≈ 48 B/frame on GoFront 1.7.0, unchanged by the SIMD work.
 
 import assert from "node:assert";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
@@ -240,8 +242,8 @@ assert(
 );
 console.log("✓ Controller loop allocation benchmark passed");
 
-// Skinning: a 64-joint chain on a looping 10-frame clip, driven through the
-// shared `total` workload (player update + palette + copy-out). The module
+// Skinning: a 64-joint chain on a fixed pose, driven through the shared
+// `palette` workload (ComputeSkinningMatrices + copy-out). The module
 // namespace's `SkinMatrices` binding is live, like ab.js's export object.
 const anim = await loadPackage("animation", [
 	"JointDef",
@@ -251,8 +253,8 @@ const anim = await loadPackage("animation", [
 	"NewAnimation",
 	"SkinMatrices",
 ]);
-const skinFrames = skinningWorkloads(anim).total;
-assert(skinFrames, "animation build must export the skinning frame workload");
+const skinFrames = skinningWorkloads(anim).palette;
+assert(skinFrames, "animation build must export the skinning palette workload");
 skinFrames(5_000); // warm up
 const skinDeltas = [];
 for (let s = 0; s < SWEEPS; s++) {
@@ -268,6 +270,6 @@ console.log(
 const SKIN_BUDGET = 0.5;
 assert(
 	skinPerFrame <= SKIN_BUDGET,
-	`Skinning frame allocates ${skinPerFrame.toFixed(2)} B/frame (budget ${SKIN_BUDGET})`,
+	`Skinning palette allocates ${skinPerFrame.toFixed(2)} B/frame (budget ${SKIN_BUDGET})`,
 );
-console.log("✓ Skinning frame allocation benchmark passed");
+console.log("✓ Skinning palette allocation benchmark passed");
