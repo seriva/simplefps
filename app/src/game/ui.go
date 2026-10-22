@@ -302,15 +302,5 @@ func (ui *UIManager) IsVisible() bool {
 	return ui.visible
 }
 
-// HasStarted returns whether the gameplay has been initiated at least once.
-func (ui *UIManager) HasStarted() bool {
-	return ui.hasStarted
-}
-
-// SetStarted marks whether the game has commenced.
-func (ui *UIManager) SetStarted(started bool) {
-	ui.hasStarted = started
-}
-
 // GlobalUI is the singleton UI manager.
 var GlobalUI = NewUIManager()

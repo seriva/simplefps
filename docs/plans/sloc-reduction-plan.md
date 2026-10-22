@@ -121,7 +121,7 @@ Probes ran on 2026-10-22 against `master` `b70d968` (GoFront 1.7.0). The dead-co
   - Files: `app/src/engine/mathx/quat.go`, `vec3.go`, `boundingbox.go` (+ `transform.go`)
   - Test: `npm run check`, `npm test`, `node tests/perf/zero-alloc.js` (`mathx` compiles into WASM).
   - Done when: the functions are gone and all three commands pass.
-- [ ] Task 1.4: Delete unused engine/game functions and methods: `rendering.HasShadowCasters`, `AnimatedBillboardEntity.Time`, `SpotLightEntity.SetDirection`, `SkinnedMeshEntity.GetAnimationProgress` / `SetAnimationLoop` / `SetAnimationSpeed` / `StopAnimation`, `Camera.Rotate`, `InputManager.SetCursorVisible`, `UIManager.HasStarted` / `SetStarted`.
+- [x] Task 1.4: Delete unused engine/game functions and methods: `rendering.HasShadowCasters`, `AnimatedBillboardEntity.Time`, `SpotLightEntity.SetDirection`, `SkinnedMeshEntity.GetAnimationProgress` / `SetAnimationLoop` / `SetAnimationSpeed` / `StopAnimation`, `Camera.Rotate`, `InputManager.SetCursorVisible`, `UIManager.HasStarted` / `SetStarted`.
   - Files: `rendering/drawable.go`, `scene/{animatedbillboardentity,lightentities,skinnedmeshentity}.go`, `systems/{camera,input}.go`, `game/ui.go`
   - Test: `npm run check`, `npm test`, `npm run test:dom`.
   - Done when: the methods are gone and all three commands pass. Fields used only by deleted methods are removed too; fields with other readers stay.

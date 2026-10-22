@@ -214,14 +214,6 @@ func (e *SpotLightEntity) SetPosition(x, y, z float32) {
 	e.UpdateBoundingVolume()
 }
 
-// SetDirection re-aims the light and rebuilds its matrix.
-func (e *SpotLightEntity) SetDirection(x, y, z float32) {
-	e.Direction.Set(x, y, z)
-	e.Direction.Normalize(&e.Direction)
-	e.updateMatrix()
-	e.UpdateBoundingVolume()
-}
-
 // updateMatrix builds T * R(-Z -> dir) * S(radius, radius, range).
 func (e *SpotLightEntity) updateMatrix() {
 	m := e.Base.BaseMatrix

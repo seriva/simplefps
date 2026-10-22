@@ -100,9 +100,6 @@ func (e *AnimatedBillboardEntity) Update(frameTime float32) bool {
 	return keep && e.time < e.duration
 }
 
-// Time returns the elapsed lifetime in ms.
-func (e *AnimatedBillboardEntity) Time() float32 { return e.time }
-
 // Draw draws the billboard with the billboard pipeline.
 func (e *AnimatedBillboardEntity) Draw(r *rendering.Renderer, mode rendering.MaterialMode) {
 	quad := r.Shapes.BillboardQuad

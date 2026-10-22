@@ -65,13 +65,6 @@ func (e *SkinnedMeshEntity) PlayAnimation(anim *animation.Animation, reset bool)
 	e.AnimationPlayer.Play(anim, reset)
 }
 
-// StopAnimation resets the player to the bind pose.
-func (e *SkinnedMeshEntity) StopAnimation() {
-	if e.AnimationPlayer != nil {
-		e.AnimationPlayer.Stop()
-	}
-}
-
 // BoneMatrices exposes the flat skinning matrix buffer uploaded each frame.
 func (e *SkinnedMeshEntity) BoneMatrices() []float32 { return e.boneMatrices }
 
@@ -227,28 +220,6 @@ func (e *SkinnedMeshEntity) UpdateBoundingVolume() {
 // IsPlaying reports whether an animation is running.
 func (e *SkinnedMeshEntity) IsPlaying() bool {
 	return e.AnimationPlayer != nil && e.AnimationPlayer.IsPlaying()
-}
-
-// GetAnimationProgress returns 0..1 progress of the current clip.
-func (e *SkinnedMeshEntity) GetAnimationProgress() float32 {
-	if e.AnimationPlayer == nil {
-		return 0
-	}
-	return e.AnimationPlayer.GetProgress()
-}
-
-// SetAnimationSpeed sets the playback rate multiplier.
-func (e *SkinnedMeshEntity) SetAnimationSpeed(speed float32) {
-	if e.AnimationPlayer != nil {
-		e.AnimationPlayer.Speed = speed
-	}
-}
-
-// SetAnimationLoop toggles looping playback.
-func (e *SkinnedMeshEntity) SetAnimationLoop(loop bool) {
-	if e.AnimationPlayer != nil {
-		e.AnimationPlayer.Loop = loop
-	}
 }
 
 func (e *SkinnedMeshEntity) Dispose() {
