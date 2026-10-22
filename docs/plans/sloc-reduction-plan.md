@@ -113,7 +113,7 @@ Probes ran on 2026-10-22 against `master` `b70d968` (GoFront 1.7.0). The dead-co
   - Files: `docs/plans/sloc-reduction-plan.md` (*Verified Gaps*)
   - Test: `npm run test:all` green on `master`; `npm run build`, then record `wc -c public/app.js public/app.wasm` and the non-test `app/src` line count.
   - Done when: the three numbers are in *Verified Gaps* and no open `feat/` branch uses a Phase 1 candidate.
-- [ ] Task 1.2: Delete unused `mat4.go` functions: `Mat4Determinant`, `Mat4Transpose`, `Mat4Rotate`, `Mat4FromXRotation`, `Mat4FromYRotation`, `Mat4FromZRotation`, `Mat4Perspective`, `Mat4Ortho`, `Mat4OrthoZO`, `Mat4TargetTo`, `Mat4FromValues`, `Mat4Mul`, `Mat4FromRotationTranslationScaleOrigin`.
+- [x] Task 1.2: Delete unused `mat4.go` functions: `Mat4Determinant`, `Mat4Transpose`, `Mat4Rotate`, `Mat4FromXRotation`, `Mat4FromYRotation`, `Mat4FromZRotation`, `Mat4Perspective`, `Mat4Ortho`, `Mat4OrthoZO`, `Mat4TargetTo`, `Mat4FromValues`, `Mat4Mul`, `Mat4FromRotationTranslationScaleOrigin`.
   - Files: `app/src/engine/mathx/mat4.go`
   - Test: `npm run check`, `npm test`.
   - Done when: the functions are gone and both commands pass.
