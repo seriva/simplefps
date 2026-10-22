@@ -15,19 +15,19 @@ func TestUIModalAndMenus(t *testing.T) {
 		t.Error("UI should initially be hidden")
 	}
 
-	ui.Show("MAIN_MENU")
+	ui.Show(MenuMain)
 	if !ui.IsVisible() {
 		t.Error("UI should be visible after Show")
 	}
 
-	ui.Show("SETTINGS_MENU")
-	if ui.currentMenu != "SETTINGS_MENU" {
-		t.Errorf("Expected currentMenu 'SETTINGS_MENU', got '%s'", ui.currentMenu)
+	ui.Show(MenuSettings)
+	if ui.currentMenu != MenuSettings {
+		t.Errorf("Expected currentMenu MenuSettings, got %v", ui.currentMenu)
 	}
 
-	ui.Show("CREDITS_MENU")
-	if ui.currentMenu != "CREDITS_MENU" {
-		t.Errorf("Expected currentMenu 'CREDITS_MENU', got '%s'", ui.currentMenu)
+	ui.Show(MenuCredits)
+	if ui.currentMenu != MenuCredits {
+		t.Errorf("Expected currentMenu MenuCredits, got %v", ui.currentMenu)
 	}
 
 	ui.Hide()
@@ -127,7 +127,7 @@ func TestUISettingsAndCreditsRows(t *testing.T) {
 	}
 	ui := NewUIManager()
 	ui.Mount()
-	ui.Show("SETTINGS_MENU")
+	ui.Show(MenuSettings)
 	gamma := document.getElementById("setting-gamma")
 	if gamma == nil || gamma.getAttribute("min") != "0.5" || gamma.getAttribute("max") != "2.5" || gamma.getAttribute("step") != "0.1" {
 		t.Fatalf("gamma slider attributes wrong")
@@ -139,7 +139,7 @@ func TestUISettingsAndCreditsRows(t *testing.T) {
 	if fsr == nil || fsr.checked != systems.ActiveSettings.DoFSR {
 		t.Errorf("fsr checkbox not rendered with current setting")
 	}
-	ui.Show("CREDITS_MENU")
+	ui.Show(MenuCredits)
 	link := document.querySelector("#menu-controls a[href='https://lvlworld.com/review/id:2562']")
 	if link == nil || link.textContent != "Focal Point by Lunaran" {
 		t.Errorf("credit link not rendered")
@@ -212,20 +212,20 @@ func TestRenderedScreensHaveNoUnknownKeys(t *testing.T) {
 	ui, restore := useTestUI()
 	defer restore()
 
-	ui.Show("MAIN_MENU")
+	ui.Show(MenuMain)
 	assertNoUnknownKey(t, "main menu")
 	ui.hasStarted = true
-	ui.Show("MAIN_MENU")
+	ui.Show(MenuMain)
 	assertNoUnknownKey(t, "main menu (started)")
 	ui.activeTab = 0
-	ui.Show("SETTINGS_MENU")
+	ui.Show(MenuSettings)
 	assertNoUnknownKey(t, "settings graphics tab")
 	ui.activeTab = 1
-	ui.Show("SETTINGS_MENU")
+	ui.Show(MenuSettings)
 	assertNoUnknownKey(t, "settings input tab")
-	ui.Show("CREDITS_MENU")
+	ui.Show(MenuCredits)
 	assertNoUnknownKey(t, "credits menu")
-	ui.Show("UPDATE_MENU")
+	ui.Show(MenuUpdate)
 	assertNoUnknownKey(t, "update menu")
 	ui.ShowDialog(Translate("RENDERER"), Translate("WEBGPU_REQUIRED"), nil, nil)
 	assertNoUnknownKey(t, "dialog")
@@ -251,20 +251,20 @@ func TestEveryMenuActionHandled(t *testing.T) {
 	// Expected effect of each action, checked after clicking it.
 	effects := map[string]func() bool{
 		"start":         func() bool { return GlobalState.Current == StateGame && ui.hasStarted },
-		"settings":      func() bool { return ui.currentMenu == "SETTINGS_MENU" },
-		"credits":       func() bool { return ui.currentMenu == "CREDITS_MENU" },
+		"settings":      func() bool { return ui.currentMenu == MenuSettings },
+		"credits":       func() bool { return ui.currentMenu == MenuCredits },
 		"version-check": func() bool { return versionChecks == 1 },
-		"back":          func() bool { return ui.currentMenu == "MAIN_MENU" },
+		"back":          func() bool { return ui.currentMenu == MenuMain },
 		"update-yes":    func() bool { return updateYes == 1 },
 		"update-no":     func() bool { return GlobalState.Current == StateGame },
 	}
 	type screen struct {
-		menu string
+		menu MenuID
 		tab  int
 	}
 	screens := []screen{
-		{"MAIN_MENU", 0}, {"SETTINGS_MENU", 0}, {"SETTINGS_MENU", 1},
-		{"CREDITS_MENU", 0}, {"UPDATE_MENU", 0},
+		{MenuMain, 0}, {MenuSettings, 0}, {MenuSettings, 1},
+		{MenuCredits, 0}, {MenuUpdate, 0},
 	}
 	seen := map[string]bool{}
 	for _, sc := range screens {
@@ -272,7 +272,7 @@ func TestEveryMenuActionHandled(t *testing.T) {
 		ui.Show(sc.menu)
 		n := int(ui.controlsEl.querySelectorAll("[data-action]").length.(float64))
 		if n == 0 {
-			t.Errorf("%s tab %d renders no actions", sc.menu, sc.tab)
+			t.Errorf("menu %v tab %d renders no actions", sc.menu, sc.tab)
 		}
 		// Clicking re-renders the menu, so re-show and re-query per action.
 		for i := 0; i < n; i++ {
@@ -286,12 +286,12 @@ func TestEveryMenuActionHandled(t *testing.T) {
 			seen[action] = true
 			check, ok := effects[action]
 			if !ok {
-				t.Errorf("%s: unhandled data-action %q", sc.menu, action)
+				t.Errorf("menu %v: unhandled data-action %q", sc.menu, action)
 				continue
 			}
 			btn.click()
 			if !check() {
-				t.Errorf("%s: data-action %q had no effect", sc.menu, action)
+				t.Errorf("menu %v: data-action %q had no effect", sc.menu, action)
 			}
 		}
 	}
@@ -299,5 +299,24 @@ func TestEveryMenuActionHandled(t *testing.T) {
 		if !seen[action] {
 			t.Errorf("data-action %q is not rendered by any menu", action)
 		}
+	}
+}
+
+func TestShowMenuID(t *testing.T) {
+	if document == nil {
+		return
+	}
+	ui, restore := useTestUI()
+	defer restore()
+	ui.Show(MenuSettings)
+	if ui.currentMenu != MenuSettings || document.getElementById("setting-gamma") == nil {
+		t.Errorf("Show(MenuSettings) did not render the settings menu (currentMenu=%v)", ui.currentMenu)
+	}
+	ui.Show(MenuID(99))
+	if document.getElementById("setting-gamma") != nil || document.querySelector("[data-action='start']") == nil {
+		t.Error("Show(MenuID(99)) should render the main menu")
+	}
+	if ui.headerEl.textContent != Translate("MAIN_MENU") {
+		t.Errorf("Show(MenuID(99)) header = %v", ui.headerEl.textContent)
 	}
 }

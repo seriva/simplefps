@@ -133,7 +133,7 @@ Probes ran on 2026-10-22 against `master` `9630720` plus the uncommitted SLOC fo
   - Files: `app/src/game/ui_test.go`, `hud_test.go`, `loading_test.go`
   - Test: write `TestUIRefsBound`, `TestRenderedScreensHaveNoUnknownKeys`, `TestEveryMenuActionHandled` (see *Approach*) against unchanged code; they must pass. Negative checks, one at a time and reverted: rename one `ref=` in `hud.templ`, change one `Translate` key in `menus.templ`, change one `data-action` value; each must fail its test. Record `wc -c public/app.js` after `npm run build`.
   - Done when: the three tests pass on unchanged code, each negative check failed, and the baseline size is recorded under *Verified Gaps*.
-- [ ] Task 1.2: `MenuID` enum in the UI and state manager.
+- [x] Task 1.2: `MenuID` enum in the UI and state manager.
   - Files: `app/src/game/state.go`, `ui.go`, `ui_test.go`
   - Test (first): `TestMenuFromName` (the four names map; `""` and `"SETINGS_MENU"` do not), and `TestShowMenuID` (`Show(MenuSettings)` renders `#setting-gamma`; `Show(MenuID(99))` renders the main menu). Update `TestUIModalAndMenus` and `state_test.go`'s `EnterMenu` call to `MenuID`s.
   - Done when: `EnterMenu`, `Show` and `currentMenu` use `MenuID`; `changestate` goes through `menuFromName` and warns on an unknown non-empty name; the tests pass.

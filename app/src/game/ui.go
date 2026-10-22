@@ -16,7 +16,7 @@ func tabClass(active bool) string {
 
 // UIManager manages menu overlays, tabs, settings changes, and modal dialogs.
 type UIManager struct {
-	currentMenu string
+	currentMenu MenuID
 	activeTab   int
 	hasStarted  bool
 	visible     bool
@@ -45,7 +45,7 @@ type UIManager struct {
 // NewUIManager creates an unmounted UIManager.
 func NewUIManager() *UIManager {
 	return &UIManager{
-		currentMenu: "MAIN_MENU",
+		currentMenu: MenuMain,
 		activeTab:   0,
 		hasStarted:  false,
 		visible:     false,
@@ -110,15 +110,15 @@ func (ui *UIManager) Mount() {
 					ui.hasStarted = true
 					GlobalState.EnterGame()
 				case "settings":
-					ui.Show("SETTINGS_MENU")
+					ui.Show(MenuSettings)
 				case "credits":
-					ui.Show("CREDITS_MENU")
+					ui.Show(MenuCredits)
 				case "version-check":
 					if ui.OnVersionCheck != nil {
 						ui.OnVersionCheck()
 					}
 				case "back":
-					ui.Show("MAIN_MENU")
+					ui.Show(MenuMain)
 				case "update-yes":
 					if ui.OnUpdateYes != nil {
 						ui.OnUpdateYes()
@@ -217,14 +217,11 @@ func (ui *UIManager) closeDialog(cb func()) {
 }
 
 // Show presents the requested menu overlay.
-func (ui *UIManager) Show(name string) {
+func (ui *UIManager) Show(menu MenuID) {
 	if !ui.mounted {
 		ui.Mount()
 	}
-	if name == "" {
-		name = "MAIN_MENU"
-	}
-	ui.currentMenu = name
+	ui.currentMenu = menu
 	ui.visible = true
 
 	if ui.backdropEl != nil {
@@ -244,7 +241,7 @@ func (ui *UIManager) renderCurrentMenu() {
 
 	headerText := Translate("MAIN_MENU")
 	switch ui.currentMenu {
-	case "SETTINGS_MENU":
+	case MenuSettings:
 		headerText = Translate("SETTINGS")
 		gom.Mount("#menu-controls", SettingsMenuContent(
 			ui.activeTab,
@@ -257,10 +254,10 @@ func (ui *UIManager) renderCurrentMenu() {
 			systems.ActiveSettings.ShowStats,
 			systems.ActiveSettings.LookSensitivity,
 		))
-	case "CREDITS_MENU":
+	case MenuCredits:
 		headerText = Translate("CREDITS")
 		gom.Mount("#menu-controls", CreditsMenuContent())
-	case "UPDATE_MENU":
+	case MenuUpdate:
 		headerText = Translate("VERSION_NEW")
 		gom.Mount("#menu-controls", UpdateMenuContent())
 	default:
