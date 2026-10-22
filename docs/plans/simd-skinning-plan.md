@@ -124,7 +124,7 @@ Probes ran on 2026-10-21: GoFront 1.7.0 (worktree at tag `1.7.0`) and HEAD `f69c
   - Files: `tests/perf/simd-kernels.js` (new), `tests/perf/fixtures/simd/` (the `kern`, `tri` and `jsfb` probe packages)
   - Test: `node tests/perf/simd-kernels.js` reports palette SIMD/scalar ≥ 3.0× and JS-fallback new-space growth > 1 MB per 1M ops. The `tri` kernel is skipped with a message below GoFront 1.8.0 (it traps on 1.7.0).
   - Done when: the canary runs in `test:perf` and fails if the palette speedup drops below 3.0×.
-- [ ] Task 1.4: SIMD-only-in-WASM check and rule docs
+- [x] Task 1.4: SIMD-only-in-WASM check and rule docs
   - Files: `scripts/check-simd.js` (new), `tests/fixtures/check-simd/` (a `wasm` package with simd → pass, a `js` package with simd → fail), `package.json` (`check` runs it), `AGENTS.md` (Part 2 *Core Rules*: SIMD rule with the measured fallback cost)
   - Test: `node scripts/check-simd.js tests/fixtures/check-simd/bad` exits non-zero with a `file:line` message; `…/good` exits 0; `npm run check` on the repo is green.
   - Done when: `npm run check` runs the script on `app/src`, and the AGENTS rule is in place.

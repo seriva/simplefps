@@ -285,6 +285,7 @@ The frame path — physics step, raycasts, `Scene.Update`, `Renderer.Render`, HU
 - No `[N]T` literals, `append`, reslicing, comma-ok type assertions or struct-value copies on hot paths (all of them allocate in GoFront). Struct-typed fields (`Shadow`, `Probe`, `Stats`, `Debug`) are mutated field-by-field.
 - Interface-type assertions (`x.(SomeInterface)`) compile to an unconditional success and must not be used for dispatch; concrete pointer assertions and type switches are fine.
 - Method values are emitted unbound, so cross-package hooks are interfaces (`RaycastProvider`, `SceneSource`), never `func` fields assigned from methods.
+- `gofront/simd` only in `//gofront:target wasm` packages, only in unexported types and functions, and only behind a measured gate; no `F32x4` crosses the JS↔WASM boundary. In `js` and `both` packages `F32x4` lowers to a frozen 4-number array that allocates on every operation (≈ 4.4 MB new-space and ≈ 145–195 ns/op per 1M mul+add, slower than scalar JS). `scripts/check-simd.js` (in `npm run check`) enforces the package rule; `tests/perf/simd-kernels.js` re-measures the fallback cost and the WASM palette speedup.
 - JS→WASM calls are allocation-free only when V8 can inline them: GoFront binds exports to module constants and crosses every reference as `externref`, so keep boundary signatures to numbers, bools and pointers to structs. Returning struct *values*, passing `any`, or passing `*mathx.Vec3` from JS (copied in and written back per call) across the boundary allocates. Results come back through caller-provided `*RaycastResult`s for that reason, and the controller takes the camera through its WASM-owned `CameraPose` instead of vector parameters.
 
 ## Console Commands
@@ -301,7 +302,7 @@ The frame path — physics step, raycasts, `Scene.Update`, `Renderer.Render`, HU
 
 | Command | What runs |
 |---|---|
-| `npm run check` | Biome (JS files) + `gofront check app/src/...` |
+| `npm run check` | Biome (JS files) + `scripts/check-simd.js` (no `gofront/simd` import outside `//gofront:target wasm` packages) + `gofront check app/src/...` |
 | `npm test` | `gofront test app/src/...` headless, every package (dual-target `mathx [js]` and `mathx [wasm]`, `collision [wasm]`, `physics [wasm]`, `animation [wasm]`, `assets/decoder [wasm]`); `rendering/fakegpu` stands in for the GPU device so rendering, scene, engine and assets tests render real frames and assert on the recorded commands |
 | `npm run test:dom` | the same under jsdom (`window`/`document` present) |
 | `npm run test:perf` | `tests/perf/zero-alloc.js`: 100k raycasts under 64 KB of new-space growth; 20k controller frames driven from JS exactly like `game.Update`, under 128 B/frame. Then `tests/perf/simd-kernels.js` (SIMD canary: the 64-joint palette kernel must stay bit-identical and ≥ 3.0× faster with `gofront/simd` than scalar WASM, and `F32x4` in a `js` package must still allocate > 1 MB per 1M ops; the 4-wide triangle kernel runs from GoFront 1.8.0) and `tests/perf/ab.js --self-test` (A/B harness, see below; skips without `GOFRONT_BASELINE_DIR`/`BASELINE_SRC`) |
