@@ -141,7 +141,7 @@ Probes ran on 2026-10-22 against `master` `9630720` plus the uncommitted SLOC fo
   - Files: `app/src/game/controls.go`, `hud.go`, `update.go`, `app/src/main.go` (one-line changes at 8 sites)
   - Test: `npm run check` (string literals no longer compile); the existing `hud_test`, `gameplay_test` and e2e smoke test pass. Negative check: put `GlobalState.EnterMenu("MAIN_MENU")` back once and confirm `npm run check` fails, then revert.
   - Done when: the *Done means* `grep` matches only the translation keys and `menuFromName`.
-- [ ] Task 1.4: Action and setting-id constants.
+- [x] Task 1.4: Action and setting-id constants.
   - Files: `app/src/game/ui.go`, `menus.templ`, `ui_test.go`
   - Test (first): `TestUISettingHandlers` and `TestEveryMenuActionHandled` use the constants instead of literals; they keep passing through the change.
   - Done when: no `data-action="…"` or `"setting-…"` string literal remains in `menus.templ` or `ui.go` outside the constant block; the tests pass.

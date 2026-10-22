@@ -96,25 +96,25 @@ func TestUISettingHandlers(t *testing.T) {
 	notified := 0
 	ui.OnSettingsChanged = func() { notified++ }
 
-	ui.onSettingChange(map[string]any{"id": "setting-fsr", "checked": !s.DoFSR})
+	ui.onSettingChange(map[string]any{"id": settingFSR, "checked": !s.DoFSR})
 	if s.DoFSR == saved.DoFSR || notified != 1 {
 		t.Errorf("fsr: DoFSR=%v notified=%d", s.DoFSR, notified)
 	}
-	ui.onSettingChange(map[string]any{"id": "setting-dirt", "checked": !s.DoDirt})
+	ui.onSettingChange(map[string]any{"id": settingDirt, "checked": !s.DoDirt})
 	if s.DoDirt == saved.DoDirt || notified != 1 {
 		t.Errorf("dirt should not notify: DoDirt=%v notified=%d", s.DoDirt, notified)
 	}
-	ui.onSettingChange(map[string]any{"id": "setting-render-scale", "value": "0.75"})
+	ui.onSettingChange(map[string]any{"id": settingRenderScale, "value": "0.75"})
 	if s.RenderScale != 0.75 || notified != 2 {
 		t.Errorf("render scale: %v notified=%d", s.RenderScale, notified)
 	}
-	ui.onSettingChange(map[string]any{"id": "setting-render-scale", "value": "abc"})
+	ui.onSettingChange(map[string]any{"id": settingRenderScale, "value": "abc"})
 	if s.RenderScale != 0.75 || notified != 2 {
 		t.Errorf("bad render scale applied: %v notified=%d", s.RenderScale, notified)
 	}
 
-	ui.onSettingInput(map[string]any{"id": "setting-gamma", "value": "1.5"})
-	ui.onSettingInput(map[string]any{"id": "setting-look-sensitivity", "value": "x"})
+	ui.onSettingInput(map[string]any{"id": settingGamma, "value": "1.5"})
+	ui.onSettingInput(map[string]any{"id": settingLookSensitivity, "value": "x"})
 	ui.onSettingInput(map[string]any{"id": "other"})
 	if s.Gamma != 1.5 || s.LookSensitivity != saved.LookSensitivity || notified != 2 {
 		t.Errorf("input: gamma=%v look=%v notified=%d", s.Gamma, s.LookSensitivity, notified)
@@ -128,14 +128,14 @@ func TestUISettingsAndCreditsRows(t *testing.T) {
 	ui := NewUIManager()
 	ui.Mount()
 	ui.Show(MenuSettings)
-	gamma := document.getElementById("setting-gamma")
+	gamma := document.getElementById(settingGamma)
 	if gamma == nil || gamma.getAttribute("min") != "0.5" || gamma.getAttribute("max") != "2.5" || gamma.getAttribute("step") != "0.1" {
 		t.Fatalf("gamma slider attributes wrong")
 	}
 	if gamma.value != fmt.Sprintf("%0.1f", systems.ActiveSettings.Gamma) {
 		t.Errorf("gamma value %v", gamma.value)
 	}
-	fsr := document.getElementById("setting-fsr")
+	fsr := document.getElementById(settingFSR)
 	if fsr == nil || fsr.checked != systems.ActiveSettings.DoFSR {
 		t.Errorf("fsr checkbox not rendered with current setting")
 	}
@@ -249,14 +249,14 @@ func TestEveryMenuActionHandled(t *testing.T) {
 	ui.OnUpdateYes = func() { updateYes++ }
 
 	// Expected effect of each action, checked after clicking it.
-	effects := map[string]func() bool{
-		"start":         func() bool { return GlobalState.Current == StateGame && ui.hasStarted },
-		"settings":      func() bool { return ui.currentMenu == MenuSettings },
-		"credits":       func() bool { return ui.currentMenu == MenuCredits },
-		"version-check": func() bool { return versionChecks == 1 },
-		"back":          func() bool { return ui.currentMenu == MenuMain },
-		"update-yes":    func() bool { return updateYes == 1 },
-		"update-no":     func() bool { return GlobalState.Current == StateGame },
+	effects := map[uiAction]func() bool{
+		actionStart:        func() bool { return GlobalState.Current == StateGame && ui.hasStarted },
+		actionSettings:     func() bool { return ui.currentMenu == MenuSettings },
+		actionCredits:      func() bool { return ui.currentMenu == MenuCredits },
+		actionVersionCheck: func() bool { return versionChecks == 1 },
+		actionBack:         func() bool { return ui.currentMenu == MenuMain },
+		actionUpdateYes:    func() bool { return updateYes == 1 },
+		actionUpdateNo:     func() bool { return GlobalState.Current == StateGame },
 	}
 	type screen struct {
 		menu MenuID
@@ -266,7 +266,7 @@ func TestEveryMenuActionHandled(t *testing.T) {
 		{MenuMain, 0}, {MenuSettings, 0}, {MenuSettings, 1},
 		{MenuCredits, 0}, {MenuUpdate, 0},
 	}
-	seen := map[string]bool{}
+	seen := map[uiAction]bool{}
 	for _, sc := range screens {
 		ui.activeTab = sc.tab
 		ui.Show(sc.menu)
@@ -282,7 +282,7 @@ func TestEveryMenuActionHandled(t *testing.T) {
 			ui.activeTab = sc.tab
 			ui.Show(sc.menu)
 			btn := ui.controlsEl.querySelectorAll("[data-action]").item(i)
-			action := btn.getAttribute("data-action").(string)
+			action := uiAction(btn.getAttribute("data-action").(string))
 			seen[action] = true
 			check, ok := effects[action]
 			if !ok {
@@ -309,11 +309,11 @@ func TestShowMenuID(t *testing.T) {
 	ui, restore := useTestUI()
 	defer restore()
 	ui.Show(MenuSettings)
-	if ui.currentMenu != MenuSettings || document.getElementById("setting-gamma") == nil {
+	if ui.currentMenu != MenuSettings || document.getElementById(settingGamma) == nil {
 		t.Errorf("Show(MenuSettings) did not render the settings menu (currentMenu=%v)", ui.currentMenu)
 	}
 	ui.Show(MenuID(99))
-	if document.getElementById("setting-gamma") != nil || document.querySelector("[data-action='start']") == nil {
+	if document.getElementById(settingGamma) != nil || document.querySelector("[data-action='" + string(actionStart) + "']") == nil {
 		t.Error("Show(MenuID(99)) should render the main menu")
 	}
 	if ui.headerEl.textContent != Translate("MAIN_MENU") {
