@@ -11,7 +11,7 @@ Simple first person arena shooter written in Go syntax, compiled to a seamless h
 - **Gameplay**: Arena-based FPS with physics-based projectiles, multiple weapons (Energy Scepter, Plasma Pistol, Pulse Cannon, Laser Gatling), and cross-platform controls
 - **Rendering**: WebGPU-native deferred engine with pre-baked pipelines, storage-buffer skinning and lights, GPU-simulated particles, compute post-fx, detail textures, emissive materials and FSR upscaling. See [Architecture — Rendering](docs/architecture.md#rendering).
 - **UI**: Menus, HUD, loading screens and debug console as GoFront `.templ` components with a small game state machine
-- **Performance**: Zero-allocation hot paths (physics step, raycasts, render frame) guarded by heap-growth tests and a benchmark; linear depth buffer; PWA support
+- **Performance**: Zero-allocation hot paths (physics step, raycasts, SIMD skinning palette, render frame) guarded by heap-growth tests and a benchmark; linear depth buffer; PWA support
 - **Architecture**: Go packages (`engine`, `mathx`, `collision`, `physics`, `rendering`, `scene`, `game`, …) with an entity system, scene management, and comprehensive input handling. Collision and physics run in WebAssembly (WasmGC), `mathx` runs on both targets, and the rest in JavaScript. See [Architecture](docs/architecture.md).
 - **Cross-Platform**: Runs on Desktop, Android, and iOS with touch controls and responsive design
 - **Settings**: In-game settings menu with graphics (including renderer selection) and input configuration
@@ -51,9 +51,16 @@ app/
 └── index.html            # Main HTML file (loads vendor.js + app.js and linked app.wasm)
 tests/
 ├── e2e/smoke.spec.js     # Playwright smoke test (boot → menu → start game renders a frame)
-└── perf/zero-alloc.js    # Zero-allocation raycast + controller-loop benchmark against the compiled physics + collision (WASM) packages
+├── fixtures/check-simd/  # good/bad packages for scripts/check-simd.js
+└── perf/
+    ├── zero-alloc.js     # Zero-allocation raycast, controller-loop and skinning-palette benchmark against the compiled WASM packages
+    ├── ab.js             # In-process A/B harness (baseline compiler/source vs current), self-test gates A/A at 0.90–1.10
+    ├── simd-kernels.js   # SIMD canary: palette SIMD ≥ 3.0× scalar, JS fallback still allocates
+    ├── fixtures/simd/    # kern / jsfb / tri probe packages compiled by simd-kernels.js
+    └── workloads.js      # Hot-path drivers shared by the A/B runs (raycast, controller, skinning, asset decoding)
 scripts/
 ├── bsp2map.js            # Quake 3 BSP to game format converter
+├── check-simd.js         # Fails on gofront/simd imports outside //gofront:target wasm packages (npm run check)
 ├── md5tomesh.js          # Doom 3 MD5 to mesh format converter
 └── obj2mesh.js           # OBJ to mesh format converter
 ```
@@ -73,10 +80,10 @@ npm run prepare          # Setup Lefthook git hooks + bundle dependencies
 npm run dev          # Start development server (GoFront, live reload)
 npm run build        # Production PWA build → public/ (emits public/app.js & public/app.wasm)
 npm run format       # Format JS (tests, Playwright config) with Biome
-npm run check        # Biome lint + GoFront type-check of every package (gofront check app/src/...)
+npm run check        # Biome lint + SIMD-only-in-WASM check + GoFront type-check of every package (gofront check app/src/...)
 npm test             # GoFront unit/integration tests for every package (mathx on both JS and WASM, collision in WASM)
 npm run test:dom     # Same, with a jsdom window/document (for .templ / DOM code)
-npm run test:perf    # Zero-allocation raycast benchmark (tests/perf/zero-alloc.js)
+npm run test:perf    # Zero-allocation benchmark (tests/perf/zero-alloc.js) + SIMD kernel canary + A/B harness self-test (skips without GOFRONT_BASELINE_DIR/BASELINE_SRC)
 npm run test:e2e     # Playwright smoke test in headless Chromium (WebGPU)
 npm run test:all     # check + test + test:dom + test:perf + test:e2e
 npm run prep         # Bundle vendor dependencies (peerjs)

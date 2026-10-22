@@ -51,7 +51,8 @@ func TestSkeletonBindPoseSkinIsIdentity(t *testing.T) {
 		t.Errorf("child world X = %v, want 1", world[1][12])
 	}
 
-	n := s.ComputeSkinningMatrices(pose)
+	s.ComputeSkinningMatrices(pose)
+	n := s.SkinJointCount()
 	id := mathx.NewMat4()
 	for j := 0; j < n; j++ {
 		for i := 0; i < 16; i++ {
@@ -72,7 +73,8 @@ func TestSkeletonParentTransformPropagates(t *testing.T) {
 	if !approx(world[1][12], 1) || !approx(world[1][13], 3) {
 		t.Errorf("child world = (%v,%v), want (1,3)", world[1][12], world[1][13])
 	}
-	if n := s.ComputeSkinningMatrices(pose); n != s.JointCount {
+	s.ComputeSkinningMatrices(pose)
+	if n := s.SkinJointCount(); n != s.JointCount {
 		t.Fatalf("joints written = %d, want %d", n, s.JointCount)
 	}
 	if !approx(SkinMatrices[16+13], 3) {

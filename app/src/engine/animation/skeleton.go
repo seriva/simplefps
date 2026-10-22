@@ -6,6 +6,7 @@ import (
 
 	"../mathx"
 	"gofront/shared"
+	"gofront/simd"
 )
 
 // MaxSkinJoints is the largest palette ComputeSkinningMatrices publishes; it must
@@ -15,6 +16,27 @@ const MaxSkinJoints = 64
 // SkinMatrices receives the result of the last ComputeSkinningMatrices call,
 // 16 floats per joint, and is read from JS without copying.
 var SkinMatrices = shared.NewFloat32(MaxSkinJoints * 16)
+
+// Packed scratch matrices for the skinning chain (wasm package state; never
+// visible to JS): [0] = local joint matrix. A slice
+// rather than `var x mat4c` because GoFront 1.7.0 zero-initialises a
+// package-level struct with F32x4 fields using an i32 constant, which fails
+// WebAssembly validation; make() initialises v128 fields correctly.
+var _scratchC = make([]mat4c, 1)
+
+// skeletonPack holds one skeleton's matrices packed as F32x4 columns:
+// invBindC mirrors InverseBindMatrices, worldC holds the last computed world
+// matrices. GoFront 1.7.0 classifies every field of an exported wasm struct
+// for the JS↔WASM boundary, unexported ones included, and F32x4 cannot cross
+// it, so Skeleton refers to its pack by index into _packs instead of holding
+// the slices itself. Packs live as long as the module (one per NewSkeleton,
+// i.e. per loaded skinned mesh).
+type skeletonPack struct {
+	invBindC []mat4c
+	worldC   []mat4c
+}
+
+var _packs []*skeletonPack
 
 // JointDef is the raw joint description from a mesh file: object-space
 // (global) bind pose position and rotation plus a parent index (-1 = root).
@@ -36,13 +58,17 @@ type Joint struct {
 }
 
 // Skeleton owns joint hierarchy data and scratch matrices for posing.
+//
+// The skinning chain runs on packed F32x4 columns (mat4c) held in
+// _packs[pack]. worldMatrices is the []mathx.Mat4 view of the packed world
+// matrices, filled only by GetWorldMatrices (the debug path).
 type Skeleton struct {
 	Joints              []Joint
 	JointCount          int
 	InverseBindMatrices []mathx.Mat4
 
 	worldMatrices []mathx.Mat4
-	tempMatrix    mathx.Mat4
+	pack          int
 }
 
 // NewSkeleton converts global-space joint definitions into a skeleton with
@@ -54,8 +80,13 @@ func NewSkeleton(defs []JointDef) *Skeleton {
 		JointCount:          n,
 		InverseBindMatrices: make([]mathx.Mat4, n),
 		worldMatrices:       make([]mathx.Mat4, n),
-		tempMatrix:          mathx.NewMat4(),
 	}
+	pack := &skeletonPack{
+		invBindC: make([]mat4c, n),
+		worldC:   make([]mat4c, n),
+	}
+	s.pack = len(_packs)
+	_packs = append(_packs, pack)
 
 	globalMatrices := make([]mathx.Mat4, n)
 	localMatrix := mathx.NewMat4()
@@ -91,15 +122,19 @@ func NewSkeleton(defs []JointDef) *Skeleton {
 		inv := mathx.NewMat4()
 		mathx.Mat4Invert(inv, global)
 		s.InverseBindMatrices[i] = inv
+		fromMat4(&pack.invBindC[i], inv)
 
 		s.worldMatrices[i] = mathx.NewMat4()
 	}
 	return s
 }
 
-// computeWorldMatrices writes each joint's world matrix from a local pose.
-func (s *Skeleton) computeWorldMatrices(pose *Pose) []mathx.Mat4 {
-	local := s.tempMatrix
+// computeWorldMatrices writes each joint's world matrix from a local pose
+// into its pack's worldC, chaining packed columns with mulMat4c (bit-identical to the
+// mathx.Mat4Multiply chain).
+func (s *Skeleton) computeWorldMatrices(pose *Pose) {
+	local := &_scratchC[0]
+	worldC := _packs[s.pack].worldC
 	positions := pose.Positions
 	rotations := pose.Rotations
 
@@ -124,58 +159,67 @@ func (s *Skeleton) computeWorldMatrices(pose *Pose) []mathx.Mat4 {
 		wy := qw * y2
 		wz := qw * z2
 
-		local[0] = 1 - (yy + zz)
-		local[1] = xy + wz
-		local[2] = xz - wy
-		local[3] = 0
-		local[4] = xy - wz
-		local[5] = 1 - (xx + zz)
-		local[6] = yz + wx
-		local[7] = 0
-		local[8] = xz + wy
-		local[9] = yz - wx
-		local[10] = 1 - (xx + yy)
-		local[11] = 0
-		local[12] = positions[pi]
-		local[13] = positions[pi+1]
-		local[14] = positions[pi+2]
-		local[15] = 1
+		local.c0 = simd.NewF32x4(1-(yy+zz), xy+wz, xz-wy, 0)
+		local.c1 = simd.NewF32x4(xy-wz, 1-(xx+zz), yz+wx, 0)
+		local.c2 = simd.NewF32x4(xz+wy, yz-wx, 1-(xx+yy), 0)
+		local.c3 = simd.NewF32x4(positions[pi], positions[pi+1], positions[pi+2], 1)
 
-		world := s.worldMatrices[i]
+		world := &worldC[i]
 		parent := s.Joints[i].Parent
 		if parent >= 0 {
-			mathx.Mat4Multiply(world, s.worldMatrices[parent], local)
+			mulMat4c(world, &worldC[parent], local)
 		} else {
-			mathx.Mat4Copy(world, local)
+			world.c0 = local.c0
+			world.c1 = local.c1
+			world.c2 = local.c2
+			world.c3 = local.c3
 		}
+	}
+}
+
+// GetWorldMatrices returns per-joint world matrices for a pose. The returned
+// slice is owned by the skeleton and overwritten on the next call. The
+// packed world matrices are unpacked into it only here, so the per-frame
+// skinning path never pays for the copy.
+func (s *Skeleton) GetWorldMatrices(pose *Pose) []mathx.Mat4 {
+	s.computeWorldMatrices(pose)
+	worldC := _packs[s.pack].worldC
+	for i := 0; i < s.JointCount; i++ {
+		toMat4(s.worldMatrices[i], &worldC[i])
 	}
 	return s.worldMatrices
 }
 
-// GetWorldMatrices returns per-joint world matrices for a pose. The returned
-// slice is owned by the skeleton and overwritten on the next call.
-func (s *Skeleton) GetWorldMatrices(pose *Pose) []mathx.Mat4 {
-	return s.computeWorldMatrices(pose)
+// SkinJointCount returns the number of palettes ComputeSkinningMatrices
+// writes: JointCount clamped to MaxSkinJoints. It is constant per skeleton,
+// so callers read it once at load, not per frame.
+func (s *Skeleton) SkinJointCount() int {
+	if s.JointCount > MaxSkinJoints {
+		return MaxSkinJoints
+	}
+	return s.JointCount
 }
 
 // ComputeSkinningMatrices writes world * inverseBind per joint into
-// SkinMatrices (overwritten on the next call, by any skeleton) and returns the
-// number of joints written (at most MaxSkinJoints).
-func (s *Skeleton) ComputeSkinningMatrices(pose *Pose) int {
+// SkinMatrices (overwritten on the next call, by any skeleton) for the first
+// SkinJointCount() joints. It returns nothing: on GoFront 1.7.0 an int return
+// across the JS↔WASM boundary allocates ≈ 24 B per call, so the per-frame
+// call stays void and callers cache SkinJointCount().
+func (s *Skeleton) ComputeSkinningMatrices(pose *Pose) {
 	s.computeWorldMatrices(pose)
-	n := s.JointCount
-	if n > MaxSkinJoints {
-		n = MaxSkinJoints
-	}
-	skin := s.tempMatrix
+	n := s.SkinJointCount()
+	pack := _packs[s.pack]
 	for i := 0; i < n; i++ {
-		mathx.Mat4Multiply(skin, s.worldMatrices[i], s.InverseBindMatrices[i])
+		// world × inverseBind column by column (mulMat4c's order), each
+		// column stored straight into the shared palette as one v128.
+		w := &pack.worldC[i]
+		b := &pack.invBindC[i]
 		base := i * 16
-		for k := 0; k < 16; k++ {
-			SkinMatrices[base+k] = skin[k]
-		}
+		simd.StoreF32x4(SkinMatrices, base, mulCol(w, b.c0))
+		simd.StoreF32x4(SkinMatrices, base+4, mulCol(w, b.c1))
+		simd.StoreF32x4(SkinMatrices, base+8, mulCol(w, b.c2))
+		simd.StoreF32x4(SkinMatrices, base+12, mulCol(w, b.c3))
 	}
-	return n
 }
 
 // Pose stores flat per-joint local positions (3 floats) and rotations (4 floats).
