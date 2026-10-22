@@ -112,19 +112,19 @@ Probes ran on 2026-10-21: GoFront 1.7.0 (worktree at tag `1.7.0`) and HEAD `f69c
 > - Refactor tasks marked *characterization* write a test that is green before and after the change. That is the TDD step for behaviour-preserving work.
 
 ### Phase 1: Perf harness & SIMD rule
-- [ ] Task 1.1: A/B runner with self-test
+- [x] Task 1.1: A/B runner with self-test
   - Files: `tests/perf/ab.js` (new), `package.json` (`test:perf` runs `ab.js --self-test`)
   - Test: `GOFRONT_BASELINE_DIR=$(npm root)/gofront BASELINE_SRC=. node tests/perf/ab.js --self-test --repeat 5` (A/A) gives every entry a median ratio within 0.90–1.10. An injected 1.5× slowdown on side B (`--inject-slowdown 1.5`, test-only flag) fails the gate. With no env set, it exits 0 with the skip message.
   - Done when: all three behaviours hold, and `npm run test:perf` is green on a bare checkout.
-- [ ] Task 1.2: A/B mode for `js-vs-wasm.js`, with a skinning split
+- [x] Task 1.2: A/B mode for `js-vs-wasm.js`, with a skinning split
   - Files: `tests/perf/js-vs-wasm.js`, `tests/perf/ab.js`
   - Test: `node tests/perf/js-vs-wasm.js --ab --repeat 5` in A/A mode gives every hybrid entry (controller, skinning-world, skinning-palette, skinning-total, mesh-parse, anim-parse, SH-Map, SH-Flat) within 0.90–1.10.
   - Done when: the A/B table prints per-entry ratios, the skinning row is split into world (`GetWorldMatrices`), palette and total, and plain mode (no `--ab`) is unchanged.
-- [ ] Task 1.3: SIMD kernel canary
+- [x] Task 1.3: SIMD kernel canary
   - Files: `tests/perf/simd-kernels.js` (new), `tests/perf/fixtures/simd/` (the `kern`, `tri` and `jsfb` probe packages)
   - Test: `node tests/perf/simd-kernels.js` reports palette SIMD/scalar ≥ 3.0× and JS-fallback new-space growth > 1 MB per 1M ops. The `tri` kernel is skipped with a message below GoFront 1.8.0 (it traps on 1.7.0).
   - Done when: the canary runs in `test:perf` and fails if the palette speedup drops below 3.0×.
-- [ ] Task 1.4: SIMD-only-in-WASM check and rule docs
+- [x] Task 1.4: SIMD-only-in-WASM check and rule docs
   - Files: `scripts/check-simd.js` (new), `tests/fixtures/check-simd/` (a `wasm` package with simd → pass, a `js` package with simd → fail), `package.json` (`check` runs it), `AGENTS.md` (Part 2 *Core Rules*: SIMD rule with the measured fallback cost)
   - Test: `node scripts/check-simd.js tests/fixtures/check-simd/bad` exits non-zero with a `file:line` message; `…/good` exits 0; `npm run check` on the repo is green.
   - Done when: `npm run check` runs the script on `app/src`, and the AGENTS rule is in place.
@@ -144,7 +144,7 @@ Probes ran on 2026-10-21: GoFront 1.7.0 (worktree at tag `1.7.0`) and HEAD `f69c
   - Done when: the copy loop is replaced by `simd.StoreF32x4`.
 - [ ] Task 2.4: Zero-alloc case and gate
   - Files: `tests/perf/zero-alloc.js` (skinning case), `docs/plans/simd-skinning-plan.md` (record the result)
-  - Test: `npm run test:perf` with a 20,000-frame skinning case at ≤ 0.5 B/frame; `BASELINE_SRC=<worktree of feat/simd-skinning before Phase 2> node tests/perf/js-vs-wasm.js --ab --repeat 5`.
+  - Test: `npm run test:perf` with a 20,000-frame skinning case at ≤ 0.5 B/frame; `BASELINE_SRC=<worktree of feat/simd-skinning before Phase 2> node tests/perf/js-vs-wasm.js --ab --repeat 5 --gate 'skinning-total>=1.30' --gate skinning-world=off --gate skinning-palette=off` (skinning-total gated on ≥ 1.30× only; world and palette are expected to speed up too and are reported ungated; every other entry stays on the 0.90–1.10 band).
   - Done when: skinning-total is ≥ 1.30× and zero-alloc passes, with the numbers recorded under *Verified Gaps*. If it is below 1.30×, stop and report (see execution notes).
 
 ---
@@ -156,6 +156,6 @@ Probes ran on 2026-10-21: GoFront 1.7.0 (worktree at tag `1.7.0`) and HEAD `f69c
 - **Negative cases:** `scripts/check-simd.js` on `tests/fixtures/check-simd/bad` fails with `file:line`; `ab.js --inject-slowdown 1.5` fails its gate; `ab.js` without env skips with exit 0.
 - **Benchmarks:**
   - `node tests/perf/ab.js --self-test --repeat 5`: A/A within 0.90–1.10.
-  - `node tests/perf/js-vs-wasm.js --ab --repeat 5` (against the pre-Phase-2 source): skinning-total ≥ 1.30×.
+  - `node tests/perf/js-vs-wasm.js --ab --repeat 5 --gate 'skinning-total>=1.30' --gate skinning-world=off --gate skinning-palette=off` (against the pre-Phase-2 source): skinning-total ≥ 1.30×, other gated entries within 0.90–1.10.
   - `node tests/perf/simd-kernels.js`: palette ≥ 3.0× (canary).
   - `node tests/perf/zero-alloc.js`: skinning ≤ 0.5 B/frame; raycast ≤ 3,000 B per 100k casts; controller ≤ 0.5 B/frame.

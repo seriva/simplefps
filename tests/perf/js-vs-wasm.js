@@ -12,12 +12,30 @@
 //      shared bone buffer).
 // Prints per-second rates for both builds plus the hybrid/JS ratio. This is a
 // report, not a gate: it never fails on a slowdown.
+//
+// `--ab` switches to an in-process A/B of the hybrid build (see ab.js): side A
+// uses GOFRONT_BASELINE_DIR and/or BASELINE_SRC (unset = the current compiler
+// and tree, an A/A run), side B the current compiler and tree. It gates every
+// entry — controller, skinning split into world (GetWorldMatrices), palette
+// (ComputeSkinningMatrices + copy-out) and total (a full frame), mesh-parse,
+// anim-parse, SH-Map and SH-Flat raycasts — on 0.90–1.10 unless --min/--max
+// say otherwise; `--gate NAME>=X` gates one entry on a lower bound only and
+// `--gate NAME=off` reports it ungated (see ab.js); `--repeat 5` gates on the
+// median of five process runs.
 
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import {
+	ANIMATION_EXPORTS,
+	abSides,
+	buildSides,
+	loadSides,
+	PHYSICS_EXPORTS,
+	runAB,
+} from "./ab.js";
 
 const MIN_GOFRONT = [1, 6, 0];
 const gofrontDir = process.env.GOFRONT_DIR;
@@ -34,6 +52,61 @@ if (!gofrontRoot) {
 		process.exit(0);
 	}
 }
+if (process.argv.includes("--ab")) {
+	const sides = abSides();
+	const meshBytes = new Uint8Array(
+		readFileSync(resolve("app/resources/arenas/demo/geometry.bmesh")),
+	);
+	const animBytes = new Uint8Array(
+		readFileSync(resolve("app/resources/models/robot/robot.banim")),
+	);
+	await runAB({
+		script: fileURLToPath(import.meta.url),
+		argv: process.argv.slice(2),
+		title: `js-vs-wasm hybrid A/B (A: ${sides.a.gofrontDir ?? "installed gofront"} + ${sides.a.srcRoot}; B: ${sides.b.gofrontDir ?? "installed gofront"} + ${sides.b.srcRoot})`,
+		sides,
+		buildEntries: async (sides) => {
+			const mods = await loadSides(sides, {
+				phys: { pkg: "engine/physics", exports: PHYSICS_EXPORTS },
+				anim: { pkg: "engine/animation", exports: ANIMATION_EXPORTS },
+				dec: {
+					pkg: "engine/assets/decoder",
+					exports: ["ParseBinaryMesh", "ParseBinaryAnimation"],
+				},
+			});
+			const side = await buildSides(mods, (w, m) => {
+				const skin = w.skinningWorkloads(m.anim);
+				const dec = w.decoderWorkloads(m.dec, meshBytes, animBytes);
+				return {
+					...w.physicsWorkloads(m.phys),
+					"skinning-world": skin.world,
+					"skinning-palette": skin.palette,
+					"skinning-total": skin.total,
+					"mesh-parse": dec.parseMesh,
+					"anim-parse": dec.parseAnim,
+				};
+			});
+			const entry = (name, key, iterations) => ({
+				name,
+				iterations,
+				a: side.a[key],
+				b: side.b[key],
+			});
+			return [
+				entry("controller", "controller", 5_000),
+				entry("skinning-world", "skinning-world", 2_000),
+				entry("skinning-palette", "skinning-palette", 2_000),
+				entry("skinning-total", "skinning-total", 2_000),
+				entry("mesh-parse", "mesh-parse", 20),
+				entry("anim-parse", "anim-parse", 15),
+				entry("SH-Map", "raycastMap", 20_000),
+				entry("SH-Flat", "raycastFlat", 20_000),
+			];
+		},
+	});
+	process.exit(process.exitCode ?? 0);
+}
+
 const { compileDir } = await import(
 	gofrontRoot
 		? pathToFileURL(join(gofrontRoot, "src/compiler.js")).href
