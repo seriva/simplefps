@@ -40,11 +40,6 @@ func (out *Quat) Copy(src *Quat) *Quat {
 	return out
 }
 
-// Clone creates a clone of this quaternion.
-func (out *Quat) Clone() *Quat {
-	return &Quat{X: out.X, Y: out.Y, Z: out.Z, W: out.W}
-}
-
 // Multiply multiplies quaternions a and b.
 func (out *Quat) Multiply(a, b *Quat) *Quat {
 	ax := a.X

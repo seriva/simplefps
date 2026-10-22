@@ -85,14 +85,6 @@ func (b *BoundingBox) Copy(src *BoundingBox) *BoundingBox {
 	return b
 }
 
-// Clone creates an exact replica of this BoundingBox.
-func (b *BoundingBox) Clone() *BoundingBox {
-	clone := &BoundingBox{}
-	clone.Min.Copy(&b.Min)
-	clone.Max.Copy(&b.Max)
-	return clone
-}
-
 // Overlaps checks if this BoundingBox intersects another.
 func (b *BoundingBox) Overlaps(aabb *BoundingBox) bool {
 	l1 := &b.Min
