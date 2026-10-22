@@ -52,6 +52,8 @@ Probes ran on 2026-10-22 against `master` `b70d968` (GoFront 1.7.0). The dead-co
 | Triangle bounds | `newSpatialHash` computes each triangle's min/max with 36 lines of `if` chains, twice (auto cell-size loop at [`spatialhash.go:375`](../../app/src/engine/collision/spatialhash.go#L375), insertion loop at [`spatialhash.go:486`](../../app/src/engine/collision/spatialhash.go#L486)). `min3`/`max3` exist in the same file but are unused there. | Source |
 | Axis sweeps | The Y, X and Z dominant-axis branches ([`spatialhash.go:584`](../../app/src/engine/collision/spatialhash.go#L584), [`:633`](../../app/src/engine/collision/spatialhash.go#L633), [`:682`](../../app/src/engine/collision/spatialhash.go#L682)) are about 49 lines each. They differ only in which axis is solved from the plane equation and which two axes are iterated. | Source |
 | Stale line reference | `simd-collision-plan.md` cites [`ray.go:281-283`](../../app/src/engine/collision/ray.go#L281-L283) for the `rayQueryLocal` call, which is now at line 276. Phase 2 shifts it by about 85 lines. | Source |
+| Baseline (Task 1.1) | Base `feat/sloc-reduction` `09b70cc`: `npm run test:all` green. Non-test `app/src` lines: **20,862**. `public/app.js` **659,152 B**, `public/app.wasm` **103,648 B** (`npm run build`). | `git ls-files 'app/src/*.go' 'app/src/*.templ' \| grep -v _test \| xargs cat \| wc -l`; `wc -c public/app.js public/app.wasm` |
+| Open branches (Task 1.1) | All local `feat/` branches (`feat/simd-skinning*`, `feat/wasm-asset-decoding`) are merged PRs; none uses a Phase 1 candidate. Nothing kept for this reason. | `git branch -a` |
 
 ---
 
@@ -107,7 +109,7 @@ Probes ran on 2026-10-22 against `master` `b70d968` (GoFront 1.7.0). The dead-co
 
 ### Phase 1: Remove Unused Code
 
-- [ ] Task 1.1: Record the baseline.
+- [x] Task 1.1: Record the baseline.
   - Files: `docs/plans/sloc-reduction-plan.md` (*Verified Gaps*)
   - Test: `npm run test:all` green on `master`; `npm run build`, then record `wc -c public/app.js public/app.wasm` and the non-test `app/src` line count.
   - Done when: the three numbers are in *Verified Gaps* and no open `feat/` branch uses a Phase 1 candidate.
