@@ -519,24 +519,20 @@ templ MainMenuContent(hasStarted bool) {
 	<div class="menu-button" data-action="version-check">{ Translate("VERSION_CHECK") }</div>
 }
 
+// creditRow is a labelled external link in the credits menu.
+templ creditRow(label, href, text string) {
+	<div class="menu-row">
+		<span>{ Translate(label) }</span>
+		<a href={ href } target="_blank" rel="noopener noreferrer" style="color:#6cb4ff;text-decoration:none">{ text }</a>
+	</div>
+}
+
 templ CreditsMenuContent() {
 	<div class="menu-panel">
-		<div class="menu-row">
-			<span>{ Translate("CREDITS_MAP") }</span>
-			<a href="https://lvlworld.com/review/id:2562" target="_blank" rel="noopener noreferrer" style="color:#6cb4ff;text-decoration:none">Focal Point by Lunaran</a>
-		</div>
-		<div class="menu-row">
-			<span>{ Translate("CREDITS_PICKUPS") }</span>
-			<a href="https://www.cgtrader.com/3d-models/science/other/sci-fi-powerups-set" target="_blank" rel="noopener noreferrer" style="color:#6cb4ff;text-decoration:none">Sci-Fi Powerups Set</a>
-		</div>
-		<div class="menu-row">
-			<span>{ Translate("CREDITS_WEAPONS") }</span>
-			<a href="https://www.cgtrader.com/3d-model-packs/sci-fi-weapon-pack" target="_blank" rel="noopener noreferrer" style="color:#6cb4ff;text-decoration:none">Sci-Fi Weapon Pack</a>
-		</div>
-		<div class="menu-row">
-			<span>{ Translate("CREDITS_ROBOT") }</span>
-			<a href="https://sketchfab.com/3d-models/vintage-robot-animated-1ccfb0b99b8a492d9f1144bb96d4a679" target="_blank" rel="noopener noreferrer" style="color:#6cb4ff;text-decoration:none">Vintage Robot Animated</a>
-		</div>
+		@creditRow("CREDITS_MAP", "https://lvlworld.com/review/id:2562", "Focal Point by Lunaran")
+		@creditRow("CREDITS_PICKUPS", "https://www.cgtrader.com/3d-models/science/other/sci-fi-powerups-set", "Sci-Fi Powerups Set")
+		@creditRow("CREDITS_WEAPONS", "https://www.cgtrader.com/3d-model-packs/sci-fi-weapon-pack", "Sci-Fi Weapon Pack")
+		@creditRow("CREDITS_ROBOT", "https://sketchfab.com/3d-models/vintage-robot-animated-1ccfb0b99b8a492d9f1144bb96d4a679", "Vintage Robot Animated")
 	</div>
 	<div class="menu-button" data-action="back">{ Translate("BACK") }</div>
 }
@@ -544,6 +540,23 @@ templ CreditsMenuContent() {
 templ UpdateMenuContent() {
 	<div class="menu-button" data-action="update-yes">{ Translate("YES") }</div>
 	<div class="menu-button" data-action="update-no">{ Translate("NO") }</div>
+}
+
+// sliderRow is a labelled range input in the settings menu; value is
+// pre-formatted to the slider's precision.
+templ sliderRow(label, id, lo, hi, step, value string) {
+	<div class="menu-row">
+		<span>{ Translate(label) }</span>
+		<input type="range" class="menu-slider" id={ id } min={ lo } max={ hi } step={ step } value={ value }/>
+	</div>
+}
+
+// checkRow is a labelled checkbox in the settings menu.
+templ checkRow(label, id string, checked bool) {
+	<div class="menu-row">
+		<span>{ Translate(label) }</span>
+		<input type="checkbox" class="menu-checkbox" id={ id } checked?={ checked }/>
+	</div>
 }
 
 templ SettingsMenuContent(activeTab int, renderScale float32, gamma float32, doFSR bool, fsrSharpness float32, proceduralDetail bool, doDirt bool, showStats bool, lookSensitivity float32) {
@@ -555,43 +568,19 @@ templ SettingsMenuContent(activeTab int, renderScale float32, gamma float32, doF
 	if activeTab == 0 {
 		<div class="menu-tab-content active">
 			<div class="menu-panel">
-				<div class="menu-row">
-					<span>{ Translate("RENDER_SCALE") }</span>
-					<input type="range" class="menu-slider" id="setting-render-scale" min="0.5" max="1.0" step="0.05" value={ fmt.Sprintf("%0.2f", renderScale) }/>
-				</div>
-				<div class="menu-row">
-					<span>{ Translate("GAMMA") }</span>
-					<input type="range" class="menu-slider" id="setting-gamma" min="0.5" max="2.5" step="0.1" value={ fmt.Sprintf("%0.1f", gamma) }/>
-				</div>
-				<div class="menu-row">
-					<span>{ Translate("FSR") }</span>
-					<input type="checkbox" class="menu-checkbox" id="setting-fsr" checked?={ doFSR }/>
-				</div>
-				<div class="menu-row">
-					<span>{ Translate("FSR_SHARPNESS") }</span>
-					<input type="range" class="menu-slider" id="setting-fsr-sharpness" min="0.0" max="1.0" step="0.05" value={ fmt.Sprintf("%0.2f", fsrSharpness) }/>
-				</div>
-				<div class="menu-row">
-					<span>{ Translate("PROCEDURAL_DETAIL") }</span>
-					<input type="checkbox" class="menu-checkbox" id="setting-procedural-detail" checked?={ proceduralDetail }/>
-				</div>
-				<div class="menu-row">
-					<span>{ Translate("DIRT") }</span>
-					<input type="checkbox" class="menu-checkbox" id="setting-dirt" checked?={ doDirt }/>
-				</div>
-				<div class="menu-row">
-					<span>{ Translate("SHOW_STATS") }</span>
-					<input type="checkbox" class="menu-checkbox" id="setting-show-stats" checked?={ showStats }/>
-				</div>
+				@sliderRow("RENDER_SCALE", "setting-render-scale", "0.5", "1.0", "0.05", fmt.Sprintf("%0.2f", renderScale))
+				@sliderRow("GAMMA", "setting-gamma", "0.5", "2.5", "0.1", fmt.Sprintf("%0.1f", gamma))
+				@checkRow("FSR", "setting-fsr", doFSR)
+				@sliderRow("FSR_SHARPNESS", "setting-fsr-sharpness", "0.0", "1.0", "0.05", fmt.Sprintf("%0.2f", fsrSharpness))
+				@checkRow("PROCEDURAL_DETAIL", "setting-procedural-detail", proceduralDetail)
+				@checkRow("DIRT", "setting-dirt", doDirt)
+				@checkRow("SHOW_STATS", "setting-show-stats", showStats)
 			</div>
 		</div>
 	} else {
 		<div class="menu-tab-content active">
 			<div class="menu-panel">
-				<div class="menu-row">
-					<span>{ Translate("LOOK_SENSITIVITY") }</span>
-					<input type="range" class="menu-slider" id="setting-look-sensitivity" min="0.1" max="1.0" step="0.05" value={ fmt.Sprintf("%0.2f", lookSensitivity) }/>
-				</div>
+				@sliderRow("LOOK_SENSITIVITY", "setting-look-sensitivity", "0.1", "1.0", "0.05", fmt.Sprintf("%0.2f", lookSensitivity))
 			</div>
 		</div>
 	}

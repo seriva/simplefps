@@ -685,6 +685,24 @@ func TestAddEntityRejectsMismatchedTypeID(t *testing.T) {
 	}
 }
 
+func TestDrawDefaultsPromoteThroughDrawable(t *testing.T) {
+	_, r, _ := setup()
+	var d rendering.Drawable = NewDirectionalLightEntity([]float32{0, -1, 0}, []float32{1, 1, 1}, nil)
+	d.DrawShadow(r)
+	d.DrawWireframe(r)
+	d.DrawSkeleton(r)
+	if d.TriangleCount() != 0 || d.CastsShadow() {
+		t.Errorf("directional light defaults: tris=%d shadow=%v", d.TriangleCount(), d.CastsShadow())
+	}
+	// An override on the outer type wins over the embedded default.
+	m := NewMeshEntity(TypeMesh, nil, nil, nil, 1)
+	m.Base.CastShadow = true
+	var md rendering.Drawable = m
+	if !md.CastsShadow() {
+		t.Errorf("MeshEntity.CastsShadow override not used")
+	}
+}
+
 func TestVisibilityFillsTypedBuckets(t *testing.T) {
 	_, _, s := setup()
 	mesh := meshAt(0, 0, 0)

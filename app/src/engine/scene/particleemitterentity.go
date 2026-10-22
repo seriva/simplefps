@@ -39,6 +39,7 @@ const (
 // particles get zero-size instances until the emitter is removed.
 type ParticleEmitterEntity struct {
 	Base EntityBase
+	drawDefaults
 
 	particleData []float32
 	count        int // spawned (high-water)
@@ -211,12 +212,7 @@ func (e *ParticleEmitterEntity) Draw(r *rendering.Renderer, mode rendering.Mater
 	quad.DrawInstanced(r, e.instanceBuffer, e.count)
 }
 
-func (e *ParticleEmitterEntity) DrawShadow(r *rendering.Renderer)    {}
-func (e *ParticleEmitterEntity) DrawWireframe(r *rendering.Renderer) {}
-func (e *ParticleEmitterEntity) DrawSkeleton(r *rendering.Renderer)  {}
 func (e *ParticleEmitterEntity) Bounds() *mathx.BoundingBox          { return e.Base.BoundingBox }
-func (e *ParticleEmitterEntity) TriangleCount() int                    { return 0 }
-func (e *ParticleEmitterEntity) CastsShadow() bool                     { return false }
 
 func (e *ParticleEmitterEntity) releaseGPU() {
 	if e.backend != nil {

@@ -34,6 +34,7 @@ var (
 // The camera view matrix is provided by the Scene through CameraView.
 type AnimatedBillboardEntity struct {
 	Base       EntityBase
+	drawDefaults
 	CameraView mathx.Mat4
 
 	time       float32
@@ -165,25 +166,16 @@ func (e *AnimatedBillboardEntity) Draw(r *rendering.Renderer, mode rendering.Mat
 	quad.Draw(r, false, rendering.ModeAll)
 }
 
-func (e *AnimatedBillboardEntity) DrawShadow(r *rendering.Renderer)                                  {}
-func (e *AnimatedBillboardEntity) DrawWireframe(r *rendering.Renderer)                               {}
-func (e *AnimatedBillboardEntity) DrawSkeleton(r *rendering.Renderer)                                {}
-func (e *AnimatedBillboardEntity) Simulate(r *rendering.Renderer, pass rendering.GPUComputePassEncoder) {}
 func (e *AnimatedBillboardEntity) Bounds() *mathx.BoundingBox                                        { return e.Base.BoundingBox }
-func (e *AnimatedBillboardEntity) TriangleCount() int                                       { return 0 }
-func (e *AnimatedBillboardEntity) CastsShadow() bool                                        { return false }
 
 // UpdateBoundingVolume uses the maximum scale as a bounding radius.
 func (e *AnimatedBillboardEntity) UpdateBoundingVolume() {
 	r := e.scale
 	mathx.Mat4Multiply(bbTempMatrix, e.Base.BaseMatrix, e.Base.AniMatrix)
 	mathx.Mat4GetTranslation(bbWorldPos, bbTempMatrix)
-	if e.Base.BoundingBox == nil {
-		e.Base.BoundingBox = mathx.NewBoundingBox()
-	}
 	bbBoxMin.Set(bbWorldPos.X-r, bbWorldPos.Y-r, bbWorldPos.Z-r)
 	bbBoxMax.Set(bbWorldPos.X+r, bbWorldPos.Y+r, bbWorldPos.Z+r)
-	e.Base.BoundingBox.Set(bbBoxMin, bbBoxMax)
+	e.Base.ensureBounds().Set(bbBoxMin, bbBoxMax)
 }
 
 func (e *AnimatedBillboardEntity) Dispose() {

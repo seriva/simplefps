@@ -16,6 +16,7 @@ var (
 // MeshEntity renders a static or animated rigid Mesh.
 type MeshEntity struct {
 	Base EntityBase
+	drawDefaults
 	Mesh *rendering.Mesh
 
 	// Shadow and Probe are refreshed by the Scene for visible entities;
@@ -85,8 +86,6 @@ func (e *MeshEntity) DrawWireframe(r *rendering.Renderer) {
 	e.Mesh.DrawWireframe(r)
 }
 
-func (e *MeshEntity) DrawSkeleton(r *rendering.Renderer)                                  {}
-func (e *MeshEntity) Simulate(r *rendering.Renderer, pass rendering.GPUComputePassEncoder) {}
 
 // DrawShadow squashes the world matrix onto the cached ground height.
 func (e *MeshEntity) DrawShadow(r *rendering.Renderer) {
@@ -125,10 +124,7 @@ func (e *MeshEntity) UpdateBoundingVolume() {
 		return
 	}
 	mathx.Mat4Multiply(meshTempMatrix, e.Base.BaseMatrix, e.Base.AniMatrix)
-	if e.Base.BoundingBox == nil {
-		e.Base.BoundingBox = mathx.NewBoundingBox()
-	}
-	e.Mesh.BoundingBox.TransformInto(meshTempMatrix, e.Base.BoundingBox)
+	e.Mesh.BoundingBox.TransformInto(meshTempMatrix, e.Base.ensureBounds())
 }
 
 func (e *MeshEntity) Dispose() {

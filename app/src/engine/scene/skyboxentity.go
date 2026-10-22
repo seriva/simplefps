@@ -12,6 +12,7 @@ var skyboxFaceNames = []string{"front", "back", "top", "bottom", "right", "left"
 // Scene (no entity↔scene coupling).
 type SkyboxEntity struct {
 	Base           EntityBase
+	drawDefaults
 	Mesh           *rendering.Mesh
 	CameraPosition *mathx.Vec3
 }
@@ -56,9 +57,6 @@ func (e *SkyboxEntity) Draw(r *rendering.Renderer, mode rendering.MaterialMode) 
 	sky.Draw(r, true, rendering.ModeAll)
 }
 
-func (e *SkyboxEntity) DrawShadow(r *rendering.Renderer)                                  {}
-func (e *SkyboxEntity) DrawSkeleton(r *rendering.Renderer)                                {}
-func (e *SkyboxEntity) Simulate(r *rendering.Renderer, pass rendering.GPUComputePassEncoder) {}
 
 func (e *SkyboxEntity) DrawWireframe(r *rendering.Renderer) {
 	if e.Mesh == nil {
@@ -72,8 +70,6 @@ func (e *SkyboxEntity) DrawWireframe(r *rendering.Renderer) {
 }
 
 func (e *SkyboxEntity) Bounds() *mathx.BoundingBox { return e.Base.BoundingBox }
-func (e *SkyboxEntity) TriangleCount() int           { return 0 }
-func (e *SkyboxEntity) CastsShadow() bool            { return false }
 
 func (e *SkyboxEntity) Dispose() {
 	baseDispose(&e.Base)

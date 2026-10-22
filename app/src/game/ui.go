@@ -80,19 +80,11 @@ func (ui *UIManager) Mount() {
 
 			// Dialog buttons
 			if target == ui.dialogBtnYes {
-				cb := ui.dialogOnYes
-				ui.HideDialog()
-				if cb != nil {
-					cb()
-				}
+				ui.closeDialog(ui.dialogOnYes)
 				return
 			}
 			if target == ui.dialogBtnNo {
-				cb := ui.dialogOnNo
-				ui.HideDialog()
-				if cb != nil {
-					cb()
-				}
+				ui.closeDialog(ui.dialogOnNo)
 				return
 			}
 
@@ -139,66 +131,89 @@ func (ui *UIManager) Mount() {
 
 		// Settings input & change listener
 		ui.uiEl.addEventListener("change", func(e any) {
-			if e == nil || e.target == nil {
-				return
-			}
-			target := e.target
-			id := target.id
-			if id == "setting-fsr" {
-				systems.ActiveSettings.DoFSR = target.checked
-				systems.ActiveSettings.Save()
-				if ui.OnSettingsChanged != nil {
-					ui.OnSettingsChanged()
-				}
-			} else if id == "setting-procedural-detail" {
-				systems.ActiveSettings.ProceduralDetail = target.checked
-				systems.ActiveSettings.Save()
-			} else if id == "setting-dirt" {
-				systems.ActiveSettings.DoDirt = target.checked
-				systems.ActiveSettings.Save()
-			} else if id == "setting-show-stats" {
-				systems.ActiveSettings.ShowStats = target.checked
-				systems.ActiveSettings.Save()
-				if ui.OnSettingsChanged != nil {
-					ui.OnSettingsChanged()
-				}
-			} else if id == "setting-render-scale" {
-				if f, err := strconv.ParseFloat(target.value.(string), 32); err == nil {
-					systems.ActiveSettings.RenderScale = float32(f)
-					systems.ActiveSettings.Save()
-					if ui.OnSettingsChanged != nil {
-						ui.OnSettingsChanged()
-					}
-				}
+			if e != nil && e.target != nil {
+				ui.onSettingChange(e.target)
 			}
 		}, false)
 
 		ui.uiEl.addEventListener("input", func(e any) {
-			if e == nil || e.target == nil {
-				return
-			}
-			target := e.target
-			id := target.id
-			if id == "setting-gamma" {
-				if f, err := strconv.ParseFloat(target.value.(string), 32); err == nil {
-					systems.ActiveSettings.Gamma = float32(f)
-					systems.ActiveSettings.Save()
-				}
-			} else if id == "setting-fsr-sharpness" {
-				if f, err := strconv.ParseFloat(target.value.(string), 32); err == nil {
-					systems.ActiveSettings.FsrSharpness = float32(f)
-					systems.ActiveSettings.Save()
-				}
-			} else if id == "setting-look-sensitivity" {
-				if f, err := strconv.ParseFloat(target.value.(string), 32); err == nil {
-					systems.ActiveSettings.LookSensitivity = float32(f)
-					systems.ActiveSettings.Save()
-				}
+			if e != nil && e.target != nil {
+				ui.onSettingInput(e.target)
 			}
 		}, false)
 	}
 
 	ui.mounted = true
+}
+
+// onSettingChange applies a checkbox or render-scale change from the
+// settings menu.
+func (ui *UIManager) onSettingChange(target any) {
+	s := systems.ActiveSettings
+	switch target.id {
+	case "setting-fsr":
+		s.DoFSR = target.checked
+		ui.saveSettings(true)
+	case "setting-procedural-detail":
+		s.ProceduralDetail = target.checked
+		ui.saveSettings(false)
+	case "setting-dirt":
+		s.DoDirt = target.checked
+		ui.saveSettings(false)
+	case "setting-show-stats":
+		s.ShowStats = target.checked
+		ui.saveSettings(true)
+	case "setting-render-scale":
+		if f, ok := sliderValue(target); ok {
+			s.RenderScale = f
+			ui.saveSettings(true)
+		}
+	}
+}
+
+// onSettingInput applies a live slider change from the settings menu.
+func (ui *UIManager) onSettingInput(target any) {
+	s := systems.ActiveSettings
+	switch target.id {
+	case "setting-gamma":
+		if f, ok := sliderValue(target); ok {
+			s.Gamma = f
+			ui.saveSettings(false)
+		}
+	case "setting-fsr-sharpness":
+		if f, ok := sliderValue(target); ok {
+			s.FsrSharpness = f
+			ui.saveSettings(false)
+		}
+	case "setting-look-sensitivity":
+		if f, ok := sliderValue(target); ok {
+			s.LookSensitivity = f
+			ui.saveSettings(false)
+		}
+	}
+}
+
+// sliderValue parses an input element's value; false when it is not a number.
+func sliderValue(target any) (float32, bool) {
+	f, err := strconv.ParseFloat(target.value.(string), 32)
+	return float32(f), err == nil
+}
+
+// saveSettings persists the settings and, when notify is set, fires
+// OnSettingsChanged.
+func (ui *UIManager) saveSettings(notify bool) {
+	systems.ActiveSettings.Save()
+	if notify && ui.OnSettingsChanged != nil {
+		ui.OnSettingsChanged()
+	}
+}
+
+// closeDialog hides the dialog, then runs the chosen button's callback.
+func (ui *UIManager) closeDialog(cb func()) {
+	ui.HideDialog()
+	if cb != nil {
+		cb()
+	}
 }
 
 // Show presents the requested menu overlay.

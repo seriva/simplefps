@@ -27,6 +27,7 @@ var (
 // DirectionalLightEntity is a full-screen light with a fixed direction.
 type DirectionalLightEntity struct {
 	Base      EntityBase
+	drawDefaults
 	Direction []float32
 	Color     []float32
 }
@@ -51,13 +52,7 @@ func (e *DirectionalLightEntity) Draw(r *rendering.Renderer, mode rendering.Mate
 	r.ObjectParams(1, e.Color[0], e.Color[1], e.Color[2], 1)
 	r.DrawFullscreen()
 }
-func (e *DirectionalLightEntity) DrawShadow(r *rendering.Renderer)                                  {}
-func (e *DirectionalLightEntity) DrawWireframe(r *rendering.Renderer)                               {}
-func (e *DirectionalLightEntity) DrawSkeleton(r *rendering.Renderer)                                {}
-func (e *DirectionalLightEntity) Simulate(r *rendering.Renderer, pass rendering.GPUComputePassEncoder) {}
 func (e *DirectionalLightEntity) Bounds() *mathx.BoundingBox                                        { return e.Base.BoundingBox }
-func (e *DirectionalLightEntity) TriangleCount() int                                       { return 0 }
-func (e *DirectionalLightEntity) CastsShadow() bool                                        { return false }
 func (e *DirectionalLightEntity) Dispose()                                                 { baseDispose(&e.Base) }
 
 // ---------------------------------------------------------------------------
@@ -67,6 +62,7 @@ func (e *DirectionalLightEntity) Dispose()                                      
 // PointLightEntity is a sphere-volume light positioned by its matrices.
 type PointLightEntity struct {
 	Base      EntityBase
+	drawDefaults
 	Color     []float32
 	Size      float32
 	Intensity float32
@@ -121,9 +117,6 @@ func (e *PointLightEntity) Draw(r *rendering.Renderer, mode rendering.MaterialMo
 	volMesh.Draw(r, false, rendering.ModeAll)
 }
 
-func (e *PointLightEntity) DrawShadow(r *rendering.Renderer)                                  {}
-func (e *PointLightEntity) DrawSkeleton(r *rendering.Renderer)                                {}
-func (e *PointLightEntity) Simulate(r *rendering.Renderer, pass rendering.GPUComputePassEncoder) {}
 
 // DrawWireframe draws the sphere volume outline with the debug pipeline.
 func (e *PointLightEntity) DrawWireframe(r *rendering.Renderer) {
@@ -138,8 +131,6 @@ func (e *PointLightEntity) DrawWireframe(r *rendering.Renderer) {
 }
 
 func (e *PointLightEntity) Bounds() *mathx.BoundingBox { return e.Base.BoundingBox }
-func (e *PointLightEntity) TriangleCount() int           { return 0 }
-func (e *PointLightEntity) CastsShadow() bool            { return false }
 
 // LightScore ranks the light by intensity over squared distance to camPos.
 func (e *PointLightEntity) LightScore(camPos *mathx.Vec3) float32 {
@@ -155,10 +146,7 @@ func (e *PointLightEntity) AddToLighting(data *rendering.LightingData) bool {
 
 // UpdateBoundingVolume fits the AABB to the transformed sphere volume.
 func (e *PointLightEntity) UpdateBoundingVolume() {
-	if e.Base.BoundingBox == nil {
-		e.Base.BoundingBox = mathx.NewBoundingBox()
-	}
-	pointVolumeBounds.TransformInto(e.volumeMatrix(), e.Base.BoundingBox)
+	pointVolumeBounds.TransformInto(e.volumeMatrix(), e.Base.ensureBounds())
 }
 
 func (e *PointLightEntity) Dispose() { baseDispose(&e.Base) }
@@ -171,6 +159,7 @@ func (e *PointLightEntity) Dispose() { baseDispose(&e.Base) }
 // and independent of the entity matrices (which are derived from them).
 type SpotLightEntity struct {
 	Base      EntityBase
+	drawDefaults
 	Position  mathx.Vec3
 	Direction mathx.Vec3
 	Color     []float32
@@ -242,9 +231,6 @@ func (e *SpotLightEntity) Draw(r *rendering.Renderer, mode rendering.MaterialMod
 	volMesh.Draw(r, false, rendering.ModeAll)
 }
 
-func (e *SpotLightEntity) DrawShadow(r *rendering.Renderer)                                  {}
-func (e *SpotLightEntity) DrawSkeleton(r *rendering.Renderer)                                {}
-func (e *SpotLightEntity) Simulate(r *rendering.Renderer, pass rendering.GPUComputePassEncoder) {}
 
 // DrawWireframe draws the cone volume outline with the debug pipeline.
 func (e *SpotLightEntity) DrawWireframe(r *rendering.Renderer) {
@@ -260,8 +246,6 @@ func (e *SpotLightEntity) DrawWireframe(r *rendering.Renderer) {
 }
 
 func (e *SpotLightEntity) Bounds() *mathx.BoundingBox { return e.Base.BoundingBox }
-func (e *SpotLightEntity) TriangleCount() int           { return 0 }
-func (e *SpotLightEntity) CastsShadow() bool            { return false }
 
 // LightScore ranks the light by intensity over squared distance to camPos.
 func (e *SpotLightEntity) LightScore(camPos *mathx.Vec3) float32 {
@@ -277,11 +261,8 @@ func (e *SpotLightEntity) AddToLighting(data *rendering.LightingData) bool {
 
 // UpdateBoundingVolume fits the AABB to the transformed cone volume.
 func (e *SpotLightEntity) UpdateBoundingVolume() {
-	if e.Base.BoundingBox == nil {
-		e.Base.BoundingBox = mathx.NewBoundingBox()
-	}
 	mathx.Mat4Multiply(lightVolumeMatrix, e.Base.BaseMatrix, e.Base.AniMatrix)
-	spotVolumeBounds.TransformInto(lightVolumeMatrix, e.Base.BoundingBox)
+	spotVolumeBounds.TransformInto(lightVolumeMatrix, e.Base.ensureBounds())
 }
 
 func (e *SpotLightEntity) Dispose() { baseDispose(&e.Base) }

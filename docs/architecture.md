@@ -185,7 +185,7 @@ type LightDrawable interface {
 
 Concrete entity types implement `Entity` plus whichever drawing interface their kind needs; lights implement `LightDrawable`. `EntityBase` holds `Type`, `Visible`, `CastShadow`, `IsStatic`, `AnimationTime`, `BaseMatrix`/`AniMatrix`, `BoundingBox` (nil = always visible), `Collider` (`*collision.Trimesh` for dynamic raycasts), `UserData`, and the optional update `Callback`. Mesh-only per-frame state lives on `MeshEntity`/`SkinnedMeshEntity` as `Shadow shadowState` (resolved ground height, skinned re-sample tracking) and `Probe probeCache` (ambient probe RGB).
 
-GoFront does not promote embedded fields, so every entity has an explicit `Base EntityBase` field and `GetBase()`; struct-typed fields are cloned on assignment, so callers mutate `e.Shadow.Height = …` in place and never copy the struct out.
+Every entity has an explicit `Base EntityBase` field and `GetBase()`. Entities also embed the empty `drawDefaults`, whose promoted no-op `DrawShadow`/`DrawWireframe`/`DrawSkeleton`/`Simulate` and `TriangleCount() == 0`/`CastsShadow() == false` cover the `Drawable` methods an entity does not override. Struct-typed fields are cloned on assignment, so callers mutate `e.Shadow.Height = …` in place and never copy the struct out.
 
 Entity types and constructors:
 
