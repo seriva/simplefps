@@ -12,7 +12,6 @@ Design documents for planned features live in `docs/plans/`
 
 | Feature | Difficulty | Status | Notes |
 |---|---|---|---|
-| [Engine Architecture Cleanup](plans/archive/engine-architecture-cleanup-plan.md) | Medium | Draft | Move the `rendering.SceneSource` seam so `scene` owns pass orchestration instead of `rendering` reaching back into the scene |
 | [SIMD Skinning & Perf Harness](plans/simd-skinning-plan.md) | Medium | Draft | Runs now on GoFront 1.7.0: in-process A/B perf harness, SIMD-only-in-WASM check, skinning palette as `F32x4` column packets (3.8–3.9× kernel speedup); gate ≥ 1.30× skinning |
 | [GoFront v1.8.0 Adoption](plans/gofront-v1.8.0-adoption-plan.md) | Medium | Draft | After SIMD Skinning (needs its A/B harness) and the v1.8.0 tag: bump to v1.8.0 behind JS/WASM perf gates (strict-mode checks in `mathx` measured at 4.3× on `Mat4Multiply` without upstream elision); builtin `min`/`max` in `collision`; drop stale field-pointer workaround |
 | [SIMD Collision](plans/simd-collision-plan.md) | High | Draft | After the v1.8.0 adoption: per-voxel SoA triangle packets with front-to-back early-out (2.28× kernel, triangle tests ≈ 45% of a cast); gate ≥ 1.15× raycast |
@@ -26,19 +25,21 @@ Plans for the legacy ES6 engine were removed with the GoFront rewrite; their out
 summarised in `CHANGELOG.md` under *2026-09 — Legacy JavaScript engine*.
 
 | Feature | Difficulty | Status | Notes |
-|---------|------------|--------|-------|
+|---|---|---|---|
 | [WASM Deferred Features](plans/archive/wasm-deferred-features-plan.md) | Medium | Completed (2026-10) | Adopted static voxel broadphase (14.8× raycast speedup, Octree removed) and pure WASM asset decoders (`assets/decoder`, 14–17× speedup); spark/projectile batching dropped (already WebGPU compute-native) |
 | [WASM v1.6.1 Gap Adoption](plans/archive/wasm-v1.6.1-adoption-plan.md) | Medium | Completed (2026-10) | Adopted GoFront v1.6.1 WASM capabilities: const expressions (`fpscontroller.go`, `ray.go`, `mathx.DegToRad`), boundary `error` handling in `collision` & `scene`, `slices.Contains`, Binaryen release optimizations (80.1 kB wasm, 0.1 B/frame zero-alloc verified). Deferred items moved to follow-up plan. |
 | WebAssembly Physics Migration | Medium | Completed (2026-10) | `physics` (`FPSController`, `DynamicBody`) and `animation` (skinning via a `gofront/shared` bone buffer) run in WASM next to `collision`; `BinaryReader` and `ParseBinaryAnimation` moved to `assets`; `npm run bench` compares `--js-only` vs hybrid: raycasts ≈1.15×, controller step ≈2.4×, skinning ≈1.2×, `app.wasm` ≈100 → ≈80 kB with `--release` |
-| [WebGPU Migration & Architecture Restructuring](plans/archive/remove-webgl-plan.md) | High | Completed (2026-11) | WebGL2 backend removed; `rendering` is WebGPU-native: typed `Backend`, explicit render passes, pre-baked pipelines, 4-slot bind groups with `ObjectData`/bone rings, storage-buffer lights and skinning, compute particles and Kawase blur; `rendering/fakegpu` test device |
+| [WebGPU Migration & Architecture Restructuring](plans/archive/remove-webgl-plan.md) | High | Completed (2026-10) | WebGL2 backend removed; `rendering` is WebGPU-native: typed `Backend`, explicit render passes, pre-baked pipelines, 4-slot bind groups with `ObjectData`/bone rings, storage-buffer lights and skinning, compute particles and Kawase blur; `rendering/fakegpu` test device |
 | WebAssembly Collision Split | Medium | Completed (2026-10) | Split `mathx` (both) and `collision` (wasm) into WebAssembly via GoFront 1.5.1; Möller–Trumbore raycast benchmark reaches 31,293 rays/s (1.17× JS) with 0.86 B/ray; zero-alloc test passed |
 | [GoFront Rewrite](plans/archive/gofront-rewrite-plan.md) | High | Completed (2026-10) | All engine and game packages ported from ES6 to GoFront `.go`/`.templ`; legacy JS deleted; `main.go` boot; recursive `gofront check/test app/src/...`; zero-alloc perf benchmark and Playwright smoke test |
+| [Engine Architecture Cleanup](plans/archive/engine-architecture-cleanup-plan.md) | Medium | Completed (2026-10) | Renderer alone owns pass order, shader selection and GPU state, pulling per-frame data through `rendering.SceneSource`; `scene` is pure data (culling, spatial queries, entity lifetime) |
 | Physics Improvements | Medium | Completed (2026-09) | Iterative wall sliding, Quake-style step-climbing, 8-directional depenetration, raycasting micro-opts, raycastStatic/Dynamic split |
 | Rendering Performance | Medium | Completed (2026-09) | Two-level BVH, light contribution culling, skip shadow blur when idle, priority-queue shadow budget, compact light UBO layout |
 | Ambient Probe Acceleration | Low | Completed (2026-09) | Verified in `scene/lightgrid.go`; O(1) 3D grid cell lookup with trilinear interpolation and per-frame caching |
-| Transparent Sorting | Low | Completed (2026-09) | Back-to-front depth sort landed in `scene/renderpasses.go`; sort entry pooling and early-out tracked in Code Review Quick Wins (B2, B3) |
+| Transparent Sorting | Low | Completed (2026-09) | Back-to-front depth sort landed in `scene/drawlists.go` |
 | Fixed Timestep Physics | Medium | Completed (2026-09) | 120 Hz accumulator decouples simulation from refresh rate; frame-rate-invariant jump height and movement, prerequisite for consistent P2P simulation |
 | Code Review & Engine Improvements | Medium | Completed (2026-09) | Engine review fixes across Rounds 1 & 2: backend GL/WebGPU optimizations, architecture/facade integrity, skinned animation, particle leaks, cull state, WebGPU near culling, audio cache, and zero-allocation hot paths |
+
 ---
 
 ## Out of scope
