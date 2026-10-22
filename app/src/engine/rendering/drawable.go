@@ -132,21 +132,3 @@ type SceneSource interface {
 	// Transparent holds translucent meshes pre-sorted back-to-front.
 	Transparent() *DrawList
 }
-
-// HasShadowCasters reports whether any visible mesh or skinned mesh casts a
-// drop shadow.
-func HasShadowCasters(scene SceneSource) bool {
-	meshes := scene.Meshes()
-	for i := 0; i < meshes.Count; i++ {
-		if meshes.Items[i].CastsShadow() {
-			return true
-		}
-	}
-	skinned := scene.SkinnedMeshes()
-	for i := 0; i < skinned.Count; i++ {
-		if skinned.Items[i].CastsShadow() {
-			return true
-		}
-	}
-	return false
-}

@@ -42,11 +42,12 @@ Probes ran on 2026-10-21 against GoFront HEAD `f69c67a` and 1.7.0, release build
 
 | Area | Finding | Evidence & Probe Reference |
 |---|---|---|
-| Raycast split | SH-Flat runs 310–324 ns per full cast and 169–178 ns with the candidate loop skipped, so triangle tests are **≈ 45%** of the cast. SH-Map: 414 ns vs 265–304 ns. | Probe `simd/split/`: `count = 0` after `rayQueryLocal` in [`ray.go:281-283`](../../app/src/engine/collision/ray.go#L281-L283), `js-vs-wasm.js` ×2 on demo arena geometry |
+| Raycast split | SH-Flat runs 310–324 ns per full cast and 169–178 ns with the candidate loop skipped, so triangle tests are **≈ 45%** of the cast. SH-Map: 414 ns vs 265–304 ns. | Probe `simd/split/`: `count = 0` after `rayQueryLocal` in [`ray.go:188-190`](../../app/src/engine/collision/ray.go#L188-L190), `js-vs-wasm.js` ×2 on demo arena geometry |
 | 4-wide kernel (HEAD) | **2.28×** per triangle (7.01 → 3.07 ns), using unexported structs with 9 `F32x4` fields and lane extraction (no masks yet). Hits identical (1,711,427). New-space 2,824 B per 100k rays, which is the harness noise floor. | Probe `simd/tri` + `runtri.mjs` |
 | 4-wide kernel (1.7.0) | **Traps** in `Build` (`invalid memory address or nil pointer dereference`) because of the pre-v1.8.0 array/pointer bugs. | Same probe with `GOFRONT_DIR` set to 1.7.0 |
-| Candidate gathering | Voxel walk plus a per-triangle stamp dedupe into `out[]`, then gather-order tests via `getNormal`/`getVertex`. | [`spatialhash.go:946-955`](../../app/src/engine/collision/spatialhash.go#L946-L955), [`ray.go:285-300`](../../app/src/engine/collision/ray.go#L285-L300) |
-| Ray modes | `RayModeAll` and `Callback` need exact dedupe; `Closest`/`Any` tolerate a triangle being tested twice. | [`ray.go:11-13`](../../app/src/engine/collision/ray.go#L11-L13), [`ray.go:350-368`](../../app/src/engine/collision/ray.go#L350-L368) |
+| Candidate gathering | Voxel walk plus a per-triangle stamp dedupe into `out[]`, then gather-order tests via `getNormal`/`getVertex`. | [`spatialhash.go:810-818`](../../app/src/engine/collision/spatialhash.go#L810-L818), [`ray.go:192-209`](../../app/src/engine/collision/ray.go#L192-L209) |
+| Ray modes | `RayModeAll` and `Callback` need exact dedupe; `Closest`/`Any` tolerate a triangle being tested twice. | [`ray.go:11-13`](../../app/src/engine/collision/ray.go#L11-L13), [`ray.go:261-284`](../../app/src/engine/collision/ray.go#L261-L284) |
+| Grid build | Since [`sloc-reduction-plan.md`](archive/sloc-reduction-plan.md) Phase 2, `newSpatialHash` inserts every non-degenerate triangle through one helper, `sweepDominantAxis` (one call per Y/X/Z dominant axis), and builds `flatGrid` from the finished map at the end. Packets attach after the grid build, in `BuildSpatialHash` once `newSpatialHash` returns, reading `flatGrid` (Approach §1); the sweep itself does not change. | [`spatialhash.go:510-518`](../../app/src/engine/collision/spatialhash.go#L510-L518) (sweep calls), [`spatialhash.go:538-569`](../../app/src/engine/collision/spatialhash.go#L538-L569) (`flatGrid`), [`spatialhash.go:572-580`](../../app/src/engine/collision/spatialhash.go#L572-L580) (`sweepDominantAxis`), [`trimesh.go:255-267`](../../app/src/engine/collision/trimesh.go#L255-L267) (`BuildSpatialHash`) |
 | Demo arena size | 1,089 voxels, 7,168 voxel refs, so ≤ ≈ 10.4k padded lanes and ≈ 430 kB of packets. | `js-vs-wasm.js` `SpatialHashStats` |
 
 ---
@@ -79,7 +80,7 @@ Probes ran on 2026-10-21 against GoFront HEAD `f69c67a` and 1.7.0, release build
 ### 3. Edge Cases & Error Handling
 
 - **Degenerate and padding lanes:** the `|det| < ε` mask removes them, matching `parallelRayEpsilon`. A voxel holding only degenerate triangles is tested.
-- **`SkipBackfaces` and double-sided:** per-lane mask, matching [`ray.go:291-296`](../../app/src/engine/collision/ray.go#L291-L296).
+- **`SkipBackfaces` and double-sided:** per-lane mask, matching [`ray.go:201-207`](../../app/src/engine/collision/ray.go#L201-L207).
 - **Filter mask:** lane flags are ANDed with `RayOptions.CollisionFilterMask`.
 - **Non-identity `worldMatrix`:** the ray is transformed to local space first, as today.
 - **A triangle spanning voxels:** it may be tested twice in closest/any. That is harmless, and the parity test covers rays along voxel boundaries.

@@ -95,11 +95,7 @@ type FakeSampler struct {
 // FakeShaderModule is a fake GPUShaderModule.
 type FakeShaderModule struct {
 	label string
-	code  string
 }
-
-// Code returns the WGSL source.
-func (m *FakeShaderModule) Code() string { return m.code }
 
 // FakeBindGroupLayout is a fake GPUBindGroupLayout.
 type FakeBindGroupLayout struct {
@@ -127,7 +123,6 @@ func (g *FakeBindGroup) Label() string { return g.label }
 type FakePipeline struct {
 	label   string
 	compute bool
-	desc    any
 }
 
 func (p *FakePipeline) getBindGroupLayout(index int) any {
@@ -136,9 +131,6 @@ func (p *FakePipeline) getBindGroupLayout(index int) any {
 
 // Label returns the descriptor label.
 func (p *FakePipeline) Label() string { return p.label }
-
-// Desc returns the raw descriptor.
-func (p *FakePipeline) Desc() any { return p.desc }
 
 // FakeCommandBuffer is a fake GPUCommandBuffer.
 type FakeCommandBuffer struct {
@@ -359,7 +351,7 @@ func (d *Device) createSampler(desc any) any {
 }
 
 func (d *Device) createShaderModule(desc any) any {
-	m := &FakeShaderModule{label: labelOf(desc), code: desc.code.(string)}
+	m := &FakeShaderModule{label: labelOf(desc)}
 	d.ShaderModules = append(d.ShaderModules, m)
 	return m
 }
@@ -384,13 +376,13 @@ func (d *Device) createRenderPipeline(desc any) any {
 	if ds != nil && ds.format == nil {
 		panic("fakegpu: createRenderPipeline " + labelOf(desc) + ": depthStencil.format is undefined")
 	}
-	p := &FakePipeline{label: labelOf(desc), desc: desc}
+	p := &FakePipeline{label: labelOf(desc)}
 	d.Pipelines = append(d.Pipelines, p)
 	return p
 }
 
 func (d *Device) createComputePipeline(desc any) any {
-	p := &FakePipeline{label: labelOf(desc), compute: true, desc: desc}
+	p := &FakePipeline{label: labelOf(desc), compute: true}
 	d.Pipelines = append(d.Pipelines, p)
 	return p
 }

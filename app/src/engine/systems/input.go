@@ -151,11 +151,6 @@ func (im *InputManager) IsCursorVisible() bool {
 	return im.visibleCursor
 }
 
-// SetCursorVisible sets the visible state of the cursor.
-func (im *InputManager) SetCursorVisible(visible bool) {
-	im.visibleCursor = visible
-}
-
 // Attach registers window keyboard/mouse listeners. No-op outside a browser or
 // when already attached.
 func (im *InputManager) Attach() {
