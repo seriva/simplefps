@@ -160,7 +160,7 @@ Probes ran on 2026-10-22 against `master` `b70d968` (GoFront 1.7.0). The dead-co
 
 ### Phase 3: Docs & Close-out
 
-- [ ] Task 3.1: Update follow-up plans.
+- [x] Task 3.1: Update follow-up plans.
   - Files: `docs/plans/gofront-v1.8.0-adoption-plan.md` (the shadowed `min`/`max` row and the matching Approach note now cover only `rayAABBInterval`; fix line refs; re-count the constant slice indices in `mat4.go`, last counted at 665), `docs/plans/simd-collision-plan.md` (the `ray.go` line refs; note that `newSpatialHash` now uses one sweep helper)
   - Test: every changed `file#Lx` link points at the cited code.
   - Done when: both plans cite current lines.
