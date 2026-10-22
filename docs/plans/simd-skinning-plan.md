@@ -144,7 +144,7 @@ Probes ran on 2026-10-21: GoFront 1.7.0 (worktree at tag `1.7.0`) and HEAD `f69c
   - Done when: the copy loop is replaced by `simd.StoreF32x4`.
 - [ ] Task 2.4: Zero-alloc case and gate
   - Files: `tests/perf/zero-alloc.js` (skinning case), `docs/plans/simd-skinning-plan.md` (record the result)
-  - Test: `npm run test:perf` with a 20,000-frame skinning case at ≤ 0.5 B/frame; `BASELINE_SRC=<worktree of feat/simd-skinning before Phase 2> node tests/perf/js-vs-wasm.js --ab --repeat 5`.
+  - Test: `npm run test:perf` with a 20,000-frame skinning case at ≤ 0.5 B/frame; `BASELINE_SRC=<worktree of feat/simd-skinning before Phase 2> node tests/perf/js-vs-wasm.js --ab --repeat 5 --gate 'skinning-total>=1.30' --gate skinning-world=off --gate skinning-palette=off` (skinning-total gated on ≥ 1.30× only; world and palette are expected to speed up too and are reported ungated; every other entry stays on the 0.90–1.10 band).
   - Done when: skinning-total is ≥ 1.30× and zero-alloc passes, with the numbers recorded under *Verified Gaps*. If it is below 1.30×, stop and report (see execution notes).
 
 ---
@@ -156,6 +156,6 @@ Probes ran on 2026-10-21: GoFront 1.7.0 (worktree at tag `1.7.0`) and HEAD `f69c
 - **Negative cases:** `scripts/check-simd.js` on `tests/fixtures/check-simd/bad` fails with `file:line`; `ab.js --inject-slowdown 1.5` fails its gate; `ab.js` without env skips with exit 0.
 - **Benchmarks:**
   - `node tests/perf/ab.js --self-test --repeat 5`: A/A within 0.90–1.10.
-  - `node tests/perf/js-vs-wasm.js --ab --repeat 5` (against the pre-Phase-2 source): skinning-total ≥ 1.30×.
+  - `node tests/perf/js-vs-wasm.js --ab --repeat 5 --gate 'skinning-total>=1.30' --gate skinning-world=off --gate skinning-palette=off` (against the pre-Phase-2 source): skinning-total ≥ 1.30×, other gated entries within 0.90–1.10.
   - `node tests/perf/simd-kernels.js`: palette ≥ 3.0× (canary).
   - `node tests/perf/zero-alloc.js`: skinning ≤ 0.5 B/frame; raycast ≤ 3,000 B per 100k casts; controller ≤ 0.5 B/frame.

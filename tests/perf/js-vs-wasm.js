@@ -19,7 +19,9 @@
 // entry — controller, skinning split into world (GetWorldMatrices), palette
 // (ComputeSkinningMatrices + copy-out) and total (a full frame), mesh-parse,
 // anim-parse, SH-Map and SH-Flat raycasts — on 0.90–1.10 unless --min/--max
-// say otherwise; `--repeat 5` gates on the median of five process runs.
+// say otherwise; `--gate NAME>=X` gates one entry on a lower bound only and
+// `--gate NAME=off` reports it ungated (see ab.js); `--repeat 5` gates on the
+// median of five process runs.
 
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";

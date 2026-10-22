@@ -27,10 +27,20 @@ function floorMesh(scale) {
 	return [new Float32Array(verts), new Int32Array(indices)];
 }
 
+// has reports whether build `m` defines every export in `names`. ab.js exposes
+// a symbol the source lacks as `undefined`, so a workload whose exports are
+// missing on one side is returned as null there and reported `B-only`/`A-only`
+// instead of crashing the run.
+const has = (m, ...names) => names.every((n) => m[n] !== undefined);
+
 // physicsWorkloads drives a `physics` package build: closest-hit raycasts
 // against a 2048-triangle floor with the spatial-hash Map (`raycastMap`) or
 // flat (`raycastFlat`) broadphase, and the fixed-step FPS controller loop.
+// A workload whose exports `m` lacks comes back null.
 export function physicsWorkloads(m) {
+	if (!has(m, "NewTrimesh", "NewRay", "Vec3", "RayModeClosest")) {
+		return { raycastMap: null, raycastFlat: null, controller: null };
+	}
 	const [mesh, err] = m.NewTrimesh(...floorMesh(1), null);
 	if (err) throw err;
 	const ray = m.NewRay(new m.Vec3(0, 10, 0), new m.Vec3(0, -10, 0));
@@ -56,6 +66,9 @@ export function physicsWorkloads(m) {
 		mesh.SetBroadphase(1);
 		sweep(n);
 	};
+	if (!has(m, "NewStaticWorld", "NewFPSController")) {
+		return { raycastMap, raycastFlat, controller: null };
+	}
 
 	const [floor, floorErr] = m.NewTrimesh(...floorMesh(50), null);
 	if (floorErr) throw floorErr;
@@ -99,7 +112,11 @@ export function physicsWorkloads(m) {
 //             out of the shared bone buffer;
 //   total   - one full frame as scene.SkinnedMeshEntity drives it
 //             (AnimationPlayer.Update + ComputeSkinningMatrices + copy).
+// A workload whose exports `m` lacks comes back null.
 export function skinningWorkloads(m) {
+	if (!has(m, "JointDef", "NewSkeleton", "NewPose")) {
+		return { world: null, palette: null, total: null };
+	}
 	const defs = [];
 	for (let i = 0; i < JOINTS; i++) {
 		const d = new m.JointDef();
@@ -118,8 +135,9 @@ export function skinningWorkloads(m) {
 		}
 		poses.push(p);
 	}
-	const player = m.NewAnimationPlayer(skeleton);
-	player.Play(m.NewAnimation("walk", 24, poses, null), true);
+	const animated = has(m, "NewAnimationPlayer", "NewAnimation");
+	const player = animated ? m.NewAnimationPlayer(skeleton) : null;
+	player?.Play(m.NewAnimation("walk", 24, poses, null), true);
 	const fixed = poses[3];
 	// `m` is ab.js's export object, whose members are live getters: read
 	// SkinMatrices once per frame, not once per float.
@@ -142,17 +160,28 @@ export function skinningWorkloads(m) {
 			for (let k = 0; k < floats; k++) bones[k] = skin[k];
 		}
 	};
-	return { world, palette, total };
+	const skinned = has(m, "SkinMatrices");
+	return {
+		world,
+		palette: skinned ? palette : null,
+		total: skinned && animated ? total : null,
+	};
 }
 
 // decoderWorkloads drives an `assets/decoder` build over real asset bytes.
+// A workload whose export `m` lacks comes back null.
 export function decoderWorkloads(m, meshBytes, animBytes) {
 	return {
-		parseMesh: (n) => {
-			for (let i = 0; i < n; i++) m.ParseBinaryMesh(meshBytes);
-		},
-		parseAnim: (n) => {
-			for (let i = 0; i < n; i++) m.ParseBinaryAnimation("robot", animBytes);
-		},
+		parseMesh: has(m, "ParseBinaryMesh")
+			? (n) => {
+					for (let i = 0; i < n; i++) m.ParseBinaryMesh(meshBytes);
+				}
+			: null,
+		parseAnim: has(m, "ParseBinaryAnimation")
+			? (n) => {
+					for (let i = 0; i < n; i++)
+						m.ParseBinaryAnimation("robot", animBytes);
+				}
+			: null,
 	};
 }

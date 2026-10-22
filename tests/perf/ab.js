@@ -18,7 +18,13 @@
 // 0.90–1.10. Flags:
 //   --repeat N             re-spawn the run N times, gate on the median ratio
 //   --rounds N             interleaved rounds per entry (default 9)
-//   --min X / --max X      gate band (default 0.90 / 1.10)
+//   --min X / --max X      default gate band (0.90 / 1.10; --max Infinity ok)
+//   --gate NAME>=X         per-entry override (repeatable): gate entry NAME on
+//                          ratio >= X only, ignoring the default band (e.g.
+//                          `--gate 'skinning-total>=1.30'`; quote it, `>`
+//                          is a shell redirect)
+//   --gate NAME=off        per-entry override: report NAME without gating it
+//                          (an entry expected to move but not gated)
 //   --inject-slowdown X    test-only: stretch every side-B sample X times
 // With neither GOFRONT_BASELINE_DIR nor BASELINE_SRC set, the self-test prints
 // a skip message and exits 0, so `npm run test:perf` works on a bare checkout.
@@ -175,13 +181,22 @@ function parseArgs(argv) {
 		min: 0.9,
 		max: 1.1,
 		injectSlowdown: 1,
+		gates: new Map(),
 		json: false,
 		flags: new Set(),
 	};
 	const num = (i) => {
 		const v = Number(argv[i + 1]);
-		if (!Number.isFinite(v)) throw new Error(`${argv[i]} needs a number`);
+		if (Number.isNaN(v)) throw new Error(`${argv[i]} needs a number`);
 		return v;
+	};
+	const gate = (spec) => {
+		const m = /^([^=<>]+)(?:>=(.+)|=(off))$/.exec(spec ?? "");
+		const min = m?.[2] === undefined ? null : Number(m[2]);
+		if (!m || Number.isNaN(min)) {
+			throw new Error(`--gate needs NAME>=X or NAME=off (got ${spec})`);
+		}
+		opts.gates.set(m[1], m[3] ? { off: true } : { min, max: Infinity });
 	};
 	for (let i = 0; i < argv.length; i++) {
 		const a = argv[i];
@@ -190,6 +205,7 @@ function parseArgs(argv) {
 		else if (a === "--min") opts.min = num(i++);
 		else if (a === "--max") opts.max = num(i++);
 		else if (a === "--inject-slowdown") opts.injectSlowdown = num(i++);
+		else if (a === "--gate") gate(argv[++i]);
 		else if (a === "--json") opts.json = true;
 		else opts.flags.add(a);
 	}
@@ -208,7 +224,20 @@ function childArgs(argv) {
 
 const JSON_TAG = "AB_RESULT ";
 
+// gateLabel describes the default band plus any --gate overrides.
+function gateLabel(opts) {
+	const over = [...opts.gates].map(([name, g]) =>
+		g.off ? `${name} off` : `${name} ≥ ${g.min}`,
+	);
+	return `gate ${opts.min}–${opts.max}${over.length ? ` (${over.join(", ")})` : ""}`;
+}
+
 function printTable(title, rows, opts) {
+	for (const name of opts.gates.keys()) {
+		if (!rows.some((r) => r.name === name)) {
+			throw new Error(`--gate names unknown entry ${name}`);
+		}
+	}
 	const w = Math.max(...rows.map((r) => r.name.length), 5);
 	console.log(title);
 	console.log(
@@ -220,11 +249,12 @@ function printTable(title, rows, opts) {
 			console.log(`${r.name.padEnd(w)}  ${r.status} (not gated)`);
 			continue;
 		}
-		const ok = r.ratio >= opts.min && r.ratio <= opts.max;
+		const g = opts.gates.get(r.name) ?? opts;
+		const ok = g.off || (r.ratio >= g.min && r.ratio <= g.max);
 		if (!ok) failed++;
 		const runs = r.runs ? r.runs.map((x) => x.toFixed(3)).join(" ") : "";
 		console.log(
-			`${r.name.padEnd(w)}  ${r.aNs.toFixed(1).padStart(12)}  ${r.bNs.toFixed(1).padStart(12)}  ${`${r.ratio.toFixed(3)}×`.padStart(7)}  ${runs}${ok ? "" : "  FAIL"}`,
+			`${r.name.padEnd(w)}  ${r.aNs.toFixed(1).padStart(12)}  ${r.bNs.toFixed(1).padStart(12)}  ${`${r.ratio.toFixed(3)}×`.padStart(7)}  ${runs}${g.off ? "  (not gated)" : ok ? "" : "  FAIL"}`,
 		);
 	}
 	return failed;
@@ -233,7 +263,8 @@ function printTable(title, rows, opts) {
 // runAB drives a full A/B run: `buildEntries(sides)` returns the entry list
 // for one process. With --repeat N it re-spawns `script` N times and gates on
 // the per-entry median of the N ratios; otherwise it gates on this process's
-// ratios. Exits non-zero when any entry is outside [min, max].
+// ratios. Exits non-zero when any entry is outside [min, max] or its --gate
+// override.
 export async function runAB({ script, argv, title, sides, buildEntries }) {
 	const opts = parseArgs(argv);
 	if (opts.repeat > 1) {
@@ -264,7 +295,7 @@ export async function runAB({ script, argv, title, sides, buildEntries }) {
 			};
 		});
 		const failed = printTable(
-			`${title} — median of ${opts.repeat} process runs, gate ${opts.min}–${opts.max}`,
+			`${title} — median of ${opts.repeat} process runs, ${gateLabel(opts)}`,
 			rows,
 			opts,
 		);
@@ -281,11 +312,7 @@ export async function runAB({ script, argv, title, sides, buildEntries }) {
 		return;
 	}
 	finish(
-		printTable(
-			`${title} — single process run, gate ${opts.min}–${opts.max}`,
-			rows,
-			opts,
-		),
+		printTable(`${title} — single process run, ${gateLabel(opts)}`, rows, opts),
 	);
 }
 
@@ -406,7 +433,7 @@ if (
 	const argv = process.argv.slice(2);
 	if (!argv.includes("--self-test")) {
 		console.log(
-			"usage: node tests/perf/ab.js --self-test [--repeat N] [--rounds N] [--min X] [--max X] [--inject-slowdown X]",
+			"usage: node tests/perf/ab.js --self-test [--repeat N] [--rounds N] [--min X] [--max X] [--gate NAME>=X | --gate NAME=off]... [--inject-slowdown X]",
 		);
 		process.exit(2);
 	}
