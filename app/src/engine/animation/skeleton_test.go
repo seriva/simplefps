@@ -70,7 +70,8 @@ func TestSkinMatricesMatchScalarFixture(t *testing.T) {
 	s := NewSkeleton(fixtureJointDefs())
 	poses := fixturePoses(s)
 	for p := 0; p < 3; p++ {
-		n := s.ComputeSkinningMatrices(poses[p])
+		s.ComputeSkinningMatrices(poses[p])
+		n := s.SkinJointCount()
 		if n != s.JointCount {
 			t.Fatalf("pose %d: wrote %d joints, want %d", p, n, s.JointCount)
 		}
@@ -127,7 +128,8 @@ func TestSkinningClampsAtMaxSkinJoints(t *testing.T) {
 		}
 	}
 
-	n := s.ComputeSkinningMatrices(pose)
+	s.ComputeSkinningMatrices(pose)
+	n := s.SkinJointCount()
 	if n != MaxSkinJoints {
 		t.Fatalf("joints written = %d, want %d", n, MaxSkinJoints)
 	}

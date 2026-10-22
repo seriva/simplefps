@@ -295,10 +295,13 @@ function setupSkinning(m) {
 	const player = m.NewAnimationPlayer(skeleton);
 	player.Play(m.NewAnimation("walk", 24, poses, null), true);
 	const bones = new Float32Array(JOINTS * 16);
+	// Palette size read once, as scene.SkinnedMeshEntity caches it: the
+	// per-frame ComputeSkinningMatrices call returns nothing.
+	const floats = Math.min(skeleton.JointCount, 64) * 16;
 	return (n) => {
 		for (let i = 0; i < n; i++) {
 			const pose = player.Update(1 / 60);
-			const floats = skeleton.ComputeSkinningMatrices(pose) * 16;
+			skeleton.ComputeSkinningMatrices(pose);
 			for (let k = 0; k < floats; k++) bones[k] = m.SkinMatrices[k];
 		}
 	};

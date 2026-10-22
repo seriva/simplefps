@@ -142,12 +142,18 @@ export function skinningWorkloads(m) {
 	// `m` is ab.js's export object, whose members are live getters: read
 	// SkinMatrices once per frame, not once per float.
 	const bones = new Float32Array(JOINTS * 16);
+	// Palette size read once, as scene.SkinnedMeshEntity caches it. The
+	// per-frame ComputeSkinningMatrices call returns nothing on the current
+	// tree (an int return allocates across the boundary); a pre-change
+	// baseline still returns the count, which is ignored here so both sides
+	// run the same driver.
+	const floats = Math.min(skeleton.JointCount, JOINTS) * 16;
 	const world = (n) => {
 		for (let i = 0; i < n; i++) skeleton.GetWorldMatrices(fixed);
 	};
 	const palette = (n) => {
 		for (let i = 0; i < n; i++) {
-			const floats = skeleton.ComputeSkinningMatrices(fixed) * 16;
+			skeleton.ComputeSkinningMatrices(fixed);
 			const skin = m.SkinMatrices;
 			for (let k = 0; k < floats; k++) bones[k] = skin[k];
 		}
@@ -155,7 +161,7 @@ export function skinningWorkloads(m) {
 	const total = (n) => {
 		for (let i = 0; i < n; i++) {
 			const pose = player.Update(1 / 60);
-			const floats = skeleton.ComputeSkinningMatrices(pose) * 16;
+			skeleton.ComputeSkinningMatrices(pose);
 			const skin = m.SkinMatrices;
 			for (let k = 0; k < floats; k++) bones[k] = skin[k];
 		}

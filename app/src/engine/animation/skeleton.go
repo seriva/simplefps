@@ -190,15 +190,24 @@ func (s *Skeleton) GetWorldMatrices(pose *Pose) []mathx.Mat4 {
 	return s.worldMatrices
 }
 
-// ComputeSkinningMatrices writes world * inverseBind per joint into
-// SkinMatrices (overwritten on the next call, by any skeleton) and returns the
-// number of joints written (at most MaxSkinJoints).
-func (s *Skeleton) ComputeSkinningMatrices(pose *Pose) int {
-	s.computeWorldMatrices(pose)
-	n := s.JointCount
-	if n > MaxSkinJoints {
-		n = MaxSkinJoints
+// SkinJointCount returns the number of palettes ComputeSkinningMatrices
+// writes: JointCount clamped to MaxSkinJoints. It is constant per skeleton,
+// so callers read it once at load, not per frame.
+func (s *Skeleton) SkinJointCount() int {
+	if s.JointCount > MaxSkinJoints {
+		return MaxSkinJoints
 	}
+	return s.JointCount
+}
+
+// ComputeSkinningMatrices writes world * inverseBind per joint into
+// SkinMatrices (overwritten on the next call, by any skeleton) for the first
+// SkinJointCount() joints. It returns nothing: on GoFront 1.7.0 an int return
+// across the JS↔WASM boundary allocates ≈ 24 B per call, so the per-frame
+// call stays void and callers cache SkinJointCount().
+func (s *Skeleton) ComputeSkinningMatrices(pose *Pose) {
+	s.computeWorldMatrices(pose)
+	n := s.SkinJointCount()
 	pack := _packs[s.pack]
 	for i := 0; i < n; i++ {
 		// world × inverseBind column by column (mulMat4c's order), each
@@ -211,7 +220,6 @@ func (s *Skeleton) ComputeSkinningMatrices(pose *Pose) int {
 		simd.StoreF32x4(SkinMatrices, base+8, mulCol(w, b.c2))
 		simd.StoreF32x4(SkinMatrices, base+12, mulCol(w, b.c3))
 	}
-	return n
 }
 
 // Pose stores flat per-joint local positions (3 floats) and rotations (4 floats).
