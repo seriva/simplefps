@@ -12,7 +12,6 @@ Design documents for planned features live in `docs/plans/`
 
 | Feature | Difficulty | Status | Notes |
 |---|---|---|---|
-| [SIMD Skinning & Perf Harness](plans/simd-skinning-plan.md) | Medium | In Progress | Phases 1–2 implemented on `feat/simd-skinning`: in-process A/B perf harness with per-entry gates, SIMD-only-in-WASM check, skinning palette as `F32x4` column packets (skinning-total 2.08×, 0.15 B/frame); final audit pending |
 | [GoFront v1.8.0 Adoption](plans/gofront-v1.8.0-adoption-plan.md) | Medium | Draft | After SIMD Skinning (needs its A/B harness) and the v1.8.0 tag: bump to v1.8.0 behind JS/WASM perf gates (strict-mode checks in `mathx` measured at 4.3× on `Mat4Multiply` without upstream elision); builtin `min`/`max` in `collision`; drop stale field-pointer workaround |
 | [SIMD Collision](plans/simd-collision-plan.md) | High | Draft | After the v1.8.0 adoption: per-voxel SoA triangle packets with front-to-back early-out (2.28× kernel, triangle tests ≈ 45% of a cast); gate ≥ 1.15× raycast |
 | [G-Buffer Depth Reconstruction](plans/gbuffer-depth-reconstruction-plan.md) | Medium | Planned | Reconstruct world/view position from depth buffer; eliminates 16-byte worldPosition render target to cut mobile memory bandwidth |
@@ -26,6 +25,7 @@ summarised in `CHANGELOG.md` under *2026-09 — Legacy JavaScript engine*.
 
 | Feature | Difficulty | Status | Notes |
 |---|---|---|---|
+| [SIMD Skinning & Perf Harness](plans/archive/simd-skinning-plan.md) | Medium | Completed (2026-10) | In-process A/B perf harness (`tests/perf/ab.js`, per-entry `--gate`), SIMD-only-in-WASM check, SIMD kernel canary; skinning world chain and palette on `F32x4` column packets: skinning-total 2.08×, bit-identical, 0.15 B/frame; `ComputeSkinningMatrices` is void (`SkinJointCount()`). Follow-ups listed in the plan |
 | [WASM Deferred Features](plans/archive/wasm-deferred-features-plan.md) | Medium | Completed (2026-10) | Adopted static voxel broadphase (14.8× raycast speedup, Octree removed) and pure WASM asset decoders (`assets/decoder`, 14–17× speedup); spark/projectile batching dropped (already WebGPU compute-native) |
 | [WASM v1.6.1 Gap Adoption](plans/archive/wasm-v1.6.1-adoption-plan.md) | Medium | Completed (2026-10) | Adopted GoFront v1.6.1 WASM capabilities: const expressions (`fpscontroller.go`, `ray.go`, `mathx.DegToRad`), boundary `error` handling in `collision` & `scene`, `slices.Contains`, Binaryen release optimizations (80.1 kB wasm, 0.1 B/frame zero-alloc verified). Deferred items moved to follow-up plan. |
 | WebAssembly Physics Migration | Medium | Completed (2026-10) | `physics` (`FPSController`, `DynamicBody`) and `animation` (skinning via a `gofront/shared` bone buffer) run in WASM next to `collision`; `BinaryReader` and `ParseBinaryAnimation` moved to `assets`; `npm run bench` compares `--js-only` vs hybrid: raycasts ≈1.15×, controller step ≈2.4×, skinning ≈1.2×, `app.wasm` ≈100 → ≈80 kB with `--release` |

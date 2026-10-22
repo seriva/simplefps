@@ -22,10 +22,10 @@ import v8 from "node:v8";
 import { skinningWorkloads } from "./workloads.js";
 
 // `physics` is a wasm package with interface fields on its boundary, which
-// needs gofront >= 1.6.0. `GOFRONT_DIR` points at a local checkout (the same
+// needs gofront >= 1.6.0, and `animation` imports `gofront/simd` (>= 1.7.0). `GOFRONT_DIR` points at a local checkout (the same
 // workflow AGENTS.md uses for `node ../gofront/src/index.js`) and is trusted
 // without a version check.
-const MIN_GOFRONT = [1, 6, 0];
+const MIN_GOFRONT = [1, 7, 0];
 const gofrontDir = process.env.GOFRONT_DIR;
 const gofrontRoot = gofrontDir ? resolve(gofrontDir) : null;
 if (!gofrontRoot) {

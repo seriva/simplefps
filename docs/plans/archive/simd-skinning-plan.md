@@ -1,10 +1,10 @@
 # SIMD Skinning & Perf Harness — Design Plan
 
 **Version:** continuous  
-**Status:** In Progress (Phases 1–2 implemented 2026-10-22; final audit pending)  
+**Status:** Completed (2026-10-22)  
 **Depends on:** GoFront ≥ 1.7.0 (current). No upstream wait; this plan can run now.  
 **Replaces:** Phases 1–2 of the withdrawn `simd-adoption-plan.md` (split by toolchain readiness so the epic branch can merge without waiting for GoFront v1.8.0)  
-**Followed by:** [`gofront-v1.8.0-adoption-plan.md`](gofront-v1.8.0-adoption-plan.md) (uses this plan's A/B harness), then [`simd-collision-plan.md`](simd-collision-plan.md)
+**Followed by:** [`gofront-v1.8.0-adoption-plan.md`](../gofront-v1.8.0-adoption-plan.md) (uses this plan's A/B harness), then [`simd-collision-plan.md`](../simd-collision-plan.md)
 
 ---
 
@@ -32,7 +32,7 @@ SIMD is allowed only in `wasm` packages, only in unexported types and functions,
 | **In scope: core** | Test tooling and invariants | `tests/perf/ab.js` (A/B runner), `tests/perf/simd-kernels.js` (canary), `scripts/check-simd.js`, the AGENTS SIMD rule |
 | **In scope: target-specific** | WASM `animation` | `mat4c` column packets; SIMD world chain and palette, stored straight into `SkinMatrices` (`shared.Float32`) |
 | **Excluded: runtime / platform** | The JS fallback breaks zero-alloc | `F32x4` in `mathx`/`rendering`/`scene`/`game` is a frozen array that allocates per operation (≈ 180–194 ns/op, measured) |
-| **Excluded: deferred** | Valid, but handled elsewhere or not worth it | Collision SIMD ([`simd-collision-plan.md`](simd-collision-plan.md)); `PoseLerp` slerp (bound by transcendentals, and nlerp would be a visual change); controller ray packets (order dependent, ≈ 3 µs per step) |
+| **Excluded: deferred** | Valid, but handled elsewhere or not worth it | Collision SIMD ([`simd-collision-plan.md`](../simd-collision-plan.md)); `PoseLerp` slerp (bound by transcendentals, and nlerp would be a visual change); controller ray packets (order dependent, ≈ 3 µs per step) |
 
 ---
 
@@ -43,22 +43,22 @@ Probes ran on 2026-10-21: GoFront 1.7.0 (worktree at tag `1.7.0`) and HEAD `f69c
 | Area | Finding | Evidence & Probe Reference |
 |---|---|---|
 | Palette kernel | 64 joints, world × inverseBind into a `shared.Float32`. Scalar 1,814–1,838 ns/frame vs SIMD 467–479 ns/frame, **3.79× (1.7.0) and 3.93× (HEAD)**, bit-identical. The recreated `kern` measures 6.6–7.5×: its scalar side mirrors the real layout (`[]float32` matrices plus a 16-float copy). An all-in-shared-buffer variant measured 2.43×, so the ratio depends on the layout compared. | Probe `simd/kern` + `run.mjs` |
-| Current layout | `InverseBindMatrices`/`worldMatrices` are `[]mathx.Mat4` (GC slices), and the multiply goes through the `both`-package `mathx.Mat4Multiply`. Neither can reach `v128`. | [`skeleton.go:42-44`](../../app/src/engine/animation/skeleton.go#L42-L44), [`skeleton.go:147`](../../app/src/engine/animation/skeleton.go#L147), [`skeleton.go:172-177`](../../app/src/engine/animation/skeleton.go#L172-L177) |
-| Skinning cost | Hybrid 6,827–7,351 ns/frame, 0.90–1.04× of JS-only. The demo arena has 5 NPCs (6 spawn points minus the player's). | `npm run bench` ×3 on both versions; [`arena.go:358-366`](../../app/src/game/arena.go#L358-L366) |
+| Current layout | `InverseBindMatrices`/`worldMatrices` are `[]mathx.Mat4` (GC slices), and the multiply goes through the `both`-package `mathx.Mat4Multiply`. Neither can reach `v128`. | [`skeleton.go:42-44`](../../../app/src/engine/animation/skeleton.go#L42-L44), [`skeleton.go:147`](../../../app/src/engine/animation/skeleton.go#L147), [`skeleton.go:172-177`](../../../app/src/engine/animation/skeleton.go#L172-L177) |
+| Skinning cost | Hybrid 6,827–7,351 ns/frame, 0.90–1.04× of JS-only. The demo arena has 5 NPCs (6 spawn points minus the player's). | `npm run bench` ×3 on both versions; [`arena.go:358-366`](../../../app/src/game/arena.go#L358-L366) |
 | JS fallback | 1M `F32x4` mul+add in a `js` package: ≈ 2.87 MB new-space per run, 180.5 ns/op (HEAD) and 193.5 ns/op (1.7.0). The recreated `jsfb` measures ≈ 4.4 MB and ≈ 141–154 ns/op. | Probe `simd/jsfb` |
-| Debug consumer | `DrawSkeleton` reads `GetWorldMatrices` (`[]mathx.Mat4`) from JS. | [`skinnedmeshentity.go:183-189`](../../app/src/engine/scene/skinnedmeshentity.go#L183-L189) |
+| Debug consumer | `DrawSkeleton` reads `GetWorldMatrices` (`[]mathx.Mat4`) from JS. | [`skinnedmeshentity.go:183-189`](../../../app/src/engine/scene/skinnedmeshentity.go#L183-L189) |
 | Benchmark noise | Separate process runs of one build vary by up to ±7% (controller hybrid 2,812–3,022 ns). An interleaved in-process A/A of one `Mat4Multiply` gives B/A ratios of 0.936–1.020 across 6 runs (median 0.985). A single run cannot resolve a 3–5% gate; a median of 5 runs against a 10% gate can. | `js-vs-wasm.js` ×3; probe `strict/aa.mjs` ×6 |
-| Existing harness | `tests/perf/*.js` compile with `compileDir` from `GOFRONT_DIR` (or the installed package), and they compare absolute numbers between separate runs. There is no in-process A/B and no baseline-source option. | [`js-vs-wasm.js:23-60`](../../tests/perf/js-vs-wasm.js#L23-L60) |
+| Existing harness | `tests/perf/*.js` compile with `compileDir` from `GOFRONT_DIR` (or the installed package), and they compare absolute numbers between separate runs. There is no in-process A/B and no baseline-source option. | [`js-vs-wasm.js:23-60`](../../../tests/perf/js-vs-wasm.js#L23-L60) |
 | Task 2.4 A/B result (2026-10-22) | Against a worktree of `4c18bdf` (pre-Phase-2), median of 5 runs: **skinning-total 2.078×** (2.027–2.171; 6,143 → 2,934 ns/op), skinning-palette 2.834×, skinning-world 1.118× (`GetWorldMatrices` also unpacks `worldC`). Every other entry is within 0.90–1.10. Side A still pays the ≈ 24 B `int` return, so the total credits the void-return change and SIMD together. Output is bit-identical to the scalar 3-pose fixtures. | `node tests/perf/js-vs-wasm.js --ab --repeat 5 --gate 'skinning-total>=1.30' --gate skinning-world=off --gate skinning-palette=off` |
 | Task 2.4 zero-alloc result (2026-10-22) | **0.15 B/frame** (budget 0.5): 20,000 frames of `ComputeSkinningMatrices` on a pre-built 64-joint pose plus palette copy-out. A full-frame case first measured 62–72 B/frame, the same as pre-Phase-2 (72.1), from two existing costs: any `int` return across the boundary allocates ≈ 24 B per call on GoFront 1.7.0, and `AnimationPlayer.Update` costs ≈ 48 B/frame. By user decision the first is fixed here (void `ComputeSkinningMatrices`, cached `SkinJointCount()`); the second is a follow-up. | `node tests/perf/zero-alloc.js`; per-call probes against the `4c18bdf` worktree |
-| Quality gates | `lefthook` pre-commit runs only `format` and `check`, and CI runs `check` and `test` on `master` pushes only. Perf gates exist only where a task runs them. | [`lefthook.yml`](../../lefthook.yml), `.github/workflows/ci.yml` |
+| Quality gates | `lefthook` pre-commit runs only `format` and `check`, and CI runs `check` and `test` on `master` pushes only. Perf gates exist only where a task runs them. | [`lefthook.yml`](../../../lefthook.yml), `.github/workflows/ci.yml` |
 
 ---
 
 ## Out of Scope
 
 - **SIMD outside `wasm` packages.** The fallback allocates and is slower than scalar JS. Task 1.4 enforces this.
-- **Collision SIMD.** It needs GoFront v1.8.0 (the collision plan's 4-wide triangle probe traps on 1.7.0), so it lives in [`simd-collision-plan.md`](simd-collision-plan.md).
+- **Collision SIMD.** It needs GoFront v1.8.0 (the collision plan's 4-wide triangle probe traps on 1.7.0), so it lives in [`simd-collision-plan.md`](../simd-collision-plan.md).
 - **`PoseLerp` and controller packets.** See the scope matrix.
 - **Absolute-number baselines checked into git.** They depend on the machine. The harness compares A and B in the same process on the same machine.
 
@@ -71,7 +71,7 @@ Probes ran on 2026-10-21: GoFront 1.7.0 (worktree at tag `1.7.0`) and HEAD `f69c
 **A/B harness (`tests/perf/ab.js`).**
 - `loadSide({ gofrontDir, srcRoot, pkg, exports, forceTarget })` compiles one package with a given compiler and a given source tree, reusing the `loadPackage` pattern from `js-vs-wasm.js`.
 - Side A defaults to `GOFRONT_BASELINE_DIR` (compiler) and `BASELINE_SRC` (a worktree of the base branch). Side B is the current tree and the current compiler. Each knob is optional, so you can compare compilers, sources, or both.
-- `abRatio(entries, { rounds: 9 })` interleaves A and B per round (ABAB…) after warm-up and reports `median(B)/median(A)`, either as time (lower is better) or as a speedup.
+- `abRatio(entries, { rounds: 9 })` interleaves A and B per round (ABAB…) after warm-up and reports `median(A)/median(B)` as a speedup (> 1 means B is faster).
 - `--repeat 5` re-spawns the script 5 times and gates on the **median of the 5 ratios**, because one process run spreads up to 6.4% (A/A probe).
 - With neither knob set, the script prints `skipping: set GOFRONT_BASELINE_DIR and/or BASELINE_SRC` and exits 0, so `test:perf` keeps working on a bare checkout.
 
@@ -174,4 +174,4 @@ Probes ran on 2026-10-21: GoFront 1.7.0 (worktree at tag `1.7.0`) and HEAD `f69c
   - `node tests/perf/ab.js --self-test --repeat 5`: A/A within 0.90–1.10.
   - `node tests/perf/js-vs-wasm.js --ab --repeat 5 --gate 'skinning-total>=1.30' --gate skinning-world=off --gate skinning-palette=off` (against the pre-Phase-2 source): skinning-total ≥ 1.30×, other gated entries within 0.90–1.10.
   - `node tests/perf/simd-kernels.js`: palette ≥ 3.0× (canary).
-  - `node tests/perf/zero-alloc.js`: skinning ≤ 0.5 B/frame; raycast ≤ 3,000 B per 100k casts; controller ≤ 0.5 B/frame.
+  - `node tests/perf/zero-alloc.js`: skinning ≤ 0.5 B/frame; raycast < 64 KB per 100k casts and controller < 128 B/frame (thresholds unchanged; measured ≈ 3 KB and 0.2 B/frame).
