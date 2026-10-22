@@ -165,7 +165,7 @@ Probes ran on 2026-10-22 against `master` `9630720` plus the uncommitted SLOC fo
   - Files: `app/src/game/hud.go`, `loading.go`, `state.go`
   - Test: `hud_test`, `loading_test`, `state_test` and the drift tests pass. `TestHUDMountAndUpdate`'s zero-allocation assertion is unchanged. Negative check per file (member typo fails `npm run check`, reverted).
   - Done when: no `any`-typed DOM field remains in the three files, and `state.go`'s two `.(string)` assertions are gone (`e.detail.state`/`e.detail.menu` read through `UIStateDetail`).
-- [ ] Task 2.4: Type the `Controls` event handlers.
+- [x] Task 2.4: Type the `Controls` event handlers.
   - Files: `app/src/game/controls.go`, `gameplay_test.go` (only if a handler test needs `fakeTarget`)
   - Test: `gameplay_test` and the e2e smoke test pass. Negative check: `e.keyCod` fails `npm run check` (reverted).
   - Done when: the 8 handler fields are `func(e UIEvent)`, and the four assertions at `controls.go:90,96,105,123` are gone.

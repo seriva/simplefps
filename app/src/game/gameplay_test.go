@@ -704,6 +704,76 @@ func TestControlsGuards(t *testing.T) {
 	GlobalState.Current = StateMenu
 }
 
+// fakeEvent builds a stand-in DOM event; see fakeTarget.
+func fakeEvent(fields map[string]any) UIEvent {
+	var v any = fields
+	return v
+}
+
+func TestControlsHandlers(t *testing.T) {
+	if window == nil || document == nil {
+		return
+	}
+	_, restore := useTestUI()
+	defer restore()
+	s, cam := newTestScene()
+	ps := NewProjectileSystem(s, cam)
+	w := NewWeaponSystem(s, cam, ps)
+	w.Load()
+	w.Unlock(WeaponGrenadeLauncher)
+	w.switchPhase = SwitchNone
+	c := NewControls(w)
+	c.Init()
+	defer c.Dispose()
+	GlobalState.Current = StateGame
+
+	prevented := 0
+	preventDefault := func() { prevented++ }
+	body := fakeTarget(map[string]any{"tagName": "body"})
+	div := fakeTarget(map[string]any{"tagName": "DIV"})
+
+	c.onClick(fakeEvent(map[string]any{"button": 2, "target": body}))
+	c.onClick(fakeEvent(map[string]any{"button": 0, "target": div}))
+	if ps.Count() != 0 {
+		t.Error("right click or a click on an element must not shoot")
+	}
+	c.onClick(fakeEvent(map[string]any{"button": 0, "target": body}))
+	if ps.Count() != 1 {
+		t.Error("left click on the body should shoot")
+	}
+
+	c.onWheel(fakeEvent(map[string]any{"deltaY": -1}))
+	if !w.IsSwitching() {
+		t.Error("wheel should cycle weapons")
+	}
+
+	// The jump handler builds globalThis.Event; under jsdom that is Node's
+	// Event, which jsdom's dispatchEvent rejects. In a browser it is window's.
+	nodeEvent := globalThis.Event
+	globalThis.Event = window.Event
+	defer func() { globalThis.Event = nodeEvent }()
+	jumps := 0
+	onJump := func(e any) { jumps++ }
+	window.addEventListener("game:jump", onJump)
+	defer window.removeEventListener("game:jump", onJump)
+	jump := systems.ActiveSettings.Jump
+	c.onKeyDown(fakeEvent(map[string]any{"keyCode": jump, "repeat": true, "preventDefault": preventDefault}))
+	c.onKeyDown(fakeEvent(map[string]any{"keyCode": jump + 1, "repeat": false, "preventDefault": preventDefault}))
+	if jumps != 0 || prevented != 0 {
+		t.Errorf("repeat or other key must not jump: jumps=%d prevented=%d", jumps, prevented)
+	}
+	c.onKeyDown(fakeEvent(map[string]any{"keyCode": jump, "repeat": false, "preventDefault": preventDefault}))
+	if jumps != 1 || prevented != 1 {
+		t.Errorf("jump key: jumps=%d prevented=%d", jumps, prevented)
+	}
+
+	c.onKeyUp(fakeEvent(map[string]any{"key": "Escape", "preventDefault": preventDefault}))
+	if GlobalState.Current != StateMenu || prevented != 2 {
+		t.Errorf("escape: state=%v prevented=%d", GlobalState.Current, prevented)
+	}
+	GlobalState.Current = StateMenu
+}
+
 func TestUpdateManagerWithoutServiceWorker(t *testing.T) {
 	u := NewUpdateManager()
 	u.Init() // no navigator.serviceWorker headless / jsdom
