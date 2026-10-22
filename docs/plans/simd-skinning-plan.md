@@ -120,7 +120,7 @@ Probes ran on 2026-10-21: GoFront 1.7.0 (worktree at tag `1.7.0`) and HEAD `f69c
   - Files: `tests/perf/js-vs-wasm.js`, `tests/perf/ab.js`
   - Test: `node tests/perf/js-vs-wasm.js --ab --repeat 5` in A/A mode gives every hybrid entry (controller, skinning-world, skinning-palette, skinning-total, mesh-parse, anim-parse, SH-Map, SH-Flat) within 0.90–1.10.
   - Done when: the A/B table prints per-entry ratios, the skinning row is split into world (`GetWorldMatrices`), palette and total, and plain mode (no `--ab`) is unchanged.
-- [ ] Task 1.3: SIMD kernel canary
+- [x] Task 1.3: SIMD kernel canary
   - Files: `tests/perf/simd-kernels.js` (new), `tests/perf/fixtures/simd/` (the `kern`, `tri` and `jsfb` probe packages)
   - Test: `node tests/perf/simd-kernels.js` reports palette SIMD/scalar ≥ 3.0× and JS-fallback new-space growth > 1 MB per 1M ops. The `tri` kernel is skipped with a message below GoFront 1.8.0 (it traps on 1.7.0).
   - Done when: the canary runs in `test:perf` and fails if the palette speedup drops below 3.0×.

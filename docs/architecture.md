@@ -304,7 +304,7 @@ The frame path — physics step, raycasts, `Scene.Update`, `Renderer.Render`, HU
 | `npm run check` | Biome (JS files) + `gofront check app/src/...` |
 | `npm test` | `gofront test app/src/...` headless, every package (dual-target `mathx [js]` and `mathx [wasm]`, `collision [wasm]`, `physics [wasm]`, `animation [wasm]`, `assets/decoder [wasm]`); `rendering/fakegpu` stands in for the GPU device so rendering, scene, engine and assets tests render real frames and assert on the recorded commands |
 | `npm run test:dom` | the same under jsdom (`window`/`document` present) |
-| `npm run test:perf` | `tests/perf/zero-alloc.js`: 100k raycasts under 64 KB of new-space growth; 20k controller frames driven from JS exactly like `game.Update`, under 128 B/frame. Then `tests/perf/ab.js --self-test` (A/B harness, see below; skips without `GOFRONT_BASELINE_DIR`/`BASELINE_SRC`) |
+| `npm run test:perf` | `tests/perf/zero-alloc.js`: 100k raycasts under 64 KB of new-space growth; 20k controller frames driven from JS exactly like `game.Update`, under 128 B/frame. Then `tests/perf/simd-kernels.js` (SIMD canary: the 64-joint palette kernel must stay bit-identical and ≥ 3.0× faster with `gofront/simd` than scalar WASM, and `F32x4` in a `js` package must still allocate > 1 MB per 1M ops; the 4-wide triangle kernel runs from GoFront 1.8.0) and `tests/perf/ab.js --self-test` (A/B harness, see below; skips without `GOFRONT_BASELINE_DIR`/`BASELINE_SRC`) |
 | `npm run test:e2e` | `tests/e2e/smoke.spec.js` (Playwright, WebGPU; a Proxy mock device in headless runs): boot → menu → rendered frame |
 | `npm run test:all` | all of the above |
 

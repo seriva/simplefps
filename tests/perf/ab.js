@@ -118,7 +118,7 @@ function timeRun(fn, iterations, stretch) {
 	// Start every sample on an empty young generation, so allocation-heavy
 	// entries (asset decoding) do not pay for the other side's garbage. A
 	// minor GC leaves old-space layout alone, unlike a full one.
-	gc({ type: "minor" });
+	minorGC();
 	const t0 = process.hrtime.bigint();
 	fn(iterations);
 	let t1 = process.hrtime.bigint();
@@ -318,6 +318,11 @@ const gc = (() => {
 export function collectGarbage() {
 	gc();
 	gc();
+}
+
+// minorGC empties the young generation (new space) only.
+export function minorGC() {
+	gc({ type: "minor" });
 }
 
 // loadSides compiles and imports every `specs` package ({ key: { pkg,
