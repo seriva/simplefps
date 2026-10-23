@@ -9,6 +9,14 @@ import (
 	"js:./interop.d.ts"
 )
 
+// fakeTarget builds a stand-in DOM element for handler tests. A
+// map[string]any literal does not assign to UIElement directly; it has to go
+// through an any first.
+func fakeTarget(fields map[string]any) UIElement {
+	var v any = fields
+	return v
+}
+
 func TestUIModalAndMenus(t *testing.T) {
 	ui := NewUIManager()
 	if ui.IsVisible() {
@@ -96,26 +104,26 @@ func TestUISettingHandlers(t *testing.T) {
 	notified := 0
 	ui.OnSettingsChanged = func() { notified++ }
 
-	ui.onSettingChange(map[string]any{"id": settingFSR, "checked": !s.DoFSR})
+	ui.onSettingChange(fakeTarget(map[string]any{"id": settingFSR, "checked": !s.DoFSR}))
 	if s.DoFSR == saved.DoFSR || notified != 1 {
 		t.Errorf("fsr: DoFSR=%v notified=%d", s.DoFSR, notified)
 	}
-	ui.onSettingChange(map[string]any{"id": settingDirt, "checked": !s.DoDirt})
+	ui.onSettingChange(fakeTarget(map[string]any{"id": settingDirt, "checked": !s.DoDirt}))
 	if s.DoDirt == saved.DoDirt || notified != 1 {
 		t.Errorf("dirt should not notify: DoDirt=%v notified=%d", s.DoDirt, notified)
 	}
-	ui.onSettingChange(map[string]any{"id": settingRenderScale, "value": "0.75"})
+	ui.onSettingChange(fakeTarget(map[string]any{"id": settingRenderScale, "value": "0.75"}))
 	if s.RenderScale != 0.75 || notified != 2 {
 		t.Errorf("render scale: %v notified=%d", s.RenderScale, notified)
 	}
-	ui.onSettingChange(map[string]any{"id": settingRenderScale, "value": "abc"})
+	ui.onSettingChange(fakeTarget(map[string]any{"id": settingRenderScale, "value": "abc"}))
 	if s.RenderScale != 0.75 || notified != 2 {
 		t.Errorf("bad render scale applied: %v notified=%d", s.RenderScale, notified)
 	}
 
-	ui.onSettingInput(map[string]any{"id": settingGamma, "value": "1.5"})
-	ui.onSettingInput(map[string]any{"id": settingLookSensitivity, "value": "x"})
-	ui.onSettingInput(map[string]any{"id": "other"})
+	ui.onSettingInput(fakeTarget(map[string]any{"id": settingGamma, "value": "1.5"}))
+	ui.onSettingInput(fakeTarget(map[string]any{"id": settingLookSensitivity, "value": "x"}))
+	ui.onSettingInput(fakeTarget(map[string]any{"id": "other"}))
 	if s.Gamma != 1.5 || s.LookSensitivity != saved.LookSensitivity || notified != 2 {
 		t.Errorf("input: gamma=%v look=%v notified=%d", s.Gamma, s.LookSensitivity, notified)
 	}
@@ -270,7 +278,9 @@ func TestEveryMenuActionHandled(t *testing.T) {
 	for _, sc := range screens {
 		ui.activeTab = sc.tab
 		ui.Show(sc.menu)
-		n := int(ui.controlsEl.querySelectorAll("[data-action]").length.(float64))
+		// controlsEl is a UIElement, which declares no querySelectorAll; query
+		// the same #menu-controls container through document.
+		n := int(document.querySelectorAll("#menu-controls [data-action]").length.(float64))
 		if n == 0 {
 			t.Errorf("menu %v tab %d renders no actions", sc.menu, sc.tab)
 		}
@@ -281,7 +291,7 @@ func TestEveryMenuActionHandled(t *testing.T) {
 			versionChecks, updateYes = 0, 0
 			ui.activeTab = sc.tab
 			ui.Show(sc.menu)
-			btn := ui.controlsEl.querySelectorAll("[data-action]").item(i)
+			btn := document.querySelectorAll("#menu-controls [data-action]").item(i)
 			action := uiAction(btn.getAttribute("data-action").(string))
 			seen[action] = true
 			check, ok := effects[action]

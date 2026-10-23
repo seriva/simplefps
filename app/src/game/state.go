@@ -67,10 +67,10 @@ type StateManager struct {
 	Current   GameState
 	isBlurred bool
 	listeners []StateListener
-	canvasEl  any
+	canvasEl  UIElement
 
 	CanPause      func() bool
-	onChangeState any
+	onChangeState func(e UIEvent)
 	initialized   bool
 }
 
@@ -159,7 +159,7 @@ func (s *StateManager) SetBlurred(blurred bool) {
 	}
 }
 
-func (s *StateManager) getCanvas() any {
+func (s *StateManager) getCanvas() UIElement {
 	if s.canvasEl == nil && document != nil {
 		s.canvasEl = document.querySelector("canvas")
 		if s.canvasEl != nil {
@@ -179,15 +179,15 @@ func (s *StateManager) Init() {
 	if window == nil || s.initialized {
 		return
 	}
-	s.onChangeState = func(e any) {
+	s.onChangeState = func(e UIEvent) {
 		if e == nil || e.detail == nil {
 			return
 		}
-		stateStr := strings.ToUpper(e.detail.state.(string))
+		stateStr := strings.ToUpper(e.detail.state)
 		if stateStr == "MENU" {
 			name := ""
 			if e.detail.menu != nil {
-				name = e.detail.menu.(string)
+				name = e.detail.menu
 			}
 			menu, ok := menuFromName(name)
 			if !ok && name != "" {
