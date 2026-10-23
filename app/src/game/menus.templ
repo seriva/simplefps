@@ -507,16 +507,16 @@ templ MenuView() {
 }
 
 templ MainMenuContent(hasStarted bool) {
-	<div class="menu-button" data-action="start">
+	<div class="menu-button" data-action={ string(actionStart) }>
 		if hasStarted {
 			{ Translate("CONTINUE_GAME") }
 		} else {
 			{ Translate("START_GAME") }
 		}
 	</div>
-	<div class="menu-button" data-action="settings">{ Translate("SETTINGS") }</div>
-	<div class="menu-button" data-action="credits">{ Translate("CREDITS") }</div>
-	<div class="menu-button" data-action="version-check">{ Translate("VERSION_CHECK") }</div>
+	<div class="menu-button" data-action={ string(actionSettings) }>{ Translate("SETTINGS") }</div>
+	<div class="menu-button" data-action={ string(actionCredits) }>{ Translate("CREDITS") }</div>
+	<div class="menu-button" data-action={ string(actionVersionCheck) }>{ Translate("VERSION_CHECK") }</div>
 }
 
 // creditRow is a labelled external link in the credits menu.
@@ -534,12 +534,12 @@ templ CreditsMenuContent() {
 		@creditRow("CREDITS_WEAPONS", "https://www.cgtrader.com/3d-model-packs/sci-fi-weapon-pack", "Sci-Fi Weapon Pack")
 		@creditRow("CREDITS_ROBOT", "https://sketchfab.com/3d-models/vintage-robot-animated-1ccfb0b99b8a492d9f1144bb96d4a679", "Vintage Robot Animated")
 	</div>
-	<div class="menu-button" data-action="back">{ Translate("BACK") }</div>
+	<div class="menu-button" data-action={ string(actionBack) }>{ Translate("BACK") }</div>
 }
 
 templ UpdateMenuContent() {
-	<div class="menu-button" data-action="update-yes">{ Translate("YES") }</div>
-	<div class="menu-button" data-action="update-no">{ Translate("NO") }</div>
+	<div class="menu-button" data-action={ string(actionUpdateYes) }>{ Translate("YES") }</div>
+	<div class="menu-button" data-action={ string(actionUpdateNo) }>{ Translate("NO") }</div>
 }
 
 // sliderRow is a labelled range input in the settings menu; value is
@@ -568,22 +568,22 @@ templ SettingsMenuContent(activeTab int, renderScale float32, gamma float32, doF
 	if activeTab == 0 {
 		<div class="menu-tab-content active">
 			<div class="menu-panel">
-				@sliderRow("RENDER_SCALE", "setting-render-scale", "0.5", "1.0", "0.05", fmt.Sprintf("%0.2f", renderScale))
-				@sliderRow("GAMMA", "setting-gamma", "0.5", "2.5", "0.1", fmt.Sprintf("%0.1f", gamma))
-				@checkRow("FSR", "setting-fsr", doFSR)
-				@sliderRow("FSR_SHARPNESS", "setting-fsr-sharpness", "0.0", "1.0", "0.05", fmt.Sprintf("%0.2f", fsrSharpness))
-				@checkRow("PROCEDURAL_DETAIL", "setting-procedural-detail", proceduralDetail)
-				@checkRow("DIRT", "setting-dirt", doDirt)
-				@checkRow("SHOW_STATS", "setting-show-stats", showStats)
+				@sliderRow("RENDER_SCALE", settingRenderScale, "0.5", "1.0", "0.05", fmt.Sprintf("%0.2f", renderScale))
+				@sliderRow("GAMMA", settingGamma, "0.5", "2.5", "0.1", fmt.Sprintf("%0.1f", gamma))
+				@checkRow("FSR", settingFSR, doFSR)
+				@sliderRow("FSR_SHARPNESS", settingFSRSharpness, "0.0", "1.0", "0.05", fmt.Sprintf("%0.2f", fsrSharpness))
+				@checkRow("PROCEDURAL_DETAIL", settingProceduralDetail, proceduralDetail)
+				@checkRow("DIRT", settingDirt, doDirt)
+				@checkRow("SHOW_STATS", settingShowStats, showStats)
 			</div>
 		</div>
 	} else {
 		<div class="menu-tab-content active">
 			<div class="menu-panel">
-				@sliderRow("LOOK_SENSITIVITY", "setting-look-sensitivity", "0.1", "1.0", "0.05", fmt.Sprintf("%0.2f", lookSensitivity))
+				@sliderRow("LOOK_SENSITIVITY", settingLookSensitivity, "0.1", "1.0", "0.05", fmt.Sprintf("%0.2f", lookSensitivity))
 			</div>
 		</div>
 	}
 
-	<div class="menu-button" data-action="back">{ Translate("BACK") }</div>
+	<div class="menu-button" data-action={ string(actionBack) }>{ Translate("BACK") }</div>
 }
