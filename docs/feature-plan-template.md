@@ -91,15 +91,33 @@
 > - **No Gate-Only Work**: `/dev-loop` runs the quality gates on every task and writes one changelog entry per phase, so never add phases or tasks that only run tests/lint or update the changelog. Put user-facing docs updates in the last phase that changes behavior.
 
 ### Phase 1: Baseline Fixtures *(if applicable)*
-[Use when the Verified Gaps are reproducible bugs or the work is performance-sensitive. Otherwise drop this phase and write each failing test inside the task that fixes it.]
+[Use when the Verified Gaps are reproducible bugs or the work is performance-sensitive. Otherwise drop this phase and write each failing test inside the task that fixes it. *(2 tasks is acceptable here as a fixtures-only phase.)*]
 - [ ] Task 1.1: Add test fixtures reproducing all items in the Verified Gaps table, marked skipped/expected-fail with the gap as the reason so the quality gate stays green.
+  - Files: `[test fixture file(s), e.g. tests/fixtures/gap-cases.test.js]`
+  - Test: `[the new fixtures themselves; each is skipped/expected-fail with the gap as the reason]`
+  - Done when: `[one fixture per Verified Gaps row; quality gate green]`
 - [ ] Task 1.2: Establish baseline benchmark numbers (if performance-sensitive).
+  - Files: `[benchmark script and results file, e.g. bench/baseline.js, docs/vX.Y.Z/bench-baseline.md]`
+  - Test: `[benchmark command runs and writes the baseline]`
+  - Done when: `[baseline numbers recorded and referenced in Test & Conformance Plan]`
 
 ### Phase 2: Core Implementation
 - [ ] Task 2.1: [Implement core data structures / types]
+  - Files: `[1–3 source files]`
+  - Test: `[failing unit test written first]`
+  - Done when: `[falsifiable condition, e.g. types compile and unit test passes]`
 - [ ] Task 2.2: [Implement core logic]
+  - Files: `[1–3 source files]`
+  - Test: `[failing unit/integration test written first]`
+  - Done when: `[falsifiable condition, e.g. specified inputs produce specified outputs]`
 - [ ] Task 2.3: [Implement boundary handling / error messages]
+  - Files: `[1–3 source files]`
+  - Test: `[negative-case test written first]`
+  - Done when: `[invalid input yields the specified error instead of a crash]`
 - [ ] Task 2.4: [Un-skip the fixtures from Task 1.1 (if any) and make them pass; update user-facing docs if behavior changed]
+  - Files: `[fixture file(s) from Task 1.1, user docs]`
+  - Test: `[the un-skipped fixtures]`
+  - Done when: `[all fixtures pass; docs describe the new behavior]`
 
 ---
 

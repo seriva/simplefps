@@ -51,3 +51,39 @@ docs/superpowers/
 playwright-report/
 test-results/
 
+# >>> bootstrap-managed
+# Agentic session artifacts — kept in sync by bootstrap/sync.sh; edit scaffold/.gitignore
+# in the bootstrap repo instead. Add project-specific ignores outside these markers.
+# (git only treats a leading # as a comment; trailing text becomes part of the pattern)
+# Claude Code superpowers
+docs/superpowers/
+# Cursor session state (.cursor/rules/ stays committable)
+.cursor/sessions/
+# git worktrees
+.worktrees/
+# Aider
+.aider*
+# Continue.dev
+.continue/
+# Sourcegraph Cody
+.cody/
+# Tabnine
+.tabnine/
+# generic agent session files
+*.agent-session
+# throwaway probes written by /design-plan and /dev-loop reviewers
+.probes/
+
+# Tool-specific session & memory directories — only session/state subpaths, so
+# project config such as .claude/settings.json, .claude/skills/, .agents/skills/
+# and .codex/ or .gemini/ project settings stay committable
+.claude/settings.local.json
+.claude/worktrees/
+.agents/sessions/
+.agents/memory/
+_agents/
+.gemini/tmp/
+.gemini/sessions/
+.codex/sessions/
+.codex/memory/
+# <<< bootstrap-managed
