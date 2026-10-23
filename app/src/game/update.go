@@ -37,7 +37,7 @@ func (u *UpdateManager) Init() {
 		reg.update()
 		if reg.waiting != nil {
 			u.newServiceWorker = reg.waiting
-			GlobalState.EnterMenu("UPDATE_MENU")
+			GlobalState.EnterMenu(MenuUpdate)
 			return
 		}
 		reg.addEventListener("updatefound", func(e any) {
@@ -48,7 +48,7 @@ func (u *UpdateManager) Init() {
 			}
 			u.newServiceWorker.addEventListener("statechange", func(e any) {
 				if u.newServiceWorker != nil && u.newServiceWorker.state == "installed" {
-					GlobalState.EnterMenu("UPDATE_MENU")
+					GlobalState.EnterMenu(MenuUpdate)
 				}
 			})
 		})
@@ -83,7 +83,7 @@ func (u *UpdateManager) Update() {
 // Force shows the update menu if a worker is waiting, otherwise re-checks.
 func (u *UpdateManager) Force() {
 	if u.newServiceWorker != nil {
-		GlobalState.EnterMenu("UPDATE_MENU")
+		GlobalState.EnterMenu(MenuUpdate)
 		return
 	}
 	if u.registration != nil {

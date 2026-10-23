@@ -1,7 +1,11 @@
 package game
 
 import (
+	"strings"
 	"testing"
+
+	"../engine/systems"
+	"js:./interop.d.ts"
 )
 
 func TestStateTransitionsAndListeners(t *testing.T) {
@@ -75,7 +79,7 @@ func TestStateEnterMenuAndGame(t *testing.T) {
 		t.Errorf("Expected StateGame, got %v", sm.Current)
 	}
 
-	sm.EnterMenu("MAIN_MENU")
+	sm.EnterMenu(MenuMain)
 	if sm.Current != StateMenu {
 		t.Errorf("Expected StateMenu, got %v", sm.Current)
 	}
@@ -85,4 +89,81 @@ func TestStateInitAndDispose(t *testing.T) {
 	sm := NewStateManager()
 	sm.Init()
 	sm.Dispose()
+}
+
+func TestMenuFromName(t *testing.T) {
+	names := map[string]MenuID{
+		"MAIN_MENU":     MenuMain,
+		"SETTINGS_MENU": MenuSettings,
+		"CREDITS_MENU":  MenuCredits,
+		"UPDATE_MENU":   MenuUpdate,
+	}
+	for name, want := range names {
+		if got, ok := menuFromName(name); !ok || got != want {
+			t.Errorf("menuFromName(%q) = %v, %v; want %v, true", name, got, ok, want)
+		}
+	}
+	for _, name := range []string{"", "SETINGS_MENU", "settings_menu"} {
+		if got, ok := menuFromName(name); ok || got != MenuMain {
+			t.Errorf("menuFromName(%q) = %v, %v; want MenuMain, false", name, got, ok)
+		}
+	}
+}
+
+// dispatchChangeState fires the window "changestate" CustomEvent with detail.
+func dispatchChangeState(detail map[string]any) {
+	window.dispatchEvent(Reflect.construct(window.CustomEvent, []any{"changestate", map[string]any{"detail": detail}}))
+}
+
+func TestChangeStateEvent(t *testing.T) {
+	if window == nil || document == nil {
+		return
+	}
+	ui, restore := useTestUI()
+	defer restore()
+	GlobalState.Init()
+	defer GlobalState.Dispose()
+
+	dispatchChangeState(map[string]any{"state": "menu", "menu": "SETTINGS_MENU"})
+	if GlobalState.Current != StateMenu || ui.currentMenu != MenuSettings {
+		t.Errorf("menu/SETTINGS_MENU: state=%v menu=%v", GlobalState.Current, ui.currentMenu)
+	}
+	dispatchChangeState(map[string]any{"state": "game"})
+	if GlobalState.Current != StateGame {
+		t.Errorf("game: state=%v", GlobalState.Current)
+	}
+	// No detail.menu -> main menu, without a warning.
+	systems.GlobalConsole.AddLog("changestate-marker", "")
+	dispatchChangeState(map[string]any{"state": "MENU"})
+	if GlobalState.Current != StateMenu || ui.currentMenu != MenuMain {
+		t.Errorf("menu without name: state=%v menu=%v", GlobalState.Current, ui.currentMenu)
+	}
+	if logsSince("changestate-marker", "Unknown menu") {
+		t.Error("menu without name must not warn")
+	}
+	// Unknown name -> main menu, with a console warning.
+	ui.Show(MenuCredits)
+	systems.GlobalConsole.AddLog("changestate-marker", "")
+	dispatchChangeState(map[string]any{"state": "menu", "menu": "SETINGS_MENU"})
+	if ui.currentMenu != MenuMain {
+		t.Errorf("unknown menu name: menu=%v", ui.currentMenu)
+	}
+	if !logsSince("changestate-marker", "Unknown menu SETINGS_MENU") {
+		t.Error("unknown menu name must log a warning")
+	}
+}
+
+// logsSince reports whether a console entry after the last marker entry
+// contains substr.
+func logsSince(marker, substr string) bool {
+	logs := systems.GlobalConsole.Logs()
+	for i := len(logs) - 1; i >= 0; i-- {
+		if logs[i].Message == marker {
+			return false
+		}
+		if strings.Contains(logs[i].Message, substr) {
+			return true
+		}
+	}
+	return false
 }

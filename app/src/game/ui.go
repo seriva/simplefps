@@ -7,6 +7,33 @@ import (
 	"js:./interop.d.ts"
 )
 
+// uiAction is a menu button's data-action value, shared by menus.templ and
+// the click handler.
+type uiAction string
+
+const (
+	actionStart        uiAction = "start"
+	actionSettings     uiAction = "settings"
+	actionCredits      uiAction = "credits"
+	actionVersionCheck uiAction = "version-check"
+	actionBack         uiAction = "back"
+	actionUpdateYes    uiAction = "update-yes"
+	actionUpdateNo     uiAction = "update-no"
+)
+
+// Settings-menu input ids, shared by menus.templ and the change/input
+// handlers.
+const (
+	settingRenderScale      = "setting-render-scale"
+	settingGamma            = "setting-gamma"
+	settingFSR              = "setting-fsr"
+	settingFSRSharpness     = "setting-fsr-sharpness"
+	settingProceduralDetail = "setting-procedural-detail"
+	settingDirt             = "setting-dirt"
+	settingShowStats        = "setting-show-stats"
+	settingLookSensitivity  = "setting-look-sensitivity"
+)
+
 func tabClass(active bool) string {
 	if active {
 		return "menu-tab active"
@@ -16,23 +43,23 @@ func tabClass(active bool) string {
 
 // UIManager manages menu overlays, tabs, settings changes, and modal dialogs.
 type UIManager struct {
-	currentMenu string
+	currentMenu MenuID
 	activeTab   int
 	hasStarted  bool
 	visible     bool
 	mounted     bool
 
 	// Cached DOM elements
-	uiEl            any
-	backdropEl      any
-	menuBaseEl      any
-	headerEl        any
-	controlsEl      any
-	dialogOverlayEl any
-	dialogHeaderEl  any
-	dialogBodyEl    any
-	dialogBtnYes    any
-	dialogBtnNo     any
+	uiEl            UIElement
+	backdropEl      UIElement
+	menuBaseEl      UIElement
+	headerEl        UIElement
+	controlsEl      UIElement
+	dialogOverlayEl UIElement
+	dialogHeaderEl  UIElement
+	dialogBodyEl    UIElement
+	dialogBtnYes    UIElement
+	dialogBtnNo     UIElement
 
 	// Callbacks
 	OnVersionCheck    func()
@@ -45,7 +72,7 @@ type UIManager struct {
 // NewUIManager creates an unmounted UIManager.
 func NewUIManager() *UIManager {
 	return &UIManager{
-		currentMenu: "MAIN_MENU",
+		currentMenu: MenuMain,
 		activeTab:   0,
 		hasStarted:  false,
 		visible:     false,
@@ -72,7 +99,7 @@ func (ui *UIManager) Mount() {
 	ui.dialogBtnNo     = refs["dialogBtnNo"]
 
 	if ui.uiEl != nil {
-		ui.uiEl.addEventListener("click", func(e any) {
+		ui.uiEl.addEventListener("click", func(e UIEvent) {
 			if e == nil || e.target == nil {
 				return
 			}
@@ -106,37 +133,37 @@ func (ui *UIManager) Mount() {
 			if btn != nil {
 				action := btn.getAttribute("data-action")
 				switch action {
-				case "start":
+				case actionStart:
 					ui.hasStarted = true
 					GlobalState.EnterGame()
-				case "settings":
-					ui.Show("SETTINGS_MENU")
-				case "credits":
-					ui.Show("CREDITS_MENU")
-				case "version-check":
+				case actionSettings:
+					ui.Show(MenuSettings)
+				case actionCredits:
+					ui.Show(MenuCredits)
+				case actionVersionCheck:
 					if ui.OnVersionCheck != nil {
 						ui.OnVersionCheck()
 					}
-				case "back":
-					ui.Show("MAIN_MENU")
-				case "update-yes":
+				case actionBack:
+					ui.Show(MenuMain)
+				case actionUpdateYes:
 					if ui.OnUpdateYes != nil {
 						ui.OnUpdateYes()
 					}
-				case "update-no":
+				case actionUpdateNo:
 					GlobalState.EnterGame()
 				}
 			}
 		}, false)
 
 		// Settings input & change listener
-		ui.uiEl.addEventListener("change", func(e any) {
+		ui.uiEl.addEventListener("change", func(e UIEvent) {
 			if e != nil && e.target != nil {
 				ui.onSettingChange(e.target)
 			}
 		}, false)
 
-		ui.uiEl.addEventListener("input", func(e any) {
+		ui.uiEl.addEventListener("input", func(e UIEvent) {
 			if e != nil && e.target != nil {
 				ui.onSettingInput(e.target)
 			}
@@ -148,22 +175,22 @@ func (ui *UIManager) Mount() {
 
 // onSettingChange applies a checkbox or render-scale change from the
 // settings menu.
-func (ui *UIManager) onSettingChange(target any) {
+func (ui *UIManager) onSettingChange(target UIElement) {
 	s := systems.ActiveSettings
 	switch target.id {
-	case "setting-fsr":
+	case settingFSR:
 		s.DoFSR = target.checked
 		ui.saveSettings(true)
-	case "setting-procedural-detail":
+	case settingProceduralDetail:
 		s.ProceduralDetail = target.checked
 		ui.saveSettings(false)
-	case "setting-dirt":
+	case settingDirt:
 		s.DoDirt = target.checked
 		ui.saveSettings(false)
-	case "setting-show-stats":
+	case settingShowStats:
 		s.ShowStats = target.checked
 		ui.saveSettings(true)
-	case "setting-render-scale":
+	case settingRenderScale:
 		if f, ok := sliderValue(target); ok {
 			s.RenderScale = f
 			ui.saveSettings(true)
@@ -172,20 +199,20 @@ func (ui *UIManager) onSettingChange(target any) {
 }
 
 // onSettingInput applies a live slider change from the settings menu.
-func (ui *UIManager) onSettingInput(target any) {
+func (ui *UIManager) onSettingInput(target UIElement) {
 	s := systems.ActiveSettings
 	switch target.id {
-	case "setting-gamma":
+	case settingGamma:
 		if f, ok := sliderValue(target); ok {
 			s.Gamma = f
 			ui.saveSettings(false)
 		}
-	case "setting-fsr-sharpness":
+	case settingFSRSharpness:
 		if f, ok := sliderValue(target); ok {
 			s.FsrSharpness = f
 			ui.saveSettings(false)
 		}
-	case "setting-look-sensitivity":
+	case settingLookSensitivity:
 		if f, ok := sliderValue(target); ok {
 			s.LookSensitivity = f
 			ui.saveSettings(false)
@@ -194,8 +221,8 @@ func (ui *UIManager) onSettingInput(target any) {
 }
 
 // sliderValue parses an input element's value; false when it is not a number.
-func sliderValue(target any) (float32, bool) {
-	f, err := strconv.ParseFloat(target.value.(string), 32)
+func sliderValue(target UIElement) (float32, bool) {
+	f, err := strconv.ParseFloat(target.value, 32)
 	return float32(f), err == nil
 }
 
@@ -217,14 +244,11 @@ func (ui *UIManager) closeDialog(cb func()) {
 }
 
 // Show presents the requested menu overlay.
-func (ui *UIManager) Show(name string) {
+func (ui *UIManager) Show(menu MenuID) {
 	if !ui.mounted {
 		ui.Mount()
 	}
-	if name == "" {
-		name = "MAIN_MENU"
-	}
-	ui.currentMenu = name
+	ui.currentMenu = menu
 	ui.visible = true
 
 	if ui.backdropEl != nil {
@@ -244,7 +268,7 @@ func (ui *UIManager) renderCurrentMenu() {
 
 	headerText := Translate("MAIN_MENU")
 	switch ui.currentMenu {
-	case "SETTINGS_MENU":
+	case MenuSettings:
 		headerText = Translate("SETTINGS")
 		gom.Mount("#menu-controls", SettingsMenuContent(
 			ui.activeTab,
@@ -257,10 +281,10 @@ func (ui *UIManager) renderCurrentMenu() {
 			systems.ActiveSettings.ShowStats,
 			systems.ActiveSettings.LookSensitivity,
 		))
-	case "CREDITS_MENU":
+	case MenuCredits:
 		headerText = Translate("CREDITS")
 		gom.Mount("#menu-controls", CreditsMenuContent())
-	case "UPDATE_MENU":
+	case MenuUpdate:
 		headerText = Translate("VERSION_NEW")
 		gom.Mount("#menu-controls", UpdateMenuContent())
 	default:

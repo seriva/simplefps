@@ -13,14 +13,14 @@ type Controls struct {
 
 	initialized bool
 
-	onPointerLockChange any
-	onPointerLockError  any
-	onWindowFocus       any
-	onClick             any
-	onShoot             any
-	onWheel             any
-	onKeyUp             any
-	onKeyDown           any
+	onPointerLockChange func(e UIEvent)
+	onPointerLockError  func(e UIEvent)
+	onWindowFocus       func(e UIEvent)
+	onClick             func(e UIEvent)
+	onShoot             func(e UIEvent)
+	onWheel             func(e UIEvent)
+	onKeyUp             func(e UIEvent)
+	onKeyDown           func(e UIEvent)
 }
 
 // NewControls creates controls driving weapons.
@@ -39,7 +39,7 @@ func (c *Controls) HandleEscape() {
 		return
 	}
 	if GlobalState.Current == StateGame {
-		GlobalState.EnterMenu("MAIN_MENU")
+		GlobalState.EnterMenu(MenuMain)
 	} else if GlobalState.Current == StateMenu {
 		GlobalState.EnterGame()
 	}
@@ -70,48 +70,48 @@ func (c *Controls) Init() {
 	if window == nil || document == nil || c.initialized {
 		return
 	}
-	c.onPointerLockChange = func(e any) {
+	c.onPointerLockChange = func(e UIEvent) {
 		if document.pointerLockElement == nil && GlobalState.Current != StateMenu {
-			GlobalState.EnterMenu("MAIN_MENU")
+			GlobalState.EnterMenu(MenuMain)
 		}
 	}
-	c.onPointerLockError = func(e any) {
+	c.onPointerLockError = func(e UIEvent) {
 		GlobalState.EnterGame()
 	}
-	c.onWindowFocus = func(e any) {
+	c.onWindowFocus = func(e UIEvent) {
 		if GlobalState.Current != StateMenu {
-			GlobalState.EnterMenu("MAIN_MENU")
+			GlobalState.EnterMenu(MenuMain)
 		}
 	}
-	c.onClick = func(e any) {
+	c.onClick = func(e UIEvent) {
 		if !CanUseGameplayInput() {
 			return
 		}
-		if e.button.(float64) > 0 {
+		if e.button > 0 {
 			return
 		}
 		if systems.ActiveSettings.IsMobile {
 			return // no tap-to-shoot on mobile
 		}
-		if e.target == nil || e.target.tagName == nil || strings.ToUpper(e.target.tagName.(string)) != "BODY" {
+		if e.target == nil || e.target.tagName == nil || strings.ToUpper(e.target.tagName) != "BODY" {
 			return
 		}
 		c.Shoot()
 	}
-	c.onShoot = func(e any) {
+	c.onShoot = func(e UIEvent) {
 		c.Shoot()
 	}
-	c.onWheel = func(e any) {
-		c.Scroll(e.deltaY.(float64))
+	c.onWheel = func(e UIEvent) {
+		c.Scroll(e.deltaY)
 	}
-	c.onKeyUp = func(e any) {
+	c.onKeyUp = func(e UIEvent) {
 		if e.key == "Escape" {
 			e.preventDefault()
 			c.HandleEscape()
 		}
 	}
-	c.onKeyDown = func(e any) {
-		if e.repeat == true {
+	c.onKeyDown = func(e UIEvent) {
+		if e.repeat {
 			return
 		}
 		if e.key == "`" || e.key == "~" {
@@ -120,7 +120,7 @@ func (c *Controls) Init() {
 			systems.GlobalConsole.Toggle()
 			return
 		}
-		if int(e.keyCode.(float64)) != systems.ActiveSettings.Jump || !CanUseGameplayInput() {
+		if int(e.keyCode) != systems.ActiveSettings.Jump || !CanUseGameplayInput() {
 			return
 		}
 		e.preventDefault()
