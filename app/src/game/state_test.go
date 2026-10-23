@@ -1,8 +1,10 @@
 package game
 
 import (
+	"strings"
 	"testing"
 
+	"../engine/systems"
 	"js:./interop.d.ts"
 )
 
@@ -130,15 +132,38 @@ func TestChangeStateEvent(t *testing.T) {
 	if GlobalState.Current != StateGame {
 		t.Errorf("game: state=%v", GlobalState.Current)
 	}
-	// No detail.menu -> main menu.
+	// No detail.menu -> main menu, without a warning.
+	systems.GlobalConsole.AddLog("changestate-marker", "")
 	dispatchChangeState(map[string]any{"state": "MENU"})
 	if GlobalState.Current != StateMenu || ui.currentMenu != MenuMain {
 		t.Errorf("menu without name: state=%v menu=%v", GlobalState.Current, ui.currentMenu)
 	}
-	// Unknown name -> main menu (with a console warning).
+	if logsSince("changestate-marker", "Unknown menu") {
+		t.Error("menu without name must not warn")
+	}
+	// Unknown name -> main menu, with a console warning.
 	ui.Show(MenuCredits)
+	systems.GlobalConsole.AddLog("changestate-marker", "")
 	dispatchChangeState(map[string]any{"state": "menu", "menu": "SETINGS_MENU"})
 	if ui.currentMenu != MenuMain {
 		t.Errorf("unknown menu name: menu=%v", ui.currentMenu)
 	}
+	if !logsSince("changestate-marker", "Unknown menu SETINGS_MENU") {
+		t.Error("unknown menu name must log a warning")
+	}
+}
+
+// logsSince reports whether a console entry after the last marker entry
+// contains substr.
+func logsSince(marker, substr string) bool {
+	logs := systems.GlobalConsole.Logs()
+	for i := len(logs) - 1; i >= 0; i-- {
+		if logs[i].Message == marker {
+			return false
+		}
+		if strings.Contains(logs[i].Message, substr) {
+			return true
+		}
+	}
+	return false
 }

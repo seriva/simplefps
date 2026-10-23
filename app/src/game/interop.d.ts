@@ -12,7 +12,6 @@ declare var process: any;
 interface UIClassList {
 	add(token: string): void;
 	remove(token: string): void;
-	contains(token: string): boolean;
 }
 
 interface UIStyle {
