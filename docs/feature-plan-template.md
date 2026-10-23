@@ -88,20 +88,17 @@
 >   - `Test:` failing test to write first (TDD)
 >   - `Done when:` clear, falsifiable completion criteria
 > - **Execution Convention**: Each task is an atomic git commit (`feat(<plan-slug>): <summary> (Task N.M)`). In automated workflows (`/execute-plan`), the orchestrator loops continuously through all tasks in a phase, committing each task individually, running quality gates, and opening a phase PR (`feat(<plan-slug>): phase <N> - <phase-name>`) upon completion without halting mid-phase.
+> - **No Gate-Only Work**: `/dev-loop` runs the quality gates on every task and writes one changelog entry per phase, so never add phases or tasks that only run tests/lint or update the changelog. Put user-facing docs updates in the last phase that changes behavior.
 
 ### Phase 1: Baseline Audit & Test Fixtures
-- [ ] Task 1.1: Add failing conformance fixtures reproducing all items in the Verified Gaps table.
+- [ ] Task 1.1: Add conformance fixtures reproducing all items in the Verified Gaps table, marked skipped/expected-fail with the gap as the reason so the quality gate stays green.
 - [ ] Task 1.2: Establish baseline benchmark numbers (if performance-sensitive).
 
 ### Phase 2: Core Implementation
 - [ ] Task 2.1: [Implement core data structures / types]
 - [ ] Task 2.2: [Implement core logic / lowered algorithms]
 - [ ] Task 2.3: [Implement boundary adapters / diagnostics]
-
-### Phase 3: Integration & Quality Gates
-- [ ] Task 3.1: Run full test suite and verify all conformance fixtures pass.
-- [ ] Task 3.2: Run `lefthook run pre-commit` (or project linter and formatter).
-- [ ] Task 3.3: Update public documentation and `CHANGELOG.md` under `## [Unreleased]`.
+- [ ] Task 2.4: [Un-skip the Verified Gaps fixtures from Task 1.1 and make them pass; update user-facing docs if behavior changed]
 
 ---
 
