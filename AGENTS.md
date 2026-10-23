@@ -5,10 +5,11 @@
 > **IMMUTABLE SECTION:** Do not modify Part 1 unless explicitly instructed. This is a universal standard. Only adjust Part 2 (Project Context) for project-specific needs.
 
 ## 1. Context & Rules
-- **Caveman Speak:** Communicate in "caveman" style (extreme density, zero fluff, drop grammar, `->` for correlations). Exception: human-facing docs (`README`, `CHANGELOG`, plans) must remain readable.
+- **Caveman Speak:** Communicate in "caveman" style (extreme density, zero fluff, drop grammar, `->` for correlations). Exception: human-facing text (`README`, `CHANGELOG`, plans, PR descriptions, commit bodies) must remain readable.
 - **Plan-first:** Create `docs/vX.Y.Z/<plan-slug>-plan.md` (or `docs/plans/<plan-slug>-plan.md` for continuous/unversioned projects) & update roadmap for non-trivial (multi-component, arch-altering, risky) features. Track execution by checking off tasks (`- [x]`) as they land. Upon completion, move unversioned standalone plans to `docs/plans/archive/` and update roadmap links.
 - **TDD:** Write failing tests first for non-trivial logic (if applicable).
 - **Quality:** Run format/lint before every commit. Update `CHANGELOG.md` & `README.md` before commit/PR.
+- **Changelog:** Write for humans, not reviewers: one short plain-language sentence per change saying what is different for the user and why it matters. No file paths, function names, flags, or internal jargon unless the reader needs them to act. Merge related task-level changes into one entry.
 - **Verify:** Run tests/compiler or ask user to visually verify before concluding/commit/PR. Never assume.
 - **Blockers:** Stop and ask user on ambiguity; do not guess.
 - **Scope:** Stick strictly to requested task/plan. No unrequested features/refactoring.
@@ -17,7 +18,7 @@
 - **Code Preservation:** Do not delete existing comments, docstrings, or unrelated code unless explicitly instructed.
 
 ## 2. Git Standards
-- **No Auto-Commit:** Never run `git commit`, `git push`, or history-rewriting commands unless the user explicitly asks in the current turn. Make changes, run quality gates, report, then wait for the user to commit or instruct.
+- **No Auto-Commit:** Never run `git commit`, `git push`, or history-rewriting commands unless the user explicitly asks in the current turn. Make changes, run quality gates, report, then wait for the user to commit or instruct. Exception: invoking `/dev-loop` or `/execute-plan` is explicit permission to branch, commit, push, and open/merge PRs exactly as that workflow defines, including for the subagents it spawns.
 - **Branches:** Default branch is releasable; the pre-commit hook is the gate. Commit directly to it. Use a `<type>/<task-slug>` (`feat/` or `fix/`) branch + PR only when the user asks, via `/dev-loop`, or when the change is risky enough to want CI green before merge. Multi-phase plans use epic branch `feat/<plan-slug>` and phase branches `feat/<plan-slug>-phase-<N>`.
 - **Commits & PR Titles:** Conventional Commits (`<type>(<scope>): <summary>`). Subject ≤72 chars, imperative mood. Body explains *why*. One logical change per commit.
 - **Artifacts:** Never commit temporary agent session files (e.g., scratchpads, tool-specific session state). Official feature plans (including task checklists) should be committed.
@@ -40,6 +41,14 @@ SimpleFPS is an arena-based first-person shooter with WebGPU rendering, distribu
 - **Test**: `npm test` (`gofront test app/src/...`, every package), `npm run test:dom` (same with a jsdom `window`/`document`), `npm run test:perf` (zero-allocation raycast, controller and SIMD skinning benchmark + `tests/perf/simd-kernels.js` SIMD canary + `tests/perf/ab.js` A/B self-test, which skips unless `GOFRONT_BASELINE_DIR`/`BASELINE_SRC` is set), `npm run test:e2e` (Playwright smoke test), `npm run test:all`
 - **Lint / Format / Type-check**: `npm run check` = Biome lint (JS files only) + `scripts/check-simd.js` (SIMD-only-in-WASM) + `gofront check app/src/...`; `npm run format` = Biome format
 - **Node**: >= 24.0.0, npm >= 11.0.0; uses GoFront >= 1.7.0 (`gofront/simd` in `animation`).
+
+## Commands
+
+- **Test**: `npm test`, `npm run test:dom`, `npm run test:perf`, `npm run test:e2e`; everything: `npm run test:all`
+- **Lint**: `npm run check` (Biome + SIMD-only-in-WASM check + `gofront check`)
+- **Format**: `npm run format`
+- **Build**: `npm run build`
+- **Pre-commit gate**: `lefthook run pre-commit && npm test && npm run test:dom` (lefthook runs format → lint only)
 
 ## Architecture
 Game code lives in `app/src/game/` (package `game`), the engine in `app/src/engine/` (package `engine` plus `animation/`, `assets/`, `collision/` (WASM), `mathx/` (JS + WASM), `physics/` (WASM), `rendering/`, `rendering/fakegpu/` (test-only fake `GPUDevice`), `scene/`, `systems/`), and typings for vendored libs in `app/src/dependencies/`. `app/src/main.go` is the application entry point: it initialises the WebGPU backend, loads resources, boots the game and registers the update/render callbacks with `engine`. Asset-conversion scripts live in `scripts/` (BSP, MD5, OBJ converters). The architecture is documented in `docs/architecture.md` (package layout, dependency rules, frame loop, rendering passes, scene, networking, performance invariants).
