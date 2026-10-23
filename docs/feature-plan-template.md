@@ -13,29 +13,29 @@
 [One to two paragraphs describing the high-level objective. What problem does this solve? What capability does it introduce?]
 
 **Done means:**
-- [Falsifiable completion criterion 1: e.g. all tests pass, zero regressions on conformance corpus]
-- [Falsifiable completion criterion 2: e.g. public API signatures match specification]
-- [Falsifiable completion criterion 3: e.g. targeted diagnostics issued for unsupported constructs, no internal errors]
+- [Falsifiable completion criterion 1: e.g. all tests pass, zero regressions in existing behavior]
+- [Falsifiable completion criterion 2: e.g. public API / page / endpoint behaves as specified]
+- [Falsifiable completion criterion 3: e.g. invalid input produces a clear error instead of a crash]
 - [Documentation criterion: e.g. user docs and CHANGELOG.md updated]
 
 ---
 
 ## Scope Rule & Boundary Matrix
 
-[Define explicit rules for what is allowed in this feature versus what is rejected. Classify items into clear categories.]
+[Define explicit rules for what is allowed in this feature versus what is rejected. Classify items into clear categories. The two *(optional)* rows only apply to projects with multiple targets or runtimes (compilers, cross-platform libraries); delete them otherwise.]
 
 | Category | Rule | Examples / Members |
 |---|---|---|
-| **In scope: core** | Supported across all targets/platforms | [e.g. Pure data algorithms, core parser, internal models] |
-| **In scope: target-specific** | Supported in specific target; targeted diagnostic elsewhere | [e.g. Browser DOM APIs in JS only, SIMD in WASM only] |
-| **Excluded: runtime / platform** | Out of architectural scope; targeted diagnostic | [e.g. Reflection, raw OS threads, unsupported host calls] |
-| **Excluded: deferred** | Inside architectural boundary, but deferred to a future plan | [e.g. Advanced codecs, large lookup tables, non-critical optimizations] |
+| **In scope: core** | Built in this plan | [e.g. New settings page, data model change, core algorithm] |
+| **In scope: target-specific** *(optional)* | Supported on specific targets only; clear error elsewhere | [e.g. Browser DOM APIs in JS only, SIMD in WASM only] |
+| **Excluded: runtime / platform** *(optional)* | Out of architectural scope; clear error | [e.g. Reflection, raw OS threads, unsupported host calls] |
+| **Excluded: deferred** | Inside architectural boundary, but deferred to a future plan | [e.g. Admin UI, extra export formats, non-critical optimizations] |
 
 ---
 
 ## Verified Gaps & Baseline Audit
 
-[Empirically confirmed limitations or bugs found before implementation. Do not guess—run active probes, inspect ASTs/types, or write minimal failing tests to prove every finding.]
+[Empirically confirmed limitations or bugs found before implementation. Do not guess—run active probes, inspect code/types/output, or write minimal failing tests to prove every finding.]
 
 | Area | Finding | Evidence & Probe Reference |
 |---|---|---|
@@ -87,18 +87,19 @@
 >   - `Files:` 1–3 files to touch (prevents unbounded refactoring)
 >   - `Test:` failing test to write first (TDD)
 >   - `Done when:` clear, falsifiable completion criteria
-> - **Execution Convention**: Each task is an atomic git commit (`feat(<plan-slug>): <summary> (Task N.M)`). In automated workflows (`/execute-plan`), the orchestrator loops continuously through all tasks in a phase, committing each task individually, running quality gates, and opening a phase PR (`feat(<plan-slug>): phase <N> - <phase-name>`) upon completion without halting mid-phase.
+> - **Execution Convention**: Each task is an atomic git commit (`feat(<plan-slug>): <summary> (Task N.M)`). In automated workflows (`/execute-plan`), the orchestrator loops continuously through all tasks in a phase, committing each task individually, running quality gates, and opening a phase PR (`feat(<plan-slug>): phase <N> - <phase-name>`) upon completion without halting mid-phase. Phase PRs are merged with a merge commit (never squashed), so the per-task commits stay in history.
 > - **No Gate-Only Work**: `/dev-loop` runs the quality gates on every task and writes one changelog entry per phase, so never add phases or tasks that only run tests/lint or update the changelog. Put user-facing docs updates in the last phase that changes behavior.
 
-### Phase 1: Baseline Audit & Test Fixtures
-- [ ] Task 1.1: Add conformance fixtures reproducing all items in the Verified Gaps table, marked skipped/expected-fail with the gap as the reason so the quality gate stays green.
+### Phase 1: Baseline Fixtures *(if applicable)*
+[Use when the Verified Gaps are reproducible bugs or the work is performance-sensitive. Otherwise drop this phase and write each failing test inside the task that fixes it.]
+- [ ] Task 1.1: Add test fixtures reproducing all items in the Verified Gaps table, marked skipped/expected-fail with the gap as the reason so the quality gate stays green.
 - [ ] Task 1.2: Establish baseline benchmark numbers (if performance-sensitive).
 
 ### Phase 2: Core Implementation
 - [ ] Task 2.1: [Implement core data structures / types]
-- [ ] Task 2.2: [Implement core logic / lowered algorithms]
-- [ ] Task 2.3: [Implement boundary adapters / diagnostics]
-- [ ] Task 2.4: [Un-skip the Verified Gaps fixtures from Task 1.1 and make them pass; update user-facing docs if behavior changed]
+- [ ] Task 2.2: [Implement core logic]
+- [ ] Task 2.3: [Implement boundary handling / error messages]
+- [ ] Task 2.4: [Un-skip the fixtures from Task 1.1 (if any) and make them pass; update user-facing docs if behavior changed]
 
 ---
 
@@ -107,6 +108,6 @@
 [Specify how this feature is verified. Be specific: file paths, fixture commands, expected outputs.]
 
 - **Unit Tests:** `[path to unit test files and key test cases]`
-- **Integration / Conformance:** `[path to fixtures comparing output against ground-truth reference]`
-- **Negative Cases & Diagnostics:** `[invalid inputs that must produce clear error messages / diagnostics instead of crashes]`
+- **Integration / End-to-End:** `[path to integration tests or fixtures comparing output against expected results]`
+- **Negative Cases:** `[invalid inputs that must produce clear error messages instead of crashes]`
 - **Benchmarks (if applicable):** `[benchmark commands and target thresholds]`
