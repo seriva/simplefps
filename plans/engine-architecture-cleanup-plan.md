@@ -238,7 +238,7 @@ strings on ~60 call sites; no named type or constant exists for any of them
 today. Every pass issues 4–6 `Set*State` calls and then undoes them by hand.
 The WebGPU backend already reduces these setters to a `pipeKey` string for its
 `PipelineCache`
-([webgpubackend.go:1797](../../app/src/engine/rendering/webgpu/webgpubackend.go#L1797)),
+([webgpubackend.go:1797](../app/src/engine/rendering/webgpu/webgpubackend.go#L1797)),
 i.e. it reconstructs a pipeline-state object from individually mutated fields.
 
 **Change.**
