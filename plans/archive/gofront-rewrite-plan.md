@@ -63,7 +63,7 @@ compiler fixes were surfaced by this port and shipped in GoFront 1.3.7–1.3.8:
   `npm run test:all` runs check, unit, `--dom`, perf and E2E.
 - The post-rewrite architecture cleanup (hot-path globals removed, renderer pulls draw lists
   from `SceneSource`, typed `PipelineState`, slim `Entity`, required scene) is tracked in
-  `docs/plans/engine-architecture-cleanup-plan.md`; the resulting design is documented in
+  `plans/engine-architecture-cleanup-plan.md`; the resulting design is documented in
   `docs/architecture.md`.
 
 ---
