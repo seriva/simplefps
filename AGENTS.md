@@ -7,7 +7,7 @@
 ## 1. Context & Rules
 - **Caveman Speak:** Progress updates and tool-call narration use "caveman" style (extreme density, zero fluff, drop grammar, `->` for correlations). Explanations, answers to the user, and human-facing text (`README`, `CHANGELOG`, plans, PR descriptions, commit bodies) use normal readable prose.
 - **Skills Override:** While running a skill (`/design-plan`, `/execute-plan`, `/dev-loop`), its rules override **Blockers**, **Quality**, and **Branches** here.
-- **Plan-first:** Create `plans/vX.Y.Z/<plan-slug>-plan.md` (or `plans/<plan-slug>-plan.md` for continuous/unversioned projects) & update roadmap for non-trivial (multi-component, arch-altering, risky) features. Track execution by checking off tasks (`- [x]`) as they land; mark the plan `Status: Completed` when done.
+- **Plan-first:** Non-trivial features (multi-component, arch-altering, risky) require a design plan created with `/design-plan` and tracked in `plans/roadmap.md`. Active plans live under `plans/` (or milestone subfolders like `plans/vX.Y.Z/`); on completion `/execute-plan` moves continuous plans to `plans/archive/`, while versioned plans stay in their milestone folder. Track execution by checking off tasks (`- [x]`) as they land.
 - **TDD:** Write failing tests first for non-trivial logic (if applicable).
 - **Quality:** Run format/lint before every commit. Before opening a PR, update `CHANGELOG.md` & `README.md` when user-facing behavior changed.
 - **Changelog:** Write for humans, not reviewers: one short plain-language sentence per change saying what is different for the user and why it matters. No file paths, function names, flags, or internal jargon unless the reader needs them to act. Merge related task-level changes into one entry.
@@ -31,6 +31,9 @@
 # Part 2: Project Context
 
 ## Project Identity
+
+- **Release Model**: Continuous (`plans/`)
+
 SimpleFPS is an arena-based first-person shooter with WebGPU rendering, distributed as a PWA for Desktop, Android, and iOS. It is written in [GoFront](https://github.com/seriva/gofront) (Go syntax compiled to a seamless hybrid of JavaScript and WebAssembly); collision and physics run in WebAssembly (WasmGC), mathx in both targets, and the rest in JavaScript. The rewrite from ES6 modules is complete — see `plans/archive/gofront-rewrite-plan.md` for the design decisions and phase history.
 
 ## Tech Stack
