@@ -13,7 +13,7 @@
 - **Changelog:** Write for humans, not reviewers: one short plain-language sentence per change saying what is different for the user and why it matters. No file paths, function names, flags, or internal jargon unless the reader needs them to act. Merge related task-level changes into one entry.
 - **Verify:** Run tests/compiler or ask user to visually verify before concluding/commit/PR. Never assume.
 - **Blockers:** Stop and ask user on ambiguity; do not guess.
-- **Scope:** Stick strictly to requested task/plan. No unrequested features/refactoring.
+- **Scope:** Stick strictly to requested task/plan. No unrequested features/refactoring. A real bug noticed outside the task goes in `plans/follow-ups.md` with a one-line repro, not into the diff.
 - **Dependencies:** Use existing packages/standard lib. Ask before adding new dependencies.
 - **Stuck:** If same approach fails twice, stop and ask user. Do not retry blindly.
 - **Code Preservation:** Do not delete existing comments, docstrings, or unrelated code unless explicitly instructed.
