@@ -44,14 +44,14 @@ Probes ran on 2026-10-22 against `master` `b70d968` (GoFront 1.7.0). The dead-co
 
 | Area | Finding | Evidence & Probe Reference |
 |---|---|---|
-| `mathx` dead code | 22 exported functions/methods with no callers anywhere, about 460 lines of bodies (about 510 with doc comments). `mat4.go` alone accounts for about 370 of them. | Scan; e.g. `Mat4TargetTo`, `Mat4Rotate`, `Mat4FromRotationTranslationScaleOrigin` ([`mat4.go`](../../../app/src/engine/mathx/mat4.go)) |
+| `mathx` dead code | 22 exported functions/methods with no callers anywhere, about 460 lines of bodies (about 510 with doc comments). `mat4.go` alone accounts for about 370 of them. | Scan; e.g. `Mat4TargetTo`, `Mat4Rotate`, `Mat4FromRotationTranslationScaleOrigin` ([`mat4.go`](../../app/src/engine/mathx/mat4.go)) |
 | Other dead code | 11 methods outside `mathx` with no callers, about 75 lines with comments. | Scan; see the Task 1.4 list |
 | Interface safety | None of the candidates is part of an interface (`Drawable`, `LightDrawable`, `SceneSource`, `Entity`, `RaycastProvider`). | `awk` over every `interface {` block in `app/src` |
-| JS callers | `Trimesh.Broadphase` is called by [`tests/perf/js-vs-wasm.js`](../../../tests/perf/js-vs-wasm.js); it stays. The scan's `Camera.Rotate` hit in `scripts/md5tomesh.js` is an unrelated JS identifier. | `grep -rw` over `tests/`, `scripts/` |
-| Duplicated slab test | `intersectRayAABB` ([`ray.go:138`](../../../app/src/engine/collision/ray.go#L138)) and `rayAABBInterval` ([`spatialhash.go:70`](../../../app/src/engine/collision/spatialhash.go#L70)) have identical bodies except for the return. `intersectRayAABB` returns `tmax >= 0 && tmin <= maxDist`; `rayAABBInterval` returns `false` when `tmax < 0 \|\| tmin > maxDist`. That is the negation for every non-NaN input. The only difference is a NaN `maxDist` (`tmax` then stays NaN, since no slab assignment or early-out fires on a NaN comparison): `intersectRayAABB` reports a miss, `rayAABBInterval` a hit. A NaN `maxDist` needs NaN ray endpoints, and a Phase 2 review probe with NaN and ±Inf endpoints gave identical raycast results on the base and Phase 2 trees. Its only caller is [`ray.go:269`](../../../app/src/engine/collision/ray.go#L269). | `diff` of the two function bodies |
-| Triangle bounds | `newSpatialHash` computes each triangle's min/max with 36 lines of `if` chains, twice (auto cell-size loop at [`spatialhash.go:375`](../../../app/src/engine/collision/spatialhash.go#L375), insertion loop at [`spatialhash.go:486`](../../../app/src/engine/collision/spatialhash.go#L486)). `min3`/`max3` exist in the same file but are unused there. | Source |
-| Axis sweeps | The Y, X and Z dominant-axis branches ([`spatialhash.go:584`](../../../app/src/engine/collision/spatialhash.go#L584), [`:633`](../../../app/src/engine/collision/spatialhash.go#L633), [`:682`](../../../app/src/engine/collision/spatialhash.go#L682)) are about 49 lines each. They differ only in which axis is solved from the plane equation and which two axes are iterated. | Source |
-| Stale line reference | `simd-collision-plan.md` cites [`ray.go:281-283`](../../../app/src/engine/collision/ray.go#L281-L283) for the `rayQueryLocal` call, which is now at line 276. Phase 2 shifts it by about 85 lines. | Source |
+| JS callers | `Trimesh.Broadphase` is called by [`tests/perf/js-vs-wasm.js`](../../tests/perf/js-vs-wasm.js); it stays. The scan's `Camera.Rotate` hit in `scripts/md5tomesh.js` is an unrelated JS identifier. | `grep -rw` over `tests/`, `scripts/` |
+| Duplicated slab test | `intersectRayAABB` ([`ray.go:138`](../../app/src/engine/collision/ray.go#L138)) and `rayAABBInterval` ([`spatialhash.go:70`](../../app/src/engine/collision/spatialhash.go#L70)) have identical bodies except for the return. `intersectRayAABB` returns `tmax >= 0 && tmin <= maxDist`; `rayAABBInterval` returns `false` when `tmax < 0 \|\| tmin > maxDist`. That is the negation for every non-NaN input. The only difference is a NaN `maxDist` (`tmax` then stays NaN, since no slab assignment or early-out fires on a NaN comparison): `intersectRayAABB` reports a miss, `rayAABBInterval` a hit. A NaN `maxDist` needs NaN ray endpoints, and a Phase 2 review probe with NaN and ±Inf endpoints gave identical raycast results on the base and Phase 2 trees. Its only caller is [`ray.go:269`](../../app/src/engine/collision/ray.go#L269). | `diff` of the two function bodies |
+| Triangle bounds | `newSpatialHash` computes each triangle's min/max with 36 lines of `if` chains, twice (auto cell-size loop at [`spatialhash.go:375`](../../app/src/engine/collision/spatialhash.go#L375), insertion loop at [`spatialhash.go:486`](../../app/src/engine/collision/spatialhash.go#L486)). `min3`/`max3` exist in the same file but are unused there. | Source |
+| Axis sweeps | The Y, X and Z dominant-axis branches ([`spatialhash.go:584`](../../app/src/engine/collision/spatialhash.go#L584), [`:633`](../../app/src/engine/collision/spatialhash.go#L633), [`:682`](../../app/src/engine/collision/spatialhash.go#L682)) are about 49 lines each. They differ only in which axis is solved from the plane equation and which two axes are iterated. | Source |
+| Stale line reference | `simd-collision-plan.md` cites [`ray.go:281-283`](../../app/src/engine/collision/ray.go#L281-L283) for the `rayQueryLocal` call, which is now at line 276. Phase 2 shifts it by about 85 lines. | Source |
 | Baseline (Task 1.1) | Base `feat/sloc-reduction` `09b70cc`: `npm run test:all` green. Non-test `app/src` lines: **20,862**. `public/app.js` **659,152 B**, `public/app.wasm` **103,648 B** (`npm run build`). | `git ls-files 'app/src/*.go' 'app/src/*.templ' \| grep -v _test \| xargs cat \| wc -l`; `wc -c public/app.js public/app.wasm` |
 | Open branches (Task 1.1) | All local `feat/` branches (`feat/simd-skinning*`, `feat/wasm-asset-decoding`) are merged PRs; none uses a Phase 1 candidate. Nothing kept for this reason. | `git branch -a` |
 | Fixed-point scan (Task 1.5) | Re-running the scan after Tasks 1.2–1.4 found two newly orphaned private helpers, `BoundingBox.frameCorners` and `BoundingBox.corner` (only callers were `ToLocalFrame`/`ToWorldFrame`/`GetCorners`); both deleted. Newly orphaned but called from tests, so kept: `AnimationPlayer.GetProgress`, `AnimationPlayer.Stop`, `NewTransform`, `Transform.PointToLocal`/`PointToWorld`. A second run finds nothing new; the remaining hits are the base audit's test-only or *Out of Scope* entries. Non-test `app/src` lines after Phase 1: **20,214** (−648); `public/app.js` **645,821 B** (−13,331), `public/app.wasm` **94,886 B** (−8,762). | `dead.sh` diffed against a scan of the base worktree; every identifier in the removed lines re-checked for remaining non-test references |
@@ -66,7 +66,7 @@ Probes ran on 2026-10-22 against `master` `b70d968` (GoFront 1.7.0). The dead-co
 ## Out of Scope
 
 - **Functions called only from tests:** about 580 lines. They are test hooks or small accessors (counts, getters); removing them means rewriting tests for little gain.
-- **`Renderer.CaptureSnapshot`, `Scene.RaycastDynamic`, `Scene.Raycast`:** documented as API in [`architecture.md`](../../architecture.md) (lines 146, 217, 235). Removing them is a product decision, not dead-code cleanup.
+- **`Renderer.CaptureSnapshot`, `Scene.RaycastDynamic`, `Scene.Raycast`:** documented as API in [`architecture.md`](../../docs/architecture.md) (lines 146, 217, 235). Removing them is a product decision, not dead-code cleanup.
 - **The flat-grid broadphase:** unused in production today (only `SetBroadphase` selects it, and only the perf harness and tests call that), but `simd-collision-plan.md` builds its packets on it.
 - **Builtin `min`/`max`:** not available on 1.7.0; `gofront-v1.8.0-adoption-plan.md` does this.
 - **Folding the X/Y/Z slab blocks inside `rayAABBInterval` into a loop:** hot path on every raycast; not worth the throughput risk for about 40 lines.
@@ -116,7 +116,7 @@ Probes ran on 2026-10-22 against `master` `b70d968` (GoFront 1.7.0). The dead-co
 ### Phase 1: Remove Unused Code
 
 - [x] Task 1.1: Record the baseline.
-  - Files: `docs/plans/archive/sloc-reduction-plan.md` (*Verified Gaps*)
+  - Files: `plans/archive/sloc-reduction-plan.md` (*Verified Gaps*)
   - Test: `npm run test:all` green on `master`; `npm run build`, then record `wc -c public/app.js public/app.wasm` and the non-test `app/src` line count.
   - Done when: the three numbers are in *Verified Gaps* and no open `feat/` branch uses a Phase 1 candidate.
 - [x] Task 1.2: Delete unused `mat4.go` functions: `Mat4Determinant`, `Mat4Transpose`, `Mat4Rotate`, `Mat4FromXRotation`, `Mat4FromYRotation`, `Mat4FromZRotation`, `Mat4Perspective`, `Mat4Ortho`, `Mat4OrthoZO`, `Mat4TargetTo`, `Mat4FromValues`, `Mat4Mul`, `Mat4FromRotationTranslationScaleOrigin`.
@@ -132,7 +132,7 @@ Probes ran on 2026-10-22 against `master` `b70d968` (GoFront 1.7.0). The dead-co
   - Test: `npm run check`, `npm test`, `npm run test:dom`.
   - Done when: the methods are gone and all three commands pass. Fields used only by deleted methods are removed too; fields with other readers stay.
 - [x] Task 1.5: Re-run the dead-code scan to a fixed point.
-  - Files: whatever the scan finds (within the scope rule), `docs/plans/archive/sloc-reduction-plan.md`
+  - Files: whatever the scan finds (within the scope rule), `plans/archive/sloc-reduction-plan.md`
   - Test: run the scan; every new candidate (code orphaned by Tasks 1.2–1.4) is checked against `tests/`, `scripts/`, interfaces and the *Out of Scope* list, then deleted or recorded as kept.
   - Done when: the scan reports nothing outside the *Out of Scope* list; `npm run test:all` is green.
 
@@ -155,21 +155,21 @@ Probes ran on 2026-10-22 against `master` `b70d968` (GoFront 1.7.0). The dead-co
   - Test: Task 2.1's test, `npm test`.
   - Done when: the Y/X/Z branches call one helper with each branch's original loop nesting, and the digest is unchanged.
 - [x] Task 2.5: Perf gate.
-  - Files: `docs/plans/archive/sloc-reduction-plan.md` (*Verified Gaps*)
+  - Files: `plans/archive/sloc-reduction-plan.md` (*Verified Gaps*)
   - Test: `BASELINE_SRC=<master worktree> node tests/perf/js-vs-wasm.js --ab --repeat 5`, then `npm run test:perf`. Also time `NewTrimesh` + `Finalize` on the demo arena before and after (report only, load time).
   - Done when: every A/B entry is within 0.90–1.10 and zero-alloc passes; the ratios and the construction time are recorded. If an entry falls below 0.90, stop and report.
 
 ### Phase 3: Docs & Close-out
 
 - [x] Task 3.1: Update follow-up plans.
-  - Files: `docs/plans/gofront-v1.8.0-adoption-plan.md` (the shadowed `min`/`max` row and the matching Approach note now cover only `rayAABBInterval`; fix line refs; re-count the constant slice indices in `mat4.go`, last counted at 665), `docs/plans/simd-collision-plan.md` (the `ray.go` line refs; note that `newSpatialHash` now uses one sweep helper)
+  - Files: `plans/gofront-v1.8.0-adoption-plan.md` (the shadowed `min`/`max` row and the matching Approach note now cover only `rayAABBInterval`; fix line refs; re-count the constant slice indices in `mat4.go`, last counted at 665), `plans/simd-collision-plan.md` (the `ray.go` line refs; note that `newSpatialHash` now uses one sweep helper)
   - Test: every changed `file#Lx` link points at the cited code.
   - Done when: both plans cite current lines.
 - [x] Task 3.2: Final numbers, `CHANGELOG.md`, roadmap.
-  - Files: `CHANGELOG.md` (`### Removed` / `### Changed` under `## [Unreleased]`), `docs/roadmap.md`, this plan
+  - Files: `CHANGELOG.md` (`### Removed` / `### Changed` under `## [Unreleased]`), `plans/roadmap.md`, this plan
   - Test: `npm run build`; record the new line count and bundle sizes next to the Task 1.1 baseline. `npm run test:all`.
-  - Done when: the numbers are recorded, the plan is marked Completed, moved to `docs/plans/archive/`, and the roadmap links to the archived file.
-  - Note: the numbers, `CHANGELOG.md` and the roadmap row are done in the Phase 3 PR. Marking the plan Completed, moving it to `docs/plans/archive/` and relinking the roadmap are left to the plan orchestrator after the final full-branch audit.
+  - Done when: the numbers are recorded, the plan is marked Completed, moved to `plans/archive/`, and the roadmap links to the archived file.
+  - Note: the numbers, `CHANGELOG.md` and the roadmap row are done in the Phase 3 PR. Marking the plan Completed, moving it to `plans/archive/` and relinking the roadmap are left to the plan orchestrator after the final full-branch audit.
 
 ---
 

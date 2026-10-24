@@ -93,5 +93,5 @@ Phase 4 restructures the rendering pipeline to drop WebGL-era workarounds (inter
   - [x] Update `docs/architecture.md`
   - [x] Update `README.md`
   - [x] Update `CHANGELOG.md`
-  - [x] Update `docs/roadmap.md`
+  - [x] Update `plans/roadmap.md`
   - [x] Run `npm run check` and all test suites to verify quality gates
