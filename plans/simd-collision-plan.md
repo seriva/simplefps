@@ -2,9 +2,7 @@
 
 **Version:** continuous  
 **Status:** Draft (2026-10-21; re-checked 2026-10-23)  
-**Depends on:** [`gofront-v1.8.0-adoption-plan.md`](gofront-v1.8.0-adoption-plan.md) **completed and merged to `master`**. It needs `gofront@^1.8.0` for the array/pointer fixes (GoFront Phases 0.1, 0.5 and 0.9 — Tasks 0.1a–d, 0.8a/b, 0.19b; landed on `feat/portable-go`) and for comparisons/`bitselect`/`bitmask` and `Mask32x4` (GoFront Phase 6.1 — Tasks 6.3 and 6.4; open on 2026-10-23). GoFront phases are numbered `Phase <major>.<minor>`, and GoFront task ids are not the phase number. It also needs [`simd-skinning-plan.md`](simd-skinning-plan.md) merged, for the A/B harness and the SIMD rule check.  
-**Replaces:** Phases 3–4 of the withdrawn `simd-adoption-plan.md`  
-**Followed by:** None
+**Related:** Preceded by [`gofront-v1.8.0-adoption-plan.md`](gofront-v1.8.0-adoption-plan.md) (requires `gofront@^1.8.0` array/pointer fixes and Phase 6.1 `Mask32x4`/`bitselect`); SIMD Skinning (A/B perf harness and SIMD rule check); replaces Phases 3–4 of withdrawn `simd-adoption-plan.md`
 
 ---
 
@@ -18,21 +16,23 @@ Static raycasts (weapons, movement, projectiles) spend **≈ 45%** of their time
 The expected whole-cast ceiling is ≈ 1.3–1.45×.
 
 **Done means:**
-- The SH (Flat+SIMD) A/B ratio against SH-Flat on the same build is **≥ 1.15×** (median of 5 process runs).
-- 10,000 seeded rays against the demo arena give identical `HasHit`, `Distance` (within 1e-5) and hit triangle for scalar vs SIMD in `RayModeClosest`, and identical `HasHit` in `RayModeAny`.
+- The SH (Flat+SIMD) A/B ratio against SH-Flat on the same build is **≥ 1.15×** (median of 5 process runs via `node tests/perf/js-vs-wasm.js`).
+- 10,000 seeded rays against the demo arena give identical `HasHit`, `Distance` (within 1e-5) and hit triangle for scalar vs SIMD in `RayModeClosest`, and identical `HasHit` in `RayModeAny`, verified by `app/src/engine/collision/ray_test.go`.
+- Fallbacks and negative cases pass: `SetSIMD(true)` in SH-Map mode falls back with one warning, `RayModeAll`/`Callback` take the scalar path, and degenerate-only voxels produce no hits.
 - `tests/perf/zero-alloc.js` passes with SIMD on (raycast ≤ 3,000 B per 100k casts, controller ≤ 0.5 B/frame).
+- `npm run test:all` passes with SIMD on, including unit tests (`packets_test.go`, `ray_test.go`) and the Playwright smoke test.
 - SIMD is the default in `scene.FinalizeStaticGeometry`. `docs/architecture.md` (collision data layout) and `CHANGELOG.md` are updated.
 
 ---
 
 ## Scope Rule & Boundary Matrix
 
-| Category | Rule | Examples / Members |
-|---|---|---|
-| **In scope: core** | Parity with the scalar path | Closest/any hit results identical to scalar; scalar path kept as reference |
-| **In scope: target-specific** | WASM `collision`, flat broadphase | `triPacket` SoA build in `BuildSpatialHash`, 4-wide kernel with `Mask32x4`/`Select`, front-to-back packet query, `Trimesh.SetSIMD` |
-| **Excluded: runtime / platform** | Breaks an invariant | Packets in `shared.Float32` (startup-sized memory caps arena size); any `F32x4` on the boundary |
-| **Excluded: deferred** | Valid, but no case for it | SIMD for `RayModeAll`/`Callback`; SH-Map mode; `aabbQuery`; controller ray packets; `triBoxOverlap` (load time) |
+| Category | Rule | Examples / Members | Reason (Excluded rows) |
+|---|---|---|---|
+| **In scope: core** | Parity with the scalar path | Closest/any hit results identical to scalar; scalar path kept as reference | |
+| **In scope: target-specific** | WASM `collision`, flat broadphase | `triPacket` SoA build in `BuildSpatialHash`, 4-wide kernel with `Mask32x4`/`Select`, front-to-back packet query, `Trimesh.SetSIMD` | |
+| **Excluded: runtime / platform** | Breaks an invariant | Packets in `shared.Float32` (startup-sized memory caps arena size); any `F32x4` on the boundary | Fixed startup buffer would cap maximum arena geometry size; boundary structs cannot cross JS↔WASM with SIMD fields in GoFront 1.8 |
+| **Excluded: deferred** | Valid, but no case for it | SIMD for `RayModeAll`/`Callback`; SH-Map mode; `aabbQuery`; controller ray packets; `triBoxOverlap` (load time); traversal speed-ups that are not SIMD | `All`/`Callback` require exact per-triangle stamp deduplication; SH-Map is legacy; load-time or non-bottleneck queries do not justify packet build overhead; front-to-back walk is required by packet path and not measured separately |
 
 ---
 
@@ -47,17 +47,8 @@ Probes ran on 2026-10-21 against GoFront `f69c67a` (the merge of the old, pre-re
 | 4-wide kernel (1.7.0) | **Traps** in `Build` (`invalid memory address or nil pointer dereference`) because of the pre-v1.8.0 array/pointer bugs. | Same probe with `GOFRONT_DIR` set to 1.7.0 |
 | Candidate gathering | Voxel walk plus a per-triangle stamp dedupe into `out[]`, then gather-order tests via `getNormal`/`getVertex`. | [`spatialhash.go:802-811`](../app/src/engine/collision/spatialhash.go#L802-L811), [`ray.go:192-209`](../app/src/engine/collision/ray.go#L192-L209) |
 | Ray modes | `RayModeAll` and `Callback` need exact dedupe; `Closest`/`Any` tolerate a triangle being tested twice. | [`ray.go:11-13`](../app/src/engine/collision/ray.go#L11-L13), [`ray.go:276-284`](../app/src/engine/collision/ray.go#L276-L284) |
-| Grid build | Since [`sloc-reduction-plan.md`](sloc-reduction-plan.md) Phase 2, `newSpatialHash` inserts every non-degenerate triangle through one helper, `sweepDominantAxis` (one call per Y/X/Z dominant axis), and builds `flatGrid` from the finished map at the end. Packets attach after the grid build, in `BuildSpatialHash` once `newSpatialHash` returns, reading `flatGrid` (Approach §1); the sweep itself does not change. | [`spatialhash.go:512-518`](../app/src/engine/collision/spatialhash.go#L512-L518) (sweep calls), [`spatialhash.go:549-569`](../app/src/engine/collision/spatialhash.go#L549-L569) (`flatGrid`), [`spatialhash.go:572-581`](../app/src/engine/collision/spatialhash.go#L572-L581) (`sweepDominantAxis`), [`trimesh.go:254-266`](../app/src/engine/collision/trimesh.go#L254-L266) (`BuildSpatialHash`) |
+| Grid build | Since SLOC Reduction Phase 2, `newSpatialHash` inserts every non-degenerate triangle through one helper, `sweepDominantAxis` (one call per Y/X/Z dominant axis), and builds `flatGrid` from the finished map at the end. Packets attach after the grid build, in `BuildSpatialHash` once `newSpatialHash` returns, reading `flatGrid` (Approach §1); the sweep itself does not change. | [`spatialhash.go:512-518`](../app/src/engine/collision/spatialhash.go#L512-L518) (sweep calls), [`spatialhash.go:549-569`](../app/src/engine/collision/spatialhash.go#L549-L569) (`flatGrid`), [`spatialhash.go:572-581`](../app/src/engine/collision/spatialhash.go#L572-L581) (`sweepDominantAxis`), [`trimesh.go:254-266`](../app/src/engine/collision/trimesh.go#L254-L266) (`BuildSpatialHash`) |
 | Demo arena size | 1,089 voxels, 7,168 voxel refs, so ≤ ≈ 10.4k padded lanes and ≈ 430 kB of packets. | `js-vs-wasm.js` `SpatialHashStats` |
-
----
-
-## Out of Scope
-
-- **`RayModeAll`/`Callback` on SIMD.** They keep the stamp-deduped scalar path.
-- **SH-Map mode.** `SetSIMD(true)` falls back to scalar there and warns once.
-- **Traversal speed-ups that are not SIMD.** The front-to-back walk is required by the packet path and is not measured on its own.
-- **`shared.Float32` packet storage.** Its startup-only sizing would cap arena size.
 
 ---
 
@@ -93,7 +84,7 @@ Probes ran on 2026-10-21 against GoFront `f69c67a` (the merge of the old, pre-re
 > - Epic branch `feat/simd-collision` off `master`, phase branches `feat/simd-collision-phase-<N>`.
 > - **Entry gate for Phase 1:** `npm ls gofront` reports ≥ 1.8.0 on `master` (i.e. [`gofront-v1.8.0-adoption-plan.md`](gofront-v1.8.0-adoption-plan.md) is merged), and `node tests/perf/simd-kernels.js` runs the `tri` kernel instead of skipping it. If either fails, do not branch; report blocked.
 > - `/dev-loop` runs the `AGENTS.md` pre-commit gate (`lefthook run pre-commit && npm test && npm run test:dom`) on every task. Each task's **Test** names only the extra commands (perf, e2e) that gate does not cover.
-> - `/dev-loop` writes one `CHANGELOG.md` entry per phase on the phase's last task (`/dev-loop` Step 2). Archiving the plan and updating the roadmap happen in `/execute-plan` Step 4, so there is no close-out task.
+> - `/dev-loop` writes one `CHANGELOG.md` entry per phase on the phase's last task (`/dev-loop` Step 2). Updating plan status to `Completed` and updating the roadmap happen in `/execute-plan` Step 4, so there is no close-out task.
 > - **Gate misses:** if a gate is missed, stop and report; do not delete code without the user's decision.
 
 ### Phase 1: Triangle packets & 4-wide kernel
@@ -125,11 +116,4 @@ Probes ran on 2026-10-21 against GoFront `f69c67a` (the merge of the old, pre-re
   - Test: `npm run test:all` with SIMD on (adds perf and the Playwright smoke test to the pre-commit gate).
   - Done when: SH (Flat+SIMD) is ≥ 1.15× and zero-alloc passes, so SIMD becomes the default, and `docs/architecture.md` describes the packet layout and the scalar fallback for `All`/`Callback`/SH-Map. If it is below 1.15×, stop and report; do not switch the default.
 
----
 
-## Test & Conformance Plan
-
-- **Unit tests:** `app/src/engine/collision/packets_test.go` (layout, per-lane kernel against scalar, edge lanes), `ray_test.go` (10k-ray closest/any parity, scalar dispatch for `All`/`Callback`, SH-Map fallback).
-- **Integration:** `npm run test:all` with SIMD on; the Playwright smoke test covers player movement and weapons in the demo arena.
-- **Negative cases:** `SetSIMD(true)` in SH-Map mode falls back with one warning; degenerate-only voxels produce no hits.
-- **Benchmarks:** `node tests/perf/js-vs-wasm.js --ab --repeat 5`: SH (Flat+SIMD) ≥ 1.15× SH-Flat. `node tests/perf/zero-alloc.js`: SIMD raycast ≤ 3,000 B per 100k casts. `node tests/perf/simd-kernels.js`: the `tri` kernel ≥ 2.0× (canary, active from v1.8.0).
