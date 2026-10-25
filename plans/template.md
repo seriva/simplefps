@@ -3,6 +3,7 @@
 **Version:** vX.Y.Z (or `continuous` for unversioned projects)  
 **Status:** Draft | In Progress | Completed (YYYY-MM-DD)  
 **Related:** [Predecessor or successor plans, superseded plans, foundational PRs, or `None`]  
+**Release note:** [One or two plain sentences for `CHANGELOG.md`, written for someone upgrading: what they can do now and why it matters. No task IDs, file paths, or symbol lists. The rest of this plan is for agents and may be as dense as needed.]  
 
 ---
 
