@@ -50,11 +50,16 @@ func (g *LightGrid) Reset() {
 func (g *LightGrid) HasData() bool { return g.data != nil }
 
 // Load installs RGB probe bytes for cfg. Returns false (and keeps the grid
-// empty) when the buffer is smaller than the configured probe count.
+// empty) when an axis has no probes or the buffer is smaller than the
+// configured probe count.
 func (g *LightGrid) Load(cfg *LightGridConfig, data []byte) bool {
 	g.Reset()
 	if cfg == nil || len(cfg.Counts) < 3 || len(cfg.Origin) < 3 || len(cfg.Step) < 3 {
 		systems.GlobalConsole.Warn("No light grid configuration found in arena config.")
+		return false
+	}
+	if cfg.Counts[0] < 1 || cfg.Counts[1] < 1 || cfg.Counts[2] < 1 {
+		systems.GlobalConsole.Warn("LightGrid needs at least one probe per axis.")
 		return false
 	}
 	total := cfg.Counts[0] * cfg.Counts[1] * cfg.Counts[2]
@@ -97,9 +102,10 @@ func (g *LightGrid) GetAmbient(position *mathx.Vec3, out []float32) {
 	x0 := max(min(floorInt(fx), g.counts[0]-2), 0)
 	y0 := max(min(floorInt(fy), g.counts[1]-2), 0)
 	z0 := max(min(floorInt(fz), g.counts[2]-2), 0)
-	x1 := x0 + 1
-	y1 := y0 + 1
-	z1 := z0 + 1
+	// An axis with a single probe has no upper neighbour.
+	x1 := min(x0+1, g.counts[0]-1)
+	y1 := min(y0+1, g.counts[1]-1)
+	z1 := min(z0+1, g.counts[2]-1)
 
 	wx := min(max(fx-float32(x0), 0), 1)
 	wy := min(max(fy-float32(y0), 0), 1)

@@ -36,6 +36,7 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 - Fixed wireframe debug bounding box rendering on collision meshes and lights.
 - Fixed unnecessary skinned mesh draw passes on static objects without bones.
 - Fixed WebGPU texture mipmap generation and depth-stencil binding issues.
+- Fixed black or missing ambient lighting in arenas whose light grid has a single probe along an axis; a light grid with no probes on an axis is now rejected with a warning.
 
 ## [2026-09] — Legacy JavaScript engine
 

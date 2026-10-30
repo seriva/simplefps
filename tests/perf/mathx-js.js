@@ -17,7 +17,9 @@
 // Needs GOFRONT_BASELINE_DIR and/or BASELINE_SRC (see ab.js); without either
 // it prints a skip message and exits 0, so `npm run test:perf` stays green on
 // a bare checkout. Runs `--repeat 5` (median of five process runs) unless
-// --repeat is given. Other flags as in ab.js (--rounds, --min, --max, --gate).
+// --repeat is given. Other flags as in ab.js (--rounds, --min, --max, --gate);
+// --min or --max replaces the floors above with that band for every gated
+// entry, and --gate still overrides a single entry.
 
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -122,10 +124,11 @@ if (isMain) {
 	if (!argv.includes("--repeat") && !argv.includes("--json")) {
 		argv.push("--repeat", "5");
 	}
-	const gates = ENTRIES.flatMap(([name, min]) => [
-		"--gate",
-		min === null ? `${name}=off` : `${name}>=${min}`,
-	]);
+	const band = argv.includes("--min") || argv.includes("--max");
+	const gates = ENTRIES.flatMap(([name, min]) => {
+		if (min === null) return ["--gate", `${name}=off`];
+		return band ? [] : ["--gate", `${name}>=${min}`];
+	});
 	await runAB({
 		script: fileURLToPath(import.meta.url),
 		argv: [...gates, ...argv],
