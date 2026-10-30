@@ -90,6 +90,22 @@ Probed GoFront `2d9d774` (HEAD of `feat/follow-up-fixes`; Phases 1–12 merged) 
 | SIMD canary | `tests/perf/simd-kernels.js` skips `tri` until the compiler's `package.json` says ≥ 1.8.0 (HEAD still says 1.7.0). Forced to 1.8.0: palette 7.55× bit-identical, JS fallback 4.38 MB / 1M ops, `tri` 1.95× with the same closest hit. | `GOFRONT_DIR=<shim with version 1.8.0> node tests/perf/simd-kernels.js` |
 | Reslice comments | `rendering` still has no reslice; a reslice is still a `Proxy` view (GoFront `runtime.js`, `docs/go-compatibility.md` rows "`x = x[lo:hi]` in `js` packages" and "Slice views passed to JS"). [`drawable.go:42-44`](../app/src/engine/rendering/drawable.go#L42-L44) still says `.slice()`; `renderer.go` no longer has the comment. | `grep -n 'slice()' app/src/engine/rendering/*.go` |
 
+### Adoption measurements (2026-10-30, Phase 1)
+
+Registry `gofront@1.8.0` (`npm ci`; GoFront tag `1.8.0` = `8e58163`) against a `git archive` of GoFront tag `1.7.0` (`6b396cb`) as `GOFRONT_BASELINE_DIR`. A/B = A time / B time (> 1 = 1.8.0 faster); "B/A" = the plan's slowdown ratio. Median of 5 process runs.
+
+| Area | Finding | Command |
+|---|---|---|
+| Tests (Task 1.2) | `npm run test:all` green on 1.8.0 after the `random-auto` golden → `cell=6.952364`; `TestToggleDebugFieldPointer` passes on 1.7.0 and 1.8.0. Zero-alloc unchanged (SH-Map/SH-Flat 2,960 B per 100k casts, controller 0.2 B/frame, skinning 0.15 B/frame). SIMD canary: palette 7.20× bit-identical, JS fallback 4.38 MB / 1M ops, `tri` 1.54× (report-only; 1.95× on 2026-10-29) with the same closest hit. | `npm run test:all` |
+| Hybrid throughput (Task 1.2) | Gate passed: controller 1.075, skinning-world 0.979, skinning-palette 1.010, skinning-total 0.982, mesh-parse 1.003, anim-parse 1.003, SH-Map 0.962, SH-Flat 0.976 (source with Task 1.4 hints). | `GOFRONT_BASELINE_DIR=<gf-170> node tests/perf/js-vs-wasm.js --ab --repeat 5 --max Infinity --gate 'mesh-parse>=0.80'` |
+| Release size (Task 1.2, same tree) | `app.wasm` 93,969 B (1.7.0) → 106,145 B (1.8.0), **1.13×** (gate 1.15×; binaryen 132 on both); `app.js` 642,060 → 835,098 B (1.30×), gzip -9 143,135 → 181,752 B (1.27×). | `node <gf-170>/src/index.js build --pwa --release` vs `npm run build` |
+| `mathx-js` A/A (Task 1.3) | 1.8.0 against itself: every entry 0.998–1.007 (per-run 0.952–1.052). | `GOFRONT_BASELINE_DIR=node_modules/gofront node tests/perf/mathx-js.js` |
+| `mathx-js`, no hints (Task 1.3) | `master` source, B/A: `Mat4Multiply` 3.22, `Mat4Invert` 2.49, `Mat4FromRotationTranslationScale` 1.95, `Vec3.TransformMat4` 3.38, `BoundingBox.TransformInto` 3.00 (all FAIL); report-only `Vec3.Add` 2.48, `Vec3.Normalize` 1.15. | `node tests/perf/mathx-js.js` from a `git archive master` copy |
+| `mathx-js`, hints (Task 1.4) | Gate passed, B/A: `Mat4Multiply` 1.045, `Mat4Invert` 1.005, `Mat4FromRotationTranslationScale` 1.054, **`Vec3.TransformMat4` 1.093** (gate 1.15), `BoundingBox.TransformInto` 1.043; report-only `Vec3.Add` 2.51, `Vec3.Normalize` 1.17 (`__nilcall`, P1b). Strict helpers in `mathx` JS: 39 `__at` (32 are hints, 7 in `SetFromPoints`/`IsVisibleWithPlanes`, which index non-`Mat4` slices), 0 `__ix`, 449 `__nilcall`. | `GOFRONT_BASELINE_DIR=<gf-170> node tests/perf/mathx-js.js --repeat 5` |
+| `min`/`max` builtins in `collision` (Task 2.2) | Gate passed, A/B vs the pre-task tree: SH-Map 1.002, SH-Flat 0.985 (controller 0.986, others 0.975–1.044). Grid digests unchanged. A NaN-direction ray still yields 4 broadphase *candidates* (`rayQueryLocal`, before and after) but no hit; the test pins "no panic, candidates ≤ len(out), no hit". | `BASELINE_SRC=<copy of app/src before Task 2.2> node tests/perf/js-vs-wasm.js --ab --repeat 5 --max Infinity` |
+| `clampIndex` (Task 2.3) | Inlined as `max(min(v, hi), 0)`: identical to the helper for `hi >= 0`; for a degenerate grid axis (`Counts[i] < 2`, `hi < 0`) it returns 0 where the helper could return −1 (an out-of-range probe index). `clamp01` → `min(max(v, 0), 1)`, NaN still passes through. `toggleDebug` now takes `*bool`; each command checks `ActiveRenderer == nil` before taking the field address (`TestDebugCommandsWithoutRenderer`). | emitted JS of `engine/scene` (`compileDir`, probe deleted): `GetAmbient` → `Math.max(Math.min(…))` |
+| `hasDepth` (Task 2.4) | Eight `hasDepth: true` literals removed (the plan counted seven). | `grep -c 'depth: depthState' app/src/engine/rendering/pipelines.go` → 8 |
+
 ---
 
 ## Approach
@@ -138,41 +154,41 @@ Probed GoFront `2d9d774` (HEAD of `feat/follow-up-fixes`; Phases 1–12 merged) 
 > - **Gate misses:** if a benchmark `Done when` is not met, stop and report (AGENTS *Blockers*). Do not revert or rework without the user's decision.
 
 ### Phase 1: Toolchain bump & strict-mode gate
-- [ ] Task 1.1: Field-pointer guard test (on 1.7.0, before the bump)
+- [x] Task 1.1: Field-pointer guard test (on 1.7.0, before the bump)
   - Files: `app/src/engine/engine_test.go`
   - Test (*characterization*): `TestToggleDebugFieldPointer` flips `ActiveRenderer.Debug.ShowSkeleton` through a `*bool` helper and asserts the write is visible (passes on 1.7.0 and on GoFront `2d9d774`, *Re-audit*).
   - Done when: it passes on 1.7.0 and comments on the callback workaround it guards. (The map-field guard planned here before 2026-10-29 is dropped: GoFront fixed the zero value, so Task 2.4 removes the workaround instead.)
-- [ ] Task 1.2: Bump the dependency
+- [x] Task 1.2: Bump the dependency
   - Files: `package.json`, `package-lock.json`, `app/src/engine/collision/spatialhash_test.go` (`random-auto` golden: `cell=6.952363967895508` → `cell=6.952364`, Go's `%g` of the `float32` cell size)
   - Test: `npm ci && npm run test:all`, then `GOFRONT_BASELINE_DIR=<1.7.0 checkout> node tests/perf/js-vs-wasm.js --ab --repeat 5 --max Infinity --gate 'mesh-parse>=0.80'`, then `npm run build` on 1.7.0 and on 1.8.0 to compare `public/app.wasm` and `public/app.js`.
   - Done when: `"gofront": "^1.8.0"` and `node_modules/gofront` is the registry package; `test:all` is green, including Task 1.1's guard, the zero-alloc thresholds and the `tri` SIMD canary (it runs from 1.8.0: 1.95×, same hit on 2026-10-29); every hybrid A/B entry passes the gate above (no more than 10% slower; mesh-parse 25%); the release `app.wasm` is ≤ 1.15× the 1.7.0 build of the same commit (1.12× on 2026-10-29: 93,446 → 104,520 B); the hybrid ratios, both release sizes and the `app.js` growth (1.31×, gzip 1.27× on 2026-10-29) are recorded under *Verified Gaps*.
-- [ ] Task 1.3: `mathx` JS A/B benchmark
+- [x] Task 1.3: `mathx` JS A/B benchmark
   - Files: `tests/perf/mathx-js.js` (new), `package.json` (`test:perf` runs it)
   - Test: A/A (`GOFRONT_BASELINE_DIR` = the current compiler) gives every gated entry 0.90–1.10. The real A/B against 1.7.0 shows ≈ 3.6× on `Mat4Multiply` until Task 1.4 adds the hints. That result is recorded here, not committed as a red test: `npm run test:perf` skips the benchmark without a baseline compiler, so the quality gate stays green.
   - Done when: the script compiles `engine/mathx` with no `forceTarget`, reports the median ratio for the 5 gated and 2 report-only entries over 5 process runs, gates `Mat4Multiply`, `Mat4Invert`, `Mat4FromRotationTranslationScale` and `BoundingBox.TransformInto` at a B/A time ratio of 1.10 and `Vec3.TransformMat4` at 1.15 (A/B ≥ 0.91 and ≥ 0.87 in `ab.js`'s convention, so a speedup passes), and skips without a baseline compiler.
-- [ ] Task 1.4: BCE hints in `mathx`
+- [x] Task 1.4: BCE hints in `mathx`
   - Files: `app/src/engine/mathx/mat4.go`, `app/src/engine/mathx/boundingbox.go`, `app/src/engine/mathx/vec3.go`
   - Test: `app/src/engine/mathx/mat4_test.go` checks that a 15-element `Mat4` passed to `Mat4Multiply` panics with `index out of range [15] with length 15` on `[js]` and `[wasm]`. Then run `node tests/perf/mathx-js.js --repeat 5` against 1.7.0.
   - Done when: every function that indexes a `Mat4` with constants hints the identifier it indexes, once, before the first index: `_ = x[15]` per `Mat4` parameter, and after the alias in `BoundingBox.TransformInto` (`m := matrix; _ = m[15]`); `Vec3.TransformMat4` in `vec3.go` follows the parameter rule. Every `mathx-js` gate holds (1.10, `TransformMat4` 1.15). If one does not, stop and report: SimpleFPS stays on `^1.7.0` (decision rule, Approach §1).
 
 ### Phase 2: Language clean-ups
-- [ ] Task 2.1: Rename shadowing locals in `collision`
+- [x] Task 2.1: Rename shadowing locals in `collision`
   - Files: `app/src/engine/collision/spatialhash.go` (`rayAABBInterval`)
   - Test (*characterization*): the existing `ray_test.go` and `spatialhash_test.go` stay green under the pre-commit gate.
   - Done when: no local in `collision` is named `min` or `max` (`grep -nE '\b(min|max) :?=' app/src/engine/collision` is empty).
-- [ ] Task 2.2: Builtin `min`/`max` and the zero-value `_shTri` in `collision`
+- [x] Task 2.2: Builtin `min`/`max` and the zero-value `_shTri` in `collision`
   - Files: `app/src/engine/collision/spatialhash.go`, `app/src/engine/collision/spatialhash_test.go`
   - Test (*characterization*): a NaN-direction degenerate ray returns 0 hits and does not panic, both before and after the change; `TestSpatialHashGridCharacterization` digests unchanged. Then run `npm run test:perf` and `BASELINE_SRC=<worktree of the epic branch before this task> node tests/perf/js-vs-wasm.js --ab --repeat 5 --max Infinity`.
   - Done when: `minFloat32`, `maxFloat32`, `min3`, `max3`, `min4` and `max4` are deleted (callers: `triBoxOverlap`, `triBounds`, the auto cell-size loop in `newSpatialHash`, `sweepDominantAxis`); `_shTri = shTri{}` and its 1.7.0 comment become `var _shTri shTri` (fixed upstream, *Re-audit*); SH-Map/SH-Flat are no more than 10% slower (A/B ratio ≥ 0.90). If they are slower (f32.min NaN handling can cost more than a select), stop and report.
-- [ ] Task 2.3: JS clean-ups
+- [x] Task 2.3: JS clean-ups
   - Files: `app/src/engine/scene/lightgrid.go`, `app/src/game/weapons.go`, `app/src/engine/engine.go`
   - Test: Task 1.1's `TestToggleDebugFieldPointer` and the existing `lightgrid` tests, under the pre-commit gate.
   - Done when: `clamp01`/`clampIndex` use `min(max(...))` or are removed; `weapons.go:339` uses `max(1.8, aspect)`; `toggleDebug` takes a `*bool` (`toggleDebug("skeleton", &ActiveRenderer.Debug.ShowSkeleton)`) and the stale comment is removed.
-- [ ] Task 2.4: Drop the `hasDepth` workaround in `rendering`
+- [x] Task 2.4: Drop the `hasDepth` workaround in `rendering`
   - Files: `app/src/engine/rendering/pipelines.go`, `app/src/engine/rendering/rendering_test.go`
   - Test: with the `fakegpu` device (`newTestRenderer`), `buildPipeline` of a spec without `depth` passes no `depthStencil` and one with `depthState(...)` passes it; written first against the current `hasDepth` code, then kept.
   - Done when: `renderPipelineSpec` has no `hasDepth` field, `buildPipeline` tests `s.depth != nil`, the seven `hasDepth: true` literals and the `{}`-zero-value comment are gone, and `npm run test:e2e` is green.
-- [ ] Task 2.5: Docs and stale toolchain comments
+- [x] Task 2.5: Docs and stale toolchain comments
   - Files: `AGENTS.md` (Part 2 *Tech Stack*: "uses GoFront >= 1.8.0"; *Zero per-frame allocations*: `min`/`max` are builtins in every target; strict-mode checks in `both` packages and the hint rule for `mathx`, including hints on aliases), `docs/architecture.md` (performance invariants: strict mode in `mathx` and the `mathx-js.js` gate), `app/src/engine/rendering/drawable.go` (reslice comment)
   - Test: `grep -n 'as .slice()' app/src/engine/rendering` is empty; `npm run check`.
   - Done when: the docs describe the v1.8.0 rules, and the `DrawList` comment says a reslice allocates a view (GoFront Task 0.20), with no claim that it copies.

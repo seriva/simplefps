@@ -223,6 +223,48 @@ func TestEngineConsoleCommands(t *testing.T) {
 	}
 }
 
+func flipBoolField(p *bool) bool {
+	*p = !*p
+	return *p
+}
+
+// TestToggleDebugFieldPointer guards the pointer-to-field form toggleDebug
+// takes (&ActiveRenderer.Debug.ShowSkeleton). It replaced a per-command flip
+// callback that worked around &d.ShowSkeleton being a detached box, a WASM-only
+// GoFront bug (engine is a js package). A write through the *bool must reach
+// the live options.
+func TestToggleDebugFieldPointer(t *testing.T) {
+	_, b := newEngineBackend()
+	InitWithBackend(b)
+	defer Dispose()
+
+	d := ActiveRenderer.Debug
+	before := d.ShowSkeleton
+	if got := flipBoolField(&ActiveRenderer.Debug.ShowSkeleton); got == before {
+		t.Fatalf("flip through *bool returned %v, want %v", got, !before)
+	}
+	if d.ShowSkeleton == before {
+		t.Error("write through &ActiveRenderer.Debug.ShowSkeleton must reach the live debug options")
+	}
+	flipBoolField(&d.ShowSkeleton)
+	if ActiveRenderer.Debug.ShowSkeleton != before {
+		t.Error("second flip through &d.ShowSkeleton must restore the original value")
+	}
+}
+
+func TestDebugCommandsWithoutRenderer(t *testing.T) {
+	_, b := newEngineBackend()
+	InitWithBackend(b)
+	Dispose()
+
+	c := systems.GlobalConsole
+	for _, cmd := range []string{"tbv", "twf", "tlv", "tsk"} {
+		if res := c.ExecuteCmd(cmd); res != "no renderer" {
+			t.Errorf("%s after Dispose returned %q, want %q", cmd, res, "no renderer")
+		}
+	}
+}
+
 func TestStartRequiresScene(t *testing.T) {
 	_, b := newEngineBackend()
 	InitWithBackend(b)

@@ -336,7 +336,7 @@ func (w *WeaponSystem) applyTransforms(entity *scene.MeshEntity, cfg *WeaponConf
 
 	// Pull the weapon toward the centre on wide screens (50% correction).
 	aspect := engine.GetAspectRatio()
-	targetFactor := 1.8 / float32(math.Max(1.8, float64(aspect)))
+	targetFactor := 1.8 / max(1.8, aspect)
 	aspectFactor := 0.5 + targetFactor*0.5
 
 	var offX, offY, offZ float32

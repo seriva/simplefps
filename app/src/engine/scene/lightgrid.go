@@ -76,26 +76,6 @@ func (g *LightGrid) Load(cfg *LightGridConfig, data []byte) bool {
 	return true
 }
 
-func clampIndex(v, max int) int {
-	if v < 0 {
-		return 0
-	}
-	if v > max {
-		return max
-	}
-	return v
-}
-
-func clamp01(v float32) float32 {
-	if v < 0 {
-		return 0
-	}
-	if v > 1 {
-		return 1
-	}
-	return v
-}
-
 const byteToUnit = float32(1.0 / 255.0)
 
 // GetAmbient writes the trilinearly interpolated probe colour at position into out.
@@ -114,16 +94,16 @@ func (g *LightGrid) GetAmbient(position *mathx.Vec3, out []float32) {
 	fy := -relZ / g.step[1]
 	fz := relY / g.step[2]
 
-	x0 := clampIndex(floorInt(fx), g.counts[0]-2)
-	y0 := clampIndex(floorInt(fy), g.counts[1]-2)
-	z0 := clampIndex(floorInt(fz), g.counts[2]-2)
+	x0 := max(min(floorInt(fx), g.counts[0]-2), 0)
+	y0 := max(min(floorInt(fy), g.counts[1]-2), 0)
+	z0 := max(min(floorInt(fz), g.counts[2]-2), 0)
 	x1 := x0 + 1
 	y1 := y0 + 1
 	z1 := z0 + 1
 
-	wx := clamp01(fx - float32(x0))
-	wy := clamp01(fy - float32(y0))
-	wz := clamp01(fz - float32(z0))
+	wx := min(max(fx-float32(x0), 0), 1)
+	wy := min(max(fy-float32(y0), 0), 1)
+	wz := min(max(fz-float32(z0), 0), 1)
 	wx1 := 1 - wx
 	wy1 := 1 - wy
 	wz1 := 1 - wz

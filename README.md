@@ -55,6 +55,7 @@ tests/
 └── perf/
     ├── zero-alloc.js     # Zero-allocation raycast, controller-loop and skinning-palette benchmark against the compiled WASM packages
     ├── ab.js             # In-process A/B harness (baseline compiler/source vs current), self-test gates A/A at 0.90–1.10
+    ├── mathx-js.js       # A/B gate on the JS half of mathx (strict-mode cost vs a baseline compiler)
     ├── simd-kernels.js   # SIMD canary: palette SIMD ≥ 3.0× scalar, JS fallback still allocates
     ├── fixtures/simd/    # kern / jsfb / tri probe packages compiled by simd-kernels.js
     └── workloads.js      # Hot-path drivers shared by the A/B runs (raycast, controller, skinning, asset decoding)
@@ -83,7 +84,7 @@ npm run format       # Format JS (tests, Playwright config) with Biome
 npm run check        # Biome lint + SIMD-only-in-WASM check + GoFront type-check of every package (gofront check app/src/...)
 npm test             # GoFront unit/integration tests for every package (mathx on both JS and WASM, collision in WASM)
 npm run test:dom     # Same, with a jsdom window/document (for .templ / DOM code)
-npm run test:perf    # Zero-allocation benchmark (tests/perf/zero-alloc.js) + SIMD kernel canary + A/B harness self-test (skips without GOFRONT_BASELINE_DIR/BASELINE_SRC)
+npm run test:perf    # Zero-allocation benchmark (tests/perf/zero-alloc.js) + SIMD kernel canary + A/B harness self-test + mathx JS A/B (both A/B runs skip without GOFRONT_BASELINE_DIR/BASELINE_SRC)
 npm run test:e2e     # Playwright smoke test in headless Chromium (WebGPU)
 npm run test:all     # check + test + test:dom + test:perf + test:e2e
 npm run prep         # Bundle vendor dependencies (peerjs)

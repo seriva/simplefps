@@ -3,6 +3,7 @@ package collision
 
 import (
 	"fmt"
+	"math"
 	"slices"
 	"testing"
 	"time"
@@ -177,6 +178,36 @@ func TestRayMeshBoundarySlabNaN(t *testing.T) {
 
 		if !rayOffset.HasHit {
 			t.Errorf("Mode %d: Ray at X=0.00001, Z=5 missed geometry", mode)
+		}
+	}
+}
+
+// TestRayDegenerateNaNDirection pins the degenerate-ray behaviour across the
+// switch to the min/max builtins, which (unlike a < b ? a : b) propagate NaN:
+// a ray with a NaN direction component does not panic, keeps its broadphase
+// candidates within the output buffer, and reports no hit.
+func TestRayDegenerateNaNDirection(t *testing.T) {
+	nan := float32(math.NaN())
+	tm := gridFloor(16, 1600, 0)
+	sh := newSpatialHash(tm.Vertices, tm.Indices, &tm.AABB, 100)
+	for _, mode := range []spatialHashMode{spatialHashModeMap, spatialHashModeFlat} {
+		sh.mode = mode
+		origin := mathx.Vec3{X: 550, Y: 100, Z: 750}
+		dir := mathx.Vec3{X: nan, Y: -1, Z: 0}
+		out := make([]int, MaxRayQueryResults)
+		if n := sh.rayQueryLocal(&origin, &dir, 200, out, nil); n < 0 || n > len(out) {
+			t.Errorf("Mode %d: NaN-direction ray query returned %d candidates, want 0..%d", mode, n, len(out))
+		}
+	}
+	for _, mode := range []int{BroadphaseSpatialHashMap, BroadphaseSpatialHashFlat} {
+		tm.SetBroadphase(mode)
+		from := mathx.Vec3{X: 550, Y: 100, Z: 750}
+		to := mathx.Vec3{X: nan, Y: -100, Z: 750}
+		ray := NewRay(&from, &to)
+		ray.Mode = RayModeClosest
+		ray.IntersectTrimesh(tm, nil)
+		if ray.HasHit {
+			t.Errorf("Mode %d: NaN-direction ray must not hit, got distance %f", mode, ray.Result.Distance)
 		}
 	}
 }
@@ -432,7 +463,7 @@ var gridDigestWant = map[string]string{
 	"huge":         "h=074edb2c voxels=19178 refs=20480 flat=false min=(-50,0,-50) max=(160,160,160) dim=(211,161,211) cell=1",
 	"degenerate":   "h=66aff107 voxels=34 refs=44 flat=true min=(0,0,0) max=(4,3,4) dim=(5,4,5) cell=1",
 	"random":       "h=c4118f46 voxels=3379 refs=4076 flat=true min=(-13,-13,-13) max=(12,12,12) dim=(26,26,26) cell=2",
-	"random-auto":  "h=7c111e49 voxels=314 refs=1042 flat=true min=(-4,-4,-4) max=(3,3,3) dim=(8,8,8) cell=6.952363967895508",
+	"random-auto":  "h=7c111e49 voxels=314 refs=1042 flat=true min=(-4,-4,-4) max=(3,3,3) dim=(8,8,8) cell=6.952364",
 }
 
 func TestSpatialHashGridCharacterization(t *testing.T) {

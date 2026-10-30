@@ -14,6 +14,7 @@ type Mat4 = []float32
 // NewMat4 creates a new identity Mat4.
 func NewMat4() Mat4 {
 	m := make([]float32, 16)
+	_ = m[15]
 	m[0] = 1
 	m[5] = 1
 	m[10] = 1
@@ -36,6 +37,7 @@ func Mat4Copy(out, a Mat4) Mat4 {
 
 // Mat4Set sets the components of out.
 func Mat4Set(out Mat4, m00, m01, m02, m03, m10, m11, m12, m13, m20, m21, m22, m23, m30, m31, m32, m33 float32) Mat4 {
+	_ = out[15]
 	out[0] = m00
 	out[1] = m01
 	out[2] = m02
@@ -57,6 +59,7 @@ func Mat4Set(out Mat4, m00, m01, m02, m03, m10, m11, m12, m13, m20, m21, m22, m2
 
 // Mat4Identity resets out to an identity matrix.
 func Mat4Identity(out Mat4) Mat4 {
+	_ = out[15]
 	out[0] = 1
 	out[1] = 0
 	out[2] = 0
@@ -79,6 +82,8 @@ func Mat4Identity(out Mat4) Mat4 {
 // Mat4Invert inverts matrix a and stores the result in out.
 // Returns out, or nil if matrix is not invertible.
 func Mat4Invert(out, a Mat4) Mat4 {
+	_ = out[15]
+	_ = a[15]
 	a00, a01, a02, a03 := a[0], a[1], a[2], a[3]
 	a10, a11, a12, a13 := a[4], a[5], a[6], a[7]
 	a20, a21, a22, a23 := a[8], a[9], a[10], a[11]
@@ -124,6 +129,9 @@ func Mat4Invert(out, a Mat4) Mat4 {
 
 // Mat4Multiply multiplies matrices a and b and stores the result in out.
 func Mat4Multiply(out, a, b Mat4) Mat4 {
+	_ = out[15]
+	_ = a[15]
+	_ = b[15]
 	a00, a01, a02, a03 := a[0], a[1], a[2], a[3]
 	a10, a11, a12, a13 := a[4], a[5], a[6], a[7]
 	a20, a21, a22, a23 := a[8], a[9], a[10], a[11]
@@ -169,6 +177,8 @@ func Mat4Multiply(out, a, b Mat4) Mat4 {
 
 // Mat4Translate translates matrix a by vector v and stores the result in out.
 func Mat4Translate(out, a Mat4, v *Vec3) Mat4 {
+	_ = out[15]
+	_ = a[15]
 	x, y, z := v.X, v.Y, v.Z
 	a00, a01, a02, a03 := a[0], a[1], a[2], a[3]
 	a10, a11, a12, a13 := a[4], a[5], a[6], a[7]
@@ -195,6 +205,8 @@ func Mat4Translate(out, a Mat4, v *Vec3) Mat4 {
 
 // Mat4Scale scales matrix a by vector v and stores in out.
 func Mat4Scale(out, a Mat4, v *Vec3) Mat4 {
+	_ = out[15]
+	_ = a[15]
 	x, y, z := v.X, v.Y, v.Z
 	out[0] = a[0] * x
 	out[1] = a[1] * x
@@ -217,6 +229,8 @@ func Mat4Scale(out, a Mat4, v *Vec3) Mat4 {
 
 // Mat4RotateX rotates matrix a by rad radians around X axis.
 func Mat4RotateX(out, a Mat4, rad float32) Mat4 {
+	_ = out[15]
+	_ = a[15]
 	s := float32(math.Sin(float64(rad)))
 	c := float32(math.Cos(float64(rad)))
 	a10, a11, a12, a13 := a[4], a[5], a[6], a[7]
@@ -244,6 +258,8 @@ func Mat4RotateX(out, a Mat4, rad float32) Mat4 {
 
 // Mat4RotateY rotates matrix a by rad radians around Y axis.
 func Mat4RotateY(out, a Mat4, rad float32) Mat4 {
+	_ = out[15]
+	_ = a[15]
 	s := float32(math.Sin(float64(rad)))
 	c := float32(math.Cos(float64(rad)))
 	a00, a01, a02, a03 := a[0], a[1], a[2], a[3]
@@ -271,6 +287,8 @@ func Mat4RotateY(out, a Mat4, rad float32) Mat4 {
 
 // Mat4RotateZ rotates matrix a by rad radians around Z axis.
 func Mat4RotateZ(out, a Mat4, rad float32) Mat4 {
+	_ = out[15]
+	_ = a[15]
 	s := float32(math.Sin(float64(rad)))
 	c := float32(math.Cos(float64(rad)))
 	a00, a01, a02, a03 := a[0], a[1], a[2], a[3]
@@ -298,6 +316,7 @@ func Mat4RotateZ(out, a Mat4, rad float32) Mat4 {
 
 // Mat4FromTranslation creates a matrix from translation vector v.
 func Mat4FromTranslation(out Mat4, v *Vec3) Mat4 {
+	_ = out[15]
 	out[0] = 1
 	out[1] = 0
 	out[2] = 0
@@ -319,6 +338,7 @@ func Mat4FromTranslation(out Mat4, v *Vec3) Mat4 {
 
 // Mat4FromScaling creates a matrix from scaling vector v.
 func Mat4FromScaling(out Mat4, v *Vec3) Mat4 {
+	_ = out[15]
 	out[0] = v.X
 	out[1] = 0
 	out[2] = 0
@@ -340,6 +360,7 @@ func Mat4FromScaling(out Mat4, v *Vec3) Mat4 {
 
 // Mat4FromRotation creates a matrix from rotation angle rad around axis.
 func Mat4FromRotation(out Mat4, rad float32, axis *Vec3) Mat4 {
+	_ = out[15]
 	x, y, z := axis.X, axis.Y, axis.Z
 	lenSq := x*x + y*y + z*z
 	if lenSq < 1e-12 {
@@ -375,6 +396,7 @@ func Mat4FromRotation(out Mat4, rad float32, axis *Vec3) Mat4 {
 
 // Mat4FromQuat calculates a 4x4 matrix from quaternion q.
 func Mat4FromQuat(out Mat4, q *Quat) Mat4 {
+	_ = out[15]
 	x, y, z, w := q.X, q.Y, q.Z, q.W
 	x2 := x + x
 	y2 := y + y
@@ -410,6 +432,7 @@ func Mat4FromQuat(out Mat4, q *Quat) Mat4 {
 
 // Mat4FromRotationTranslation creates a matrix from rotation quaternion q and translation vector v.
 func Mat4FromRotationTranslation(out Mat4, q *Quat, v *Vec3) Mat4 {
+	_ = out[15]
 	x, y, z, w := q.X, q.Y, q.Z, q.W
 	x2 := x + x
 	y2 := y + y
@@ -445,6 +468,7 @@ func Mat4FromRotationTranslation(out Mat4, q *Quat, v *Vec3) Mat4 {
 
 // Mat4FromRotationTranslationScale creates a matrix from quaternion q, translation v, and scale s.
 func Mat4FromRotationTranslationScale(out Mat4, q *Quat, v, s *Vec3) Mat4 {
+	_ = out[15]
 	x, y, z, w := q.X, q.Y, q.Z, q.W
 	x2 := x + x
 	y2 := y + y
@@ -481,6 +505,7 @@ func Mat4FromRotationTranslationScale(out Mat4, q *Quat, v, s *Vec3) Mat4 {
 
 // Mat4PerspectiveZO generates a perspective projection matrix for WebGPU (clip volume [0, 1]).
 func Mat4PerspectiveZO(out Mat4, fovy, aspect, near, far float32) Mat4 {
+	_ = out[15]
 	f := float32(1.0 / math.Tan(float64(fovy)/2.0))
 	out[0] = f / aspect
 	out[1] = 0
@@ -505,6 +530,7 @@ func Mat4PerspectiveZO(out Mat4, fovy, aspect, near, far float32) Mat4 {
 
 // Mat4LookAt generates a view matrix looking from eye towards center with given up vector.
 func Mat4LookAt(out Mat4, eye, center, up *Vec3) Mat4 {
+	_ = out[15]
 	eyex, eyey, eyez := eye.X, eye.Y, eye.Z
 	upx, upy, upz := up.X, up.Y, up.Z
 	centerx, centery, centerz := center.X, center.Y, center.Z
@@ -566,6 +592,7 @@ func Mat4LookAt(out Mat4, eye, center, up *Vec3) Mat4 {
 
 // Mat4GetTranslation extracts translation component from matrix into out.
 func Mat4GetTranslation(out *Vec3, mat Mat4) *Vec3 {
+	_ = mat[15]
 	out.X = mat[12]
 	out.Y = mat[13]
 	out.Z = mat[14]
@@ -574,6 +601,7 @@ func Mat4GetTranslation(out *Vec3, mat Mat4) *Vec3 {
 
 // Mat4GetScaling extracts scaling component from matrix into out.
 func Mat4GetScaling(out *Vec3, mat Mat4) *Vec3 {
+	_ = mat[15]
 	m11 := mat[0]
 	m12 := mat[1]
 	m13 := mat[2]
@@ -592,6 +620,7 @@ func Mat4GetScaling(out *Vec3, mat Mat4) *Vec3 {
 
 // Mat4GetRotation extracts rotation quaternion from matrix into out.
 func Mat4GetRotation(out *Quat, mat Mat4) *Quat {
+	_ = mat[15]
 	var scaling Vec3
 	Mat4GetScaling(&scaling, mat)
 
@@ -640,6 +669,7 @@ func Mat4GetRotation(out *Quat, mat Mat4) *Quat {
 
 // Mat4TransformVec3 transforms a with matrix m and stores result in out.
 func Mat4TransformVec3(out, a *Vec3, m Mat4) *Vec3 {
+	_ = m[15]
 	x := a.X
 	y := a.Y
 	z := a.Z

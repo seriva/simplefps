@@ -146,6 +146,7 @@ func (b *BoundingBox) Transform(matrix Mat4) *BoundingBox {
 // Scalar-only so the per-entity call in the frame loop does not allocate.
 func (b *BoundingBox) TransformInto(matrix Mat4, out *BoundingBox) *BoundingBox {
 	m := matrix
+	_ = m[15]
 	var tminX, tminY, tminZ, tmaxX, tmaxY, tmaxZ float32
 	for i := 0; i < 8; i++ {
 		var cx, cy, cz float32
