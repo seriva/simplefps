@@ -40,8 +40,8 @@ type LightDrawable interface {
 }
 
 // DrawList is a fixed-capacity view over a scene bucket; Items[0:Count] is the
-// live range. (A sliced []Drawable return is not an option: GoFront emits
-// s[:n] as .slice(), which allocates per call.)
+// live range. (A sliced []Drawable return is not an option: in GoFront s[:n]
+// creates a view over the backing array, which still allocates per call.)
 type DrawList struct {
 	Items []Drawable
 	Count int

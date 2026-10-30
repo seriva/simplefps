@@ -2,7 +2,9 @@
 package mathx
 
 import (
+	"fmt"
 	"math"
+	"strings"
 	"testing"
 )
 
@@ -209,4 +211,22 @@ func TestMat4LookAt(t *testing.T) {
 	if !matApprox(centerView.X, 0) || !matApprox(centerView.Y, 0) || !matApprox(centerView.Z, -5) {
 		t.Errorf("Mat4LookAt failed: centerView is %f, %f, %f", centerView.X, centerView.Y, centerView.Z)
 	}
+}
+
+// TestMat4MultiplyShortSlicePanics pins the bounds check the `_ = a[15]` hint
+// keeps: a short Mat4 must panic with Go's message on both targets, not read
+// past its end.
+func TestMat4MultiplyShortSlicePanics(t *testing.T) {
+	short := make([]float32, 15)
+	defer func() {
+		r := recover()
+		if r == nil {
+			t.Fatal("Mat4Multiply with a 15-element Mat4 must panic")
+		}
+		msg := fmt.Sprint(r)
+		if want := "index out of range [15] with length 15"; !strings.Contains(msg, want) {
+			t.Errorf("panic %q, want it to contain %q", msg, want)
+		}
+	}()
+	Mat4Multiply(NewMat4(), short, NewMat4())
 }

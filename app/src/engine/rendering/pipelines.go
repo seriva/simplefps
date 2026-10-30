@@ -222,10 +222,7 @@ type renderPipelineSpec struct {
 	layout   GPUPipelineLayout
 	buffers  []any
 	targets  []any
-	// depth is only emitted when hasDepth is set: GoFront zero-values a map
-	// field to {} rather than nil, so nil-checking it does not work.
-	depth    map[string]any
-	hasDepth bool
+	depth    map[string]any // nil: no depthStencil
 	topology string
 	cull     string
 	objectBG GPUBindGroup
@@ -244,7 +241,7 @@ func (r *Renderer) buildPipeline(s *renderPipelineSpec) *Pipeline {
 		},
 		"primitive": map[string]any{"topology": s.topology, "cullMode": s.cull},
 	}
-	if s.hasDepth {
+	if s.depth != nil {
 		desc["depthStencil"] = s.depth
 	}
 	var gpu GPURenderPipeline = r.Backend.Device.createRenderPipeline(desc)
@@ -288,18 +285,18 @@ func (r *Renderer) createPipelines() {
 	geo := mod("geometry", WgslGeometry)
 	p.Geometry = r.buildPipelineWithCullOff(&renderPipelineSpec{
 		label: "geometry", module: geo, layout: geometryPL, buffers: meshVertexLayout(),
-		targets: gbufferTargets(), depth: depthState(true, "less-equal", 0, 0), hasDepth: true,
+		targets: gbufferTargets(), depth: depthState(true, "less-equal", 0, 0),
 		topology: "triangle-list", cull: "back", objectBG: objBG,
 	})
 	p.Skybox = r.buildPipelineWithCullOff(&renderPipelineSpec{
 		label: "skybox", module: geo, layout: geometryPL, buffers: meshVertexLayout(),
-		targets: gbufferTargets(), depth: depthState(false, "always", 0, 0), hasDepth: true,
+		targets: gbufferTargets(), depth: depthState(false, "always", 0, 0),
 		topology: "triangle-list", cull: "back", objectBG: objBG,
 	})
 	skinned := mod("skinned-geometry", WgslSkinnedGeometry)
 	p.SkinnedGeometry = r.buildPipelineWithCullOff(&renderPipelineSpec{
 		label: "skinned-geometry", module: skinned, layout: skinnedPL, buffers: skinnedVertexLayout(),
-		targets: gbufferTargets(), depth: depthState(true, "less-equal", 0, 0), hasDepth: true,
+		targets: gbufferTargets(), depth: depthState(true, "less-equal", 0, 0),
 		topology: "triangle-list", cull: "back", objectBG: skinBG, skinned: true,
 	})
 
@@ -307,12 +304,12 @@ func (r *Renderer) createPipelines() {
 	shadowTargets := []any{colorTarget(FormatR8, nil)}
 	p.EntityShadows = r.buildPipeline(&renderPipelineSpec{
 		label: "entity-shadows", module: mod("entity-shadows", WgslEntityShadows), layout: shadowPL,
-		buffers: meshVertexLayout(), targets: shadowTargets, depth: depthState(false, "less-equal", -1, -1), hasDepth: true,
+		buffers: meshVertexLayout(), targets: shadowTargets, depth: depthState(false, "less-equal", -1, -1),
 		topology: "triangle-list", cull: "none", objectBG: objBG,
 	})
 	p.SkinnedEntityShadows = r.buildPipeline(&renderPipelineSpec{
 		label: "skinned-entity-shadows", module: mod("skinned-entity-shadows", WgslSkinnedEntityShadows), layout: skinnedShadowPL,
-		buffers: skinnedVertexLayout(), targets: shadowTargets, depth: depthState(false, "less-equal", -1, -1), hasDepth: true,
+		buffers: skinnedVertexLayout(), targets: shadowTargets, depth: depthState(false, "less-equal", -1, -1),
 		topology: "triangle-list", cull: "none", objectBG: skinBG, skinned: true,
 	})
 
@@ -335,17 +332,17 @@ func (r *Renderer) createPipelines() {
 	p.Transparent = r.buildPipeline(&renderPipelineSpec{
 		label: "transparent", module: mod("transparent", WgslTransparent), layout: transparentPL,
 		buffers: meshVertexLayout(), targets: []any{colorTarget(FormatRGBA8, blendState("src-alpha", "one-minus-src-alpha"))},
-		depth: depthState(false, "less-equal", 0, 0), hasDepth: true, topology: "triangle-list", cull: "none", objectBG: objBG,
+		depth: depthState(false, "less-equal", 0, 0), topology: "triangle-list", cull: "none", objectBG: objBG,
 	})
 	spriteTargets := []any{colorTarget(FormatRGBA8, blendState("src-alpha", "one"))}
 	p.Billboard = r.buildPipeline(&renderPipelineSpec{
 		label: "billboard", module: mod("billboard", WgslBillboard), layout: spritePL,
-		buffers: meshVertexLayout(), targets: spriteTargets, depth: depthState(false, "less-equal", 0, 0), hasDepth: true,
+		buffers: meshVertexLayout(), targets: spriteTargets, depth: depthState(false, "less-equal", 0, 0),
 		topology: "triangle-list", cull: "none", objectBG: objBG,
 	})
 	p.InstancedBillboard = r.buildPipeline(&renderPipelineSpec{
 		label: "instanced-billboard", module: mod("instanced-billboard", WgslInstancedBillboard), layout: spritePL,
-		buffers: particleVertexLayout(), targets: spriteTargets, depth: depthState(false, "less-equal", 0, 0), hasDepth: true,
+		buffers: particleVertexLayout(), targets: spriteTargets, depth: depthState(false, "less-equal", 0, 0),
 		topology: "triangle-list", cull: "none", objectBG: objBG,
 	})
 

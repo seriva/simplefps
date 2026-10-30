@@ -216,6 +216,7 @@ func (out *Vec3) Lerp(a, b *Vec3, t float32) *Vec3 {
 
 // TransformMat4 transforms a by matrix m with perspective divide.
 func (out *Vec3) TransformMat4(a *Vec3, m Mat4) *Vec3 {
+	_ = m[15]
 	x := a.X
 	y := a.Y
 	z := a.Z

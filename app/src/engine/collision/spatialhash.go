@@ -29,9 +29,7 @@ func voxelKey(vx, vy, vz int32) uint64 {
 
 var (
 	_shInvDir mathx.Vec3
-	// Composite literal on purpose: GoFront 1.7.0 leaves the array fields of a
-	// zero-value package-level struct nil in WASM.
-	_shTri = shTri{}
+	_shTri    shTri
 )
 
 // shTri is newSpatialHash's scratch for the triangle being inserted, indexed
@@ -82,25 +80,25 @@ type spatialHash struct {
 // ray segment [0, maxDist]. The bool result is false when the segment misses the box.
 // Correctly guards against zero direction components to prevent 0.0 * Inf = NaN.
 func rayAABBInterval(aabb *mathx.BoundingBox, origin, direction, invDir *mathx.Vec3, maxDist float32) (float32, float32, bool) {
-	min := &aabb.Min
-	max := &aabb.Max
+	lo := &aabb.Min
+	hi := &aabb.Max
 
 	tmin := float32(0.0)
 	tmax := maxDist
 
 	// X slab
 	if direction.X == 0 {
-		if origin.X < min.X || origin.X > max.X {
+		if origin.X < lo.X || origin.X > hi.X {
 			return 0, 0, false
 		}
 	} else {
 		var t0, t1 float32
 		if invDir.X >= 0 {
-			t0 = (min.X - origin.X) * invDir.X
-			t1 = (max.X - origin.X) * invDir.X
+			t0 = (lo.X - origin.X) * invDir.X
+			t1 = (hi.X - origin.X) * invDir.X
 		} else {
-			t0 = (max.X - origin.X) * invDir.X
-			t1 = (min.X - origin.X) * invDir.X
+			t0 = (hi.X - origin.X) * invDir.X
+			t1 = (lo.X - origin.X) * invDir.X
 		}
 		if t0 > tmin {
 			tmin = t0
@@ -115,17 +113,17 @@ func rayAABBInterval(aabb *mathx.BoundingBox, origin, direction, invDir *mathx.V
 
 	// Y slab
 	if direction.Y == 0 {
-		if origin.Y < min.Y || origin.Y > max.Y {
+		if origin.Y < lo.Y || origin.Y > hi.Y {
 			return 0, 0, false
 		}
 	} else {
 		var t0, t1 float32
 		if invDir.Y >= 0 {
-			t0 = (min.Y - origin.Y) * invDir.Y
-			t1 = (max.Y - origin.Y) * invDir.Y
+			t0 = (lo.Y - origin.Y) * invDir.Y
+			t1 = (hi.Y - origin.Y) * invDir.Y
 		} else {
-			t0 = (max.Y - origin.Y) * invDir.Y
-			t1 = (min.Y - origin.Y) * invDir.Y
+			t0 = (hi.Y - origin.Y) * invDir.Y
+			t1 = (lo.Y - origin.Y) * invDir.Y
 		}
 		if t0 > tmin {
 			tmin = t0
@@ -140,17 +138,17 @@ func rayAABBInterval(aabb *mathx.BoundingBox, origin, direction, invDir *mathx.V
 
 	// Z slab
 	if direction.Z == 0 {
-		if origin.Z < min.Z || origin.Z > max.Z {
+		if origin.Z < lo.Z || origin.Z > hi.Z {
 			return 0, 0, false
 		}
 	} else {
 		var t0, t1 float32
 		if invDir.Z >= 0 {
-			t0 = (min.Z - origin.Z) * invDir.Z
-			t1 = (max.Z - origin.Z) * invDir.Z
+			t0 = (lo.Z - origin.Z) * invDir.Z
+			t1 = (hi.Z - origin.Z) * invDir.Z
 		} else {
-			t0 = (max.Z - origin.Z) * invDir.Z
-			t1 = (min.Z - origin.Z) * invDir.Z
+			t0 = (hi.Z - origin.Z) * invDir.Z
+			t1 = (lo.Z - origin.Z) * invDir.Z
 		}
 		if t0 > tmin {
 			tmin = t0
@@ -216,7 +214,7 @@ func triBoxOverlap(ax, ay, az, bx, by, bz, cx, cy, cz float32, boxCenterX, boxCe
 	p0 := v0y*e0z - v0z*e0y
 	p2 := v2y*e0z - v2z*e0y
 	rad := (fe0z + fe0y) * halfSize
-	if minFloat32(p0, p2) > rad || maxFloat32(p0, p2) < -rad {
+	if min(p0, p2) > rad || max(p0, p2) < -rad {
 		return false
 	}
 
@@ -224,7 +222,7 @@ func triBoxOverlap(ax, ay, az, bx, by, bz, cx, cy, cz float32, boxCenterX, boxCe
 	p0 = -v0x*e0z + v0z*e0x
 	p2 = -v2x*e0z + v2z*e0x
 	rad = (fe0z + fe0x) * halfSize
-	if minFloat32(p0, p2) > rad || maxFloat32(p0, p2) < -rad {
+	if min(p0, p2) > rad || max(p0, p2) < -rad {
 		return false
 	}
 
@@ -232,7 +230,7 @@ func triBoxOverlap(ax, ay, az, bx, by, bz, cx, cy, cz float32, boxCenterX, boxCe
 	p0 = v0x*e0y - v0y*e0x
 	p2 = v2x*e0y - v2y*e0x
 	rad = (fe0y + fe0x) * halfSize
-	if minFloat32(p0, p2) > rad || maxFloat32(p0, p2) < -rad {
+	if min(p0, p2) > rad || max(p0, p2) < -rad {
 		return false
 	}
 
@@ -244,7 +242,7 @@ func triBoxOverlap(ax, ay, az, bx, by, bz, cx, cy, cz float32, boxCenterX, boxCe
 	p0 = v0y*e1z - v0z*e1y
 	p1 := v1y*e1z - v1z*e1y
 	rad = (fe1z + fe1y) * halfSize
-	if minFloat32(p0, p1) > rad || maxFloat32(p0, p1) < -rad {
+	if min(p0, p1) > rad || max(p0, p1) < -rad {
 		return false
 	}
 
@@ -252,7 +250,7 @@ func triBoxOverlap(ax, ay, az, bx, by, bz, cx, cy, cz float32, boxCenterX, boxCe
 	p0 = -v0x*e1z + v0z*e1x
 	p1 = -v1x*e1z + v1z*e1x
 	rad = (fe1z + fe1x) * halfSize
-	if minFloat32(p0, p1) > rad || maxFloat32(p0, p1) < -rad {
+	if min(p0, p1) > rad || max(p0, p1) < -rad {
 		return false
 	}
 
@@ -260,7 +258,7 @@ func triBoxOverlap(ax, ay, az, bx, by, bz, cx, cy, cz float32, boxCenterX, boxCe
 	p0 = v0x*e1y - v0y*e1x
 	p1 = v1x*e1y - v1y*e1x
 	rad = (fe1y + fe1x) * halfSize
-	if minFloat32(p0, p1) > rad || maxFloat32(p0, p1) < -rad {
+	if min(p0, p1) > rad || max(p0, p1) < -rad {
 		return false
 	}
 
@@ -272,7 +270,7 @@ func triBoxOverlap(ax, ay, az, bx, by, bz, cx, cy, cz float32, boxCenterX, boxCe
 	p0 = v0y*e2z - v0z*e2y
 	p1 = v1y*e2z - v1z*e2y
 	rad = (fe2z + fe2y) * halfSize
-	if minFloat32(p0, p1) > rad || maxFloat32(p0, p1) < -rad {
+	if min(p0, p1) > rad || max(p0, p1) < -rad {
 		return false
 	}
 
@@ -280,7 +278,7 @@ func triBoxOverlap(ax, ay, az, bx, by, bz, cx, cy, cz float32, boxCenterX, boxCe
 	p0 = -v0x*e2z + v0z*e2x
 	p1 = -v1x*e2z + v1z*e2x
 	rad = (fe2z + fe2x) * halfSize
-	if minFloat32(p0, p1) > rad || maxFloat32(p0, p1) < -rad {
+	if min(p0, p1) > rad || max(p0, p1) < -rad {
 		return false
 	}
 
@@ -288,18 +286,18 @@ func triBoxOverlap(ax, ay, az, bx, by, bz, cx, cy, cz float32, boxCenterX, boxCe
 	p1 = v1x*e2y - v1y*e2x
 	p2 = v2x*e2y - v2y*e2x
 	rad = (fe2y + fe2x) * halfSize
-	if minFloat32(p1, p2) > rad || maxFloat32(p1, p2) < -rad {
+	if min(p1, p2) > rad || max(p1, p2) < -rad {
 		return false
 	}
 
 	// 2. Test box face normals (X, Y, Z AABB overlap)
-	if min3(v0x, v1x, v2x) > halfSize || max3(v0x, v1x, v2x) < -halfSize {
+	if min(v0x, v1x, v2x) > halfSize || max(v0x, v1x, v2x) < -halfSize {
 		return false
 	}
-	if min3(v0y, v1y, v2y) > halfSize || max3(v0y, v1y, v2y) < -halfSize {
+	if min(v0y, v1y, v2y) > halfSize || max(v0y, v1y, v2y) < -halfSize {
 		return false
 	}
-	if min3(v0z, v1z, v2z) > halfSize || max3(v0z, v1z, v2z) < -halfSize {
+	if min(v0z, v1z, v2z) > halfSize || max(v0z, v1z, v2z) < -halfSize {
 		return false
 	}
 
@@ -317,70 +315,6 @@ func triBoxOverlap(ax, ay, az, bx, by, bz, cx, cy, cz float32, boxCenterX, boxCe
 	return true
 }
 
-func minFloat32(a, b float32) float32 {
-	if a < b {
-		return a
-	}
-	return b
-}
-
-func maxFloat32(a, b float32) float32 {
-	if a > b {
-		return a
-	}
-	return b
-}
-
-func min3(a, b, c float32) float32 {
-	m := a
-	if b < m {
-		m = b
-	}
-	if c < m {
-		m = c
-	}
-	return m
-}
-
-func max3(a, b, c float32) float32 {
-	m := a
-	if b > m {
-		m = b
-	}
-	if c > m {
-		m = c
-	}
-	return m
-}
-
-func min4(a, b, c, d float32) float32 {
-	m := a
-	if b < m {
-		m = b
-	}
-	if c < m {
-		m = c
-	}
-	if d < m {
-		m = d
-	}
-	return m
-}
-
-func max4(a, b, c, d float32) float32 {
-	m := a
-	if b > m {
-		m = b
-	}
-	if c > m {
-		m = c
-	}
-	if d > m {
-		m = d
-	}
-	return m
-}
-
 // triBounds returns the axis-aligned bounds of triangle i as
 // (minX, minY, minZ, maxX, maxY, maxZ).
 func triBounds(vertices []float32, indices []int32, i int) (float32, float32, float32, float32, float32, float32) {
@@ -390,7 +324,7 @@ func triBounds(vertices []float32, indices []int32, i int) (float32, float32, fl
 	ax, ay, az := vertices[i0], vertices[i0+1], vertices[i0+2]
 	bx, by, bz := vertices[i1], vertices[i1+1], vertices[i1+2]
 	cx, cy, cz := vertices[i2], vertices[i2+1], vertices[i2+2]
-	return min3(ax, bx, cx), min3(ay, by, cy), min3(az, bz, cz), max3(ax, bx, cx), max3(ay, by, cy), max3(az, bz, cz)
+	return min(ax, bx, cx), min(ay, by, cy), min(az, bz, cz), max(ax, bx, cx), max(ay, by, cy), max(az, bz, cz)
 }
 
 // newSpatialHash constructs a spatial voxel hash partitioning the given triangles.
@@ -402,7 +336,7 @@ func newSpatialHash(vertices []float32, indices []int32, aabb *mathx.BoundingBox
 			var sumDim float32
 			for i := 0; i < numTriangles; i++ {
 				tminX, tminY, tminZ, tmaxX, tmaxY, tmaxZ := triBounds(vertices, indices, i)
-				sumDim += max3(tmaxX-tminX, tmaxY-tminY, tmaxZ-tminZ)
+				sumDim += max(tmaxX-tminX, tmaxY-tminY, tmaxZ-tminZ)
 			}
 			cellSize = sumDim / float32(numTriangles)
 		}
@@ -601,8 +535,8 @@ func (sh *spatialHash) sweepDominantAxis(i int, u, v, w int) int {
 			w01 := aw - (nu*(u0-au)+nv*(v1-av))/nw
 			w11 := aw - (nu*(u1-au)+nv*(v1-av))/nw
 
-			cwMin := min4(w00, w10, w01, w11)
-			cwMax := max4(w00, w10, w01, w11)
+			cwMin := min(w00, w10, w01, w11)
+			cwMax := max(w00, w10, w01, w11)
 			if cwMin > tmaxW || cwMax < tminW {
 				continue
 			}

@@ -899,3 +899,40 @@ func TestRenderFrameDoesNotAllocate(t *testing.T) {
 		t.Errorf("Render allocates: median heap delta %d bytes over %d frames (budget %d)", median, framesPerTrial, budget)
 	}
 }
+
+// pipelineDescRecorder stands in for the device during buildPipeline and keeps
+// every render pipeline descriptor, delegating to the fake device (which
+// rejects a depthStencil without a format).
+type pipelineDescRecorder struct {
+	dev   any
+	descs []any
+}
+
+func (p *pipelineDescRecorder) createRenderPipeline(desc any) any {
+	p.descs = append(p.descs, desc)
+	return p.dev.createRenderPipeline(desc)
+}
+
+func TestBuildPipelineDepthState(t *testing.T) {
+	dev, r := newTestRenderer(64, 64, false)
+	rec := &pipelineDescRecorder{dev: dev}
+	var d any = rec
+	r.Backend.Device = d
+
+	r.buildPipeline(&renderPipelineSpec{label: "no-depth", targets: gbufferTargets(), topology: "triangle-list", cull: "back"})
+	r.buildPipeline(&renderPipelineSpec{label: "depth", targets: gbufferTargets(), depth: depthState(true, "less-equal", 0, 0), topology: "triangle-list", cull: "back"})
+
+	if len(rec.descs) != 2 {
+		t.Fatalf("expected 2 pipeline descriptors, got %d", len(rec.descs))
+	}
+	if ds := rec.descs[0].depthStencil; ds != nil {
+		t.Errorf("spec without depth must not pass depthStencil, got %v", ds)
+	}
+	ds := rec.descs[1].depthStencil
+	if ds == nil {
+		t.Fatal("spec with depthState must pass depthStencil")
+	}
+	if ds.depthCompare != "less-equal" {
+		t.Errorf("depthStencil.depthCompare = %v, want less-equal", ds.depthCompare)
+	}
+}

@@ -21,7 +21,7 @@
     "check": "biome check . && node scripts/check-simd.js && gofront check app/src/...",
     "test": "gofront test app/src/...",
     "test:dom": "gofront test --dom app/src/...",
-    "test:perf": "node tests/perf/zero-alloc.js && node tests/perf/simd-kernels.js && node tests/perf/ab.js --self-test",
+    "test:perf": "node tests/perf/zero-alloc.js && node tests/perf/simd-kernels.js && node tests/perf/ab.js --self-test && node tests/perf/mathx-js.js",
     "bench": "node tests/perf/js-vs-wasm.js",
     "test:e2e": "playwright test",
     "test:all": "npm run check && npm test && npm run test:dom && npm run test:perf && npm run test:e2e",
@@ -33,7 +33,7 @@
   "devDependencies": {
     "@biomejs/biome": "^2.5.15",
     "@playwright/test": "^1.64.1",
-    "gofront": "^1.7.0",
+    "gofront": "^1.8.0",
     "jsdom": "^30.1.3",
     "lefthook": "^2.2.2",
     "rolldown": "^1.2.14"

@@ -183,38 +183,38 @@ func tncCmd(args []string) string {
 func RegisterDebugCommands() {
 	c := systems.GlobalConsole
 	c.RegisterCmd("tbv", func(args []string) string {
-		return toggleDebug("bounding volumes", func(d *rendering.DebugRenderOptions) bool {
-			d.ShowBoundingVolumes = !d.ShowBoundingVolumes
-			return d.ShowBoundingVolumes
-		})
+		if ActiveRenderer == nil {
+			return noRenderer
+		}
+		return toggleDebug("bounding volumes", &ActiveRenderer.Debug.ShowBoundingVolumes)
 	})
 	c.RegisterCmd("twf", func(args []string) string {
-		return toggleDebug("wireframes", func(d *rendering.DebugRenderOptions) bool {
-			d.ShowWireframes = !d.ShowWireframes
-			return d.ShowWireframes
-		})
+		if ActiveRenderer == nil {
+			return noRenderer
+		}
+		return toggleDebug("wireframes", &ActiveRenderer.Debug.ShowWireframes)
 	})
 	c.RegisterCmd("tlv", func(args []string) string {
-		return toggleDebug("light volumes", func(d *rendering.DebugRenderOptions) bool {
-			d.ShowLightVolumes = !d.ShowLightVolumes
-			return d.ShowLightVolumes
-		})
+		if ActiveRenderer == nil {
+			return noRenderer
+		}
+		return toggleDebug("light volumes", &ActiveRenderer.Debug.ShowLightVolumes)
 	})
 	c.RegisterCmd("tsk", func(args []string) string {
-		return toggleDebug("skeleton", func(d *rendering.DebugRenderOptions) bool {
-			d.ShowSkeleton = !d.ShowSkeleton
-			return d.ShowSkeleton
-		})
+		if ActiveRenderer == nil {
+			return noRenderer
+		}
+		return toggleDebug("skeleton", &ActiveRenderer.Debug.ShowSkeleton)
 	})
 }
 
-// toggleDebug runs flip against the live debug options and reports the new state.
-// (Pointer-to-bool-field would be a detached box in GoFront, hence the callback.)
-func toggleDebug(name string, flip func(d *rendering.DebugRenderOptions) bool) string {
-	if ActiveRenderer == nil {
-		return "no renderer"
-	}
-	if flip(ActiveRenderer.Debug) {
+const noRenderer = "no renderer"
+
+// toggleDebug flips the live debug option behind flag and reports the new state.
+// Callers check ActiveRenderer first: taking &ActiveRenderer.Debug.X needs it.
+func toggleDebug(name string, flag *bool) string {
+	*flag = !*flag
+	if *flag {
 		return name + " on"
 	}
 	return name + " off"
