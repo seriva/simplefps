@@ -13,7 +13,13 @@ export default defineConfig({
 		actionTimeout: 10000,
 		viewport: { width: 1280, height: 720 },
 		launchOptions: {
-			args: ["--enable-unsafe-webgpu", "--ignore-gpu-blocklist"],
+			args: [
+				"--no-sandbox",
+				"--disable-setuid-sandbox",
+				"--disable-dev-shm-usage",
+				"--enable-unsafe-webgpu",
+				"--ignore-gpu-blocklist",
+			],
 		},
 	},
 	webServer: {
