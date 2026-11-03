@@ -81,8 +81,8 @@ Probes ran on 2026-10-21 against GoFront `f69c67a` (the merge of the old, pre-re
 ## Implementation Tasks
 
 > **Execution notes (for `/execute-plan` and `/dev-loop`):**
-> - Epic branch `feat/simd-collision` off `master`, phase branches `feat/simd-collision-phase-<N>`.
-> - **Entry gate for Phase 1:** `npm ls gofront` reports ≥ 1.8.0 on `master` (i.e. [`gofront-v1.8.0-adoption-plan.md`](gofront-v1.8.0-adoption-plan.md) is merged), and `node tests/perf/simd-kernels.js` runs the `tri` kernel instead of skipping it. If either fails, do not branch; report blocked.
+> - Epic branch `feat/simd-collision` off `main`, phase branches `feat/simd-collision-phase-<N>`.
+> - **Entry gate for Phase 1:** `npm ls gofront` reports ≥ 1.8.0 on `main` (i.e. [`gofront-v1.8.0-adoption-plan.md`](gofront-v1.8.0-adoption-plan.md) is merged), and `node tests/perf/simd-kernels.js` runs the `tri` kernel instead of skipping it. If either fails, do not branch; report blocked.
 > - `/dev-loop` runs the `AGENTS.md` pre-commit gate (`lefthook run pre-commit && npm test && npm run test:dom`) on every task. Each task's **Test** names only the extra commands (perf, e2e) that gate does not cover.
 > - `/dev-loop` writes one `CHANGELOG.md` entry per phase on the phase's last task (`/dev-loop` Step 2). Updating plan status to `Completed` and updating the roadmap happen in `/execute-plan` Step 4, so there is no close-out task.
 > - **Gate misses:** if a gate is missed, stop and report; do not delete code without the user's decision.
