@@ -1,0 +1,23 @@
+# Managed by bootstrap/sync.sh: edit scaffold/lefthook-bootstrap.yml in the bootstrap repo, not here.
+# Pulled into lefthook.yml via `extends:`; project-specific hooks belong in lefthook.yml.
+
+commit-msg:
+  commands:
+    conventional:
+      # Enforces Conventional Commits: `<type>[(<scope>)][!]: <summary>`, subject ≤72 chars.
+      # The scope is optional. It allows upper- and lowercase (ticket IDs like API-123), digits, and ._/- but no spaces.
+      run: |
+        subject=$(head -n 1 {1})
+        case "$subject" in
+          "Merge "*|"Revert "*|"fixup! "*|"squash! "*) exit 0 ;;
+        esac
+        if ! printf '%s' "$subject" | grep -Eq '^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([A-Za-z0-9._/-]+\))?!?: .+'; then
+          echo "commit-msg: subject must be '<type>[(<scope>)]: <summary>' (Conventional Commits)"
+          echo "  allowed types: feat fix docs style refactor perf test build ci chore revert"
+          echo "  got: $subject"
+          exit 1
+        fi
+        if [ "${#subject}" -gt 72 ]; then
+          echo "commit-msg: subject is ${#subject} chars; keep it ≤72"
+          exit 1
+        fi
