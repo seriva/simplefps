@@ -98,7 +98,7 @@ Small phase (≈ 15 LOC): it is split from the bump because the bump is blocked 
   - Files: `app/src/engine/systems/network.go`
   - Test: failing first: `node $GF19 check ./app/src/engine/systems` reports the 3 errors in *Verified Gaps*. Behaviour stays covered by `app/src/engine/systems/network_test.go` (`TestNetworkHostResolvesWhenPeerOpens`, `TestNetworkHostResolvesEmptyOnError` incl. the nil-factory case at `:117`, `TestNetworkClientConnectsAndSendsPositions`, `TestNetworkClientConnectFailsOnError`)
   - Done when: `node $GF19 check ./app/src/engine/systems` → `OK`, and `npm test` + `npm run test:dom` pass on 1.8.0
-- [ ] Task 1.2: Switch on `uiAction(action)` in the menu click handler
+- [x] Task 1.2: Switch on `uiAction(action)` in the menu click handler
   - Files: `app/src/game/ui.go`
   - Test: failing first: `node $GF19 check ./app/src/game` reports the 7 `invalid case action…` errors once `U1` is masked (or check the patched compiler). Behaviour stays covered by `TestEveryMenuActionHandled` (`app/src/game/ui_test.go:249`)
   - Done when: `ui.go` has no `switch action {` on a raw `string`, `TestEveryMenuActionHandled` passes on 1.8.0, and the patched-1.9.0 `check app/src/...` has no `ui.go` errors
