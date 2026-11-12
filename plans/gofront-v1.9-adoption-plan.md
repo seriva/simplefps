@@ -94,7 +94,7 @@ Commands below use `GF19=/home/luuk/dev/gofront/src/index.js` (a local checkout 
 ### Phase 1: Source changes for the stricter type checker (lands on 1.8.0)
 Small phase (≈ 15 LOC): it is split from the bump because the bump is blocked upstream, and this part is not.
 
-- [ ] Task 1.1: Assert `any` results in `systems.Network` (`createPeer`, `Host`, `Connect`)
+- [x] Task 1.1: Assert `any` results in `systems.Network` (`createPeer`, `Host`, `Connect`)
   - Files: `app/src/engine/systems/network.go`
   - Test: failing first: `node $GF19 check ./app/src/engine/systems` reports the 3 errors in *Verified Gaps*. Behaviour stays covered by `app/src/engine/systems/network_test.go` (`TestNetworkHostResolvesWhenPeerOpens`, `TestNetworkHostResolvesEmptyOnError` incl. the nil-factory case at `:117`, `TestNetworkClientConnectsAndSendsPositions`, `TestNetworkClientConnectFailsOnError`)
   - Done when: `node $GF19 check ./app/src/engine/systems` → `OK`, and `npm test` + `npm run test:dom` pass on 1.8.0
