@@ -94,15 +94,15 @@ Commands below use `GF19=/home/luuk/dev/gofront/src/index.js` (a local checkout 
 ### Phase 1: Source changes for the stricter type checker (lands on 1.8.0)
 Small phase (≈ 15 LOC): it is split from the bump because the bump is blocked upstream, and this part is not.
 
-- [ ] Task 1.1: Assert `any` results in `systems.Network` (`createPeer`, `Host`, `Connect`)
+- [x] Task 1.1: Assert `any` results in `systems.Network` (`createPeer`, `Host`, `Connect`)
   - Files: `app/src/engine/systems/network.go`
   - Test: failing first: `node $GF19 check ./app/src/engine/systems` reports the 3 errors in *Verified Gaps*. Behaviour stays covered by `app/src/engine/systems/network_test.go` (`TestNetworkHostResolvesWhenPeerOpens`, `TestNetworkHostResolvesEmptyOnError` incl. the nil-factory case at `:117`, `TestNetworkClientConnectsAndSendsPositions`, `TestNetworkClientConnectFailsOnError`)
   - Done when: `node $GF19 check ./app/src/engine/systems` → `OK`, and `npm test` + `npm run test:dom` pass on 1.8.0
-- [ ] Task 1.2: Switch on `uiAction(action)` in the menu click handler
+- [x] Task 1.2: Switch on `uiAction(action)` in the menu click handler
   - Files: `app/src/game/ui.go`
   - Test: failing first: `node $GF19 check ./app/src/game` reports the 7 `invalid case action…` errors once `U1` is masked (or check the patched compiler). Behaviour stays covered by `TestEveryMenuActionHandled` (`app/src/game/ui_test.go:249`)
   - Done when: `ui.go` has no `switch action {` on a raw `string`, `TestEveryMenuActionHandled` passes on 1.8.0, and the patched-1.9.0 `check app/src/...` has no `ui.go` errors
-- [ ] Task 1.3: Assert the `game` test stand-ins to their `UI*` interfaces
+- [x] Task 1.3: Assert the `game` test stand-ins to their `UI*` interfaces
   - Files: `app/src/game/gameplay_test.go` (`fakeEvent` → `v.(UIEvent)`), `app/src/game/ui_test.go` (`fakeTarget` → `v.(UIElement)`, and update its comment)
   - Test: failing first: `node $GF19 test ./app/src/game` → `game [build failed]` at `gameplay_test.go:710`, `ui_test.go:17` (patched compiler)
   - Done when: all 19 `fakeTarget(`/`fakeEvent(` call sites compile and `npm test` + `npm run test:dom` pass on 1.8.0

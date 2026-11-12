@@ -132,7 +132,7 @@ func (ui *UIManager) Mount() {
 			btn := target.closest("[data-action]")
 			if btn != nil {
 				action := btn.getAttribute("data-action")
-				switch action {
+				switch uiAction(action) {
 				case actionStart:
 					ui.hasStarted = true
 					GlobalState.EnterGame()
