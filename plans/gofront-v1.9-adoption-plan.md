@@ -1,7 +1,8 @@
 # GoFront v1.9 Adoption — Design Plan
 
 **Version:** continuous  
-**Status:** Draft (2026-11-10) — Phase 1 can run now (it stays on `gofront@^1.8.0`). Phase 2 is **blocked** until `gofront@1.9.1` is on npm with fixes for the five upstream entries logged in `../gofront/plans/follow-ups.md` on 2026-11-10 (`U1`–`U5` below; `U1`–`U3` are required, `U4` gates the size criterion, `U5` is optional). Audited against GoFront tag `1.9.0` (`/home/luuk/dev/gofront`, code-identical to `main` @ `0e80ad3c`); `gofront@1.9.0` is tagged but not published (`npm view gofront versions` ends at `1.8.0`).  
+**Status:** In Progress (2026-11-12) — Phase 1 can run now (it stays on `gofront@^1.8.0`). Phase 2 is **blocked** until `gofront@1.9.1` is on npm with fixes for the five upstream entries logged in `../gofront/plans/follow-ups.md` on 2026-11-10 (`U1`–`U5` below; `U1`–`U3` are required, `U4` gates the size criterion, `U5` is optional). Audited against GoFront tag `1.9.0` (`/home/luuk/dev/gofront`, code-identical to `main` @ `0e80ad3c`); `gofront@1.9.0` is tagged but not published (`npm view gofront versions` ends at `1.8.0`).  
+**Base branch:** main  
 **Related:** [`gofront-v1.8.0-adoption-plan.md`](gofront-v1.8.0-adoption-plan.md) (predecessor; merged in #62, all tasks checked, header still says Draft), [`simd-collision-plan.md`](simd-collision-plan.md) (independent; either order), GoFront [`v1.9.1/follow-ups-2026-11-09-plan.md`](../../gofront/plans/v1.9.1/follow-ups-2026-11-09-plan.md) (the upstream patch release; since `04d073b6` it schedules all five: `U1`→`G26` Task 7.1/7.2, `U4`→`G29` Task 7.3, `U2`→`G27` Task 8.1, `U3`→`G28` Task 8.2, `U5`→`G30` Task 8.3)  
 **Release note:** Upgraded the GoFront compiler to `^1.9.1`; the game plays and performs the same, and the settings menu shows the stored slider values as before.  
 
