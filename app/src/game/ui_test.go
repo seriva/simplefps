@@ -10,11 +10,12 @@ import (
 )
 
 // fakeTarget builds a stand-in DOM element for handler tests. A
-// map[string]any literal does not assign to UIElement directly; it has to go
-// through an any first.
+// map[string]any literal does not assign to UIElement directly; it goes
+// through an any and an assertion, which is unchecked at runtime for a .d.ts
+// interface, so the map stays a stand-in.
 func fakeTarget(fields map[string]any) UIElement {
 	var v any = fields
-	return v
+	return v.(UIElement)
 }
 
 func TestUIModalAndMenus(t *testing.T) {
