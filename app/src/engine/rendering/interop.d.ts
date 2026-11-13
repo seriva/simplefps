@@ -87,3 +87,18 @@ interface GPUCanvasContext {
 	configure(configuration: any): void;
 	getCurrentTexture(): GPUTexture;
 }
+
+interface WebGPUDevice {
+	queue: GPUQueue;
+	createBuffer(descriptor: any): any;
+	createTexture(descriptor: any): any;
+	createSampler(descriptor: any): any;
+	createShaderModule(descriptor: any): any;
+	createBindGroupLayout(descriptor: any): any;
+	createPipelineLayout(descriptor: any): any;
+	createBindGroup(descriptor: any): any;
+	createRenderPipeline(descriptor: any): any;
+	createComputePipeline(descriptor: any): any;
+	createCommandEncoder(): any;
+	destroy(): void;
+}

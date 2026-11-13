@@ -16,7 +16,7 @@ type Capabilities struct {
 type Backend struct {
 	Canvas       any
 	Adapter      any
-	Device       GPUDevice
+	Device       WebGPUDevice
 	Context      GPUCanvasContext
 	Format       string
 	Capabilities *Capabilities
@@ -146,8 +146,8 @@ func (b *Backend) Init(onReady func(ok bool)) {
 // (any WebGPU-shaped object; tests pass a fake) and creates the default
 // resources.
 func (b *Backend) InitWithDevice(device any, context any) {
-	b.Device = device
-	b.Context = context
+	b.Device = device.(WebGPUDevice)
+	b.Context = context.(GPUCanvasContext)
 	b.configureContext()
 
 	whiteData := []uint8{255, 255, 255, 255}
