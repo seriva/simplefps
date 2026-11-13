@@ -1,10 +1,10 @@
 # GoFront v1.9 Adoption — Design Plan
 
 **Version:** continuous  
-**Status:** In Progress (2026-11-13) — Phase 1 merged (#64–#66). **Phase 2 resumed on `gofront@1.9.2` (PR #67).** `gofront@1.9.1` is published and fixes `U1`–`U3` and part of `U4`, but its `--release`/default-minified bundle is not valid JavaScript (the minifier turns the stdlib's `0b00000000` into `0 b00000000`, `U6`) and `app.js` is +33.8%; the upstream plan is `plans/v1.9.2/release-bundle-fixes-plan.md` in `seriva/gofront` (Draft). Task 2.1 is done on pushed branch `feat/gofront-v1.9-adoption-phase-2` (`32d6f1e`, no PR); when resuming, merge `feat/gofront-v1.9-adoption` into it first (plan edits only touch other lines). `U1`–`U6` below are the upstream entries (`U1`–`U3` required, `U4` gates the size criterion, `U5` optional, `U6` blocks every release build). Audited against GoFront tag `1.9.0` plus scratch `gofront@1.9.1` runs on 2026-11-12/13.  
+**Status:** Completed (2026-11-13) — Phase 1 merged (#64–#66), Phase 2 merged (#67) on `gofront@1.9.2` (`U1`–`U3`, `U6` fixed upstream, `U5`/`G30` fixed; `U4` residual accepted: `app.js` 1,117,919 B, +33.8%). `U1`–`U6` below are the upstream entries as audited against GoFront `1.9.0` plus scratch `1.9.1` runs on 2026-11-12/13.  
 **Base branch:** main  
-**Related:** [`gofront-v1.8.0-adoption-plan.md`](gofront-v1.8.0-adoption-plan.md) (predecessor; merged in #62, all tasks checked, header still says Draft), [`simd-collision-plan.md`](simd-collision-plan.md) (independent; either order), GoFront `plans/v1.9.2/release-bundle-fixes-plan.md` (seriva/gofront, Draft: fixes `U6`, finishes `U4`), GoFront [`v1.9.1/follow-ups-2026-11-09-plan.md`](../../gofront/plans/v1.9.1/follow-ups-2026-11-09-plan.md) (the upstream patch release; since `04d073b6` it schedules all five: `U1`→`G26` Task 7.1/7.2, `U4`→`G29` Task 7.3, `U2`→`G27` Task 8.1, `U3`→`G28` Task 8.2, `U5`→`G30` Task 8.3)  
-**Release note:** Upgraded the GoFront compiler to `^1.9.2`; the game plays and performs the same, and the settings menu shows the stored slider values as before.  
+**Related:** [`gofront-v1.8.0-adoption-plan.md`](../gofront-v1.8.0-adoption-plan.md) (predecessor; merged in #62, all tasks checked, header still says Draft), [`simd-collision-plan.md`](../simd-collision-plan.md) (independent; either order), GoFront `plans/v1.9.2/release-bundle-fixes-plan.md` (seriva/gofront, Draft: fixes `U6`, finishes `U4`), GoFront [`v1.9.1/follow-ups-2026-11-09-plan.md`](../../gofront/plans/v1.9.1/follow-ups-2026-11-09-plan.md) (the upstream patch release; since `04d073b6` it schedules all five: `U1`→`G26` Task 7.1/7.2, `U4`→`G29` Task 7.3, `U2`→`G27` Task 8.1, `U3`→`G28` Task 8.2, `U5`→`G30` Task 8.3)  
+**Release note:** Upgraded the GoFront compiler to `^1.9.2`; gameplay is unchanged, but the game script file is about a third larger than with the previous compiler.  
 
 ---
 
@@ -120,7 +120,7 @@ Small phase (≈ 45 LOC): it is split from the bump because the bump is blocked 
   - Test: failing first: scratch `gofront@1.9.1` `check ./app/src/engine/rendering` reports the 2 `InitWithDevice` errors; existing `rendering`, `engine`, `assets` and `scene` tests (fake backend) cover behaviour, plus a new `TestBackendInitWithDeviceAcceptsLowercaseDevice` that passes a device exposing only the lowercase WebGPU methods and asserts `InitWithDevice` does not panic (it would panic with a `GPUDevice` assertion)
   - Done when: scratch 1.9.1 `check app/src/...` → `13 packages — OK` and its `test` + `test --dom` pass; `npm run check`, `npm test`, `npm run test:dom` pass on 1.8.0; `grep -rn 'GPUDevice' app/src --include='*.go'` shows no `GPUDevice` type use outside comments
 
-### Phase 2: Bump to GoFront 1.9.2 (paused until `gofront@1.9.2` ships a valid release bundle, `U6`; Task 2.1 already done on branch `feat/gofront-v1.9-adoption-phase-2`)
+### Phase 2: Bump to GoFront 1.9.2
 - [x] Task 2.1: Guard every settings slider's rendered value against `fmt`-in-templ typing (`U3`)
   - Files: `app/src/game/ui_test.go`
   - Test: new `TestUISliderValuesFormatted`: set `systems.ActiveSettings` to integral values (`RenderScale = 1`, `Gamma = 2`, `FsrSharpness = 1`, `LookSensitivity = 1`, restored after), then `ui.Show(MenuSettings)` and assert each slider's `getAttribute("value")` equals `"1.00"`, `"2.0"`, `"1.00"`, `"1.00"` (`menus.templ:571-583` formats). It fails first on `$GF19 test --dom ./app/src/game` (gets `%!f(int=…)`) and passes on 1.8.0
