@@ -87,16 +87,16 @@ func (ui *UIManager) Mount() {
 	refs := map[string]any{}
 	gom.MountTo("body", MenuView(), refs)
 
-	ui.uiEl            = refs["ui"]
-	ui.backdropEl      = refs["backdrop"]
-	ui.menuBaseEl      = refs["menuBase"]
-	ui.headerEl        = refs["header"]
-	ui.controlsEl      = refs["controls"]
-	ui.dialogOverlayEl = refs["dialogOverlay"]
-	ui.dialogHeaderEl  = refs["dialogHeader"]
-	ui.dialogBodyEl    = refs["dialogBody"]
-	ui.dialogBtnYes    = refs["dialogBtnYes"]
-	ui.dialogBtnNo     = refs["dialogBtnNo"]
+	ui.uiEl            = refs["ui"].(UIElement)
+	ui.backdropEl      = refs["backdrop"].(UIElement)
+	ui.menuBaseEl      = refs["menuBase"].(UIElement)
+	ui.headerEl        = refs["header"].(UIElement)
+	ui.controlsEl      = refs["controls"].(UIElement)
+	ui.dialogOverlayEl = refs["dialogOverlay"].(UIElement)
+	ui.dialogHeaderEl  = refs["dialogHeader"].(UIElement)
+	ui.dialogBodyEl    = refs["dialogBody"].(UIElement)
+	ui.dialogBtnYes    = refs["dialogBtnYes"].(UIElement)
+	ui.dialogBtnNo     = refs["dialogBtnNo"].(UIElement)
 
 	if ui.uiEl != nil {
 		ui.uiEl.addEventListener("click", func(e UIEvent) {

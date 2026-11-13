@@ -107,7 +107,7 @@ Small phase (≈ 45 LOC): it is split from the bump because the bump is blocked 
   - Files: `app/src/game/gameplay_test.go` (`fakeEvent` → `v.(UIEvent)`), `app/src/game/ui_test.go` (`fakeTarget` → `v.(UIElement)`, and update its comment)
   - Test: failing first: `node $GF19 test ./app/src/game` → `game [build failed]` at `gameplay_test.go:710`, `ui_test.go:17` (patched compiler)
   - Done when: all 19 `fakeTarget(`/`fakeEvent(` call sites compile and `npm test` + `npm run test:dom` pass on 1.8.0
-- [ ] Task 1.4: Assert the `refs[...]` DOM handles to `UIElement` (19 of the 21 sites found on 1.9.1)
+- [x] Task 1.4: Assert the `refs[...]` DOM handles to `UIElement` (19 of the 21 sites found on 1.9.1)
   - Files: `app/src/game/hud.go` (8 sites, `:45-51,65`), `app/src/game/ui.go` (10 sites, `:90-99`), `app/src/game/loading.go` (1 site, `:30`): append `.(UIElement)` to each `refs["…"]` read. `UIElement` is a `.d.ts` interface, so the assertion is an unchecked pass-through at runtime
   - Test: failing first: scratch `gofront@1.9.1` `check ./app/src/game` reports the 19 errors; behaviour stays covered by the existing `game` tests (`ui_test.go`, `gameplay_test.go`, `hud` tests)
   - Done when: scratch 1.9.1 `check ./app/src/game` has no `refs[...]` errors, and `npm run check`, `npm test`, `npm run test:dom` pass on 1.8.0

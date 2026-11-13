@@ -42,13 +42,13 @@ func (h *HUD) Mount(isMobile bool) {
 	refs := map[string]any{}
 	gom.MountTo("body", HUDView(isMobile), refs)
 
-	h.hudEl      = refs["hud"]
-	h.healthEl   = refs["healthEl"]
-	h.armorEl    = refs["armorEl"]
-	h.ammoEl     = refs["ammoEl"]
-	h.healthIcon = refs["healthIcon"]
-	h.armorIcon  = refs["armorIcon"]
-	h.ammoIcon   = refs["ammoIcon"]
+	h.hudEl      = refs["hud"].(UIElement)
+	h.healthEl   = refs["healthEl"].(UIElement)
+	h.armorEl    = refs["armorEl"].(UIElement)
+	h.ammoEl     = refs["ammoEl"].(UIElement)
+	h.healthIcon = refs["healthIcon"].(UIElement)
+	h.armorIcon  = refs["armorIcon"].(UIElement)
+	h.ammoIcon   = refs["ammoIcon"].(UIElement)
 
 	setupAnimEnd := func(iconEl UIElement) {
 		if iconEl != nil && iconEl.addEventListener != nil {
@@ -62,7 +62,7 @@ func (h *HUD) Mount(isMobile bool) {
 	setupAnimEnd(h.ammoIcon)
 
 	if isMobile {
-		h.menuBtn = refs["menuBtn"]
+		h.menuBtn = refs["menuBtn"].(UIElement)
 		if h.menuBtn != nil {
 			h.menuBtn.addEventListener("touchend", func() {
 				GlobalState.EnterMenu(MenuMain)
