@@ -125,10 +125,11 @@ Small phase (≈ 45 LOC): it is split from the bump because the bump is blocked 
   - Files: `app/src/game/ui_test.go`
   - Test: new `TestUISliderValuesFormatted`: set `systems.ActiveSettings` to integral values (`RenderScale = 1`, `Gamma = 2`, `FsrSharpness = 1`, `LookSensitivity = 1`, restored after), then `ui.Show(MenuSettings)` and assert each slider's `getAttribute("value")` equals `"1.00"`, `"2.0"`, `"1.00"`, `"1.00"` (`menus.templ:571-583` formats). It fails first on `$GF19 test --dom ./app/src/game` (gets `%!f(int=…)`) and passes on 1.8.0
   - Done when: the test passes under `npm run test:dom` on 1.8.0 and would fail on 1.9.0
-- [ ] Task 2.2: Bump `gofront` to `^1.9.2`
+- [x] Task 2.2: Bump `gofront` to `^1.9.2`
   - Files: `package.json`, `package-lock.json`
   - Test: existing `TestLightSorterAndLightingData` (`U2`), `TestUISettingsAndCreditsRows` + `TestUISliderValuesFormatted` (`U3`) and `npm run check` (`U1`), all **unchanged**
   - Done when: `npm ls gofront` → `1.9.2` (or later 1.9.x); `npm run test:all` passes; both A/B commands in *Done means* pass against a 1.8.0 baseline; the built `public/app.js` passes `node --check` (copy to `.mjs`), `npm run test:e2e` passes, and `npm run build` sizes are recorded and accepted per *Done means* (else stop per *Edge Cases*)
+  - Measured on 1.9.2 (2026-11-13): `node --check` OK (`U6` fixed); `public/app.js` 1,117,919 B (+33.8% vs 835,581 B on 1.8.0; 227,105 B gzip), `public/app.wasm` 107,424 B (≤ 110,000); `mathx` A/B 1.000–1.075×, hybrid A/B 0.968–1.084×; `npm run test:e2e` 2 passed. Size acceptance (> 877,000 B bound) is a user decision, pending.
 - [ ] Task 2.3: Replace the `_scratchC` slice with a package-level `mat4c` (`U5`/`G30`)
   - Files: `app/src/engine/animation/skeleton.go` (`var _scratchC mat4c`; `local := &_scratchC` at `:136`; drop the 1.7.0 comment at `:20-24`, keeping a one-line description of the scratch)
   - Test: failing first: on 1.8.0 (or 1.9.0) `npm run test:perf` fails with `CompileError: … expected type v128, found i32.const` once the slice is replaced; existing `tests/perf/zero-alloc.js` (skinning ≤ 0.15 B/frame baseline) and `tests/perf/simd-kernels.js` (bit-identical palette) guard behaviour, plus `npm test` for `animation`
