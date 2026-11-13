@@ -295,8 +295,8 @@ func (b *Backend) WriteBufferRange(buf GPUBuffer, offset int, data any, count in
 }
 
 // WriteBufferSlice uploads data[dataOffset:dataOffset+count] (elements) to
-// byte offset. The predeclared GPUQueue.writeBuffer is declared with three
-// parameters, so the five-argument form goes through an untyped reference.
+// byte offset. WebGPUQueue.writeBuffer is declared with three parameters, so
+// the five-argument form goes through an untyped reference.
 func (b *Backend) WriteBufferSlice(buf GPUBuffer, offset int, data any, dataOffset, count int) {
 	if buf == nil || data == nil || count <= 0 {
 		return
