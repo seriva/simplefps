@@ -155,6 +155,46 @@ func TestUISettingsAndCreditsRows(t *testing.T) {
 	}
 }
 
+// TestUISliderValuesFormatted guards the rendered value of every settings
+// slider when the setting is a whole number: a float32 formatted through an
+// untyped fmt call would render as "%!f(int=1)" and the browser would fall
+// back to the slider midpoint.
+func TestUISliderValuesFormatted(t *testing.T) {
+	if document == nil {
+		return
+	}
+	ui, restore := useTestUI()
+	defer restore()
+	s := systems.ActiveSettings
+	saved := *s
+	defer func() { *s = saved }()
+	s.RenderScale = 1
+	s.Gamma = 2
+	s.FsrSharpness = 1
+	s.LookSensitivity = 1
+
+	check := func(id, want string) {
+		el := document.getElementById(id)
+		if el == nil {
+			t.Errorf("slider %q not rendered", id)
+			return
+		}
+		if el.getAttribute("value") != want {
+			t.Errorf("slider %q value attribute %q, want %q", id, el.getAttribute("value"), want)
+		}
+	}
+
+	ui.activeTab = 0
+	ui.Show(MenuSettings)
+	check(settingRenderScale, "1.00")
+	check(settingGamma, "2.0")
+	check(settingFSRSharpness, "1.00")
+
+	ui.activeTab = 1
+	ui.Show(MenuSettings)
+	check(settingLookSensitivity, "1.00")
+}
+
 // resetDOM empties document.body so a test's mount is the only one in the
 // document: gom.Mount("#menu-controls", …) targets the first match.
 func resetDOM() {
