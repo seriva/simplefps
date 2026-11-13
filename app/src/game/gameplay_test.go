@@ -707,7 +707,7 @@ func TestControlsGuards(t *testing.T) {
 // fakeEvent builds a stand-in DOM event; see fakeTarget.
 func fakeEvent(fields map[string]any) UIEvent {
 	var v any = fields
-	return v
+	return v.(UIEvent)
 }
 
 func TestControlsHandlers(t *testing.T) {

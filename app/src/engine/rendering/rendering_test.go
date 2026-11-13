@@ -191,6 +191,25 @@ func near(a, b float32) bool {
 // Backend
 // ---------------------------------------------------------------------------
 
+// A standard WebGPU device exposes only the lowercase method names, like
+// fakegpu.Device. InitWithDevice must accept it: asserting to GoFront's built-in
+// GPUDevice would panic because that is a structural runtime check that also
+// wants the capitalised names.
+func TestBackendInitWithDeviceAcceptsLowercaseDevice(t *testing.T) {
+	dev := fakegpu.NewDevice()
+	b := NewBackend()
+	b.Canvas = map[string]any{"clientWidth": 16, "clientHeight": 16, "width": 16, "height": 16}
+	var d any = dev
+	var ctx any = fakegpu.NewContext(dev, 16, 16)
+	b.InitWithDevice(d, ctx)
+	if !b.Ready() {
+		t.Fatal("backend must be ready after InitWithDevice with a lowercase-only device")
+	}
+	if b.Device == nil || b.Context == nil {
+		t.Error("device and context must be stored")
+	}
+}
+
 func TestBackendInitWithDeviceCreatesDefaults(t *testing.T) {
 	dev, b := newTestBackend(64, 32)
 	if !b.Ready() {
@@ -917,7 +936,7 @@ func TestBuildPipelineDepthState(t *testing.T) {
 	dev, r := newTestRenderer(64, 64, false)
 	rec := &pipelineDescRecorder{dev: dev}
 	var d any = rec
-	r.Backend.Device = d
+	r.Backend.Device = d.(WebGPUDevice)
 
 	r.buildPipeline(&renderPipelineSpec{label: "no-depth", targets: gbufferTargets(), topology: "triangle-list", cull: "back"})
 	r.buildPipeline(&renderPipelineSpec{label: "depth", targets: gbufferTargets(), depth: depthState(true, "less-equal", 0, 0), topology: "triangle-list", cull: "back"})

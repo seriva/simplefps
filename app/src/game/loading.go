@@ -27,7 +27,7 @@ func (lm *LoadingManager) Mount() {
 	}
 	refs := map[string]any{}
 	gom.MountTo("body", LoadingView(), refs)
-	lm.loadingEl = refs["loading"]
+	lm.loadingEl = refs["loading"].(UIElement)
 	lm.mounted = true
 }
 

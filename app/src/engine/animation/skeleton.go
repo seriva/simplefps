@@ -17,12 +17,9 @@ const MaxSkinJoints = 64
 // 16 floats per joint, and is read from JS without copying.
 var SkinMatrices = shared.NewFloat32(MaxSkinJoints * 16)
 
-// Packed scratch matrices for the skinning chain (wasm package state; never
-// visible to JS): [0] = local joint matrix. A slice
-// rather than `var x mat4c` because GoFront 1.7.0 zero-initialises a
-// package-level struct with F32x4 fields using an i32 constant, which fails
-// WebAssembly validation; make() initialises v128 fields correctly.
-var _scratchC = make([]mat4c, 1)
+// Packed scratch matrix for the skinning chain: the local joint matrix (wasm
+// package state; never visible to JS).
+var _scratchC mat4c
 
 // skeletonPack holds one skeleton's matrices packed as F32x4 columns:
 // invBindC mirrors InverseBindMatrices, worldC holds the last computed world
@@ -133,7 +130,7 @@ func NewSkeleton(defs []JointDef) *Skeleton {
 // into its pack's worldC, chaining packed columns with mulMat4c (bit-identical to the
 // mathx.Mat4Multiply chain).
 func (s *Skeleton) computeWorldMatrices(pose *Pose) {
-	local := &_scratchC[0]
+	local := &_scratchC
 	worldC := _packs[s.pack].worldC
 	positions := pose.Positions
 	rotations := pose.Rotations

@@ -103,7 +103,8 @@ func (n *Network) createPeer() PeerClient {
 	if factory == nil {
 		factory = DefaultPeerFactory
 	}
-	return factory(newPeerOptions())
+	p, _ := factory(newPeerOptions()).(PeerClient)
+	return p
 }
 
 // Host opens a Peer and resolves to its id once the signalling server
@@ -134,7 +135,7 @@ async func (n *Network) Host() string {
 		d.resolve("")
 	})
 	id := await d.promise
-	return id
+	return id.(string)
 }
 
 // Connect opens a Peer and connects it to hostID; resolves to true once the
@@ -171,7 +172,7 @@ async func (n *Network) Connect(hostID string) bool {
 		finish(false)
 	})
 	ok := await d.promise
-	return ok
+	return ok.(bool)
 }
 
 func (n *Network) handleClientConnection(conn PeerDataConnection) {
