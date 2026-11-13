@@ -21,7 +21,7 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 - Migrated user interface, HUD, and settings menus to GoFront template components with typed state management.
 - Improved collision loading reliability with strict geometry validation and error reporting.
 - Reduced overall bundle and binary sizes by trimming redundant math and entity utilities.
-- Upgraded the GoFront compiler to `^1.9.2`; gameplay and performance are unchanged, but the downloaded game script is about a third larger than before, so the first load takes slightly longer.
+- Upgraded the GoFront compiler to `^1.9.2`; gameplay is unchanged, but the game script file is about a third larger than with the previous compiler.
 
 ### Removed
 
