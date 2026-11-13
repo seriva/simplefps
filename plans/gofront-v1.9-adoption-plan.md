@@ -134,7 +134,7 @@ Small phase (≈ 45 LOC): it is split from the bump because the bump is blocked 
   - Files: `app/src/engine/animation/skeleton.go` (`var _scratchC mat4c`; `local := &_scratchC` at `:136`; drop the 1.7.0 comment at `:20-24`, keeping a one-line description of the scratch)
   - Test: failing first: on 1.8.0 (or 1.9.0) `npm run test:perf` fails with `CompileError: … expected type v128, found i32.const` once the slice is replaced; existing `tests/perf/zero-alloc.js` (skinning ≤ 0.15 B/frame baseline) and `tests/perf/simd-kernels.js` (bit-identical palette) guard behaviour, plus `npm test` for `animation`
   - Done when: on 1.9.2 the WASM module validates, `npm run test:perf` passes, and `grep -n 'make(\[\]mat4c, 1)' app/src/engine/animation/skeleton.go` → no match (`invBindC`/`worldC` still use `make([]mat4c, n)`)
-- [ ] Task 2.4: Update agent docs for 1.9
+- [x] Task 2.4: Update agent docs for 1.9
   - Files: `AGENTS.md` (Part 2 only: `Node` line → "uses GoFront >= 1.9.2"; **Browser interop** rule: values typed `any` from JS (`Reflect.construct`, `await` on a `Promise`, map stand-ins in tests) need an explicit assertion to the `.d.ts` interface or basic type, and an assertion to a `.d.ts` interface is unchecked at runtime; GoFront's own `GPUDevice`/`GPUQueue`/`GPUAdapter` are the exception (structural runtime check, fails on a standard device), so assert to a repo-local interface such as `WebGPUDevice`)
   - Test: none (docs); `npm run check` stays green
   - Done when: `grep -n "GoFront >= 1.9.2" AGENTS.md` matches, and the interop rule names the assertion requirement and the built-in `GPUDevice` exception
