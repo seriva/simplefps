@@ -118,7 +118,7 @@ Small phase (≈ 45 LOC): it is split from the bump because the bump is blocked 
   - Done when: scratch 1.9.1 `check app/src/...` → `13 packages — OK` and its `test` + `test --dom` pass; `npm run check`, `npm test`, `npm run test:dom` pass on 1.8.0; `grep -rn 'GPUDevice' app/src --include='*.go'` shows no `GPUDevice` type use outside comments
 
 ### Phase 2: Bump to GoFront 1.9.1 (blocked on `gofront@1.9.1` with `U1`–`U3` fixed)
-- [ ] Task 2.1: Guard every settings slider's rendered value against `fmt`-in-templ typing (`U3`)
+- [x] Task 2.1: Guard every settings slider's rendered value against `fmt`-in-templ typing (`U3`)
   - Files: `app/src/game/ui_test.go`
   - Test: new `TestUISliderValuesFormatted`: set `systems.ActiveSettings` to integral values (`RenderScale = 1`, `Gamma = 2`, `FsrSharpness = 1`, `LookSensitivity = 1`, restored after), then `ui.Show(MenuSettings)` and assert each slider's `getAttribute("value")` equals `"1.00"`, `"2.0"`, `"1.00"`, `"1.00"` (`menus.templ:571-583` formats). It fails first on `$GF19 test --dom ./app/src/game` (gets `%!f(int=…)`) and passes on 1.8.0
   - Done when: the test passes under `npm run test:dom` on 1.8.0 and would fail on 1.9.0
