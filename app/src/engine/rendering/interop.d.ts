@@ -87,3 +87,30 @@ interface GPUCanvasContext {
 	configure(configuration: any): void;
 	getCurrentTexture(): GPUTexture;
 }
+
+// Closed queue interface: GoFront's built-in GPUQueue is open (a misspelled
+// member type-checks), so the renderer declares exactly the members it calls.
+// writeBuffer is declared with three parameters because GoFront enforces
+// arity; the five-argument form in Backend.WriteBufferSlice goes through an
+// untyped reference.
+interface WebGPUQueue {
+	submit(commandBuffers: any): void;
+	writeBuffer(buffer: GPUBuffer, bufferOffset: number, data: any): void;
+	writeTexture(destination: any, data: any, dataLayout: any, size: any): void;
+	copyExternalImageToTexture(source: any, destination: any, copySize: any): void;
+}
+
+interface WebGPUDevice {
+	queue: WebGPUQueue;
+	createBuffer(descriptor: any): any;
+	createTexture(descriptor: any): any;
+	createSampler(descriptor: any): any;
+	createShaderModule(descriptor: any): any;
+	createBindGroupLayout(descriptor: any): any;
+	createPipelineLayout(descriptor: any): any;
+	createBindGroup(descriptor: any): any;
+	createRenderPipeline(descriptor: any): any;
+	createComputePipeline(descriptor: any): any;
+	createCommandEncoder(): any;
+	destroy(): void;
+}
