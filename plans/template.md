@@ -25,7 +25,7 @@
 
 | Category | Rule | Examples / Members | Reason (Excluded rows) |
 |---|---|---|---|
-| **In scope: core** | Built in this plan | [e.g. New settings page, data model change, core algorithm] | |
+| **In scope: core** | Built in this plan; name the root cause (mechanism) fixed, not single repros | [e.g. New settings page, data model change, core algorithm, the one config-merge rule every loader uses] | |
 | **In scope: target-specific** *(optional)* | Supported on specific targets only; clear error elsewhere | [e.g. Browser DOM APIs in JS only, SIMD in WASM only] | |
 | **Excluded: runtime / platform** *(optional)* | Out of architectural scope; clear error | [e.g. Reflection, raw OS threads, unsupported host calls] | [e.g. Incompatible with the single-threaded runtime invariant] |
 | **Excluded: deferred** | Inside architectural boundary, but deferred to a future plan | [e.g. Admin UI, extra export formats, non-critical optimizations] | [e.g. Needs its own design; benchmark-gated follow-up] |
@@ -34,7 +34,7 @@
 
 ## Verified Gaps & Baseline Audit
 
-[Empirically confirmed limitations or bugs found before implementation. Do not guess—run active probes, inspect code/types/output, or write minimal failing tests to prove every finding.]
+[Empirically confirmed limitations or bugs found before implementation. Do not guess—run active probes, inspect code/types/output, or write minimal failing tests to prove every finding. Group rows by root cause: for each root, list every path through the same mechanism that was probed (callers, input forms, contexts, targets), failing ones as gaps and passing ones as controls.]
 
 | Area | Finding | Evidence & Probe Reference |
 |---|---|---|
