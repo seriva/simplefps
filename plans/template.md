@@ -58,7 +58,7 @@
 
 ## Implementation Tasks
 
-[Phased sequential tasks; check them off (`- [x]`) as they land. Sizing and the task contract are defined in `/design-plan` Step 4: 1 phase = 1 PR with 2–4 tasks, each task = one commit with `Files:` / `Test:` / `Done when:`. Phases scheduled later from review follow-ups are appended with the next number; existing phases are never renumbered.]
+[Phased sequential tasks; check them off (`- [x]`) as they land. Sizing and the task contract are defined in `/bs-plan` Step 4: 1 phase = 1 PR with 2–4 tasks, each task = one commit with `Files:` / `Test:` / `Done when:`. Phases scheduled later from review follow-ups are appended with the next number; existing phases are never renumbered.]
 
 ### Phase 1: [Subsystem or Capability]
 - [ ] Task 1.1: [Implement core data structures / types]

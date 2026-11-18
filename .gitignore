@@ -71,7 +71,7 @@ docs/superpowers/
 .tabnine/
 # generic agent session files
 *.agent-session
-# throwaway probes written by /design-plan and /dev-loop reviewers
+# throwaway probes written by /bs-plan and /bs-loop reviewers
 .probes/
 
 # Tool-specific session & memory directories — only session/state subpaths, so
