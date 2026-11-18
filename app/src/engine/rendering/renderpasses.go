@@ -623,14 +623,14 @@ func (r *Renderer) blurImage(src *Texture, toScratch, fromScratch GPUBindGroup, 
 		r.NextObject()
 		r.ObjectParams(0, float32(i+1)*radius, 0, 0, 0)
 		r.ComputeObjectOffset(pass)
-		pass.dispatchWorkgroups(groupsX, groupsY, 1)
+		pass.dispatchWorkgroups(float64(groupsX), float64(groupsY), 1)
 	}
 	if iterations%2 != 0 {
 		pass.setBindGroup(GroupMaterial, fromScratch, noOffsets)
 		r.NextObject()
 		r.ObjectParams(0, blurIdentityOffset, 0, 0, 0)
 		r.ComputeObjectOffset(pass)
-		pass.dispatchWorkgroups(groupsX, groupsY, 1)
+		pass.dispatchWorkgroups(float64(groupsX), float64(groupsY), 1)
 	}
 	pass.end()
 }

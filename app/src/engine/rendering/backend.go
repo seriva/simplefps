@@ -286,7 +286,7 @@ func (b *Backend) WriteBuffer(buf GPUBuffer, offset int, data any) {
 	if buf == nil || data == nil {
 		return
 	}
-	b.Device.queue.writeBuffer(buf, offset, toBufferSource(data))
+	b.Device.queue.writeBuffer(buf, float64(offset), toBufferSource(data))
 }
 
 // WriteBufferRange uploads count elements of data starting at element 0.

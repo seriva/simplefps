@@ -93,7 +93,7 @@ func (c *Controls) Init() {
 		if systems.ActiveSettings.IsMobile {
 			return // no tap-to-shoot on mobile
 		}
-		if e.target == nil || e.target.tagName == nil || strings.ToUpper(e.target.tagName) != "BODY" {
+		if e.target == nil || any(e.target.tagName) == nil || e.target.tagName == "" || strings.ToUpper(e.target.tagName) != "BODY" {
 			return
 		}
 		c.Shoot()

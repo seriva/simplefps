@@ -381,7 +381,7 @@ func (r *Renderer) setVertexBuffer(slot int, buf GPUBuffer) {
 	if buf == nil || r.boundVertex[slot] == buf {
 		return
 	}
-	r.Pass.setVertexBuffer(slot, buf)
+	r.Pass.setVertexBuffer(float64(slot), buf)
 	r.boundVertex[slot] = buf
 }
 

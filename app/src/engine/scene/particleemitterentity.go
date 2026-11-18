@@ -197,7 +197,7 @@ func (e *ParticleEmitterEntity) Simulate(r *rendering.Renderer, pass rendering.G
 	r.ObjectParams(0, ms/1000, ms, float32(e.count), particleLUTSize)
 	r.ComputeBindGroup1(pass, e.bindGroup)
 	r.ComputeObjectOffset(pass)
-	pass.dispatchWorkgroups((e.count+particleWorkgroup-1)/particleWorkgroup, 1, 1)
+	pass.dispatchWorkgroups(float64((e.count+particleWorkgroup-1)/particleWorkgroup), 1, 1)
 }
 
 // Draw issues one instanced draw of the billboard quad over every spawned

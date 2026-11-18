@@ -186,7 +186,7 @@ func (s *StateManager) Init() {
 		stateStr := strings.ToUpper(e.detail.state)
 		if stateStr == "MENU" {
 			name := ""
-			if e.detail.menu != nil {
+			if any(e.detail.menu) != nil && e.detail.menu != "" {
 				name = e.detail.menu
 			}
 			menu, ok := menuFromName(name)

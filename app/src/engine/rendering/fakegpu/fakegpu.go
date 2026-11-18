@@ -156,8 +156,10 @@ func (p *FakeRenderPass) setPipeline(pipeline any) {
 
 func (p *FakeRenderPass) setBindGroup(index int, bg any, offsets any) {
 	p.dev.SetBindGroupCalls++
-	if index == 2 && offsets != nil && offsets.length.(int) > 0 {
-		p.objectOffset = offsets[0].(int)
+	if index == 2 {
+		if offs, ok := offsets.([]int); ok && len(offs) > 0 {
+			p.objectOffset = offs[0]
+		}
 	}
 	if index == 1 && bg != nil {
 		p.group1 = bg.label.(string)
@@ -205,8 +207,10 @@ func (p *FakeComputePass) setPipeline(pipeline any) {
 }
 
 func (p *FakeComputePass) setBindGroup(index int, bg any, offsets any) {
-	if index == 2 && offsets != nil && offsets.length.(int) > 0 {
-		p.objectOffset = offsets[0].(int)
+	if index == 2 {
+		if offs, ok := offsets.([]int); ok && len(offs) > 0 {
+			p.objectOffset = offs[0]
+		}
 	}
 	if index == 1 && bg != nil {
 		p.group1 = bg.label.(string)

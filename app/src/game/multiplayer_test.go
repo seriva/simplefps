@@ -29,10 +29,22 @@ func (c *fakeConn) on(event string, handler any) { c.handlers[event] = handler }
 func (c *fakeConn) send(data any)                { c.sent = append(c.sent, data) }
 func (c *fakeConn) close()                       { c.closed = true }
 
+func callHandler(h any, arg any) {
+	switch fn := h.(type) {
+	case func():
+		fn()
+	case func(any):
+		fn(arg)
+	case func(string):
+		fn(arg.(string))
+	case func(systems.PeerDataConnection):
+		fn(arg.(systems.PeerDataConnection))
+	}
+}
+
 func (c *fakeConn) emit(event string, arg any) {
-	h := c.handlers[event]
-	if h != nil {
-		h(arg)
+	if h := c.handlers[event]; h != nil {
+		callHandler(h, arg)
 	}
 }
 
@@ -57,9 +69,8 @@ func (p *fakePeer) connect(peerID string, options any) any {
 }
 
 func (p *fakePeer) emit(event string, arg any) {
-	h := p.handlers[event]
-	if h != nil {
-		h(arg)
+	if h := p.handlers[event]; h != nil {
+		callHandler(h, arg)
 	}
 }
 
@@ -244,8 +255,8 @@ async func TestMultiplayerHostFlow(t *testing.T) {
 	if len(conn.sent) != 1 {
 		t.Fatalf("expected 1 broadcast, got %d", len(conn.sent))
 	}
-	pkt := conn.sent[0]
-	players := pkt.payload.players
+	pkt := conn.sent[0].(map[string]any)
+	players := pkt["payload"].players
 	if pkt["type"] != systems.NetMsgState || players.length != 2 {
 		t.Fatalf("unexpected STATE packet")
 	}
@@ -317,13 +328,13 @@ async func TestMultiplayerJoinFlow(t *testing.T) {
 	if len(conn.sent) != 1 {
 		t.Fatalf("expected 1 throttled POS packet, got %d", len(conn.sent))
 	}
-	pkt := conn.sent[0]
-	if pkt["type"] != systems.NetMsgPosition || pkt.payload.pos[0] != 5 || pkt.payload.pos[2] != 7 {
+	pkt := conn.sent[0].(map[string]any)
+	if pkt["type"] != systems.NetMsgPosition || pkt["payload"].pos[0] != 5 || pkt["payload"].pos[2] != 7 {
 		t.Error("client must send the camera position")
 	}
 	cam.Position.Set(8, 6, 7)
 	mp.UpdateAt(0.016, 1100)
-	if len(conn.sent) != 2 || conn.sent[1].payload != conn.sent[0].payload || pkt.payload.pos[0] != 8 {
+	if len(conn.sent) != 2 || conn.sent[1].payload != conn.sent[0].payload || pkt["payload"].pos[0] != 8 {
 		t.Error("client must reuse and refresh the POS payload")
 	}
 

@@ -14,13 +14,13 @@ var coreResources = []string{"resources.list"}
 
 // initEngine wraps the callback-based engine.Init in a Promise.
 func initEngine() any {
-	return Reflect.construct(Promise, []any{func(resolve any, reject any) {
+	return Reflect.construct(Promise, []any{func(resolve func(any), reject any) {
 		engine.Init(func() { resolve(nil) })
 	}})
 }
 
 func sleep(ms int) any {
-	return Reflect.construct(Promise, []any{func(resolve any, reject any) {
+	return Reflect.construct(Promise, []any{func(resolve func(any), reject any) {
 		setTimeout(func() { resolve(nil) }, ms)
 	}})
 }

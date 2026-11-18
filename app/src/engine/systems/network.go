@@ -50,12 +50,12 @@ func newPeerOptions() any {
 // deferred pairs a pending Promise with its resolve function.
 type deferred struct {
 	promise any
-	resolve any
+	resolve func(any)
 }
 
 func newDeferred() *deferred {
 	d := &deferred{}
-	d.promise = Reflect.construct(Promise, []any{func(res any, rej any) {
+	d.promise = Reflect.construct(Promise, []any{func(res func(any), rej any) {
 		d.resolve = res
 	}})
 	return d
@@ -185,11 +185,12 @@ func (n *Network) handleClientConnection(conn PeerDataConnection) {
 	}
 
 	conn.on("data", func(data any) {
-		if data == nil || data["type"] != NetMsgPosition {
+		pkt, ok := data.(map[string]any)
+		if !ok || pkt["type"] != NetMsgPosition {
 			return
 		}
 		if n.OnPeerPosition != nil {
-			n.OnPeerPosition(conn.peer, data.payload)
+			n.OnPeerPosition(conn.peer, pkt["payload"])
 		}
 	})
 	conn.on("close", func() {
@@ -253,11 +254,12 @@ func (n *Network) connectToHost(hostID string, finish func(ok bool)) {
 		finish(true)
 	})
 	conn.on("data", func(data any) {
-		if data == nil || data["type"] != NetMsgState {
+		pkt, ok := data.(map[string]any)
+		if !ok || pkt["type"] != NetMsgState {
 			return
 		}
 		if n.OnStateUpdate != nil {
-			n.OnStateUpdate(data.payload)
+			n.OnStateUpdate(pkt["payload"])
 		}
 	})
 	conn.on("close", func() {

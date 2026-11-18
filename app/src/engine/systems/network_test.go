@@ -19,10 +19,22 @@ func (c *fakeConn) on(event string, handler any) { c.handlers[event] = handler }
 func (c *fakeConn) send(data any)                { c.sent = append(c.sent, data) }
 func (c *fakeConn) close()                       { c.closed = true }
 
+func callHandler(h any, arg any) {
+	switch fn := h.(type) {
+	case func():
+		fn()
+	case func(any):
+		fn(arg)
+	case func(string):
+		fn(arg.(string))
+	case func(PeerDataConnection):
+		fn(arg.(PeerDataConnection))
+	}
+}
+
 func (c *fakeConn) emit(event string, arg any) {
-	h := c.handlers[event]
-	if h != nil {
-		h(arg)
+	if h := c.handlers[event]; h != nil {
+		callHandler(h, arg)
 	}
 }
 
@@ -49,9 +61,8 @@ func (p *fakePeer) connect(peerID string, options any) any {
 }
 
 func (p *fakePeer) emit(event string, arg any) {
-	h := p.handlers[event]
-	if h != nil {
-		h(arg)
+	if h := p.handlers[event]; h != nil {
+		callHandler(h, arg)
 	}
 }
 
@@ -172,8 +183,8 @@ async func TestNetworkHostRelaysPositionsAndBroadcasts(t *testing.T) {
 	if len(c1.sent) != 1 || len(c2.sent) != 0 {
 		t.Fatalf("broadcast reached %d/%d connections", len(c1.sent), len(c2.sent))
 	}
-	pkt := c1.sent[0]
-	if pkt["type"] != NetMsgState || pkt.payload != state {
+	pkt := c1.sent[0].(map[string]any)
+	if pkt["type"] != NetMsgState || pkt["payload"] != state {
 		t.Error("broadcast packet must wrap the state in a STATE message")
 	}
 
@@ -223,7 +234,8 @@ async func TestNetworkClientConnectsAndSendsPositions(t *testing.T) {
 
 	pos := map[string]any{"pos": []float64{1, 2, 3}}
 	n.SendPosition(pos)
-	if len(conn.sent) != 1 || conn.sent[0]["type"] != NetMsgPosition || conn.sent[0].payload != pos {
+	posPkt := conn.sent[0].(map[string]any)
+	if len(conn.sent) != 1 || posPkt["type"] != NetMsgPosition || posPkt["payload"] != pos {
 		t.Error("SendPosition must wrap the payload in a POS message")
 	}
 

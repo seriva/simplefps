@@ -181,7 +181,7 @@ func (m *Mesh) drawGroups(r *Renderer, applyMaterial bool, renderMode MaterialMo
 			r.usePipeline(r.pipeline)
 		}
 		r.setIndexBuffer(idx.IndexBuffer)
-		r.Pass.drawIndexed(len(idx.Array), 1, 0, 0, 0)
+		r.Pass.drawIndexed(float64(len(idx.Array)), 1, 0, 0, 0)
 		r.Stats.DrawCalls++
 	}
 }
@@ -198,7 +198,7 @@ func (m *Mesh) DrawInstanced(r *Renderer, instances GPUBuffer, count int) {
 	r.bindObject()
 	r.usePipeline(r.pipeline)
 	r.setIndexBuffer(m.Indices[0].IndexBuffer)
-	r.Pass.drawIndexed(len(m.Indices[0].Array), 1*count, 0, 0, 0)
+	r.Pass.drawIndexed(float64(len(m.Indices[0].Array)), float64(count), 0, 0, 0)
 	r.Stats.DrawCalls++
 }
 
@@ -217,7 +217,7 @@ func (m *Mesh) drawWireframeBuffers(r *Renderer) {
 	r.usePipeline(r.pipeline)
 	for i := 0; i < len(m.WireframeBuffers); i++ {
 		r.setIndexBuffer(m.WireframeBuffers[i].Buffer)
-		r.Pass.drawIndexed(m.WireframeBuffers[i].Count, 1, 0, 0, 0)
+		r.Pass.drawIndexed(float64(m.WireframeBuffers[i].Count), 1, 0, 0, 0)
 		r.Stats.DrawCalls++
 	}
 }
