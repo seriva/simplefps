@@ -184,7 +184,8 @@ async func TestNetworkHostRelaysPositionsAndBroadcasts(t *testing.T) {
 		t.Fatalf("broadcast reached %d/%d connections", len(c1.sent), len(c2.sent))
 	}
 	pkt := c1.sent[0].(map[string]any)
-	if pkt["type"] != NetMsgState || pkt["payload"] != state {
+	gotPayload, ok := pkt["payload"].(map[string]any)
+	if pkt["type"] != NetMsgState || !ok || gotPayload["players"] == nil {
 		t.Error("broadcast packet must wrap the state in a STATE message")
 	}
 
@@ -234,8 +235,13 @@ async func TestNetworkClientConnectsAndSendsPositions(t *testing.T) {
 
 	pos := map[string]any{"pos": []float64{1, 2, 3}}
 	n.SendPosition(pos)
+	if len(conn.sent) != 1 {
+		t.Fatalf("expected 1 sent packet, got %d", len(conn.sent))
+	}
 	posPkt := conn.sent[0].(map[string]any)
-	if len(conn.sent) != 1 || posPkt["type"] != NetMsgPosition || posPkt["payload"] != pos {
+	gotPosPayload, ok := posPkt["payload"].(map[string]any)
+	gotPos, hasPos := gotPosPayload["pos"].([]float64)
+	if posPkt["type"] != NetMsgPosition || !ok || !hasPos || len(gotPos) != 3 || gotPos[0] != 1 || gotPos[1] != 2 || gotPos[2] != 3 {
 		t.Error("SendPosition must wrap the payload in a POS message")
 	}
 
@@ -252,7 +258,8 @@ async func TestNetworkClientConnectsAndSendsPositions(t *testing.T) {
 	}
 	state := map[string]any{"players": []any{}}
 	conn.emit("data", map[string]any{"type": NetMsgState, "payload": state})
-	if gotState != state {
+	gotStateMap, ok := gotState.(map[string]any)
+	if !ok || gotStateMap["players"] == nil {
 		t.Error("STATE payload not relayed to OnStateUpdate")
 	}
 

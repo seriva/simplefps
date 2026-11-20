@@ -57,8 +57,6 @@ test-results/
 # (git only treats a leading # as a comment; trailing text becomes part of the pattern)
 # Claude Code superpowers
 docs/superpowers/
-# Cursor session state (.cursor/rules/ stays committable)
-.cursor/sessions/
 # git worktrees
 .worktrees/
 # Aider
