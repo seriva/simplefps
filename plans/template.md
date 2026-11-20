@@ -21,7 +21,7 @@
 
 ## Scope Rule & Boundary Matrix
 
-[Define explicit rules for what is allowed in this feature versus what is rejected, and why. This table is the single record of what the plan will not do: every `Excluded` row states its reason so scope creep is stopped before coding and the final audit can check nothing excluded leaked in. The two *(optional)* rows only apply to projects with multiple targets or runtimes (compilers, cross-platform libraries); delete them otherwise.]
+[Define explicit rules for what is allowed in this feature versus what is rejected, and why. This table is the single record of what the plan will not do: every `Excluded` row states its reason so scope creep is stopped before coding. The two *(optional)* rows only apply to projects with multiple targets or runtimes (compilers, cross-platform libraries); delete them otherwise.]
 
 | Category | Rule | Examples / Members | Reason (Excluded rows) |
 |---|---|---|---|
@@ -58,7 +58,7 @@
 
 ## Implementation Tasks
 
-[Phased sequential tasks; check them off (`- [x]`) as they land. Sizing and the task contract are defined in `/bs-plan` Step 4: 1 phase = 1 PR with 2–4 tasks, each task = one commit with `Files:` / `Test:` / `Done when:`. Phases scheduled later from review follow-ups are appended with the next number; existing phases are never renumbered.]
+[Phased sequential tasks; check them off (`- [x]`) as they land. Sizing and the task contract are defined in `/bs-plan` Step 4: 1 phase = 1 PR with 2–4 tasks, each task = one commit with `Files:` / `Test:` / `Done when:`.]
 
 ### Phase 1: [Subsystem or Capability]
 - [ ] Task 1.1: [Implement core data structures / types]

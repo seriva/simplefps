@@ -15,7 +15,7 @@
 - **Docs:** `README.md` and `docs/` describe how to use the project as it is now: start from what the reader wants to do, show a short example, then the details. No change history (that is the changelog), no plan or task references, and no implementation notes outside docs that are explicitly about internals. Generated tables are fine.
 - **Verify:** Run tests/compiler or ask user to visually verify before concluding/commit/PR. Never assume.
 - **Blockers:** Stop and ask user on ambiguity; do not guess.
-- **Scope:** Stick strictly to requested task/plan. No unrequested features/refactoring. A defect with the same root cause as the one being fixed (the same mechanism reached through another path) is part of the task: fix the mechanism once, not each path. A real bug with a different root goes in `plans/follow-ups.md` with a one-line repro and its root cause, not into the diff.
+- **Scope:** Stick strictly to requested task/plan. No unrequested features/refactoring. A defect with the same root cause as the one being fixed (the same mechanism reached through another path) is part of the task: fix the mechanism once, not each path. Other real bugs go in `plans/follow-ups.md` with a one-line repro, not into the diff.
 - **Dependencies:** Use existing packages/standard lib. Ask before adding new dependencies.
 - **Stuck:** If same approach fails twice, stop and ask user. Do not retry blindly.
 - **Code Preservation:** Do not delete existing comments, docstrings, or unrelated code unless explicitly instructed.
