@@ -486,17 +486,17 @@ css menuControlsStyle() {
 	}
 }
 
-templ MenuView() {
+templ MenuView(visible *gom.Signal[bool], header *gom.Signal[string], dialogVisible *gom.Signal[bool], dialogTitle, dialogBody *gom.Signal[string]) {
 	<div id="ui" ref="ui" class={ uiStyle() }>
-		<div id="menu-backdrop" ref="backdrop" class={ menuBackdropStyle() }></div>
-		<div id="menu-base" ref="menuBase" class={ menuBaseStyle() }>
-			<div id="menu-header" ref="header"></div>
+		<div id="menu-backdrop" class={ visibleClass(menuBackdropStyle(), visible.Get()) }></div>
+		<div id="menu-base" class={ visibleClass(menuBaseStyle(), visible.Get()) }>
+			<div id="menu-header">{ header }</div>
 			<div id="menu-controls" ref="controls" class={ menuControlsStyle() }></div>
 		</div>
-		<div id="dialog-overlay" ref="dialogOverlay" class={ dialogOverlayStyle() }>
+		<div id="dialog-overlay" class={ visibleClass(dialogOverlayStyle(), dialogVisible.Get()) }>
 			<div class="dialog-box">
-				<div class="dialog-header" id="dialog-header" ref="dialogHeader"></div>
-				<div class="dialog-body" id="dialog-body" ref="dialogBody"></div>
+				<div class="dialog-header" id="dialog-header">{ dialogTitle }</div>
+				<div class="dialog-body" id="dialog-body">{ dialogBody }</div>
 				<div class="dialog-footer" id="dialog-footer">
 					<button class="dialog-btn cancel" id="dialog-btn-no" ref="dialogBtnNo">{ Translate("NO") }</button>
 					<button class="dialog-btn confirm" id="dialog-btn-yes" ref="dialogBtnYes">{ Translate("YES") }</button>

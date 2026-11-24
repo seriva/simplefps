@@ -1,7 +1,6 @@
 package systems
 
 import (
-	"gofront/dom"
 	"math"
 	"strconv"
 
@@ -9,11 +8,21 @@ import (
 	"js:./interop.d.ts"
 )
 
-// StatsOverlay renders the debug FPS / scene overlay using cached DOM
-// references; text is written every frame, with fps and memory sampled
+func statsItemClass(visible bool) string {
+	if visible {
+		return "stats-item visible"
+	}
+	return "stats-item"
+}
+
+// StatsOverlay renders the debug FPS / scene overlay using reactive signals;
+// text is written every frame while visible, with fps and memory sampled
 // once per second.
 type StatsOverlay struct {
-	visible    bool
+	visible    *gom.Signal[bool]
+	basicText  *gom.Signal[string]
+	sceneText  *gom.Signal[string]
+	posText    *gom.Signal[string]
 	mounted    bool
 	started    bool
 	frames     int
@@ -26,16 +35,16 @@ type StatsOverlay struct {
 	meshCount  int
 	lightCount int
 	triCount   int
-
-	items   []dom.HTMLElement
-	basicEl dom.HTMLElement
-	sceneEl dom.HTMLElement
-	posEl   dom.HTMLElement
 }
 
 // NewStatsOverlay creates a hidden stats overlay.
 func NewStatsOverlay() *StatsOverlay {
-	return &StatsOverlay{items: make([]dom.HTMLElement, 0)}
+	return &StatsOverlay{
+		visible:   gom.NewSignal(false),
+		basicText: gom.NewSignal(""),
+		sceneText: gom.NewSignal(""),
+		posText:   gom.NewSignal(""),
+	}
 }
 
 // Mount attaches the overlay markup and styles to the document once.
@@ -43,21 +52,13 @@ func (s *StatsOverlay) Mount() {
 	if document == nil || s.mounted {
 		return
 	}
-	refs := map[string]any{}
-	gom.MountTo("body", StatsView(), refs)
-	s.items = append(s.items, refs["basicItem"].(dom.HTMLElement))
-	s.items = append(s.items, refs["sceneItem"].(dom.HTMLElement))
-	s.items = append(s.items, refs["posItem"].(dom.HTMLElement))
-	s.basicEl = refs["basic"].(dom.HTMLElement)
-	s.sceneEl = refs["scene"].(dom.HTMLElement)
-	s.posEl = refs["pos"].(dom.HTMLElement)
+	gom.MountTo("body", StatsView(s.visible, s.basicText, s.sceneText, s.posText))
 	s.mounted = true
-	s.applyVisibility()
 }
 
 // IsVisible reports whether the overlay is shown.
 func (s *StatsOverlay) IsVisible() bool {
-	return s.visible
+	return s.visible.Get()
 }
 
 // Toggle shows or hides the overlay and resets counters when shown.
@@ -66,28 +67,13 @@ func (s *StatsOverlay) Toggle(show bool) bool {
 		s.frames = 0
 		s.started = false
 	}
-	s.visible = show
-	s.applyVisibility()
+	s.visible.Set(show)
 	return show
-}
-
-func (s *StatsOverlay) applyVisibility() {
-	for i := 0; i < len(s.items); i++ {
-		el := s.items[i]
-		if el == nil {
-			continue
-		}
-		if s.visible {
-			el.classList.add("visible")
-		} else {
-			el.classList.remove("visible")
-		}
-	}
 }
 
 // SetRenderStats records per-frame scene metrics; text is flushed by Update.
 func (s *StatsOverlay) SetRenderStats(meshCount, lightCount, triangleCount int) {
-	if !s.visible {
+	if !s.visible.Get() {
 		return
 	}
 	s.meshCount = meshCount
@@ -103,7 +89,7 @@ func (s *StatsOverlay) FPS() int {
 // Update counts a frame at time now (ms) and refreshes the overlay text.
 // camPos may be nil.
 func (s *StatsOverlay) Update(now float64, camPos *mathx.Vec3) {
-	if !s.visible {
+	if !s.visible.Get() {
 		return
 	}
 	if !s.started {
@@ -117,20 +103,16 @@ func (s *StatsOverlay) Update(now float64, camPos *mathx.Vec3) {
 
 	// Everything refreshes every frame except fps and memory, which are
 	// sampled once per second.
-	if s.basicEl != nil {
-		s.basicEl.textContent = strconv.Itoa(s.lastFPS) + "fps - " +
-			strconv.Itoa(int(math.Round(s.frameTime))) + "ms - " +
-			strconv.Itoa(s.memMB) + "mb"
-	}
-	if s.sceneEl != nil {
-		s.sceneEl.textContent = "m:" + strconv.Itoa(s.meshCount) +
-			" - l:" + strconv.Itoa(s.lightCount) +
-			" - t:" + strconv.Itoa(s.triCount)
-	}
-	if s.posEl != nil && camPos != nil {
-		s.posEl.textContent = "xyz:" + strconv.Itoa(int(math.Round(float64(camPos.X)))) +
+	s.basicText.Set(strconv.Itoa(s.lastFPS) + "fps - " +
+		strconv.Itoa(int(math.Round(s.frameTime))) + "ms - " +
+		strconv.Itoa(s.memMB) + "mb")
+	s.sceneText.Set("m:" + strconv.Itoa(s.meshCount) +
+		" - l:" + strconv.Itoa(s.lightCount) +
+		" - t:" + strconv.Itoa(s.triCount))
+	if camPos != nil {
+		s.posText.Set("xyz:" + strconv.Itoa(int(math.Round(float64(camPos.X)))) +
 			"," + strconv.Itoa(int(math.Round(float64(camPos.Y)))) +
-			"," + strconv.Itoa(int(math.Round(float64(camPos.Z))))
+			"," + strconv.Itoa(int(math.Round(float64(camPos.Z)))))
 	}
 
 	if now-s.lastUpdate < 1000 {

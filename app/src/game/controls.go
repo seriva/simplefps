@@ -31,7 +31,7 @@ func NewControls(weapons *WeaponSystem) *Controls {
 
 // CanUseGameplayInput reports whether gameplay input is accepted.
 func CanUseGameplayInput() bool {
-	return GlobalState.Current == StateGame && !systems.GlobalConsole.IsVisible()
+	return GlobalState.Current() == StateGame && !systems.GlobalConsole.IsVisible()
 }
 
 // HandleEscape toggles between the main menu and the game.
@@ -39,9 +39,9 @@ func (c *Controls) HandleEscape() {
 	if systems.GlobalConsole.IsVisible() {
 		return
 	}
-	if GlobalState.Current == StateGame {
+	if GlobalState.Current() == StateGame {
 		GlobalState.EnterMenu(MenuMain)
-	} else if GlobalState.Current == StateMenu {
+	} else if GlobalState.Current() == StateMenu {
 		GlobalState.EnterGame()
 	}
 }
@@ -72,7 +72,7 @@ func (c *Controls) Init() {
 		return
 	}
 	c.onPointerLockChange = func(e dom.Event) {
-		if document.pointerLockElement == nil && GlobalState.Current != StateMenu {
+		if document.pointerLockElement == nil && GlobalState.Current() != StateMenu {
 			GlobalState.EnterMenu(MenuMain)
 		}
 	}
@@ -80,7 +80,7 @@ func (c *Controls) Init() {
 		GlobalState.EnterGame()
 	}
 	c.onWindowFocus = func(e dom.Event) {
-		if GlobalState.Current != StateMenu {
+		if GlobalState.Current() != StateMenu {
 			GlobalState.EnterMenu(MenuMain)
 		}
 	}

@@ -2,15 +2,15 @@ package game
 
 import (
 	"gofront/dom"
-	"strconv"
 )
 
-// HUD represents the cached direct DOM in-game heads-up display.
+// HUD represents the reactive in-game heads-up display.
 type HUD struct {
-	hudEl      dom.HTMLElement
-	healthEl   dom.HTMLElement
-	armorEl    dom.HTMLElement
-	ammoEl     dom.HTMLElement
+	visible *gom.Signal[bool]
+	health  *gom.Signal[int]
+	armor   *gom.Signal[int]
+	ammo    *gom.Signal[int]
+
 	healthIcon dom.HTMLElement
 	armorIcon  dom.HTMLElement
 	ammoIcon   dom.HTMLElement
@@ -19,32 +19,30 @@ type HUD struct {
 	lastHP    int
 	lastArmor int
 	lastAmmo  int
-	visible   bool
 	mounted   bool
 }
 
 // NewHUD creates an unmounted HUD instance.
 func NewHUD() *HUD {
 	return &HUD{
+		visible:   gom.NewSignal(false),
+		health:    gom.NewSignal(100),
+		armor:     gom.NewSignal(0),
+		ammo:      gom.NewSignal(50),
 		lastHP:    -1,
 		lastArmor: -1,
 		lastAmmo:  -1,
-		visible:   false,
 	}
 }
 
-// Mount mounts the HUD styles and DOM elements and caches element references.
+// Mount mounts the HUD styles and DOM elements and caches imperative icon refs.
 func (h *HUD) Mount(isMobile bool) {
 	if document == nil || h.mounted {
 		return
 	}
 	refs := map[string]any{}
-	gom.MountTo("body", HUDView(isMobile), refs)
+	gom.MountTo("body", HUDView(isMobile, h.visible, h.health, h.armor, h.ammo), refs)
 
-	h.hudEl      = refs["hud"].(dom.HTMLElement)
-	h.healthEl   = refs["healthEl"].(dom.HTMLElement)
-	h.armorEl    = refs["armorEl"].(dom.HTMLElement)
-	h.ammoEl     = refs["ammoEl"].(dom.HTMLElement)
 	h.healthIcon = refs["healthIcon"].(dom.HTMLElement)
 	h.armorIcon  = refs["armorIcon"].(dom.HTMLElement)
 	h.ammoIcon   = refs["ammoIcon"].(dom.HTMLElement)
@@ -74,27 +72,21 @@ func (h *HUD) Mount(isMobile bool) {
 // Update performs high-frequency updates on player stats with 0 allocations when values are unchanged.
 func (h *HUD) Update(hp, armor, ammo int) {
 	if hp != h.lastHP {
-		if h.healthEl != nil {
-			h.healthEl.textContent = strconv.Itoa(hp)
-		}
+		h.health.Set(hp)
 		if hp > h.lastHP && h.lastHP != -1 {
 			h.animateIcon(h.healthIcon)
 		}
 		h.lastHP = hp
 	}
 	if armor != h.lastArmor {
-		if h.armorEl != nil {
-			h.armorEl.textContent = strconv.Itoa(armor)
-		}
+		h.armor.Set(armor)
 		if armor > h.lastArmor && h.lastArmor != -1 {
 			h.animateIcon(h.armorIcon)
 		}
 		h.lastArmor = armor
 	}
 	if ammo != h.lastAmmo {
-		if h.ammoEl != nil {
-			h.ammoEl.textContent = strconv.Itoa(ammo)
-		}
+		h.ammo.Set(ammo)
 		if ammo > h.lastAmmo && h.lastAmmo != -1 {
 			h.animateIcon(h.ammoIcon)
 		}
@@ -117,19 +109,12 @@ func (h *HUD) animateIcon(iconEl dom.HTMLElement) {
 
 // Toggle changes HUD visibility.
 func (h *HUD) Toggle(show bool) {
-	h.visible = show
-	if h.hudEl != nil {
-		if show {
-			h.hudEl.classList.add("visible")
-		} else {
-			h.hudEl.classList.remove("visible")
-		}
-	}
+	h.visible.Set(show)
 }
 
 // IsVisible returns whether the HUD is active.
 func (h *HUD) IsVisible() bool {
-	return h.visible
+	return h.visible.Get()
 }
 
 // GlobalHUD is the singleton HUD instance.

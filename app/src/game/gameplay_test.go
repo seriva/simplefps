@@ -615,7 +615,7 @@ func TestGameSpawnAndUpdate(t *testing.T) {
 	g.Player.AddAmmo(10)
 
 	// Menu state: no simulation, but the scene still updates.
-	GlobalState.Current = StateMenu
+	GlobalState.State.Set(StateMenu)
 	g.accum = 0.05
 	g.Update(16)
 	if g.accum != 0 {
@@ -623,7 +623,7 @@ func TestGameSpawnAndUpdate(t *testing.T) {
 	}
 
 	// Game state: fixed steps consume the accumulator.
-	GlobalState.Current = StateGame
+	GlobalState.State.Set(StateGame)
 	startY := g.Controller.Position.Y
 	g.Update(50) // 50ms -> 6 fixed steps of 1/120s
 	if g.accum >= FixedDT {
@@ -651,7 +651,7 @@ func TestGameSpawnAndUpdate(t *testing.T) {
 		t.Error("unlock query mismatch")
 	}
 
-	GlobalState.Current = StateMenu
+	GlobalState.State.Set(StateMenu)
 	g.Jump() // guarded: no panic outside game state
 	g.Dispose()
 }
@@ -669,14 +669,14 @@ func TestControlsGuards(t *testing.T) {
 	w.switchPhase = SwitchNone
 	c := NewControls(w)
 
-	GlobalState.Current = StateMenu
+	GlobalState.State.Set(StateMenu)
 	c.Shoot()
 	c.Scroll(-1)
 	if ps.Count() != 0 || w.IsSwitching() {
 		t.Error("controls must be inert outside the game state")
 	}
 
-	GlobalState.Current = StateGame
+	GlobalState.State.Set(StateGame)
 	c.Shoot()
 	if ps.Count() != 1 {
 		t.Error("shoot should fire in game state")
@@ -702,7 +702,7 @@ func TestControlsGuards(t *testing.T) {
 			t.Error("controls must not initialise without a DOM")
 		}
 	}
-	GlobalState.Current = StateMenu
+	GlobalState.State.Set(StateMenu)
 }
 
 // fakeEvent builds a stand-in DOM event; see fakeTarget.
@@ -726,7 +726,7 @@ func TestControlsHandlers(t *testing.T) {
 	c := NewControls(w)
 	c.Init()
 	defer c.Dispose()
-	GlobalState.Current = StateGame
+	GlobalState.State.Set(StateGame)
 
 	prevented := 0
 	preventDefault := func() { prevented++ }
@@ -764,10 +764,10 @@ func TestControlsHandlers(t *testing.T) {
 	}
 
 	c.onKeyUp(fakeEvent(map[string]any{"key": "Escape", "preventDefault": preventDefault}))
-	if GlobalState.Current != StateMenu || prevented != 2 {
-		t.Errorf("escape: state=%v prevented=%d", GlobalState.Current, prevented)
+	if GlobalState.Current() != StateMenu || prevented != 2 {
+		t.Errorf("escape: state=%v prevented=%d", GlobalState.Current(), prevented)
 	}
-	GlobalState.Current = StateMenu
+	GlobalState.State.Set(StateMenu)
 }
 
 func TestUpdateManagerWithoutServiceWorker(t *testing.T) {
@@ -777,10 +777,10 @@ func TestUpdateManagerWithoutServiceWorker(t *testing.T) {
 		t.Error("no update should be pending")
 	}
 	u.Force() // no registration: no-op
-	GlobalState.Current = StateMenu
+	GlobalState.State.Set(StateMenu)
 	u.Update()
-	if GlobalState.Current != StateGame {
+	if GlobalState.Current() != StateGame {
 		t.Error("Update without a waiting worker should enter the game")
 	}
-	GlobalState.Current = StateMenu
+	GlobalState.State.Set(StateMenu)
 }

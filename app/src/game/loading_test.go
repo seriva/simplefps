@@ -57,14 +57,30 @@ func TestLoadingMountAndForce(t *testing.T) {
 	}
 }
 
-func TestLoadingRefsBound(t *testing.T) {
+func TestLoadingReactiveClass(t *testing.T) {
 	if document == nil {
 		return
 	}
 	resetDOM()
 	lm := NewLoadingManager()
 	lm.Mount()
-	if lm.loadingEl == nil {
-		t.Error("LoadingManager ref \"loading\" not bound after Mount")
+	el := document.getElementById("loading")
+	if el == nil {
+		t.Fatal("LoadingManager #loading element missing after Mount")
+	}
+	if el.classList.contains("visible") {
+		t.Error("#loading should start without visible class")
+	}
+	lm.Toggle(true)
+	if !el.classList.contains("visible") {
+		t.Error("#loading should gain visible class on Toggle(true)")
+	}
+	lm.Toggle(false)
+	if el.classList.contains("visible") {
+		t.Error("#loading should drop visible class on Toggle(false)")
+	}
+	lm.Force()
+	if !el.classList.contains("visible") {
+		t.Error("#loading should gain visible class on Force()")
 	}
 }

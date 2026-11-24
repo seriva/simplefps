@@ -170,7 +170,7 @@ func TestVirtualInputToggle(t *testing.T) {
 
 	// Desktop mode (default): virtual input should be a no-op.
 	im.ToggleVirtualInput(true)
-	if im.virtualInputEl != nil {
+	if im.virtualMounted {
 		t.Error("ToggleVirtualInput should be a no-op on desktop")
 	}
 
@@ -180,24 +180,36 @@ func TestVirtualInputToggle(t *testing.T) {
 	defer func() { ActiveSettings.IsMobile = origMobile }()
 
 	// Without DOM, MountVirtualInput should be safe.
+	if document != nil {
+		document.body.innerHTML = ""
+	}
 	im.MountVirtualInput()
-	if document == nil && im.virtualInputEl != nil {
-		t.Error("MountVirtualInput should not set virtualInputEl without DOM")
+	if document == nil && im.virtualMounted {
+		t.Error("MountVirtualInput should not mount without DOM")
 	}
 
 	if document != nil {
 		im.MountVirtualInput()
-		if im.virtualInputEl == nil {
-			t.Error("Expected virtualInputEl after MountVirtualInput in DOM mode")
+		if !im.virtualMounted {
+			t.Error("Expected virtualMounted after MountVirtualInput in DOM mode")
+		}
+		el := document.getElementById("input")
+		if el == nil {
+			t.Fatal("Expected #input element after MountVirtualInput")
+		}
+		if el.classList.contains("visible") {
+			t.Error("Expected #input to start without visible class")
 		}
 
 		im.ToggleVirtualInput(true)
-		classes := im.virtualInputEl.className
-		if classes == "" {
+		if !el.classList.contains("visible") {
 			t.Error("Expected visible class on virtual input element")
 		}
 
 		im.ToggleVirtualInput(false)
+		if el.classList.contains("visible") {
+			t.Error("Expected visible class removed after ToggleVirtualInput(false)")
+		}
 
 		// Full mobile markup must be present (styles come from app/style.css).
 		for _, id := range []string{"look", "cursor", "joystick-base", "joystick-stick", "btn-shoot", "btn-jump"} {

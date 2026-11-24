@@ -112,8 +112,8 @@ css virtualInputStyle() {
 	}
 }
 
-templ VirtualInputView() {
-	<div id="input" ref="virtualInput" class={ virtualInputStyle() }>
+templ VirtualInputView(visible *gom.Signal[bool]) {
+	<div id="input" class={ virtualInputClass(visible.Get()) }>
 		<div id="joystick-base"></div>
 		<div id="joystick-stick" ref="stick"></div>
 		<div id="btn-shoot" class="action-btn" ref="btnShoot">

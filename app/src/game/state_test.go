@@ -11,18 +11,18 @@ import (
 
 func TestStateTransitionsAndListeners(t *testing.T) {
 	sm := NewStateManager()
-	if sm.Current != StateMenu {
-		t.Errorf("Expected initial state StateMenu, got %v", sm.Current)
+	if sm.Current() != StateMenu {
+		t.Errorf("Expected initial state StateMenu, got %v", sm.Current())
 	}
 
 	var transitions []GameState
-	sm.AddListener(func(state GameState) {
+	unsub := sm.AddListener(func(state GameState) {
 		transitions = append(transitions, state)
 	})
 
 	sm.Transition(StateGame)
-	if sm.Current != StateGame {
-		t.Errorf("Expected state StateGame, got %v", sm.Current)
+	if sm.Current() != StateGame {
+		t.Errorf("Expected state StateGame, got %v", sm.Current())
 	}
 	if len(transitions) != 1 || transitions[0] != StateGame {
 		t.Fatalf("Expected listener to record StateGame, got %v", transitions)
@@ -35,16 +35,20 @@ func TestStateTransitionsAndListeners(t *testing.T) {
 	}
 
 	sm.Pause()
-	if sm.Current != StatePaused {
-		t.Errorf("Expected StatePaused, got %v", sm.Current)
+	if sm.Current() != StatePaused {
+		t.Errorf("Expected StatePaused, got %v", sm.Current())
 	}
 	if len(transitions) != 2 || transitions[1] != StatePaused {
 		t.Fatalf("Expected listener to record StatePaused, got %v", transitions)
 	}
 
+	unsub()
 	sm.Resume()
-	if sm.Current != StateGame {
-		t.Errorf("Expected StateGame after resume, got %v", sm.Current)
+	if sm.Current() != StateGame {
+		t.Errorf("Expected StateGame after resume, got %v", sm.Current())
+	}
+	if len(transitions) != 2 {
+		t.Errorf("Unsubscribed listener should not fire, count=%d", len(transitions))
 	}
 }
 
@@ -76,13 +80,13 @@ func TestStateEnterMenuAndGame(t *testing.T) {
 	sm := NewStateManager()
 
 	sm.EnterGame()
-	if sm.Current != StateGame {
-		t.Errorf("Expected StateGame, got %v", sm.Current)
+	if sm.Current() != StateGame {
+		t.Errorf("Expected StateGame, got %v", sm.Current())
 	}
 
 	sm.EnterMenu(MenuMain)
-	if sm.Current != StateMenu {
-		t.Errorf("Expected StateMenu, got %v", sm.Current)
+	if sm.Current() != StateMenu {
+		t.Errorf("Expected StateMenu, got %v", sm.Current())
 	}
 }
 
@@ -126,18 +130,18 @@ func TestChangeStateEvent(t *testing.T) {
 	defer GlobalState.Dispose()
 
 	dispatchChangeState(map[string]any{"state": "menu", "menu": "SETTINGS_MENU"})
-	if GlobalState.Current != StateMenu || ui.currentMenu != MenuSettings {
-		t.Errorf("menu/SETTINGS_MENU: state=%v menu=%v", GlobalState.Current, ui.currentMenu)
+	if GlobalState.Current() != StateMenu || ui.currentMenu != MenuSettings {
+		t.Errorf("menu/SETTINGS_MENU: state=%v menu=%v", GlobalState.Current(), ui.currentMenu)
 	}
 	dispatchChangeState(map[string]any{"state": "game"})
-	if GlobalState.Current != StateGame {
-		t.Errorf("game: state=%v", GlobalState.Current)
+	if GlobalState.Current() != StateGame {
+		t.Errorf("game: state=%v", GlobalState.Current())
 	}
 	// No detail.menu -> main menu, without a warning.
 	systems.GlobalConsole.AddLog("changestate-marker", "")
 	dispatchChangeState(map[string]any{"state": "MENU"})
-	if GlobalState.Current != StateMenu || ui.currentMenu != MenuMain {
-		t.Errorf("menu without name: state=%v menu=%v", GlobalState.Current, ui.currentMenu)
+	if GlobalState.Current() != StateMenu || ui.currentMenu != MenuMain {
+		t.Errorf("menu without name: state=%v menu=%v", GlobalState.Current(), ui.currentMenu)
 	}
 	if logsSince("changestate-marker", "Unknown menu") {
 		t.Error("menu without name must not warn")

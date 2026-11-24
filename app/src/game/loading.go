@@ -1,21 +1,17 @@
 package game
 
-import (
-	"gofront/dom"
-)
-
 // LoadingManager manages loading screen visibility and counter.
 type LoadingManager struct {
-	loadingEl        dom.HTMLElement
+	visible          *gom.Signal[bool]
 	loadingCount     int
 	forceUntilReload bool
 	mounted          bool
-	visible          bool
 }
 
 // NewLoadingManager creates a new unmounted LoadingManager.
 func NewLoadingManager() *LoadingManager {
 	return &LoadingManager{
+		visible:      gom.NewSignal(false),
 		loadingCount: 0,
 	}
 }
@@ -25,9 +21,7 @@ func (lm *LoadingManager) Mount() {
 	if document == nil || lm.mounted {
 		return
 	}
-	refs := map[string]any{}
-	gom.MountTo("body", LoadingView(), refs)
-	lm.loadingEl = refs["loading"].(dom.HTMLElement)
+	gom.MountTo("body", LoadingView(lm.visible))
 	lm.mounted = true
 }
 
@@ -41,29 +35,18 @@ func (lm *LoadingManager) Toggle(visible bool) {
 	} else if lm.loadingCount > 0 {
 		lm.loadingCount--
 	}
-	shouldBeVisible := lm.loadingCount > 0
-	lm.visible = shouldBeVisible
-	if lm.loadingEl != nil {
-		if shouldBeVisible {
-			lm.loadingEl.classList.add("visible")
-		} else {
-			lm.loadingEl.classList.remove("visible")
-		}
-	}
+	lm.visible.Set(lm.loadingCount > 0)
 }
 
 // Force keeps the loading screen visible permanently until reload.
 func (lm *LoadingManager) Force() {
 	lm.forceUntilReload = true
-	lm.visible = true
-	if lm.loadingEl != nil {
-		lm.loadingEl.classList.add("visible")
-	}
+	lm.visible.Set(true)
 }
 
 // IsVisible returns whether the loading screen is currently showing.
 func (lm *LoadingManager) IsVisible() bool {
-	return lm.visible
+	return lm.visible.Get()
 }
 
 // LoadingCount returns the active number of in-flight resource loads.

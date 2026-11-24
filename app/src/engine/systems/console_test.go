@@ -102,11 +102,25 @@ func TestConsoleToggleAndMount(t *testing.T) {
 	}
 
 	// Mount in test environment (safe in both headless and JSDOM)
+	if document != nil {
+		document.body.innerHTML = ""
+	}
 	cm.Mount()
 	if cm.mounted && document != nil {
 		body := document.getElementById("console-body")
 		if body == nil {
-			t.Error("Expected console-body element in DOM after Mount")
+			t.Fatal("Expected console-body element in DOM after Mount")
+		}
+		if body.className != "console-body" {
+			t.Errorf("Expected hidden class, got %q", body.className)
+		}
+		cm.Toggle()
+		if body.className != "console-body visible" {
+			t.Errorf("Expected visible class after Toggle, got %q", body.className)
+		}
+		cm.SetVisible(false)
+		if body.className != "console-body" {
+			t.Errorf("Expected hidden class after SetVisible(false), got %q", body.className)
 		}
 	}
 }

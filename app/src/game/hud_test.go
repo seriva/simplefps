@@ -22,6 +22,9 @@ func TestHUDCreationAndToggle(t *testing.T) {
 }
 
 func TestHUDMountAndUpdate(t *testing.T) {
+	if document != nil {
+		resetDOM()
+	}
 	hud := NewHUD()
 	hud.Mount(false)
 
@@ -34,17 +37,25 @@ func TestHUDMountAndUpdate(t *testing.T) {
 	hud.Update(100, 50, 25)
 
 	if document != nil {
+		hudEl := document.getElementById("hud")
+		if hudEl == nil || hudEl.classList.contains("visible") {
+			t.Error("Expected #hud element without visible class initially")
+		}
+		hud.Toggle(true)
+		if !hudEl.classList.contains("visible") {
+			t.Error("Expected #hud to gain visible class on Toggle(true)")
+		}
 		hpEl := document.getElementById("hud-health-val")
-		if hpEl != nil && hpEl.textContent != "100" {
-			t.Errorf("Expected DOM health text '100', got '%s'", hpEl.textContent)
+		if hpEl == nil || hpEl.textContent != "100" {
+			t.Errorf("Expected DOM health text '100', got %v", hpEl)
 		}
 		armorEl := document.getElementById("hud-armor-val")
-		if armorEl != nil && armorEl.textContent != "50" {
-			t.Errorf("Expected DOM armor text '50', got '%s'", armorEl.textContent)
+		if armorEl == nil || armorEl.textContent != "50" {
+			t.Errorf("Expected DOM armor text '50', got %v", armorEl)
 		}
 		ammoEl := document.getElementById("hud-ammo-val")
-		if ammoEl != nil && ammoEl.textContent != "25" {
-			t.Errorf("Expected DOM ammo text '25', got '%s'", ammoEl.textContent)
+		if ammoEl == nil || ammoEl.textContent != "25" {
+			t.Errorf("Expected DOM ammo text '25', got %v", ammoEl)
 		}
 	}
 }
@@ -95,10 +106,6 @@ func TestHUDRefsBound(t *testing.T) {
 		hud := NewHUD()
 		hud.Mount(mobile)
 		refs := map[string]any{
-			"hud":        hud.hudEl,
-			"healthEl":   hud.healthEl,
-			"armorEl":    hud.armorEl,
-			"ammoEl":     hud.ammoEl,
 			"healthIcon": hud.healthIcon,
 			"armorIcon":  hud.armorIcon,
 			"ammoIcon":   hud.ammoIcon,

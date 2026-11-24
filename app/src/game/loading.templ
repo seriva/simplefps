@@ -33,8 +33,8 @@ css loadingStyle() {
 	}
 }
 
-templ LoadingView() {
-	<div id="loading" ref="loading" class={ loadingStyle() }>
+templ LoadingView(visible *gom.Signal[bool]) {
+	<div id="loading" class={ visibleClass(loadingStyle(), visible.Get()) }>
 		<div id="loading-logo"></div>
 		<div id="loading-background"></div>
 	</div>

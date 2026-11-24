@@ -40,7 +40,8 @@ type InputManager struct {
 	onKeyUp     func(dom.Event)
 	onMouseMove func(dom.Event)
 
-	virtualInputEl dom.HTMLElement
+	virtualMounted bool
+	virtualVisible *gom.Signal[bool]
 	lookEl         dom.HTMLElement
 	cursorEl       dom.HTMLElement
 	stickEl        dom.HTMLElement
@@ -64,6 +65,7 @@ func NewInputManager() *InputManager {
 		cursorDelta:    CursorPos{X: 0, Y: 0},
 		cursorMovement: CursorPos{X: 0, Y: 0},
 		visibleCursor:  true,
+		virtualVisible: gom.NewSignal(false),
 	}
 }
 
@@ -346,14 +348,21 @@ func (im *InputManager) bindActionButton(el dom.HTMLElement, eventName string) {
 	el.addEventListener("touchcancel", release, false)
 }
 
+func virtualInputClass(visible bool) string {
+	if visible {
+		return virtualInputStyle() + " visible"
+	}
+	return virtualInputStyle()
+}
+
 // MountVirtualInput mounts mobile touch controls if running on mobile.
 func (im *InputManager) MountVirtualInput() {
-	if document == nil || !ActiveSettings.IsMobile || im.virtualInputEl != nil {
+	if document == nil || !ActiveSettings.IsMobile || im.virtualMounted {
 		return
 	}
 	refs := map[string]any{}
-	gom.MountTo("body", VirtualInputView(), refs)
-	im.virtualInputEl = refs["virtualInput"].(dom.HTMLElement)
+	gom.MountTo("body", VirtualInputView(im.virtualVisible), refs)
+	im.virtualMounted = true
 	im.lookEl = refs["look"].(dom.HTMLElement)
 	im.cursorEl = refs["cursor"].(dom.HTMLElement)
 	im.stickEl = refs["stick"].(dom.HTMLElement)
@@ -421,16 +430,10 @@ func (im *InputManager) ToggleVirtualInput(show bool) {
 	if !ActiveSettings.IsMobile {
 		return
 	}
-	if im.virtualInputEl == nil {
+	if !im.virtualMounted {
 		im.MountVirtualInput()
 	}
-	if im.virtualInputEl != nil {
-		if show {
-			im.virtualInputEl.classList.add("visible")
-		} else {
-			im.virtualInputEl.classList.remove("visible")
-		}
-	}
+	im.virtualVisible.Set(show)
 }
 
 // GlobalInput is the singleton input manager.

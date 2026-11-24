@@ -41,25 +41,30 @@ func tabClass(active bool) string {
 	return "menu-tab"
 }
 
+func visibleClass(base string, visible bool) string {
+	if visible {
+		return base + " visible"
+	}
+	return base
+}
+
 // UIManager manages menu overlays, tabs, settings changes, and modal dialogs.
 type UIManager struct {
-	currentMenu MenuID
-	activeTab   int
-	hasStarted  bool
-	visible     bool
-	mounted     bool
+	currentMenu   MenuID
+	activeTab     int
+	hasStarted    bool
+	visible       *gom.Signal[bool]
+	header        *gom.Signal[string]
+	dialogVisible *gom.Signal[bool]
+	dialogTitle   *gom.Signal[string]
+	dialogBody    *gom.Signal[string]
+	mounted       bool
 
-	// Cached DOM elements
-	uiEl            dom.HTMLElement
-	backdropEl      dom.HTMLElement
-	menuBaseEl      dom.HTMLElement
-	headerEl        dom.HTMLElement
-	controlsEl      dom.HTMLElement
-	dialogOverlayEl dom.HTMLElement
-	dialogHeaderEl  dom.HTMLElement
-	dialogBodyEl    dom.HTMLElement
-	dialogBtnYes    dom.HTMLElement
-	dialogBtnNo     dom.HTMLElement
+	// Cached DOM elements needed for event delegation and mounting
+	uiEl         dom.HTMLElement
+	controlsEl   dom.HTMLElement
+	dialogBtnYes dom.HTMLElement
+	dialogBtnNo  dom.HTMLElement
 
 	// Callbacks
 	OnVersionCheck    func()
@@ -72,10 +77,14 @@ type UIManager struct {
 // NewUIManager creates an unmounted UIManager.
 func NewUIManager() *UIManager {
 	return &UIManager{
-		currentMenu: MenuMain,
-		activeTab:   0,
-		hasStarted:  false,
-		visible:     false,
+		currentMenu:   MenuMain,
+		activeTab:     0,
+		hasStarted:    false,
+		visible:       gom.NewSignal(false),
+		header:        gom.NewSignal(""),
+		dialogVisible: gom.NewSignal(false),
+		dialogTitle:   gom.NewSignal(""),
+		dialogBody:    gom.NewSignal(""),
 	}
 }
 
@@ -85,18 +94,12 @@ func (ui *UIManager) Mount() {
 		return
 	}
 	refs := map[string]any{}
-	gom.MountTo("body", MenuView(), refs)
+	gom.MountTo("body", MenuView(ui.visible, ui.header, ui.dialogVisible, ui.dialogTitle, ui.dialogBody), refs)
 
-	ui.uiEl            = refs["ui"].(dom.HTMLElement)
-	ui.backdropEl      = refs["backdrop"].(dom.HTMLElement)
-	ui.menuBaseEl      = refs["menuBase"].(dom.HTMLElement)
-	ui.headerEl        = refs["header"].(dom.HTMLElement)
-	ui.controlsEl      = refs["controls"].(dom.HTMLElement)
-	ui.dialogOverlayEl = refs["dialogOverlay"].(dom.HTMLElement)
-	ui.dialogHeaderEl  = refs["dialogHeader"].(dom.HTMLElement)
-	ui.dialogBodyEl    = refs["dialogBody"].(dom.HTMLElement)
-	ui.dialogBtnYes    = refs["dialogBtnYes"].(dom.HTMLElement)
-	ui.dialogBtnNo     = refs["dialogBtnNo"].(dom.HTMLElement)
+	ui.uiEl         = refs["ui"].(dom.HTMLElement)
+	ui.controlsEl   = refs["controls"].(dom.HTMLElement)
+	ui.dialogBtnYes = refs["dialogBtnYes"].(dom.HTMLElement)
+	ui.dialogBtnNo  = refs["dialogBtnNo"].(dom.HTMLElement)
 
 	if ui.uiEl != nil {
 		ui.uiEl.addEventListener("click", func(e dom.Event) {
@@ -249,15 +252,7 @@ func (ui *UIManager) Show(menu MenuID) {
 		ui.Mount()
 	}
 	ui.currentMenu = menu
-	ui.visible = true
-
-	if ui.backdropEl != nil {
-		ui.backdropEl.classList.add("visible")
-	}
-	if ui.menuBaseEl != nil {
-		ui.menuBaseEl.classList.add("visible")
-	}
-
+	ui.visible.Set(true)
 	ui.renderCurrentMenu()
 }
 
@@ -292,20 +287,12 @@ func (ui *UIManager) renderCurrentMenu() {
 		gom.Mount("#menu-controls", MainMenuContent(ui.hasStarted))
 	}
 
-	if ui.headerEl != nil {
-		ui.headerEl.textContent = headerText
-	}
+	ui.header.Set(headerText)
 }
 
 // Hide closes the menu overlay.
 func (ui *UIManager) Hide() {
-	ui.visible = false
-	if ui.menuBaseEl != nil {
-		ui.menuBaseEl.classList.remove("visible")
-	}
-	if ui.backdropEl != nil {
-		ui.backdropEl.classList.remove("visible")
-	}
+	ui.visible.Set(false)
 }
 
 // ShowDialog displays the modal confirmation dialog.
@@ -316,29 +303,21 @@ func (ui *UIManager) ShowDialog(title, message string, onYes, onNo func()) {
 	ui.dialogOnYes = onYes
 	ui.dialogOnNo = onNo
 
-	if ui.dialogHeaderEl != nil {
-		ui.dialogHeaderEl.textContent = title
-	}
-	if ui.dialogBodyEl != nil {
-		ui.dialogBodyEl.textContent = message
-	}
-	if ui.dialogOverlayEl != nil {
-		ui.dialogOverlayEl.classList.add("visible")
-	}
+	ui.dialogTitle.Set(title)
+	ui.dialogBody.Set(message)
+	ui.dialogVisible.Set(true)
 }
 
 // HideDialog closes the modal dialog.
 func (ui *UIManager) HideDialog() {
-	if ui.dialogOverlayEl != nil {
-		ui.dialogOverlayEl.classList.remove("visible")
-	}
+	ui.dialogVisible.Set(false)
 	ui.dialogOnYes = nil
 	ui.dialogOnNo = nil
 }
 
 // IsVisible returns whether a menu overlay is currently displayed.
 func (ui *UIManager) IsVisible() bool {
-	return ui.visible
+	return ui.visible.Get()
 }
 
 // GlobalUI is the singleton UI manager.

@@ -65,9 +65,8 @@ type StateListener func(GameState)
 
 // StateManager orchestrates game state transitions and system notifications.
 type StateManager struct {
-	Current   GameState
+	State     *gom.Signal[GameState]
 	isBlurred bool
-	listeners []StateListener
 	canvasEl  dom.HTMLElement
 
 	CanPause      func() bool
@@ -78,21 +77,25 @@ type StateManager struct {
 // NewStateManager creates a new StateManager defaulting to StateMenu.
 func NewStateManager() *StateManager {
 	return &StateManager{
-		Current:   StateMenu,
+		State:     gom.NewSignal(StateMenu),
 		isBlurred: true,
-		listeners: make([]StateListener, 0),
 	}
 }
 
-// AddListener registers a callback invoked on each state change.
-func (s *StateManager) AddListener(fn StateListener) {
-	s.listeners = append(s.listeners, fn)
+// Current returns the active game state.
+func (s *StateManager) Current() GameState {
+	return s.State.Get()
+}
+
+// AddListener registers a callback invoked on each state change and returns an
+// unsubscribe function.
+func (s *StateManager) AddListener(fn StateListener) func() {
+	return s.State.Subscribe(fn)
 }
 
 // Transition changes the current game state and invokes all listeners.
 func (s *StateManager) Transition(next GameState) {
-	if s.Current != next {
-		s.Current = next
+	if s.State.Get() != next {
 		isGame := next == StateGame
 
 		// Orchestrate systems
@@ -110,9 +113,7 @@ func (s *StateManager) Transition(next GameState) {
 			GlobalHUD.Toggle(isGame)
 		}
 
-		for i := 0; i < len(s.listeners); i++ {
-			s.listeners[i](next)
-		}
+		s.State.Set(next)
 	}
 }
 

@@ -22,9 +22,16 @@ type LogEntry struct {
 // CommandHandler represents a function handling a console command.
 type CommandHandler func(args []string) string
 
+func consoleBodyClass(visible bool) string {
+	if visible {
+		return "console-body visible"
+	}
+	return "console-body"
+}
+
 // ConsoleManager handles in-game debug console rendering, history, and command execution.
 type ConsoleManager struct {
-	visible        bool
+	visible        *gom.Signal[bool]
 	history        []string
 	historyIndex   int
 	logs           []LogEntry
@@ -32,7 +39,6 @@ type ConsoleManager struct {
 	currentCommand string
 
 	// Cached DOM elements
-	bodyEl    dom.HTMLElement
 	contentEl dom.HTMLElement
 	logsEl    dom.HTMLElement
 	inputEl   dom.HTMLInputElement
@@ -45,7 +51,7 @@ type ConsoleManager struct {
 // NewConsoleManager creates an unmounted ConsoleManager instance.
 func NewConsoleManager() *ConsoleManager {
 	return &ConsoleManager{
-		visible:      false,
+		visible:      gom.NewSignal(false),
 		history:      make([]string, 0),
 		historyIndex: -1,
 		logs:         make([]LogEntry, 0),
@@ -66,9 +72,8 @@ func (cm *ConsoleManager) Mount() {
 		return
 	}
 	refs := map[string]any{}
-	gom.MountTo("body", ConsoleView(), refs)
+	gom.MountTo("body", ConsoleView(cm.visible), refs)
 
-	cm.bodyEl = refs["body"].(dom.HTMLElement)
 	cm.contentEl = refs["content"].(dom.HTMLElement)
 	cm.logsEl = refs["logs"].(dom.HTMLElement)
 	cm.inputEl = refs["input"].(dom.HTMLInputElement)
@@ -223,31 +228,25 @@ func (cm *ConsoleManager) Error(message string) {
 
 // Toggle flips the visibility of the console overlay.
 func (cm *ConsoleManager) Toggle() {
-	cm.SetVisible(!cm.visible)
+	cm.SetVisible(!cm.visible.Get())
 }
 
 // SetVisible sets the visibility of the console overlay explicitly.
 func (cm *ConsoleManager) SetVisible(show bool) {
-	cm.visible = show
-	if cm.bodyEl != nil {
-		if cm.visible {
-			cm.bodyEl.classList.add("visible")
-			if cm.inputEl != nil {
-				cm.inputEl.disabled = false
-				cm.inputEl.focus()
-			}
+	cm.visible.Set(show)
+	if cm.inputEl != nil {
+		if show {
+			cm.inputEl.disabled = false
+			cm.inputEl.focus()
 		} else {
-			cm.bodyEl.classList.remove("visible")
-			if cm.inputEl != nil {
-				cm.inputEl.blur()
-			}
+			cm.inputEl.blur()
 		}
 	}
 }
 
 // IsVisible returns whether the debug console is active on screen.
 func (cm *ConsoleManager) IsVisible() bool {
-	return cm.visible
+	return cm.visible.Get()
 }
 
 // RegisterCmd registers a command handler callback under a given name.

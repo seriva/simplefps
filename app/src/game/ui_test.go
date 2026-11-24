@@ -223,21 +223,39 @@ func TestUIRefsBound(t *testing.T) {
 	ui, restore := useTestUI()
 	defer restore()
 	refs := map[string]any{
-		"ui":            ui.uiEl,
-		"backdrop":      ui.backdropEl,
-		"menuBase":      ui.menuBaseEl,
-		"header":        ui.headerEl,
-		"controls":      ui.controlsEl,
-		"dialogOverlay": ui.dialogOverlayEl,
-		"dialogHeader":  ui.dialogHeaderEl,
-		"dialogBody":    ui.dialogBodyEl,
-		"dialogBtnYes":  ui.dialogBtnYes,
-		"dialogBtnNo":   ui.dialogBtnNo,
+		"ui":           ui.uiEl,
+		"controls":     ui.controlsEl,
+		"dialogBtnYes": ui.dialogBtnYes,
+		"dialogBtnNo":  ui.dialogBtnNo,
 	}
 	for name, el := range refs {
 		if el == nil {
 			t.Errorf("UIManager ref %q not bound after Mount", name)
 		}
+	}
+	backdrop := document.getElementById("menu-backdrop")
+	menuBase := document.getElementById("menu-base")
+	dialogOverlay := document.getElementById("dialog-overlay")
+	dialogHeader := document.getElementById("dialog-header")
+	dialogBody := document.getElementById("dialog-body")
+	if backdrop == nil || menuBase == nil || dialogOverlay == nil || dialogHeader == nil || dialogBody == nil {
+		t.Fatal("UIManager DOM nodes missing after Mount")
+	}
+	ui.Show(MenuMain)
+	if !backdrop.classList.contains("visible") || !menuBase.classList.contains("visible") {
+		t.Error("Expected menu backdrop and base to gain visible class on Show")
+	}
+	ui.Hide()
+	if backdrop.classList.contains("visible") || menuBase.classList.contains("visible") {
+		t.Error("Expected menu backdrop and base to lose visible class on Hide")
+	}
+	ui.ShowDialog("Title", "Body", nil, nil)
+	if !dialogOverlay.classList.contains("visible") || dialogHeader.textContent != "Title" || dialogBody.textContent != "Body" {
+		t.Error("Expected dialog overlay, header, and body to update reactively on ShowDialog")
+	}
+	ui.HideDialog()
+	if dialogOverlay.classList.contains("visible") {
+		t.Error("Expected dialog overlay to lose visible class on HideDialog")
 	}
 }
 
@@ -299,13 +317,13 @@ func TestEveryMenuActionHandled(t *testing.T) {
 
 	// Expected effect of each action, checked after clicking it.
 	effects := map[uiAction]func() bool{
-		actionStart:        func() bool { return GlobalState.Current == StateGame && ui.hasStarted },
+		actionStart:        func() bool { return GlobalState.Current() == StateGame && ui.hasStarted },
 		actionSettings:     func() bool { return ui.currentMenu == MenuSettings },
 		actionCredits:      func() bool { return ui.currentMenu == MenuCredits },
 		actionVersionCheck: func() bool { return versionChecks == 1 },
 		actionBack:         func() bool { return ui.currentMenu == MenuMain },
 		actionUpdateYes:    func() bool { return updateYes == 1 },
-		actionUpdateNo:     func() bool { return GlobalState.Current == StateGame },
+		actionUpdateNo:     func() bool { return GlobalState.Current() == StateGame },
 	}
 	type screen struct {
 		menu MenuID
@@ -325,7 +343,7 @@ func TestEveryMenuActionHandled(t *testing.T) {
 		}
 		// Clicking re-renders the menu, so re-show and re-query per action.
 		for i := 0; i < n; i++ {
-			GlobalState.Current = StateMenu
+			GlobalState.State.Set(StateMenu)
 			ui.hasStarted = false
 			versionChecks, updateYes = 0, 0
 			ui.activeTab = sc.tab
@@ -365,7 +383,8 @@ func TestShowMenuID(t *testing.T) {
 	if document.getElementById(settingGamma) != nil || document.querySelector("[data-action='" + string(actionStart) + "']") == nil {
 		t.Error("Show(MenuID(99)) should render the main menu")
 	}
-	if ui.headerEl.textContent != Translate("MAIN_MENU") {
-		t.Errorf("Show(MenuID(99)) header = %v", ui.headerEl.textContent)
+	headerEl := document.getElementById("menu-header")
+	if headerEl == nil || headerEl.textContent != Translate("MAIN_MENU") {
+		t.Errorf("Show(MenuID(99)) header = %v", headerEl)
 	}
 }
