@@ -106,7 +106,7 @@ GlobalStats.Update
 
 Every `GPURenderPipeline` and `GPUComputePipeline` is baked once in `Renderer.Init` (`rendering/pipelines.go`): `geometry`, `skybox`, `skinned-geometry`, `entity-shadows`, `skinned-entity-shadows`, `directional-light`, `point-light`, `spot-light`, `transparent`, `billboard`, `instanced-billboard`, `postprocess-swapchain`/`postprocess-scratch`, `fsr-easu`, `fsr-rcas`, `debug`, `skinned-debug`, plus the `kawase-blur` and `particle-update` compute pipelines and one `mipmap-<format>` blit per texture format. Blend, depth, cull and topology live in the pipeline descriptor; there is no runtime state cache. Double-sided materials use a pipeline's cull-disabled twin (`Pipeline.CullOff`).
 
-All WGSL (`rendering/wgsl.go`) shares one four-slot bind-group contract (`GroupFrame`..`GroupLighting` in `gpu.go`):
+All WGSL (`rendering/shaders/*.wgsl`, embedded via `//go:embed` in `rendering/wgsl.go`) shares one four-slot bind-group contract (`GroupFrame`..`GroupLighting` in `gpu.go`):
 
 | Group | Contents | Lifetime |
 |---|---|---|

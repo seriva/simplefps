@@ -39,7 +39,8 @@ app/
 │   │   ├── collision/    # package collision: trimesh, spatial hash, raycasts (compiled to WASM)
 │   │   ├── mathx/        # package mathx: vec3/mat4/quat/transform/boundingbox (JS + WASM)
 │   │   ├── physics/      # package physics (WASM): FPS controller, dynamic bodies
-│   │   ├── rendering/    # package rendering: WebGPU backend, renderer, passes, pipelines, WGSL, materials
+│   │   ├── rendering/    # package rendering: WebGPU backend, renderer, passes, pipelines, materials
+│   │   │   ├── shaders/  # WGSL shaders & shared headers embedded via //go:embed (wgsl.go)
 │   │   │   └── fakegpu/  # package fakegpu: in-memory GPUDevice recorder for headless tests
 │   │   ├── scene/        # package scene: entities, culling, light grid, draw lists for the renderer
 │   │   └── systems/      # package systems: camera, settings, input, audio, console, network
