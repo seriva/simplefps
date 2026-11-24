@@ -1,6 +1,7 @@
 package game
 
 import (
+	"gofront/dom"
 	"strings"
 
 	"../engine"
@@ -67,10 +68,10 @@ type StateManager struct {
 	Current   GameState
 	isBlurred bool
 	listeners []StateListener
-	canvasEl  UIElement
+	canvasEl  dom.HTMLElement
 
 	CanPause      func() bool
-	onChangeState func(e UIEvent)
+	onChangeState func(e dom.Event)
 	initialized   bool
 }
 
@@ -152,22 +153,23 @@ func (s *StateManager) SetBlurred(blurred bool) {
 	canvas := s.getCanvas()
 	if canvas != nil {
 		if blurred {
-			canvas.style.filter = "blur(8px)"
+			canvas.style.setProperty("filter", "blur(8px)")
 		} else {
-			canvas.style.filter = "blur(0px)"
+			canvas.style.setProperty("filter", "blur(0px)")
 		}
 	}
 }
 
-func (s *StateManager) getCanvas() UIElement {
+func (s *StateManager) getCanvas() dom.HTMLElement {
 	if s.canvasEl == nil && document != nil {
-		s.canvasEl = document.querySelector("canvas")
-		if s.canvasEl != nil {
-			s.canvasEl.style.transition = "filter 25ms linear"
+		el := document.querySelector("canvas")
+		if el != nil {
+			s.canvasEl = el.(dom.HTMLElement)
+			s.canvasEl.style.setProperty("transition", "filter 25ms linear")
 			if s.isBlurred {
-				s.canvasEl.style.filter = "blur(8px)"
+				s.canvasEl.style.setProperty("filter", "blur(8px)")
 			} else {
-				s.canvasEl.style.filter = "blur(0px)"
+				s.canvasEl.style.setProperty("filter", "blur(0px)")
 			}
 		}
 	}
@@ -179,15 +181,20 @@ func (s *StateManager) Init() {
 	if window == nil || s.initialized {
 		return
 	}
-	s.onChangeState = func(e UIEvent) {
-		if e == nil || e.detail == nil {
+	s.onChangeState = func(e dom.Event) {
+		if e == nil {
 			return
 		}
-		stateStr := strings.ToUpper(e.detail.state)
+		ce := e.(dom.CustomEvent)
+		if ce.detail == nil {
+			return
+		}
+		detail := ce.detail.(UIStateDetail)
+		stateStr := strings.ToUpper(detail.state)
 		if stateStr == "MENU" {
 			name := ""
-			if any(e.detail.menu) != nil && e.detail.menu != "" {
-				name = e.detail.menu
+			if any(detail.menu) != nil && detail.menu != "" {
+				name = detail.menu
 			}
 			menu, ok := menuFromName(name)
 			if !ok && name != "" {

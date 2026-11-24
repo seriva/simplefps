@@ -1,6 +1,7 @@
 package systems
 
 import (
+	"gofront/dom"
 	"testing"
 
 	"js:./interop.d.ts"
@@ -97,17 +98,18 @@ func TestInputAttachDispatch(t *testing.T) {
 		return
 	}
 	// JSDOM (--dom): real events must flow through the registered listeners.
-	down := Reflect.construct(window.KeyboardEvent, []any{"keydown", map[string]any{"keyCode": 87}})
+	we := any(window).(WindowEvents)
+	down := Reflect.construct(we.KeyboardEvent, []any{"keydown", map[string]any{"keyCode": 87}}).(dom.Event)
 	window.dispatchEvent(down)
 	if !im.IsDown(87) {
 		t.Error("keydown event should mark key 87 down")
 	}
-	up := Reflect.construct(window.KeyboardEvent, []any{"keyup", map[string]any{"keyCode": 87}})
+	up := Reflect.construct(we.KeyboardEvent, []any{"keyup", map[string]any{"keyCode": 87}}).(dom.Event)
 	window.dispatchEvent(up)
 	if im.IsDown(87) {
 		t.Error("keyup event should mark key 87 up")
 	}
-	move := Reflect.construct(window.MouseEvent, []any{"mousemove", map[string]any{"movementX": 4, "movementY": -2}})
+	move := Reflect.construct(we.MouseEvent, []any{"mousemove", map[string]any{"movementX": 4, "movementY": -2}}).(dom.Event)
 	window.dispatchEvent(move)
 	im.Update()
 	m := im.CursorMovement()
@@ -190,7 +192,7 @@ func TestVirtualInputToggle(t *testing.T) {
 		}
 
 		im.ToggleVirtualInput(true)
-		classes := im.virtualInputEl.className.(string)
+		classes := im.virtualInputEl.className
 		if classes == "" {
 			t.Error("Expected visible class on virtual input element")
 		}

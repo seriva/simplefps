@@ -2,6 +2,7 @@ package engine
 
 import (
 	"errors"
+	"gofront/dom"
 	"strconv"
 
 	"./physics"
@@ -17,9 +18,9 @@ var (
 
 	lastTime  float64
 	frameTime float32
-	rafId     any
+	rafId     int
 
-	resizeListener any
+	resizeListener func(dom.Event)
 
 	ActiveCamera   *systems.Camera
 	ActiveRenderer *rendering.Renderer
@@ -131,7 +132,7 @@ func InitWithBackend(backend *rendering.Backend) {
 	initialized = true
 
 	if window != nil && window.addEventListener != nil && resizeListener == nil {
-		resizeListener = func(evt any) { Resize() }
+		resizeListener = func(evt dom.Event) { Resize() }
 		window.addEventListener("resize", resizeListener)
 	}
 	systems.GlobalConsole.RegisterCmd("rscale", rscaleCmd)
@@ -331,15 +332,14 @@ func frameLoop() {
 	}
 	var now float64
 	if performance != nil && performance.now != nil {
-		ts := performance.now()
-		now = ts.(float64)
+		now = performance.now()
 	}
 	FrameStep(now)
 	RenderFrame(float32(now * 0.001))
 	if ActiveCamera != nil {
 		systems.GlobalStats.Update(now, &ActiveCamera.Position)
 	}
-	if rafId != nil && window != nil && window.requestAnimationFrame != nil {
+	if rafId != 0 && window != nil && window.requestAnimationFrame != nil {
 		rafId = window.requestAnimationFrame(frameLoop)
 	}
 }
@@ -351,7 +351,7 @@ func Start() error {
 		systems.GlobalConsole.Error(ErrNoScene.Error())
 		return ErrNoScene
 	}
-	if rafId == nil && window != nil && window.requestAnimationFrame != nil {
+	if rafId == 0 && window != nil && window.requestAnimationFrame != nil {
 		systems.GlobalInput.ResetDelta()
 		lastTime = 0
 		rafId = window.requestAnimationFrame(frameLoop)
@@ -361,14 +361,14 @@ func Start() error {
 
 // Stop pauses the requestAnimationFrame loop.
 func Stop() {
-	if rafId != nil && window != nil && window.cancelAnimationFrame != nil {
+	if rafId != 0 && window != nil && window.cancelAnimationFrame != nil {
 		window.cancelAnimationFrame(rafId)
-		rafId = nil
+		rafId = 0
 	}
 }
 
 // GetCanvas returns the active rendering canvas.
-func GetCanvas() any {
+func GetCanvas() dom.HTMLCanvasElement {
 	if CurrentBackend == nil {
 		return nil
 	}

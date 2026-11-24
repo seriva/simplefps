@@ -26,9 +26,9 @@ func audioContext() any {
 	if window == nil {
 		return nil
 	}
-	ctor := window.AudioContext
+	ctor := globalThis.AudioContext
 	if ctor == nil {
-		ctor = window.webkitAudioContext
+		ctor = globalThis.webkitAudioContext
 	}
 	if ctor == nil {
 		return nil

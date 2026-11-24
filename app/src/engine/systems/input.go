@@ -1,6 +1,7 @@
 package systems
 
 import (
+	"gofront/dom"
 	"math"
 	"strconv"
 
@@ -35,16 +36,16 @@ type InputManager struct {
 	visibleCursor  bool
 
 	// Bound DOM listeners, kept so Dispose can remove them.
-	onKeyDown   any
-	onKeyUp     any
-	onMouseMove any
+	onKeyDown   func(dom.Event)
+	onKeyUp     func(dom.Event)
+	onMouseMove func(dom.Event)
 
-	virtualInputEl any
-	lookEl         any
-	cursorEl       any
-	stickEl        any
-	btnShootEl     any
-	btnJumpEl      any
+	virtualInputEl dom.HTMLElement
+	lookEl         dom.HTMLElement
+	cursorEl       dom.HTMLElement
+	stickEl        dom.HTMLElement
+	btnShootEl     dom.HTMLElement
+	btnJumpEl      dom.HTMLElement
 
 	// Touch state for the virtual look pad and joystick.
 	lookActive bool
@@ -157,14 +158,15 @@ func (im *InputManager) Attach() {
 	if window == nil || im.onKeyDown != nil {
 		return
 	}
-	im.onKeyDown = func(ev any) {
-		im.HandleKeyDown(ev.keyCode.(int))
+	im.onKeyDown = func(ev dom.Event) {
+		im.HandleKeyDown(ev.(dom.KeyboardEvent).keyCode)
 	}
-	im.onKeyUp = func(ev any) {
-		im.HandleKeyUp(ev.keyCode.(int))
+	im.onKeyUp = func(ev dom.Event) {
+		im.HandleKeyUp(ev.(dom.KeyboardEvent).keyCode)
 	}
-	im.onMouseMove = func(ev any) {
-		im.AddCursorMovement(ev.movementX.(float32), ev.movementY.(float32))
+	im.onMouseMove = func(ev dom.Event) {
+		me := ev.(dom.MouseEvent)
+		im.AddCursorMovement(float32(me.movementX), float32(me.movementY))
 	}
 	window.addEventListener("keydown", im.onKeyDown, false)
 	window.addEventListener("keyup", im.onKeyUp, false)
@@ -317,9 +319,9 @@ func (im *InputManager) readTouch(ev any) {
 	im.touch.Y = ev.clientY.(float32)
 }
 
-func (im *InputManager) setTranslate(el any, x, y float32) {
+func (im *InputManager) setTranslate(el dom.HTMLElement, x, y float32) {
 	if el != nil {
-		el.style.transform = "translate3d(" + formatPx(x) + ", " + formatPx(y) + ", 0px)"
+		el.style.setProperty("transform", "translate3d("+formatPx(x)+", "+formatPx(y)+", 0px)")
 	}
 }
 
@@ -327,7 +329,7 @@ func formatPx(v float32) string {
 	return strconv.FormatFloat(float64(v), 'f', 2, 32) + "px"
 }
 
-func (im *InputManager) bindActionButton(el any, eventName string) {
+func (im *InputManager) bindActionButton(el dom.HTMLElement, eventName string) {
 	if el == nil {
 		return
 	}
@@ -338,7 +340,7 @@ func (im *InputManager) bindActionButton(el any, eventName string) {
 		ev.preventDefault()
 		ev.stopPropagation()
 		el.classList.add("pressed")
-		window.dispatchEvent(Reflect.construct(window.Event, []any{eventName}))
+		window.dispatchEvent(Reflect.construct(any(window).(WindowEvents).Event, []any{eventName}).(dom.Event))
 	}, map[string]any{"passive": false})
 	el.addEventListener("touchend", release, false)
 	el.addEventListener("touchcancel", release, false)
@@ -351,12 +353,12 @@ func (im *InputManager) MountVirtualInput() {
 	}
 	refs := map[string]any{}
 	gom.MountTo("body", VirtualInputView(), refs)
-	im.virtualInputEl = refs["virtualInput"]
-	im.lookEl = refs["look"]
-	im.cursorEl = refs["cursor"]
-	im.stickEl = refs["stick"]
-	im.btnShootEl = refs["btnShoot"]
-	im.btnJumpEl = refs["btnJump"]
+	im.virtualInputEl = refs["virtualInput"].(dom.HTMLElement)
+	im.lookEl = refs["look"].(dom.HTMLElement)
+	im.cursorEl = refs["cursor"].(dom.HTMLElement)
+	im.stickEl = refs["stick"].(dom.HTMLElement)
+	im.btnShootEl = refs["btnShoot"].(dom.HTMLElement)
+	im.btnJumpEl = refs["btnJump"].(dom.HTMLElement)
 
 	if im.lookEl != nil {
 		im.lookEl.addEventListener("touchstart", func(ev any) {
@@ -364,13 +366,13 @@ func (im *InputManager) MountVirtualInput() {
 			im.BeginLook(im.touch.X, im.touch.Y)
 			im.moveCursorEl()
 			if im.cursorEl != nil {
-				im.cursorEl.style.opacity = "0.35"
+				im.cursorEl.style.setProperty("opacity", "0.35")
 			}
 		}, map[string]any{"passive": true})
 		im.lookEl.addEventListener("touchend", func() {
 			im.EndLook()
 			if im.cursorEl != nil {
-				im.cursorEl.style.opacity = "0"
+				im.cursorEl.style.setProperty("opacity", "0")
 			}
 		}, map[string]any{"passive": true})
 		im.lookEl.addEventListener("touchmove", func(ev any) {
@@ -411,7 +413,7 @@ func (im *InputManager) moveCursorEl() {
 	if !im.lookActive || im.cursorEl == nil || window == nil {
 		return
 	}
-	im.setTranslate(im.cursorEl, im.lookLast.X, im.lookLast.Y-window.innerHeight.(float32))
+	im.setTranslate(im.cursorEl, im.lookLast.X, im.lookLast.Y-float32(window.innerHeight))
 }
 
 // ToggleVirtualInput toggles the visibility of the mobile virtual joystick controls.

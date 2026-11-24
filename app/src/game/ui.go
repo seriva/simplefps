@@ -1,10 +1,10 @@
 package game
 
 import (
+	"gofront/dom"
 	"strconv"
 
 	"../engine/systems"
-	"js:./interop.d.ts"
 )
 
 // uiAction is a menu button's data-action value, shared by menus.templ and
@@ -50,16 +50,16 @@ type UIManager struct {
 	mounted     bool
 
 	// Cached DOM elements
-	uiEl            UIElement
-	backdropEl      UIElement
-	menuBaseEl      UIElement
-	headerEl        UIElement
-	controlsEl      UIElement
-	dialogOverlayEl UIElement
-	dialogHeaderEl  UIElement
-	dialogBodyEl    UIElement
-	dialogBtnYes    UIElement
-	dialogBtnNo     UIElement
+	uiEl            dom.HTMLElement
+	backdropEl      dom.HTMLElement
+	menuBaseEl      dom.HTMLElement
+	headerEl        dom.HTMLElement
+	controlsEl      dom.HTMLElement
+	dialogOverlayEl dom.HTMLElement
+	dialogHeaderEl  dom.HTMLElement
+	dialogBodyEl    dom.HTMLElement
+	dialogBtnYes    dom.HTMLElement
+	dialogBtnNo     dom.HTMLElement
 
 	// Callbacks
 	OnVersionCheck    func()
@@ -87,23 +87,23 @@ func (ui *UIManager) Mount() {
 	refs := map[string]any{}
 	gom.MountTo("body", MenuView(), refs)
 
-	ui.uiEl            = refs["ui"].(UIElement)
-	ui.backdropEl      = refs["backdrop"].(UIElement)
-	ui.menuBaseEl      = refs["menuBase"].(UIElement)
-	ui.headerEl        = refs["header"].(UIElement)
-	ui.controlsEl      = refs["controls"].(UIElement)
-	ui.dialogOverlayEl = refs["dialogOverlay"].(UIElement)
-	ui.dialogHeaderEl  = refs["dialogHeader"].(UIElement)
-	ui.dialogBodyEl    = refs["dialogBody"].(UIElement)
-	ui.dialogBtnYes    = refs["dialogBtnYes"].(UIElement)
-	ui.dialogBtnNo     = refs["dialogBtnNo"].(UIElement)
+	ui.uiEl            = refs["ui"].(dom.HTMLElement)
+	ui.backdropEl      = refs["backdrop"].(dom.HTMLElement)
+	ui.menuBaseEl      = refs["menuBase"].(dom.HTMLElement)
+	ui.headerEl        = refs["header"].(dom.HTMLElement)
+	ui.controlsEl      = refs["controls"].(dom.HTMLElement)
+	ui.dialogOverlayEl = refs["dialogOverlay"].(dom.HTMLElement)
+	ui.dialogHeaderEl  = refs["dialogHeader"].(dom.HTMLElement)
+	ui.dialogBodyEl    = refs["dialogBody"].(dom.HTMLElement)
+	ui.dialogBtnYes    = refs["dialogBtnYes"].(dom.HTMLElement)
+	ui.dialogBtnNo     = refs["dialogBtnNo"].(dom.HTMLElement)
 
 	if ui.uiEl != nil {
-		ui.uiEl.addEventListener("click", func(e UIEvent) {
+		ui.uiEl.addEventListener("click", func(e dom.Event) {
 			if e == nil || e.target == nil {
 				return
 			}
-			target := e.target
+			target := e.target.(dom.HTMLElement)
 
 			// Dialog buttons
 			if target == ui.dialogBtnYes {
@@ -157,15 +157,15 @@ func (ui *UIManager) Mount() {
 		}, false)
 
 		// Settings input & change listener
-		ui.uiEl.addEventListener("change", func(e UIEvent) {
+		ui.uiEl.addEventListener("change", func(e dom.Event) {
 			if e != nil && e.target != nil {
-				ui.onSettingChange(e.target)
+				ui.onSettingChange(e.target.(dom.HTMLInputElement))
 			}
 		}, false)
 
-		ui.uiEl.addEventListener("input", func(e UIEvent) {
+		ui.uiEl.addEventListener("input", func(e dom.Event) {
 			if e != nil && e.target != nil {
-				ui.onSettingInput(e.target)
+				ui.onSettingInput(e.target.(dom.HTMLInputElement))
 			}
 		}, false)
 	}
@@ -175,7 +175,7 @@ func (ui *UIManager) Mount() {
 
 // onSettingChange applies a checkbox or render-scale change from the
 // settings menu.
-func (ui *UIManager) onSettingChange(target UIElement) {
+func (ui *UIManager) onSettingChange(target dom.HTMLInputElement) {
 	s := systems.ActiveSettings
 	switch target.id {
 	case settingFSR:
@@ -199,7 +199,7 @@ func (ui *UIManager) onSettingChange(target UIElement) {
 }
 
 // onSettingInput applies a live slider change from the settings menu.
-func (ui *UIManager) onSettingInput(target UIElement) {
+func (ui *UIManager) onSettingInput(target dom.HTMLInputElement) {
 	s := systems.ActiveSettings
 	switch target.id {
 	case settingGamma:
@@ -221,7 +221,7 @@ func (ui *UIManager) onSettingInput(target UIElement) {
 }
 
 // sliderValue parses an input element's value; false when it is not a number.
-func sliderValue(target UIElement) (float32, bool) {
+func sliderValue(target dom.HTMLInputElement) (float32, bool) {
 	f, err := strconv.ParseFloat(target.value, 32)
 	return float32(f), err == nil
 }

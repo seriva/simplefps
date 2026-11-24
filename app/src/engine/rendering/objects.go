@@ -1,8 +1,9 @@
 package rendering
 
 import (
+	"gofront/webgpu"
+
 	"../mathx"
-	"js:./interop.d.ts"
 )
 
 // ObjectRing is the CPU staging area for the per-draw ObjectData uniform
@@ -11,7 +12,7 @@ import (
 // once in EndFrame.
 type ObjectRing struct {
 	Data   []float32
-	Buffer GPUBuffer
+	Buffer webgpu.Buffer
 	Count  int
 	cur    int
 	// offsets is the one-element dynamic-offset list passed to setBindGroup.
@@ -93,7 +94,7 @@ func (r *Renderer) ObjectValue(slot, i int) float32 {
 // BoneRing stages the skinning matrices (group 2, binding 1 storage).
 type BoneRing struct {
 	Data   []float32
-	Buffer GPUBuffer
+	Buffer webgpu.Buffer
 	Count  int // matrices used this frame
 }
 
@@ -145,8 +146,8 @@ func (r *Renderer) flushRings() {
 type LightingData struct {
 	Header     []float32
 	Data       []float32
-	HeaderBuf  GPUBuffer
-	LightsBuf  GPUBuffer
+	HeaderBuf  webgpu.Buffer
+	LightsBuf  webgpu.Buffer
 	PointCount int
 	SpotCount  int
 }

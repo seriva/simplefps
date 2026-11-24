@@ -2,8 +2,6 @@ package game
 
 import (
 	"testing"
-
-	"js:./interop.d.ts"
 )
 
 func TestLoadingToggle(t *testing.T) {

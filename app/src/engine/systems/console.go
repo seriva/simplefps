@@ -1,9 +1,8 @@
 package systems
 
 import (
+	"gofront/dom"
 	"strings"
-
-	"js:./interop.d.ts"
 )
 
 const (
@@ -33,13 +32,13 @@ type ConsoleManager struct {
 	currentCommand string
 
 	// Cached DOM elements
-	bodyEl    any
-	contentEl any
-	logsEl    any
-	inputEl   any
+	bodyEl    dom.HTMLElement
+	contentEl dom.HTMLElement
+	logsEl    dom.HTMLElement
+	inputEl   dom.HTMLInputElement
 
-	onKeyDown any
-	onInput   any
+	onKeyDown func(dom.Event)
+	onInput   func(dom.Event)
 	mounted   bool
 }
 
@@ -69,25 +68,25 @@ func (cm *ConsoleManager) Mount() {
 	refs := map[string]any{}
 	gom.MountTo("body", ConsoleView(), refs)
 
-	cm.bodyEl = refs["body"]
-	cm.contentEl = refs["content"]
-	cm.logsEl = refs["logs"]
-	cm.inputEl = refs["input"]
+	cm.bodyEl = refs["body"].(dom.HTMLElement)
+	cm.contentEl = refs["content"].(dom.HTMLElement)
+	cm.logsEl = refs["logs"].(dom.HTMLElement)
+	cm.inputEl = refs["input"].(dom.HTMLInputElement)
 
 	if cm.inputEl != nil {
-		cm.onInput = func(e any) {
+		cm.onInput = func(e dom.Event) {
 			if e != nil && e.target != nil {
-				cm.currentCommand = e.target.value.(string)
+				cm.currentCommand = e.target.(dom.HTMLInputElement).value
 				cm.historyIndex = -1
 			}
 		}
 		cm.inputEl.addEventListener("input", cm.onInput, false)
 
-		cm.onKeyDown = func(e any) {
+		cm.onKeyDown = func(e dom.Event) {
 			if e == nil {
 				return
 			}
-			key := e.key.(string)
+			key := e.(dom.KeyboardEvent).key
 			if key == "`" || key == "~" {
 				e.preventDefault()
 				// Stop the window-level toggle from firing on the same keypress.
@@ -194,7 +193,7 @@ func (cm *ConsoleManager) updateLogDOM() {
 	}
 	cm.logsEl.innerHTML = sb.String()
 	if cm.contentEl != nil {
-		cm.contentEl.scrollTop = cm.contentEl.scrollHeight
+		cm.contentEl.scrollTop = float64(cm.contentEl.scrollHeight)
 	}
 }
 

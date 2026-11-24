@@ -1,8 +1,9 @@
 package rendering
 
 import (
+	"gofront/webgpu"
+
 	"../mathx"
-	"js:./interop.d.ts"
 )
 
 const (
@@ -18,12 +19,12 @@ const (
 type IndexGroup struct {
 	Material    string
 	Array       []uint32
-	IndexBuffer GPUBuffer
+	IndexBuffer webgpu.Buffer
 }
 
 // WireframeBuffer caches line index buffers for debug wireframe passes.
 type WireframeBuffer struct {
-	Buffer GPUBuffer
+	Buffer webgpu.Buffer
 	Count  int
 }
 
@@ -38,10 +39,10 @@ type Mesh struct {
 	Normals          []float32
 	LightmapUVs      []float32
 	Indices          []IndexGroup
-	VertexBuffer     GPUBuffer
-	UVBuffer         GPUBuffer
-	NormalBuffer     GPUBuffer
-	LightmapUVBuffer GPUBuffer
+	VertexBuffer     webgpu.Buffer
+	UVBuffer         webgpu.Buffer
+	NormalBuffer     webgpu.Buffer
+	LightmapUVBuffer webgpu.Buffer
 	TriangleCount    int
 	HasUVs           bool
 	HasNormals       bool
@@ -181,14 +182,14 @@ func (m *Mesh) drawGroups(r *Renderer, applyMaterial bool, renderMode MaterialMo
 			r.usePipeline(r.pipeline)
 		}
 		r.setIndexBuffer(idx.IndexBuffer)
-		r.Pass.drawIndexed(float64(len(idx.Array)), 1, 0, 0, 0)
+		r.Pass.drawIndexed(len(idx.Array), 1, 0, 0, 0)
 		r.Stats.DrawCalls++
 	}
 }
 
 // DrawInstanced draws the first index group count times with instance data
 // in vertex slot 2 (particle layout: quad positions, quad uvs, instances).
-func (m *Mesh) DrawInstanced(r *Renderer, instances GPUBuffer, count int) {
+func (m *Mesh) DrawInstanced(r *Renderer, instances webgpu.Buffer, count int) {
 	if r.Pass == nil || m.VertexBuffer == nil || len(m.Indices) == 0 || count <= 0 {
 		return
 	}
@@ -198,7 +199,7 @@ func (m *Mesh) DrawInstanced(r *Renderer, instances GPUBuffer, count int) {
 	r.bindObject()
 	r.usePipeline(r.pipeline)
 	r.setIndexBuffer(m.Indices[0].IndexBuffer)
-	r.Pass.drawIndexed(float64(len(m.Indices[0].Array)), float64(count), 0, 0, 0)
+	r.Pass.drawIndexed(len(m.Indices[0].Array), count, 0, 0, 0)
 	r.Stats.DrawCalls++
 }
 
@@ -217,7 +218,7 @@ func (m *Mesh) drawWireframeBuffers(r *Renderer) {
 	r.usePipeline(r.pipeline)
 	for i := 0; i < len(m.WireframeBuffers); i++ {
 		r.setIndexBuffer(m.WireframeBuffers[i].Buffer)
-		r.Pass.drawIndexed(float64(m.WireframeBuffers[i].Count), 1, 0, 0, 0)
+		r.Pass.drawIndexed(m.WireframeBuffers[i].Count, 1, 0, 0, 0)
 		r.Stats.DrawCalls++
 	}
 }

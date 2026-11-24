@@ -1,13 +1,14 @@
 package game
 
 import (
+	"gofront/dom"
+
 	"../engine"
 	"../engine/assets"
 	"../engine/mathx"
 	"../engine/physics"
 	"../engine/scene"
 	"../engine/systems"
-	"js:./interop.d.ts"
 )
 
 // Fixed-step simulation (game.js).
@@ -35,7 +36,7 @@ type Game struct {
 	// JS-side copy of the WASM controller position for this frame.
 	playerPos mathx.Vec3
 
-	onJump any
+	onJump func(dom.Event)
 }
 
 // NewGame builds the gameplay systems around a scene and camera.
@@ -80,7 +81,7 @@ func (g *Game) Init() {
 	g.Multiplayer.Init()
 
 	if window != nil && g.onJump == nil {
-		g.onJump = func(e any) { g.Jump() }
+		g.onJump = func(e dom.Event) { g.Jump() }
 		window.addEventListener("game:jump", g.onJump)
 	}
 }

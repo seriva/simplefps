@@ -4,3 +4,19 @@ declare namespace Reflect {
 }
 declare var globalThis: any;
 declare var process: any;
+
+// Non-standard Chrome memory extension on performance.
+interface ChromeMemory {
+	usedJSHeapSize: number;
+}
+interface ChromePerformance {
+	memory: ChromeMemory;
+}
+
+// Event constructors exposed on window (needed under jsdom where globalThis
+// holds Node's Event rather than the jsdom window's).
+interface WindowEvents {
+	Event: any;
+	KeyboardEvent: any;
+	MouseEvent: any;
+}

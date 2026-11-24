@@ -2,20 +2,20 @@ package game
 
 import (
 	"fmt"
+	"gofront/dom"
 	"strings"
 	"testing"
 
 	"../engine/systems"
-	"js:./interop.d.ts"
 )
 
-// fakeTarget builds a stand-in DOM element for handler tests. A
-// map[string]any literal does not assign to UIElement directly; it goes
-// through an any and an assertion, which is unchecked at runtime for a .d.ts
-// interface, so the map stays a stand-in.
-func fakeTarget(fields map[string]any) UIElement {
+// fakeTarget builds a stand-in input element for handler tests. A
+// map[string]any literal does not assign to dom.HTMLInputElement directly;
+// it goes through an any and an assertion, which is unchecked at runtime for
+// a .d.ts interface, so the map stays a stand-in.
+func fakeTarget(fields map[string]any) dom.HTMLInputElement {
 	var v any = fields
-	return v.(UIElement)
+	return v.(dom.HTMLInputElement)
 }
 
 func TestUIModalAndMenus(t *testing.T) {
@@ -141,11 +141,11 @@ func TestUISettingsAndCreditsRows(t *testing.T) {
 	if gamma == nil || gamma.getAttribute("min") != "0.5" || gamma.getAttribute("max") != "2.5" || gamma.getAttribute("step") != "0.1" {
 		t.Fatalf("gamma slider attributes wrong")
 	}
-	if gamma.value != fmt.Sprintf("%0.1f", systems.ActiveSettings.Gamma) {
-		t.Errorf("gamma value %v", gamma.value)
+	if gamma.(dom.HTMLInputElement).value != fmt.Sprintf("%0.1f", systems.ActiveSettings.Gamma) {
+		t.Errorf("gamma value %v", gamma.(dom.HTMLInputElement).value)
 	}
 	fsr := document.getElementById(settingFSR)
-	if fsr == nil || fsr.checked != systems.ActiveSettings.DoFSR {
+	if fsr == nil || fsr.(dom.HTMLInputElement).checked != systems.ActiveSettings.DoFSR {
 		t.Errorf("fsr checkbox not rendered with current setting")
 	}
 	ui.Show(MenuCredits)
@@ -319,9 +319,7 @@ func TestEveryMenuActionHandled(t *testing.T) {
 	for _, sc := range screens {
 		ui.activeTab = sc.tab
 		ui.Show(sc.menu)
-		// controlsEl is a UIElement, which declares no querySelectorAll; query
-		// the same #menu-controls container through document.
-		n := int(document.querySelectorAll("#menu-controls [data-action]").length.(float64))
+		n := ui.controlsEl.querySelectorAll("[data-action]").length
 		if n == 0 {
 			t.Errorf("menu %v tab %d renders no actions", sc.menu, sc.tab)
 		}
@@ -332,8 +330,8 @@ func TestEveryMenuActionHandled(t *testing.T) {
 			versionChecks, updateYes = 0, 0
 			ui.activeTab = sc.tab
 			ui.Show(sc.menu)
-			btn := document.querySelectorAll("#menu-controls [data-action]").item(i)
-			action := uiAction(btn.getAttribute("data-action").(string))
+			btn := ui.controlsEl.querySelectorAll("[data-action]").item(i).(dom.HTMLElement)
+			action := uiAction(btn.getAttribute("data-action"))
 			seen[action] = true
 			check, ok := effects[action]
 			if !ok {

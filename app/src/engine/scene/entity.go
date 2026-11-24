@@ -1,6 +1,8 @@
 package scene
 
 import (
+	"gofront/webgpu"
+
 	"../collision"
 	"../mathx"
 	"../rendering"
@@ -104,7 +106,7 @@ type drawDefaults struct{}
 func (drawDefaults) DrawShadow(r *rendering.Renderer)                                  {}
 func (drawDefaults) DrawWireframe(r *rendering.Renderer)                               {}
 func (drawDefaults) DrawSkeleton(r *rendering.Renderer)                                {}
-func (drawDefaults) Simulate(r *rendering.Renderer, pass rendering.GPUComputePassEncoder) {}
+func (drawDefaults) Simulate(r *rendering.Renderer, pass webgpu.ComputePassEncoder) {}
 func (drawDefaults) TriangleCount() int                                                { return 0 }
 func (drawDefaults) CastsShadow() bool                                                 { return false }
 

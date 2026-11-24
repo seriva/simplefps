@@ -1,6 +1,7 @@
 package game
 
 import (
+	"gofront/dom"
 	"strings"
 
 	"../engine/systems"
@@ -13,14 +14,14 @@ type Controls struct {
 
 	initialized bool
 
-	onPointerLockChange func(e UIEvent)
-	onPointerLockError  func(e UIEvent)
-	onWindowFocus       func(e UIEvent)
-	onClick             func(e UIEvent)
-	onShoot             func(e UIEvent)
-	onWheel             func(e UIEvent)
-	onKeyUp             func(e UIEvent)
-	onKeyDown           func(e UIEvent)
+	onPointerLockChange func(e dom.Event)
+	onPointerLockError  func(e dom.Event)
+	onWindowFocus       func(e dom.Event)
+	onClick             func(e dom.Event)
+	onShoot             func(e dom.Event)
+	onWheel             func(e dom.Event)
+	onKeyUp             func(e dom.Event)
+	onKeyDown           func(e dom.Event)
 }
 
 // NewControls creates controls driving weapons.
@@ -70,61 +71,66 @@ func (c *Controls) Init() {
 	if window == nil || document == nil || c.initialized {
 		return
 	}
-	c.onPointerLockChange = func(e UIEvent) {
+	c.onPointerLockChange = func(e dom.Event) {
 		if document.pointerLockElement == nil && GlobalState.Current != StateMenu {
 			GlobalState.EnterMenu(MenuMain)
 		}
 	}
-	c.onPointerLockError = func(e UIEvent) {
+	c.onPointerLockError = func(e dom.Event) {
 		GlobalState.EnterGame()
 	}
-	c.onWindowFocus = func(e UIEvent) {
+	c.onWindowFocus = func(e dom.Event) {
 		if GlobalState.Current != StateMenu {
 			GlobalState.EnterMenu(MenuMain)
 		}
 	}
-	c.onClick = func(e UIEvent) {
+	c.onClick = func(e dom.Event) {
 		if !CanUseGameplayInput() {
 			return
 		}
-		if e.button > 0 {
+		if e.(dom.MouseEvent).button > 0 {
 			return
 		}
 		if systems.ActiveSettings.IsMobile {
 			return // no tap-to-shoot on mobile
 		}
-		if e.target == nil || any(e.target.tagName) == nil || e.target.tagName == "" || strings.ToUpper(e.target.tagName) != "BODY" {
+		if e.target == nil {
+			return
+		}
+		target := e.target.(dom.Element)
+		if any(target.tagName) == nil || target.tagName == "" || strings.ToUpper(target.tagName) != "BODY" {
 			return
 		}
 		c.Shoot()
 	}
-	c.onShoot = func(e UIEvent) {
+	c.onShoot = func(e dom.Event) {
 		c.Shoot()
 	}
-	c.onWheel = func(e UIEvent) {
-		c.Scroll(e.deltaY)
+	c.onWheel = func(e dom.Event) {
+		c.Scroll(e.(dom.WheelEvent).deltaY)
 	}
-	c.onKeyUp = func(e UIEvent) {
-		if e.key == "Escape" {
+	c.onKeyUp = func(e dom.Event) {
+		if e.(dom.KeyboardEvent).key == "Escape" {
 			e.preventDefault()
 			c.HandleEscape()
 		}
 	}
-	c.onKeyDown = func(e UIEvent) {
-		if e.repeat {
+	c.onKeyDown = func(e dom.Event) {
+		ke := e.(dom.KeyboardEvent)
+		if ke.repeat {
 			return
 		}
-		if e.key == "`" || e.key == "~" {
+		if ke.key == "`" || ke.key == "~" {
 			// preventDefault stops the browser from typing "`" into the newly focused input.
 			e.preventDefault()
 			systems.GlobalConsole.Toggle()
 			return
 		}
-		if int(e.keyCode) != systems.ActiveSettings.Jump || !CanUseGameplayInput() {
+		if ke.keyCode != systems.ActiveSettings.Jump || !CanUseGameplayInput() {
 			return
 		}
 		e.preventDefault()
-		window.dispatchEvent(Reflect.construct(globalThis.Event, []any{"game:jump"}))
+		window.dispatchEvent(Reflect.construct(any(window).(WindowEvents).Event, []any{"game:jump"}).(dom.Event))
 	}
 
 	document.addEventListener("pointerlockchange", c.onPointerLockChange, false)

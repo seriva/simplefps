@@ -1,6 +1,9 @@
 package rendering
 
 import (
+	"gofront/dom"
+	"gofront/webgpu"
+
 	"js:./interop.d.ts"
 )
 
@@ -14,29 +17,29 @@ type Capabilities struct {
 // default resources. Render passes and pipelines live in Renderer; Backend
 // is the thin device layer every resource is created through.
 type Backend struct {
-	Canvas       any
-	Adapter      any
-	Device       WebGPUDevice
-	Context      GPUCanvasContext
+	Canvas       dom.HTMLCanvasElement
+	Adapter      webgpu.Adapter
+	Device       webgpu.Device
+	Context      webgpu.CanvasContext
 	Format       string
 	Capabilities *Capabilities
 
 	// Encoder is the frame's command encoder (nil outside BeginFrame/EndFrame).
-	Encoder        GPUCommandEncoder
-	CurrentTexture GPUTexture
-	SwapchainView  GPUTextureView
+	Encoder        webgpu.CommandEncoder
+	CurrentTexture webgpu.Texture
+	SwapchainView  webgpu.TextureView
 
 	RenderScale float32
 	DoFSR       bool
 
 	// DefaultTextureView is a 1x1 white texture bound where a material has
 	// no texture; DefaultSampler is linear/repeat, ClampSampler linear/clamp.
-	DefaultTextureView GPUTextureView
-	DefaultSampler     GPUSampler
-	ClampSampler       GPUSampler
+	DefaultTextureView webgpu.TextureView
+	DefaultSampler     webgpu.Sampler
+	ClampSampler       webgpu.Sampler
 
-	mipmapModule    GPUShaderModule
-	mipmapPipelines map[string]GPURenderPipeline
+	mipmapModule    webgpu.ShaderModule
+	mipmapPipelines map[string]webgpu.RenderPipeline
 	// mipmapBG* are reused by GenerateMipmaps for the per-level bind group.
 	mipmapEntries []any
 	ready         bool
@@ -49,7 +52,7 @@ func NewBackend() *Backend {
 		Format:          "bgra8unorm",
 		Capabilities:    &Capabilities{MaxTextureSize: 8192, MaxAnisotropy: 16},
 		RenderScale:     1.0,
-		mipmapPipelines: make(map[string]GPURenderPipeline),
+		mipmapPipelines: make(map[string]webgpu.RenderPipeline),
 		mipmapEntries:   []any{bindingEntry(0, nil), bindingEntry(1, nil)},
 	}
 }
@@ -83,7 +86,7 @@ func (b *Backend) Init(onReady func(ok bool)) {
 		return
 	}
 
-	canvas := document.createElement("canvas")
+	canvas := document.createElement("canvas").(dom.HTMLCanvasElement)
 	canvas.id = "context"
 	canvas.style.cssText = "background:#000;position:fixed;top:0;left:0;width:100dvw;height:100dvh;display:block;z-index:0;"
 	if document.body != nil {
@@ -105,7 +108,7 @@ func (b *Backend) Init(onReady func(ok bool)) {
 			fail()
 			return
 		}
-		b.Adapter = adapter
+		b.Adapter = adapter.(webgpu.Adapter)
 		adapter.requestDevice().then(func(device any) {
 			if device == nil {
 				fail()
@@ -121,7 +124,7 @@ func (b *Backend) Init(onReady func(ok bool)) {
 			}
 			format := "bgra8unorm"
 			if navigator.gpu.getPreferredCanvasFormat != nil {
-				format = navigator.gpu.getPreferredCanvasFormat().(string)
+				format = navigator.gpu.getPreferredCanvasFormat()
 			}
 			b.Format = format
 			b.InitWithDevice(device, ctx)
@@ -146,8 +149,8 @@ func (b *Backend) Init(onReady func(ok bool)) {
 // (any WebGPU-shaped object; tests pass a fake) and creates the default
 // resources.
 func (b *Backend) InitWithDevice(device any, context any) {
-	b.Device = device.(WebGPUDevice)
-	b.Context = context.(GPUCanvasContext)
+	b.Device = device.(webgpu.Device)
+	b.Context = context.(webgpu.CanvasContext)
 	b.configureContext()
 
 	whiteData := []uint8{255, 255, 255, 255}
@@ -163,8 +166,7 @@ func (b *Backend) InitWithDevice(device any, context any) {
 		map[string]any{"bytesPerRow": 4, "rowsPerImage": 1},
 		map[string]any{"width": 1, "height": 1},
 	)
-	var white GPUTexture = tex
-	b.DefaultTextureView = white.createView(nil)
+	b.DefaultTextureView = tex.createView()
 
 	b.DefaultSampler = b.CreateSampler("repeat", "linear", "linear", "linear", 1)
 	b.ClampSampler = b.CreateSampler("clamp-to-edge", "linear", "linear", "linear", 1)
@@ -206,7 +208,7 @@ func (b *Backend) BeginFrame() {
 	}
 	if b.Context != nil {
 		b.CurrentTexture = b.Context.getCurrentTexture()
-		b.SwapchainView = b.CurrentTexture.createView(nil)
+		b.SwapchainView = b.CurrentTexture.createView()
 	}
 	b.Encoder = b.Device.createCommandEncoder()
 }
@@ -216,7 +218,7 @@ func (b *Backend) EndFrame() {
 	if b.Encoder == nil {
 		return
 	}
-	cmd := b.Encoder.finish(nil)
+	cmd := b.Encoder.finish()
 	b.Device.queue.submit([]any{cmd})
 	b.Encoder = nil
 	b.CurrentTexture = nil
@@ -251,11 +253,11 @@ func toBufferSource(data any) any {
 
 // CreateBuffer allocates byteLength bytes (4-byte aligned) with usage and
 // optionally uploads data (a typed array) at offset 0.
-func (b *Backend) CreateBuffer(label string, byteLength int, usage int, data any) GPUBuffer {
+func (b *Backend) CreateBuffer(label string, byteLength int, usage int, data any) webgpu.Buffer {
 	if byteLength < 4 {
 		byteLength = 4
 	}
-	var buf GPUBuffer = b.Device.createBuffer(map[string]any{
+	buf := b.Device.createBuffer(map[string]any{
 		"label": label,
 		"size":  align4(byteLength),
 		"usage": usage | BufferUsageCopyDst,
@@ -267,46 +269,44 @@ func (b *Backend) CreateBuffer(label string, byteLength int, usage int, data any
 }
 
 // CreateFloatBuffer uploads data into a new buffer with usage.
-func (b *Backend) CreateFloatBuffer(label string, data []float32, usage int) GPUBuffer {
+func (b *Backend) CreateFloatBuffer(label string, data []float32, usage int) webgpu.Buffer {
 	return b.CreateBuffer(label, len(data)*4, usage, data)
 }
 
 // CreateIndexBuffer uploads 32-bit indices.
-func (b *Backend) CreateIndexBuffer(label string, data []uint32) GPUBuffer {
+func (b *Backend) CreateIndexBuffer(label string, data []uint32) webgpu.Buffer {
 	return b.CreateBuffer(label, len(data)*4, BufferUsageIndex, data)
 }
 
 // CreateByteBuffer uploads bytes into a new buffer with usage.
-func (b *Backend) CreateByteBuffer(label string, data []uint8, usage int) GPUBuffer {
+func (b *Backend) CreateByteBuffer(label string, data []uint8, usage int) webgpu.Buffer {
 	return b.CreateBuffer(label, len(data), usage, data)
 }
 
 // WriteBuffer schedules a full upload of data at byte offset.
-func (b *Backend) WriteBuffer(buf GPUBuffer, offset int, data any) {
+func (b *Backend) WriteBuffer(buf webgpu.Buffer, offset int, data any) {
 	if buf == nil || data == nil {
 		return
 	}
-	b.Device.queue.writeBuffer(buf, float64(offset), toBufferSource(data))
+	b.Device.queue.writeBuffer(buf, offset, toBufferSource(data))
 }
 
 // WriteBufferRange uploads count elements of data starting at element 0.
-func (b *Backend) WriteBufferRange(buf GPUBuffer, offset int, data any, count int) {
+func (b *Backend) WriteBufferRange(buf webgpu.Buffer, offset int, data any, count int) {
 	b.WriteBufferSlice(buf, offset, data, 0, count)
 }
 
 // WriteBufferSlice uploads data[dataOffset:dataOffset+count] (elements) to
-// byte offset. WebGPUQueue.writeBuffer is declared with three parameters, so
-// the five-argument form goes through an untyped reference.
-func (b *Backend) WriteBufferSlice(buf GPUBuffer, offset int, data any, dataOffset, count int) {
+// byte offset.
+func (b *Backend) WriteBufferSlice(buf webgpu.Buffer, offset int, data any, dataOffset, count int) {
 	if buf == nil || data == nil || count <= 0 {
 		return
 	}
-	var queue any = b.Device.queue
-	queue.writeBuffer(buf, offset, toBufferSource(data), dataOffset, count)
+	b.Device.queue.writeBuffer(buf, offset, toBufferSource(data), dataOffset, count)
 }
 
 // DestroyBuffer releases buf (nil-safe).
-func (b *Backend) DestroyBuffer(buf GPUBuffer) {
+func (b *Backend) DestroyBuffer(buf webgpu.Buffer) {
 	if buf != nil {
 		buf.destroy()
 	}
@@ -317,22 +317,22 @@ func (b *Backend) DestroyBuffer(buf GPUBuffer) {
 // ---------------------------------------------------------------------------
 
 // CreateShaderModule compiles WGSL.
-func (b *Backend) CreateShaderModule(label, code string) GPUShaderModule {
+func (b *Backend) CreateShaderModule(label, code string) webgpu.ShaderModule {
 	return b.Device.createShaderModule(map[string]any{"label": label, "code": code})
 }
 
 // CreateBindGroupLayout wraps device.createBindGroupLayout.
-func (b *Backend) CreateBindGroupLayout(label string, entries []any) GPUBindGroupLayout {
+func (b *Backend) CreateBindGroupLayout(label string, entries []any) webgpu.BindGroupLayout {
 	return b.Device.createBindGroupLayout(map[string]any{"label": label, "entries": entries})
 }
 
 // CreatePipelineLayout wraps device.createPipelineLayout.
-func (b *Backend) CreatePipelineLayout(label string, layouts []any) GPUPipelineLayout {
+func (b *Backend) CreatePipelineLayout(label string, layouts []any) webgpu.PipelineLayout {
 	return b.Device.createPipelineLayout(map[string]any{"label": label, "bindGroupLayouts": layouts})
 }
 
 // CreateBindGroup wraps device.createBindGroup.
-func (b *Backend) CreateBindGroup(label string, layout GPUBindGroupLayout, entries []any) GPUBindGroup {
+func (b *Backend) CreateBindGroup(label string, layout webgpu.BindGroupLayout, entries []any) webgpu.BindGroup {
 	return b.Device.createBindGroup(map[string]any{"label": label, "layout": layout, "entries": entries})
 }
 
@@ -341,7 +341,7 @@ func (b *Backend) CreateBindGroup(label string, layout GPUBindGroupLayout, entri
 // ---------------------------------------------------------------------------
 
 // CreateSampler creates a filtering sampler.
-func (b *Backend) CreateSampler(wrap, minFilter, magFilter, mipFilter string, anisotropy int) GPUSampler {
+func (b *Backend) CreateSampler(wrap, minFilter, magFilter, mipFilter string, anisotropy int) webgpu.Sampler {
 	if anisotropy < 1 {
 		anisotropy = 1
 	}
@@ -359,7 +359,7 @@ func (b *Backend) CreateSampler(wrap, minFilter, magFilter, mipFilter string, an
 }
 
 // CreateGPUTexture allocates a 2D texture.
-func (b *Backend) CreateGPUTexture(label string, w, h, mipLevels int, format string, usage int) GPUTexture {
+func (b *Backend) CreateGPUTexture(label string, w, h, mipLevels int, format string, usage int) webgpu.Texture {
 	return b.Device.createTexture(map[string]any{
 		"label":         label,
 		"size":          map[string]any{"width": w, "height": h, "depthOrArrayLayers": 1},
@@ -370,7 +370,7 @@ func (b *Backend) CreateGPUTexture(label string, w, h, mipLevels int, format str
 }
 
 // WriteTexture uploads tightly packed RGBA8 pixels into mip 0.
-func (b *Backend) WriteTexture(tex GPUTexture, w, h int, data []uint8) {
+func (b *Backend) WriteTexture(tex webgpu.Texture, w, h int, data []uint8) {
 	if tex == nil || data == nil {
 		return
 	}
@@ -383,7 +383,7 @@ func (b *Backend) WriteTexture(tex GPUTexture, w, h int, data []uint8) {
 }
 
 // CopyImageToTexture copies a decoded image/bitmap into mip 0.
-func (b *Backend) CopyImageToTexture(tex GPUTexture, image any, w, h int) {
+func (b *Backend) CopyImageToTexture(tex webgpu.Texture, image any, w, h int) {
 	if tex == nil || image == nil {
 		return
 	}
@@ -394,18 +394,18 @@ func (b *Backend) CopyImageToTexture(tex GPUTexture, image any, w, h int) {
 	)
 }
 
-func (b *Backend) mipmapPipeline(format string) GPURenderPipeline {
+func (b *Backend) mipmapPipeline(format string) webgpu.RenderPipeline {
 	if p, ok := b.mipmapPipelines[format]; ok {
 		return p
 	}
-	var pipeline GPURenderPipeline = b.Device.createRenderPipeline(map[string]any{
+	pipeline := b.Device.createRenderPipeline(map[string]any{
 		"label":  "mipmap-" + format,
 		"layout": "auto",
 		"vertex": map[string]any{"module": b.mipmapModule, "entryPoint": "vs_main"},
 		"fragment": map[string]any{
 			"module":     b.mipmapModule,
 			"entryPoint": "fs_main",
-			"targets":    []any{map[string]any{"format": format}},
+			"targets":    []any{colorTarget(format, nil)},
 		},
 		"primitive": map[string]any{"topology": "triangle-strip"},
 	})
@@ -415,22 +415,20 @@ func (b *Backend) mipmapPipeline(format string) GPURenderPipeline {
 
 // GenerateMipmaps renders each mip level from the previous one on its own
 // command encoder (safe to call outside a frame).
-func (b *Backend) GenerateMipmaps(tex GPUTexture, format string, mipLevels int) {
+func (b *Backend) GenerateMipmaps(tex webgpu.Texture, format string, mipLevels int) {
 	if !b.ready || tex == nil || mipLevels <= 1 {
 		return
 	}
 	pipeline := b.mipmapPipeline(format)
-	var encoder GPUCommandEncoder = b.Device.createCommandEncoder()
-	var pipe any = pipeline
-	var layout GPUBindGroupLayout = pipe.getBindGroupLayout(0)
+	encoder := b.Device.createCommandEncoder()
+	layout := pipeline.getBindGroupLayout(0)
 
 	srcView := tex.createView(map[string]any{"baseMipLevel": 0, "mipLevelCount": 1})
 	for i := 1; i < mipLevels; i++ {
 		dstView := tex.createView(map[string]any{"baseMipLevel": i, "mipLevelCount": 1})
+		var colorAtt webgpu.RenderPassColorAttachment = map[string]any{"view": dstView, "loadOp": "clear", "storeOp": "store"}
 		pass := encoder.beginRenderPass(map[string]any{
-			"colorAttachments": []any{
-				map[string]any{"view": dstView, "loadOp": "clear", "storeOp": "store"},
-			},
+			"colorAttachments": []any{colorAtt},
 		})
 		pass.setPipeline(pipeline)
 		b.mipmapEntries[0] = bindingEntry(0, b.DefaultSampler)
@@ -440,7 +438,7 @@ func (b *Backend) GenerateMipmaps(tex GPUTexture, format string, mipLevels int) 
 		pass.end()
 		srcView = dstView
 	}
-	b.Device.queue.submit([]any{encoder.finish(nil)})
+	b.Device.queue.submit([]any{encoder.finish()})
 }
 
 // noOffsets is the empty dynamic-offset list for static bind groups.
@@ -451,10 +449,10 @@ var noOffsets = []int{}
 // ---------------------------------------------------------------------------
 
 // GetCanvas returns the swapchain canvas element.
-func (b *Backend) GetCanvas() any { return b.Canvas }
+func (b *Backend) GetCanvas() dom.HTMLCanvasElement { return b.Canvas }
 
 func devicePixelRatio() float64 {
-	if window != nil && window.devicePixelRatio != nil {
+	if window != nil && window.devicePixelRatio > 0 {
 		return window.devicePixelRatio
 	}
 	return 1.0

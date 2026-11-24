@@ -1,8 +1,9 @@
 package rendering
 
 import (
+	"gofront/webgpu"
+
 	"../mathx"
-	"js:./interop.d.ts"
 )
 
 // Drawable is the only thing a render pass needs from a scene entity. The
@@ -22,7 +23,7 @@ type Drawable interface {
 	DrawSkeleton(r *Renderer)
 	// Simulate runs GPU-side state updates (particles) inside the frame's
 	// compute pass; no-op for most entities.
-	Simulate(r *Renderer, pass GPUComputePassEncoder)
+	Simulate(r *Renderer, pass webgpu.ComputePassEncoder)
 	// Bounds returns the world-space AABB for the debug overlay (nil = none).
 	Bounds() *mathx.BoundingBox
 	TriangleCount() int

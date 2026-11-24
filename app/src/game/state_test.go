@@ -1,6 +1,7 @@
 package game
 
 import (
+	"gofront/dom"
 	"strings"
 	"testing"
 
@@ -112,7 +113,7 @@ func TestMenuFromName(t *testing.T) {
 
 // dispatchChangeState fires the window "changestate" CustomEvent with detail.
 func dispatchChangeState(detail map[string]any) {
-	window.dispatchEvent(Reflect.construct(window.CustomEvent, []any{"changestate", map[string]any{"detail": detail}}))
+	window.dispatchEvent(Reflect.construct(any(window).(WindowEvents).CustomEvent, []any{"changestate", map[string]any{"detail": detail}}).(dom.Event))
 }
 
 func TestChangeStateEvent(t *testing.T) {

@@ -63,21 +63,21 @@ func TestStatsMountDOM(t *testing.T) {
 	s := NewStatsOverlay()
 	s.Mount()
 	s.Toggle(true)
-	if s.items[0].className.(string) != "stats-item visible" {
-		t.Errorf("Expected visible class, got %q", s.items[0].className.(string))
+	if s.items[0].className != "stats-item visible" {
+		t.Errorf("Expected visible class, got %q", s.items[0].className)
 	}
 	s.SetRenderStats(3, 1, 42)
 	cam := mathx.NewVec3(1.4, 2.6, -3.5)
 	s.Update(0, cam)
 	s.Update(1000, cam)
-	if s.sceneEl.textContent.(string) != "m:3 - l:1 - t:42" {
-		t.Errorf("Unexpected scene text %q", s.sceneEl.textContent.(string))
+	if s.sceneEl.textContent != "m:3 - l:1 - t:42" {
+		t.Errorf("Unexpected scene text %q", s.sceneEl.textContent)
 	}
-	if s.posEl.textContent.(string) != "xyz:1,3,-4" {
-		t.Errorf("Unexpected pos text %q", s.posEl.textContent.(string))
+	if s.posEl.textContent != "xyz:1,3,-4" {
+		t.Errorf("Unexpected pos text %q", s.posEl.textContent)
 	}
 	s.Toggle(false)
-	if s.items[0].className.(string) != "stats-item" {
-		t.Errorf("Expected hidden class, got %q", s.items[0].className.(string))
+	if s.items[0].className != "stats-item" {
+		t.Errorf("Expected hidden class, got %q", s.items[0].className)
 	}
 }

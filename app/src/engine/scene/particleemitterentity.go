@@ -1,6 +1,8 @@
 package scene
 
 import (
+	"gofront/webgpu"
+
 	"../mathx"
 	"../rendering"
 )
@@ -52,10 +54,10 @@ type ParticleEmitterEntity struct {
 	pendingMs float32
 
 	backend        *rendering.Backend
-	particleBuffer rendering.GPUBuffer
-	instanceBuffer rendering.GPUBuffer
-	curveBuffer    rendering.GPUBuffer
-	bindGroup      rendering.GPUBindGroup
+	particleBuffer webgpu.Buffer
+	instanceBuffer webgpu.Buffer
+	curveBuffer    webgpu.Buffer
+	bindGroup      webgpu.BindGroup
 	gpuCapacity    int
 	uploaded       int
 	curve          []float32
@@ -182,7 +184,7 @@ func (e *ParticleEmitterEntity) ensureGPUState(r *rendering.Renderer) {
 
 // Simulate uploads newly spawned records and dispatches the compute update
 // for every spawned slot with the banked frame time.
-func (e *ParticleEmitterEntity) Simulate(r *rendering.Renderer, pass rendering.GPUComputePassEncoder) {
+func (e *ParticleEmitterEntity) Simulate(r *rendering.Renderer, pass webgpu.ComputePassEncoder) {
 	if e.count == 0 || e.texture == nil || r.Backend == nil {
 		return
 	}
@@ -197,7 +199,7 @@ func (e *ParticleEmitterEntity) Simulate(r *rendering.Renderer, pass rendering.G
 	r.ObjectParams(0, ms/1000, ms, float32(e.count), particleLUTSize)
 	r.ComputeBindGroup1(pass, e.bindGroup)
 	r.ComputeObjectOffset(pass)
-	pass.dispatchWorkgroups(float64((e.count+particleWorkgroup-1)/particleWorkgroup), 1, 1)
+	pass.dispatchWorkgroups((e.count+particleWorkgroup-1)/particleWorkgroup, 1, 1)
 }
 
 // Draw issues one instanced draw of the billboard quad over every spawned

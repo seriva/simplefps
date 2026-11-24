@@ -1,5 +1,7 @@
 package rendering
 
+import "gofront/webgpu"
+
 // WebGPU bit-flag constants. Declared in Go rather than read from the
 // GPUBufferUsage/GPUTextureUsage globals so headless tests (no WebGPU
 // globals) can exercise resource creation against a fake device.
@@ -87,25 +89,25 @@ func align4(n int) int {
 	return (n + 3) &^ 3
 }
 
-// BindingEntry builds a GPUBindGroupEntry.
-func BindingEntry(binding int, resource any) map[string]any {
+// BindingEntry builds a webgpu.BindGroupEntry.
+func BindingEntry(binding int, resource any) webgpu.BindGroupEntry {
 	return map[string]any{"binding": binding, "resource": resource}
 }
 
-func bindingEntry(binding int, resource any) map[string]any {
+func bindingEntry(binding int, resource any) webgpu.BindGroupEntry {
 	return BindingEntry(binding, resource)
 }
 
-// BufferBinding builds a GPUBufferBinding resource covering [0, size).
-func BufferBinding(buffer GPUBuffer, size int) map[string]any {
+// BufferBinding builds a webgpu.BufferBinding resource covering [0, size).
+func BufferBinding(buffer webgpu.Buffer, size int) webgpu.BufferBinding {
 	return map[string]any{"buffer": buffer, "offset": 0, "size": size}
 }
 
-func bufferBinding(buffer GPUBuffer, size int) map[string]any {
+func bufferBinding(buffer webgpu.Buffer, size int) webgpu.BufferBinding {
 	return BufferBinding(buffer, size)
 }
 
-func layoutBuffer(binding, visibility int, kind string, dynamic bool) map[string]any {
+func layoutBuffer(binding, visibility int, kind string, dynamic bool) webgpu.BindGroupLayoutEntry {
 	return map[string]any{
 		"binding":    binding,
 		"visibility": visibility,
@@ -113,7 +115,7 @@ func layoutBuffer(binding, visibility int, kind string, dynamic bool) map[string
 	}
 }
 
-func layoutTexture(binding, visibility int, sampleType string) map[string]any {
+func layoutTexture(binding, visibility int, sampleType string) webgpu.BindGroupLayoutEntry {
 	return map[string]any{
 		"binding":    binding,
 		"visibility": visibility,
@@ -121,7 +123,7 @@ func layoutTexture(binding, visibility int, sampleType string) map[string]any {
 	}
 }
 
-func layoutStorageTexture(binding, visibility int, format string) map[string]any {
+func layoutStorageTexture(binding, visibility int, format string) webgpu.BindGroupLayoutEntry {
 	return map[string]any{
 		"binding":        binding,
 		"visibility":     visibility,
@@ -129,7 +131,7 @@ func layoutStorageTexture(binding, visibility int, format string) map[string]any
 	}
 }
 
-func layoutSampler(binding, visibility int) map[string]any {
+func layoutSampler(binding, visibility int) webgpu.BindGroupLayoutEntry {
 	return map[string]any{
 		"binding":    binding,
 		"visibility": visibility,

@@ -2,6 +2,7 @@ package assets
 
 import (
 	"encoding/binary"
+	"gofront/dom"
 	"math"
 	"testing"
 
@@ -14,7 +15,7 @@ import (
 func newAssetsBackend() (*fakegpu.Device, *rendering.Backend) {
 	dev := fakegpu.NewDevice()
 	b := rendering.NewBackend()
-	b.Canvas = map[string]any{"clientWidth": 64, "clientHeight": 64, "width": 64, "height": 64}
+	b.Canvas = any(map[string]any{"clientWidth": 64, "clientHeight": 64, "width": 64, "height": 64}).(dom.HTMLCanvasElement)
 	var d any = dev
 	var ctx any = fakegpu.NewContext(dev, 64, 64)
 	b.InitWithDevice(d, ctx)

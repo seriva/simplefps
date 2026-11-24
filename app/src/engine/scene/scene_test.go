@@ -1,6 +1,7 @@
 package scene
 
 import (
+	"gofront/dom"
 	"testing"
 
 	"../animation"
@@ -28,7 +29,7 @@ var testBE *rendering.Backend
 func setup() (*fakegpu.Device, *rendering.Renderer, *Scene) {
 	dev := fakegpu.NewDevice()
 	b := rendering.NewBackend()
-	b.Canvas = map[string]any{"clientWidth": 320, "clientHeight": 240, "width": 320, "height": 240}
+	b.Canvas = any(map[string]any{"clientWidth": 320, "clientHeight": 240, "width": 320, "height": 240}).(dom.HTMLCanvasElement)
 	var d any = dev
 	var ctx any = fakegpu.NewContext(dev, 320, 240)
 	b.InitWithDevice(d, ctx)

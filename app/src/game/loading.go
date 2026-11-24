@@ -1,12 +1,12 @@
 package game
 
 import (
-	"js:./interop.d.ts"
+	"gofront/dom"
 )
 
 // LoadingManager manages loading screen visibility and counter.
 type LoadingManager struct {
-	loadingEl        UIElement
+	loadingEl        dom.HTMLElement
 	loadingCount     int
 	forceUntilReload bool
 	mounted          bool
@@ -27,7 +27,7 @@ func (lm *LoadingManager) Mount() {
 	}
 	refs := map[string]any{}
 	gom.MountTo("body", LoadingView(), refs)
-	lm.loadingEl = refs["loading"].(UIElement)
+	lm.loadingEl = refs["loading"].(dom.HTMLElement)
 	lm.mounted = true
 }
 

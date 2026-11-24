@@ -1,6 +1,8 @@
 package rendering
 
 import (
+	"gofront/webgpu"
+
 	"js:./interop.d.ts"
 )
 
@@ -67,11 +69,11 @@ type Material struct {
 	LightmapTexture       *Texture
 
 	backend *Backend
-	ubo     GPUBuffer
+	ubo     webgpu.Buffer
 	// packed mirrors the last uploaded uniform contents.
 	packed    []int32
 	uploaded  bool
-	bindGroup GPUBindGroup
+	bindGroup webgpu.BindGroup
 	bgVersion int
 }
 
@@ -119,7 +121,7 @@ func (m *Material) sync() {
 
 // BindGroup returns the group-1 bind group for the material, syncing the
 // uniform and rebuilding when textures changed.
-func (m *Material) BindGroup(r *Renderer) GPUBindGroup {
+func (m *Material) BindGroup(r *Renderer) webgpu.BindGroup {
 	m.sync()
 	if m.ubo == nil {
 		return nil

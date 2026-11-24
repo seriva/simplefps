@@ -6,6 +6,7 @@ import (
 	"../engine/mathx"
 	"../engine/scene"
 	"../engine/systems"
+	"js:../dependencies/peerjs.d.ts"
 	"js:./interop.d.ts"
 )
 
@@ -37,8 +38,8 @@ func callHandler(h any, arg any) {
 		fn(arg)
 	case func(string):
 		fn(arg.(string))
-	case func(systems.PeerDataConnection):
-		fn(arg.(systems.PeerDataConnection))
+	case func(PeerDataConnection):
+		fn(arg.(PeerDataConnection))
 	}
 }
 

@@ -1,6 +1,10 @@
 package systems
 
-import "testing"
+import (
+	"testing"
+
+	"js:../../dependencies/peerjs.d.ts"
+)
 
 // fakeConn mimics the PeerJS DataConnection surface used by Network.
 type fakeConn struct {
@@ -277,7 +281,7 @@ async func TestNetworkClientConnectFailsOnError(t *testing.T) {
 	pending := n.Connect("host-1")
 	fp.emit("open", "client-x")
 	conn := fp.outgoing[0]
-	if n.connectTimer == nil {
+	if n.connectTimer == 0 {
 		t.Fatal("connect must arm the timeout")
 	}
 	conn.emit("error", "refused")
@@ -285,7 +289,7 @@ async func TestNetworkClientConnectFailsOnError(t *testing.T) {
 	if ok := await pending; ok {
 		t.Error("connection error must resolve false")
 	}
-	if n.connectTimer != nil {
+	if n.connectTimer != 0 {
 		t.Error("settling must clear the timeout")
 	}
 
@@ -297,7 +301,7 @@ async func TestNetworkClientConnectFailsOnError(t *testing.T) {
 	pending2 := n2.Connect("host-1")
 	fp2.emit("open", "client-x")
 	fp2.emit("error", "peer-unavailable")
-	if ok := await pending2; ok || n2.connectTimer != nil {
+	if ok := await pending2; ok || n2.connectTimer != 0 {
 		t.Error("peer error must resolve false and clear the timeout")
 	}
 
@@ -308,7 +312,7 @@ async func TestNetworkClientConnectFailsOnError(t *testing.T) {
 	n3.Connect("host-1")
 	fp3.emit("open", "client-x")
 	n3.Disconnect()
-	if n3.connectTimer != nil || !fp3.destroyed {
+	if n3.connectTimer != 0 || !fp3.destroyed {
 		t.Error("Disconnect while connecting must clear the timeout")
 	}
 }

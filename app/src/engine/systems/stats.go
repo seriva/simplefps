@@ -1,6 +1,7 @@
 package systems
 
 import (
+	"gofront/dom"
 	"math"
 	"strconv"
 
@@ -26,15 +27,15 @@ type StatsOverlay struct {
 	lightCount int
 	triCount   int
 
-	items   []any
-	basicEl any
-	sceneEl any
-	posEl   any
+	items   []dom.HTMLElement
+	basicEl dom.HTMLElement
+	sceneEl dom.HTMLElement
+	posEl   dom.HTMLElement
 }
 
 // NewStatsOverlay creates a hidden stats overlay.
 func NewStatsOverlay() *StatsOverlay {
-	return &StatsOverlay{items: make([]any, 0)}
+	return &StatsOverlay{items: make([]dom.HTMLElement, 0)}
 }
 
 // Mount attaches the overlay markup and styles to the document once.
@@ -44,12 +45,12 @@ func (s *StatsOverlay) Mount() {
 	}
 	refs := map[string]any{}
 	gom.MountTo("body", StatsView(), refs)
-	s.items = append(s.items, refs["basicItem"])
-	s.items = append(s.items, refs["sceneItem"])
-	s.items = append(s.items, refs["posItem"])
-	s.basicEl = refs["basic"]
-	s.sceneEl = refs["scene"]
-	s.posEl = refs["pos"]
+	s.items = append(s.items, refs["basicItem"].(dom.HTMLElement))
+	s.items = append(s.items, refs["sceneItem"].(dom.HTMLElement))
+	s.items = append(s.items, refs["posItem"].(dom.HTMLElement))
+	s.basicEl = refs["basic"].(dom.HTMLElement)
+	s.sceneEl = refs["scene"].(dom.HTMLElement)
+	s.posEl = refs["pos"].(dom.HTMLElement)
 	s.mounted = true
 	s.applyVisibility()
 }
@@ -138,8 +139,11 @@ func (s *StatsOverlay) Update(now float64, camPos *mathx.Vec3) {
 	s.lastFPS = s.frames
 	s.frames = 0
 	s.lastUpdate = now
-	if performance != nil && performance.memory != nil {
-		s.memMB = int(math.Round(performance.memory.usedJSHeapSize.(float64) / 1048576))
+	if performance != nil {
+		perf := any(performance).(ChromePerformance)
+		if perf.memory != nil {
+			s.memMB = int(math.Round(perf.memory.usedJSHeapSize / 1048576))
+		}
 	}
 }
 

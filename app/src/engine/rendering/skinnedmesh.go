@@ -1,7 +1,7 @@
 package rendering
 
 import (
-	"js:./interop.d.ts"
+	"gofront/webgpu"
 )
 
 // MaxJoints is the per-mesh joint budget of the CPU animation system; the
@@ -14,8 +14,8 @@ type SkinnedMesh struct {
 	BaseMesh          Mesh
 	GPUJointIndices   []uint8
 	GPUJointWeights   []float32
-	JointIndexBuffer  GPUBuffer
-	JointWeightBuffer GPUBuffer
+	JointIndexBuffer  webgpu.Buffer
+	JointWeightBuffer webgpu.Buffer
 	BoneMatrixBuffer  []float32
 }
 

@@ -2,6 +2,7 @@ package systems
 
 import (
 	"encoding/json"
+	"gofront/dom"
 	"regexp"
 )
 
@@ -89,12 +90,11 @@ func DetectMobile() bool {
 	if window.matchMedia != nil && window.matchMedia("(max-width: 768px)").matches == true {
 		return true
 	}
-	ua, ok := nav.userAgent.(string)
-	return ok && _mobileUA.MatchString(ua)
+	return _mobileUA.MatchString(nav.userAgent)
 }
 
 // storage returns window.localStorage or nil when unavailable.
-func storage() any {
+func storage() dom.Storage {
 	if window == nil {
 		return nil
 	}
@@ -126,8 +126,8 @@ func (s *EngineSettings) Load() {
 	if st == nil {
 		return
 	}
-	stored, ok := st.getItem(settingsStorageKey).(string)
-	if ok {
+	stored := st.getItem(settingsStorageKey)
+	if stored != nil {
 		console.log("[Settings] Using stored settings")
 		s.ApplyJSON(stored)
 		return

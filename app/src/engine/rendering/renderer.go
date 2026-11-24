@@ -1,8 +1,9 @@
 package rendering
 
 import (
+	"gofront/webgpu"
+
 	"../mathx"
-	"js:./interop.d.ts"
 )
 
 // CameraView provides viewing transforms and position for rendering.
@@ -56,17 +57,17 @@ type DebugRenderOptions struct {
 // The engine fills it once per frame; it is the only path settings take into
 // the renderer.
 type RenderOptions struct {
-	ProceduralDetail     bool
-	LightBlurIterations  int
-	EmissiveIterations   int
-	EmissiveOffset       float32
-	EmissiveMult         float32
-	Gamma                float32
-	DoDirt               bool
-	DirtIntensity        float32
-	ShadowIntensity      float32
-	DoFSR                bool
-	FsrSharpness         float32
+	ProceduralDetail    bool
+	LightBlurIterations int
+	EmissiveIterations  int
+	EmissiveOffset      float32
+	EmissiveMult        float32
+	Gamma               float32
+	DoDirt              bool
+	DirtIntensity       float32
+	ShadowIntensity     float32
+	DoFSR               bool
+	FsrSharpness        float32
 	// Dirt is the lens-dirt overlay ("system/dirt.webp"); nil binds white.
 	Dirt *Texture
 }
@@ -91,39 +92,39 @@ type Renderer struct {
 	ProceduralDetail bool
 
 	// Depth is shared by the G-buffer, shadow and transparent passes.
-	Depth    *Texture
-	GBuffer  GBuffer
-	Shadow   *Texture
-	Light    *Texture
-	Scratch  *Texture
-	FsrEasu  *Texture
-	FsrWidth int
+	Depth     *Texture
+	GBuffer   GBuffer
+	Shadow    *Texture
+	Light     *Texture
+	Scratch   *Texture
+	FsrEasu   *Texture
+	FsrWidth  int
 	FsrHeight int
 
 	ProceduralNoise *Texture
 	// DefaultMaterial is bound for index groups without a material.
 	DefaultMaterial *Material
 
-	FrameDataUBO GPUBuffer
-	frameBG      GPUBindGroup
+	FrameDataUBO webgpu.Buffer
+	frameBG      webgpu.BindGroup
 	Objects      *ObjectRing
 	Bones        *BoneRing
 	Lighting     *LightingData
 
-	objectBG        GPUBindGroup
-	skinnedObjectBG GPUBindGroup
-	lightingBG      GPUBindGroup
-	emptyBG         GPUBindGroup
+	objectBG        webgpu.BindGroup
+	skinnedObjectBG webgpu.BindGroup
+	lightingBG      webgpu.BindGroup
+	emptyBG         webgpu.BindGroup
 
 	// Pass is the open render pass encoder (nil between passes).
-	Pass GPURenderPassEncoder
+	Pass webgpu.RenderPassEncoder
 	// pipeline is the pass's requested pipeline; bound* track encoder state
 	// so redundant set* calls are skipped.
 	pipeline        *Pipeline
-	boundPipeline   GPURenderPipeline
-	boundMaterialBG GPUBindGroup
-	boundIndex      GPUBuffer
-	boundVertex     []GPUBuffer
+	boundPipeline   webgpu.RenderPipeline
+	boundMaterialBG webgpu.BindGroup
+	boundIndex      webgpu.Buffer
+	boundVertex     []webgpu.Buffer
 
 	passes *passResources
 
@@ -150,7 +151,7 @@ func NewRenderer(backend *Backend) *Renderer {
 		spotSorter:  NewLightSorter(64),
 		identity:    mathx.NewMat4(),
 		debugColor:  debugWhite,
-		boundVertex: make([]GPUBuffer, 8),
+		boundVertex: make([]webgpu.Buffer, 8),
 	}
 }
 
@@ -362,7 +363,7 @@ func (r *Renderer) BindMaterial(mat *Material) {
 }
 
 // BindGroup1 sets an arbitrary group-1 bind group (pass inputs).
-func (r *Renderer) BindGroup1(bg GPUBindGroup) {
+func (r *Renderer) BindGroup1(bg webgpu.BindGroup) {
 	if bg == r.boundMaterialBG {
 		return
 	}
@@ -377,15 +378,15 @@ func (r *Renderer) bindObject() {
 	r.Pass.setBindGroup(GroupObject, r.pipeline.ObjectBG, o.offsets)
 }
 
-func (r *Renderer) setVertexBuffer(slot int, buf GPUBuffer) {
+func (r *Renderer) setVertexBuffer(slot int, buf webgpu.Buffer) {
 	if buf == nil || r.boundVertex[slot] == buf {
 		return
 	}
-	r.Pass.setVertexBuffer(float64(slot), buf)
+	r.Pass.setVertexBuffer(slot, buf)
 	r.boundVertex[slot] = buf
 }
 
-func (r *Renderer) setIndexBuffer(buf GPUBuffer) {
+func (r *Renderer) setIndexBuffer(buf webgpu.Buffer) {
 	if buf == r.boundIndex {
 		return
 	}
@@ -395,7 +396,7 @@ func (r *Renderer) setIndexBuffer(buf GPUBuffer) {
 
 // beginPass opens a render pass, binds the frame data and resets the
 // redundancy trackers.
-func (r *Renderer) beginPass(desc map[string]any) {
+func (r *Renderer) beginPass(desc webgpu.RenderPassDescriptor) {
 	r.Pass = r.Backend.Encoder.beginRenderPass(desc)
 	r.Pass.setBindGroup(GroupFrame, r.frameBG, noOffsets)
 	r.boundPipeline = nil
@@ -414,8 +415,8 @@ func (r *Renderer) endPass() {
 }
 
 // viewport sets the full w×h viewport with the given depth range.
-func (r *Renderer) viewport(w, h int, minDepth, maxDepth float64) {
-	r.Pass.setViewport(0, 0, float64(w), float64(h), minDepth, maxDepth)
+func (r *Renderer) viewport(w, h int, minDepth, maxDepth float32) {
+	r.Pass.setViewport(0, 0, float32(w), float32(h), minDepth, maxDepth)
 }
 
 // DrawFullscreen draws a 3-vertex fullscreen triangle with the pass
@@ -435,8 +436,7 @@ func (r *Renderer) CaptureSnapshot(cam *CameraView, scene SceneSource, opts *Ren
 	}
 	t := float32(0)
 	if performance != nil && performance.now != nil {
-		ts := performance.now()
-		t = float32(ts.(float64) * 0.001)
+		t = float32(performance.now() * 0.001)
 	}
 	r.Render(cam, scene, opts, t)
 	canvas := r.Backend.GetCanvas()
@@ -450,7 +450,7 @@ func (r *Renderer) CaptureSnapshot(cam *CameraView, scene SceneSource, opts *Ren
 				result = ""
 			}
 		}()
-		result = canvas.toDataURL("image/jpeg", 0.8).(string)
+		result = canvas.toDataURL("image/jpeg", 0.8)
 	}()
 	return result
 }

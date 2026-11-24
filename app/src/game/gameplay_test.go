@@ -1,6 +1,7 @@
 package game
 
 import (
+	"gofront/dom"
 	"math"
 	"testing"
 
@@ -705,9 +706,9 @@ func TestControlsGuards(t *testing.T) {
 }
 
 // fakeEvent builds a stand-in DOM event; see fakeTarget.
-func fakeEvent(fields map[string]any) UIEvent {
+func fakeEvent(fields map[string]any) dom.Event {
 	var v any = fields
-	return v.(UIEvent)
+	return v.(dom.Event)
 }
 
 func TestControlsHandlers(t *testing.T) {
@@ -747,13 +748,8 @@ func TestControlsHandlers(t *testing.T) {
 		t.Error("wheel should cycle weapons")
 	}
 
-	// The jump handler builds globalThis.Event; under jsdom that is Node's
-	// Event, which jsdom's dispatchEvent rejects. In a browser it is window's.
-	nodeEvent := globalThis.Event
-	globalThis.Event = window.Event
-	defer func() { globalThis.Event = nodeEvent }()
 	jumps := 0
-	onJump := func(e any) { jumps++ }
+	onJump := func(e dom.Event) { jumps++ }
 	window.addEventListener("game:jump", onJump)
 	defer window.removeEventListener("game:jump", onJump)
 	jump := systems.ActiveSettings.Jump

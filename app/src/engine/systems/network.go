@@ -81,7 +81,7 @@ type Network struct {
 	hostConnection PeerDataConnection
 	clients        []PeerDataConnection
 	clientCount    int
-	connectTimer   any
+	connectTimer   int
 
 	// Reused outgoing packets.
 	statePacket map[string]any
@@ -232,15 +232,15 @@ func (n *Network) removeClient(conn PeerDataConnection) {
 }
 
 func (n *Network) clearConnectTimer() {
-	if n.connectTimer != nil {
+	if n.connectTimer != 0 {
 		clearTimeout(n.connectTimer)
-		n.connectTimer = nil
+		n.connectTimer = 0
 	}
 }
 
 func (n *Network) connectToHost(hostID string, finish func(ok bool)) {
 	n.connectTimer = setTimeout(func() {
-		n.connectTimer = nil
+		n.connectTimer = 0
 		GlobalConsole.Error("[Network] Connection timed out")
 		finish(false)
 	}, NetConnectTimeoutMs)

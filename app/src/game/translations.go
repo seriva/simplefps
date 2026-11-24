@@ -1,9 +1,5 @@
 package game
 
-import (
-	"js:./interop.d.ts"
-)
-
 const defaultLanguage = "en-US"
 
 var translations = map[string]map[string]string{
@@ -41,8 +37,8 @@ var currentLanguage = defaultLanguage
 
 // InitTranslations initializes the active language dictionary based on navigator.language.
 func InitTranslations() {
-	if navigator != nil && navigator.language != nil {
-		lang := navigator.language.(string)
+	if navigator != nil && navigator.language != "" {
+		lang := navigator.language
 		if _, ok := translations[lang]; ok {
 			currentLanguage = lang
 		}

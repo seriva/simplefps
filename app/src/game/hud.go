@@ -1,21 +1,20 @@
 package game
 
 import (
+	"gofront/dom"
 	"strconv"
-
-	"js:./interop.d.ts"
 )
 
 // HUD represents the cached direct DOM in-game heads-up display.
 type HUD struct {
-	hudEl      UIElement
-	healthEl   UIElement
-	armorEl    UIElement
-	ammoEl     UIElement
-	healthIcon UIElement
-	armorIcon  UIElement
-	ammoIcon   UIElement
-	menuBtn    UIElement
+	hudEl      dom.HTMLElement
+	healthEl   dom.HTMLElement
+	armorEl    dom.HTMLElement
+	ammoEl     dom.HTMLElement
+	healthIcon dom.HTMLElement
+	armorIcon  dom.HTMLElement
+	ammoIcon   dom.HTMLElement
+	menuBtn    dom.HTMLElement
 
 	lastHP    int
 	lastArmor int
@@ -42,15 +41,15 @@ func (h *HUD) Mount(isMobile bool) {
 	refs := map[string]any{}
 	gom.MountTo("body", HUDView(isMobile), refs)
 
-	h.hudEl      = refs["hud"].(UIElement)
-	h.healthEl   = refs["healthEl"].(UIElement)
-	h.armorEl    = refs["armorEl"].(UIElement)
-	h.ammoEl     = refs["ammoEl"].(UIElement)
-	h.healthIcon = refs["healthIcon"].(UIElement)
-	h.armorIcon  = refs["armorIcon"].(UIElement)
-	h.ammoIcon   = refs["ammoIcon"].(UIElement)
+	h.hudEl      = refs["hud"].(dom.HTMLElement)
+	h.healthEl   = refs["healthEl"].(dom.HTMLElement)
+	h.armorEl    = refs["armorEl"].(dom.HTMLElement)
+	h.ammoEl     = refs["ammoEl"].(dom.HTMLElement)
+	h.healthIcon = refs["healthIcon"].(dom.HTMLElement)
+	h.armorIcon  = refs["armorIcon"].(dom.HTMLElement)
+	h.ammoIcon   = refs["ammoIcon"].(dom.HTMLElement)
 
-	setupAnimEnd := func(iconEl UIElement) {
+	setupAnimEnd := func(iconEl dom.HTMLElement) {
 		if iconEl != nil && iconEl.addEventListener != nil {
 			iconEl.addEventListener("animationend", func() {
 				iconEl.classList.remove("icon-animate")
@@ -62,7 +61,7 @@ func (h *HUD) Mount(isMobile bool) {
 	setupAnimEnd(h.ammoIcon)
 
 	if isMobile {
-		h.menuBtn = refs["menuBtn"].(UIElement)
+		h.menuBtn = refs["menuBtn"].(dom.HTMLElement)
 		if h.menuBtn != nil {
 			h.menuBtn.addEventListener("touchend", func() {
 				GlobalState.EnterMenu(MenuMain)
@@ -103,7 +102,7 @@ func (h *HUD) Update(hp, armor, ammo int) {
 	}
 }
 
-func (h *HUD) animateIcon(iconEl UIElement) {
+func (h *HUD) animateIcon(iconEl dom.HTMLElement) {
 	if iconEl == nil {
 		return
 	}

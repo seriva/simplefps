@@ -1,33 +1,33 @@
 package rendering
 
 import (
-	"js:./interop.d.ts"
+	"gofront/webgpu"
 )
 
-// Layouts holds every GPUBindGroupLayout the renderer uses (see wgsl.go for
+// Layouts holds every webgpu.BindGroupLayout the renderer uses (see wgsl.go for
 // the per-group contract).
 type Layouts struct {
-	Frame         GPUBindGroupLayout
-	Material      GPUBindGroupLayout
-	Deferred      GPUBindGroupLayout
-	Blur          GPUBindGroupLayout
-	PostProcess   GPUBindGroupLayout
-	Sampled       GPUBindGroupLayout
-	Sprite        GPUBindGroupLayout
-	Particle      GPUBindGroupLayout
-	Empty         GPUBindGroupLayout
-	Object        GPUBindGroupLayout
-	SkinnedObject GPUBindGroupLayout
-	Lighting      GPUBindGroupLayout
+	Frame         webgpu.BindGroupLayout
+	Material      webgpu.BindGroupLayout
+	Deferred      webgpu.BindGroupLayout
+	Blur          webgpu.BindGroupLayout
+	PostProcess   webgpu.BindGroupLayout
+	Sampled       webgpu.BindGroupLayout
+	Sprite        webgpu.BindGroupLayout
+	Particle      webgpu.BindGroupLayout
+	Empty         webgpu.BindGroupLayout
+	Object        webgpu.BindGroupLayout
+	SkinnedObject webgpu.BindGroupLayout
+	Lighting      webgpu.BindGroupLayout
 }
 
-// Pipeline is a pre-baked GPURenderPipeline plus the object bind group it
+// Pipeline is a pre-baked webgpu.RenderPipeline plus the object bind group it
 // expects at group 2 and an optional cull-disabled twin for double-sided
 // materials.
 type Pipeline struct {
 	Label    string
-	GPU      GPURenderPipeline
-	ObjectBG GPUBindGroup
+	GPU      webgpu.RenderPipeline
+	ObjectBG webgpu.BindGroup
 	Skinned  bool
 	CullOff  *Pipeline
 }
@@ -52,8 +52,8 @@ type Pipelines struct {
 	Debug                *Pipeline
 	SkinnedDebug         *Pipeline
 
-	KawaseBlur     GPUComputePipeline
-	ParticleUpdate GPUComputePipeline
+	KawaseBlur     webgpu.ComputePipeline
+	ParticleUpdate webgpu.ComputePipeline
 }
 
 const stageVF = ShaderStageVertex | ShaderStageFragment
@@ -125,7 +125,11 @@ func (r *Renderer) createLayouts() {
 
 // Vertex buffer layouts --------------------------------------------------
 
-func vertexBuffer(stride int, location int, format string, stepInstance bool) map[string]any {
+func vertexAttr(location, offset int, format string) webgpu.VertexAttribute {
+	return map[string]any{"shaderLocation": location, "offset": offset, "format": format}
+}
+
+func vertexBuffer(stride int, location int, format string, stepInstance bool) webgpu.VertexBufferLayout {
 	step := "vertex"
 	if stepInstance {
 		step = "instance"
@@ -134,7 +138,7 @@ func vertexBuffer(stride int, location int, format string, stepInstance bool) ma
 		"arrayStride": stride,
 		"stepMode":    step,
 		"attributes": []any{
-			map[string]any{"shaderLocation": location, "offset": 0, "format": format},
+			vertexAttr(location, 0, format),
 		},
 	}
 }
@@ -163,47 +167,47 @@ func skinnedVertexLayout() []any {
 const ParticleInstanceStride = 24
 
 func particleVertexLayout() []any {
+	var inst webgpu.VertexBufferLayout = map[string]any{
+		"arrayStride": ParticleInstanceStride,
+		"stepMode":    "instance",
+		"attributes": []any{
+			vertexAttr(2, 0, "float32x3"),
+			vertexAttr(3, 12, "float32"),
+			vertexAttr(4, 16, "float32"),
+			vertexAttr(5, 20, "float32"),
+		},
+	}
 	return []any{
 		vertexBuffer(12, 0, "float32x3", false),
 		vertexBuffer(8, 1, "float32x2", false),
-		map[string]any{
-			"arrayStride": ParticleInstanceStride,
-			"stepMode":    "instance",
-			"attributes": []any{
-				map[string]any{"shaderLocation": 2, "offset": 0, "format": "float32x3"},
-				map[string]any{"shaderLocation": 3, "offset": 12, "format": "float32"},
-				map[string]any{"shaderLocation": 4, "offset": 16, "format": "float32"},
-				map[string]any{"shaderLocation": 5, "offset": 20, "format": "float32"},
-			},
-		},
+		inst,
 	}
 }
 
 // Blend / target / depth helpers ------------------------------------------
 
-func blendState(src, dst string) map[string]any {
+func blendState(src, dst string) webgpu.BlendState {
 	return map[string]any{
 		"color": map[string]any{"srcFactor": src, "dstFactor": dst, "operation": "add"},
 		"alpha": map[string]any{"srcFactor": src, "dstFactor": dst, "operation": "add"},
 	}
 }
 
-func colorTarget(format string, blend map[string]any) map[string]any {
-	t := map[string]any{"format": format, "writeMask": ColorWriteAll}
+func colorTarget(format string, blend webgpu.BlendState) webgpu.ColorTargetState {
 	if blend != nil {
-		t["blend"] = blend
+		return map[string]any{"format": format, "writeMask": ColorWriteAll, "blend": blend}
 	}
-	return t
+	return map[string]any{"format": format, "writeMask": ColorWriteAll}
 }
 
-func depthState(write bool, compare string, bias int, slope float32) map[string]any {
+func depthState(write bool, compare string, bias int, slope float32) webgpu.DepthStencilState {
 	return map[string]any{
 		"format":              FormatDepth,
 		"depthWriteEnabled":   write,
 		"depthCompare":        compare,
 		"depthBias":           bias,
 		"depthBiasSlopeScale": slope,
-		"depthBiasClamp":      0,
+		"depthBiasClamp":      float32(0),
 	}
 }
 
@@ -218,33 +222,45 @@ func gbufferTargets() []any {
 
 type renderPipelineSpec struct {
 	label    string
-	module   GPUShaderModule
-	layout   GPUPipelineLayout
+	module   webgpu.ShaderModule
+	layout   webgpu.PipelineLayout
 	buffers  []any
 	targets  []any
-	depth    map[string]any // nil: no depthStencil
+	depth    webgpu.DepthStencilState // nil: no depthStencil
 	topology string
 	cull     string
-	objectBG GPUBindGroup
+	objectBG webgpu.BindGroup
 	skinned  bool
 }
 
 func (r *Renderer) buildPipeline(s *renderPipelineSpec) *Pipeline {
-	desc := map[string]any{
-		"label":  s.label,
-		"layout": s.layout,
-		"vertex": map[string]any{"module": s.module, "entryPoint": "vs_main", "buffers": s.buffers},
-		"fragment": map[string]any{
-			"module":     s.module,
-			"entryPoint": "fs_main",
-			"targets":    s.targets,
-		},
-		"primitive": map[string]any{"topology": s.topology, "cullMode": s.cull},
-	}
+	var gpu webgpu.RenderPipeline
 	if s.depth != nil {
-		desc["depthStencil"] = s.depth
+		gpu = r.Backend.Device.createRenderPipeline(map[string]any{
+			"label":  s.label,
+			"layout": s.layout,
+			"vertex": map[string]any{"module": s.module, "entryPoint": "vs_main", "buffers": s.buffers},
+			"fragment": map[string]any{
+				"module":     s.module,
+				"entryPoint": "fs_main",
+				"targets":    s.targets,
+			},
+			"primitive":    map[string]any{"topology": s.topology, "cullMode": s.cull},
+			"depthStencil": s.depth,
+		})
+	} else {
+		gpu = r.Backend.Device.createRenderPipeline(map[string]any{
+			"label":  s.label,
+			"layout": s.layout,
+			"vertex": map[string]any{"module": s.module, "entryPoint": "vs_main", "buffers": s.buffers},
+			"fragment": map[string]any{
+				"module":     s.module,
+				"entryPoint": "fs_main",
+				"targets":    s.targets,
+			},
+			"primitive": map[string]any{"topology": s.topology, "cullMode": s.cull},
+		})
 	}
-	var gpu GPURenderPipeline = r.Backend.Device.createRenderPipeline(desc)
 	return &Pipeline{Label: s.label, GPU: gpu, ObjectBG: s.objectBG, Skinned: s.skinned}
 }
 
@@ -276,7 +292,7 @@ func (r *Renderer) createPipelines() {
 	spritePL := b.CreatePipelineLayout("sprite", []any{l.Frame, l.Sprite, l.Object})
 	particlePL := b.CreatePipelineLayout("particle", []any{l.Frame, l.Particle, l.Object})
 
-	mod := func(label, code string) GPUShaderModule { return b.CreateShaderModule(label, code) }
+	mod := func(label, code string) webgpu.ShaderModule { return b.CreateShaderModule(label, code) }
 
 	objBG := r.objectBG
 	skinBG := r.skinnedObjectBG

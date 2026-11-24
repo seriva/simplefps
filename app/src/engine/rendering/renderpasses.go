@@ -1,8 +1,9 @@
 package rendering
 
 import (
+	"gofront/webgpu"
+
 	"../mathx"
-	"js:./interop.d.ts"
 )
 
 // Package-level scratch (zero per-frame allocation).
@@ -32,66 +33,57 @@ var (
 // input bind groups for the current render targets. Descriptors are plain
 // JS objects; the swapchain-bound ones get their view patched per frame.
 type passResources struct {
-	gbuffer     map[string]any
-	shadow      map[string]any
-	fpsGeom     map[string]any
-	lighting    map[string]any
-	transparent map[string]any
-	postScratch map[string]any
-	postSwap    map[string]any
-	fsrEasu     map[string]any
-	fsrRcas     map[string]any
-	debug       map[string]any
+	gbuffer     webgpu.RenderPassDescriptor
+	shadow      webgpu.RenderPassDescriptor
+	fpsGeom     webgpu.RenderPassDescriptor
+	lighting    webgpu.RenderPassDescriptor
+	transparent webgpu.RenderPassDescriptor
+	postScratch webgpu.RenderPassDescriptor
+	postSwap    webgpu.RenderPassDescriptor
+	fsrEasu     webgpu.RenderPassDescriptor
+	fsrRcas     webgpu.RenderPassDescriptor
+	debug       webgpu.RenderPassDescriptor
 
 	// Attachments whose clearValue/view are patched per frame.
-	gbufferColor0 map[string]any
-	lightingColor map[string]any
-	postSwapColor map[string]any
-	fsrRcasColor  map[string]any
-	debugColor    map[string]any
+	gbufferColor0 webgpu.RenderPassColorAttachment
+	lightingColor webgpu.RenderPassColorAttachment
+	postSwapColor webgpu.RenderPassColorAttachment
+	fsrRcasColor  webgpu.RenderPassColorAttachment
+	debugColor    webgpu.RenderPassColorAttachment
 	gbufferClear  []float32
 	lightingClear []float32
 
-	deferredBG            GPUBindGroup
-	postBG                GPUBindGroup
+	deferredBG            webgpu.BindGroup
+	postBG                webgpu.BindGroup
 	postDirt              *Texture
 	postDirtVersion       int
-	easuBG                GPUBindGroup
-	rcasBG                GPUBindGroup
-	blurLightToScratch    GPUBindGroup
-	blurScratchToLight    GPUBindGroup
-	blurEmissiveToScratch GPUBindGroup
-	blurScratchToEmissive GPUBindGroup
+	easuBG                webgpu.BindGroup
+	rcasBG                webgpu.BindGroup
+	blurLightToScratch    webgpu.BindGroup
+	blurScratchToLight    webgpu.BindGroup
+	blurEmissiveToScratch webgpu.BindGroup
+	blurScratchToEmissive webgpu.BindGroup
 }
 
-func colorAttachment(view GPUTextureView, clear []float32) map[string]any {
-	a := map[string]any{"view": view, "storeOp": "store"}
+func colorAttachment(view webgpu.TextureView, clear []float32) webgpu.RenderPassColorAttachment {
 	if clear != nil {
-		a["loadOp"] = "clear"
-		a["clearValue"] = clear
-	} else {
-		a["loadOp"] = "load"
+		return map[string]any{"view": view, "storeOp": "store", "loadOp": "clear", "clearValue": clear}
 	}
-	return a
+	return map[string]any{"view": view, "storeOp": "store", "loadOp": "load"}
 }
 
-func depthAttachment(view GPUTextureView, clear bool) map[string]any {
-	a := map[string]any{"view": view, "depthStoreOp": "store"}
+func depthAttachment(view webgpu.TextureView, clear bool) webgpu.RenderPassDepthStencilAttachment {
 	if clear {
-		a["depthLoadOp"] = "clear"
-		a["depthClearValue"] = 1.0
-	} else {
-		a["depthLoadOp"] = "load"
+		return map[string]any{"view": view, "depthStoreOp": "store", "depthLoadOp": "clear", "depthClearValue": float32(1.0)}
 	}
-	return a
+	return map[string]any{"view": view, "depthStoreOp": "store", "depthLoadOp": "load"}
 }
 
-func renderPass(label string, colors []any, depth map[string]any) map[string]any {
-	d := map[string]any{"label": label, "colorAttachments": colors}
+func renderPass(label string, colors []any, depth webgpu.RenderPassDepthStencilAttachment) webgpu.RenderPassDescriptor {
 	if depth != nil {
-		d["depthStencilAttachment"] = depth
+		return map[string]any{"label": label, "colorAttachments": colors, "depthStencilAttachment": depth}
 	}
-	return d
+	return map[string]any{"label": label, "colorAttachments": colors}
 }
 
 var (
@@ -175,7 +167,7 @@ func (r *Renderer) buildPassResources() {
 	r.passes = p
 }
 
-func (r *Renderer) blurBindGroup(label string, src, dst *Texture) GPUBindGroup {
+func (r *Renderer) blurBindGroup(label string, src, dst *Texture) webgpu.BindGroup {
 	b := r.Backend
 	return b.CreateBindGroup(label, r.Layouts.Blur, []any{
 		bindingEntry(0, b.ClampSampler),
@@ -186,7 +178,7 @@ func (r *Renderer) blurBindGroup(label string, src, dst *Texture) GPUBindGroup {
 
 // postProcessBindGroup returns the group-1 inputs of the post-processing
 // pass, rebuilt when the dirt texture (or its content) changes.
-func (r *Renderer) postProcessBindGroup(dirt *Texture) GPUBindGroup {
+func (r *Renderer) postProcessBindGroup(dirt *Texture) webgpu.BindGroup {
 	p := r.passes
 	v := versionOf(dirt)
 	if p.postBG != nil && p.postDirt == dirt && p.postDirtVersion == v {
@@ -398,7 +390,7 @@ func (r *Renderer) simulateParticles(scene SceneSource) {
 	if emitters.Count == 0 {
 		return
 	}
-	pass := r.Backend.Encoder.beginComputePass(nil)
+	pass := r.Backend.Encoder.beginComputePass()
 	pass.setBindGroup(GroupFrame, r.frameBG, noOffsets)
 	pass.setPipeline(r.Pipelines.ParticleUpdate)
 	for i := 0; i < emitters.Count; i++ {
@@ -409,14 +401,14 @@ func (r *Renderer) simulateParticles(scene SceneSource) {
 
 // ComputeObjectOffset points group 2 of a compute pass at the current
 // ObjectData slot (compute pipelines share the Object layout).
-func (r *Renderer) ComputeObjectOffset(pass GPUComputePassEncoder) {
+func (r *Renderer) ComputeObjectOffset(pass webgpu.ComputePassEncoder) {
 	o := r.Objects
 	o.offsets[0] = o.cur * ObjectStride
 	pass.setBindGroup(GroupObject, r.objectBG, o.offsets)
 }
 
 // ComputeBindGroup1 sets group 1 of a compute pass.
-func (r *Renderer) ComputeBindGroup1(pass GPUComputePassEncoder, bg GPUBindGroup) {
+func (r *Renderer) ComputeBindGroup1(pass webgpu.ComputePassEncoder, bg webgpu.BindGroup) {
 	pass.setBindGroup(GroupMaterial, bg, noOffsets)
 }
 
@@ -500,7 +492,7 @@ func (r *Renderer) debugPass(scene SceneSource) {
 	if !d.ShowBoundingVolumes && !d.ShowWireframes && !d.ShowLightVolumes && !d.ShowSkeleton {
 		return
 	}
-	r.passes.debugColor["view"] = r.Backend.SwapchainView
+	r.passes.debugColor.view = r.Backend.SwapchainView
 	r.beginPass(r.passes.debug)
 	r.viewport(r.Backend.SwapchainWidth(), r.Backend.SwapchainHeight(), 0, 1)
 	r.BindGroup1(r.emptyBG)
@@ -556,7 +548,7 @@ func (r *Renderer) postProcessingPass(opts *RenderOptions) {
 		r.viewport(r.Width, r.Height, 0, 1)
 		r.SetPipeline(r.Pipelines.PostProcessScratch)
 	} else {
-		r.passes.postSwapColor["view"] = b.SwapchainView
+		r.passes.postSwapColor.view = b.SwapchainView
 		r.beginPass(r.passes.postSwap)
 		r.viewport(b.SwapchainWidth(), b.SwapchainHeight(), 0, 1)
 		r.SetPipeline(r.Pipelines.PostProcessSwapchain)
@@ -592,7 +584,7 @@ func (r *Renderer) fsrPass(opts *RenderOptions) {
 	if sharp == 0 {
 		sharp = 0.2
 	}
-	r.passes.fsrRcasColor["view"] = b.SwapchainView
+	r.passes.fsrRcasColor.view = b.SwapchainView
 	r.beginPass(r.passes.fsrRcas)
 	r.viewport(b.SwapchainWidth(), b.SwapchainHeight(), 0, 1)
 	r.BindGroup1(r.passes.rcasBG)
@@ -605,13 +597,13 @@ func (r *Renderer) fsrPass(opts *RenderOptions) {
 
 // blurImage runs the Kawase compute blur: ping-pongs src through Scratch
 // with growing offsets; odd iteration counts end with an identity copy back.
-func (r *Renderer) blurImage(src *Texture, toScratch, fromScratch GPUBindGroup, iterations int, radius float32) {
+func (r *Renderer) blurImage(src *Texture, toScratch, fromScratch webgpu.BindGroup, iterations int, radius float32) {
 	if iterations <= 0 || src == nil || r.Scratch == nil {
 		return
 	}
 	groupsX := (r.Width + blurWorkgroup - 1) / blurWorkgroup
 	groupsY := (r.Height + blurWorkgroup - 1) / blurWorkgroup
-	pass := r.Backend.Encoder.beginComputePass(nil)
+	pass := r.Backend.Encoder.beginComputePass()
 	pass.setBindGroup(GroupFrame, r.frameBG, noOffsets)
 	pass.setPipeline(r.Pipelines.KawaseBlur)
 	for i := 0; i < iterations; i++ {
@@ -623,14 +615,14 @@ func (r *Renderer) blurImage(src *Texture, toScratch, fromScratch GPUBindGroup, 
 		r.NextObject()
 		r.ObjectParams(0, float32(i+1)*radius, 0, 0, 0)
 		r.ComputeObjectOffset(pass)
-		pass.dispatchWorkgroups(float64(groupsX), float64(groupsY), 1)
+		pass.dispatchWorkgroups(groupsX, groupsY, 1)
 	}
 	if iterations%2 != 0 {
 		pass.setBindGroup(GroupMaterial, fromScratch, noOffsets)
 		r.NextObject()
 		r.ObjectParams(0, blurIdentityOffset, 0, 0, 0)
 		r.ComputeObjectOffset(pass)
-		pass.dispatchWorkgroups(float64(groupsX), float64(groupsY), 1)
+		pass.dispatchWorkgroups(groupsX, groupsY, 1)
 	}
 	pass.end()
 }

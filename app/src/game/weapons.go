@@ -8,14 +8,12 @@ import (
 	"../engine/mathx"
 	"../engine/scene"
 	"../engine/systems"
-	"js:./interop.d.ts"
 )
 
 // nowMs returns the high-resolution clock in milliseconds.
 func nowMs() float64 {
 	if performance != nil && performance.now != nil {
-		now := performance.now()
-		return now.(float64)
+		return performance.now()
 	}
 	return 0
 }

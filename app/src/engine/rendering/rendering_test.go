@@ -1,6 +1,8 @@
 package rendering
 
 import (
+	"gofront/dom"
+	"gofront/webgpu"
 	"testing"
 
 	"../mathx"
@@ -12,7 +14,7 @@ import (
 func newTestBackend(w, h int) (*fakegpu.Device, *Backend) {
 	dev := fakegpu.NewDevice()
 	b := NewBackend()
-	b.Canvas = map[string]any{"clientWidth": w, "clientHeight": h, "width": w, "height": h}
+	b.Canvas = any(map[string]any{"clientWidth": w, "clientHeight": h, "width": w, "height": h}).(dom.HTMLCanvasElement)
 	var d any = dev
 	var ctx any = fakegpu.NewContext(dev, w, h)
 	b.InitWithDevice(d, ctx)
@@ -117,7 +119,7 @@ func (d *testDrawable) DrawWireframe(r *Renderer) {
 }
 
 func (d *testDrawable) DrawSkeleton(r *Renderer) {}
-func (d *testDrawable) Simulate(r *Renderer, pass GPUComputePassEncoder) {
+func (d *testDrawable) Simulate(r *Renderer, pass webgpu.ComputePassEncoder) {
 	d.simulated++
 }
 func (d *testDrawable) Bounds() *mathx.BoundingBox { return d.bounds }
@@ -192,13 +194,12 @@ func near(a, b float32) bool {
 // ---------------------------------------------------------------------------
 
 // A standard WebGPU device exposes only the lowercase method names, like
-// fakegpu.Device. InitWithDevice must accept it: asserting to GoFront's built-in
-// GPUDevice would panic because that is a structural runtime check that also
-// wants the capitalised names.
+// fakegpu.Device. InitWithDevice must accept it via gofront/webgpu's
+// pass-through webgpu.Device assertion.
 func TestBackendInitWithDeviceAcceptsLowercaseDevice(t *testing.T) {
 	dev := fakegpu.NewDevice()
 	b := NewBackend()
-	b.Canvas = map[string]any{"clientWidth": 16, "clientHeight": 16, "width": 16, "height": 16}
+	b.Canvas = any(map[string]any{"clientWidth": 16, "clientHeight": 16, "width": 16, "height": 16}).(dom.HTMLCanvasElement)
 	var d any = dev
 	var ctx any = fakegpu.NewContext(dev, 16, 16)
 	b.InitWithDevice(d, ctx)
@@ -936,7 +937,7 @@ func TestBuildPipelineDepthState(t *testing.T) {
 	dev, r := newTestRenderer(64, 64, false)
 	rec := &pipelineDescRecorder{dev: dev}
 	var d any = rec
-	r.Backend.Device = d.(WebGPUDevice)
+	r.Backend.Device = d.(webgpu.Device)
 
 	r.buildPipeline(&renderPipelineSpec{label: "no-depth", targets: gbufferTargets(), topology: "triangle-list", cull: "back"})
 	r.buildPipeline(&renderPipelineSpec{label: "depth", targets: gbufferTargets(), depth: depthState(true, "less-equal", 0, 0), topology: "triangle-list", cull: "back"})

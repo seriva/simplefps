@@ -1,6 +1,8 @@
 package rendering
 
 import (
+	"gofront/webgpu"
+
 	"js:./interop.d.ts"
 )
 
@@ -22,9 +24,9 @@ type TextureDescriptor struct {
 // groups can detect staleness without string keys.
 type Texture struct {
 	backend   *Backend
-	GPU       GPUTexture
-	View      GPUTextureView
-	Sampler   GPUSampler
+	GPU       webgpu.Texture
+	View      webgpu.TextureView
+	Sampler   webgpu.Sampler
 	Width     int
 	Height    int
 	Format    string
@@ -37,7 +39,7 @@ type Texture struct {
 	mipFilter  string
 	anisotropy int
 
-	spriteBG        GPUBindGroup
+	spriteBG        webgpu.BindGroup
 	spriteBGVersion int
 }
 
@@ -113,7 +115,7 @@ func (t *Texture) allocate(label string, w, h, levels int, format string, usage 
 		t.GPU.destroy()
 	}
 	t.GPU = t.backend.CreateGPUTexture(label, w, h, levels, format, usage)
-	t.View = t.GPU.createView(nil)
+	t.View = t.GPU.createView()
 	t.Width = w
 	t.Height = h
 	t.Format = format
@@ -179,6 +181,7 @@ func (t *Texture) LoadImageTexture(imageData any) {
 	if Image == nil || URL == nil {
 		return
 	}
+	urlAPI := any(URL).(ObjectURLAPI)
 	img := Reflect.construct(Image, []any{})
 	img.onload = func() {
 		if t.backend == nil {
@@ -189,18 +192,18 @@ func (t *Texture) LoadImageTexture(imageData any) {
 			t.anisotropy = DefaultAnisotropy
 		}
 		t.rebuildSampler()
-		if URL != nil && URL.revokeObjectURL != nil {
-			URL.revokeObjectURL(img.src)
+		if URL != nil && urlAPI.revokeObjectURL != nil {
+			urlAPI.revokeObjectURL(img.src.(string))
 		}
 	}
-	if URL != nil && URL.createObjectURL != nil {
-		img.src = URL.createObjectURL(imageData)
+	if URL != nil && urlAPI.createObjectURL != nil {
+		img.src = urlAPI.createObjectURL(imageData)
 	}
 }
 
 // SpriteBindGroup returns the (sampler, view) bind group for the billboard
 // pipelines, rebuilt when the texture changed.
-func (t *Texture) SpriteBindGroup(r *Renderer) GPUBindGroup {
+func (t *Texture) SpriteBindGroup(r *Renderer) webgpu.BindGroup {
 	if t.spriteBG == nil || t.spriteBGVersion != t.Version {
 		t.spriteBG = r.Backend.CreateBindGroup("sprite", r.Layouts.Sprite, []any{
 			bindingEntry(0, samplerOf(t, r.Backend)),
@@ -212,7 +215,7 @@ func (t *Texture) SpriteBindGroup(r *Renderer) GPUBindGroup {
 }
 
 // viewOf returns t's view or the backend's 1x1 white fallback.
-func viewOf(t *Texture, b *Backend) GPUTextureView {
+func viewOf(t *Texture, b *Backend) webgpu.TextureView {
 	if t != nil && t.View != nil {
 		return t.View
 	}
@@ -220,7 +223,7 @@ func viewOf(t *Texture, b *Backend) GPUTextureView {
 }
 
 // samplerOf returns t's sampler or the backend's default sampler.
-func samplerOf(t *Texture, b *Backend) GPUSampler {
+func samplerOf(t *Texture, b *Backend) webgpu.Sampler {
 	if t != nil && t.Sampler != nil {
 		return t.Sampler
 	}

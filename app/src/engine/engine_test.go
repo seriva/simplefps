@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"gofront/dom"
 	"strings"
 	"testing"
 
@@ -40,7 +41,7 @@ func (s *engineNopScene) Transparent() *rendering.DrawList       { return s.draw
 func newEngineBackend() (*fakegpu.Device, *rendering.Backend) {
 	dev := fakegpu.NewDevice()
 	b := rendering.NewBackend()
-	b.Canvas = map[string]any{"clientWidth": 320, "clientHeight": 240, "width": 320, "height": 240}
+	b.Canvas = any(map[string]any{"clientWidth": 320, "clientHeight": 240, "width": 320, "height": 240}).(dom.HTMLCanvasElement)
 	var d any = dev
 	var ctx any = fakegpu.NewContext(dev, 320, 240)
 	b.InitWithDevice(d, ctx)
@@ -274,7 +275,7 @@ func TestStartRequiresScene(t *testing.T) {
 	if err := Start(); err != ErrNoScene {
 		t.Fatalf("Start without ActiveScene must return ErrNoScene, got %v", err)
 	}
-	if rafId != nil {
+	if rafId != 0 {
 		t.Error("Start must not schedule a frame without a scene")
 	}
 
