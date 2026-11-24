@@ -63,19 +63,10 @@ jobs:
     - name: Test (jsdom)
       run: npm run test:dom
 
-  deploy:
+  build:
     needs: [check]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    concurrency:
-      group: "pages"
-      cancel-in-progress: false
     runs-on: ubuntu-latest
-    permissions:
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
     - name: Checkout
@@ -92,15 +83,29 @@ jobs:
 
     - name: Build
       run: npm run build
-      
+
     - name: Setup Pages
       uses: actions/configure-pages@v6
-      
+
     - name: Upload artifact
       uses: actions/upload-pages-artifact@v5
       with:
         path: './public'
-        
+
+  deploy:
+    needs: [build]
+    concurrency:
+      group: "pages"
+      cancel-in-progress: false
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
     - name: Deploy to GitHub Pages
       id: deployment
       uses: actions/deploy-pages@v5
