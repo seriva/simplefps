@@ -79,7 +79,7 @@ func depthAttachment(view webgpu.TextureView, clear bool) webgpu.RenderPassDepth
 	return map[string]any{"view": view, "depthStoreOp": "store", "depthLoadOp": "load"}
 }
 
-func renderPass(label string, colors []any, depth webgpu.RenderPassDepthStencilAttachment) webgpu.RenderPassDescriptor {
+func renderPass(label string, colors []webgpu.RenderPassColorAttachment, depth webgpu.RenderPassDepthStencilAttachment) webgpu.RenderPassDescriptor {
 	if depth != nil {
 		return map[string]any{"label": label, "colorAttachments": colors, "depthStencilAttachment": depth}
 	}
@@ -103,18 +103,18 @@ func (r *Renderer) buildPassResources() {
 	g := &r.GBuffer
 
 	p.gbufferColor0 = colorAttachment(g.WorldPosition.View, p.gbufferClear)
-	p.gbuffer = renderPass("gbuffer", []any{
+	p.gbuffer = renderPass("gbuffer", []webgpu.RenderPassColorAttachment{
 		p.gbufferColor0,
 		colorAttachment(g.Normal.View, clearZero),
 		colorAttachment(g.Color.View, p.gbufferClear),
 		colorAttachment(g.Emissive.View, clearZero),
 	}, depthAttachment(r.Depth.View, true))
 
-	p.shadow = renderPass("shadow", []any{
+	p.shadow = renderPass("shadow", []webgpu.RenderPassColorAttachment{
 		colorAttachment(r.Shadow.View, clearWhite),
 	}, depthAttachment(r.Depth.View, false))
 
-	p.fpsGeom = renderPass("fps-geometry", []any{
+	p.fpsGeom = renderPass("fps-geometry", []webgpu.RenderPassColorAttachment{
 		colorAttachment(g.WorldPosition.View, nil),
 		colorAttachment(g.Normal.View, nil),
 		colorAttachment(g.Color.View, nil),
@@ -122,38 +122,38 @@ func (r *Renderer) buildPassResources() {
 	}, depthAttachment(r.Depth.View, false))
 
 	p.lightingColor = colorAttachment(r.Light.View, p.lightingClear)
-	p.lighting = renderPass("lighting", []any{p.lightingColor}, nil)
+	p.lighting = renderPass("lighting", []webgpu.RenderPassColorAttachment{p.lightingColor}, nil)
 
-	p.transparent = renderPass("transparent", []any{
+	p.transparent = renderPass("transparent", []webgpu.RenderPassColorAttachment{
 		colorAttachment(r.Light.View, nil),
 	}, depthAttachment(r.Depth.View, false))
 
-	p.postScratch = renderPass("postprocess-scratch", []any{
+	p.postScratch = renderPass("postprocess-scratch", []webgpu.RenderPassColorAttachment{
 		colorAttachment(r.Scratch.View, clearBlack),
 	}, nil)
 	p.postSwapColor = colorAttachment(nil, clearBlack)
-	p.postSwap = renderPass("postprocess", []any{p.postSwapColor}, nil)
+	p.postSwap = renderPass("postprocess", []webgpu.RenderPassColorAttachment{p.postSwapColor}, nil)
 
 	if r.FsrEasu != nil {
-		p.fsrEasu = renderPass("fsr-easu", []any{
+		p.fsrEasu = renderPass("fsr-easu", []webgpu.RenderPassColorAttachment{
 			colorAttachment(r.FsrEasu.View, nil),
 		}, nil)
 		p.fsrRcasColor = colorAttachment(nil, nil)
-		p.fsrRcas = renderPass("fsr-rcas", []any{p.fsrRcasColor}, nil)
-		p.easuBG = b.CreateBindGroup("fsr-easu-input", r.Layouts.Sampled, []any{
+		p.fsrRcas = renderPass("fsr-rcas", []webgpu.RenderPassColorAttachment{p.fsrRcasColor}, nil)
+		p.easuBG = b.CreateBindGroup("fsr-easu-input", r.Layouts.Sampled, []webgpu.BindGroupEntry{
 			bindingEntry(0, b.ClampSampler),
 			bindingEntry(1, r.Scratch.View),
 		})
-		p.rcasBG = b.CreateBindGroup("fsr-rcas-input", r.Layouts.Sampled, []any{
+		p.rcasBG = b.CreateBindGroup("fsr-rcas-input", r.Layouts.Sampled, []webgpu.BindGroupEntry{
 			bindingEntry(0, b.ClampSampler),
 			bindingEntry(1, r.FsrEasu.View),
 		})
 	}
 
 	p.debugColor = colorAttachment(nil, nil)
-	p.debug = renderPass("debug", []any{p.debugColor}, nil)
+	p.debug = renderPass("debug", []webgpu.RenderPassColorAttachment{p.debugColor}, nil)
 
-	p.deferredBG = b.CreateBindGroup("deferred-input", r.Layouts.Deferred, []any{
+	p.deferredBG = b.CreateBindGroup("deferred-input", r.Layouts.Deferred, []webgpu.BindGroupEntry{
 		bindingEntry(0, g.WorldPosition.View),
 		bindingEntry(1, g.Normal.View),
 		bindingEntry(2, g.Color.View),
@@ -169,7 +169,7 @@ func (r *Renderer) buildPassResources() {
 
 func (r *Renderer) blurBindGroup(label string, src, dst *Texture) webgpu.BindGroup {
 	b := r.Backend
-	return b.CreateBindGroup(label, r.Layouts.Blur, []any{
+	return b.CreateBindGroup(label, r.Layouts.Blur, []webgpu.BindGroupEntry{
 		bindingEntry(0, b.ClampSampler),
 		bindingEntry(1, src.View),
 		bindingEntry(2, dst.View),
@@ -185,7 +185,7 @@ func (r *Renderer) postProcessBindGroup(dirt *Texture) webgpu.BindGroup {
 		return p.postBG
 	}
 	b := r.Backend
-	p.postBG = b.CreateBindGroup("postprocess-input", r.Layouts.PostProcess, []any{
+	p.postBG = b.CreateBindGroup("postprocess-input", r.Layouts.PostProcess, []webgpu.BindGroupEntry{
 		bindingEntry(0, b.ClampSampler),
 		bindingEntry(1, r.GBuffer.Color.View),
 		bindingEntry(2, r.Light.View),

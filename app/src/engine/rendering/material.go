@@ -131,7 +131,7 @@ func (m *Material) BindGroup(r *Renderer) webgpu.BindGroup {
 		return m.bindGroup
 	}
 	b := r.Backend
-	m.bindGroup = b.CreateBindGroup("material-"+m.Name, r.Layouts.Material, []any{
+	m.bindGroup = b.CreateBindGroup("material-"+m.Name, r.Layouts.Material, []webgpu.BindGroupEntry{
 		bindingEntry(0, bufferBinding(m.ubo, MaterialDataSize)),
 		bindingEntry(1, samplerOf(m.AlbedoTexture, b)),
 		bindingEntry(2, viewOf(m.AlbedoTexture, b)),

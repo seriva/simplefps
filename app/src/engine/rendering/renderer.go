@@ -174,27 +174,27 @@ func (r *Renderer) Init(width, height int, doFSR bool) {
 	r.createLayouts()
 
 	r.FrameDataUBO = b.CreateBuffer("frame-data", FrameDataSize, BufferUsageUniform, nil)
-	r.frameBG = b.CreateBindGroup("frame", r.Layouts.Frame, []any{
+	r.frameBG = b.CreateBindGroup("frame", r.Layouts.Frame, []webgpu.BindGroupEntry{
 		bindingEntry(0, bufferBinding(r.FrameDataUBO, FrameDataSize)),
 	})
 
 	r.Objects.Buffer = b.CreateBuffer("object-ring", ObjectRingSlots*ObjectStride, BufferUsageUniform, nil)
 	r.Bones.Buffer = b.CreateBuffer("bone-ring", BoneRingFloats*4, BufferUsageStorage, nil)
-	r.objectBG = b.CreateBindGroup("object", r.Layouts.Object, []any{
+	r.objectBG = b.CreateBindGroup("object", r.Layouts.Object, []webgpu.BindGroupEntry{
 		bindingEntry(0, bufferBinding(r.Objects.Buffer, ObjectStride)),
 	})
-	r.skinnedObjectBG = b.CreateBindGroup("skinned-object", r.Layouts.SkinnedObject, []any{
+	r.skinnedObjectBG = b.CreateBindGroup("skinned-object", r.Layouts.SkinnedObject, []webgpu.BindGroupEntry{
 		bindingEntry(0, bufferBinding(r.Objects.Buffer, ObjectStride)),
 		bindingEntry(1, bufferBinding(r.Bones.Buffer, BoneRingFloats*4)),
 	})
 
 	r.Lighting.HeaderBuf = b.CreateBuffer("lighting-header", LightingDataFloats*4, BufferUsageUniform, nil)
 	r.Lighting.LightsBuf = b.CreateBuffer("lights", MaxSceneLights*LightFloats*4, BufferUsageStorage, nil)
-	r.lightingBG = b.CreateBindGroup("lighting", r.Layouts.Lighting, []any{
+	r.lightingBG = b.CreateBindGroup("lighting", r.Layouts.Lighting, []webgpu.BindGroupEntry{
 		bindingEntry(0, bufferBinding(r.Lighting.HeaderBuf, LightingDataFloats*4)),
 		bindingEntry(1, bufferBinding(r.Lighting.LightsBuf, MaxSceneLights*LightFloats*4)),
 	})
-	r.emptyBG = b.CreateBindGroup("empty", r.Layouts.Empty, []any{})
+	r.emptyBG = b.CreateBindGroup("empty", r.Layouts.Empty, []webgpu.BindGroupEntry{})
 
 	r.createPipelines()
 	r.ProceduralNoise = NewProceduralNoiseTexture(b, DefaultAnisotropy)

@@ -205,7 +205,7 @@ func (t *Texture) LoadImageTexture(imageData any) {
 // pipelines, rebuilt when the texture changed.
 func (t *Texture) SpriteBindGroup(r *Renderer) webgpu.BindGroup {
 	if t.spriteBG == nil || t.spriteBGVersion != t.Version {
-		t.spriteBG = r.Backend.CreateBindGroup("sprite", r.Layouts.Sprite, []any{
+		t.spriteBG = r.Backend.CreateBindGroup("sprite", r.Layouts.Sprite, []webgpu.BindGroupEntry{
 			bindingEntry(0, samplerOf(t, r.Backend)),
 			bindingEntry(1, viewOf(t, r.Backend)),
 		})

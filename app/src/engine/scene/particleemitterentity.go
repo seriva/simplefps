@@ -174,7 +174,7 @@ func (e *ParticleEmitterEntity) ensureGPUState(r *rendering.Renderer) {
 	e.particleBuffer = b.CreateBuffer("particles", newCap*pStride*4, rendering.BufferUsageStorage, nil)
 	e.instanceBuffer = b.CreateBuffer("particle-instances", newCap*rendering.ParticleInstanceStride, rendering.BufferUsageStorage|rendering.BufferUsageVertex, nil)
 	e.curveBuffer = b.CreateFloatBuffer("particle-curve", e.curve, rendering.BufferUsageStorage)
-	e.bindGroup = b.CreateBindGroup("particles", r.Layouts.Particle, []any{
+	e.bindGroup = b.CreateBindGroup("particles", r.Layouts.Particle, []webgpu.BindGroupEntry{
 		rendering.BindingEntry(0, rendering.BufferBinding(e.particleBuffer, newCap*pStride*4)),
 		rendering.BindingEntry(1, rendering.BufferBinding(e.instanceBuffer, newCap*rendering.ParticleInstanceStride)),
 		rendering.BindingEntry(2, rendering.BufferBinding(e.curveBuffer, len(e.curve)*4)),

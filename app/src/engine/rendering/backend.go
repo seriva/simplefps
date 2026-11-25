@@ -41,7 +41,7 @@ type Backend struct {
 	mipmapModule    webgpu.ShaderModule
 	mipmapPipelines map[string]webgpu.RenderPipeline
 	// mipmapBG* are reused by GenerateMipmaps for the per-level bind group.
-	mipmapEntries []any
+	mipmapEntries []webgpu.BindGroupEntry
 	ready         bool
 }
 
@@ -53,7 +53,7 @@ func NewBackend() *Backend {
 		Capabilities:    &Capabilities{MaxTextureSize: 8192, MaxAnisotropy: 16},
 		RenderScale:     1.0,
 		mipmapPipelines: make(map[string]webgpu.RenderPipeline),
-		mipmapEntries:   []any{bindingEntry(0, nil), bindingEntry(1, nil)},
+		mipmapEntries:   []webgpu.BindGroupEntry{bindingEntry(0, nil), bindingEntry(1, nil)},
 	}
 }
 
@@ -219,7 +219,7 @@ func (b *Backend) EndFrame() {
 		return
 	}
 	cmd := b.Encoder.finish()
-	b.Device.queue.submit([]any{cmd})
+	b.Device.queue.submit([]webgpu.CommandBuffer{cmd})
 	b.Encoder = nil
 	b.CurrentTexture = nil
 	b.SwapchainView = nil
@@ -322,17 +322,17 @@ func (b *Backend) CreateShaderModule(label, code string) webgpu.ShaderModule {
 }
 
 // CreateBindGroupLayout wraps device.createBindGroupLayout.
-func (b *Backend) CreateBindGroupLayout(label string, entries []any) webgpu.BindGroupLayout {
+func (b *Backend) CreateBindGroupLayout(label string, entries []webgpu.BindGroupLayoutEntry) webgpu.BindGroupLayout {
 	return b.Device.createBindGroupLayout(map[string]any{"label": label, "entries": entries})
 }
 
 // CreatePipelineLayout wraps device.createPipelineLayout.
-func (b *Backend) CreatePipelineLayout(label string, layouts []any) webgpu.PipelineLayout {
+func (b *Backend) CreatePipelineLayout(label string, layouts []webgpu.BindGroupLayout) webgpu.PipelineLayout {
 	return b.Device.createPipelineLayout(map[string]any{"label": label, "bindGroupLayouts": layouts})
 }
 
 // CreateBindGroup wraps device.createBindGroup.
-func (b *Backend) CreateBindGroup(label string, layout webgpu.BindGroupLayout, entries []any) webgpu.BindGroup {
+func (b *Backend) CreateBindGroup(label string, layout webgpu.BindGroupLayout, entries []webgpu.BindGroupEntry) webgpu.BindGroup {
 	return b.Device.createBindGroup(map[string]any{"label": label, "layout": layout, "entries": entries})
 }
 
@@ -405,7 +405,7 @@ func (b *Backend) mipmapPipeline(format string) webgpu.RenderPipeline {
 		"fragment": map[string]any{
 			"module":     b.mipmapModule,
 			"entryPoint": "fs_main",
-			"targets":    []any{colorTarget(format, nil)},
+			"targets":    []webgpu.ColorTargetState{colorTarget(format, nil)},
 		},
 		"primitive": map[string]any{"topology": "triangle-strip"},
 	})
@@ -428,7 +428,7 @@ func (b *Backend) GenerateMipmaps(tex webgpu.Texture, format string, mipLevels i
 		dstView := tex.createView(map[string]any{"baseMipLevel": i, "mipLevelCount": 1})
 		var colorAtt webgpu.RenderPassColorAttachment = map[string]any{"view": dstView, "loadOp": "clear", "storeOp": "store"}
 		pass := encoder.beginRenderPass(map[string]any{
-			"colorAttachments": []any{colorAtt},
+			"colorAttachments": []webgpu.RenderPassColorAttachment{colorAtt},
 		})
 		pass.setPipeline(pipeline)
 		b.mipmapEntries[0] = bindingEntry(0, b.DefaultSampler)
@@ -438,7 +438,7 @@ func (b *Backend) GenerateMipmaps(tex webgpu.Texture, format string, mipLevels i
 		pass.end()
 		srcView = dstView
 	}
-	b.Device.queue.submit([]any{encoder.finish()})
+	b.Device.queue.submit([]webgpu.CommandBuffer{encoder.finish()})
 }
 
 // noOffsets is the empty dynamic-offset list for static bind groups.
