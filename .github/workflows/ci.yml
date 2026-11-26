@@ -17,7 +17,6 @@ concurrency:
 
 jobs:
   check:
-    if: "!contains(github.head_ref, 'phase')"
     runs-on: ubuntu-latest
     permissions:
       contents: write
